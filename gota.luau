@@ -1,3 +1,10 @@
+-- The brightness service reads the backlight straight from sysfs, but setting
+-- it shells out to brightnessctl - so a real backlight can still report a
+-- level with nothing able to move it, if the binary itself is missing.
+run("which", { "brightnessctl" }, function(_, code)
+    fact.bright_avail = code == 0
+end)
+
 -- Workspaces only: what moves is moved by the renderer.
 sys.watch("workspaces", function(w)
     local busy = {}
@@ -112,9 +119,12 @@ end
 local song = ""
 
 sys.watch("media", function(m)
-    fact.media_on = m.player ~= ""
+    -- playerctld stays on the bus as a phantom player even with nothing open:
+    -- it reports a player name but no title, so the name alone doesn't count.
+    local has_media = m.player ~= "" and m.title ~= ""
+    fact.media_on = has_media
     if m.playing then listen() else hush() end
-    if m.player == "" then
+    if not has_media then
         song = ""
         use_art("")
         return
@@ -136,6 +146,109 @@ end)
 -- The volume slider: the scene turns the pointer into 0..1, the mixer takes it.
 on("setvol", function(v)
     sys.call("audio.volume", v)
+end)
+
+on("setbright", function(v)
+    sys.call("brightness.level", v)
+end)
+
+-- An event's payload crosses over as a plain number (1/0), not a Luau
+-- boolean, even for something written `not net.wifi` in the scene - and
+-- these two services insist on a real true/false, not a 1 or a 0.
+on("togglewifi", function(v)
+    sys.call("network.wifi", v == 1)
+end)
+
+on("togglebt", function(v)
+    sys.call("bluetooth.power", v == 1)
+end)
+
+-- Bluetooth only says a device's name inside its `devices` list, not as a
+-- top-level field - so the connected one (there is at most one that matters
+-- here) is picked out here, the same way the audio watcher below picks the
+-- default output out of its list. `bt_list` is the same list again, kept only
+-- so a row's tap (a position - see the Wi-Fi list below for why) can find its
+-- address.
+local bt_list = {}
+
+sys.watch("bluetooth", function(b)
+    local name = ""
+    local list = {}
+    for i, d in ipairs(b.devices or {}) do
+        if d.connected then name = d.name end
+        list[i] = { address = d.address, connected = d.connected }
+    end
+    fact.bt_connected = name ~= ""
+    text.bt_name = name
+    bt_list = list
+end)
+
+on("bt_pick", function(i)
+    local d = bt_list[i + 1]
+    if not d then return end
+    if d.connected then
+        sys.call("bluetooth.disconnect", d.address)
+    else
+        sys.call("bluetooth.connect", d.address)
+    end
+end)
+
+on("bt_forget", function(i)
+    local d = bt_list[i + 1]
+    if not d then return end
+    sys.call("bluetooth.forget", d.address)
+    fact.bt_open_row = -1
+end)
+
+on("bt_scan", function()
+    sys.call("bluetooth.scan", true)
+end)
+
+-- Wi-Fi: the scene draws the network list straight from the service (a model
+-- can bind to one with no logic at all), but a row only tells the logic which
+-- position was tapped - so this keeps its own copy, the same shape as the
+-- Bluetooth one above, to turn a position back into an SSID.
+local wifi_list = {}
+
+sys.watch("network", function(n)
+    local list = {}
+    for i, w in ipairs(n.networks or {}) do
+        list[i] = { ssid = w.ssid, active = w.active }
+    end
+    wifi_list = list
+end)
+
+on("wifi_pick", function(i)
+    local w = wifi_list[i + 1]
+    if not w then return end
+    if w.active then
+        sys.call("network.disconnect")
+    else
+        sys.call("network.connect", w.ssid)
+    end
+end)
+
+on("wifi_forget", function(i)
+    local w = wifi_list[i + 1]
+    if not w then return end
+    sys.call("network.forget", w.ssid)
+    fact.wifi_open_row = -1
+end)
+
+-- The Join button carries its row; Enter in the field doesn't, so it acts on
+-- whichever row is open (there's only ever the one).
+local function wifi_join(i)
+    local w = wifi_list[(i or fact.wifi_open_row) + 1]
+    if not w then return end
+    sys.call("network.connect", w.ssid, text.wifi_pw)
+    fact.wifi_open_row = -1
+    text.wifi_pw = ""
+end
+on("wifi_join_go", wifi_join)
+on("submit:wifi_pw", function() wifi_join(nil) end)
+
+on("wifi_scan", function()
+    sys.call("network.scan")
 end)
 
 -- Where the sound can go. PipeWire's names come with the whole card model in
