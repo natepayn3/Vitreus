@@ -1,0 +1,386 @@
+language 0.1
+
+//  Gota: a bar of liquid glass. The glass only blurs what is behind it (the
+//  compositor does it; `lens: false`), and the panel is not stuck under the
+//  bar: it is the same silhouette, melted, so it hangs from it like a drop.
+
+scene Gota {
+    surface { size: 900, 580; anchor: top; margin: 0; reserve: 68; keyboard: exclusive while open }
+    permissions { services: "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus"
+                  run: "cava", "playerctl", "curl" }
+
+    service clock as now { time: text = "--:--"; date: text }
+    service audio { volume: number; muted: bool }
+    service window as win { title: text; class: text }
+    service media { playing: bool; title: text; artist: text; player: text }
+
+    text clock12 = "--:--"
+    text datelong = ""
+    text arturl = ""               // the cover: a path to an image file, from the logic
+    fact art_on = false            // is there one
+    image art = from arturl, 200, 200
+    event trackchange              // the logic says the song changed
+    text outname = ""              // where the sound is going: the default output
+    measure outw                   // how wide that name really is
+    fact open = false
+    fact media_on = false          // is there a player at all
+    fact bass = 0                  // 0..1, from cava: how hard the low end is hitting
+    model outlist max 6 { name: text; current: bool }   // every place the sound can go
+    fact dd_open = false           // the output dropdown
+    event pick_out ->              // a row of it, by position
+    event mute ->                  // the speaker icon
+    event setvol ->                // the volume slider: 0..1
+    event mcmd ->                  // 0 previous · 1 play/pause · 2 next
+    fact ws.active = 1
+    repeat i in 1..6 { fact ws.$i.busy = false }
+    event go ->
+
+    let ink   = #f5f7f5
+    let mint  = #9ed6bd
+    let tint  = #1b2127
+    let faint = #c2c7cc
+    let veil  = 8%
+
+    shader wave = file "wave.wgsl"
+    spring drip = 220, 30         // critically damped: it arrives without bouncing
+
+    prop drop  = 0 ~drip          // the panel, 0 to 1: it hangs from the bar and falls
+    //  The settle: the panel hangs a few px lower when it lands and eases back. Critically damped, so it is one slow hump and never a bounce.
+    spring hang = 260, 32
+    prop sag   = 0 ~hang
+    prop hot   = 0 ~quick         // the bar, when the pointer is on it
+    prop pill  = 1 ~lively        // the workspace pill, travelling
+    prop f1    = 0 ~200ms        // what is inside, arriving one after another
+    prop f2    = 0 ~380ms
+    prop f3    = 0 ~520ms
+    //  The music: fast, and a little loose, so the bar bounces on the beat.
+    spring beat = 480, 15
+    prop pulse = 0 ~beat
+    prop ring  = 1 ~900ms          // a ripple crossing the bar: 0 born, 1 gone
+    prop dd    = 0 ~calm           // the output dropdown, 0 shut .. 1 open
+    prop swap  = 1 ~700ms          // the cover popping in on a new song: 0 just changed, 1 settled
+    prop playf = 0 ~calm           // 1 while playing: the cover is full and colourful
+    prop mshow = 0 ~calm          // the bar's player controls: there while a player exists, paused or not
+
+    follow drop = if(open, 1, 0)
+    follow hot  = if(open, 1, 0)
+    follow pill = ws.active
+    //  Occupied but not active: the dot stretches up into a capsule.
+    repeat i in 1..6 { prop ws.tall.$i = 0 ~lively }
+    repeat i in 1..6 { follow ws.tall.$i = if(ws.$i.busy, 1, 0) }
+
+    on change drop > 0.97 while drop > 0.97 { impulse sag 220 }
+
+    follow f1   = if(open, 1, 0)
+    follow f2   = if(open, 1, 0)
+    follow f3   = if(open, 1, 0)
+    follow mshow = if(media_on, 1, 0)
+    follow playf = if(media.playing, 1, 0)
+    on trackchange {
+        swap: 0 ~16ms
+        swap: 1 ~700ms after 30ms
+    }
+    follow dd = if(dd_open and open, 1, 0)
+    on change open { dd_open = false }
+    on pick_out { dd_open = false }
+    follow pulse = bass
+    //  Every time the bass hits hard, a wave is born at the player controls (the
+    //  bar's shader reads `ring` as how far it has travelled). It
+    //  has to fall back below the threshold before the next one can be born.
+    on change bass > 0.6 while bass > 0.6 {
+        ring: 0 ~16ms
+        ring: 1 ~1100ms after 30ms
+    }
+
+    //  One number scales the whole shell. The exclusive zone (`reserve` above) is
+    //  the bar and a little air: 8 + bar.h + 6.
+    let u = 1.35
+    //  One row of the output dropdown: a dot if it is the current one, its name.
+    component OutRow(f: record, pick: event) {
+        size: 276 * u, 28 * u
+        zone box touch { from: 0, 0; size: 276 * u, 28 * u; corner: 10 * u; cursor: pointer }
+        box { from: 0, 0; size: 276 * u, 28 * u; corner: 10 * u; color: #ffffff
+              opacity: if(f.current, 12%, 0%) + 9% * touch.hover }
+        ellipse { at: 14 * u, 14 * u; radius: 3 * u; color: #9ed6bd; opacity: if(f.current, 100%, 0%) }
+        text f.name { at: 28 * u, 14 * u; anchor: left center; size: 13.5 * u; width: 236 * u; lines: 1
+                      color: #ffffff; family: "Space Grotesk" }
+        on press touch { emit pick(f.index) }
+    }
+
+    let cx = 450
+    let bar.w = 450 * u
+    let bar.h = 40 * u
+    let bar.y = 8 + bar.h / 2
+    //  The middle of the gap between the title and the clock, 126 from the right edge.
+    let mc = cx + bar.w / 2 - 126 * u
+    let room = 10 * u
+    let stretch = clamp(abs(vel(pill)) * 0.03, 0, 0.4)
+
+    //  The music only moves the bar: it fades out as the panel opens (gone by a third of
+    //  the way), so an open panel sits still.
+    let pv = pulse * (1 - min(1, drop * 3))
+    let pop = pv * 6 * u           // how far the bar swells on the beat
+    let card.w = bar.w * min(1, drop * 3)
+    let card.h = 324 * u * drop
+    let card.y = bar.y + 26 * u + card.h / 2
+    //  Where the contents hang from: the panel's old middle, so they keep their
+    //  place when the panel grows to make room for the player.
+    let cy = bar.y + 26 * u + 125 * u * drop
+
+    //  The whole bar, glass and all, is one group so the wave can bend it as one thing.
+    group {
+        shader: wave, pv, clamp(ring, 0, 1), (mc - (cx - bar.w / 2)) / bar.w, 0, 2.6 * u * (1 - min(1, drop * 2)), bar.w, 0, 0
+        // ── the liquid ───────────────────────────────────────────────
+        body {
+            color: tint
+            glass: 100%
+            lens: false
+            rim: 10% + 14% * pv
+            shine: pointer
+            shadow: 0, 1 + 6 * drop + 3 * pv, 6 + 14 * drop + 8 * pv, 8% + 16% * drop + 8% * pv, #05070a
+            //  One box, not two melted ones: the bar itself grows downward into the
+            //  panel and its corners ease from a pill to a card, so there is no seam
+            //  for a pinch to form in. 
+            //  The settle lives in this one box: when `sag` humps, the panel stretches
+            //  a few px downward and pulls in a hair at the sides, like a drop of water
+            //  taking its weight. A separate shape for it left a hard shadow under it.
+            box shell { at: cx, bar.y - bar.h / 2 + (bar.h + card.h + max(0, sag) + pop) / 2; size: bar.w - max(0, sag) * 0.8 + pv * 10 * u, bar.h + card.h + max(0, sag) + pop; corner: bar.h / 2 + (26 * u - bar.h / 2) * min(1, drop) }
+        }
+
+        // ── the bar ──────────────────────────────────────────────────
+        repeat i in 1..6 {
+            //  The others sit 15 apart; the ones beside the pill slide away from it by
+            //  `room / 2` each, so the active one has space and follows it as it travels.
+            let wx = cx - bar.w / 2 + 26 * u + (i - 1) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
+            //  How much the pill is on this one: it takes over from the capsule while it passes.
+            let here = clamp(1 - abs(pill - i), 0, 1)
+            box ws.dot.$i { at: wx, bar.y; size: 6 * u, (6 + 4 * ws.tall.$i) * u; corner: 3 * u; color: ink
+                            opacity: (28% + 62% * ws.tall.$i) * (1 - here) }
+            zone box ws.hit.$i { at: wx, bar.y; size: 15 * u, bar.h; cursor: pointer }
+            on press ws.hit.$i { emit go(i) }
+        }
+        //  The active workspace: a wider pill that travels and stretches as it goes.
+        box { at: cx - bar.w / 2 + 26 * u + (pill - 1) * 15 * u, bar.y; size: (20 + stretch * 30) * u, 6 * u; corner: 3 * u; color: mint }
+
+        text clock12 { at: cx + bar.w / 2 - 20 * u, bar.y; anchor: right center; size: 19 * u; weight: 600; color: #ffffff; family: "Space Grotesk"
+                                gradient: 0, bar.y - 11 * u to 0, bar.y + 11 * u, #ffffff, #b4bcc1 }
+        //  What is in front: the app in small type above, the title under it, cut
+        //  with an ellipsis where the clock starts.
+        let win.x = cx - bar.w / 2 + 116 * u
+        //  The title gives up room to the controls while something plays.
+        let win.w = bar.w - (228 + 68 * mshow) * u
+        text win.class { at: win.x, bar.y - 6.5 * u; anchor: left center; size: 17 * u; weight: 600; width: win.w; lines: 1; color: faint; opacity: 55%; family: "Space Grotesk" }
+        text win.title { at: win.x, bar.y + 8.75 * u; anchor: left center; size: 13.5 * u; weight: 500; width: win.w; lines: 1; color: #ffffff; family: "Space Grotesk" }
+
+        // ── the player, small, in the bar ────────────────────────────
+        //  While there is a player, playing or paused; they fade in as the title gives them room.
+        group {
+            opacity: mshow
+            //  Centred in the gap between where the title ends and where the clock
+            //  starts (`mc`), and small: 17 between centres.
+            let by = bar.y
+            box { at: mc - 20.5 * u, by; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: #ffffff; opacity: 65% + 35% * bp.prev.hover }
+            path { at: mc - 17 * u, by; color: #ffffff; opacity: 65% + 35% * bp.prev.hover; move 3 * u, -3.5 * u; line -2.5 * u, 0; line 3 * u, 3.5 * u; close }
+            //  Pause while it plays, play while it is paused.
+            box { at: mc - 3 * u, by; size: 2.6 * u, 9 * u; corner: 1 * u; color: #ffffff; opacity: 85% + 15% * bp.play.hover; show: media.playing }
+            box { at: mc + 3 * u, by; size: 2.6 * u, 9 * u; corner: 1 * u; color: #ffffff; opacity: 85% + 15% * bp.play.hover; show: media.playing }
+            path { at: mc, by; color: #ffffff; opacity: 85% + 15% * bp.play.hover; show: not media.playing; move -3 * u, -4.5 * u; line 7 * u, 0; line -3 * u, 4.5 * u; close }
+            path { at: mc + 17 * u, by; color: #ffffff; opacity: 65% + 35% * bp.next.hover; move -3 * u, -3.5 * u; line 2.5 * u, 0; line -3 * u, 3.5 * u; close }
+            box { at: mc + 20.5 * u, by; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: #ffffff; opacity: 65% + 35% * bp.next.hover }
+            zone box bp.prev { at: mc - 17 * u, by; size: 17 * u, bar.h; cursor: pointer }
+            zone box bp.play { at: mc, by; size: 17 * u, bar.h; cursor: pointer }
+            zone box bp.next { at: mc + 17 * u, by; size: 17 * u, bar.h; cursor: pointer }
+            on press bp.prev { emit mcmd(0) }
+            on press bp.play { emit mcmd(1) }
+            on press bp.next { emit mcmd(2) }
+        }
+
+        zone box bar_hit { at: cx + bar.w / 2 - 50 * u, bar.y; size: 80 * u, bar.h; cursor: pointer }
+        on press bar_hit { toggle open }
+    }
+
+    // ── the panel ────────────────────────────────────────────────
+    group {
+        clip inset 2 box { at: cx, card.y; size: card.w, card.h; corner: 26 * u }
+        group {
+            opacity: f1
+            move: 0, (1 - f1) * 12 * u
+            text clock12 { at: cx - 136 * u, cy - 84 * u; anchor: left center; size: 40 * u; weight: 300; color: #ffffff; family: "Space Grotesk"
+                                gradient: 0, cy - 106 * u to 0, cy - 62 * u, #ffffff, #a9b2b7 }
+            text datelong { at: cx - 134 * u, cy - 50 * u; anchor: left center; size: 12.5 * u; color: faint; family: "Space Grotesk" }
+        }
+        //  A plate is a veil, not more glass: glass does not go on glass.
+        group {
+            opacity: f2
+            move: 0, (1 - f2) * 12 * u
+            box { at: cx, cy + 40 * u; size: 288 * u, 64 * u; corner: 16 * u; color: ink; opacity: veil }
+            //  ── the slider ──
+            //  The track runs from `sl.x0` for `sl.w`; the pointer is turned into a volume
+            //  against those two numbers, so they are written once.
+            let sl.x0 = cx - 96 * u
+            let sl.w = 222 * u
+            let sy = cy + 54 * u
+            let th = (16 + 3 * vol_hit.hover) * u          // the track thickens under the pointer
+            //  A speaker on the left that says how loud it is: two waves that come and go
+            //  with the level, or a slash when it is silenced.
+            path { at: cx - 124 * u, sy; color: #ffffff; opacity: 70% + 30% * mute_hit.hover; move 0, -3 * u; line 3.5 * u, -3 * u; line 8 * u, -7 * u; line 8 * u, 7 * u; line 3.5 * u, 3 * u; line 0, 3 * u; close }
+            path { at: cx - 124 * u, sy; stroke: 1.5 * u; color: #ffffff; opacity: if(audio.muted, 0, 25% + 75% * clamp(volume_level * 12, 0, 1)); move 11 * u, -3 * u; curve 11 * u, 3 * u via 14 * u, 0 }
+            path { at: cx - 124 * u, sy; stroke: 1.5 * u; color: #ffffff; opacity: if(audio.muted, 0, 20% + 80% * clamp((volume_level - 0.35) * 4, 0, 1)); move 14 * u, -6.5 * u; curve 14 * u, 6.5 * u via 20 * u, 0 }
+            path { at: cx - 124 * u, sy; stroke: 1.6 * u; color: #e5867a; opacity: if(audio.muted, 100%, 0); move 11 * u, -5 * u; line 20 * u, 5 * u }
+            //  The track is a sunken pill with its own thin light on the inside.
+            body {
+                color: #0b0e11
+                rim: 9%
+                box { at: sl.x0 + sl.w / 2, sy; size: sl.w, th; corner: th / 2 }
+            }
+            //  The fill is a gradient laid along the whole track, so the more there is, the
+            //  brighter its end. It glows a little.
+            group {
+                glow: 7 * u, 50%, mint
+                show: not audio.muted
+                body {
+                    gradient: sl.x0, 0 to sl.x0 + sl.w, 0, #6cbc9c, #9ed6bd 55%, #dcf8ec
+                    rim: 22%
+                    box { from: sl.x0, sy - th / 2; size: max(0.1, sl.w * volume_level), th; corner: th / 2 }
+                }
+            }
+            body {
+                color: #6b7280
+                rim: 12%
+                show: audio.muted
+                box { from: sl.x0, sy - th / 2; size: max(0.1, sl.w * volume_level), th; corner: th / 2 }
+            }
+            //  The zone that takes the click: the whole track and a little more each side
+            //  and above and below, so it is easy to hit; on the press and all through a drag
+            //  it turns where the pointer is into a volume.
+            zone box vol_hit { at: sl.x0 + sl.w / 2, sy; size: sl.w + 28 * u, 34 * u; cursor: pointer }
+            on press vol_hit { emit setvol(clamp((pointer.x - sl.x0) / sl.w, 0, 1)) }
+            on drag vol_hit { emit setvol(clamp((pointer.x - sl.x0) / sl.w, 0, 1)) }
+            //  The speaker is a mute button. Declared after the track's zone, which reaches
+            //  a little way under it, so the icon wins there.
+            zone box mute_hit { at: cx - 114 * u, sy; size: 26 * u, 32 * u; cursor: pointer }
+            on press mute_hit { emit mute }
+            //  The row above the track: which output, and how loud.
+            //  Name and chevron are one button, right-aligned next to the percentage: the
+            //  name ends where the chevron starts, and the zone is measured from the name.
+            //  Unseen copy with no width limit, only to know how wide the name really is.
+            text outname { at: cx + 66 * u, cy + 26 * u; anchor: right center; size: 14 * u; lines: 1; measure: outw; opacity: 0; family: "Space Grotesk" }
+            text outname { at: cx + 66 * u, cy + 26 * u; anchor: right center; align: right; size: 14 * u; width: 130 * u; lines: 1; color: faint; opacity: 65% + 35% * out_hit.hover; family: "Space Grotesk" }
+            text number(audio.volume * 100, 0, "%") { at: cx + 128 * u, cy + 26 * u; anchor: right center; size: 16 * u; weight: 600; color: #ffffff; family: "Space Grotesk"; show: not audio.muted }
+            text "Muted" { at: cx + 128 * u, cy + 26 * u; anchor: right center; size: 16 * u; weight: 600; color: faint; family: "Space Grotesk"; show: audio.muted }
+            //  The output name is a button: it opens the list of outputs.
+            path { at: cx + 76 * u, cy + 26 * u; stroke: 1.4 * u; color: #ffffff; opacity: 55% + 35% * out_hit.hover; move -3.5 * u, -2 * u; line 0, 2 * u; line 3.5 * u, -2 * u }
+            let out.w = min(outw.width, 130 * u) + 30 * u
+            zone box out_hit { at: cx + 86 * u - out.w / 2, cy + 26 * u; size: out.w, 30 * u; cursor: pointer }
+            on press out_hit { toggle dd_open }
+            text "Volume" { at: cx - 128 * u, cy + 26 * u; anchor: left center; size: 14 * u; color: faint; family: "Space Grotesk" }
+        }
+
+        //  The player. Behind everything, the cover itself, blown up, out of focus and
+        //  over-saturated, fills the plate with its own colours. On top: the cover proper
+        //  with a bloom of its own light, the song, and the controls around a round play
+        //  button. A new song pops the cover in and throws sparks; paused, it shrinks and dulls.
+        group {
+            opacity: f3
+            move: 0, (1 - f3) * 12 * u
+            let my = cy + 124 * u
+            let ax = cx - 96 * u                     // the cover's centre
+            let ny = my + 26 * u                     // the controls' row
+            let px = cx + 7 * u                      // previous
+            let cxp = cx + 43 * u                    // play
+            let nx = cx + 79 * u                     // next
+            let sw = clamp(swap, 0, 1.12)
+
+            //  Without a cover, the plain veil.
+            box { at: cx, my; size: 288 * u, 96 * u; corner: 18 * u; color: ink; opacity: veil }
+            //  With one: the ambient colour, kept faint so the plate stays about as clear as the
+            //  volume plate above it, and a light dark film over it so the writing still reads.
+            //  The image sits inside the plate by about the blur's reach, so what spreads out
+            //  of it stays inside: the blur fades towards the edge like a vignette. (Clipping
+            //  did not reach into a blurred layer.) It is stretched: blurred, nobody sees it.
+            group {
+                blur: 11 * u
+                saturation: 1.8
+                opacity: art_on * 40%
+                image art { at: cx - 132 * u, my - 37 * u; size: 264 * u, 74 * u }   // an image's `at` is its top-left corner
+            }
+            box { at: cx, my; size: 288 * u, 96 * u; corner: 18 * u; color: #0a0d10; opacity: art_on * 18% }
+
+            //  No cover yet: a tile with a note on it.
+            group {
+                show: not art_on
+                body {
+                    gradient: ax - 36 * u, my - 36 * u to ax + 36 * u, my + 36 * u, #3b4d63, #1b2430
+                    rim: 14%
+                    box { at: ax, my; size: 72 * u, 72 * u; corner: 15 * u }
+                }
+                ellipse { at: ax - 6 * u, my + 11 * u; radius: 6.5 * u; color: #ffffff; opacity: 75% }
+                box { at: ax + 1.5 * u, my - 4 * u; size: 3 * u, 30 * u; corner: 1.5 * u; color: #ffffff; opacity: 75% }
+                path { at: ax, my; stroke: 3 * u; color: #ffffff; opacity: 75%; move 3 * u, -19 * u; curve 15 * u, -6 * u via 13 * u, -17 * u }
+            }
+
+            //  The cover, in a rounded tile.
+            group {
+                glow: 12 * u, 60%
+                saturation: 0.3 + 0.7 * playf
+                pivot: ax, my
+                scale: (0.88 + 0.12 * playf) * (0.7 + 0.3 * sw)
+                rotate: (1 - sw) * -12deg
+                opacity: art_on
+                group {
+                    clip inset 0 box { at: ax, my; size: 72 * u, 72 * u; corner: 15 * u }
+                    image art { at: ax - 36 * u, my - 36 * u; size: 72 * u, 72 * u }
+                }
+            }
+
+            text media.title { at: cx - 50 * u, my - 24 * u; anchor: left center; size: 14.5 * u; weight: 700; width: 186 * u; lines: 1; color: #ffffff; family: "Space Grotesk"; show: media_on }
+            text media.artist { at: cx - 50 * u, my - 6 * u; anchor: left center; size: 12 * u; width: 186 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: media_on }
+            text "Nothing playing" { at: cx - 50 * u, my - 12 * u; anchor: left center; size: 13 * u; width: 186 * u; lines: 1; color: faint; opacity: 70%; family: "Space Grotesk"; show: not media_on }
+
+            //  previous
+            box { at: px - 6 * u, ny; size: 2.2 * u, 12 * u; corner: 1.1 * u; color: #ffffff; opacity: 75% + 25% * mp.prev.hover }
+            path { at: px, ny; color: #ffffff; opacity: 75% + 25% * mp.prev.hover; move 5 * u, -6 * u; line -4.5 * u, 0; line 5 * u, 6 * u; close }
+            //  play / pause: a white disc with the mark cut out of it
+            ellipse { at: cxp, ny; radius: (15 + 1.5 * mp.play.hover) * u; color: #ffffff; opacity: 95% }
+            path { at: cxp, ny; color: #12161a; show: not media.playing; move -4 * u, -8 * u; line 8 * u, 0; line -4 * u, 8 * u; close }
+            box { at: cxp - 4 * u, ny; size: 4 * u, 14 * u; corner: 1.5 * u; color: #12161a; show: media.playing }
+            box { at: cxp + 4 * u, ny; size: 4 * u, 14 * u; corner: 1.5 * u; color: #12161a; show: media.playing }
+            //  next
+            path { at: nx, ny; color: #ffffff; opacity: 75% + 25% * mp.next.hover; move -5 * u, -6 * u; line 4.5 * u, 0; line -5 * u, 6 * u; close }
+            box { at: nx + 6 * u, ny; size: 2.2 * u, 12 * u; corner: 1.1 * u; color: #ffffff; opacity: 75% + 25% * mp.next.hover }
+
+            zone box mp.prev { at: px, ny; size: 30 * u, 34 * u; cursor: pointer }
+            zone box mp.play { at: cxp, ny; size: 38 * u, 38 * u; cursor: pointer }
+            zone box mp.next { at: nx, ny; size: 30 * u, 34 * u; cursor: pointer }
+            on press mp.prev { emit mcmd(0) }
+            on press mp.play { emit mcmd(1) }
+            on press mp.next { emit mcmd(2) }
+
+            //  A new song throws sparks off the cover.
+            particles { at: ax, my; count: 36; life: 0.5s .. 1.0s; speed: 70 .. 170; direction: 0deg; spread: 360deg; gravity: 0, 40; drag: 1.2; size: 3.5, 1; colors: mint, #ffffff; shape: spark; burst: trackchange }
+        }
+        //  The dropdown: a solid card that drops from the volume row over what is
+        //  below it. Declared last so its rows win the press over the slider.
+        group {
+            opacity: dd
+            move: 0, (1 - dd) * -8 * u
+            let ddn = clamp(outlist.count, 1, 6)
+            let ddh = ddn * 30 * u + 12 * u
+            box { at: cx, cy + 40 * u + ddh / 2; size: 288 * u, ddh; corner: 16 * u; color: #161a1f }
+            zone box dd_block { at: cx, cy + 40 * u + ddh / 2; size: 288 * u, ddh }
+            column dd_list {
+                at: cx - 138 * u, cy + 46 * u
+                gap: 2 * u
+                for o in outlist { OutRow(o, pick: pick_out) }
+            }
+            text "No outputs" { at: cx, cy + 40 * u + ddh / 2; anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: outlist.count < 1 }
+        }
+    }
+    prop volume_level = 0 ~calm
+    follow volume_level = if(audio.muted, 0, audio.volume)
+    // ── dismissing the panel ─────────────────────────────────────
+    //  Escape closes it. The scene only asks for the keyboard while the panel is
+    //  open (see `surface`), so typing goes to your apps the rest of the time.
+    on key Escape while dd_open { dd_open = false }
+    on key Escape while open and not dd_open { open = false }
+}
