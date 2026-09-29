@@ -144,8 +144,8 @@ scene Vitreus {
     //  Tapping the rest of a tile (not its toggle) grows it into its own window.
     //  `showing_sub` only follows `panel_sub` on the way in - see its rule below -
     //  so the window it drew stays up, fading out, while it closes.
-    fact panel_sub: none | netview | btview | notifview = none
-    fact showing_sub: none | netview | btview | notifview = none
+    fact panel_sub: none | netview | btview | notifview | cafview = none
+    fact showing_sub: none | netview | btview | notifview | cafview = none
     //  Which row is open, in each list - its password field or its
     //  Connect/Disconnect/Forget, right underneath it. -1 is none.
     fact on_wifi = false            // the connection in use is Wi-Fi (not wired): the logic reads network.kind
@@ -175,7 +175,11 @@ scene Vitreus {
     event dnd_for ->               // a timer chip: minutes
     event nt_clear ->              // the Clear button
     event nt_hist_del ->           // a history row's cross, by position
+    fact caf_len = 0               // minutes of the Caffeine timer that is running (which chip is lit), 0 for none
+    text caf_left = ""             // the Caffeine window's row: 23:41 left, On until turned off, Off
+    text caf_tile_sub = ""         // the tile's second line while a timer runs: Awake · 23:41
     event togglecaf ->
+    event caf_for ->               // a timer chip: minutes, or 0 for until it is turned off
     fact ws.active = 1
     repeat i in 1..6 { fact ws.$i.busy = false }
     event go ->
@@ -720,7 +724,9 @@ scene Vitreus {
     //  shorter list. Its rows are 54 px with 6 between, whole pixels.
     let nt_rows_h = (max(1, nt_hist.count) * 60 - 6) / u
     let list_view_h = min(if(showing_sub == btview, bt_rows_h, if(showing_sub == notifview, nt_rows_h, wifi_rows_h)), if(showing_sub == notifview, 150, list_max))
-    let sub_bot = tiles_top + 54 + if(showing_sub == notifview, 84, 0) + list_view_h + 16
+    //  The Caffeine window is a row and two lines of chips (91 under its title), and has no list.
+    let sub_content = if(showing_sub == cafview, 91, if(showing_sub == notifview, 84, 0) + list_view_h)
+    let sub_bot = tiles_top + 54 + sub_content + 16
     //  The output list drops over what is under the volume row; with more than a couple of outputs
     //  it reaches past the drawer, so the drawer grows to hold it while it is open.
     let dd.rows = clamp(outlist.count, 1, 6)
@@ -1229,7 +1235,8 @@ scene Vitreus {
                     box { at: btx - 52 * u + i * 3.5 * u, tile2_cy - 24 * u - sp * 6 * u; size: 1.4 * u, 5 * u; corner: 0.7 * u; color: ink; opacity: caf_pill * 55% * sin(sp * 180) }
                 }
                 text "Caffeine" { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 4 * u + 0.5); anchor: left center; size: 13 * u; color: ink; family: "Space Grotesk" }
-                text "Awake" { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: mint; opacity: 90%; family: "Space Grotesk"; show: caf_on }
+                text "Awake" { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: mint; opacity: 90%; family: "Space Grotesk"; show: caf_on and caf_len == 0 }
+                text caf_tile_sub { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: caf_on and caf_len > 0 }
                 text "Off" { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not caf_on and caf_avail }
                 text "No hypridle" { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not caf_avail }
                 body {
@@ -1238,7 +1245,9 @@ scene Vitreus {
                 }
                 box { at: btx + 32 * u + caf_pill * 16 * u, tile2_cy - 18 * u; size: (17 + 9 * clamp(4 * caf_pill * (1 - caf_pill), 0, 1)) * u, (17 - 3 * clamp(4 * caf_pill * (1 - caf_pill), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * caf_pill * (1 - caf_pill), 0, 1)) * u; color: ink }
                 zone box caf_hit { at: btx, tile2_cy; size: 140 * u, tiles_h * u; cursor: pointer; active: caf_avail }
-                on press caf_hit { emit togglecaf }
+                on press caf_hit { panel_sub = if(panel_sub == cafview, none, cafview) }
+                zone box caf_toggle_hit { at: btx + 40 * u, tile2_cy - 18 * u; size: 46 * u, 30 * u; cursor: pointer; active: caf_avail }
+                on press caf_toggle_hit { emit togglecaf }
             }
         }
 
@@ -1355,6 +1364,45 @@ scene Vitreus {
                 for h in nt_hist { NtHistRow(h, del: nt_hist_del) }
             }
             text "No notifications yet" { at: floor(cx + 0.5), floor(nx_top + 138 * u + 20 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: nt_hist.count < 1 }
+        }
+
+        //  The Caffeine window: the keep-awake switch and what state it is in, and timer chips. A chip keeps the
+        //  machine awake for that long and then lets it sleep again; the lit one, pressed again, turns it off.
+        group {
+            show: showing_sub == cafview
+            opacity: expand0
+            let kx_top = ck + tiles_top * u
+            let kx_cy = kx_top + 22 * u
+            path { at: cx - 124 * u, kx_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * caf_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
+            zone box caf_back { at: cx - 124 * u, kx_cy; size: 30 * u, 30 * u; cursor: pointer }
+            on press caf_back { panel_sub = none }
+            text "CAFFEINE" { at: floor(cx - 102 * u + 0.5), floor(kx_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: cx, kx_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
+
+            group {
+                opacity: mix(0.45, 1, caf_avail)
+                box { at: cx, kx_top + 66 * u; size: 276 * u, 34 * u; corner: 12 * u; color: ink; opacity: veil }
+                text "Keep awake" { at: floor(cx - 128 * u + 0.5), floor(kx_top + 60 * u + 0.5); anchor: left center; size: 12.5 * u; weight: 700; color: ink; family: "Space Grotesk" }
+                text caf_left { at: floor(cx - 128 * u + 0.5), floor(kx_top + 74 * u + 0.5); anchor: left center; size: 10 * u; width: 200 * u; lines: 1; color: if(caf_on, mint, faint); family: "Space Grotesk" }
+                body {
+                    color: mix(off, mint, clamp(caf_pill, 0, 1))
+                    box { at: cx + 118 * u, kx_top + 66 * u; size: 30 * u, 16 * u; corner: 8 * u }
+                }
+                ellipse { at: cx + 111 * u + caf_pill * 14 * u, kx_top + 66 * u; radius: 6.2 * u; color: ink }
+                zone box caf_toggle2 { at: cx + 118 * u, kx_top + 66 * u; size: 40 * u, 26 * u; corner: 13 * u; cursor: pointer; active: caf_avail }
+                on press caf_toggle2 { emit togglecaf }
+
+                //  Two lines of three chips.
+                repeat i in 0..6 {
+                    let chx = cx + (mod(i, 3) - 1) * 94 * u
+                    let chy = kx_top + 100 * u + floor(i / 3) * 32 * u
+                    let lit = caf_on and caf_len == pick(i, 15, 30, 60, 120, 240, 0)
+                    box { at: chx, chy; size: 88 * u, 26 * u; corner: 13 * u; color: if(lit, mint, ink); opacity: if(lit, 24%, 8% + 10% * caf_chip.$i.hover) }
+                    text pick(i, "15 min", "30 min", "1 hour", "2 hours", "4 hours", "Until off") { at: floor(chx + 0.5), floor(chy + 0.5); anchor: center; align: center; size: 11 * u; weight: 600; width: 84 * u; lines: 1; color: if(lit, mint, ink); opacity: if(lit, 100%, 85%); family: "Space Grotesk" }
+                    zone box caf_chip.$i { at: chx, chy; size: 90 * u, 28 * u; corner: 14 * u; cursor: pointer; active: caf_avail }
+                    on press caf_chip.$i { emit caf_for(pick(i, 15, 30, 60, 120, 240, 0)) }
+                }
+            }
         }
 
         //  The dropdown: a solid card that drops from the volume row over what is

@@ -343,30 +343,122 @@ on("nt_hist_del", function(i)
 end)
 
 -- Caffeine: what keeps the machine awake is hypridle being stopped, so the
--- truth is asked of the system, not remembered.
+-- truth is asked of the system, not remembered. A timer is the one thing that is remembered: when it ends,
+-- hypridle is started again. It is kept in `caffeine.json`, so a shell that restarts while it runs picks it up.
 local caf_on, caf_avail = false, true
-local function caf_poll()
+local caf_until = 0                       -- the time a running timer ends, in seconds; 0 for none
+local caf_len = 0                         -- how many minutes it was set for: which chip is lit
+local caf_busy = false                    -- a change is under way: the poll must not read hypridle half-changed
+
+local function caf_save()
+    pcall(sys.call, "files.write", "caffeine.json", { ends = caf_until, len = caf_len })
+end
+
+-- The time a timer has left, as m:ss (h:mm:ss past an hour).
+local function caf_left_text()
+    local r = math.max(0, caf_until - os.time())
+    if r >= 3600 then return string.format("%d:%02d:%02d", r // 3600, (r % 3600) // 60, r % 60) end
+    return string.format("%d:%02d", r // 60, r % 60)
+end
+
+local function caf_refresh()
+    fact.caf_on = caf_on
+    fact.caf_len = (caf_on and caf_until > 0) and caf_len or 0
+    if caf_on and caf_until > 0 then
+        text.caf_left = caf_left_text() .. " left"
+        text.caf_tile_sub = "Awake · " .. caf_left_text()
+    elseif caf_on then
+        text.caf_left = "On until turned off"
+        text.caf_tile_sub = "Awake"
+    else
+        text.caf_left = "Off"
+        text.caf_tile_sub = "Off"
+    end
+end
+
+local function caf_poll(after_poll)
     run("pgrep", { "-x", "hypridle" }, function(_, code)
         caf_on = code ~= 0
-        fact.caf_on = caf_on
+        -- hypridle is back on its own (or was never stopped): whatever timer was running has no meaning
+        if not caf_on and caf_until > 0 and not caf_busy then
+            caf_until, caf_len = 0, 0
+            caf_save()
+        end
+        caf_refresh()
+        if after_poll then after_poll() end
     end)
 end
+
+-- Keep the machine awake (stop hypridle), or let it sleep again (start it), then read what happened.
+local function caf_set(awake)
+    caf_busy = true
+    local done = function() caf_poll(function() caf_busy = false end) end
+    if awake then
+        run("pkill", { "-x", "hypridle" }, function()
+            run("systemctl", { "--user", "stop", "hypridle.service" }, done)
+        end)
+    else
+        run("systemctl", { "--user", "start", "hypridle.service" }, done)
+    end
+end
+
 run("which", { "hypridle" }, function(_, code)
     caf_avail = code == 0
     fact.caf_avail = caf_avail
     if code == 0 then
-        caf_poll()
-        every(5000, caf_poll)
+        -- a timer that was running when the shell went away: still running, or over
+        local ok, saved = pcall(sys.ask, "files.read", "caffeine.json", "json")
+        local ends = (ok and type(saved) == "table" and type(saved.ends) == "number") and saved.ends or 0
+        caf_poll(function()
+            if ends > 0 and caf_on then
+                if ends > os.time() then
+                    caf_until = ends
+                    caf_len = type(saved.len) == "number" and saved.len or 0
+                    caf_refresh()
+                else
+                    caf_until, caf_len = 0, 0
+                    caf_save()
+                    caf_set(false)
+                end
+            end
+        end)
+        every(5000, function() caf_poll() end)
     end
 end)
+
+-- The tile's pill: off if it is on, else on until turned off.
 on("togglecaf", function()
     if not caf_avail then return end
-    if caf_on then
-        run("systemctl", { "--user", "start", "hypridle.service" }, caf_poll)
+    caf_until, caf_len = 0, 0
+    caf_save()
+    caf_set(not caf_on)
+end)
+-- A timer chip (minutes); 0 is "until off". Pressing the one that is lit again turns it off.
+on("caf_for", function(m)
+    if not caf_avail then return end
+    if caf_on and ((m == 0 and caf_until == 0) or (m > 0 and caf_until > 0 and caf_len == m)) then
+        caf_until, caf_len = 0, 0
+        caf_save()
+        caf_set(false)
+        return
+    end
+    if m == 0 then
+        caf_until, caf_len = 0, 0
     else
-        run("pkill", { "-x", "hypridle" }, function()
-            run("systemctl", { "--user", "stop", "hypridle.service" }, caf_poll)
-        end)
+        caf_until, caf_len = os.time() + m * 60, m
+    end
+    caf_save()
+    if caf_on then caf_refresh() else caf_set(true) end
+end)
+every(1000, function()
+    if caf_until > 0 then
+        if os.time() >= caf_until then
+            caf_until, caf_len = 0, 0
+            caf_save()
+            caf_set(false)
+        else
+            caf_refresh()
+        end
     end
 end)
 
