@@ -199,6 +199,11 @@ end)
 -- An event's payload crosses over as a plain number (1/0), not a Luau
 -- boolean, even for something written `not net.wifi` in the scene - and
 -- these two services insist on a real true/false, not a 1 or a 0.
+-- The Wi-Fi tile only names a Wi-Fi connection: `kind` is text, which the scene cannot compare.
+sys.watch("network", function(n)
+    fact.on_wifi = n.kind == "wifi" and n.online == true
+end)
+
 on("togglewifi", function(v)
     sys.call("network.wifi", v == 1)
 end)
@@ -382,20 +387,49 @@ local bt_scanning = false                 -- a scan is running (see `bt_scan` be
 -- for minutes afterwards, and a stale list of strangers is worse than none.
 local function bt_is_mac(n) return n:match("^%x%x[-:]%x%x[-:]%x%x[-:]%x%x[-:]%x%x[-:]%x%x$") ~= nil end
 
+-- What a tap has asked for and BlueZ has not answered yet, by address: connecting or disconnecting takes
+-- seconds, and BlueZ can drop the device from its list while it works. Until it answers the row stays where it
+-- was (remembered from the last time it was seen), says what it is doing, and only then takes its new place.
+local bt_pending = {}                     -- address -> { kind = 1 connecting | 2 disconnecting | 3 failed, row = last row, gen = n }
+local bt_gen = 0
+local bt_open_addr = nil                  -- the address of the row that is open: its index moves when the list re-sorts
+
 local function bt_render()
     local b = bt_last
     if not b then return end
     local name = ""
     local rows = {}
+    local seen = {}
     for _, d in ipairs(b.devices or {}) do
         if d.connected then name = d.name end
-        if d.paired or d.connected or bt_scanning then
+        if d.paired or d.connected or bt_scanning or bt_pending[d.address] then
             local nm = (d.name ~= nil and d.name ~= "") and d.name or d.address
-            rows[#rows + 1] = {
+            local row = {
                 name = nm, address = d.address, paired = d.paired and true or false,
                 connected = d.connected and true or false, battery = d.battery or -1,
-                anon = bt_is_mac(nm),
+                anon = bt_is_mac(nm), busy = 0,
             }
+            local p = bt_pending[d.address]
+            if p then
+                -- BlueZ has answered: connecting is over once it is connected, disconnecting once it is not
+                if (p.kind == 1 and row.connected) or (p.kind == 2 and not row.connected) then
+                    bt_pending[d.address] = nil
+                else
+                    p.row = row
+                    row.busy = p.kind
+                end
+            end
+            seen[d.address] = true
+            rows[#rows + 1] = row
+        end
+    end
+    -- a device BlueZ dropped while it was busy stays, as it was last seen
+    for addr, p in pairs(bt_pending) do
+        if not seen[addr] and p.row then
+            local row = {}
+            for k, v in pairs(p.row) do row[k] = v end
+            row.busy = p.kind
+            rows[#rows + 1] = row
         end
     end
     table.sort(rows, function(x, y)
@@ -410,12 +444,20 @@ local function bt_render()
     bt_list = rows
     local sig = {}
     for i, r in ipairs(rows) do
-        sig[i] = r.address .. "|" .. r.name .. "|" .. tostring(r.paired) .. "|" .. tostring(r.connected) .. "|" .. tostring(r.battery)
+        sig[i] = r.address .. "|" .. r.name .. "|" .. tostring(r.paired) .. "|" .. tostring(r.connected) .. "|" .. tostring(r.battery) .. "|" .. r.busy
     end
     local joined = table.concat(sig, "\n")
     if joined ~= bt_sig then
         bt_sig = joined
         model.bt_devices = rows
+        -- the open row follows its device to wherever the sort put it, so the open space slides there
+        if bt_open_addr then
+            local at = -1
+            for i, r in ipairs(rows) do
+                if r.address == bt_open_addr then at = i - 1 end
+            end
+            if at ~= fact.bt_open_row then fact.bt_open_row = at end
+        end
     end
 end
 
@@ -424,19 +466,49 @@ sys.watch("bluetooth", function(b)
     bt_render()
 end)
 
+on("fact:bt_open_row", function(i)
+    local d = i >= 0 and bt_list[i + 1] or nil
+    bt_open_addr = d and d.address or nil
+end)
+
+-- Asks BlueZ for something slow, and shows that it was asked. `kind` 1 connecting, 2 disconnecting. If BlueZ has
+-- not answered in twenty seconds the row says it could not, for three, and goes back to what it was.
+local function bt_ask(d, kind, call)
+    bt_gen = bt_gen + 1
+    local gen = bt_gen
+    bt_pending[d.address] = { kind = kind, row = d, gen = gen }
+    bt_render()
+    sys.call(call, d.address)
+    after(20000, function()
+        local p = bt_pending[d.address]
+        if p and p.gen == gen then
+            p.kind = 3
+            bt_render()
+            after(3000, function()
+                local q = bt_pending[d.address]
+                if q and q.gen == gen then
+                    bt_pending[d.address] = nil
+                    bt_render()
+                end
+            end)
+        end
+    end)
+end
+
 on("bt_pick", function(i)
     local d = bt_list[i + 1]
-    if not d then return end
+    if not d or d.busy == 1 or d.busy == 2 then return end
     if d.connected then
-        sys.call("bluetooth.disconnect", d.address)
+        bt_ask(d, 2, "bluetooth.disconnect")
     else
-        sys.call("bluetooth.connect", d.address)
+        bt_ask(d, 1, "bluetooth.connect")
     end
 end)
 
 on("bt_forget", function(i)
     local d = bt_list[i + 1]
     if not d then return end
+    bt_pending[d.address] = nil
     sys.call("bluetooth.forget", d.address)
     fact.bt_open_row = -1
 end)

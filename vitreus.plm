@@ -12,7 +12,7 @@ scene Vitreus {
                   run: "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
-    model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number }
+    model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number }
 
     service clock as now { time: text = "--:--"; date: text }
     service audio { volume: number; muted: bool }
@@ -148,6 +148,7 @@ scene Vitreus {
     fact showing_sub: none | netview | btview | notifview = none
     //  Which row is open, in each list - its password field or its
     //  Connect/Disconnect/Forget, right underneath it. -1 is none.
+    fact on_wifi = false            // the connection in use is Wi-Fi (not wired): the logic reads network.kind
     fact wifi_open_row = -1
     fact bt_open_row = -1
     event wifi_pick ->              // a network row's own button: connect, or leave it
@@ -199,6 +200,10 @@ scene Vitreus {
     prop f6    = 0 ~700ms          // fourth: wifi
     prop f7    = 0 ~780ms          // fifth: bluetooth
     prop wifi_on = 0 ~pop         // the wifi toggle pill, popping past where it lands
+    prop wifi_extra = 0 ~calm     // 0..1: whether a Wi-Fi row is open
+    prop wifi_sel = 0 ~calm       // which row, as a position: slides from one row to the next
+    prop bt_extra = 0 ~calm       // 0..1: whether a Bluetooth row is open
+    prop bt_sel  = 0 ~calm        // which row, as a position: slides from one row to the next
     prop bt_on   = 0 ~pop         // the bluetooth toggle pill, popping past where it lands
     prop media_open = 0 ~drip      // the media plate: a sliver with nothing playing, a full card with something to show
     //  Each panel has its own amount, 0 shut .. 1 open. Each one is a drawer that comes out of the
@@ -280,6 +285,12 @@ scene Vitreus {
     on change panel while panel == volume or panel == notif { fo: 1 after 140ms }
     on change panel while panel != volume and panel != notif { fo: 0 ~80ms }
     follow wifi_on = if(net.wifi, 1, 0)
+    follow wifi_extra = if(wifi_open_row >= 0, 1, 0)
+    on change wifi_open_row while wifi_open_row >= 0 and wifi_extra < 0.05 { wifi_sel: wifi_open_row ~0ms }
+    on change wifi_open_row while wifi_open_row >= 0 and wifi_extra >= 0.05 { wifi_sel: wifi_open_row }
+    follow bt_extra = if(bt_open_row >= 0, 1, 0)
+    on change bt_open_row while bt_open_row >= 0 and bt_extra < 0.05 { bt_sel: bt_open_row ~0ms }
+    on change bt_open_row while bt_open_row >= 0 and bt_extra >= 0.05 { bt_sel: bt_open_row }
     follow bt_on   = if(bt.powered, 1, 0)
     prop dnd_pill = 0 ~pop
     prop caf_pill = 0 ~pop
@@ -359,10 +370,13 @@ scene Vitreus {
     //  Connect/Disconnect and Forget for anything else. `wifi_open_row` is the
     //  one index that's open at a time, so opening another closes the last one.
     component WifiRow(n: record, pick: event, forget: event, joingo: event) {
-        size: 264 * u, floor((30 + if(wifi_open_row == n.index, 44, 0)) * u + 0.5)
+        //  Grows on a spring like the Bluetooth rows: wifi_sel slides between rows, wifi_extra is how open.
+        size: 264 * u, floor((30 + 44 * wifi_extra * clamp(1 - abs(n.index - wifi_sel), 0, 1)) * u + 0.5)
         let isopen = wifi_open_row == n.index
+        let open_t = wifi_extra * clamp(1 - abs(n.index - wifi_sel), 0, 1)
+        //  One card: the network line on top, and what opens is the same plate carrying on below it.
+        box { from: 0, 0; size: 264 * u, (30 + 44 * open_t) * u; corner: 10 * u; color: ink; opacity: if(n.active, 12%, 0%) + 5% * open_t + 9% * touch.hover }
         zone box touch { from: 0, 0; size: 264 * u, 30 * u; corner: 10 * u; cursor: pointer }
-        box { from: 0, 0; size: 264 * u, 30 * u; corner: 10 * u; color: ink; opacity: if(n.active, 12%, 0%) + 9% * touch.hover }
         ellipse { at: 14 * u, 15 * u; radius: 3 * u; color: mint; opacity: if(n.active, 100%, 0%) }
         text n.ssid { at: floor(28 * u + 0.5), floor(15 * u + 0.5); anchor: left center; size: 12.5 * u; width: 150 * u; lines: 1; color: ink; family: "Space Grotesk" }
         text "Connected" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: mint; family: "Space Grotesk"; show: n.active }
@@ -372,36 +386,39 @@ scene Vitreus {
         on press touch { wifi_open_row = if(isopen, -1, n.index) }
 
         group {
-            show: isopen
-            opacity: if(isopen, 1, 0)
+            show: open_t > 0.01
+            opacity: clamp(open_t, 0, 1)
+            move: 0, (clamp(open_t, 0, 1) - 1) * 8 * u
+            box { at: 132 * u, 30 * u; size: 240 * u, 1 * u; color: ink; opacity: 10% }
             //  A secured network never seen before: the password, right here.
             group {
                 show: n.secure and not n.known and not n.active
-                input wifi_pw { at: floor(14 * u + 0.5), floor(45 * u - 6.3 * u + 0.5); width: 150 * u; size: 11.5 * u; color: ink; family: "Space Grotesk"; secret: true; placeholder: "Password" }
-                box { at: 224 * u, 45 * u; size: 40 * u, 24 * u; corner: 12 * u; color: mint; opacity: 80% + 20% * joinbtn.hover }
-                text "Join" { at: floor(224 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 10.5 * u; weight: 700; color: onmint; family: "Space Grotesk" }
-                zone box joinbtn { at: 224 * u, 45 * u; size: 44 * u, 28 * u; corner: 14 * u; cursor: pointer }
+                box { at: 100 * u, 52 * u; size: 184 * u, 26 * u; corner: 8 * u; color: ink; opacity: 8% }
+                input wifi_pw { at: floor(18 * u + 0.5), floor(52 * u - 6.3 * u + 0.5); width: 164 * u; size: 11.5 * u; color: ink; family: "Space Grotesk"; secret: true; placeholder: "Password" }
+                box { at: 228 * u, 52 * u; size: 56 * u, 26 * u; corner: 8 * u; color: mint; opacity: 85% + 15% * joinbtn.hover }
+                text "Join" { at: floor(228 * u + 0.5), floor(52 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk" }
+                zone box joinbtn { at: 228 * u, 52 * u; size: 56 * u, 26 * u; corner: 8 * u; cursor: pointer }
                 on press joinbtn { emit joingo(n.index) }
             }
             //  Open, and never joined: nothing to type, just a way in.
             group {
                 show: not n.secure and not n.known and not n.active
-                box { at: 132 * u, 45 * u; size: 110 * u, 24 * u; corner: 12 * u; color: mint; opacity: 80% + 20% * connbtn.hover }
-                text "Connect" { at: floor(132 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk" }
-                zone box connbtn { at: 132 * u, 45 * u; size: 114 * u, 28 * u; corner: 14 * u; cursor: pointer }
+                box { at: 132 * u, 52 * u; size: 248 * u, 26 * u; corner: 8 * u; color: mint; opacity: 85% + 15% * connbtn.hover }
+                text "Connect" { at: floor(132 * u + 0.5), floor(52 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk" }
+                zone box connbtn { at: 132 * u, 52 * u; size: 248 * u, 26 * u; corner: 8 * u; cursor: pointer }
                 on press connbtn { emit pick(n.index) }
             }
             //  Known, or the one in use: leave it, join it again, or forget it outright.
             group {
                 show: n.known or n.active
-                box { at: 90 * u, 45 * u; size: 96 * u, 24 * u; corner: 12 * u; color: if(n.active, off, mint); opacity: 80% + 20% * primbtn.hover }
-                text "Disconnect" { at: floor(90 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 10.5 * u; weight: 700; color: ink; family: "Space Grotesk"; show: n.active }
-                text "Connect" { at: floor(90 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk"; show: not n.active }
-                zone box primbtn { at: 90 * u, 45 * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
+                box { at: 70 * u, 52 * u; size: 120 * u, 26 * u; corner: 8 * u; color: if(n.active, ink, mint); opacity: if(n.active, 12% + 10% * primbtn.hover, 85% + 15% * primbtn.hover) }
+                text "Disconnect" { at: floor(70 * u + 0.5), floor(52 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: ink; family: "Space Grotesk"; show: n.active }
+                text "Connect" { at: floor(70 * u + 0.5), floor(52 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk"; show: not n.active }
+                zone box primbtn { at: 70 * u, 52 * u; size: 120 * u, 26 * u; corner: 8 * u; cursor: pointer }
                 on press primbtn { emit pick(n.index) }
-                box { at: 194 * u, 45 * u; size: 76 * u, 24 * u; corner: 12 * u; color: ink; opacity: 8% + 10% * forgetbtn.hover }
-                text "Forget" { at: floor(194 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 10.5 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
-                zone box forgetbtn { at: 194 * u, 45 * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+                box { at: 194 * u, 52 * u; size: 120 * u, 26 * u; corner: 8 * u; color: ink; opacity: 6% + 10% * forgetbtn.hover }
+                text "Forget" { at: floor(194 * u + 0.5), floor(52 * u + 0.5); anchor: center; size: 11 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
+                zone box forgetbtn { at: 194 * u, 52 * u; size: 120 * u, 26 * u; corner: 8 * u; cursor: pointer }
                 on press forgetbtn { emit forget(n.index) }
             }
         }
@@ -410,38 +427,57 @@ scene Vitreus {
     //  One row of the Bluetooth window: connected (with its battery, if it says), paired, or just seen.
     //  Tapping it opens Connect/Disconnect and Forget underneath, the same as a Wi-Fi row.
     component BtRow(d: record, pick: event, forget: event) {
-        size: 264 * u, floor((30 + if(bt_open_row == d.index, 44, 0)) * u + 0.5)
+        //  The row grows and its buttons fade in on a spring, instead of jumping. One spring says which
+        //  row is open (bt_sel, sliding between rows) and one how open (bt_extra): a row's share is how
+        //  close it is to the selection.
+        size: 264 * u, floor((30 + 44 * bt_extra * clamp(1 - abs(d.index - bt_sel), 0, 1)) * u + 0.5)
         let isopen = bt_open_row == d.index
+        let open_t = bt_extra * clamp(1 - abs(d.index - bt_sel), 0, 1)
+        //  What a tap asked for and BlueZ has not answered yet: 1 connecting, 2 disconnecting, 3 it could not.
+        let working = d.busy == 1 or d.busy == 2
+        let pulse = if(working, 55% + 45% * sin(time * 260), 100%)
+        //  One card: the device line on top, and what opens is the same plate carrying on below it,
+        //  with a hairline between, not a separate strip of buttons.
+        box { from: 0, 0; size: 264 * u, (30 + 44 * open_t) * u; corner: 10 * u; color: ink; opacity: if(d.connected, 12%, 0%) + 5% * open_t + 9% * touch.hover }
+        box { from: 0, 0; size: 264 * u, (30 + 44 * open_t) * u; corner: 10 * u; color: mint; opacity: if(working, 4% + 6% * pulse, 0%) }
         zone box touch { from: 0, 0; size: 264 * u, 30 * u; corner: 10 * u; cursor: pointer }
-        box { from: 0, 0; size: 264 * u, 30 * u; corner: 10 * u; color: ink; opacity: if(d.connected, 12%, 0%) + 9% * touch.hover }
-        ellipse { at: 14 * u, 15 * u; radius: 3 * u; color: mint; opacity: if(d.connected, 100%, 0%) }
+        ellipse { at: 14 * u, 15 * u; radius: 3 * u; color: mint; opacity: if(working, pulse, if(d.connected and d.busy == 0, 100%, 0%)) }
+        ellipse { at: 14 * u, 15 * u; radius: 3 * u; color: #e0655a; opacity: if(d.busy == 3, 100%, 0%) }
         text d.name { at: floor(28 * u + 0.5), floor(15 * u + 0.5); anchor: left center; size: 12.5 * u; width: 150 * u; lines: 1; color: ink; family: "Space Grotesk" }
-        text "Connected" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: mint; family: "Space Grotesk"; show: d.connected and d.battery < 0 }
-        text number(d.battery * 100, 0, "%") { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: mint; family: "Space Grotesk"; show: d.connected and d.battery >= 0 }
-        text "Paired" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: faint; family: "Space Grotesk"; show: d.paired and not d.connected }
-        text "Not paired" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: faint; family: "Space Grotesk"; show: not d.paired and not d.connected }
+        text "Connected" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: mint; family: "Space Grotesk"; show: d.connected and d.battery < 0 and d.busy == 0 }
+        text number(d.battery * 100, 0, "%") { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: mint; family: "Space Grotesk"; show: d.connected and d.battery >= 0 and d.busy == 0 }
+        text "Paired" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: faint; family: "Space Grotesk"; show: d.paired and not d.connected and d.busy == 0 }
+        text "Not paired" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: faint; family: "Space Grotesk"; show: not d.paired and not d.connected and d.busy == 0 }
+        text "Connecting…" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: mint; opacity: pulse; family: "Space Grotesk"; show: d.busy == 1 }
+        text "Disconnecting…" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: faint; opacity: pulse; family: "Space Grotesk"; show: d.busy == 2 }
+        text "Couldn't connect" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: #e0655a; family: "Space Grotesk"; show: d.busy == 3 }
         on press touch { bt_open_row = if(isopen, -1, d.index) }
 
         group {
-            show: isopen
-            opacity: if(isopen, 1, 0)
+            show: open_t > 0.01
+            opacity: clamp(open_t, 0, 1)
+            move: 0, (clamp(open_t, 0, 1) - 1) * 8 * u
+            box { at: 132 * u, 30 * u; size: 240 * u, 1 * u; color: ink; opacity: 10% }
             group {
                 show: not d.paired and not d.connected
-                box { at: 132 * u, 45 * u; size: 130 * u, 24 * u; corner: 12 * u; color: mint; opacity: 80% + 20% * pairbtn.hover }
-                text "Pair & Connect" { at: floor(132 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 10.5 * u; weight: 700; color: onmint; family: "Space Grotesk" }
-                zone box pairbtn { at: 132 * u, 45 * u; size: 134 * u, 28 * u; corner: 14 * u; cursor: pointer }
+                box { at: 132 * u, 52 * u; size: 248 * u, 26 * u; corner: 8 * u; color: mint; opacity: if(working, 30% + 20% * pulse, 85% + 15% * pairbtn.hover) }
+                text "Pair & Connect" { at: floor(132 * u + 0.5), floor(52 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk"; show: not working }
+                text "Pairing…" { at: floor(132 * u + 0.5), floor(52 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: ink; family: "Space Grotesk"; show: working }
+                zone box pairbtn { at: 132 * u, 52 * u; size: 248 * u, 26 * u; corner: 8 * u; cursor: pointer; active: not working }
                 on press pairbtn { emit pick(d.index) }
             }
             group {
                 show: d.paired or d.connected
-                box { at: 90 * u, 45 * u; size: 96 * u, 24 * u; corner: 12 * u; color: if(d.connected, off, mint); opacity: 80% + 20% * primbtn.hover }
-                text "Disconnect" { at: floor(90 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 10.5 * u; weight: 700; color: ink; family: "Space Grotesk"; show: d.connected }
-                text "Connect" { at: floor(90 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk"; show: not d.connected }
-                zone box primbtn { at: 90 * u, 45 * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
+                box { at: 70 * u, 52 * u; size: 120 * u, 26 * u; corner: 8 * u; color: if(d.connected, ink, mint); opacity: if(working, 12% + 12% * pulse, if(d.connected, 12% + 10% * primbtn.hover, 85% + 15% * primbtn.hover)) }
+                text "Disconnect" { at: floor(70 * u + 0.5), floor(52 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: ink; family: "Space Grotesk"; show: d.connected and not working }
+                text "Connect" { at: floor(70 * u + 0.5), floor(52 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk"; show: not d.connected and not working }
+                text "Connecting…" { at: floor(70 * u + 0.5), floor(52 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: ink; opacity: pulse; family: "Space Grotesk"; show: d.busy == 1 }
+                text "Disconnecting…" { at: floor(70 * u + 0.5), floor(52 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: ink; opacity: pulse; family: "Space Grotesk"; show: d.busy == 2 }
+                zone box primbtn { at: 70 * u, 52 * u; size: 120 * u, 26 * u; corner: 8 * u; cursor: pointer; active: not working }
                 on press primbtn { emit pick(d.index) }
-                box { at: 194 * u, 45 * u; size: 76 * u, 24 * u; corner: 12 * u; color: ink; opacity: 8% + 10% * forgetbtn.hover }
-                text "Forget" { at: floor(194 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 10.5 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
-                zone box forgetbtn { at: 194 * u, 45 * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+                box { at: 194 * u, 52 * u; size: 120 * u, 26 * u; corner: 8 * u; color: ink; opacity: 6% + 10% * forgetbtn.hover }
+                text "Forget" { at: floor(194 * u + 0.5), floor(52 * u + 0.5); anchor: center; size: 11 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
+                zone box forgetbtn { at: 194 * u, 52 * u; size: 120 * u, 26 * u; corner: 8 * u; cursor: pointer }
                 on press forgetbtn { emit forget(d.index) }
             }
         }
@@ -677,8 +713,8 @@ scene Vitreus {
     //  list actually is (one open row taller, while one is), up to a ceiling
     //  where the list itself starts scrolling instead of the window still
     //  growing to fit it.
-    let wifi_rows_h = max(1, wifi_nets.count) * 34 - 4 + if(wifi_open_row >= 0, 44, 0)
-    let bt_rows_h   = max(1, bt_devices.count) * 34 - 4 + if(bt_open_row >= 0, 44, 0)
+    let wifi_rows_h = max(1, wifi_nets.count) * 34 - 4 + 44 * wifi_extra
+    let bt_rows_h   = max(1, bt_devices.count) * 34 - 4 + 44 * bt_extra
     let list_max    = 220
     //  The notifications window has a Do Not Disturb row and its timer chips above its list (84 more), and a
     //  shorter list. Its rows are 54 px with 6 between, whole pixels.
@@ -1116,21 +1152,21 @@ scene Vitreus {
             let btx = cx + 74 * u
 
             box { at: wtx, tile_cy; size: 140 * u, tiles_h * u; corner: 14 * u; color: ink; opacity: veil }
-            box { at: wtx - 53 * u, tile_cy - 14 * u; size: 3 * u, 6 * u;  corner: 1.5 * u; color: ink; opacity: if(net.wifi, 45% + 55% * clamp(net.strength / 0.3, 0, 1), 30%) }
-            box { at: wtx - 48 * u, tile_cy - 16 * u; size: 3 * u, 10 * u; corner: 1.5 * u; color: ink; opacity: if(net.wifi, 45% + 55% * clamp(net.strength / 0.65, 0, 1), 30%) }
-            box { at: wtx - 43 * u, tile_cy - 18 * u; size: 3 * u, 14 * u; corner: 1.5 * u; color: ink; opacity: if(net.wifi, 45% + 55% * clamp(net.strength / 1.0, 0, 1), 30%) }
+            box { at: wtx - 53 * u, tile_cy - 14 * u; size: 3 * u, 6 * u;  corner: 1.5 * u; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 0.3, 0, 1), 30%) }
+            box { at: wtx - 48 * u, tile_cy - 16 * u; size: 3 * u, 10 * u; corner: 1.5 * u; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 0.65, 0, 1), 30%) }
+            box { at: wtx - 43 * u, tile_cy - 18 * u; size: 3 * u, 14 * u; corner: 1.5 * u; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 1.0, 0, 1), 30%) }
             text "Wi-Fi" { at: floor(wtx - 58 * u + 0.5), floor(tile_cy + 4 * u + 0.5); anchor: left center; size: 13 * u; color: ink; family: "Space Grotesk" }
-            text net.name { at: floor(wtx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: net.online }
-            text "Disconnected" { at: floor(wtx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: net.wifi and not net.online }
+            text net.name { at: floor(wtx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: on_wifi }
+            text "Disconnected" { at: floor(wtx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: net.wifi and not (on_wifi) }
             text "Off" { at: floor(wtx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not net.wifi }
             body {
                 color: mix(off, mint, clamp(wifi_on, 0, 1))
-                box { at: wtx + 46 * u, tile_cy - 18 * u; size: 26 * u, 14 * u; corner: 7 * u }
+                box { at: wtx + 40 * u, tile_cy - 18 * u; size: 38 * u, 22 * u; corner: 11 * u }
             }
-            ellipse { at: wtx + 40 * u + wifi_on * 12 * u, tile_cy - 18 * u; radius: 5.5 * u; color: ink }
+            box { at: wtx + 32 * u + wifi_on * 16 * u, tile_cy - 18 * u; size: (17 + 9 * clamp(4 * wifi_on * (1 - wifi_on), 0, 1)) * u, (17 - 3 * clamp(4 * wifi_on * (1 - wifi_on), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * wifi_on * (1 - wifi_on), 0, 1)) * u; color: ink }
             zone box wifi_tile_hit { at: wtx, tile_cy; size: 140 * u, tiles_h * u; cursor: pointer }
             on press wifi_tile_hit { panel_sub = if(panel_sub == netview, none, netview) }
-            zone box wifi_toggle_hit { at: wtx + 46 * u, tile_cy - 18 * u; size: 34 * u, 22 * u; cursor: pointer }
+            zone box wifi_toggle_hit { at: wtx + 40 * u, tile_cy - 18 * u; size: 46 * u, 30 * u; cursor: pointer }
             on press wifi_toggle_hit { emit togglewifi(not net.wifi) }
 
             box { at: btx, tile_cy; size: 140 * u, tiles_h * u; corner: 14 * u; color: ink; opacity: veil }
@@ -1143,12 +1179,12 @@ scene Vitreus {
             text "Off" { at: floor(btx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not bt.powered }
             body {
                 color: mix(off, mint, clamp(bt_on, 0, 1))
-                box { at: btx + 46 * u, tile_cy - 18 * u; size: 26 * u, 14 * u; corner: 7 * u }
+                box { at: btx + 40 * u, tile_cy - 18 * u; size: 38 * u, 22 * u; corner: 11 * u }
             }
-            ellipse { at: btx + 40 * u + bt_on * 12 * u, tile_cy - 18 * u; radius: 5.5 * u; color: ink }
+            box { at: btx + 32 * u + bt_on * 16 * u, tile_cy - 18 * u; size: (17 + 9 * clamp(4 * bt_on * (1 - bt_on), 0, 1)) * u, (17 - 3 * clamp(4 * bt_on * (1 - bt_on), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * bt_on * (1 - bt_on), 0, 1)) * u; color: ink }
             zone box bt_tile_hit { at: btx, tile_cy; size: 140 * u, tiles_h * u; cursor: pointer }
             on press bt_tile_hit { panel_sub = if(panel_sub == btview, none, btview) }
-            zone box bt_toggle_hit { at: btx + 46 * u, tile_cy - 18 * u; size: 34 * u, 22 * u; cursor: pointer }
+            zone box bt_toggle_hit { at: btx + 40 * u, tile_cy - 18 * u; size: 46 * u, 30 * u; cursor: pointer }
             on press bt_toggle_hit { emit togglebt(not bt.powered) }
 
             //  Notifications (Do Not Disturb, with its own window) and Caffeine (the whole tile is its toggle), underneath.
@@ -1170,12 +1206,12 @@ scene Vitreus {
             text nt_tile_sub { at: floor(wtx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; width: 116 * u; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
             body {
                 color: mix(off, mint, clamp(dnd_pill, 0, 1))
-                box { at: wtx + 46 * u, tile2_cy - 18 * u; size: 26 * u, 14 * u; corner: 7 * u }
+                box { at: wtx + 40 * u, tile2_cy - 18 * u; size: 38 * u, 22 * u; corner: 11 * u }
             }
-            ellipse { at: wtx + 40 * u + dnd_pill * 12 * u, tile2_cy - 18 * u; radius: 5.5 * u; color: ink }
+            box { at: wtx + 32 * u + dnd_pill * 16 * u, tile2_cy - 18 * u; size: (17 + 9 * clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)) * u, (17 - 3 * clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)) * u; color: ink }
             zone box dnd_hit { at: wtx, tile2_cy; size: 140 * u, tiles_h * u; cursor: pointer }
             on press dnd_hit { panel_sub = if(panel_sub == notifview, none, notifview) }
-            zone box dnd_toggle_hit { at: wtx + 46 * u, tile2_cy - 18 * u; size: 34 * u, 22 * u; cursor: pointer }
+            zone box dnd_toggle_hit { at: wtx + 40 * u, tile2_cy - 18 * u; size: 46 * u, 30 * u; cursor: pointer }
             on press dnd_toggle_hit { emit togglednd }
 
             //  Caffeine: a cup that steams while the machine is being kept awake. Dimmed on a
@@ -1198,9 +1234,9 @@ scene Vitreus {
                 text "No hypridle" { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not caf_avail }
                 body {
                     color: mix(off, mint, clamp(caf_pill, 0, 1))
-                    box { at: btx + 46 * u, tile2_cy - 18 * u; size: 26 * u, 14 * u; corner: 7 * u }
+                    box { at: btx + 40 * u, tile2_cy - 18 * u; size: 38 * u, 22 * u; corner: 11 * u }
                 }
-                ellipse { at: btx + 40 * u + caf_pill * 12 * u, tile2_cy - 18 * u; radius: 5.5 * u; color: ink }
+                box { at: btx + 32 * u + caf_pill * 16 * u, tile2_cy - 18 * u; size: (17 + 9 * clamp(4 * caf_pill * (1 - caf_pill), 0, 1)) * u, (17 - 3 * clamp(4 * caf_pill * (1 - caf_pill), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * caf_pill * (1 - caf_pill), 0, 1)) * u; color: ink }
                 zone box caf_hit { at: btx, tile2_cy; size: 140 * u, tiles_h * u; cursor: pointer; active: caf_avail }
                 on press caf_hit { emit togglecaf }
             }
