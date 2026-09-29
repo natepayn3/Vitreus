@@ -388,6 +388,7 @@ scene Vitreus {
     prop ring  = 1 ~900ms          // a ripple crossing the bar: 0 born, 1 gone
     prop dd    = 0 ~calm           // the output dropdown, 0 shut .. 1 open
     prop vm    = 0 ~calm           // the per-app mixer, 0 shut .. 1 open
+    prop mvis  = 0 ~calm           // 1 while there is an app playing sound (or the mixer is open): the dots show
     prop swap  = 1 ~700ms          // the cover popping in on a new song: 0 just changed, 1 settled
     prop playf = 0 ~calm           // 1 while playing: the cover is full and colourful
     prop mshow = 0 ~calm          // the bar's player controls: there while a player exists, paused or not
@@ -520,6 +521,7 @@ scene Vitreus {
     }
     follow dd = if(dd_open and panel == controls, 1, 0)
     follow vm = if(vm_open and panel == controls, 1, 0)
+    follow mvis = if(mixer.count > 0 or vm_open, 1, 0)
     on launch_toggle { panel = if(panel == launch, none, launch) }
     on settings_toggle { panel = if(panel == settings, none, settings) }
     on change panel { dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0 }
@@ -1380,11 +1382,11 @@ scene Vitreus {
             //  Three small dots at the foot of the plate say there is more under it: the mixer. They are a button too
             //  (right-clicking the plate does the same).
             repeat i in 0..3 {
-                ellipse { at: cx + (i - 1) * 6.5 * u, vol_cy + (vp.h - 36.5) * u; radius: 1.6 * u; color: ink; opacity: (35% + 55% * mix_hit.hover) * (1 - clamp(vm * 1.6, 0, 1)) }
+                ellipse { at: cx + (i - 1) * 6.5 * u, vol_cy + (vp.h - 36.5) * u; radius: 1.6 * u; color: ink; opacity: (35% + 55% * mix_hit.hover) * (1 - clamp(vm * 1.6, 0, 1)) * clamp(mvis, 0, 1) }
             }
             //  While it is open the dots give way to an arrow pointing up: press it to fold the mixer away.
-            path { at: cx, vol_cy + (vp.h - 36.5) * u; stroke: 1.6 * u; color: mint; opacity: (55% + 40% * mix_hit.hover) * clamp(vm * 1.6 - 0.6, 0, 1); move -4.5 * u, 1.8 * u; line 0, -1.8 * u; line 4.5 * u, 1.8 * u }
-            zone box mix_hit { at: cx, vol_cy + (vp.h - 36.5) * u; size: 40 * u, 9 * u; corner: 4.5 * u; cursor: pointer }
+            path { at: cx, vol_cy + (vp.h - 36.5) * u; stroke: 1.6 * u; color: mint; opacity: (55% + 40% * mix_hit.hover) * clamp(vm * 1.6 - 0.6, 0, 1) * clamp(mvis, 0, 1); move -4.5 * u, 1.8 * u; line 0, -1.8 * u; line 4.5 * u, 1.8 * u }
+            zone box mix_hit { at: cx, vol_cy + (vp.h - 36.5) * u; size: 40 * u, 9 * u; corner: 4.5 * u; cursor: pointer; active: mixer.count > 0 or vm_open }
             on press mix_hit { vm_open = not vm_open; dd_open = false }
             on press right mix_hit { vm_open = not vm_open; dd_open = false }
             //  The speaker is a mute button. Declared after the track's zone, which reaches

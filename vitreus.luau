@@ -3139,7 +3139,8 @@ end)()
         M.open = (v == true or v == 1)
         if M.open then refresh() end
     end)
-    every(1000, function() if M.open then refresh() end end)
+    -- Listed while Controls is open, open mixer or not: the dots only show when there is an app to turn down.
+    every(1000, function() if M.open or cur_panel == "controls" then refresh() end end)
 
     -- The slider is sent a moment after the last movement, and the row shows the new number at once.
     local function flush()
