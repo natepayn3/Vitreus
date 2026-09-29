@@ -2576,3 +2576,523 @@ do
     end)
     on("hy_refresh", function() hy_read() end)
 end
+
+-- ── The launcher (SUPER + Space) ──────────────────────────────────────────────────────────────────────────────
+-- After Synoptik's LauncherOSD. The scene has a field (`text.lq`) and a list (`model.lres`, eight rows at most, with
+-- the chosen one in the middle of the window). What is typed picks the search: apps by default (and a sum, if the text
+-- is one), and after a first character `#` files, `>` commands, `:` emoji, `^` the clipboard, `~` wallpapers.
+;(function()
+    local schedule_preview_fwd
+    local S = { desc = {}, apps = {}, res = {}, sel = 1, start = 1, last = nil, seq = 0, counts = {}, emoji = nil, clip = nil }
+    local ROWS = 8
+    local MODES = { ["#"] = "files", [">"] = "commands", [":"] = "emoji", ["^"] = "clipboard", ["~"] = "wallpapers" }
+    local LABEL = { apps = "Apps", calc = "Calc", files = "Files", commands = "Commands", emoji = "Emoji", clipboard = "Clipboard", wallpapers = "Wallpapers" }
+    local HINT = {
+        apps = "Search apps…  # files  > commands  : emoji  ^ clipboard  ~ wallpapers",
+    }
+
+    local function trim(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
+    local function lq() return text.lq or "" end
+
+    -- The window of rows shown: the chosen one is kept in view.
+    local function render()
+        local n = #S.res
+        S.sel = math.max(1, math.min(math.max(1, n), S.sel))
+        S.start = math.max(1, math.min(S.sel - math.floor(ROWS / 2), n - ROWS + 1))
+        local rows = {}
+        for i = 0, ROWS - 1 do
+            local r = S.res[S.start + i]
+            if not r then break end
+            rows[#rows + 1] = {
+                title = r.title, sub = r.sub or "", desc = r.desc or "", hasdesc = (r.desc or "") ~= "", glyph = r.glyph or (r.title or "?"):sub(1, 1):upper(),
+                sel = (S.start + i) == S.sel, hasicon = (r.icon or "") ~= "", icon = r.icon or "",
+            }
+        end
+        model.lres = rows
+        fact.lcount = #rows
+        text.lfoot = n > 0 and string.format("%d / %d", S.sel, n) or ""
+        S.shown = S.res[S.sel]
+        if S.shown ~= S.prev then S.prev = S.shown; schedule_preview_fwd(S.shown) end
+    end
+
+    local function show(list, msg)
+        S.res = list
+        S.sel = 1
+        text.lmsg = (#list == 0) and (msg or "No results") or ""
+        render()
+    end
+
+    local function lua_quote(s) return string.format("%q", s):gsub("\\\n", "\\n") end
+    local function spawn(cmd)              -- start it on the desktop, detached from this shell
+        run("hyprctl", { "dispatch", "hl.dsp.exec_cmd(" .. lua_quote(cmd) .. ")" }, function() end)
+    end
+    local function set_panel(name) cur_panel = name; fact.panel = name end
+    local function close() set_panel("none") end
+
+    -- Launch counts, so what is used most comes first when nothing is typed.
+    do
+        local ok, saved = pcall(sys.ask, "files.read", "launcher.json", "json")
+        if ok and type(saved) == "table" and type(saved.counts) == "table" then S.counts = saved.counts end
+    end
+    local function bump(id)
+        if not id or id == "" then return end
+        S.counts[id] = (S.counts[id] or 0) + 1
+        pcall(sys.call, "files.write", "launcher.json", { counts = S.counts })
+    end
+
+    sys.watch("apps", function(list) S.apps = list or {}; if S.last ~= nil and S.mode == "apps" then S.last = nil end end)
+
+    -- What each app says about itself (the Comment of its .desktop file, else its GenericName): one pass over the
+    -- folders the apps live in, with `find` running `grep` on the files it finds.
+    with_dirs(function(d)
+        local dirs = { "/usr/share/applications", d.home .. "/.local/share/applications",
+                       "/var/lib/flatpak/exports/share/applications", d.home .. "/.local/share/flatpak/exports/share/applications" }
+        local args = {}
+        for _, dir in ipairs(dirs) do args[#args + 1] = dir end
+        for _, x in ipairs({ "-name", "*.desktop", "-exec", "grep", "-H", "-E", "^(Comment|GenericName)=", "{}", "+" }) do args[#args + 1] = x end
+        run("find", args, function(out)
+            local comment, generic = {}, {}
+            for path, key, val in (out or ""):gmatch("([^\n:]+%.desktop):(%a+)=([^\n]*)") do
+                local id = path:match("([^/]+)%.desktop$")
+                if key == "Comment" then comment[id] = comment[id] or val else generic[id] = generic[id] or val end
+            end
+            for id, v in pairs(generic) do S.desc[id] = v end
+            for id, v in pairs(comment) do S.desc[id] = v end
+            S.last = nil                      -- the rows are made again, now with their lines
+        end)
+    end)
+
+    -- ── the preview beside the rows (files, the clipboard, wallpapers) ──
+    local P = { n = 0, seq = 0 }
+    local IMG = { jpg = true, jpeg = true, png = true, webp = true, gif = true, bmp = true, tiff = true, avif = true, jxl = true }
+    local function fmt_size(n)
+        n = tonumber(n) or 0
+        if n < 1024 then return string.format("%d B", n) end
+        local units = { "KiB", "MiB", "GiB", "TiB" }
+        local v = n
+        for _, u in ipairs(units) do
+            v = v / 1024
+            if v < 1024 or u == "TiB" then return string.format(v < 10 and "%.1f %s" or "%.0f %s", v, u) end
+        end
+    end
+    local function detail(i, k, v) text["lp_k" .. i] = k or ""; text["lp_v" .. i] = v or "" end
+    local function clear_preview()
+        text.lp_kind, text.lp_title, text.lp_path, text.lp_body = "", "", "", ""
+        for i = 1, 4 do detail(i) end
+        fact.lp_img_on = false
+    end
+    local function short(path, home) return (path:gsub("^" .. home:gsub("%p", "%%%0"), "~")) end
+
+    -- A small copy of a picture (the scene draws a fixed 480 x 320 image, asked for again with a new version).
+    local function thumb(src, seq)
+        with_dirs(function(d)
+            local out = d.cache .. "/lp.png"
+            run("mkdir", { "-p", d.cache }, function()
+                run("magick", { src .. "[0]", "-auto-orient", "-thumbnail", "480x320", "-background", "none",
+                                "-gravity", "center", "-extent", "480x320", out }, function(_, code)
+                    if code == 0 and seq == P.seq then
+                        P.n = P.n + 1
+                        text.lp_imgpath = out .. "?" .. P.n
+                        fact.lp_img_on = true
+                    end
+                end)
+            end)
+        end)
+    end
+
+    -- A file: its name and place, then size, date and type as they come in, and the picture if it is one.
+    local function preview_file(path, kind, seq)
+        with_dirs(function(d)
+            text.lp_kind = kind
+            text.lp_title = path:match("([^/]+)$") or path
+            text.lp_path = short(path:match("^(.*)/[^/]*$") or "", d.home)
+        end)
+        detail(1, "Size", "…"); detail(2, "Modified", "…"); detail(3, "Type", "…"); detail(4)
+        run("stat", { "-c", "%s|%Y|%F", path }, function(out)
+            if seq ~= P.seq then return end
+            local size, mtime, kindname = (out or ""):match("^(%d+)|(%d+)|(.-)%s*$")
+            if not size then detail(1, "Size", "gone"); detail(2); detail(3); return end
+            detail(1, "Size", kindname == "directory" and "Folder" or fmt_size(size))
+            detail(2, "Modified", os.date("%Y-%m-%d %H:%M", tonumber(mtime)))
+        end)
+        run("file", { "--mime-type", "-b", path }, function(out)
+            if seq ~= P.seq then return end
+            local m = (out or ""):gsub("%s+$", "")
+            if m ~= "" then detail(3, "Type", m) end
+        end)
+        local ext = (path:match("%.(%w+)$") or ""):lower()
+        if IMG[ext] then
+            run("magick", { "identify", "-format", "%wx%h", path .. "[0]" }, function(out, code)
+                if seq == P.seq and code == 0 then detail(4, "Size px", (out or ""):gsub("%s+$", "")) end
+            end)
+            thumb(path, seq)
+        end
+    end
+
+    -- Called with the chosen row: the preview follows a moment after the selection settles.
+    local function schedule_preview(r)
+        P.seq = P.seq + 1
+        local seq = P.seq
+        if not (r and r.pv) then return clear_preview() end
+        after(110, function()
+            if seq ~= P.seq then return end
+            clear_preview()
+            r.pv(seq)
+        end)
+    end
+
+    schedule_preview_fwd = schedule_preview
+    -- cliphist wants the entry's line on its input, and `run` has an input from a file: write the id, decode.
+    local function clip_decode(c, cb)
+        with_dirs(function(d)
+            pcall(sys.call, "files.write", "lp-line.txt", c.id .. "\t")
+            run("cliphist", { "decode" }, cb, { stdin = d.data .. "/lp-line.txt" })
+        end)
+    end
+
+    local function preview_clip(c, seq)
+        if c.image then
+            text.lp_kind = "IMAGE"
+            text.lp_title = "Copied image"
+            local size, fmt, dims = c.text:match("binary data ([%d%.]+ %a+) (%a+) (%d+x%d+)")
+            detail(1, "Size", size); detail(2, "Format", fmt and fmt:upper()); detail(3, "Size px", dims); detail(4)
+            with_dirs(function(d)
+                local out = d.cache .. "/lp.png"
+                run("mkdir", { "-p", d.cache }, function()
+                    run("vitreus-clipimg", { "thumb", c.id, out }, function(_, code)
+                        if code == 0 and seq == P.seq then
+                            P.n = P.n + 1
+                            text.lp_imgpath = out .. "?" .. P.n
+                            fact.lp_img_on = true
+                        end
+                    end)
+                end)
+            end)
+            return
+        end
+        clip_decode(c, function(o)
+            if seq ~= P.seq then return end
+            o = o or ""
+            local one = o:gsub("%s+$", "")
+            if not one:find("\n") and (one:find("^/") or one:find("^file://")) then
+                return preview_file((one:gsub("^file://", "")), "FILE", seq)
+            end
+            text.lp_kind = "TEXT"
+            text.lp_title = string.format("%d characters", #o)
+            text.lp_body = o:sub(1, 600)
+        end)
+    end
+
+
+    -- ── apps ──
+    local function clean_exec(e)
+        e = (e or ""):gsub("%%%%", "\1"):gsub("%%[fFuUdDnNickvm]", ""):gsub("\1", "%%")
+        return trim(e)
+    end
+    local function app_row(a)
+        return { title = a.name or a.id or "?", sub = "", desc = S.desc[((a.id or ""):gsub("%.desktop$", ""))] or "", icon = a.icon or "", app = a,
+                 run = function() bump(a.id or a.name); spawn(clean_exec(a.exec)) end }
+    end
+    local function search_apps(q)
+        local out = {}
+        q = q:lower()
+        if q == "" then
+            local list = {}
+            for _, a in ipairs(S.apps) do list[#list + 1] = a end
+            table.sort(list, function(x, y)
+                local cx, cy = S.counts[x.id or x.name] or 0, S.counts[y.id or y.name] or 0
+                if cx ~= cy then return cx > cy end
+                return (x.name or ""):lower() < (y.name or ""):lower()
+            end)
+            for _, a in ipairs(list) do out[#out + 1] = app_row(a) end
+            return out
+        end
+        local scored = {}
+        for _, a in ipairs(S.apps) do
+            local name = (a.name or ""):lower()
+            local sc = 0
+            if name == q then sc = 100
+            elseif name:sub(1, #q) == q then sc = 80
+            elseif name:find(" " .. q, 1, true) then sc = 60
+            elseif name:find(q, 1, true) then sc = 40
+            elseif (a.id or ""):lower():find(q, 1, true) or (a.wmclass or ""):lower():find(q, 1, true) then sc = 20 end
+            if sc > 0 then
+                sc = sc + math.min(10, S.counts[a.id or a.name] or 0)
+                scored[#scored + 1] = { sc = sc, a = a }
+            end
+        end
+        table.sort(scored, function(x, y)
+            if x.sc ~= y.sc then return x.sc > y.sc end
+            return (x.a.name or ""):lower() < (y.a.name or ""):lower()
+        end)
+        for _, e in ipairs(scored) do out[#out + 1] = app_row(e.a) end
+        return out
+    end
+
+    -- ── a sum ──
+    local function calc(src)
+        local pos = 1
+        local s = src:gsub("%s+", ""):lower()
+        local function peek() return s:sub(pos, pos) end
+        local expr
+        local FUN = { sqrt = math.sqrt, sin = math.sin, cos = math.cos, tan = math.tan, abs = math.abs,
+                      floor = math.floor, ceil = math.ceil, log = math.log10, ln = math.log,
+                      round = function(x) return math.floor(x + 0.5) end }
+        local function atom()
+            local c = peek()
+            if c == "(" then
+                pos = pos + 1
+                local v = expr()
+                if peek() ~= ")" then error("paren") end
+                pos = pos + 1
+                return v
+            elseif c == "-" then pos = pos + 1; return -atom()
+            elseif c == "+" then pos = pos + 1; return atom() end
+            local num = s:match("^%d*%.?%d+", pos) or s:match("^%d+", pos)
+            if num then pos = pos + #num; return tonumber(num) end
+            local id = s:match("^%a+", pos)
+            if id then
+                pos = pos + #id
+                if id == "pi" then return math.pi elseif id == "e" then return math.exp(1) end
+                local f = FUN[id]
+                if not f or peek() ~= "(" then error("name") end
+                pos = pos + 1
+                local v = expr()
+                if peek() ~= ")" then error("paren") end
+                pos = pos + 1
+                return f(v)
+            end
+            error("token")
+        end
+        local function pow()
+            local v = atom()
+            if peek() == "^" then pos = pos + 1; return v ^ pow() end
+            return v
+        end
+        local function term()
+            local v = pow()
+            while true do
+                local c = peek()
+                if c == "*" then pos = pos + 1; v = v * pow()
+                elseif c == "/" then pos = pos + 1; v = v / pow()
+                elseif c == "%" then pos = pos + 1; v = v % pow()
+                else return v end
+            end
+        end
+        expr = function()
+            local v = term()
+            while true do
+                local c = peek()
+                if c == "+" then pos = pos + 1; v = v + term()
+                elseif c == "-" then pos = pos + 1; v = v - term()
+                else return v end
+            end
+        end
+        local v = expr()
+        if pos <= #s then error("trailing") end
+        return v
+    end
+    local function try_calc(q)
+        if not q:find("%d") or not q:find("[%+%-%*/%%%^%(]") and not q:find("%a%(") then return nil end
+        if q:find("[^%d%a%s%.%+%-%*/%%%^%(%)]") then return nil end
+        local ok, v = pcall(calc, q)
+        if not ok or type(v) ~= "number" or v ~= v or v == math.huge or v == -math.huge then return nil end
+        local str = string.format("%.10g", v)
+        return { title = "= " .. str, sub = q .. " · Enter copies", glyph = "=",
+                 run = function() run("wl-copy", { "--", str }, function() end) end }
+    end
+
+    -- ── commands ──
+    local function open_settings(page)
+        return function() fact.set_page = page; set_panel("settings"); return true end
+    end
+    local COMMANDS = {
+        { "Settings: Wallpaper", "open", open_settings("pg_wall") },
+        { "Settings: Glass", "open", open_settings("pg_glass") },
+        { "Settings: Display", "open", open_settings("pg_disp") },
+        { "Settings: Hyprland", "open", open_settings("pg_hypr") },
+        { "Calendar", "panel", function() set_panel("calendar"); return true end },
+        { "Controls", "panel", function() set_panel("controls"); return true end },
+        { "Player", "panel", function() set_panel("player"); return true end },
+        { "Random wallpaper", "action", function() local f = wp_random_pick(); if f then wp_apply(f) end end },
+        { "Lock session", "action", function() spawn('pleamar --say lockscreen "fact locked true"') end },
+        { "Suspend", "action", function() run("systemctl", { "suspend" }, function() end) end },
+        { "Reload Hyprland", "action", function() run("hyprctl", { "reload" }, function() end) end },
+    }
+    local function search_commands(q)
+        q = q:lower()
+        local out = {}
+        for _, c in ipairs(COMMANDS) do
+            if q == "" or c[1]:lower():find(q, 1, true) then
+                out[#out + 1] = { title = c[1], sub = c[2], glyph = ">", run = c[3] }
+            end
+        end
+        return out
+    end
+
+    -- ── wallpapers ──
+    local function search_wallpapers(q)
+        q = q:lower()
+        local out = {}
+        for _, f in ipairs(wp_files) do
+            local name = f:match("([^/]+)$") or f
+            if q == "" or name:lower():find(q, 1, true) then
+                out[#out + 1] = { title = name, sub = "wallpaper", glyph = "▣", run = function() wp_apply(f) end,
+                                  pv = function(seq) preview_file(f, "WALLPAPER", seq) end }
+                if #out >= 60 then break end
+            end
+        end
+        return out
+    end
+
+    -- ── emoji ──
+    local function search_emoji(q, done)
+        local function go()
+            q = q:lower()
+            local scored = {}
+            for i, e in ipairs(S.emoji) do
+                local sc = 0
+                if q == "" then
+                    if e.g == "Smileys" then sc = 1000 - i end
+                else
+                    local n, k = (e.n or ""):lower(), (e.k or ""):lower()
+                    if n == q or k == q then sc = 100
+                    elseif n:sub(1, #q) == q then sc = 80
+                    elseif n:find(" " .. q, 1, true) then sc = 60
+                    elseif n:find(q, 1, true) or k:find(q, 1, true) then sc = 40 end
+                end
+                if sc > 0 then scored[#scored + 1] = { sc = sc, i = i, e = e } end
+            end
+            table.sort(scored, function(a, b) if a.sc ~= b.sc then return a.sc > b.sc end return a.i < b.i end)
+            local out = {}
+            for _, x in ipairs(scored) do
+                local ch = x.e.c
+                out[#out + 1] = { title = x.e.n, sub = x.e.g, glyph = ch,
+                                  run = function() run("wl-copy", { "--", ch }, function() end) end }
+                if #out >= 80 then break end
+            end
+            done(out)
+        end
+        if S.emoji then return go() end
+        with_dirs(function(d)
+            run("cp", { "-n", d.conf .. "/assets/emoji.json", d.data .. "/emoji.json" }, function()
+                local ok, data = pcall(sys.ask, "files.read", "emoji.json", "json")
+                S.emoji = (ok and type(data) == "table") and data or {}
+                go()
+            end)
+        end)
+    end
+
+    -- ── the clipboard (cliphist) ──
+    local function search_clip(q, done)
+        local function go()
+            q = q:lower()
+            local out = {}
+            for _, c in ipairs(S.clip) do
+                if q == "" or c.text:lower():find(q, 1, true) then
+                    out[#out + 1] = { title = c.text, sub = c.image and "image" or "text", glyph = c.image and "▣" or "T",
+                        pv = function(seq) preview_clip(c, seq) end,
+                        run = function()
+                            if c.image then return run("vitreus-clipimg", { "copy", c.id }, function() end) end
+                            clip_decode(c, function(o) run("wl-copy", { "--", o or "" }, function() end) end)
+                        end }
+                    if #out >= 60 then break end
+                end
+            end
+            done(out)
+        end
+        run("cliphist", { "list" }, function(o)
+            S.clip = {}
+            for line in (o or ""):gmatch("[^\n]+") do
+                local id, txt = line:match("^(%d+)\t(.*)$")
+                if id then
+                    S.clip[#S.clip + 1] = { id = id, text = txt, image = txt:find("^%[%[ binary data") ~= nil }
+                end
+            end
+            go()
+        end)
+    end
+
+    -- ── files ──
+    local function search_files(q, done)
+        if #q < 2 then return done({}, "Type two letters to search your files") end
+        with_dirs(function(d)
+            run("find", { d.home, "-maxdepth", "5", "(", "-name", ".*", "-prune", ")", "-o", "-iname", "*" .. q .. "*", "-print" },
+                function(o)
+                    local out = {}
+                    for path in (o or ""):gmatch("[^\n]+") do
+                        local name = path:match("([^/]+)$") or path
+                        local dir = (path:match("^(.*)/[^/]*$") or ""):gsub("^" .. d.home:gsub("%p", "%%%0"), "~")
+                        out[#out + 1] = { title = name, sub = dir, glyph = "F",
+                                          run = function() spawn("xdg-open " .. "'" .. path:gsub("'", "'\\''") .. "'") end,
+                                          pv = function(seq) preview_file(path, "FILE", seq) end }
+                        if #out >= 60 then break end
+                    end
+                    table.sort(out, function(a, b) return #a.title < #b.title end)
+                    done(out)
+                end)
+        end)
+    end
+
+    -- ── what is typed → what is shown ──
+    local function search()
+        local raw = lq()
+        S.last = raw
+        S.seq = S.seq + 1
+        local seq = S.seq
+        local first = raw:sub(1, 1)
+        local mode = MODES[first] or "apps"
+        local q = trim(MODES[first] and raw:sub(2) or raw)
+        S.mode = mode
+        local function done(list, msg) if seq == S.seq then show(list, msg) end end
+        if mode == "apps" then
+            local c = try_calc(q)
+            local list = search_apps(q)
+            if c then table.insert(list, 1, c); mode = "calc" end
+            text.lmode = LABEL[mode]
+            fact.lp_on = false
+            return done(list)
+        end
+        text.lmode = LABEL[mode]
+        fact.lp_on = (mode == "files" or mode == "clipboard" or mode == "wallpapers")
+        if mode == "commands" then done(search_commands(q))
+        elseif mode == "wallpapers" then done(search_wallpapers(q))
+        elseif mode == "emoji" then search_emoji(q, done)
+        elseif mode == "clipboard" then search_clip(q, done)
+        elseif mode == "files" then
+            text.lmsg = "Searching…"
+            after(220, function()
+                if seq == S.seq then search_files(q, done) end
+            end)
+        end
+    end
+
+    every(90, function()
+        if cur_panel ~= "launch" then return end
+        if lq() ~= S.last then search() end
+    end)
+
+    on("launch_open", function()
+        text.lq = ""
+        S.last = nil
+        S.sel = 1
+        search()
+    end)
+    on("launch_move", function(d)
+        local n = #S.res
+        if n == 0 then return end
+        S.sel = S.sel + math.floor(d + 0.5)
+        if S.sel < 1 then S.sel = n elseif S.sel > n then S.sel = 1 end
+        render()
+    end)
+    local function run_result(r)
+        if not r or not r.run then return end
+        if not r.run() then close() end
+    end
+    on("launch_pick", function(i) run_result(S.res[S.start + math.floor(i + 0.5)]) end)
+    on("launch_run", function() run_result(S.res[S.sel]) end)
+    on("launch_hint", function(i)
+        text.lq = ({ "#", ">", ":", "^", "~" })[math.floor(i + 0.5) + 1] or ""
+        focus("lq")
+    end)
+end)()

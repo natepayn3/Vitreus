@@ -9,7 +9,7 @@ import "palette.plm"
 scene Vitreus {
     surface { size: 900, 800; anchor: top; margin: 0; reserve: 68; keyboard: exclusive while panel != none and panel != volume and panel != notif }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli" }
+                  run: "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
     model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number }
@@ -65,6 +65,11 @@ scene Vitreus {
     text outname = ""              // where the sound is going: the default output
     measure outw                   // how wide that name really is
     measure clsw                   // how wide the focused app's name really is
+    measure lhw0                   // how wide the launcher's five hints are, to centre each in its cell
+    measure lhw1
+    measure lhw2
+    measure lhw3
+    measure lhw4
     measure titw                   // and its window title
     measure chw                    // the bar clock's hour, minutes and am/pm: how wide each really is; the bar's
     measure cmw                    // buttons and the calendar's click area are placed from them
@@ -72,7 +77,7 @@ scene Vitreus {
     measure cdw
     //  Which panel hangs from the bar: the clock and calendar (click the clock), or the
     //  controls (click the window title).
-    fact panel: none | calendar | controls | player | volume | notif | settings = none
+    fact panel: none | calendar | controls | player | volume | notif | settings | launch = none
     fact media_on = false          // is there a player at all
     fact bass = 0
     //  The six bars cava reports, 0..1 each, for the equalizer in the media card. Each one
@@ -136,6 +141,37 @@ scene Vitreus {
     event hy_follow_set ->
     event hy_toggle ->
     event hy_refresh ->
+    //  The launcher (SUPER + Space): what is typed, the results, and which one is chosen.
+    event launch_toggle ->          // from a key bind (hypr_vitreus.lua)
+    event launch_open ->
+    event launch_move ->            // -1 up, +1 down
+    event launch_pick ->            // a row, by place
+    event launch_run ->             // Enter
+    event launch_hint ->            // a hint under the field: type its first character
+    text lq = ""                    // the search field
+    text lmode = "Apps"             // which kind of search the text asks for
+    text lmsg = ""                  // what to say when there is no row: "No results", "Searching…"
+    text lfoot = ""                 // "3 / 20"
+    fact lcount = 0
+    fact lp_on = false               // this kind of search has a preview beside its rows
+    prop lpv = 0 ~calm               // 0..1: how far the preview is in
+    follow lpv = if(lp_on, 1, 0)
+    text lp_kind = ""                // FILE, IMAGE, TEXT, WALLPAPER
+    text lp_title = ""
+    text lp_path = ""
+    text lp_body = ""                // the text of a text entry
+    text lp_k1 = ""
+    text lp_v1 = ""
+    text lp_k2 = ""
+    text lp_v2 = ""
+    text lp_k3 = ""
+    text lp_v3 = ""
+    text lp_k4 = ""
+    text lp_v4 = ""
+    text lp_imgpath = ""             // a small copy of the picture, at a fixed path with a version on the end
+    fact lp_img_on = false
+    image lp_img = from lp_imgpath, 480, 320
+    model lres max 8 { title: text; sub: text; desc: text; hasdesc: bool; glyph: text; sel: bool; hasicon: bool; icon: image 26, 26 }
     event settings_toggle ->        // from a key bind (hypr_vitreus.lua): open or close Settings
     event glass_reset ->
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
@@ -332,6 +368,9 @@ scene Vitreus {
     prop do    = 0 ~drip          // the volume / notification drawer
     prop ds    = 0 ~drip          // the settings panel
     prop fs    = 0 ~300ms         // what is in it, fading in
+    prop dl    = 0 ~drip          // the launcher
+    prop fl    = 0 ~300ms         // what is in it, fading in
+    prop lr    = 1 ~calm          // how many rows it has room for
     prop fo    = 0 ~300ms         // what is in it, fading in
     prop okv   = 0 ~calm          // 1 while it is the volume that is drawn
     prop okn   = 0 ~calm          // 1 while it is a notification
@@ -354,6 +393,8 @@ scene Vitreus {
     follow dm   = if(panel == player, 1, 0)
     follow do   = if(panel == volume or panel == notif, 1, 0)
     follow ds   = if(panel == settings, 1, 0)
+    follow dl   = if(panel == launch, 1, 0)
+    follow lr   = max(1, lcount, if(lp_on, 7, 1))
     follow okv  = if(osd_kind == vol, 1, 0)
     follow okn  = if(osd_kind == note, 1, 0)
     on ntnew {
@@ -407,6 +448,8 @@ scene Vitreus {
     on change panel while panel == player     { f3: 1 after 200ms }
     on change panel while panel != player     { f3: 0 ~80ms }
     on change panel while panel == settings   { fs: 1 after 220ms }
+    on change panel while panel == launch     { fl: 1 after 200ms; focus lq; emit launch_open }
+    on change panel while panel != launch     { fl: 0 ~80ms }
     on change panel while panel != settings   { fs: 0 ~80ms }
     on change panel while panel == volume or panel == notif { fo: 1 after 140ms }
     on change panel while panel != volume and panel != notif { fo: 0 ~80ms }
@@ -470,6 +513,7 @@ scene Vitreus {
         swap: 1 ~700ms after 30ms
     }
     follow dd = if(dd_open and panel == controls, 1, 0)
+    on launch_toggle { panel = if(panel == launch, none, launch) }
     on settings_toggle { panel = if(panel == settings, none, settings) }
     on change panel { dd_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0 }
     on change set_page { disp_res_open = false; disp_scroll_to = 0; emit hy_refresh }
@@ -669,6 +713,22 @@ scene Vitreus {
         on press close_z { emit kill(t.index) }
     }
 
+    //  A result of the launcher: an icon (or a letter where there is none), its name, and a line of detail.
+    //  Its width is the rows' width (`lw`): narrower where a preview sits beside the rows, and then it has no detail line.
+    let lw = mix(430, 238, lpv) * u
+    component LRow(t: record, pick: event) {
+        size: lw, 40 * u
+        zone box touch { from: 0, 0; size: lw, 40 * u; corner: 14 * u; cursor: pointer }
+        box { from: 0, 0; size: lw, 40 * u; corner: 14 * u; color: if(t.sel, mint, ink); opacity: if(t.sel, 20%, 4%) + 8% * touch.hover }
+        image t.icon { at: floor(10 * u + 0.5), floor(7 * u + 0.5); size: floor(26 * u + 0.5), floor(26 * u + 0.5); show: t.hasicon }
+        ellipse { at: 23 * u, 20 * u; radius: 13 * u; color: mint; opacity: 16%; show: not t.hasicon }
+        text t.glyph { at: floor(23 * u + 0.5), floor(20 * u + 0.5); anchor: center; align: center; size: 13 * u; weight: 700; width: 26 * u; lines: 1; color: mint; family: "Space Grotesk"; show: not t.hasicon }
+        text t.title { at: floor(48 * u + 0.5), floor(if(t.hasdesc, 14, 20) * u + 0.5); anchor: left center; size: 13.5 * u; weight: 600; width: lw - (58 + 96 * (1 - lpv)) * u; lines: 1; color: if(t.sel, mint, ink); family: "Space Grotesk" }
+        text t.desc { at: floor(48 * u + 0.5), floor(29 * u + 0.5); anchor: left center; size: 10 * u; width: lw - 62 * u; lines: 1; color: faint; family: "Space Grotesk"; show: t.hasdesc }
+        text t.sub { at: floor(lw - 10 * u + 0.5), floor(20 * u + 0.5); anchor: right center; align: right; size: 10.5 * u; width: 90 * u; lines: 1; color: faint; opacity: 1 - lpv; family: "Space Grotesk" }
+        on press touch { emit pick(t.index) }
+    }
+
     //  One app that lives in the tray, with no window of its own: its icon and name. A press is what
     //  clicking its icon would do.
     component TrayRow(t: record, click: event) {
@@ -819,7 +879,8 @@ scene Vitreus {
     let clock.col = max(caw.width, cdw.width)
     let clock.left = cx + bar.w / 2 - 20 * u - clock.col - 3 - cmw.width + 3 - chw.width
     let ctl.x = clock.left - 20 * u
-    let set.x = ctl.x - 24 * u
+    let sr.x = ctl.x - 24 * u                 // the launcher's button, between the two
+    let set.x = sr.x - 24 * u
     let mc = set.x - 44 * u
     //  Where the window title starts, and how far it may reach (it gives way to the player's buttons).
     let win.x = cx - bar.w / 2 + 116 * u
@@ -839,12 +900,15 @@ scene Vitreus {
     let dm0 = max(0, dm)
     let do0 = max(0, do)
     let ds0 = max(0, ds)
+    let dl0 = max(0, dl)
     let expand0 = max(0, expand)
     //  Marea's liquid: while a drawer comes out (or goes back), the neck that joins it to the bar is a bell,
     //  thickest halfway; the drawer is a little narrower there, as a falling drop is, and it is round at first
     //  and squares up as it grows (and rounds again as it goes). `*.bell` is 0 shut, 1 halfway, 0 open.
     let dk.bell = 4 * min(1, dk0) * (1 - min(1, dk0))
     let ds.bell = 4 * min(1, ds0) * (1 - min(1, ds0))
+    let dl.bell = 4 * min(1, dl0) * (1 - min(1, dl0))
+    let dc.bell = 4 * min(1, dc0) * (1 - min(1, dc0))
     let do.bell = 4 * min(1, do0) * (1 - min(1, do0))
     let dm.bell = 4 * min(1, dm0) * (1 - min(1, dm0))
     //  Both panels fill in their width quickly and then keep growing taller - so a
@@ -902,11 +966,15 @@ scene Vitreus {
     let dk.hh = bar.h / 2 + (content_bot + 16) * u * dk0 + max(0, sag)
     //  The player's panel: the same drawer as the controls, centred on the bar, and as tall as
     //  its one plate.
-    //  The calendar's drawer: exactly as wide as the bar, starting at the bar's top edge so its
-    //  straight sides carry on from the bar's own (a drawer starting lower leaves a notch on each
-    //  side that a blend would fill outward, as a bulge), and as tall as the bar plus its content.
-    let dc.w = bar.w * min(1, dc0 * 3)
-    let dc.hh = bar.h + card.h + max(0, sag)
+    //  The calendar's drawer: it falls as a narrow drop out of the bar and widens to exactly the bar's width as it
+    //  lands, with the liquid neck of the other drawers while it is narrower (see `dc.bell`). It starts at the bar's
+    //  middle, as they do, so the blend has the bar to melt into; as tall as the bar's lower half plus its content.
+    let dc.w = min(bar.w, (120 + 330 * (min(1, dc0 * 1.6) + max(0, dc0 - 1) * 0.6)) * u)
+    let dc.hh = bar.h / 2 + card.h + max(0, sag)
+    //  Once it is as wide as the bar (`f` 1) it must be a straight continuation of the bar's sides, so it moves its top up to
+    //  the bar's top edge and stops blending: a blend there would puff the join out at the bar's corners.
+    let dc.f = clamp((dc.w - bar.w + 24 * u) / (24 * u), 0, 1)
+    let dc.top = mix(bar.y, bar.y - bar.h / 2, dc.f)
     //  The volume / notification drawer: 340 wide, as tall as its plate.
     //  The notification's plate is as tall as what is on it: the app line, the title (one line or more),
     //  the body if there is one (as many lines as it needs), and a row of buttons if it brought any,
@@ -924,6 +992,12 @@ scene Vitreus {
     let set.h = mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 392, set_pgh)
     let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * u
     let ss.hh = bar.h / 2 + (8 + 36 + 8 + set.h + 16) * u * ds0 + max(0, sag)
+    //  The launcher: a drop that widens to the bar's width as it lands, like the calendar. The search field (40), the
+    //  rows (44 each, up to eight; seven where there is a preview beside them) and a line of hints.
+    let dl.w = min(bar.w, (120 + 330 * (min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6)) * u)
+    let dl.hh = bar.h / 2 + (112 + lr * 44) * u * dl0 + max(0, sag)
+    let dl.f = clamp((dl.w - bar.w + 24 * u) / (24 * u), 0, 1)     // as for the calendar
+    let dl.top = mix(bar.y, bar.y - bar.h / 2, dl.f)
     let os.w = (120 + 220 * (min(1, do0 * 1.6) + max(0, do0 - 1) * 0.6)) * u
     let os.hh = bar.h / 2 + (8 + osd_h + 16) * u * do0 + max(0, sag)
     let dm.w = (120 + 192 * (min(1, dm0 * 1.6) + max(0, dm0 - 1) * 0.6)) * u
@@ -965,8 +1039,9 @@ scene Vitreus {
             //  narrow drawer meets the wide bar there is a liquid neck, not a corner. It is only there
             //  while it has size: a zero-size shape would leave a stray shadow behind.
             box drawer { at: cx, bar.y + dk.hh / 2; size: dk.w * (1 - 0.07 * dk.bell + 0.003 * wobble), dk.hh * (1 - 0.002 * wobble); corner: mix(min(dk.w, dk.hh) / 2, 26 * u, clamp(dk0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dk.bell) * u * min(1, dk0 * 4); show: dk0 > 0.004 }
-            box cdrawer { at: cx, bar.y - bar.h / 2 + dc.hh / 2; size: dc.w, dc.hh; corner: 26 * u; show: dc0 > 0.004 }
+            box cdrawer { at: cx, (dc.top + bar.y + dc.hh) / 2; size: dc.w * (1 - 0.07 * dc.bell + 0.003 * wobble), (bar.y + dc.hh - dc.top) * (1 - 0.002 * wobble); corner: mix(min(dc.w, dc.hh) / 2, 26 * u, clamp(dc0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dc.bell) * u * min(1, dc0 * 4) * (1 - dc.f); show: dc0 > 0.004 }
             box sdrawer { at: cx, bar.y + ss.hh / 2; size: ss.w * (1 - 0.07 * ds.bell + 0.003 * wobble), ss.hh * (1 - 0.002 * wobble); corner: mix(min(ss.w, ss.hh) / 2, 26 * u, clamp(ds0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * ds.bell) * u * min(1, ds0 * 4); show: ds0 > 0.004 }
+            box ldrawer { at: cx, (dl.top + bar.y + dl.hh) / 2; size: dl.w * (1 - 0.07 * dl.bell + 0.003 * wobble), (bar.y + dl.hh - dl.top) * (1 - 0.002 * wobble); corner: mix(min(dl.w, dl.hh) / 2, 26 * u, clamp(dl0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dl.bell) * u * min(1, dl0 * 4) * (1 - dl.f); show: dl0 > 0.004 }
             box odrawer { at: cx, bar.y + os.hh / 2; size: os.w * (1 - 0.07 * do.bell + 0.003 * wobble), os.hh * (1 - 0.002 * wobble); corner: mix(min(os.w, os.hh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * do.bell) * u * min(1, do0 * 4); show: do0 > 0.004 }
             box mdrawer { at: mdx, bar.y + dm.hh / 2; size: dm.w * (1 - 0.07 * dm.bell + 0.003 * wobble), dm.hh * (1 - 0.002 * wobble); corner: mix(min(dm.w, dm.hh) / 2, 26 * u, clamp(dm0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dm.bell) * u * min(1, dm0 * 4); show: dm0 > 0.004 }
         }
@@ -1015,6 +1090,8 @@ scene Vitreus {
         zone box set_hit { at: set.x, bar.y; size: 24 * u, bar.h; cursor: pointer }
         on press set_hit { panel = if(panel == settings, none, settings) }
 
+        zone box sr_hit { at: sr.x, bar.y; size: 24 * u, bar.h; cursor: pointer }
+        on press sr_hit { panel = if(panel == launch, none, launch) }
         zone box ctl_hit { at: ctl.x, bar.y; size: 26 * u, bar.h; cursor: pointer }
         on press ctl_hit { panel = if(panel == controls, none, controls) }
 
@@ -1066,6 +1143,12 @@ scene Vitreus {
                 }
             }
         }
+        //  The launcher's button, between the settings button and the controls button: a magnifying glass.
+        group {
+            opacity: 65% + 35% * max(sr_hit.hover, clamp(dl, 0, 1))
+            ellipse { at: sr.x - 1.2 * u, bar.y - 1.2 * u; radius: 4 * u; stroke: 1.7 * u; color: mix(ink, mint, clamp(dl, 0, 1)) }
+            line { from: sr.x + 1.8 * u, bar.y + 1.8 * u; to: sr.x + 5 * u, bar.y + 5 * u; width: 1.9 * u; color: mix(ink, mint, clamp(dl, 0, 1)) }
+        }
         //  The controls button, between the settings button and the clock: two sliders.
         group {
             opacity: 65% + 35% * max(ctl_hit.hover, clamp(dk, 0, 1))
@@ -1093,7 +1176,7 @@ scene Vitreus {
     // ── the panel ────────────────────────────────────────────────
     group {
         //  The calendar's content is clipped to the calendar's shape.
-        clip inset 2 box { at: cx, bar.y - bar.h / 2 + dc.hh / 2; size: dc.w, dc.hh; corner: 26 * u }
+        clip inset 2 box { at: cx, bar.y + dc.hh / 2; size: dc.w, dc.hh; corner: 26 * u }
         //  ── the calendar panel ──
         //  Three plates like the volume and media ones, each 8% white and 12 from the panel's
         //  edges: the time and date, the chosen day with its reminders, and the month. The two
@@ -1826,6 +1909,78 @@ scene Vitreus {
             on press nt_x { emit nt_close }
         }
     }
+    //  ── the launcher ──
+    //  A search field over its results. What is typed picks the kind of search: apps, or after a first
+    //  character `#` files, `>` commands, `:` emoji, `^` the clipboard, `~` wallpapers; and a sum is answered. The
+    //  logic (see the Launcher section of vitreus.luau) reads the field and fills `lres`. Files, the clipboard and
+    //  wallpapers have a preview beside the rows: the picture, or the text, and the file's details.
+    group {
+        clip inset 2 box { at: cx, bar.y + dl.hh / 2; size: dl.w, dl.hh; corner: 26 * u }
+        opacity: fl
+        move: 0, (1 - fl) * 12 * u
+        let lx = cx - 215 * u
+        let ly = ck + 8 * u
+        let lry = ly + 68 * u                             // the rows start under the hints
+        let lph = max(1, lr * 44 - 4) * u                 // the rows' height, and the preview's
+        let lpx = lx + lw + 8 * u                         // the preview's left edge
+        let lpw = 430 * u - lw - 8 * u
+        box { from: lx, ly; size: 430 * u, 40 * u; corner: 20 * u; color: ink; opacity: 8% }
+        ellipse { at: lx + 24 * u, ly + 19 * u; radius: 5.5 * u; stroke: 1.6 * u; color: mint }
+        line { from: lx + 28 * u, ly + 23 * u; to: lx + 32.5 * u, ly + 27.5 * u; width: 1.8 * u; color: mint }
+        input lq { at: floor(lx + 46 * u + 0.5), floor(ly + 12 * u + 0.5); width: 290 * u; size: 15 * u; color: ink; family: "Space Grotesk"; placeholder: "Search apps…" }
+        text lmode { at: floor(lx + 412 * u + 0.5), floor(ly + 20 * u + 0.5); anchor: right center; align: right; size: 10 * u; weight: 700; width: 70 * u; lines: 1; color: mint; family: "Space Grotesk" }
+        text "files" { at: 0, 0; size: 9.5 * u; lines: 1; measure: lhw0; opacity: 0; family: "Space Grotesk" }
+        text "commands" { at: 0, 0; size: 9.5 * u; lines: 1; measure: lhw1; opacity: 0; family: "Space Grotesk" }
+        text "emoji" { at: 0, 0; size: 9.5 * u; lines: 1; measure: lhw2; opacity: 0; family: "Space Grotesk" }
+        text "clipboard" { at: 0, 0; size: 9.5 * u; lines: 1; measure: lhw3; opacity: 0; family: "Space Grotesk" }
+        text "wallpapers" { at: 0, 0; size: 9.5 * u; lines: 1; measure: lhw4; opacity: 0; family: "Space Grotesk" }
+        //  What the first character of the search does, in small type under the field: press one to type it. Five
+        //  equal cells across the field, each pair (character, name) centred in its cell, a divider between cells.
+        repeat i in 0..5 {
+            let hc = lx + (i + 0.5) * 86 * u                   // the cell's middle
+            let hy = ly + 54 * u
+            let hx = floor(hc - (12 * u + pick(i, lhw0.width, lhw1.width, lhw2.width, lhw3.width, lhw4.width)) / 2 + 0.5)   // where the pair starts
+            box { at: hc, hy; size: 82 * u, 18 * u; corner: 9 * u; color: ink; opacity: 8% * lhint_hit.$i.hover }
+            text pick(i, "#", ">", ":", "^", "~") { at: hx, floor(hy + 0.5); anchor: left center; size: 11 * u; weight: 700; color: mint; family: "Space Grotesk" }
+            text pick(i, "files", "commands", "emoji", "clipboard", "wallpapers") { at: hx + floor(12 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; color: faint; family: "Space Grotesk" }
+            line { from: lx + i * 86 * u, hy - 5 * u; to: lx + i * 86 * u, hy + 5 * u; width: 1 * u; color: ink; opacity: 18%; show: i > 0 }
+            zone box lhint_hit.$i { at: hc, hy; size: 84 * u, 18 * u; corner: 9 * u; cursor: pointer }
+            on press lhint_hit.$i { emit launch_hint(i) }
+        }
+        column lcol {
+            at: lx, lry
+            view: lw, lph
+            gap: 4 * u
+            for r in lres { LRow(r, pick: launch_pick) }
+        }
+        text lmsg { at: floor(lx + lw / 2 + 0.5), floor(lry + 20 * u + 0.5); anchor: center; align: center; size: 12 * u; color: faint; width: lw - 16 * u; lines: 2; family: "Space Grotesk"; show: lcount < 1 }
+
+        //  The preview.
+        group {
+            opacity: lpv
+            show: lpv > 0.01
+            box { from: lpx, lry; size: lpw, lph; corner: 14 * u; color: ink; opacity: 5% }
+            text lp_kind { at: floor(lpx + 10 * u + 0.5), floor(lry + 14 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; width: lpw - 20 * u; lines: 1; color: mint; family: "Space Grotesk" }
+            group {
+                show: lp_img_on
+                clip inset 0 box { at: lpx + lpw / 2, lry + 28 * u + (lpw - 20 * u) / 3; size: lpw - 20 * u, (lpw - 20 * u) * 2 / 3; corner: 8 * u }
+                box { from: lpx + 10 * u, lry + 28 * u; size: lpw - 20 * u, (lpw - 20 * u) * 2 / 3; corner: 8 * u; color: ink; opacity: 5% }
+                image lp_img { at: lpx + 10 * u, lry + 28 * u; size: lpw - 20 * u, (lpw - 20 * u) * 2 / 3 }
+            }
+            let lpy = lry + 28 * u + if(lp_img_on, (lpw - 20 * u) * 2 / 3 + 8 * u, 0)
+            text lp_title { at: floor(lpx + 10 * u + 0.5), floor(lpy + 8 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; width: lpw - 20 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            text lp_path { at: floor(lpx + 10 * u + 0.5), floor(lpy + 24 * u + 0.5); anchor: left center; size: 9.5 * u; width: lpw - 20 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            text lp_body { at: floor(lpx + 10 * u + 0.5), floor(lpy + 40 * u + 0.5); anchor: left top; size: 11 * u; width: lpw - 20 * u; lines: 9; color: ink; family: "Space Grotesk" }
+            repeat i in 0..4 {
+                let ky = lpy + 44 * u + i * 16 * u
+                text pick(i, lp_k1, lp_k2, lp_k3, lp_k4) { at: floor(lpx + 10 * u + 0.5), floor(ky + 0.5); anchor: left center; size: 10 * u; width: 50 * u; lines: 1; color: faint; family: "Space Grotesk" }
+                text pick(i, lp_v1, lp_v2, lp_v3, lp_v4) { at: floor(lpx + 60 * u + 0.5), floor(ky + 0.5); anchor: left center; size: 10 * u; width: lpw - 70 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            }
+        }
+        text "↑↓ move   ·   Enter open   ·   Esc close" { at: floor(lx + 6 * u + 0.5), floor(lry + (lr * 44 + 4 + 9) * u + 0.5); anchor: left center; size: 10 * u; color: faint; opacity: 70%; family: "Space Grotesk" }
+        text lfoot { at: floor(lx + 424 * u + 0.5), floor(lry + (lr * 44 + 4 + 9) * u + 0.5); anchor: right center; align: right; size: 10 * u; width: 120 * u; lines: 1; color: faint; opacity: 70%; family: "Space Grotesk" }
+    }
+
     //  ── the settings panel ──
     //  Laid out the way Synoptik's is: a header with an icon badge, the title and a breadcrumb chip; under
     //  it a sidebar of sections next to the page, which is a stack of cards. The wallpaper picker is the
@@ -2381,6 +2536,12 @@ scene Vitreus {
     // ── dismissing the panel ─────────────────────────────────────
     //  Escape closes it. The scene only asks for the keyboard while the panel is
     //  open (see `surface`), so typing goes to your apps the rest of the time.
+    on key Down while panel == launch { emit launch_move(1) }
+    on key Up while panel == launch { emit launch_move(-1) }
+    on key Tab while panel == launch { emit launch_move(1) }
+    on key Ctrl+n while panel == launch { emit launch_move(1) }
+    on key Ctrl+p while panel == launch { emit launch_move(-1) }
+    on submit lq { emit launch_run }
     on key Escape while dd_open { dd_open = false }
     on key Escape while panel != none and not dd_open { panel = none }
 }

@@ -1,0 +1,19 @@
+#!/bin/sh
+# Helper for the Vitreus launcher's clipboard search: pictures cannot go through the logic's `run` (its output is
+# text), so this does the piping. It needs cliphist and ImageMagick (thumbnail), or wl-copy (copy).
+#   vitreus-clipimg thumb ID OUT.png    a 480x320 picture of clipboard entry ID, padded to that size
+#   vitreus-clipimg copy ID             put entry ID back on the clipboard as it was
+set -eu
+mode="${1:?mode}"
+id="${2:?id}"
+case "$mode" in
+    thumb)
+        out="${3:?output file}"
+        printf '%s\t\n' "$id" | cliphist decode |
+            magick - -auto-orient -thumbnail 480x320 -background none -gravity center -extent 480x320 "$out"
+        ;;
+    copy)
+        printf '%s\t\n' "$id" | cliphist decode | wl-copy --type "${3:-image/png}"
+        ;;
+    *) echo "vitreus-clipimg: thumb or copy" >&2; exit 2 ;;
+esac

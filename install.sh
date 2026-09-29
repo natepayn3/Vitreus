@@ -17,6 +17,7 @@
 #   3. the Space Grotesk font         (into ~/.local/share/fonts, no sudo)
 #   4. the shell                      (into ~/.config/pleamar/shells/vitreus: cloned, or updated)
 #   5. your palette, autostart entry  (made once and never written over)
+#   5b. the launcher's helper        (bin/vitreus-clipimg, linked into ~/.local/bin)
 #   6. its Hyprland key binds         (hypr_vitreus.lua linked into ~/.config/hypr, and loaded from hyprland.lua)
 #
 # It never installs a compositor: Vitreus is developed on Hyprland, and needs one that has layer-shell.
@@ -50,7 +51,7 @@ for a in "$@"; do
         --no-autostart) do_autostart=false ;;
         --no-binds) do_binds=false ;;
         --uninstall) action=uninstall ;;
-        --help|-h) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --help|-h) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) printf 'vitreus · I do not know "%s" (try --help)\n' "$a" >&2; exit 1 ;;
     esac
 done
@@ -97,6 +98,7 @@ if [ "$action" = uninstall ]; then
         run sed -i '/^-- >>> vitreus/,/^-- <<< vitreus/d' "$hyprlua"
         say "removed Vitreus's lines from $hyprlua (SUPER + L and SUPER + Space go back to what hypr_style.lua binds)"
     fi
+    if [ -L "$HOME/.local/bin/vitreus-clipimg" ]; then run rm -f "$HOME/.local/bin/vitreus-clipimg"; fi
     if [ -L "$conf/hypr/hypr_vitreus.lua" ]; then run rm -f "$conf/hypr/hypr_vitreus.lua"; fi
     run rm -f "$conf/hypr/vitreus_monitors.lua" "$conf/hypr/vitreus_hypr.lua"
     if [ -d "$dest" ] && ask "delete $dest?"; then run rm -rf "$dest"; fi
@@ -222,6 +224,15 @@ if [ -f "$dest/palette.plm" ]; then
 elif [ -f "$dest/palette.default.plm" ] || $dry; then
     say "making your palette from the stock colours"
     run cp "$dest/palette.default.plm" "$dest/palette.plm"
+fi
+
+# ── the launcher's helper ──────────────────────────────────────────────────
+# Clipboard pictures cannot go through the logic (its command output is text), so a small script does the piping.
+# It is linked into ~/.local/bin, where pleamar looks for programs.
+if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
+    run mkdir -p "$HOME/.local/bin"
+    run ln -sf "$dest/bin/vitreus-clipimg" "$HOME/.local/bin/vitreus-clipimg"
+    case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) warn "$HOME/.local/bin is not in your PATH: the launcher's clipboard pictures need it" ;; esac
 fi
 
 # ── 6. Hyprland key binds ──────────────────────────────────────────────────
