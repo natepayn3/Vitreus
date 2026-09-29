@@ -7,6 +7,7 @@
 #   ./install.sh --dry-run         say what it would do, and do nothing
 #   ./install.sh --no-deps         only the shell itself: no packages, no font, no pleamar
 #   ./install.sh --no-autostart    don't touch ~/.config/pleamar/autostart
+#   ./install.sh --no-binds        don't touch ~/.config/hypr (the key binds, and what Settings saves there)
 #   ./install.sh --uninstall       take the shell away (your data in ~/.local/share stays)
 #
 # What it does, in order:
@@ -16,6 +17,7 @@
 #   3. the Space Grotesk font         (into ~/.local/share/fonts, no sudo)
 #   4. the shell                      (into ~/.config/pleamar/shells/vitreus: cloned, or updated)
 #   5. your palette, autostart entry  (made once and never written over)
+#   6. its Hyprland key binds         (hypr_vitreus.lua linked into ~/.config/hypr, and loaded from hyprland.lua)
 #
 # It never installs a compositor: Vitreus is developed on Hyprland, and needs one that has layer-shell.
 set -eu
@@ -38,6 +40,7 @@ assume_yes=false
 dry=false
 deps=true
 do_autostart=true
+do_binds=true
 action=install
 for a in "$@"; do
     case "$a" in
@@ -45,8 +48,9 @@ for a in "$@"; do
         --dry-run) dry=true ;;
         --no-deps) deps=false ;;
         --no-autostart) do_autostart=false ;;
+        --no-binds) do_binds=false ;;
         --uninstall) action=uninstall ;;
-        --help|-h) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --help|-h) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) printf 'vitreus · I do not know "%s" (try --help)\n' "$a" >&2; exit 1 ;;
     esac
 done
@@ -88,6 +92,13 @@ if [ "$action" = uninstall ]; then
         run sed -i '/vitreus\/lockscreen\/lockscreen\.plm/d' "$autostart"
         say "removed the lock screen's line from $autostart (hypridle and any key binding that lock with it are yours to change)"
     fi
+    hyprlua="$conf/hypr/hyprland.lua"
+    if [ -f "$hyprlua" ] && grep -q '^-- >>> vitreus' "$hyprlua"; then
+        run sed -i '/^-- >>> vitreus/,/^-- <<< vitreus/d' "$hyprlua"
+        say "removed Vitreus's lines from $hyprlua (SUPER + L and SUPER + Space go back to what hypr_style.lua binds)"
+    fi
+    if [ -L "$conf/hypr/hypr_vitreus.lua" ]; then run rm -f "$conf/hypr/hypr_vitreus.lua"; fi
+    run rm -f "$conf/hypr/vitreus_monitors.lua" "$conf/hypr/vitreus_hypr.lua"
     if [ -d "$dest" ] && ask "delete $dest?"; then run rm -rf "$dest"; fi
     say "left as they were: your data in $data/pleamar/vitreus, the caches in ${XDG_CACHE_HOME:-$HOME/.cache}/pleamar/vitreus"
     say "and .../pleamar/lockscreen, and pleamar and the packages. To remove the data too: rm -rf $data/pleamar/vitreus"
@@ -211,6 +222,37 @@ if [ -f "$dest/palette.plm" ]; then
 elif [ -f "$dest/palette.default.plm" ] || $dry; then
     say "making your palette from the stock colours"
     run cp "$dest/palette.default.plm" "$dest/palette.plm"
+fi
+
+# ── 6. Hyprland key binds ──────────────────────────────────────────────────
+# hypr_vitreus.lua (SUPER + L lock, SUPER + Space Settings) is linked into ~/.config/hypr and loaded from hyprland.lua
+# after hypr_style.lua. Settings > Display and > Hyprland keep what you choose in vitreus_monitors.lua and
+# vitreus_hypr.lua, loaded the same way (they do not exist until something is kept, hence pcall).
+hyprdir="$conf/hypr"
+hyprlua="$hyprdir/hyprland.lua"
+if $do_binds; then
+    if [ ! -f "$hyprlua" ]; then
+        say "no $hyprlua, so no key binds set up (hyprland.conf users: bind a key to  pleamar --say vitreus \"emit settings_toggle\" )"
+    elif grep -q 'hypr_vitreus' "$hyprlua"; then
+        say "hyprland.lua already loads hypr_vitreus.lua"
+        run ln -sf "$dest/hypr_vitreus.lua" "$hyprdir/hypr_vitreus.lua"
+    elif ask "load Vitreus's key binds (SUPER + L, SUPER + Space) from $hyprlua?"; then
+        run ln -sf "$dest/hypr_vitreus.lua" "$hyprdir/hypr_vitreus.lua"
+        if $dry; then
+            echo "    would back up $hyprlua and add three pcall(require, ...) lines to its end"
+        else
+            cp "$hyprlua" "$hyprlua.before-vitreus"
+            {
+                echo ""
+                echo "-- >>> vitreus (added by its installer; ./install.sh --uninstall takes it out)"
+                echo 'pcall(require, "hypr_vitreus")'
+                grep -q 'vitreus_monitors' "$hyprlua" || echo 'pcall(require, "vitreus_monitors")'
+                grep -q 'vitreus_hypr' "$hyprlua" || echo 'pcall(require, "vitreus_hypr")'
+                echo "-- <<< vitreus"
+            } >> "$hyprlua"
+            say "added to $hyprlua (the old one is $hyprlua.before-vitreus); Hyprland reloads it by itself"
+        fi
+    fi
 fi
 
 # ── start with the desktop ─────────────────────────────────────────────────

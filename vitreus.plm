@@ -136,6 +136,7 @@ scene Vitreus {
     event hy_follow_set ->
     event hy_toggle ->
     event hy_refresh ->
+    event settings_toggle ->        // from a key bind (hypr_vitreus.lua): open or close Settings
     event glass_reset ->
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
     //  panel's height, which follows the page).
@@ -469,6 +470,7 @@ scene Vitreus {
         swap: 1 ~700ms after 30ms
     }
     follow dd = if(dd_open and panel == controls, 1, 0)
+    on settings_toggle { panel = if(panel == settings, none, settings) }
     on change panel { dd_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0 }
     on change set_page { disp_res_open = false; disp_scroll_to = 0; emit hy_refresh }
     on change panel { tasks_watch = panel == player }
