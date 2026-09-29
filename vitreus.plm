@@ -9,7 +9,7 @@ import "palette.plm"
 scene Vitreus {
     surface { size: 900, 800; anchor: top; margin: 0; reserve: 68; keyboard: exclusive while panel != none and panel != volume and panel != notif }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep" }
+                  run: "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
     model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number }
@@ -88,6 +88,10 @@ scene Vitreus {
         follow spec.s.$i = spec.$i
     }                  // 0..1, from cava: how hard the low end is hitting
     model outlist max 6 { name: text; current: bool }   // every place the sound can go
+    //  The mixer under the volume slider (right-click it): one row per app that is playing sound.
+    model mixer max 6 { name: text; pct: number; muted: bool; corked: bool; icon: image 20, 20 }
+    event mix_set ->                // a row's slider: the row times 4, plus 0..1 along its track (one number)
+    event mix_mute ->               // a row's speaker
     //  The running windows (asked of Hyprland by the logic: the window service has no list there) and
     //  the apps that live in the tray, for the panel that hangs from the window title. Icons are named
     //  by the logic, which matches each window's class to an app.
@@ -274,6 +278,7 @@ scene Vitreus {
     event task_close ->            // its close button, or a middle click
     event tray_click ->            // a tray app's row
     fact dd_open = false           // the output dropdown
+    fact vm_open = false           // the per-app mixer under the volume slider
     event pick_out ->              // a row of it, by position
     event mute ->                  // the speaker icon
     event setvol ->                // the volume slider: 0..1
@@ -382,6 +387,7 @@ scene Vitreus {
     prop pulse = 0 ~beat
     prop ring  = 1 ~900ms          // a ripple crossing the bar: 0 born, 1 gone
     prop dd    = 0 ~calm           // the output dropdown, 0 shut .. 1 open
+    prop vm    = 0 ~calm           // the per-app mixer, 0 shut .. 1 open
     prop swap  = 1 ~700ms          // the cover popping in on a new song: 0 just changed, 1 settled
     prop playf = 0 ~calm           // 1 while playing: the cover is full and colourful
     prop mshow = 0 ~calm          // the bar's player controls: there while a player exists, paused or not
@@ -513,9 +519,10 @@ scene Vitreus {
         swap: 1 ~700ms after 30ms
     }
     follow dd = if(dd_open and panel == controls, 1, 0)
+    follow vm = if(vm_open and panel == controls, 1, 0)
     on launch_toggle { panel = if(panel == launch, none, launch) }
     on settings_toggle { panel = if(panel == settings, none, settings) }
-    on change panel { dd_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0 }
+    on change panel { dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0 }
     on change set_page { disp_res_open = false; disp_scroll_to = 0; emit hy_refresh }
     on change panel { tasks_watch = panel == player }
     on pick_out { dd_open = false }
@@ -561,7 +568,7 @@ scene Vitreus {
     //  One row of the output dropdown: a dot if it is the current one, its name.
     component OutRow(f: record, pick: event) {
         size: 276 * u, floor(28 * u + 0.5)
-        zone box touch { from: 0, 0; size: 276 * u, 28 * u; corner: 10 * u; cursor: pointer }
+        zone box touch { from: 0, 0; size: 276 * u, 28 * u; corner: 10 * u; cursor: pointer; active: dd > 0.05 }
         box { from: 0, 0; size: 276 * u, 28 * u; corner: 10 * u; color: ink
               opacity: if(f.current, 12%, 0%) + 9% * touch.hover }
         ellipse { at: 14 * u, 14 * u; radius: 3 * u; color: mint; opacity: if(f.current, 100%, 0%) }
@@ -711,6 +718,24 @@ scene Vitreus {
         on press touch { emit focus(t.index); panel = none }
         on press middle touch { emit kill(t.index) }
         on press close_z { emit kill(t.index) }
+    }
+
+    //  One app in the mixer: its icon, its name, a small slider and its percentage, and a speaker that silences it.
+    component MixRow(m: record, set: event, mute: event) {
+        size: 288 * u, 28 * u
+        opacity: if(m.corked, 55%, 100%)
+        image m.icon { at: floor(10 * u + 0.5), floor(5 * u + 0.5); size: floor(20 * u + 0.5), floor(20 * u + 0.5) }
+        text m.name { at: floor(38 * u + 0.5), floor(13 * u + 0.5); anchor: left center; size: 11 * u; width: 78 * u; lines: 1; color: ink; family: "Space Grotesk" }
+        box { from: 116 * u, 11 * u; size: 100 * u, 6 * u; corner: 3 * u; color: deep; opacity: 60% }
+        box { from: 116 * u, 11 * u; size: max(0.1, 100 * u * clamp(m.pct / 100, 0, 1)), 6 * u; corner: 3 * u; color: if(m.muted, faint, mint); opacity: if(m.muted, 60%, 100%) }
+        zone box track { at: 166 * u, 14 * u; size: 112 * u, 24 * u; cursor: pointer }
+        on press track { emit set(m.index * 4 + clamp((local.x - 116 * u) / (100 * u), 0, 1)) }
+        on drag track { emit set(m.index * 4 + clamp((local.x - 116 * u) / (100 * u), 0, 1)) }
+        text number(m.pct, 0, "%") { at: floor(252 * u + 0.5), floor(14 * u + 0.5); anchor: right center; align: right; size: 10.5 * u; width: 30 * u; lines: 1; color: faint; family: "Space Grotesk" }
+        path { at: 264 * u, 14 * u; color: if(m.muted, faint, mint); opacity: 85% + 15% * mzone.hover; move 0, -2 * u; line 2.5 * u, -2 * u; line 5.5 * u, -5 * u; line 5.5 * u, 5 * u; line 2.5 * u, 2 * u; line 0, 2 * u; close }
+        line { from: 255 * u, 8 * u; to: 271 * u, 20 * u; width: 1.5 * u; color: alert; opacity: if(m.muted, 100%, 0) }
+        zone box mzone { at: 263 * u, 14 * u; size: 20 * u, 24 * u; cursor: pointer }
+        on press mzone { emit mute(m.index) }
     }
 
     //  A result of the launcher: an icon (or a letter where there is none), its name, and a line of detail.
@@ -962,7 +987,14 @@ scene Vitreus {
     //  it reaches past the drawer, so the drawer grows to hold it while it is open.
     let dd.rows = clamp(outlist.count, 1, 6)
     let dd.extra = max(0, dd.rows * 30 - 28) * max(0, dd)
-    let content_bot = mix(vol_bot + dd.extra, sub_bot, expand0)
+    //  The mixer hangs under the volume plate: a row of 32 per app (a line of words with none), and the drawer
+    //  grows to hold it.
+    //  The mixer is part of the volume card: the card grows by `mix.m` while it is open (a row of 32 per app, or a line of
+    //  words with none, and room for the dots at the foot).
+    let mix.m = if(mixer.count > 0, mixer.count * 32 + 8, 40)
+    let vp.h = 64 + mix.m * clamp(vm, 0, 1)                // the volume card's height, unscaled
+    let mix.extra = mix.m * max(0, vm)
+    let content_bot = mix(vol_bot + max(dd.extra, mix.extra), sub_bot, expand0)
     let dk.hh = bar.h / 2 + (content_bot + 16) * u * dk0 + max(0, sag)
     //  The player's panel: the same drawer as the controls, centred on the bar, and as tall as
     //  its one plate.
@@ -1299,13 +1331,13 @@ scene Vitreus {
             opacity: f5 * clamp(1 - expand0, 0, 1)
             move: 0, (1 - f5) * 12 * u
             let vol_cy = ck + (vol_top + 32) * u
-            box { at: cx, vol_cy; size: 288 * u, 64 * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: cx, vol_cy + (vp.h - 64) / 2 * u; size: 288 * u, vp.h * u; corner: 14 * u; color: ink; opacity: veil }
             //  ── the slider ──
             //  The track runs from `sl.x0` for `sl.w`; the pointer is turned into a volume
             //  against those two numbers, so they are written once.
             let sl.x0 = cx - 96 * u
             let sl.w = 222 * u
-            let sy = vol_cy + 14 * u
+            let sy = vol_cy + 11 * u
             let th = (16 + 3 * vol_hit.hover) * u          // the track thickens under the pointer
             //  A speaker on the left that says how loud it is: two waves that come and go
             //  with the level, or a slash when it is silenced.
@@ -1339,13 +1371,27 @@ scene Vitreus {
             //  The zone that takes the click: the whole track and a little more each side
             //  and above and below, so it is easy to hit; on the press and all through a drag
             //  it turns where the pointer is into a volume.
-            zone box vol_hit { at: sl.x0 + sl.w / 2, sy; size: sl.w + 28 * u, 34 * u; cursor: pointer }
+            zone box vol_plate { at: cx, vol_cy + (vp.h - 64) / 2 * u; size: 288 * u, vp.h * u; corner: 14 * u }
+            on press right vol_plate { vm_open = not vm_open; dd_open = false }
+            zone box vol_hit { at: sl.x0 + sl.w / 2, sy; size: sl.w + 16 * u, 24 * u; cursor: pointer }
             on press vol_hit { emit setvol(clamp((pointer.x - sl.x0) / sl.w, 0, 1)) }
+            on press right vol_hit { vm_open = not vm_open; dd_open = false }
             on drag vol_hit { emit setvol(clamp((pointer.x - sl.x0) / sl.w, 0, 1)) }
+            //  Three small dots at the foot of the plate say there is more under it: the mixer. They are a button too
+            //  (right-clicking the plate does the same).
+            repeat i in 0..3 {
+                ellipse { at: cx + (i - 1) * 6.5 * u, vol_cy + (vp.h - 36.5) * u; radius: 1.6 * u; color: ink; opacity: (35% + 55% * mix_hit.hover) * (1 - clamp(vm * 1.6, 0, 1)) }
+            }
+            //  While it is open the dots give way to an arrow pointing up: press it to fold the mixer away.
+            path { at: cx, vol_cy + (vp.h - 36.5) * u; stroke: 1.6 * u; color: mint; opacity: (55% + 40% * mix_hit.hover) * clamp(vm * 1.6 - 0.6, 0, 1); move -4.5 * u, 1.8 * u; line 0, -1.8 * u; line 4.5 * u, 1.8 * u }
+            zone box mix_hit { at: cx, vol_cy + (vp.h - 36.5) * u; size: 40 * u, 9 * u; corner: 4.5 * u; cursor: pointer }
+            on press mix_hit { vm_open = not vm_open; dd_open = false }
+            on press right mix_hit { vm_open = not vm_open; dd_open = false }
             //  The speaker is a mute button. Declared after the track's zone, which reaches
             //  a little way under it, so the icon wins there.
             zone box mute_hit { at: cx - 114 * u, sy; size: 26 * u, 32 * u; cursor: pointer }
             on press mute_hit { emit mute }
+            on press right mute_hit { vm_open = not vm_open; dd_open = false }
             //  The row above the track: which output, and how loud.
             //  Name and chevron are one button, right-aligned next to the percentage: the
             //  name ends where the chevron starts, and the zone is measured from the name.
@@ -1359,8 +1405,25 @@ scene Vitreus {
             path { at: cx + 76 * u, vol_cy - 14 * u; stroke: 1.4 * u; color: ink; opacity: 55% + 35% * out_hit.hover; move -3.5 * u, -2 * u; line 0, 2 * u; line 3.5 * u, -2 * u }
             let out.w = min(outw.width, 130 * u) + 30 * u
             zone box out_hit { at: cx + 86 * u - out.w / 2, vol_cy - 14 * u; size: out.w, 30 * u; cursor: pointer }
-            on press out_hit { toggle dd_open }
+            on press out_hit { toggle dd_open; vm_open = false }
+            on press right out_hit { vm_open = not vm_open; dd_open = false }
             text "Volume" { at: floor(cx - 128 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: left center; size: 14 * u; color: faint; family: "Space Grotesk" }
+        }
+
+        //  The mixer: every app that is playing, each with a slider of its own, inside the volume card (which grows to hold
+        //  them). Right-click the card, or press its dots, to open it.
+        group {
+            show: vm > 0.01
+            opacity: f5 * clamp(1 - expand0, 0, 1) * clamp(vm, 0, 1) * (1 - clamp(dd * 2, 0, 1))
+            let mix_top = ck + (vol_top + 58) * u                   // under the slider, inside the card
+            clip inset 0 box { at: cx, mix_top + (mix.m - 12) * u * clamp(vm, 0, 1) / 2; size: 288 * u, (mix.m - 12) * u * clamp(vm, 0, 1) }
+            text "No app is playing sound" { at: floor(cx + 0.5), floor(mix_top + 12 * u + 0.5); anchor: center; align: center; size: 11 * u; color: faint; family: "Space Grotesk"; show: mixer.count < 1 }
+            column mixcol {
+                at: floor(cx - 144 * u + 0.5), floor(mix_top + 0.5)
+                view: 288 * u, max(1, mixer.count * 32 - 4) * u
+                gap: 4 * u
+                for m in mixer { MixRow(m, set: mix_set, mute: mix_mute) }
+            }
         }
 
         //  Brightness: the volume slider's shape again, in miniature — a sun
@@ -1669,7 +1732,7 @@ scene Vitreus {
             let ddn = clamp(outlist.count, 1, 6)
             let ddh = ddn * 30 * u + 12 * u
             box { at: cx, ck + (vol_top + 32) * u + ddh / 2; size: 288 * u, ddh; corner: 14 * u; color: panel }
-            zone box dd_block { at: cx, ck + (vol_top + 32) * u + ddh / 2; size: 288 * u, ddh }
+            zone box dd_block { at: cx, ck + (vol_top + 32) * u + ddh / 2; size: 288 * u, ddh; active: dd > 0.05 }
             column dd_list {
                 at: floor(cx - 138 * u + 0.5), floor(ck + (vol_top + 32) * u + 6 * u + 0.5)
                 gap: 3

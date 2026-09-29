@@ -3096,3 +3096,79 @@ end
         focus("lq")
     end)
 end)()
+
+-- ── The mixer under the volume slider ─────────────────────────────────────────────────────────────────────────
+-- Right-click the volume plate in Controls: one slider for each app that is playing sound, after Synoptik's per-app
+-- volumes. pleamar's audio service has no per-app streams, so these are `pactl` sink inputs: listed while the mixer is
+-- open (once a second), set with `set-sink-input-volume`, silenced with `set-sink-input-mute`.
+;(function()
+    local M = { ids = {}, rows = {}, open = false, busy_until = 0, pending = nil, waiting = false }
+
+    local function now_ms() return math.floor(os.clock() * 1000) end
+
+    local function show()
+        model.mixer = M.rows
+    end
+
+    local function refresh()
+        if M.pending or now_ms() < M.busy_until then return end
+        run("pactl", { "-f", "json", "list", "sink-inputs" }, function(out, code)
+            if code ~= 0 or M.pending or now_ms() < M.busy_until then return end
+            local ok, list = pcall(json.decode, out or "[]")
+            if not ok or type(list) ~= "table" then return end
+            local ids, rows = {}, {}
+            for _, s in ipairs(list) do
+                local p = s.properties or {}
+                local name = p["application.name"] or p["media.name"] or "Unknown"
+                if #rows < 6 and not (name == "quickshell" and not p["application.name"]) then
+                    local vol = s.volume and (s.volume["front-left"] or s.volume["mono"] or select(2, next(s.volume)))
+                    local pct = vol and tonumber((tostring(vol.value_percent or "0")):match("(%d+)")) or 0
+                    ids[#ids + 1] = s.index
+                    rows[#rows + 1] = {
+                        name = name, pct = pct, muted = s.mute == true, corked = s.corked == true,
+                        icon = p["application.icon_name"] or p["application.process.binary"] or name,
+                    }
+                end
+            end
+            M.ids, M.rows = ids, rows
+            show()
+        end)
+    end
+
+    on("fact:vm_open", function(v)
+        M.open = (v == true or v == 1)
+        if M.open then refresh() end
+    end)
+    every(1000, function() if M.open then refresh() end end)
+
+    -- The slider is sent a moment after the last movement, and the row shows the new number at once.
+    local function flush()
+        M.waiting = false
+        local pend = M.pending
+        M.pending = nil
+        if not pend then return end
+        run("pactl", { "set-sink-input-volume", tostring(pend.id), pend.pct .. "%" }, function() end)
+        M.busy_until = now_ms() + 700
+    end
+    on("mix_set", function(v)
+        local row = math.floor(v / 4)
+        local ratio = math.max(0, math.min(1, v - row * 4))
+        local id = M.ids[row + 1]
+        if not id then return end
+        local pct = math.floor(ratio * 100 + 0.5)
+        M.rows[row + 1].pct = pct
+        show()
+        M.pending = { id = id, pct = pct }
+        M.busy_until = now_ms() + 700
+        if not M.waiting then M.waiting = true; after(60, flush) end
+    end)
+    on("mix_mute", function(row)
+        row = math.floor(row + 0.5)
+        local id, r = M.ids[row + 1], M.rows[row + 1]
+        if not id then return end
+        r.muted = not r.muted
+        show()
+        M.busy_until = now_ms() + 700
+        run("pactl", { "set-sink-input-mute", tostring(id), r.muted and "1" or "0" }, function() end)
+    end)
+end)()
