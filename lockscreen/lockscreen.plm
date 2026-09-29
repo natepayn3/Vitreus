@@ -1,0 +1,342 @@
+language 0.1
+import "../palette.plm"
+
+//  The lock screen, drawn after Synoptik's: the wallpaper arrives sharp and blurs into place under a ring
+//  of liquid that leaves the centre, then the clock, the avatar and the password bar rise in one after
+//  another. The password is never shown: every key you type becomes a random shape.
+//
+//  Lock it with   pleamar --say lockscreen "fact locked true"
+//  It unlocks itself when `auth.check` says the password is yours.
+
+scene Lockscreen {
+    //  The scene needs a surface of its own; the lock surface below is the one that matters.
+    surface { size: 1, 1; anchor: top_left; level: background }
+
+    permissions {
+        services: "clock", "battery", "media", "media.*", "auth"
+        run: "awww", "magick", "getent", "mkdir", "rm", "ls", "loginctl", "hyprctl", "printenv"
+    }
+
+    service clock as now { hour: number }
+    service battery as batt { present: bool; percent: number; charging: bool }
+    service media as med { playing: bool; title: text; artist: text }
+
+    //  ── what the logic reports ───────────────────────────────────────────────
+    fact safe = true               // testing: Esc, or a minute, opens the lock
+    fact locked = false            // set from outside to lock; the logic clears it after a good password
+    fact settled = false           // the entrance is over: nothing reads `time` any more
+    fact authing = false           // PAM is thinking
+    fact wrong = false             // the last try failed
+    fact right = false             // the last try worked
+    fact has_media = false
+    fact has_avatar = false
+    fact has_wall = false
+    fact pw_len = 0
+    fact t0 = 0                    // `time` when the lock closed
+    text password = ""
+    text status = "System Locked"
+    text realname = "User"
+    text avatar_path = ""
+    text wp_sharp = ""
+    text wp_blur = ""
+    text clock_time = "12:00"
+    text clock_ampm = "AM"
+    text clock_date = ""
+    text clock_h = "12"
+    text clock_m = "00"
+    model shapes max 40 { idx: number; rot: number; outline: bool }
+    event tryauth ->
+    event clear ->
+    event media_prev ->
+    event media_play ->
+    event media_next ->
+
+    image avatar = from avatar_path, 200, 200
+    image wall_sharp = from wp_sharp, 1920, 1080
+    image wall_blur = from wp_blur, 1920, 1080
+    figure shp = file "shapes.svg"
+    shader lockwave = file "lockwave.wgsl"
+    spring wobble = 520, 11
+    spring pop = 420, 14
+    measure ck_w
+
+    //  ── springs of the small things ──────────────────────────────────────────
+    prop pop = 1 ~pop                       // the newest shape, popping past where it lands
+    prop shake = 0 ~wobble                  // the bar, shoved sideways on a wrong password
+    prop err_t = 0 ~150ms
+    prop ok_t = 0 ~150ms
+    prop typed_t = 0 ~150ms                 // the bar has something in it
+    prop media_in = 0 ~calm
+    prop exit_f = 1 ~150ms
+    prop lock_hot = 0 ~120ms
+    prop clr_hot = 0 ~120ms
+    prop go_hot = 0 ~120ms
+    prop prev_hot = 0 ~120ms
+    prop play_hot = 0 ~120ms
+    prop next_hot = 0 ~120ms
+
+    follow err_t = if(wrong, 1, 0)
+    follow ok_t = if(right, 1, 0)
+    follow typed_t = if(pw_len > 0, 1, 0)
+    follow media_in = if(has_media, 1, 0)
+    follow exit_f = if(right, 0, 1)
+
+    on change pw_len while pw_len > 0 { pop: 0 ~0ms }
+    on change pw_len while pw_len > 0 { pop: 1 after 16ms }
+    on change wrong while wrong { impulse shake 520 }
+    on change locked while locked { t0 = time }
+
+    on key Escape while pw_len > 0 { emit clear }
+    //  The seatbelts of a lock that is still being tried, as Marea's are: Esc on an empty box opens it, and
+    //  so does a minute of nothing. Turn `safe` off once it has been trusted.
+    on key Escape while locked and safe and pw_len == 0 { locked = false }
+    on still locked for 60s while locked and safe { locked = false }
+    on key Ctrl+u { emit clear }
+    on submit password { emit tryauth }
+
+    //  ── the lock ─────────────────────────────────────────────────────────────
+    surface lk {
+        kind: lock
+        size: 640, 440
+        open: locked
+
+        //  A lock surface is a box centred on each monitor, and what lies around it shows too: everything is
+        //  laid out around the centre of that box, and the backdrop is painted from where the monitor's own
+        //  corner falls (ox, oy), the way Marea does hers.
+        let w = screen.width
+        let h = screen.height
+        let cx = 320
+        let cy = 220
+        let ox = cx - w / 2
+        let oy = cy - h / 2
+
+        //  The entrance, 0..1 over 2.2 s, in a straight line: the easing lives in each element, because an
+        //  eased driver would bunch every stagger window up near the start.
+        let e = if(settled, 1, clamp((time - t0) / 2.2, 0, 1))
+
+        //  Slices of it, one per element: `ph_*` the window, `ease_*` an ease-out (never past its target),
+        //  `spr_*` an underdamped spring, and `st_*` the stretch that follows its speed. Volume-preserving,
+        //  capped at 7 %, and zero once the window is over so the element rests exactly.
+        let ph_w = clamp(e / 1.0, 0, 1)
+        let ease_w = 1 - pow(1 - ph_w, 3)
+        let ph_b = clamp(e / 0.92, 0, 1)
+        let spr_b = if(ph_b >= 1, 1, 1 - exp(-9 * ph_b) * cos(688 * ph_b))
+        let ph_t = clamp((e - 0.10) / 0.40, 0, 1)
+        let ease_t = 1 - pow(1 - ph_t, 3)
+        let spr_t = if(ph_t >= 1, 1, 1 - exp(-5 * ph_t) * cos(688 * ph_t))
+        let vel_t = if(ph_t >= 1, 0, exp(-5 * ph_t) * (5 * cos(688 * ph_t) + 12 * sin(688 * ph_t)) / 0.40)
+        let st_t = 1 + min(abs(-22 * vel_t) * 0.000119, 0.07)
+        let ph_c = clamp((e - 0.35) / 0.50, 0, 1)
+        let ease_c = 1 - pow(1 - ph_c, 3)
+        let spr_c = if(ph_c >= 1, 1, 1 - exp(-5 * ph_c) * cos(688 * ph_c))
+        let vel_c = if(ph_c >= 1, 0, exp(-5 * ph_c) * (5 * cos(688 * ph_c) + 12 * sin(688 * ph_c)) / 0.50)
+        let st_c = 1 + min(abs(34 * vel_c) * 0.000119, 0.07)
+
+        //  The centre card, laid out from its top: clock, avatar, name and status, the bar, the media pill.
+        let card_h = 651 + 76 * media_in
+        let ct = cy - card_h / 2
+        let bar_y = ct + 622
+        let acc = mint
+
+        //  What gives way to the exit fade: everything but the compositor's own black.
+        box { from: -4000, -4000; size: 12000, 12000; color: #000000 }
+
+        group {
+            opacity: exit_f
+
+            //  1. THE WALLPAPER: sharp, cross-fading into its blur, under a ring that leaves the centre.
+            group {
+                pivot: cx, cy
+                scale: 1.06 - 0.06 * ease_w
+                image wall_sharp { at: ox, oy; size: w, h; opacity: 1 - clamp(spr_b, 0, 1) }
+                group {
+                    shader: lockwave, e, 0.035, 2.2
+                    image wall_blur { at: ox, oy; size: w, h; opacity: clamp(spr_b, 0, 1) }
+                }
+                box { from: ox, oy; size: w, h; color: deep; opacity: 1 - has_wall }
+            }
+            box { from: ox - 400, oy - 400; size: w + 800, h + 800; color: #000000; opacity: 58% }
+            group {
+                pivot: cx, cy
+                scale: 1, h / w
+                mask: radial cx, cy radius 0 to w * 0.55
+                box { from: ox - 400, cy - w / 2 - 400; size: w + 800, w + 800; color: acc; opacity: 12% }
+            }
+
+            //  2. THE TOP STATUS BAR: chrome, so it arrives first and from above.
+            group {
+                pivot: cx, oy + 24
+                opacity: ease_t
+                move: 0, -22 * (1 - spr_t)
+                scale: 1 / st_t, st_t
+
+                group {
+                    show: batt.present
+                    text "battery_android_full" { at: ox + 34, oy + 24; anchor: center; size: 18; color: if(batt.percent <= 20, #ef4444, acc); family: "Material Symbols Outlined" }
+                    text "bolt" { at: ox + 34, oy + 24; anchor: center; size: 11; color: onmint; family: "Material Symbols Outlined"; show: batt.charging }
+                    text number(batt.percent, 0, "%") { at: ox + 50, oy + 24; anchor: left center; size: 12; weight: 700; color: ink; family: "Montserrat Alternates" }
+                }
+                box { at: ox + w - 24 - 46, oy + 24; size: 92, 24; corner: 12; color: #ffffff; opacity: 8% }
+                text "lock" { at: ox + w - 24 - 46 - 32, oy + 24; anchor: center; size: 12; color: acc; family: "Material Symbols Outlined" }
+                text "VITREUS" { at: ox + w - 24 - 46 + 8, oy + 24; anchor: center; size: 9; weight: 700; color: faint; family: "Montserrat Alternates" }
+            }
+
+            //  3. THE CENTRE CARD: last and slowest, rising into place.
+            group {
+                pivot: cx, cy
+                opacity: ease_c
+                move: 0, 34 * (1 - spr_c)
+                scale: 1 / st_c, st_c
+
+                //  The clock, with its glow, and the AM/PM pill beside it.
+                group {
+                    glow: 18, 70%, acc
+                    text clock_time { at: cx - 28, ct + 122; anchor: center; size: 200; weight: 800; color: ink; family: "Montserrat Alternates"; measure: ck_w }
+                }
+                box { at: cx + ck_w.width / 2 + 4, ct + 122; size: 48, 28; corner: 14; color: acc; opacity: 18% }
+                box { at: cx + ck_w.width / 2 + 4, ct + 122; size: 48, 28; corner: 14; color: acc; opacity: 0%; stroke: 1 }
+                text clock_ampm { at: cx + ck_w.width / 2 + 4, ct + 122; anchor: center; size: 11; weight: 700; color: acc; family: "Montserrat Alternates" }
+                text clock_date { at: cx, ct + 263; anchor: center; size: 21; weight: 500; color: faint; family: "Montserrat Alternates" }
+
+                //  The avatar: a 200 px disc with a 3 px accent ring and its glow.
+                body {
+                    color: panel
+                    opacity: 80%
+                    border: 3, mint
+                    shadow: 0, 0, 16, 50%, mint
+                    ellipse { at: cx, ct + 400; radius: 100 }
+                }
+                group {
+                    clip inset 5 ellipse { at: cx, ct + 400; radius: 100 }
+                    image avatar { at: cx - 95, ct + 305; size: 190, 190; show: has_avatar }
+                }
+                text "person" { at: cx, ct + 400; anchor: center; size: 104; color: acc; family: "Material Symbols Outlined"; show: not has_avatar }
+                text realname { at: cx, ct + 527; anchor: center; size: 21; weight: 700; color: ink; family: "Montserrat Alternates" }
+                text "Esc to exit · test lock" { at: cx, ct + 583; anchor: center; size: 11; color: acc; opacity: 80%; family: "Montserrat Alternates"; show: safe and pw_len == 0 }
+                text status { at: cx, ct + 562; anchor: center; size: 12; color: mix(mix(faint, #ef4444, err_t), #10b981, ok_t); family: "Montserrat Alternates" }
+
+                //  4. THE PASSWORD BAR
+                group {
+                    move: shake, 0
+                    body {
+                        color: panel
+                        opacity: 72%
+                        border: 1.5, mix(mix(mix(#ffffff, mint, typed_t), #ef4444, err_t), #10b981, ok_t)
+                        shadow: 0, 0, 10 + 8 * (err_t + ok_t), 30% + 30% * (err_t + ok_t), mix(mix(mint, #ef4444, err_t), #10b981, ok_t)
+                        box { at: cx, bar_y; size: 520, 58; corner: 29 }
+                    }
+                    //  the lock, its disc tinted by how the last try went
+                    ellipse { at: cx - 226, bar_y; radius: 18; color: mix(mix(#ffffff, #ef4444, err_t * 0.9), #10b981, ok_t * 0.9); opacity: 8% + 10% * (err_t + ok_t) }
+                    text "lock" { at: cx - 226, bar_y; anchor: center; size: 20; color: acc; family: "Material Symbols Outlined"; show: not right and not wrong }
+                    text "lock_open" { at: cx - 226, bar_y; anchor: center; size: 20; color: #10b981; family: "Material Symbols Outlined"; show: right }
+                    text "lock_reset" { at: cx - 226, bar_y; anchor: center; size: 20; color: #ef4444; family: "Material Symbols Outlined"; show: wrong and not right }
+
+                    //  what has been typed: a blinking caret and a hint while empty, shapes after
+                    box { at: cx - 197, bar_y; size: 2, 20; corner: 1; color: acc; opacity: (1 - typed_t) * (50% + 50% * sin(time * 340)); show: pw_len == 0 }
+                    text "Enter password..." { at: cx - 186, bar_y; anchor: left center; size: 14; color: faint; opacity: 70% * (1 - typed_t); family: "Montserrat Alternates" }
+                    input password { at: cx - 198, bar_y - 9; width: 340; size: 14; color: ink; opacity: 0; secret: true; family: "Montserrat Alternates" }
+
+                    group {
+                        clip box { from: cx - 198, bar_y - 29; size: 358, 58 }
+                        row shape_row {
+                            at: cx - 198 - max(0, shape_row.width - 356), bar_y - 13
+                            gap: 8
+                            for s in shapes {
+                                group {
+                                    size: 26, 26
+                                    let newest = s.index == shapes.count - 1
+                                    let grow_t = if(newest, clamp(pop, 0, 2), 1)
+                                    let tint = mix(mix(acc, #ef4444, err_t), #10b981, ok_t)
+                                    figure shp.s0 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 0 and not s.outline }
+                                    figure shp.s0 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 0 and s.outline }
+                                    figure shp.s1 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 1 and not s.outline }
+                                    figure shp.s1 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 1 and s.outline }
+                                    figure shp.s2 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 2 and not s.outline }
+                                    figure shp.s2 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 2 and s.outline }
+                                    figure shp.s3 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 3 and not s.outline }
+                                    figure shp.s3 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 3 and s.outline }
+                                    figure shp.s4 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 4 and not s.outline }
+                                    figure shp.s4 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 4 and s.outline }
+                                    figure shp.s5 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 5 and not s.outline }
+                                    figure shp.s5 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 5 and s.outline }
+                                    figure shp.s6 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 6 and not s.outline }
+                                    figure shp.s6 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 6 and s.outline }
+                                    figure shp.s7 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 7 and not s.outline }
+                                    figure shp.s7 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 7 and s.outline }
+                                    figure shp.s8 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 8 and not s.outline }
+                                    figure shp.s8 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 8 and s.outline }
+                                    figure shp.s9 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 9 and not s.outline }
+                                    figure shp.s9 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 9 and s.outline }
+                                    figure shp.s10 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 10 and not s.outline }
+                                    figure shp.s10 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 10 and s.outline }
+                                    figure shp.s11 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 11 and not s.outline }
+                                    figure shp.s11 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 11 and s.outline }
+                                    figure shp.s12 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 12 and not s.outline }
+                                    figure shp.s12 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 12 and s.outline }
+                                    figure shp.s13 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 13 and not s.outline }
+                                    figure shp.s13 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 13 and s.outline }
+                                    figure shp.s14 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 14 and not s.outline }
+                                    figure shp.s14 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 14 and s.outline }
+                                    figure shp.s15 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 15 and not s.outline }
+                                    figure shp.s15 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 15 and s.outline }
+                                }
+                            }
+                        }
+                    }
+
+                    //  clear, and the submit disc
+                    group {
+                        show: pw_len > 0 and not authing
+                        ellipse { at: cx + 184, bar_y; radius: 16; color: mix(#ffffff, #ef4444, clr_hot); opacity: 8% + 12% * clr_hot }
+                        text "cancel" { at: cx + 184, bar_y; anchor: center; size: 18; color: mix(faint, #ef4444, clr_hot); family: "Material Symbols Outlined" }
+                    }
+                    ellipse { at: cx + 230, bar_y; radius: 20; color: mix(#ffffff, acc, typed_t); opacity: 8% + 77% * typed_t + 15% * go_hot * typed_t }
+                    text "arrow_forward" { at: cx + 230, bar_y; anchor: center; size: 22; weight: 700; color: mix(faint, deep, typed_t); family: "Material Symbols Outlined"; show: not authing }
+                    group { pivot: cx + 230, bar_y; rotate: time * 450; show: authing
+                        text "progress_activity" { at: cx + 230, bar_y; anchor: center; size: 22; color: deep; family: "Material Symbols Outlined" }
+                    }
+
+                    zone box bar_hit { at: cx - 30, bar_y; size: 440, 58; cursor: text }
+                    zone box clr_z { at: cx + 184, bar_y; size: 32, 32; corner: 16; cursor: pointer; active: pw_len > 0 and not authing }
+                    zone box go_z { at: cx + 230, bar_y; size: 40, 40; corner: 20; cursor: pointer; active: pw_len > 0 and not authing }
+                    follow clr_hot = if(clr_z.hover > 0.5, 1, 0)
+                    follow go_hot = if(go_z.hover > 0.5, 1, 0)
+                }
+
+                //  5. THE MEDIA PILL, only while a player exists.
+                group {
+                    opacity: media_in
+                    show: media_in > 0.01
+                    box { at: cx, ct + 701; size: 380, 52; corner: 26; color: panel; opacity: 60% }
+                    box { at: cx, ct + 701; size: 380, 52; corner: 26; color: #ffffff; opacity: 0%; stroke: 1 }
+                    ellipse { at: cx - 190 + 14 + 16, ct + 701; radius: 16; color: acc; opacity: 20% }
+                    text "music_note" { at: cx - 190 + 14 + 16, ct + 701; anchor: center; size: 18; color: acc; family: "Material Symbols Outlined" }
+                    text med.title { at: cx - 190 + 62, ct + 693; anchor: left center; size: 12; weight: 700; width: 190; lines: 1; color: ink; family: "Montserrat Alternates" }
+                    text med.artist { at: cx - 190 + 62, ct + 710; anchor: left center; size: 11; width: 190; lines: 1; color: faint; family: "Montserrat Alternates" }
+                    ellipse { at: cx + 190 - 14 - 28 - 4 - 32 - 4 - 14, ct + 701; radius: 14; color: #ffffff; opacity: 15% * prev_hot }
+                    text "skip_previous" { at: cx + 190 - 14 - 28 - 4 - 32 - 4 - 14, ct + 701; anchor: center; size: 18; color: ink; family: "Material Symbols Outlined" }
+                    ellipse { at: cx + 190 - 14 - 28 - 4 - 16, ct + 701; radius: 16; color: mix(#ffffff, acc, play_hot); opacity: 12% + 88% * play_hot }
+                    text "pause" { at: cx + 190 - 14 - 28 - 4 - 16, ct + 701; anchor: center; size: 20; color: mix(ink, deep, play_hot); family: "Material Symbols Outlined"; show: med.playing }
+                    text "play_arrow" { at: cx + 190 - 14 - 28 - 4 - 16, ct + 701; anchor: center; size: 20; color: mix(ink, deep, play_hot); family: "Material Symbols Outlined"; show: not med.playing }
+                    ellipse { at: cx + 190 - 14 - 14, ct + 701; radius: 14; color: #ffffff; opacity: 15% * next_hot }
+                    text "skip_next" { at: cx + 190 - 14 - 14, ct + 701; anchor: center; size: 18; color: ink; family: "Material Symbols Outlined" }
+                    zone box prev_z { at: cx + 190 - 14 - 28 - 4 - 32 - 4 - 14, ct + 701; size: 28, 28; corner: 14; cursor: pointer; active: media_in > 0.9 }
+                    zone box play_z { at: cx + 190 - 14 - 28 - 4 - 16, ct + 701; size: 32, 32; corner: 16; cursor: pointer; active: media_in > 0.9 }
+                    zone box next_z { at: cx + 190 - 14 - 14, ct + 701; size: 28, 28; corner: 14; cursor: pointer; active: media_in > 0.9 }
+                    follow prev_hot = if(prev_z.hover > 0.5, 1, 0)
+                    follow play_hot = if(play_z.hover > 0.5, 1, 0)
+                    follow next_hot = if(next_z.hover > 0.5, 1, 0)
+                }
+
+                //  The bar is the one big target: a click anywhere else asks for the keyboard again.
+            }
+        }
+
+        on press bar_hit { focus password }
+        on press clr_z { emit clear }
+        on press go_z { emit tryauth }
+        on press prev_z { emit media_prev }
+        on press play_z { emit media_play }
+        on press next_z { emit media_next }
+    }
+}

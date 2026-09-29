@@ -1,0 +1,24 @@
+# Lock screen (not active)
+
+A lock screen for Vitreus, drawn after Synoptik's: the wallpaper arrives sharp and blurs into place under a ring of
+liquid that leaves the centre (`lockwave.wgsl`), then the clock, avatar and password bar rise in one after another.
+Typed characters become random shapes (`shapes.svg`); the password itself is never drawn.
+
+**It is deliberately not wired to anything**: it is not in `autostart` and nothing calls it. The reason is a pleamar
+bug, not this scene: `kind: lock` makes the compositor end the client with
+`ext_session_lock_surface_v1: error 1: Null buffer attached` (Hyprland 0.56.1, NVIDIA, Vulkan). pleamar's own minimal
+lock example from its reference does the same in a fresh nested Hyprland, and the session stays locked with no
+client. Do not lock a live session with it until that is fixed upstream.
+
+## Turning it on, once pleamar can lock
+
+1. Start it with the desktop: add
+   `pleamar --scene ~/.config/pleamar/shells/vitreus/lockscreen/lockscreen.plm --no-hud` to `~/.config/pleamar/autostart`.
+2. Lock with `pleamar --say lockscreen "fact locked true"`. For idle and sleep, point hypridle's `lock_cmd`,
+   `before_sleep_cmd` and idle listener at that same command.
+3. Try it in a **nested compositor first**, with a TTY ready. While `fact safe = true` (the default), Esc on an empty
+   box unlocks it, and so does a minute of nothing. Set `safe` to `false` once it is trusted.
+
+It needs `awww` (to find the wallpaper), `magick` (it makes a sharp and a pre-blurred copy in
+`~/.cache/pleamar/lockscreen`), the Montserrat Alternates and Material Symbols Outlined fonts, and PAM through
+pleamar's `auth.check`.
