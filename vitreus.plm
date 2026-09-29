@@ -192,6 +192,40 @@ scene Vitreus {
     }
     text bar_msg = ""
     event bar_pick_scr ->
+    //  The bar's layout (Settings > Bar): each piece's place in the row, 0 leftmost, and whether it is shown. The
+    //  title is the stretch: what comes before it hugs the left, what comes after it the right.
+    fact bo.ws = 0
+    fact bo.title = 1
+    fact bo.media = 2
+    fact bo.set = 3
+    fact bo.sr = 4
+    fact bo.ctl = 5
+    fact bo.clock = 6
+    fact bv.ws = true
+    fact bv.title = true
+    fact bv.media = true
+    fact bv.sr = true
+    fact bv.ctl = true
+    fact bv.clock = true
+    //  The layout editor on the Bar page: a chip per piece (0 workspaces, 1 title, 2 player, 3 settings, 4 search,
+    //  5 controls, 6 clock), where the logic puts it (`bc.$i`, top-left and width, in the editor's unscaled units:
+    //  the bar row starts at y 4, the hidden tray at 56), and the one being dragged, which follows the pointer.
+    repeat i in 0..7 {
+        fact bc.$i.x = 0
+        fact bc.$i.y = 4
+        fact bc.$i.w = 34
+    }
+    fact bdrag = -1                 // the chip being dragged, -1 none
+    fact bdx = 0                    // the pointer, in the editor's units
+    fact bdy = 0
+    fact bgx = 0                    // where in the chip it was taken
+    fact bgy = 0
+    fact bdrop_tray = false         // the dragged chip would go to the hidden tray
+    fact btray_n = 0                // how many pieces are hidden
+    event bar_lay_grab ->
+    event bar_lay_drag ->
+    event bar_lay_drop ->
+    event bar_lay_reset ->
     //  The Display page: what the logic reads from Hyprland and the draft the page edits (see the Display
     //  section of vitreus.luau). `disp_boxes` is the canvas, one box per monitor, in canvas units.
     //  The canvas's boxes, the refresh-rate chips, the monitor pills and the profile rows are numbered slots.
@@ -486,6 +520,12 @@ scene Vitreus {
     prop set_pgd = 0 ~calm
     prop set_pgh = 0 ~calm
     prop set_pgb = 0 ~calm
+    prop bs.ws = 1 ~calm              // each piece of the bar, 1 shown .. 0 hidden: its room and its opacity
+    prop bs.title = 1 ~calm
+    prop bs.media = 1 ~calm
+    prop bs.sr = 1 ~calm
+    prop bs.ctl = 1 ~calm
+    prop bs.clock = 1 ~calm
     prop disp_auto_pill = 0 ~pop
     prop disp_dd = 0 ~calm            // the resolution dropdown, 0 shut .. 1 open
     prop disp_scroll = 0 ~quick       // the page's scroll, following disp_scroll_to
@@ -498,6 +538,20 @@ scene Vitreus {
     follow set_pgd = if(set_page == pg_disp, 1, 0)
     follow set_pgh = if(set_page == pg_hypr, 1, 0)
     follow set_pgb = if(set_page == pg_bar, 1, 0)
+    follow bs.ws = if(bv.ws, 1, 0)
+    follow bs.title = if(bv.title, 1, 0)
+    follow bs.media = if(bv.media, 1, 0)
+    follow bs.sr = if(bv.sr, 1, 0)
+    follow bs.ctl = if(bv.ctl, 1, 0)
+    follow bs.clock = if(bv.clock, 1, 0)
+    repeat i in 0..7 {
+        prop bcx.$i = 0 ~quick
+        prop bcy.$i = 4 ~quick
+        prop bcw.$i = 34 ~quick
+        follow bcx.$i = bc.$i.x
+        follow bcy.$i = bc.$i.y
+        follow bcw.$i = bc.$i.w
+    }
     //  Settings > Hyprland: what Hyprland has now (see the logic), and the toggles' knobs.
     fact hy_layout = 3
     fact hy_gaps = 5
@@ -910,21 +964,62 @@ scene Vitreus {
     let bar.h = 40 * u
     let bar.y = 8 + bar.h / 2
     let bar.rad = 14 * u                 // the bar's corner when shut: the same as the plates', not a full pill
-    //  The middle of the gap between the title and the clock, 126 from the right edge.
-    //  The bar's buttons hug the clock: it is measured, and the controls button sits just left of it, the
-    //  settings button left of that, and the player's buttons left of those. Nothing is left in between
-    //  whatever the time reads, and the window title gets what is left.
-    //  The right-hand column is the day over the am/pm; both are about the same width now, so it is as wide as
-    //  the wider and the minutes are set tight against it.
+    //  The bar's pieces sit in a row in the order Settings > Bar gives them (`bo.*`), 16 in from each end and
+    //  `bar.gap` apart. Each one is as wide as what it draws (`fw.*`) and takes that and a gap (`bw.*`: less while
+    //  it is being hidden, and the player's only while there is something playing); the title takes none, it is
+    //  the stretch between the two ends: what comes before it is laid from the left edge, what comes after it
+    //  from the right, so its gap is on the side towards the title.
+    //  The clock's width is measured: the hour, the minutes and, at the edge, the day over the am/pm (both about
+    //  the same width, so the column is as wide as the wider).
     let clock.col = max(caw.width, cdw.width)
-    let clock.left = cx + bar.w / 2 - 20 * u - clock.col - 3 - cmw.width + 3 - chw.width
-    let ctl.x = clock.left - 20 * u
-    let sr.x = ctl.x - 24 * u                 // the launcher's button, between the two
-    let set.x = sr.x - 24 * u
-    let mc = set.x - 44 * u
-    //  Where the window title starts, and how far it may reach (it gives way to the player's buttons).
-    let win.x = cx - bar.w / 2 + 116 * u
-    let win.w = mix(set.x - 22 * u, mc - 32 * u, mshow) - win.x
+    let bar.l = cx - bar.w / 2 + 16 * u
+    let bar.r = cx + bar.w / 2 - 16 * u
+    let bar.gap = 12 * u
+    let fw.ws = 76 * u                   // five dots 15 apart, one of them the 20-wide pill
+    let fw.media = 43 * u                // previous, play, next: their bars at ±20.5
+    let fw.set = 15 * u                  // the gear with its teeth
+    let fw.sr = 12 * u                   // the magnifier, glass and handle
+    let fw.ctl = 13 * u                  // the two sliders
+    let fw.clock = chw.width + cmw.width + clock.col
+    let vw.ws = fw.ws * bs.ws            // what each one draws, now
+    let vw.media = fw.media * mshow * bs.media
+    let vw.sr = fw.sr * bs.sr
+    let vw.ctl = fw.ctl * bs.ctl
+    let vw.clock = fw.clock * bs.clock
+    let bw.ws = (fw.ws + bar.gap) * bs.ws
+    let bw.media = (fw.media + bar.gap) * mshow * bs.media
+    let bw.set = fw.set + bar.gap
+    let bw.sr = (fw.sr + bar.gap) * bs.sr
+    let bw.ctl = (fw.ctl + bar.gap) * bs.ctl
+    let bw.clock = (fw.clock + bar.gap) * bs.clock
+    //  How much of the row comes before each piece (`pre.*`) and after it (`post.*`).
+    let pre.ws = if(bo.media < bo.ws, bw.media, 0) + if(bo.set < bo.ws, bw.set, 0) + if(bo.sr < bo.ws, bw.sr, 0) + if(bo.ctl < bo.ws, bw.ctl, 0) + if(bo.clock < bo.ws, bw.clock, 0)
+    let post.ws = if(bo.media > bo.ws, bw.media, 0) + if(bo.set > bo.ws, bw.set, 0) + if(bo.sr > bo.ws, bw.sr, 0) + if(bo.ctl > bo.ws, bw.ctl, 0) + if(bo.clock > bo.ws, bw.clock, 0)
+    let pre.media = if(bo.ws < bo.media, bw.ws, 0) + if(bo.set < bo.media, bw.set, 0) + if(bo.sr < bo.media, bw.sr, 0) + if(bo.ctl < bo.media, bw.ctl, 0) + if(bo.clock < bo.media, bw.clock, 0)
+    let post.media = if(bo.ws > bo.media, bw.ws, 0) + if(bo.set > bo.media, bw.set, 0) + if(bo.sr > bo.media, bw.sr, 0) + if(bo.ctl > bo.media, bw.ctl, 0) + if(bo.clock > bo.media, bw.clock, 0)
+    let pre.set = if(bo.ws < bo.set, bw.ws, 0) + if(bo.media < bo.set, bw.media, 0) + if(bo.sr < bo.set, bw.sr, 0) + if(bo.ctl < bo.set, bw.ctl, 0) + if(bo.clock < bo.set, bw.clock, 0)
+    let post.set = if(bo.ws > bo.set, bw.ws, 0) + if(bo.media > bo.set, bw.media, 0) + if(bo.sr > bo.set, bw.sr, 0) + if(bo.ctl > bo.set, bw.ctl, 0) + if(bo.clock > bo.set, bw.clock, 0)
+    let pre.sr = if(bo.ws < bo.sr, bw.ws, 0) + if(bo.media < bo.sr, bw.media, 0) + if(bo.set < bo.sr, bw.set, 0) + if(bo.ctl < bo.sr, bw.ctl, 0) + if(bo.clock < bo.sr, bw.clock, 0)
+    let post.sr = if(bo.ws > bo.sr, bw.ws, 0) + if(bo.media > bo.sr, bw.media, 0) + if(bo.set > bo.sr, bw.set, 0) + if(bo.ctl > bo.sr, bw.ctl, 0) + if(bo.clock > bo.sr, bw.clock, 0)
+    let pre.ctl = if(bo.ws < bo.ctl, bw.ws, 0) + if(bo.media < bo.ctl, bw.media, 0) + if(bo.set < bo.ctl, bw.set, 0) + if(bo.sr < bo.ctl, bw.sr, 0) + if(bo.clock < bo.ctl, bw.clock, 0)
+    let post.ctl = if(bo.ws > bo.ctl, bw.ws, 0) + if(bo.media > bo.ctl, bw.media, 0) + if(bo.set > bo.ctl, bw.set, 0) + if(bo.sr > bo.ctl, bw.sr, 0) + if(bo.clock > bo.ctl, bw.clock, 0)
+    let pre.clock = if(bo.ws < bo.clock, bw.ws, 0) + if(bo.media < bo.clock, bw.media, 0) + if(bo.set < bo.clock, bw.set, 0) + if(bo.sr < bo.clock, bw.sr, 0) + if(bo.ctl < bo.clock, bw.ctl, 0)
+    let post.clock = if(bo.ws > bo.clock, bw.ws, 0) + if(bo.media > bo.clock, bw.media, 0) + if(bo.set > bo.clock, bw.set, 0) + if(bo.sr > bo.clock, bw.sr, 0) + if(bo.ctl > bo.clock, bw.ctl, 0)
+    let pre.title = if(bo.ws < bo.title, bw.ws, 0) + if(bo.media < bo.title, bw.media, 0) + if(bo.set < bo.title, bw.set, 0) + if(bo.sr < bo.title, bw.sr, 0) + if(bo.ctl < bo.title, bw.ctl, 0) + if(bo.clock < bo.title, bw.clock, 0)
+    let post.title = if(bo.ws > bo.title, bw.ws, 0) + if(bo.media > bo.title, bw.media, 0) + if(bo.set > bo.title, bw.set, 0) + if(bo.sr > bo.title, bw.sr, 0) + if(bo.ctl > bo.title, bw.ctl, 0) + if(bo.clock > bo.title, bw.clock, 0)
+    //  Each piece's middle: from the left edge before the title, from the right edge after it.
+    let at.ws = if(bo.ws < bo.title, bar.l + pre.ws + vw.ws / 2, bar.r - post.ws - vw.ws / 2)
+    let mc = if(bo.media < bo.title, bar.l + pre.media + vw.media / 2, bar.r - post.media - vw.media / 2)
+    let set.x = if(bo.set < bo.title, bar.l + pre.set + fw.set / 2, bar.r - post.set - fw.set / 2)
+    let sr.x = if(bo.sr < bo.title, bar.l + pre.sr + vw.sr / 2, bar.r - post.sr - vw.sr / 2)
+    let ctl.x = if(bo.ctl < bo.title, bar.l + pre.ctl + vw.ctl / 2, bar.r - post.ctl - vw.ctl / 2)
+    let at.clock = if(bo.clock < bo.title, bar.l + pre.clock + vw.clock / 2, bar.r - post.clock - vw.clock / 2)
+    //  The clock's texts are set against its right edge: the day column, the minutes, the hour.
+    let clock.r = at.clock + fw.clock / 2
+    let clock.left = clock.r - clock.col - cmw.width - chw.width
+    //  Where the window title starts, and how far it may reach: the stretch (the gaps are its neighbours').
+    let win.x = bar.l + pre.title
+    let win.w = max(0, bar.r - post.title - win.x)
     let room = 10 * u
 
     //  The music only moves the bar: it fades out as the panel opens (gone by a third of
@@ -1036,7 +1131,7 @@ scene Vitreus {
     //  The Display page: its cards down to the profiles one, which is as tall as its rows (none: a line).
     let disp.prows = max(24, disp_pn_s * 30)
     let disp.h = 460 + disp.prows + 114
-    let set.h = mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 262, set_pgb), 392, set_pgh)
+    let set.h = mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 330, set_pgb), 392, set_pgh)
     let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * u
     let ss.hh = bar.h / 2 + (8 + 36 + 8 + set.h + 16) * u * ds0 + max(0, sag)
     //  The launcher: a drop that widens to the bar's width as it lands, like the calendar. The search field (40), the
@@ -1097,10 +1192,10 @@ scene Vitreus {
         repeat i in 1..6 {
             //  The others sit 15 apart; the ones beside the active one slide away from it by `room / 2`
             //  each, so the widening one has space, and the row flows as the amounts change.
-            let wx = cx - bar.w / 2 + 26 * u + (i - 1) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
+            let wx = at.ws + (i - 3) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
             //  One shape per workspace that morphs: a dot, a taller capsule if it has windows, and a
             //  wide mint pill while it is the active one.
-            zone box ws.hit.$i { at: wx, bar.y; size: 15 * u, bar.h; cursor: pointer }
+            zone box ws.hit.$i { at: wx, bar.y; size: 15 * u, bar.h; cursor: pointer; active: bs.ws > 0.5 }
             on press ws.hit.$i { emit go(i) }
         }
 
@@ -1116,13 +1211,13 @@ scene Vitreus {
         text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; lines: 1; measure: clsw; opacity: 0; family: "Space Grotesk" }
         text win.title { at: floor(win.x + 0.5), floor(bar.y + 8.75 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 500; lines: 1; measure: titw; opacity: 0; family: "Space Grotesk" }
         let win.hw = clamp(max(clsw.width, titw.width) + 12 * u, 48 * u, win.w)
-        zone box win_hit { at: win.x - 6 * u + win.hw / 2, bar.y; size: win.hw, bar.h; cursor: pointer }
+        zone box win_hit { at: win.x - 6 * u + win.hw / 2, bar.y; size: win.hw, bar.h; cursor: pointer; active: bs.title > 0.5 }
         on press win_hit { panel = if(panel == player, none, player) }
 
         // ── the player, small, in the bar ────────────────────────────
         //  While there is a player, playing or paused; they fade in as the title gives them room.
         group {
-            opacity: mshow
+            opacity: mshow * bs.media
             //  Centred in the gap between where the title ends and where the clock
             //  starts (`mc`), and small: 17 between centres.
             let by = bar.y
@@ -1137,14 +1232,13 @@ scene Vitreus {
         zone box set_hit { at: set.x, bar.y; size: 24 * u, bar.h; cursor: pointer }
         on press set_hit { panel = if(panel == settings, none, settings) }
 
-        zone box sr_hit { at: sr.x, bar.y; size: 24 * u, bar.h; cursor: pointer }
+        zone box sr_hit { at: sr.x, bar.y; size: 24 * u, bar.h; cursor: pointer; active: bs.sr > 0.5 }
         on press sr_hit { panel = if(panel == launch, none, launch) }
-        zone box ctl_hit { at: ctl.x, bar.y; size: 26 * u, bar.h; cursor: pointer }
+        zone box ctl_hit { at: ctl.x, bar.y; size: 26 * u, bar.h; cursor: pointer; active: bs.ctl > 0.5 }
         on press ctl_hit { panel = if(panel == controls, none, controls) }
 
-        //  The calendar's button is the clock and a little around it: from just left of the measured clock to
-        //  near the bar's right edge, so it stops where the controls button begins.
-        zone box bar_hit { at: (clock.left - 4 * u + cx + bar.w / 2 - 6 * u) / 2, bar.y; size: (cx + bar.w / 2 - 6 * u) - (clock.left - 4 * u), bar.h; cursor: pointer }
+        //  The calendar's button is the clock and a little around it: 4 more at each side.
+        zone box bar_hit { at: at.clock, bar.y; size: fw.clock + 8 * u, bar.h; cursor: pointer; active: bs.clock > 0.5 }
         on press bar_hit { panel = if(panel == calendar, none, calendar) }
         //  Right-click closes whatever is open. It also matters for a reason that
         //  has nothing to do with the calendar: pleamar treats an unclaimed right
@@ -1162,13 +1256,13 @@ scene Vitreus {
     group {
         glow: 2.4 * u, 45%, deep
         repeat i in 1..6 {
-            let wxs = cx - bar.w / 2 + 26 * u + (i - 1) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
+            let wxs = at.ws + (i - 3) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
             box ws.dot.$i { at: wxs, bar.y; size: (6 + 14 * ws.act.$i) * u, (6 + 4 * ws.tall.$i * (1 - ws.act.$i)) * u; corner: 3 * u
-                            color: mix(ink, mint, ws.act.$i); opacity: mix(28% + 62% * ws.tall.$i, 100%, ws.act.$i) }
+                            color: mix(ink, mint, ws.act.$i); opacity: mix(28% + 62% * ws.tall.$i, 100%, ws.act.$i) * bs.ws }
         }
         //  The player's buttons.
         group {
-            opacity: mshow
+            opacity: mshow * bs.media
             box { at: mc - 20.5 * u, bar.y; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * bp.prev.hover }
             path { at: mc - 17 * u, bar.y; color: ink; opacity: 65% + 35% * bp.prev.hover; move 3 * u, -3.5 * u; line -2.5 * u, 0; line 3 * u, 3.5 * u; close }
             //  Pause while it plays, play while it is paused.
@@ -1192,13 +1286,13 @@ scene Vitreus {
         }
         //  The launcher's button, between the settings button and the controls button: a magnifying glass.
         group {
-            opacity: 65% + 35% * max(sr_hit.hover, clamp(dl, 0, 1))
+            opacity: (65% + 35% * max(sr_hit.hover, clamp(dl, 0, 1))) * bs.sr
             ellipse { at: sr.x - 1.2 * u, bar.y - 1.2 * u; radius: 4 * u; stroke: 1.7 * u; color: mix(ink, mint, clamp(dl, 0, 1)) }
             line { from: sr.x + 1.8 * u, bar.y + 1.8 * u; to: sr.x + 5 * u, bar.y + 5 * u; width: 1.9 * u; color: mix(ink, mint, clamp(dl, 0, 1)) }
         }
         //  The controls button, between the settings button and the clock: two sliders.
         group {
-            opacity: 65% + 35% * max(ctl_hit.hover, clamp(dk, 0, 1))
+            opacity: (65% + 35% * max(ctl_hit.hover, clamp(dk, 0, 1))) * bs.ctl
             box { at: ctl.x, bar.y - 3.5 * u; size: 13 * u, 1.6 * u; corner: 0.8 * u; color: mix(ink, mint, clamp(dk, 0, 1)) }
             box { at: ctl.x, bar.y + 3.5 * u; size: 13 * u, 1.6 * u; corner: 0.8 * u; color: mix(ink, mint, clamp(dk, 0, 1)) }
             ellipse { at: ctl.x + 2.5 * u, bar.y - 3.5 * u; radius: 2.6 * u; color: mix(ink, mint, clamp(dk, 0, 1)) }
@@ -1213,12 +1307,12 @@ scene Vitreus {
     //  the hour, oversized; the minutes with their colon, in the accent, the two digits tucked 3 px over each
     //  other (the colon is left clear: overlapped it disappears); and, at the edge, a small column: the day
     //  stacked tight over a dim am/pm, centred on each other.
-    text bar_date { at: floor(cx + bar.w / 2 - 20 * u - clock.col / 2 + 0.5), floor(bar.y - 8 + 0.5); anchor: center; size: 11; weight: 700; measure: cdw; color: faint; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text bar_ap { at: floor(cx + bar.w / 2 - 20 * u - clock.col / 2 + 0.5), floor(bar.y + 7 + 0.5); anchor: center; size: 14; weight: 600; measure: caw; color: faint; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text clock_mm { at: floor(cx + bar.w / 2 - 20 * u - clock.col - 3 + 0.5), floor(bar.y + 3 + 0.5); anchor: right center; size: 26; weight: 700; measure: cmw; letter_move: 3 * ((letters - 1 - letter) - if(letter == 0, 1, 0)), 0; color: mint; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text clock_h { at: floor(cx + bar.w / 2 - 20 * u - clock.col - 3 - cmw.width + 3 + 0.5), floor(bar.y + 0.5); anchor: right center; size: 40; weight: 700; measure: chw; color: ink; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; width: win.w; lines: 1; color: faint; opacity: 55%; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text win.title { at: floor(win.x + 0.5), floor(bar.y + 8.75 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 500; width: win.w; lines: 1; color: ink; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text bar_date { at: floor(clock.r - clock.col / 2 + 0.5), floor(bar.y - 8 + 0.5); anchor: center; size: 11; weight: 700; measure: cdw; color: faint; opacity: bs.clock; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text bar_ap { at: floor(clock.r - clock.col / 2 + 0.5), floor(bar.y + 7 + 0.5); anchor: center; size: 14; weight: 600; measure: caw; color: faint; opacity: bs.clock; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text clock_mm { at: floor(clock.r - clock.col - 3 + 0.5), floor(bar.y + 3 + 0.5); anchor: right center; size: 26; weight: 700; measure: cmw; letter_move: 3 * ((letters - 1 - letter) - if(letter == 0, 1, 0)), 0; color: mint; opacity: bs.clock; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text clock_h { at: floor(clock.r - clock.col - cmw.width + 0.5), floor(bar.y + 0.5); anchor: right center; size: 40; weight: 700; measure: chw; color: ink; opacity: bs.clock; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; width: win.w; lines: 1; color: faint; opacity: 55% * bs.title; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text win.title { at: floor(win.x + 0.5), floor(bar.y + 8.75 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 500; width: win.w; lines: 1; color: ink; opacity: bs.title; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
 
     // ── the panel ────────────────────────────────────────────────
     group {
@@ -2342,6 +2436,95 @@ scene Vitreus {
             }
             text "Changing this restarts the bar for a moment." { at: floor(spx + 14 * u + 0.5), floor(sby + 121 * u + 0.5); anchor: left center; size: 10 * u; width: 410 * u; lines: 1; color: faint; family: "Space Grotesk" }
             text bar_msg { at: floor(spx + 14 * u + 0.5), floor(sby + 136 * u + 0.5); anchor: left center; size: 10 * u; width: 410 * u; lines: 1; color: mint; family: "Space Grotesk" }
+
+            //  ── The layout: a small copy of the bar, and under it a tray for the pieces that are hidden ──
+            //  Drag a piece along the bar to move it, or down into the tray to hide it (all but the settings gear,
+            //  the way back here). The logic places the chips and makes room where the dragged one would land.
+            let mbx = spx + 14 * u                         // the editor's origin: the small bar's top-left
+            let mby = sby + 190 * u
+            box { at: spx + 219 * u, sby + 244 * u; size: 438 * u, 132 * u; corner: 14 * u; color: ink; opacity: veil }
+            text "BAR LAYOUT" { at: floor(spx + 14 * u + 0.5), floor(sby + 166 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            box { at: spx + 400 * u, sby + 166 * u; size: 48 * u, 20 * u; corner: 10 * u; color: ink; opacity: 8% + 10% * blay_reset_hit.hover }
+            text "Reset" { at: floor(spx + 400 * u + 0.5), floor(sby + 166 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 44 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
+            zone box blay_reset_hit { at: spx + 400 * u, sby + 166 * u; size: 50 * u, 22 * u; corner: 11 * u; cursor: pointer }
+            on press blay_reset_hit { emit bar_lay_reset }
+            //  The small bar, and the tray: lit while the dragged piece would land in it.
+            box { from: mbx, mby; size: 410 * u, 36 * u; corner: 12 * u; color: ink; opacity: 5% }
+            box { from: mbx, mby; size: 410 * u, 36 * u; corner: 12 * u; stroke: 1 * u; color: mix(ink, mint, if(bdrag >= 0 and not bdrop_tray, 1, 0)); opacity: if(bdrag >= 0 and not bdrop_tray, 60%, 14%) }
+            box { from: mbx, mby + 52 * u; size: 410 * u, 36 * u; corner: 12 * u; color: ink; opacity: 3% }
+            box { from: mbx, mby + 52 * u; size: 410 * u, 36 * u; corner: 12 * u; stroke: 1 * u; color: mix(ink, mint, if(bdrop_tray, 1, 0)); opacity: if(bdrag >= 0 and bdrop_tray, 60%, 10%) }
+            text "Hidden: drag a piece here to take it off the bar" { at: floor(mbx + 205 * u + 0.5), floor(mby + 70 * u + 0.5); anchor: center; align: center; size: 10 * u; width: 400 * u; lines: 1; color: faint; opacity: if(btray_n < 1 and not bdrop_tray, 70%, 0%); family: "Space Grotesk" }
+            text "Drag a piece along the bar to move it. The window title stretches: what is left of it hugs the left end." { at: floor(spx + 14 * u + 0.5), floor(sby + 296 * u + 0.5); anchor: left center; size: 9.5 * u; width: 410 * u; lines: 1; color: faint; family: "Space Grotesk" }
+
+            //  The drag is followed by a zone that stays still, under the chips: a drag reaches every zone that was
+            //  under the press, and one that moves itself (a chip following the pointer) loses it at the first jump.
+            zone box blay_area { from: mbx - 8 * u, mby - 8 * u; size: 426 * u, 104 * u }     // the small bar and the tray, not Reset
+            on drag blay_area { bdx = (pointer.x - mbx) / u; bdy = (pointer.y - mby) / u; emit bar_lay_drag }
+            //  The chips' zones, apart from their drawing: pressing one takes it.
+            repeat i in 0..7 {
+                let zx = mbx + if(bdrag == i, bdx - bgx, bcx.$i) * u
+                let zy = mby + if(bdrag == i, bdy - bgy, bcy.$i) * u
+                zone box bchip.$i { from: zx, zy; size: bcw.$i * u, 28 * u; corner: 9 * u; cursor: grab }
+                on press bchip.$i { bgx = (pointer.x - zx) / u; bgy = (pointer.y - zy) / u; bdx = (pointer.x - mbx) / u; bdy = (pointer.y - mby) / u; bdrag = i; emit bar_lay_grab }
+                on release bchip.$i { emit bar_lay_drop }
+            }
+            repeat pass in 0..2 {
+            repeat i in 0..7 {
+                let dragging = bdrag == i
+              group {
+                show: (pass == 0 and not dragging) or (pass == 1 and dragging)
+                let chx = mbx + if(dragging, bdx - bgx, bcx.$i) * u     // the chip's top-left and size
+                let chy = mby + if(dragging, bdy - bgy, bcy.$i) * u
+                let chw = bcw.$i * u
+                let chh = 28 * u
+                let ccx = chx + chw / 2
+                let ccy = chy + chh / 2
+                let lit = if(dragging, 1, 0)
+                let ink2 = mix(ink, mint, lit)
+                box { from: chx, chy; size: chw, chh; corner: 9 * u; color: mix(ink, mint, lit); opacity: if(lit > 0, 24%, 8% + 10% * bchip.$i.hover) }
+                box { from: chx, chy; size: chw, chh; corner: 9 * u; stroke: 1.5 * u; color: mint; opacity: 100% * lit }
+                //  What each one is, drawn small, as it is on the bar.
+                group {
+                    show: i == 0
+                    box { at: ccx - 13 * u, ccy; size: 3.5 * u, 3.5 * u; corner: 1.75 * u; color: ink2; opacity: 60% }
+                    box { at: ccx - 3 * u, ccy; size: 10 * u, 3.5 * u; corner: 1.75 * u; color: mix(mint, ink2, 0) }
+                    box { at: ccx + 7 * u, ccy; size: 3.5 * u, 3.5 * u; corner: 1.75 * u; color: ink2; opacity: 60% }
+                    box { at: ccx + 14 * u, ccy; size: 3.5 * u, 3.5 * u; corner: 1.75 * u; color: ink2; opacity: 60% }
+                }
+                text "Window title" { at: floor(ccx + 0.5), floor(ccy + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: max(10 * u, chw - 12 * u); lines: 1; color: ink2; opacity: 85%; show: i == 1; family: "Space Grotesk" }
+                group {
+                    show: i == 2
+                    path { at: ccx - 12 * u, ccy; color: ink2; move 2.5 * u, -3 * u; line -2 * u, 0; line 2.5 * u, 3 * u; close }
+                    path { at: ccx, ccy; color: ink2; move -2.5 * u, -3.5 * u; line 6 * u, 0; line -2.5 * u, 3.5 * u; close }
+                    path { at: ccx + 12 * u, ccy; color: ink2; move -2.5 * u, -3 * u; line 2 * u, 0; line -2.5 * u, 3 * u; close }
+                }
+                group {
+                    show: i == 3
+                    ellipse { at: ccx, ccy; radius: 3.6 * u; stroke: 1.7 * u; color: ink2 }
+                    repeat k in 0..8 {
+                        group {
+                            pivot: ccx, ccy
+                            rotate: k * 45deg
+                            box { at: ccx, ccy - 6 * u; size: 2 * u, 2.6 * u; corner: 0.7 * u; color: ink2 }
+                        }
+                    }
+                }
+                group {
+                    show: i == 4
+                    ellipse { at: ccx - 1.2 * u, ccy - 1.2 * u; radius: 4 * u; stroke: 1.6 * u; color: ink2 }
+                    line { from: ccx + 1.8 * u, ccy + 1.8 * u; to: ccx + 5 * u, ccy + 5 * u; width: 1.8 * u; color: ink2 }
+                }
+                group {
+                    show: i == 5
+                    box { at: ccx, ccy - 3.5 * u; size: 13 * u, 1.5 * u; corner: 0.75 * u; color: ink2 }
+                    box { at: ccx, ccy + 3.5 * u; size: 13 * u, 1.5 * u; corner: 0.75 * u; color: ink2 }
+                    ellipse { at: ccx + 2.5 * u, ccy - 3.5 * u; radius: 2.4 * u; color: ink2 }
+                    ellipse { at: ccx - 2.5 * u, ccy + 3.5 * u; radius: 2.4 * u; color: ink2 }
+                }
+                text "4:20" { at: floor(ccx + 0.5), floor(ccy + 0.5); anchor: center; align: center; size: 13 * u; weight: 700; width: chw; lines: 1; color: mix(mint, ink, 0.25); show: i == 6; family: "Space Grotesk" }
+              }
+            }
+            }
         }
 
         //  The Hyprland page, after Synoptik's: layout and gaps, border resize and tearing, animations and input.
