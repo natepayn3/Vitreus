@@ -45,9 +45,9 @@ local spec_last = {}
 local watching = false      -- the player's panel is open: the only time the equalizer is worth feeding
 
 -- cava wants its config as a file. It is kept here rather than in a file next to the scene, so
--- nothing depends on where Gota is installed: it is written into the scene's own data folder (where
+-- nothing depends on where Vitreus is installed: it is written into the scene's own data folder (where
 -- `dnd.json` and `calendar.json` already live) and cava is pointed at it. That folder is
--- `$XDG_DATA_HOME/pleamar/gota`, or `$HOME/.local/share/pleamar/gota`, and the sandbox has no
+-- `$XDG_DATA_HOME/pleamar/vitreus`, or `$HOME/.local/share/pleamar/vitreus`, and the sandbox has no
 -- `os.getenv`, so the environment is asked of the system once. A player that starts before the
 -- answer arrives waits for it.
 local CAVA_CONF = table.concat({
@@ -63,7 +63,7 @@ local listen
 local function conf_ready(base)
     base = (base or ""):gsub("%s+$", "")
     if base == "" then return false end
-    cava_conf = base .. "/pleamar/gota/cava.conf"
+    cava_conf = base .. "/pleamar/vitreus/cava.conf"
     if want_listen then listen() end
     return true
 end
@@ -137,7 +137,7 @@ local function use_art(url)
     if url:sub(1, 7) == "file://" then
         show_art(unpercent(url:sub(8)))
     elseif url:match("^https?://") then
-        local path = "/tmp/gota-art-" .. hash(url) .. ".img"
+        local path = "/tmp/vitreus-art-" .. hash(url) .. ".img"
         run("curl", { "-fsSL", "--max-time", "8", "-o", path, url }, function(_, code)
             if code == 0 and art_url == url then show_art(path) end
         end)
@@ -207,20 +207,135 @@ on("togglebt", function(v)
     sys.call("bluetooth.power", v == 1)
 end)
 
--- Do Not Disturb: a saved preference. Reading a fact back is not guaranteed to be
--- a boolean, so the logic keeps its own copy.
+-- Do Not Disturb, with a timer, and the notification history: one module. `dnd` is whether it is in effect,
+-- either switched on by hand or by a timer that has not run out. Reading a fact back is not guaranteed to be a
+-- boolean, so the logic keeps its own copies. The state is saved in `dnd.json` ({ manual, ends, len }); the
+-- history in `notification-history.json`. pleamar's own history only holds what expired unseen, and Vitreus
+-- handles every notification itself, so it keeps its own: every arrival goes in, including those Do Not
+-- Disturb holds back (which is what a history is for).
 local dnd = false
-local function set_dnd(v)
-    dnd = v
-    fact.dnd_on = v
-    pcall(sys.call, "files.write", "dnd.json", { manual = v })
+local dnd_manual = false
+local dnd_until = 0                       -- the time a running timer ends, in seconds; 0 for none
+local dnd_len = 0                         -- how many minutes it was set for: which chip is lit
+local nt_hist = {}                        -- newest first: { app, title, body, t }
+
+local function dnd_save()
+    pcall(sys.call, "files.write", "dnd.json", { manual = dnd_manual, ends = dnd_until, len = dnd_len })
 end
-local ok_dnd, saved_dnd = pcall(sys.ask, "files.read", "dnd.json", "json")
-if ok_dnd and type(saved_dnd) == "table" and saved_dnd.manual == true then
-    dnd = true
-    fact.dnd_on = true
+local function nt_save()
+    pcall(sys.call, "files.write", "notification-history.json", { items = nt_hist })
 end
-on("togglednd", function() set_dnd(not dnd) end)
+
+local function nt_when(t)
+    local d, now = os.date("*t", t), os.date("*t")
+    if d.year == now.year and d.yday == now.yday then
+        local h = d.hour % 12
+        if h == 0 then h = 12 end
+        return string.format("%d:%02d %s", h, d.min, d.hour < 12 and "am" or "pm")
+    end
+    return os.date("%b ", t) .. d.day
+end
+
+local function nt_render()
+    local rows = {}
+    for i, h in ipairs(nt_hist) do
+        if i > 30 then break end
+        rows[i] = { title = h.title, sub = h.body ~= "" and (h.app .. "  ·  " .. h.body) or h.app, when = nt_when(h.t) }
+    end
+    model.nt_hist = rows
+end
+
+-- The time a timer has left, as m:ss (h:mm:ss past an hour).
+local function dnd_left_text()
+    local r = math.max(0, dnd_until - os.time())
+    if r >= 3600 then return string.format("%d:%02d:%02d", r // 3600, (r % 3600) // 60, r % 60) end
+    return string.format("%d:%02d", r // 60, r % 60)
+end
+
+local function dnd_refresh()
+    if dnd_until > 0 and os.time() >= dnd_until then
+        dnd_until, dnd_len = 0, 0
+        dnd_save()
+    end
+    dnd = dnd_manual or dnd_until > 0
+    fact.dnd_on = dnd
+    fact.dnd_len = dnd_until > 0 and dnd_len or 0
+    if dnd_until > 0 then
+        text.dnd_left = dnd_left_text() .. " left"
+        text.nt_tile_sub = "Silenced · " .. dnd_left_text()
+    elseif dnd then
+        text.dnd_left = "On until turned off"
+        text.nt_tile_sub = "Silenced"
+    else
+        text.dnd_left = "Off"
+        text.nt_tile_sub = #nt_hist > 0 and (#nt_hist .. " in history") or "All clear"
+    end
+end
+
+local function nt_strip(s)
+    return ((s or ""):gsub("<[^>]*>", ""):gsub("&amp;", "&"):gsub("&lt;", "<"):gsub("&gt;", ">"):gsub("&quot;", '"'))
+end
+local function nt_add(n)
+    table.insert(nt_hist, 1, {
+        app = (n.app ~= nil and n.app ~= "") and n.app or "System",
+        title = nt_strip((n.title ~= nil and n.title ~= "") and n.title or "Notification"),
+        body = nt_strip(n.body),
+        t = os.time(),
+    })
+    while #nt_hist > 50 do table.remove(nt_hist) end
+    nt_save()
+    nt_render()
+    dnd_refresh()
+end
+
+do
+    local ok, saved = pcall(sys.ask, "files.read", "dnd.json", "json")
+    if ok and type(saved) == "table" then
+        dnd_manual = saved.manual == true
+        if type(saved.ends) == "number" and saved.ends > os.time() then
+            dnd_until = saved.ends
+            dnd_len = type(saved.len) == "number" and saved.len or 0
+        end
+    end
+    local okh, hist = pcall(sys.ask, "files.read", "notification-history.json", "json")
+    if okh and type(hist) == "table" and type(hist.items) == "table" then nt_hist = hist.items end
+end
+nt_render()
+dnd_refresh()
+
+-- The tile's pill: off if anything is silencing, else on until turned off.
+on("togglednd", function()
+    if dnd then
+        dnd_manual, dnd_until, dnd_len = false, 0, 0
+    else
+        dnd_manual = true
+    end
+    dnd_save()
+    dnd_refresh()
+end)
+-- A timer chip; pressing the one that is lit again cancels it.
+on("dnd_for", function(m)
+    if dnd_until > 0 and dnd_len == m then
+        dnd_until, dnd_len = 0, 0
+    else
+        dnd_until, dnd_len, dnd_manual = os.time() + m * 60, m, false
+    end
+    dnd_save()
+    dnd_refresh()
+end)
+every(1000, function() if dnd_until > 0 then dnd_refresh() end end)   -- the countdown
+on("nt_clear", function()
+    nt_hist = {}
+    nt_save()
+    nt_render()
+    dnd_refresh()
+end)
+on("nt_hist_del", function(i)
+    table.remove(nt_hist, i + 1)
+    nt_save()
+    nt_render()
+    dnd_refresh()
+end)
 
 -- Caffeine: what keeps the machine awake is hypridle being stopped, so the
 -- truth is asked of the system, not remembered.
@@ -782,7 +897,7 @@ sys.watch("audio", function(a)
     end)
 end)
 
--- Notifications: Gota is the notification server now, so this is where they arrive.
+-- Notifications: Vitreus is the notification server now, so this is where they arrive.
 local function strip(s)
     return ((s or ""):gsub("<[^>]*>", ""):gsub("&amp;", "&"):gsub("&lt;", "<"):gsub("&gt;", ">"):gsub("&quot;", '"'))
 end
@@ -839,12 +954,13 @@ end
 
 pcall(sys.call, "notifications.keep", true)
 sys.watch("notifications", function(list)
-    -- The newest come first. What was already there when Gota started is not announced.
+    -- The newest come first. What was already there when Vitreus started is not announced.
     for i = #list, 1, -1 do
         local n = list[i]
         if not nt_seen[n.id] then
             nt_seen[n.id] = true
             if not nt_first then
+                nt_add(n)
                 if dnd then
                     pcall(sys.call, "notifications.dismiss", n.id)   -- Do Not Disturb: it never shows
                 else
@@ -885,7 +1001,7 @@ end)
 -- Synoptik ran `iris --json-only <wallpaper>` and used its bg / surface / fg / dim / accent / red,
 -- with a legibility floor on the text and a subtle / medium / bold push on the accent. Here the scene
 -- cannot be handed a colour at runtime, so the result is written into `palette.plm`, the library of
--- `let` colours the scene imports, and the scene reloads in them. `iris.json` in Gota's data folder
+-- `let` colours the scene imports, and the scene reloads in them. `iris.json` in Vitreus's data folder
 -- holds the two settings: { enabled = true, intensity = "medium" | "subtle" | "bold" }.
 local iris_cfg = { enabled = true, intensity = "medium" }
 local iris_last_wp = nil
@@ -971,7 +1087,7 @@ local function intensity_accent(hex, intensity)
     return rgb_to_hex(hsl_to_rgb(h, s, l))
 end
 
--- Where the palette goes, and where Gota's data folder is, both resolved from the environment
+-- Where the palette goes, and where Vitreus's data folder is, both resolved from the environment
 -- (`$XDG_CONFIG_HOME` / `$XDG_DATA_HOME`, else under `$HOME`) the same way as cava's config.
 local dirs = nil
 local dirs_waiting = {}
@@ -984,9 +1100,9 @@ local function with_dirs(fn)
         if not (got.home and got.xdg_data ~= nil and got.xdg_conf ~= nil and got.xdg_cache ~= nil) then return end
         dirs = {
             home = got.home,
-            cache = (got.xdg_cache ~= "" and got.xdg_cache or (got.home .. "/.cache")) .. "/pleamar/gota/wp",
-            data = (got.xdg_data ~= "" and got.xdg_data or (got.home .. "/.local/share")) .. "/pleamar/gota",
-            conf = (got.xdg_conf ~= "" and got.xdg_conf or (got.home .. "/.config")) .. "/pleamar/shells/gota",
+            cache = (got.xdg_cache ~= "" and got.xdg_cache or (got.home .. "/.cache")) .. "/pleamar/vitreus/wp",
+            data = (got.xdg_data ~= "" and got.xdg_data or (got.home .. "/.local/share")) .. "/pleamar/vitreus",
+            conf = (got.xdg_conf ~= "" and got.xdg_conf or (got.home .. "/.config")) .. "/pleamar/shells/vitreus",
         }
         for _, f in ipairs(dirs_waiting) do f(dirs) end
         dirs_waiting = {}
@@ -1019,7 +1135,7 @@ local function apply_iris(json)
     }
     local order = { "ink", "faint", "mint", "mintlo", "minthi", "onmint", "tint", "panel", "deep", "off", "alert" }
     local lines = {
-        "//  Written by Gota's logic from the wallpaper (Iris); edits here are overwritten.",
+        "//  Written by Vitreus's logic from the wallpaper (Iris); edits here are overwritten.",
         "//  `let`s only: the scene imports this and uses these names everywhere.",
         "",
         "library Palette {",
@@ -1092,7 +1208,7 @@ end)
 local function wp_pages() return math.max(1, math.ceil(#wp_files / WP_PER_PAGE)) end
 
 -- Thumbnails are cropped to exactly 16:9 by ImageMagick into a cache folder (`$XDG_CACHE_HOME/pleamar/
--- gota/wp`, else under `$HOME/.cache`), once each: every tile the scene draws is then the same shape and
+-- vitreus/wp`, else under `$HOME/.cache`), once each: every tile the scene draws is then the same shape and
 -- size with the same corners, and a full-size wallpaper is never decoded just to fill a small tile. The
 -- wallpaper in use gets a bigger crop (`p`) for the preview card. nil = not made, "busy", true, false.
 local wp_made = {}
@@ -1232,7 +1348,7 @@ wp_load()
 
 -- ── Weather, for the calendar panel ──────────────────────────────────────────────────────
 -- Fetched from Open-Meteo, as in Synoptik: the place is found by IP (ipwho.is) unless `location` is set
--- in `weather-config.json` in Gota's data folder, when it is looked up by name; then the current
+-- in `weather-config.json` in Vitreus's data folder, when it is looked up by name; then the current
 -- conditions and the next seven days. `units` there is "fahrenheit" (the default) or "celsius".
 -- The sandbox has no JSON parser for what curl brings, so curl writes each answer into the data folder
 -- and `files.read` parses it.

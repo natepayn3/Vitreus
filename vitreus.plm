@@ -2,11 +2,11 @@ language 0.1
 
 import "palette.plm"
 
-//  Gota: a bar of liquid glass. The glass only blurs what is behind it (the
+//  Vitreus: a bar of liquid glass. The glass only blurs what is behind it (the
 //  compositor does it; `lens: false`), and the panel is not stuck under the
 //  bar: it is the same silhouette, melted, so it hangs from it like a drop.
 
-scene Gota {
+scene Vitreus {
     surface { size: 900, 800; anchor: top; margin: 0; reserve: 68; keyboard: exclusive while panel != none and panel != volume and panel != notif }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli" }
@@ -144,8 +144,8 @@ scene Gota {
     //  Tapping the rest of a tile (not its toggle) grows it into its own window.
     //  `showing_sub` only follows `panel_sub` on the way in - see its rule below -
     //  so the window it drew stays up, fading out, while it closes.
-    fact panel_sub: none | netview | btview = none
-    fact showing_sub: none | netview | btview = none
+    fact panel_sub: none | netview | btview | notifview = none
+    fact showing_sub: none | netview | btview | notifview = none
     //  Which row is open, in each list - its password field or its
     //  Connect/Disconnect/Forget, right underneath it. -1 is none.
     fact wifi_open_row = -1
@@ -166,6 +166,14 @@ scene Gota {
     fact caf_on = false
     fact caf_avail = true          // hypridle is installed: there is something to hold off
     event togglednd ->
+    //  The notifications module: Do Not Disturb with a timer, and the history of what came in.
+    model nt_hist max 30 { title: text; sub: text; when: text }
+    text nt_tile_sub = ""          // the tile's second line: Silenced · 23:41, 12 in history, All clear
+    text dnd_left = ""             // the window's DND row: 23:41 left, On until turned off, Off
+    fact dnd_len = 0               // minutes of the timer that is running (which chip is lit), 0 for none
+    event dnd_for ->               // a timer chip: minutes
+    event nt_clear ->              // the Clear button
+    event nt_hist_del ->           // a history row's cross, by position
     event togglecaf ->
     fact ws.active = 1
     repeat i in 1..6 { fact ws.$i.busy = false }
@@ -581,6 +589,22 @@ scene Gota {
         text d.lo { at: floor(31 * u + 0.5), floor(42 * u + 0.5); anchor: center; align: center; size: 10 * u; width: 20 * u; lines: 1; color: faint; family: "Space Grotesk" }
     }
 
+    //  One notification in the history: its title and when it came, and under them the app and what it said.
+    //  54 px tall, so a stack of them sits on whole pixels. A cross shows on hover, in place of the time.
+    component NtHistRow(h: record, del: event) {
+        size: 276 * u, 54
+        zone box touch { from: 0, 0; size: 276 * u, 54; corner: 12 * u }
+        box { from: 0, 0; size: 276 * u, 54; corner: 12 * u; color: ink; opacity: 5% + 6% * touch.hover }
+        text h.title { at: floor(12 * u + 0.5), 17; anchor: left center; size: 12.5 * u; weight: 700; width: 200 * u; lines: 1; color: ink; family: "Space Grotesk" }
+        text h.sub { at: floor(12 * u + 0.5), 37; anchor: left center; size: 10.5 * u; width: 244 * u; lines: 1; color: faint; family: "Space Grotesk" }
+        text h.when { at: floor(264 * u + 0.5), 17; anchor: right center; size: 10 * u; color: faint; opacity: 100% - 100% * touch.hover; family: "Space Grotesk" }
+        ellipse { at: floor(258 * u + 0.5), 17; radius: 9 * u; color: if(del_z.hover, alert, ink); opacity: (if(del_z.hover, 80%, 12%)) * touch.hover }
+        line { from: floor(258 * u + 0.5) - 3.2 * u, 17 - 3.2 * u; to: floor(258 * u + 0.5) + 3.2 * u, 17 + 3.2 * u; width: 1.4 * u; color: ink; opacity: 70% * touch.hover }
+        line { from: floor(258 * u + 0.5) + 3.2 * u, 17 - 3.2 * u; to: floor(258 * u + 0.5) - 3.2 * u, 17 + 3.2 * u; width: 1.4 * u; color: ink; opacity: 70% * touch.hover }
+        zone box del_z { at: floor(258 * u + 0.5), 17; size: 24 * u, 24 * u; corner: 12 * u; cursor: pointer }
+        on press del_z { emit del(h.index) }
+    }
+
     let cx = 450
     let bar.w = 450 * u
     let bar.h = 40 * u
@@ -656,8 +680,11 @@ scene Gota {
     let wifi_rows_h = max(1, wifi_nets.count) * 34 - 4 + if(wifi_open_row >= 0, 44, 0)
     let bt_rows_h   = max(1, bt_devices.count) * 34 - 4 + if(bt_open_row >= 0, 44, 0)
     let list_max    = 220
-    let list_view_h = min(if(showing_sub == btview, bt_rows_h, wifi_rows_h), list_max)
-    let sub_bot = tiles_top + 54 + list_view_h + 16
+    //  The notifications window has a Do Not Disturb row and its timer chips above its list (84 more), and a
+    //  shorter list. Its rows are 54 px with 6 between, whole pixels.
+    let nt_rows_h = (max(1, nt_hist.count) * 60 - 6) / u
+    let list_view_h = min(if(showing_sub == btview, bt_rows_h, if(showing_sub == notifview, nt_rows_h, wifi_rows_h)), if(showing_sub == notifview, 150, list_max))
+    let sub_bot = tiles_top + 54 + if(showing_sub == notifview, 84, 0) + list_view_h + 16
     //  The output list drops over what is under the volume row; with more than a couple of outputs
     //  it reaches past the drawer, so the drawer grows to hold it while it is open.
     let dd.rows = clamp(outlist.count, 1, 6)
@@ -1124,8 +1151,7 @@ scene Gota {
             zone box bt_toggle_hit { at: btx + 46 * u, tile_cy - 18 * u; size: 34 * u, 22 * u; cursor: pointer }
             on press bt_toggle_hit { emit togglebt(not bt.powered) }
 
-            //  Do Not Disturb and Caffeine, underneath. The whole tile is the toggle here:
-            //  neither one has a window of its own to grow into.
+            //  Notifications (Do Not Disturb, with its own window) and Caffeine (the whole tile is its toggle), underneath.
             let tile2_cy = ck + (tiles2_top + tiles_h / 2) * u
 
             box { at: wtx, tile2_cy; size: 140 * u, tiles_h * u; corner: 14 * u; color: ink; opacity: veil + 6% * dnd_hit.hover }
@@ -1140,16 +1166,17 @@ scene Gota {
                 ellipse { at: wtx - 48 * u, tile2_cy - 11 * u; radius: 1.6 * u; color: ink }
             }
             path { at: wtx - 48 * u, tile2_cy - 18 * u; stroke: 1.8 * u; color: alert; opacity: dnd_pill; move -8 * u, -8 * u; line 8 * u, 8 * u }
-            text "Do Not Disturb" { at: floor(wtx - 58 * u + 0.5), floor(tile2_cy + 4 * u + 0.5); anchor: left center; size: 13 * u; width: 116 * u; lines: 1; color: ink; family: "Space Grotesk" }
-            text "On" { at: floor(wtx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: mint; opacity: 90%; family: "Space Grotesk"; show: dnd_on }
-            text "Off" { at: floor(wtx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not dnd_on }
+            text "Notifications" { at: floor(wtx - 58 * u + 0.5), floor(tile2_cy + 4 * u + 0.5); anchor: left center; size: 13 * u; width: 116 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            text nt_tile_sub { at: floor(wtx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; width: 116 * u; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
             body {
                 color: mix(off, mint, clamp(dnd_pill, 0, 1))
                 box { at: wtx + 46 * u, tile2_cy - 18 * u; size: 26 * u, 14 * u; corner: 7 * u }
             }
             ellipse { at: wtx + 40 * u + dnd_pill * 12 * u, tile2_cy - 18 * u; radius: 5.5 * u; color: ink }
             zone box dnd_hit { at: wtx, tile2_cy; size: 140 * u, tiles_h * u; cursor: pointer }
-            on press dnd_hit { emit togglednd }
+            on press dnd_hit { panel_sub = if(panel_sub == notifview, none, notifview) }
+            zone box dnd_toggle_hit { at: wtx + 46 * u, tile2_cy - 18 * u; size: 34 * u, 22 * u; cursor: pointer }
+            on press dnd_toggle_hit { emit togglednd }
 
             //  Caffeine: a cup that steams while the machine is being kept awake. Dimmed on a
             //  machine with no hypridle, which is what the card would be stopping.
@@ -1243,6 +1270,55 @@ scene Gota {
             }
             text "No devices found" { at: floor(cx + 0.5), floor(ex2_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: bt_devices.count < 1 and not bt_scanning }
             text "Scanning…" { at: floor(cx + 0.5), floor(ex2_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: mint; family: "Space Grotesk"; show: bt_devices.count < 1 and bt_scanning }
+        }
+
+        //  The notifications window: Do Not Disturb (a toggle, and timer chips that count down), and under them
+        //  the history of what came in, newest first. Clear empties it; a row's cross removes that one.
+        group {
+            show: showing_sub == notifview
+            opacity: expand0
+            let nx_top = ck + tiles_top * u
+            let nx_cy = nx_top + 22 * u
+            path { at: cx - 124 * u, nx_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * nt_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
+            zone box nt_back { at: cx - 124 * u, nx_cy; size: 30 * u, 30 * u; cursor: pointer }
+            on press nt_back { panel_sub = none }
+            text "NOTIFICATIONS" { at: floor(cx - 102 * u + 0.5), floor(nx_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: cx + 112 * u, nx_cy; size: 52 * u, 24 * u; corner: 12 * u; color: ink; opacity: 8% + 10% * nt_clear_hit.hover }
+            text "Clear" { at: floor(cx + 112 * u + 0.5), floor(nx_cy + 0.5); anchor: center; size: 11 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
+            zone box nt_clear_hit { at: cx + 112 * u, nx_cy; size: 54 * u, 26 * u; corner: 13 * u; cursor: pointer }
+            on press nt_clear_hit { emit nt_clear }
+            box { at: cx, nx_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
+
+            //  Do Not Disturb: its toggle, and what state it is in.
+            box { at: cx, nx_top + 66 * u; size: 276 * u, 34 * u; corner: 12 * u; color: ink; opacity: veil }
+            text "Do Not Disturb" { at: floor(cx - 128 * u + 0.5), floor(nx_top + 60 * u + 0.5); anchor: left center; size: 12.5 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            text dnd_left { at: floor(cx - 128 * u + 0.5), floor(nx_top + 74 * u + 0.5); anchor: left center; size: 10 * u; width: 200 * u; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
+            body {
+                color: mix(off, mint, clamp(dnd_pill, 0, 1))
+                box { at: cx + 118 * u, nx_top + 66 * u; size: 30 * u, 16 * u; corner: 8 * u }
+            }
+            ellipse { at: cx + 111 * u + dnd_pill * 14 * u, nx_top + 66 * u; radius: 6.2 * u; color: ink }
+            zone box nt_dnd_toggle { at: cx + 118 * u, nx_top + 66 * u; size: 40 * u, 26 * u; corner: 13 * u; cursor: pointer }
+            on press nt_dnd_toggle { emit togglednd }
+
+            //  The timer: pressing a chip silences for that long; pressing the lit one again cancels it.
+            repeat i in 0..4 {
+                let chx = cx - 107 * u + i * 70 * u
+                box { at: chx, nx_top + 100 * u; size: 62 * u, 26 * u; corner: 13 * u; color: if(dnd_len == pick(i, 15, 30, 60, 120), mint, ink); opacity: if(dnd_len == pick(i, 15, 30, 60, 120), 24%, 8% + 10% * dnd_chip.$i.hover) }
+                text pick(i, "15 min", "30 min", "1 hour", "2 hours") { at: floor(chx + 0.5), floor(nx_top + 100 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 600; width: 60 * u; lines: 1; color: if(dnd_len == pick(i, 15, 30, 60, 120), mint, ink); family: "Space Grotesk" }
+                zone box dnd_chip.$i { at: chx, nx_top + 100 * u; size: 64 * u, 28 * u; corner: 14 * u; cursor: pointer }
+                on press dnd_chip.$i { emit dnd_for(pick(i, 15, 30, 60, 120)) }
+            }
+
+            //  The history.
+            text "HISTORY" { at: floor(cx - 134 * u + 0.5), floor(nx_top + 126 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 80%; family: "Space Grotesk" }
+            column nt_hist_col {
+                at: floor(cx - 138 * u + 0.5), floor(nx_top + 138 * u + 0.5)
+                view: 276 * u, list_view_h * u
+                gap: 6
+                for h in nt_hist { NtHistRow(h, del: nt_hist_del) }
+            }
+            text "No notifications yet" { at: floor(cx + 0.5), floor(nx_top + 138 * u + 20 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: nt_hist.count < 1 }
         }
 
         //  The dropdown: a solid card that drops from the volume row over what is
