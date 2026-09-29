@@ -200,17 +200,12 @@ else
     run git clone --quiet "$repo" "$dest"
 fi
 
-# ── 5. the palette, and the data an older name left ────────────────────────
+# ── 5. the palette ─────────────────────────────────────────────────────────
 if [ -f "$dest/palette.plm" ]; then
     say "the palette is there (Vitreus rewrites it from your wallpaper)"
 elif [ -f "$dest/palette.default.plm" ] || $dry; then
     say "making your palette from the stock colours"
     run cp "$dest/palette.default.plm" "$dest/palette.plm"
-fi
-if [ -d "$data/pleamar/gota" ] && [ ! -e "$data/pleamar/vitreus" ]; then
-    if ask "found saved data from when Vitreus was called Gota: move it across?"; then
-        run mv "$data/pleamar/gota" "$data/pleamar/vitreus"
-    fi
 fi
 
 # ── start with the desktop ─────────────────────────────────────────────────

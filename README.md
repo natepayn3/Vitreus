@@ -155,11 +155,6 @@ git-ignored; the stock colours are tracked as `palette.default.plm`.
 * Wi-Fi rescans within about 15 seconds of the previous one are ignored by NetworkManager.
 * Do Not Disturb has a timer, but no quiet-hours schedule and no "silence while a window is fullscreen" trigger yet.
 
-## Formerly Gota
-
-Vitreus was developed under the name *Gota*. If you are upgrading from that, move your saved data across once:
-`mv ~/.local/share/pleamar/gota ~/.local/share/pleamar/vitreus`.
-
 ---
 
 ## 📄 License
