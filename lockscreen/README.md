@@ -8,7 +8,12 @@ Typed characters become random shapes (`shapes.svg`); the password itself is nev
 bug, not this scene: `kind: lock` makes the compositor end the client with
 `ext_session_lock_surface_v1: error 1: Null buffer attached` (Hyprland 0.56.1, NVIDIA, Vulkan). pleamar's own minimal
 lock example from its reference does the same in a fresh nested Hyprland, and the session stays locked with no
-client. Do not lock a live session with it until that is fixed upstream.
+client.
+
+The cause is in pleamar's `src/platform/wayland.rs`: `update_input_region` commits the surface right away with no
+buffer, which `ext-session-lock` forbids. Skipping that commit for lock surfaces (a `lock: bool` on `WaylandWindow`
+and an early return) fixes it: with that change the lock is granted, this scene draws on a live session, and
+unlocking works. Until that lands in pleamar, do not lock a live session with the stock binary.
 
 ## Turning it on, once pleamar can lock
 
@@ -18,6 +23,10 @@ client. Do not lock a live session with it until that is fixed upstream.
    `before_sleep_cmd` and idle listener at that same command.
 3. Try it in a **nested compositor first**, with a TTY ready. While `fact safe = true` (the default), Esc on an empty
    box unlocks it, and so does a minute of nothing. Set `safe` to `false` once it is trusted.
+
+Two things about the wallpaper: the pictures are cached 16:9 (an `image` is a fixed-shape cell), and the renderer
+only draws a lock picture whose path existed when the scene was read, so the logic reloads the scene (by touching
+`lockscreen.plm`) whenever it publishes a new wallpaper.
 
 It needs `awww` (to find the wallpaper), `magick` (it makes a sharp and a pre-blurred copy in
 `~/.cache/pleamar/lockscreen`), the Montserrat Alternates and Material Symbols Outlined fonts, and PAM through

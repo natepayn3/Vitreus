@@ -55,10 +55,15 @@ on("media_next", function() sys.call("media.next") end)
 
 -- ── The wallpaper, made ready before it is needed ────────────────────────────────────────────────────
 -- A lock has to be instant, so the two pictures it uses are made ahead of time, each time the wallpaper
--- changes: a sharp one cropped to the monitor (at most 1920 wide: the renderer will not hold a bigger
--- picture, and it is only on screen while it blurs away), and a small one already blurred (the renderer scales it up
--- smoothly, which is how a 60-pixel blur costs nothing while locked). The names carry a hash of the
--- wallpaper's path, so a new wallpaper is a new file and never a stale cached one.
+-- changes: a sharp one, and a small one already blurred (the renderer scales it up smoothly, which is how a
+-- 60-pixel blur costs nothing while locked). The names carry a hash of the wallpaper's path, so a new
+-- wallpaper is a new file and never a stale cached one.
+--
+-- An `image` is declared with a fixed size, 1920 x 1080 in the scene, and the picture is fitted inside that
+-- cell and then the cell is stretched over the screen. So both pictures are made exactly 16:9 (the cell), from
+-- the wallpaper cropped to the MONITOR's shape and then squashed to fit it: drawn over the screen, the cell
+-- stretches them back to the shape they had. (The renderer will not hold a bigger picture than that, and the
+-- sharp one is only on screen while it blurs away.)
 local prep_busy = false
 local made_key = nil
 
@@ -68,10 +73,22 @@ local function hash(str)
     return tostring(h)
 end
 
+-- The renderer only picks up a picture whose path was there when the scene was read: one published later
+-- draws nothing on the lock (measured: paths set while running, blank; the same paths after a reload, drawn).
+-- So a new wallpaper is published and then the scene is reloaded, by touching its own file. It only ever
+-- happens while unlocked, since `prepare_wallpaper` does not run when locked.
 local function publish(s, b)
+    local changed = text.wp_sharp ~= s or text.wp_blur ~= b
     if text.wp_sharp ~= s then text.wp_sharp = s end
     if text.wp_blur ~= b then text.wp_blur = b end
     fact.has_wall = true
+    if changed and home ~= "" then
+        after(300, function()
+            if not fact.locked then
+                run("touch", { home .. "/.config/pleamar/shells/vitreus/lockscreen/lockscreen.plm" }, function() end)
+            end
+        end)
+    end
 end
 
 local function prepare_wallpaper()
@@ -84,7 +101,7 @@ local function prepare_wallpaper()
         local path = line:match("currently displaying: image: (.-)%s*$")
         local geo = line:match("%d+x%d+")
         if not path or not geo then return done() end
-        local key = hash(path)
+        local key = hash("2 " .. path)
         if key == made_key then return done() end
         local s, b = dir .. "/sharp-" .. key .. ".jpg", dir .. "/blur-" .. key .. ".jpg"
         run("ls", { s, b }, function(_, code)
@@ -94,9 +111,9 @@ local function prepare_wallpaper()
                 return done()
             end
             run("mkdir", { "-p", dir }, function()
-                run("magick", { path, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "1920x1920>", "-quality", "90", s }, function(_, c1)
+                run("magick", { path, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "1920x1080!", "-quality", "90", s }, function(_, c1)
                     if c1 ~= 0 then return done() end
-                    run("magick", { s, "-resize", "12.5%", "-blur", "0x4", "-quality", "85", b }, function(_, c2)
+                    run("magick", { path, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "12.5%", "-blur", "0x4", "-resize", "240x135!", "-quality", "85", b }, function(_, c2)
                         if c2 == 0 then
                             made_key = key
                             publish(s, b)
