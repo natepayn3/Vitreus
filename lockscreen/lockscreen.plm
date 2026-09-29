@@ -14,7 +14,7 @@ scene Lockscreen {
 
     permissions {
         services: "clock", "battery", "media", "media.*", "auth"
-        run: "awww", "magick", "getent", "mkdir", "rm", "ls", "touch", "loginctl", "hyprctl", "printenv"
+        run: "awww", "magick", "getent", "mkdir", "rm", "ls", "touch", "loginctl", "printenv"
     }
 
     service clock as now { hour: number }
@@ -191,6 +191,13 @@ scene Lockscreen {
                 //  The clock, with its glow, and the AM/PM pill beside it.
                 group {
                     glow: 18, 70%, acc
+                    //  Bold beyond the font's heaviest weight: the same text again around it, 3 px out in twelve directions. (A text
+                    //  `outline` did the same but left rough notches on the glyphs.) They are only there once the card has landed
+                    //  (the entrance passes 85 % when its last spring ends): while it moves, twelve copies each snapped to the pixel
+                    //  their own way show as lines between them.
+                    repeat i in 0..12 {
+                        text clock_time { at: cx - 28 + 3 * cos(i * 30), ct + 122 + 3 * sin(i * 30); anchor: center; size: 200; weight: 700; color: ink; family: "Space Grotesk"; opacity: clamp((e - 0.85) / 0.1, 0, 1); show: e > 0.85 }
+                    }
                     text clock_time { at: cx - 28, ct + 122; anchor: center; size: 200; weight: 700; color: ink; family: "Space Grotesk"; measure: ck_w }
                 }
                 box { at: cx + ck_w.width / 2 + 4, ct + 122; size: 48, 28; corner: 14; color: acc; opacity: 18% }

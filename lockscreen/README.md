@@ -6,7 +6,7 @@ Typed characters become random shapes (`shapes.svg`); the password itself is nev
 
 **It is deliberately not wired to anything**: it is not in `autostart` and nothing calls it. The reason is a pleamar
 bug, not this scene: `kind: lock` makes the compositor end the client with
-`ext_session_lock_surface_v1: error 1: Null buffer attached` (Hyprland 0.56.1, NVIDIA, Vulkan). pleamar's own minimal
+`ext_session_lock_surface_v1: error 1: Null buffer attached` (Hyprland 0.56.2, NVIDIA, Vulkan). pleamar's own minimal
 lock example from its reference does the same in a fresh nested Hyprland, and the session stays locked with no
 client.
 

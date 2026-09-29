@@ -190,22 +190,35 @@ end)
 
 -- ── Locking and unlocking ────────────────────────────────────────────────────────────────────────────
 local scene_file = "/.config/pleamar/shells/vitreus/lockscreen/lockscreen.plm"
+local cleaning = false
 
-on("fact:locked", function(v)
+-- What has to happen once a lock is over, however it ended: nothing of it is left written (the password, its
+-- shapes, the verdict), and the scene reloads itself. The renderer draws the wallpaper on the first lock after the
+-- scene is read and on no later one (measured: locks after the first were black until a reload), so reloading once
+-- the lock has gone makes the next lock a first one; what the scene knows survives a reload.
+-- This is called from both ways a lock can end: from outside (`fact:locked`, which only fires for a change made from
+-- outside the logic) and from the logic itself, when the password was right, which does not fire it.
+local function after_unlock()
+    if cleaning then return end
+    cleaning = true
     reset()
     fact.settled = false
+    after(700, function()
+        cleaning = false
+        if home ~= "" and not fact.locked then
+            run("touch", { home .. scene_file }, function() end)
+        end
+    end)
+end
+
+on("fact:locked", function(v)
     if v then
+        reset()
+        fact.settled = false
         -- the entrance is 2.2 s; after that nothing on the screen needs the clock any more
         after(2400, function() fact.settled = true end)
-    elseif home ~= "" then
-        -- The renderer draws the wallpaper on the first lock after the scene is read and on no later one
-        -- (measured: locks after the first were black until a reload). Reloading the scene once the lock
-        -- has gone makes the next lock a first one; what the scene knows survives a reload.
-        after(700, function()
-            if not fact.locked then
-                run("touch", { home .. scene_file }, function() end)
-            end
-        end)
+    else
+        after_unlock()
     end
 end)
 
@@ -220,10 +233,9 @@ on("tryauth", function()
         fact.right = true
         text.status = "Unlocked!"
         after(320, function()
-            -- Hyprland can hand a crashed lock to a new client only if it is told this beforehand
-            run("hyprctl", { "keyword", "misc:allow_session_lock_restore", "1" }, function() end)
             run("loginctl", { "unlock-session" }, function() end)
             fact.locked = false
+            after_unlock()
         end)
     else
         fact.wrong = true
