@@ -1750,6 +1750,56 @@ end)
 
 wp_load()
 
+-- ── glass ─────────────────────────────────────────────────────────────────────────────────────────────
+-- The Glass page's two sliders. `frost` is how much of the glass effect the bar and the drawers have (their
+-- tint, the edge light, and whether the compositor is asked to blur what is behind: below 30 % it is not; at 0
+-- they are solid); `opacity` is how solid they are, from 30 % to 100 %. Both are numbers from 0 to 1 that the
+-- scene reads, kept in `glass.json` a moment after the last change so a drag does not write a file per pixel.
+local glass = { frost = 1, opacity = 1 }
+local GLASS_OP_MIN = 0.3
+local glass_save_waiting = false
+
+local function glass_refresh()
+    fact.glass_frost = glass.frost
+    fact.glass_op = glass.opacity
+    text.glass_frost_text = string.format("%d%%", math.floor(glass.frost * 100 + 0.5))
+    text.glass_op_text = string.format("%d%%", math.floor(glass.opacity * 100 + 0.5))
+end
+local function glass_save_soon()
+    if glass_save_waiting then return end
+    glass_save_waiting = true
+    after(500, function()
+        glass_save_waiting = false
+        pcall(sys.call, "files.write", "glass.json", { frost = glass.frost, opacity = glass.opacity })
+    end)
+end
+
+do
+    local ok, saved = pcall(sys.ask, "files.read", "glass.json", "json")
+    if ok and type(saved) == "table" then
+        if type(saved.frost) == "number" then glass.frost = math.max(0, math.min(1, saved.frost)) end
+        if type(saved.opacity) == "number" then glass.opacity = math.max(GLASS_OP_MIN, math.min(1, saved.opacity)) end
+    end
+    glass_refresh()
+end
+
+on("glass_frost_set", function(t)
+    glass.frost = math.floor(math.max(0, math.min(1, t)) * 100 + 0.5) / 100
+    glass_refresh()
+    glass_save_soon()
+end)
+on("glass_op_set", function(t)
+    local v = GLASS_OP_MIN + (1 - GLASS_OP_MIN) * math.max(0, math.min(1, t))
+    glass.opacity = math.floor(v * 100 + 0.5) / 100
+    glass_refresh()
+    glass_save_soon()
+end)
+on("glass_reset", function()
+    glass.frost, glass.opacity = 1, 1
+    glass_refresh()
+    glass_save_soon()
+end)
+
 -- ── Weather, for the calendar panel ──────────────────────────────────────────────────────
 -- Fetched from Open-Meteo, as in Synoptik: the place is found by IP (ipwho.is) unless `location` is set
 -- in `weather-config.json` in Vitreus's data folder, when it is looked up by name; then the current
