@@ -23,6 +23,10 @@ scene Gota {
     service bluetooth as bt { present: bool; powered: bool }        // the list itself is built by the logic
 
     text clock12 = "--:--"
+    text clock_h = ""              // the bar clock in three parts: the hour (oversized), the minutes (in the accent), am/pm
+    text clock_mm = ""
+    text bar_ap = ""
+    text bar_date = ""              // the short day stacked above the am/pm: MON
     text datelong = ""
     //  The clock card's pieces: the numerals, the am/pm tucked beside them, and the date as weekday | month day.
     text clock_hm = "--:--"
@@ -62,7 +66,10 @@ scene Gota {
     measure outw                   // how wide that name really is
     measure clsw                   // how wide the focused app's name really is
     measure titw                   // and its window title
-    measure clkw                   // and how wide the clock really is: the bar's buttons are placed from it
+    measure chw                    // the bar clock's hour, minutes and am/pm: how wide each really is; the bar's
+    measure cmw                    // buttons and the calendar's click area are placed from them
+    measure caw
+    measure cdw
     //  Which panel hangs from the bar: the clock and calendar (click the clock), or the
     //  controls (click the window title).
     fact panel: none | calendar | controls | player | volume | notif | settings = none
@@ -583,7 +590,10 @@ scene Gota {
     //  The bar's buttons hug the clock: it is measured, and the controls button sits just left of it, the
     //  settings button left of that, and the player's buttons left of those. Nothing is left in between
     //  whatever the time reads, and the window title gets what is left.
-    let clock.left = cx + bar.w / 2 - 20 * u - clkw.width
+    //  The right-hand column is the day over the am/pm; both are about the same width now, so it is as wide as
+    //  the wider and the minutes are set tight against it.
+    let clock.col = max(caw.width, cdw.width)
+    let clock.left = cx + bar.w / 2 - 20 * u - clock.col - 3 - cmw.width + 3 - chw.width
     let ctl.x = clock.left - 20 * u
     let set.x = ctl.x - 24 * u
     let mc = set.x - 44 * u
@@ -827,8 +837,14 @@ scene Gota {
     //  The bar's text is drawn on top of the bar, outside its wave-shader group: inside it the letters are
     //  resampled by the shader, which blurs them and smears them whenever the music makes the wave move.
     //  The glass and the icons still bend; the words stay sharp.
-    text clock12 { at: floor(cx + bar.w / 2 - 20 * u + 0.5), floor(bar.y + 0.5); anchor: right center; measure: clkw; size: 26; weight: 600; color: ink; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk"
-                            gradient: 0, bar.y - 11 * u to 0, bar.y + 11 * u, ink, faint }
+    //  The clock in the bar is four texts, right-aligned and set against each other from their measured widths:
+    //  the hour, oversized; the minutes with their colon, in the accent, the two digits tucked 3 px over each
+    //  other (the colon is left clear: overlapped it disappears); and, at the edge, a small column: the day
+    //  stacked tight over a dim am/pm, centred on each other.
+    text bar_date { at: floor(cx + bar.w / 2 - 20 * u - clock.col / 2 + 0.5), floor(bar.y - 8 + 0.5); anchor: center; size: 11; weight: 700; measure: cdw; color: faint; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text bar_ap { at: floor(cx + bar.w / 2 - 20 * u - clock.col / 2 + 0.5), floor(bar.y + 7 + 0.5); anchor: center; size: 14; weight: 600; measure: caw; color: faint; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text clock_mm { at: floor(cx + bar.w / 2 - 20 * u - clock.col - 3 + 0.5), floor(bar.y + 3 + 0.5); anchor: right center; size: 26; weight: 700; measure: cmw; letter_move: 3 * ((letters - 1 - letter) - if(letter == 0, 1, 0)), 0; color: mint; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text clock_h { at: floor(cx + bar.w / 2 - 20 * u - clock.col - 3 - cmw.width + 3 + 0.5), floor(bar.y + 0.5); anchor: right center; size: 40; weight: 700; measure: chw; color: ink; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; width: win.w; lines: 1; color: faint; opacity: 55%; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     text win.title { at: floor(win.x + 0.5), floor(bar.y + 8.75 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 500; width: win.w; lines: 1; color: ink; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
 

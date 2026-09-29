@@ -23,6 +23,11 @@ sys.watch("clock", function(c)
     local h = c.hour % 12
     if h == 0 then h = 12 end
     text.clock12 = string.format("%d:%02d %s", h, c.minute, c.hour < 12 and "am" or "pm")
+    -- The bar clock's three parts.
+    text.clock_h = tostring(h)
+    text.clock_mm = string.format(":%02d", c.minute)
+    text.bar_ap = c.hour < 12 and "am" or "pm"
+    text.bar_date = days[c.weekday]:sub(1, 3):upper()      -- just the day: MON
     text.datelong = string.format("%s, %s %d, %d", days[c.weekday], months[c.month], c.day, c.year)
     -- The clock card's pieces.
     text.clock_hm = string.format("%d:%02d", h, c.minute)
