@@ -7,9 +7,9 @@ import "palette.plm"
 //  bar: it is the same silhouette, melted, so it hangs from it like a drop.
 
 scene Vitreus {
-    surface { size: 900, 800; anchor: top; margin: 0; reserve: 68; keyboard: exclusive while panel != none and panel != volume and panel != notif }
+    surface { size: 900, 800; anchor: top; margin: 0; reserve: 68; screens: all; keyboard: exclusive while panel != none and panel != volume and panel != notif }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl" }
+                  run: "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
     model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number }
@@ -180,7 +180,17 @@ scene Vitreus {
     event glass_reset ->
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
     //  panel's height, which follows the page).
-    fact set_page: pg_wall | pg_glass | pg_disp | pg_hypr = pg_wall
+    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_hypr = pg_wall
+    //  The Bar page: which monitors the bar is on (see the Bar section of vitreus.luau). `bar_scr` is -1 for all
+    //  of them, or which monitor tile is chosen.
+    fact bar_scr = -1
+    repeat i in 0..4 {
+        fact bar_m.$i.on = false
+        text bar_m.$i.name = ""
+        text bar_m.$i.sub = ""
+    }
+    text bar_msg = ""
+    event bar_pick_scr ->
     //  The Display page: what the logic reads from Hyprland and the draft the page edits (see the Display
     //  section of vitreus.luau). `disp_boxes` is the canvas, one box per monitor, in canvas units.
     //  The canvas's boxes, the refresh-rate chips, the monitor pills and the profile rows are numbered slots.
@@ -474,6 +484,7 @@ scene Vitreus {
     prop set_pg = 0 ~calm
     prop set_pgd = 0 ~calm
     prop set_pgh = 0 ~calm
+    prop set_pgb = 0 ~calm
     prop disp_auto_pill = 0 ~pop
     prop disp_dd = 0 ~calm            // the resolution dropdown, 0 shut .. 1 open
     prop disp_scroll = 0 ~quick       // the page's scroll, following disp_scroll_to
@@ -485,6 +496,7 @@ scene Vitreus {
     follow set_pg = if(set_page == pg_glass, 1, 0)
     follow set_pgd = if(set_page == pg_disp, 1, 0)
     follow set_pgh = if(set_page == pg_hypr, 1, 0)
+    follow set_pgb = if(set_page == pg_bar, 1, 0)
     //  Settings > Hyprland: what Hyprland has now (see the logic), and the toggles' knobs.
     fact hy_layout = 3
     fact hy_gaps = 5
@@ -1023,7 +1035,7 @@ scene Vitreus {
     //  The Display page: its cards down to the profiles one, which is as tall as its rows (none: a line).
     let disp.prows = max(24, disp_pn_s * 30)
     let disp.h = 460 + disp.prows + 114
-    let set.h = mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 392, set_pgh)
+    let set.h = mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 262, set_pgb), 392, set_pgh)
     let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * u
     let ss.hh = bar.h / 2 + (8 + 36 + 8 + set.h + 16) * u * ds0 + max(0, sag)
     //  The launcher: a drop that widens to the bar's width as it lands, like the calendar. The search field (40), the
@@ -2077,10 +2089,11 @@ scene Vitreus {
         text "VISUALS" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 1 - set_pgh; family: "Space Grotesk" }
         text "SYSTEM" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: set_pgh; family: "Space Grotesk" }
         path { at: sl + 168 * u, hy; stroke: 1.3 * u; color: faint; move -2 * u, -3.5 * u; line 2 * u, 0; line -2 * u, 3.5 * u }
-        text "Wallpaper" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgh; family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgb - set_pgh; family: "Space Grotesk" }
         text "Display" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgd; family: "Space Grotesk" }
         text "Glass" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pg; family: "Space Grotesk" }
         text "Hyprland" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgh; family: "Space Grotesk" }
+        text "Bar" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgb; family: "Space Grotesk" }
         ellipse { at: cx + 282 * u, hy; radius: 13 * u; color: ink; opacity: 5% + 10% * set_x.hover }
         line { from: cx + 277.5 * u, hy - 4.5 * u; to: cx + 286.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
         line { from: cx + 286.5 * u, hy - 4.5 * u; to: cx + 277.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
@@ -2090,14 +2103,14 @@ scene Vitreus {
         //  Sidebar: the sections, grouped. One so far.
         box { at: sl + 75 * u, sby + set.h / 2 * u; size: 150 * u, set.h * u; corner: 14 * u; color: ink; opacity: 4% }
         text "VISUALS" { at: floor(sl + 14 * u + 0.5), floor(sby + 18 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
-        box { at: sl + 75 * u, sby + mix(42 + 32 * (set_pg + 2 * set_pgd), 162, set_pgh) * u; size: 134 * u, 28 * u; corner: 10 * u; color: mint; opacity: 16% }
+        box { at: sl + 75 * u, sby + mix(42 + 32 * (set_pg + 2 * set_pgd + 3 * set_pgb), 194, set_pgh) * u; size: 134 * u, 28 * u; corner: 10 * u; color: mint; opacity: 16% }
         group {
-            opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgh, 0, 1))
-            box { at: sl + 24 * u, sby + 42 * u; size: 13 * u, 10 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgh, 0, 1)) }
-            path { at: sl + 24 * u, sby + 42 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgh, 0, 1)); move -5 * u, 3 * u; line -1.5 * u, -1 * u; line 1 * u, 1.5 * u; line 2.5 * u, -1.5 * u; line 5 * u, 3 * u; close }
-            ellipse { at: sl + 27 * u, sby + 39 * u; radius: 1.2 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgh, 0, 1)) }
+            opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgh, 0, 1))
+            box { at: sl + 24 * u, sby + 42 * u; size: 13 * u, 10 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh, 0, 1)) }
+            path { at: sl + 24 * u, sby + 42 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh, 0, 1)); move -5 * u, 3 * u; line -1.5 * u, -1 * u; line 1 * u, 1.5 * u; line 2.5 * u, -1.5 * u; line 5 * u, 3 * u; close }
+            ellipse { at: sl + 27 * u, sby + 39 * u; radius: 1.2 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh, 0, 1)) }
         }
-        text "Wallpaper" { at: floor(sl + 40 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgh, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgh, 0, 1); family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 40 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgb + set_pgh, 0, 1); family: "Space Grotesk" }
         //  Glass: a pane with a highlight across its corner.
         group {
             opacity: 65% + 35% * set_pg
@@ -2113,26 +2126,35 @@ scene Vitreus {
             line { from: sl + 20.5 * u, sby + 112.5 * u; to: sl + 27.5 * u, sby + 112.5 * u; width: 1.3 * u; color: mix(ink, mint, set_pgd) }
         }
         text "Display" { at: floor(sl + 40 * u + 0.5), floor(sby + 106 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(ink, mint, set_pgd); opacity: 85% + 15% * set_pgd; family: "Space Grotesk" }
-        text "SYSTEM" { at: floor(sl + 14 * u + 0.5), floor(sby + 140 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
+        //  Bar: a pill with its three dots, the bar itself.
+        group {
+            opacity: 65% + 35% * set_pgb
+            box { at: sl + 24 * u, sby + 138 * u; size: 16 * u, 8 * u; corner: 4 * u; stroke: 1.3 * u; color: mix(ink, mint, set_pgb) }
+            repeat k in 0..3 { ellipse { at: sl + (21 + k * 3) * u, sby + 138 * u; radius: 0.9 * u; color: mix(ink, mint, set_pgb) } }
+        }
+        text "Bar" { at: floor(sl + 40 * u + 0.5), floor(sby + 138 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(ink, mint, set_pgb); opacity: 85% + 15% * set_pgb; family: "Space Grotesk" }
+        text "SYSTEM" { at: floor(sl + 14 * u + 0.5), floor(sby + 172 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
         //  Hyprland: a window with its title bar.
         group {
             opacity: 65% + 35% * set_pgh
-            box { at: sl + 24 * u, sby + 162 * u; size: 14 * u, 11 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(ink, mint, set_pgh) }
-            line { from: sl + 17 * u, sby + 160 * u; to: sl + 31 * u, sby + 160 * u; width: 1.3 * u; color: mix(ink, mint, set_pgh) }
+            box { at: sl + 24 * u, sby + 194 * u; size: 14 * u, 11 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(ink, mint, set_pgh) }
+            line { from: sl + 17 * u, sby + 192 * u; to: sl + 31 * u, sby + 192 * u; width: 1.3 * u; color: mix(ink, mint, set_pgh) }
         }
-        text "Hyprland" { at: floor(sl + 40 * u + 0.5), floor(sby + 162 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(ink, mint, set_pgh); opacity: 85% + 15% * set_pgh; family: "Space Grotesk" }
-        zone box side_hy { at: sl + 75 * u, sby + 162 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
+        text "Hyprland" { at: floor(sl + 40 * u + 0.5), floor(sby + 194 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(ink, mint, set_pgh); opacity: 85% + 15% * set_pgh; family: "Space Grotesk" }
+        zone box side_hy { at: sl + 75 * u, sby + 194 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
         on press side_hy { set_page = pg_hypr }
         zone box side_dp { at: sl + 75 * u, sby + 106 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
         on press side_dp { set_page = pg_disp }
+        zone box side_bar { at: sl + 75 * u, sby + 138 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
+        on press side_bar { set_page = pg_bar }
         zone box side_wp { at: sl + 75 * u, sby + 42 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
         zone box side_gl { at: sl + 75 * u, sby + 74 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
         on press side_wp { set_page = pg_wall }
         on press side_gl { set_page = pg_glass }
 
         group {
-            show: set_pg + set_pgd + set_pgh < 0.99
-            opacity: 1 - set_pg - set_pgd - set_pgh
+            show: set_pg + set_pgd + set_pgb + set_pgh < 0.99
+            opacity: 1 - set_pg - set_pgd - set_pgb - set_pgh
             //  The wallpaper page. Card one: the wallpaper in use, and Random.
             box { at: spx + 219 * u, sby + 46 * u; size: 438 * u, 92 * u; corner: 14 * u; color: ink; opacity: veil }
             group {
@@ -2273,6 +2295,49 @@ scene Vitreus {
             text "Reset to defaults" { at: floor(spx + 370 * u + 0.5), floor(sby + 222 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 124 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
             zone box glass_reset_hit { at: spx + 370 * u, sby + 222 * u; size: 130 * u, 28 * u; corner: 14 * u; cursor: pointer }
             on press glass_reset_hit { emit glass_reset }
+        }
+
+        //  The Bar page: how the bar itself is set up. So far, which monitors it shows on: all of them, or one.
+        //  Choosing restarts the bar there (see the Bar section of vitreus.luau).
+        group {
+            show: set_pgb > 0.01
+            opacity: set_pgb
+            box { at: spx + 219 * u, sby + 88 * u; size: 438 * u, 124 * u; corner: 14 * u; color: ink; opacity: veil }
+            text "SHOW THE BAR ON" { at: floor(spx + 14 * u + 0.5), floor(sby + 13 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+
+            //  All monitors: two small screens, each with the bar across its top.
+            let bax = spx + 52 * u
+            let balit = if(bar_scr == -1, 1, 0)
+            box { at: bax, sby + 76 * u; size: 76 * u, 64 * u; corner: 12 * u; color: if(balit > 0, mint, ink); opacity: if(balit > 0, 24%, 6% + 10% * bar_all_hit.hover) }
+            box { at: bax, sby + 76 * u; size: 76 * u, 64 * u; corner: 12 * u; stroke: 1.5 * u; color: mint; opacity: balit * 100% }
+            repeat k in 0..2 {
+                let bkx = bax + (k * 2 - 1) * 10 * u
+                box { at: bkx, sby + 60 * u; size: 16 * u, 11 * u; corner: 2 * u; stroke: 1.2 * u; color: mix(ink, mint, balit) }
+                box { at: bkx, sby + 56.6 * u; size: 11 * u, 1.8 * u; corner: 0.9 * u; color: mix(ink, mint, balit) }
+            }
+            text "All" { at: floor(bax + 0.5), floor(sby + 82 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 700; width: 70 * u; lines: 1; color: mix(ink, mint, balit); family: "Space Grotesk" }
+            text "every monitor" { at: floor(bax + 0.5), floor(sby + 95 * u + 0.5); anchor: center; align: center; size: 9 * u; width: 70 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            zone box bar_all_hit { at: bax, sby + 76 * u; size: 76 * u, 64 * u; corner: 12 * u; cursor: pointer }
+            on press bar_all_hit { emit bar_pick_scr(-1) }
+
+            //  One tile per monitor that is plugged in: a screen with the bar across its top.
+            repeat i in 0..4 {
+                let bmx = spx + (52 + 83 + i * 83) * u
+                let bmlit = if(bar_scr == i, 1, 0)
+                group {
+                    show: bar_m.$i.on
+                    box { at: bmx, sby + 76 * u; size: 76 * u, 64 * u; corner: 12 * u; color: if(bmlit > 0, mint, ink); opacity: if(bmlit > 0, 24%, 6% + 10% * bar_m_hit.$i.hover) }
+                    box { at: bmx, sby + 76 * u; size: 76 * u, 64 * u; corner: 12 * u; stroke: 1.5 * u; color: mint; opacity: bmlit * 100% }
+                    box { at: bmx, sby + 60 * u; size: 18 * u, 12 * u; corner: 2 * u; stroke: 1.2 * u; color: mix(ink, mint, bmlit) }
+                    box { at: bmx, sby + 56.2 * u; size: 12 * u, 1.8 * u; corner: 0.9 * u; color: mix(ink, mint, bmlit) }
+                    text bar_m.$i.name { at: floor(bmx + 0.5), floor(sby + 82 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 700; width: 70 * u; lines: 1; color: mix(ink, mint, bmlit); family: "Space Grotesk" }
+                    text bar_m.$i.sub { at: floor(bmx + 0.5), floor(sby + 95 * u + 0.5); anchor: center; align: center; size: 9 * u; width: 70 * u; lines: 1; color: faint; family: "Space Grotesk" }
+                    zone box bar_m_hit.$i { at: bmx, sby + 76 * u; size: 76 * u, 64 * u; corner: 12 * u; cursor: pointer }
+                    on press bar_m_hit.$i { emit bar_pick_scr(i) }
+                }
+            }
+            text "Changing this restarts the bar for a moment." { at: floor(spx + 14 * u + 0.5), floor(sby + 121 * u + 0.5); anchor: left center; size: 10 * u; width: 410 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            text bar_msg { at: floor(spx + 14 * u + 0.5), floor(sby + 136 * u + 0.5); anchor: left center; size: 10 * u; width: 410 * u; lines: 1; color: mint; family: "Space Grotesk" }
         }
 
         //  The Hyprland page, after Synoptik's: layout and gaps, border resize and tearing, animations and input.
