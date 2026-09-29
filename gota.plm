@@ -9,7 +9,7 @@ import "palette.plm"
 scene Gota {
     surface { size: 900, 800; anchor: top; margin: 0; reserve: 68; keyboard: exclusive while panel != none and panel != volume and panel != notif }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp" }
+                  run: "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
     model bt_devices max 8 { name: text; address: text; paired: bool; connected: bool; battery: number }
@@ -55,9 +55,10 @@ scene Gota {
     measure outw                   // how wide that name really is
     measure clsw                   // how wide the focused app's name really is
     measure titw                   // and its window title
+    measure clkw                   // and how wide the clock really is: the bar's buttons are placed from it
     //  Which panel hangs from the bar: the clock and calendar (click the clock), or the
     //  controls (click the window title).
-    fact panel: none | calendar | controls | player | volume | notif = none
+    fact panel: none | calendar | controls | player | volume | notif | settings = none
     fact media_on = false          // is there a player at all
     fact bass = 0
     //  The six bars cava reports, 0..1 each, for the equalizer in the media card. Each one
@@ -92,6 +93,19 @@ scene Gota {
     event ntnew                    // a notification just arrived: ripple the tile
     event nt_close ->              // its cross, or a press on the plate
     event nt_act ->                // one of its buttons, by position
+    //  Settings: a panel of pages, the wallpaper picker first. The logic lists the folder and keeps one
+    //  page of twelve thumbnails at a time (the folder can hold hundreds of full-size images).
+    model wps max 12 { thumb: image 260, 146 }
+    fact wp_sel = -1                // which thumbnail of this page is the wallpaper in use, or -1
+    text wp_curpath = ""            // the wallpaper in use: a path
+    image wp_cur = from wp_curpath, 320, 180
+    text wp_name = ""
+    text wp_dirtext = ""
+    text wp_pager = ""
+    event wp_pick ->                // a thumbnail, by position on the page
+    event wp_prev ->
+    event wp_next ->
+    event wp_random ->
     event task_focus ->            // a window's row, by position: give it the keyboard
     event task_close ->            // its close button, or a middle click
     event tray_click ->            // a tray app's row
@@ -164,6 +178,8 @@ scene Gota {
     prop dk    = 0 ~drip
     prop dm    = 0 ~drip          // the player's panel, hanging from the window title
     prop do    = 0 ~drip          // the volume / notification drawer
+    prop ds    = 0 ~drip          // the settings panel
+    prop fs    = 0 ~300ms         // what is in it, fading in
     prop fo    = 0 ~300ms         // what is in it, fading in
     prop okv   = 0 ~calm          // 1 while it is the volume that is drawn
     prop okn   = 0 ~calm          // 1 while it is a notification
@@ -185,6 +201,8 @@ scene Gota {
     follow dk   = if(panel == controls, 1, 0)
     follow dm   = if(panel == player, 1, 0)
     follow do   = if(panel == volume or panel == notif, 1, 0)
+    follow ds   = if(panel == settings, 1, 0)
+    follow fs   = if(panel == settings, 1, 0)
     follow fo   = if(panel == volume or panel == notif, 1, 0)
     follow okv  = if(osd_kind == vol, 1, 0)
     follow okn  = if(osd_kind == note, 1, 0)
@@ -438,13 +456,33 @@ scene Gota {
         on press touch { emit click(a.index) }
     }
 
+    //  One wallpaper in the gallery: its picture in rounded corners, a ring when it is the one in use.
+    component WpThumb(t: record, pick: event) {
+        size: 96 * u, 54 * u
+        zone box touch { from: 0, 0; size: 96 * u, 54 * u; corner: 8 * u; cursor: pointer }
+        //  The pictures are cropped to 16:9 in a cache by the logic, so every tile is the same.
+        group {
+            clip inset 0 box { from: 0, 0; size: 96 * u, 54 * u; corner: 8 * u }
+            image t.thumb { at: 0, 0; size: 96 * u, 54 * u }
+        box { from: 0, 0; size: 96 * u, 54 * u; color: ink; opacity: 14% * touch.hover }
+        }
+        box { from: 0, 0; size: 96 * u, 54 * u; corner: 8 * u; stroke: 2 * u; color: mint; opacity: if(wp_sel == t.index, 100%, 0) }
+        on press touch { emit pick(t.index) }
+    }
+
     let cx = 450
     let bar.w = 450 * u
     let bar.h = 40 * u
     let bar.y = 8 + bar.h / 2
     let bar.rad = 14 * u                 // the bar's corner when shut: the same as the plates', not a full pill
     //  The middle of the gap between the title and the clock, 126 from the right edge.
-    let mc = cx + bar.w / 2 - 152 * u
+    //  The bar's buttons hug the clock: it is measured, and the controls button sits just left of it, the
+    //  settings button left of that, and the player's buttons left of those. Nothing is left in between
+    //  whatever the time reads, and the window title gets what is left.
+    let clock.left = cx + bar.w / 2 - 20 * u - clkw.width
+    let ctl.x = clock.left - 20 * u
+    let set.x = ctl.x - 24 * u
+    let mc = set.x - 44 * u
     let room = 10 * u
 
     //  The music only moves the bar: it fades out as the panel opens (gone by a third of
@@ -459,6 +497,7 @@ scene Gota {
     let dk0 = max(0, dk)
     let dm0 = max(0, dm)
     let do0 = max(0, do)
+    let ds0 = max(0, ds)
     let expand0 = max(0, expand)
     //  Both panels fill in their width quickly and then keep growing taller - so a
     //  plain `min(1, …)` on the width leaves it capped flat once that's done, and
@@ -524,6 +563,9 @@ scene Gota {
     let nt_content = if(nt_body_on, 33 + nt_th + nt_bh, 30 + nt_th)
     let nt_h = max(68, nt_content + if(nt_acts.count > 0, 34, 0) + 12)
     follow osd_h = if(osd_kind == note, nt_h, 64)
+    //  The settings panel: 620 wide. A header (36), then the sidebar and the page side by side (352).
+    let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * u
+    let ss.hh = bar.h / 2 + (8 + 36 + 8 + 352 + 16) * u * ds0 + max(0, sag)
     let os.w = (120 + 220 * (min(1, do0 * 1.6) + max(0, do0 - 1) * 0.6)) * u
     let os.hh = bar.h / 2 + (8 + osd_h + 16) * u * do0 + max(0, sag)
     let dm.w = (120 + 192 * (min(1, dm0 * 1.6) + max(0, dm0 - 1) * 0.6)) * u
@@ -565,6 +607,7 @@ scene Gota {
             //  while it has size: a zero-size shape would leave a stray shadow behind.
             box drawer { at: cx, bar.y + dk.hh / 2; size: dk.w, dk.hh; corner: 26 * u; blend: 16 * u * min(1, dk0 * 4); show: dk0 > 0.004 }
             box cdrawer { at: cx, bar.y - bar.h / 2 + dc.hh / 2; size: dc.w, dc.hh; corner: 26 * u; show: dc0 > 0.004 }
+            box sdrawer { at: cx, bar.y + ss.hh / 2; size: ss.w, ss.hh; corner: 26 * u; blend: 16 * u * min(1, ds0 * 4); show: ds0 > 0.004 }
             box odrawer { at: cx, bar.y + os.hh / 2; size: os.w, os.hh; corner: 26 * u; blend: 16 * u * min(1, do0 * 4); show: do0 > 0.004 }
             box mdrawer { at: mdx, bar.y + dm.hh / 2; size: dm.w, dm.hh; corner: 26 * u; blend: 16 * u * min(1, dm0 * 4); show: dm0 > 0.004 }
         }
@@ -582,13 +625,13 @@ scene Gota {
             on press ws.hit.$i { emit go(i) }
         }
 
-        text clock12 { at: cx + bar.w / 2 - 20 * u, bar.y; anchor: right center; size: 19 * u; weight: 600; color: ink; family: "Space Grotesk"
+        text clock12 { at: cx + bar.w / 2 - 20 * u, bar.y; anchor: right center; measure: clkw; size: 19 * u; weight: 600; color: ink; family: "Space Grotesk"
                                 gradient: 0, bar.y - 11 * u to 0, bar.y + 11 * u, ink, faint }
         //  What is in front: the app in small type above, the title under it, cut
         //  with an ellipsis where the clock starts.
         let win.x = cx - bar.w / 2 + 116 * u
         //  The title gives up room to the controls while something plays.
-        let win.w = bar.w - (250 + 52 * mshow) * u
+        let win.w = mix(set.x - 22 * u, mc - 32 * u, mshow) - win.x
         text win.class { at: win.x, bar.y - 6.5 * u; anchor: left center; size: 17 * u; weight: 600; width: win.w; lines: 1; color: faint; opacity: 55%; family: "Space Grotesk" }
         text win.title { at: win.x, bar.y + 8.75 * u; anchor: left center; size: 13.5 * u; weight: 500; width: win.w; lines: 1; color: ink; family: "Space Grotesk" }
 
@@ -626,8 +669,22 @@ scene Gota {
             on press bp.next { emit mcmd(2) }
         }
 
-        //  The controls button, between the player's buttons and the clock: two sliders.
-        let ctl.x = cx + bar.w / 2 - 107 * u
+        //  The settings button: a gear, between the player's buttons and the controls button.
+        group {
+            opacity: 65% + 35% * max(set_hit.hover, clamp(ds, 0, 1))
+            ellipse { at: set.x, bar.y; radius: 3.6 * u; stroke: 1.7 * u; color: mix(ink, mint, clamp(ds, 0, 1)) }
+            repeat i in 0..8 {
+                group {
+                    pivot: set.x, bar.y
+                    rotate: i * 45deg
+                    box { at: set.x, bar.y - 6 * u; size: 2 * u, 2.6 * u; corner: 0.7 * u; color: mix(ink, mint, clamp(ds, 0, 1)) }
+                }
+            }
+        }
+        zone box set_hit { at: set.x, bar.y; size: 24 * u, bar.h; cursor: pointer }
+        on press set_hit { panel = if(panel == settings, none, settings) }
+
+        //  The controls button, between the settings button and the clock: two sliders.
         group {
             opacity: 65% + 35% * max(ctl_hit.hover, clamp(dk, 0, 1))
             box { at: ctl.x, bar.y - 3.5 * u; size: 13 * u, 1.6 * u; corner: 0.8 * u; color: mix(ink, mint, clamp(dk, 0, 1)) }
@@ -1261,6 +1318,87 @@ scene Gota {
             zone box nt_x { at: cx + 140 * u, ot + 12 * u + 8 * u; size: 24 * u, 24 * u; corner: 12 * u; cursor: pointer }
             on press nt_x { emit nt_close }
         }
+    }
+    //  ── the settings panel ──
+    //  Laid out the way Synoptik's is: a header with an icon badge, the title and a breadcrumb chip; under
+    //  it a sidebar of sections next to the page, which is a stack of cards. The wallpaper picker is the
+    //  first (and, for now, only) page.
+    group {
+        clip inset 2 box { at: cx, bar.y + ss.hh / 2; size: ss.w, ss.hh; corner: 26 * u }
+        opacity: fs
+        move: 0, (1 - fs) * 12 * u
+        let hy = ck + 26 * u                              // the header's middle
+        let sby = ck + 52 * u                              // the top of the sidebar and the page
+        let sl = cx - 298 * u                             // their left edge
+
+        //  Header: a badge with a gear, SETTINGS, the breadcrumb, and a cross.
+        box { at: sl + 16 * u, hy; size: 32 * u, 32 * u; corner: 9 * u; color: mint; opacity: 20% }
+        group {
+            ellipse { at: sl + 16 * u, hy; radius: 6 * u; stroke: 2.2 * u; color: mint }
+            ellipse { at: sl + 16 * u, hy; radius: 2 * u; color: mint }
+            repeat i in 0..8 {
+                group {
+                    pivot: sl + 16 * u, hy
+                    rotate: i * 45deg
+                    box { at: sl + 16 * u, hy - 8.5 * u; size: 3 * u, 4 * u; corner: 1 * u; color: mint }
+                }
+            }
+        }
+        text "SETTINGS" { at: sl + 40 * u, hy; anchor: left center; size: 14 * u; weight: 700; color: ink; family: "Space Grotesk" }
+        box { at: sl + 178 * u, hy; size: 132 * u, 22 * u; corner: 11 * u; color: ink; opacity: 6% }
+        text "VISUALS" { at: sl + 122 * u, hy; anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+        path { at: sl + 168 * u, hy; stroke: 1.3 * u; color: faint; move -2 * u, -3.5 * u; line 2 * u, 0; line -2 * u, 3.5 * u }
+        text "Wallpaper" { at: sl + 176 * u, hy; anchor: left center; size: 9.5 * u; weight: 700; color: mint; family: "Space Grotesk" }
+        ellipse { at: cx + 282 * u, hy; radius: 13 * u; color: ink; opacity: 5% + 10% * set_x.hover }
+        line { from: cx + 277.5 * u, hy - 4.5 * u; to: cx + 286.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
+        line { from: cx + 286.5 * u, hy - 4.5 * u; to: cx + 277.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
+        zone box set_x { at: cx + 282 * u, hy; size: 28 * u, 28 * u; corner: 14 * u; cursor: pointer }
+        on press set_x { panel = none }
+
+        //  Sidebar: the sections, grouped. One so far.
+        box { at: sl + 75 * u, sby + 176 * u; size: 150 * u, 352 * u; corner: 14 * u; color: ink; opacity: 4% }
+        text "VISUALS" { at: sl + 14 * u, sby + 18 * u; anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
+        box { at: sl + 75 * u, sby + 42 * u; size: 134 * u, 28 * u; corner: 10 * u; color: mint; opacity: 16% }
+        group {
+            opacity: 100%
+            box { at: sl + 24 * u, sby + 42 * u; size: 13 * u, 10 * u; corner: 2 * u; stroke: 1.3 * u; color: mint }
+            path { at: sl + 24 * u, sby + 42 * u; color: mint; move -5 * u, 3 * u; line -1.5 * u, -1 * u; line 1 * u, 1.5 * u; line 2.5 * u, -1.5 * u; line 5 * u, 3 * u; close }
+            ellipse { at: sl + 27 * u, sby + 39 * u; radius: 1.2 * u; color: mint }
+        }
+        text "Wallpaper" { at: sl + 40 * u, sby + 42 * u; anchor: left center; size: 12 * u; weight: 700; color: mint; family: "Space Grotesk" }
+
+        //  The page. Card one: the wallpaper in use, and Random.
+        let spx = sl + 158 * u                             // the page's left edge
+        box { at: spx + 219 * u, sby + 46 * u; size: 438 * u, 92 * u; corner: 14 * u; color: ink; opacity: veil }
+        group {
+            clip inset 0 box { at: spx + 77 * u, sby + 46 * u; size: 130 * u, 73 * u; corner: 10 * u }
+            image wp_cur { at: spx + 12 * u, sby + 9.5 * u; size: 130 * u, 73 * u }
+        }
+        text "ACTIVE WALLPAPER" { at: spx + 154 * u, sby + 16 * u; anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+        text wp_name { at: spx + 154 * u, sby + 36 * u; anchor: left center; size: 13 * u; weight: 700; width: 268 * u; lines: 1; color: ink; family: "Space Grotesk" }
+        text wp_dirtext { at: spx + 154 * u, sby + 53 * u; anchor: left center; size: 10 * u; width: 268 * u; lines: 1; color: faint; family: "Space Grotesk" }
+        box { at: spx + 195 * u, sby + 74 * u; size: 78 * u, 24 * u; corner: 12 * u; color: ink; opacity: 8% + 10% * wp_rand_hit.hover }
+        text "Random" { at: spx + 195 * u, sby + 74 * u; anchor: center; align: center; size: 10.5 * u; weight: 600; width: 74 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
+        zone box wp_rand_hit { at: spx + 195 * u, sby + 74 * u; size: 80 * u, 26 * u; corner: 13 * u; cursor: pointer }
+        on press wp_rand_hit { emit wp_random }
+
+        //  Card two: the gallery, twelve at a time, with a pager.
+        box { at: spx + 219 * u, sby + 226 * u; size: 438 * u, 252 * u; corner: 14 * u; color: ink; opacity: veil }
+        text "WALLPAPER GALLERY" { at: spx + 14 * u, sby + 116 * u; anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+        text wp_dirtext { at: spx + 424 * u, sby + 116 * u; anchor: right center; size: 9.5 * u; width: 260 * u; lines: 1; align: right; color: faint; opacity: 70%; family: "Space Grotesk" }
+        row wp_grid {
+            at: spx + 15 * u, sby + 134 * u
+            gap: 8 * u
+            wrap: 4
+            for w in wps { WpThumb(w, pick: wp_pick) }
+        }
+        path { at: spx + 40 * u, sby + 334 * u; stroke: 1.6 * u; color: ink; opacity: 55% + 45% * wp_prev_hit.hover; move 3 * u, -5 * u; line -3 * u, 0; line 3 * u, 5 * u }
+        text wp_pager { at: spx + 219 * u, sby + 334 * u; anchor: center; align: center; size: 11 * u; weight: 600; width: 100 * u; lines: 1; color: faint; family: "Space Grotesk" }
+        path { at: spx + 398 * u, sby + 334 * u; stroke: 1.6 * u; color: ink; opacity: 55% + 45% * wp_next_hit.hover; move -3 * u, -5 * u; line 3 * u, 0; line -3 * u, 5 * u }
+        zone box wp_prev_hit { at: spx + 40 * u, sby + 334 * u; size: 30 * u, 28 * u; corner: 14 * u; cursor: pointer }
+        zone box wp_next_hit { at: spx + 398 * u, sby + 334 * u; size: 30 * u, 28 * u; corner: 14 * u; cursor: pointer }
+        on press wp_prev_hit { emit wp_prev }
+        on press wp_next_hit { emit wp_next }
     }
     prop volume_level = 0 ~calm
     follow volume_level = if(audio.muted, 0, audio.volume)

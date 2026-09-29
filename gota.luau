@@ -970,8 +970,10 @@ local function with_dirs(fn)
     if #dirs_waiting > 1 then return end
     local got = {}
     local function finish()
-        if not (got.home and got.xdg_data ~= nil and got.xdg_conf ~= nil) then return end
+        if not (got.home and got.xdg_data ~= nil and got.xdg_conf ~= nil and got.xdg_cache ~= nil) then return end
         dirs = {
+            home = got.home,
+            cache = (got.xdg_cache ~= "" and got.xdg_cache or (got.home .. "/.cache")) .. "/pleamar/gota/wp",
             data = (got.xdg_data ~= "" and got.xdg_data or (got.home .. "/.local/share")) .. "/pleamar/gota",
             conf = (got.xdg_conf ~= "" and got.xdg_conf or (got.home .. "/.config")) .. "/pleamar/shells/gota",
         }
@@ -982,6 +984,7 @@ local function with_dirs(fn)
     run("printenv", { "HOME" }, function(o) got.home = clean(o); finish() end)
     run("printenv", { "XDG_DATA_HOME" }, function(o) got.xdg_data = clean(o); finish() end)
     run("printenv", { "XDG_CONFIG_HOME" }, function(o) got.xdg_conf = clean(o); finish() end)
+    run("printenv", { "XDG_CACHE_HOME" }, function(o) got.xdg_cache = clean(o); finish() end)
 end
 
 local function json_hex(json, key)
@@ -1030,15 +1033,16 @@ local function run_iris(path)
     end)
 end
 
--- The wallpaper is asked of awww every few seconds; when it changes, Iris is run on the new one.
+-- The wallpaper is asked of awww every half second; when it changes, Iris is run on the new one.
+local wp_on_change = function(path) end       -- the wallpaper page, further down, takes this over
 local function check_wallpaper()
-    if not iris_cfg.enabled then return end
     run("awww", { "query" }, function(out, code)
         if code ~= 0 or not out then return end
         local path = out:match("currently displaying: image: ([^\n]+)")
         if path and path ~= iris_last_wp then
             iris_last_wp = path
-            run_iris(path)
+            wp_on_change(path)
+            if iris_cfg.enabled then run_iris(path) end
         end
     end)
 end
@@ -1054,5 +1058,163 @@ do
         pcall(sys.call, "files.write", "iris.json", iris_cfg)     -- so there is a file to edit
     end
 end
-every(4000, check_wallpaper)
+-- `awww query` takes a couple of milliseconds, so a wallpaper changed from elsewhere is noticed fast.
+every(500, check_wallpaper)
 check_wallpaper()
+
+-- ── Settings: the wallpaper picker ───────────────────────────────────────────────────────
+-- The folder is `<Pictures>/Wallpapers` (`xdg-user-dir PICTURES`, else `$HOME/Pictures`). It is listed
+-- once and shown twelve at a time: the scene only ever holds one page of thumbnails, since the folder
+-- can hold hundreds of full-size images. Choosing one asks awww to fade to it; the wallpaper watcher
+-- above then sees the change, which is also what re-runs Iris.
+local WP_PER_PAGE = 12
+local wp_files = {}
+local wp_page = 0
+local wp_cur = nil
+local wp_dir = nil
+local clock_seed = 1
+
+sys.watch("clock", function(c)
+    clock_seed = ((c.day * 24 + c.hour) * 60 + c.minute) * 60 + c.second
+end)
+
+local function wp_pages() return math.max(1, math.ceil(#wp_files / WP_PER_PAGE)) end
+
+-- Thumbnails are cropped to exactly 16:9 by ImageMagick into a cache folder (`$XDG_CACHE_HOME/pleamar/
+-- gota/wp`, else under `$HOME/.cache`), once each: every tile the scene draws is then the same shape and
+-- size with the same corners, and a full-size wallpaper is never decoded just to fill a small tile. The
+-- wallpaper in use gets a bigger crop (`p`) for the preview card. nil = not made, "busy", true, false.
+local wp_made = {}
+local wp_cache = nil
+
+local function crop_path(f, kind) return wp_cache .. "/" .. (f:match("([^/]+)$") or f) .. "." .. kind .. ".jpg" end
+
+-- Make whichever of `files` has no cropped copy yet, then call `done`.
+local function wp_crop(files, kind, w, h, done)
+    local todo = {}
+    for _, f in ipairs(files) do
+        if wp_made[crop_path(f, kind)] == nil then todo[#todo + 1] = f end
+    end
+    if #todo == 0 then done() return end
+    local left = #todo
+    for _, f in ipairs(todo) do
+        local out = crop_path(f, kind)
+        wp_made[out] = "busy"
+        run("magick", { f .. "[0]", "-thumbnail", w .. "x" .. h .. "^", "-gravity", "center",
+                        "-extent", w .. "x" .. h, "-quality", "88", out }, function(_, code)
+            wp_made[out] = code == 0
+            left = left - 1
+            if left == 0 then done() end
+        end)
+    end
+end
+
+local function wp_show_page()
+    local rows, sel = {}, -1
+    for i = 1, WP_PER_PAGE do
+        local f = wp_files[wp_page * WP_PER_PAGE + i]
+        if not f then break end
+        local t = crop_path(f, "t")
+        rows[i] = { thumb = wp_made[t] == true and t or f }
+        if f == wp_cur then sel = i - 1 end
+    end
+    model.wps = rows
+    fact.wp_sel = sel
+    text.wp_pager = string.format("%d / %d", wp_page + 1, wp_pages())
+end
+
+local function wp_refresh()
+    if wp_page >= wp_pages() then wp_page = wp_pages() - 1 end
+    if wp_page < 0 then wp_page = 0 end
+    if not wp_cache then return end
+    local page, on = wp_page, {}
+    for i = 1, WP_PER_PAGE do
+        local f = wp_files[wp_page * WP_PER_PAGE + i]
+        if f then on[#on + 1] = f end
+    end
+    wp_crop(on, "t", 260, 146, function()
+        if page == wp_page then wp_show_page() end
+    end)
+end
+
+wp_on_change = function(path)
+    wp_cur = path
+    text.wp_name = path:match("([^/]+)$") or path
+    if wp_cache then
+        wp_crop({ path }, "p", 320, 180, function()
+            if wp_cur == path then
+                local pp = crop_path(path, "p")
+                text.wp_curpath = wp_made[pp] == true and pp or path
+            end
+        end)
+    else
+        text.wp_curpath = path
+    end
+    for i, f in ipairs(wp_files) do
+        if f == path then wp_page = (i - 1) // WP_PER_PAGE break end
+    end
+    wp_refresh()
+end
+
+local function wp_apply(path)
+    run("awww", { "img", path, "--transition-type", "fade", "--transition-duration", "0.8" }, function() end)
+    wp_on_change(path)
+    -- The path is known: Iris starts now, while the fade plays, not when the watcher next notices the
+    -- change. Marking it seen stops the watcher running it a second time.
+    if iris_cfg.enabled and iris_last_wp ~= path then
+        iris_last_wp = path
+        run_iris(path)
+    end
+end
+
+local function wp_load()
+    with_dirs(function(d)
+        run("xdg-user-dir", { "PICTURES" }, function(out)
+            local pics = ((out or ""):gsub("%s+$", ""))
+            -- With no user-dirs config xdg-user-dir answers with the home folder itself: then it is ~/Pictures.
+            if pics == "" or pics == d.home then pics = d.home .. "/Pictures" end
+            wp_dir = pics .. "/Wallpapers"
+            local shown = wp_dir
+            if shown:sub(1, #d.home) == d.home then shown = "~" .. shown:sub(#d.home + 1) end
+            text.wp_dirtext = shown
+            wp_cache = d.cache
+            run("mkdir", { "-p", d.cache }, function() end)
+            run("ls", { "-1", wp_dir }, function(list, code)
+                if code ~= 0 or not list then return end
+                wp_files = {}
+                for name in list:gmatch("[^\n]+") do
+                    local ext = name:match("%.(%w+)$")
+                    ext = ext and ext:lower()
+                    if ext == "jpg" or ext == "jpeg" or ext == "png" or ext == "webp" or ext == "gif" or ext == "bmp" then
+                        wp_files[#wp_files + 1] = wp_dir .. "/" .. name
+                    end
+                end
+                if wp_cur then wp_on_change(wp_cur) else wp_refresh() end
+            end)
+        end)
+    end)
+end
+
+on("wp_pick", function(i)
+    local f = wp_files[wp_page * WP_PER_PAGE + i + 1]
+    if f then wp_apply(f) end
+end)
+on("wp_prev", function()
+    wp_page = wp_page - 1
+    if wp_page < 0 then wp_page = wp_pages() - 1 end
+    wp_refresh()
+end)
+on("wp_next", function()
+    wp_page = wp_page + 1
+    if wp_page >= wp_pages() then wp_page = 0 end
+    wp_refresh()
+end)
+on("wp_random", function()
+    if #wp_files < 2 then return end
+    math.randomseed(clock_seed)
+    local f
+    repeat f = wp_files[math.random(1, #wp_files)] until f ~= wp_cur
+    wp_apply(f)
+end)
+
+wp_load()
