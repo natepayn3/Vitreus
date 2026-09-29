@@ -25,9 +25,10 @@ unlocking works. Until that lands in pleamar, do not lock a live session with th
    box unlocks it, and so does a minute of nothing. Set `safe` to `false` once it is trusted.
 
 Two things about the wallpaper: the pictures are cached 16:9 (an `image` is a fixed-shape cell), and the renderer
-only draws a lock picture whose path existed when the scene was read, so the logic reloads the scene (by touching
-`lockscreen.plm`) whenever it publishes a new wallpaper.
+draws the wallpaper on the first lock after the scene is read and on no later one (a second pleamar bug, not yet
+reported), so the logic reloads the scene (by touching `lockscreen.plm`) whenever it publishes a new wallpaper and
+after every unlock.
 
 It needs `awww` (to find the wallpaper), `magick` (it makes a sharp and a pre-blurred copy in
-`~/.cache/pleamar/lockscreen`), the Montserrat Alternates and Material Symbols Outlined fonts, and PAM through
+`~/.cache/pleamar/lockscreen`), the Space Grotesk and Material Symbols Outlined fonts, and PAM through
 pleamar's `auth.check`.

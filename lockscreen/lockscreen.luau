@@ -189,12 +189,23 @@ on("clear", function()
 end)
 
 -- ── Locking and unlocking ────────────────────────────────────────────────────────────────────────────
+local scene_file = "/.config/pleamar/shells/vitreus/lockscreen/lockscreen.plm"
+
 on("fact:locked", function(v)
     reset()
     fact.settled = false
     if v then
         -- the entrance is 2.2 s; after that nothing on the screen needs the clock any more
         after(2400, function() fact.settled = true end)
+    elseif home ~= "" then
+        -- The renderer draws the wallpaper on the first lock after the scene is read and on no later one
+        -- (measured: locks after the first were black until a reload). Reloading the scene once the lock
+        -- has gone makes the next lock a first one; what the scene knows survives a reload.
+        after(700, function()
+            if not fact.locked then
+                run("touch", { home .. scene_file }, function() end)
+            end
+        end)
     end
 end)
 
