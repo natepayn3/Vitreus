@@ -83,9 +83,14 @@ if [ "$action" = uninstall ]; then
         run sed -i '/vitreus\.plm/d' "$autostart"
         say "removed its line from $autostart"
     fi
+    # The lock screen is not started by this script, but whoever turned it on has a line for it (see lockscreen/README.md).
+    if [ -f "$autostart" ] && grep -q 'vitreus/lockscreen/lockscreen.plm' "$autostart"; then
+        run sed -i '/vitreus\/lockscreen\/lockscreen\.plm/d' "$autostart"
+        say "removed the lock screen's line from $autostart (hypridle and any key binding that lock with it are yours to change)"
+    fi
     if [ -d "$dest" ] && ask "delete $dest?"; then run rm -rf "$dest"; fi
-    say "left as they were: your data in $data/pleamar/vitreus, the cache in ${XDG_CACHE_HOME:-$HOME/.cache}/pleamar/vitreus,"
-    say "and pleamar and the packages. To remove the data too: rm -rf $data/pleamar/vitreus"
+    say "left as they were: your data in $data/pleamar/vitreus, the caches in ${XDG_CACHE_HOME:-$HOME/.cache}/pleamar/vitreus"
+    say "and .../pleamar/lockscreen, and pleamar and the packages. To remove the data too: rm -rf $data/pleamar/vitreus"
     exit 0
 fi
 
@@ -228,8 +233,9 @@ fi
 say "done."
 echo
 echo "  Start it now:          $line"
-echo "  With the desktop:      autostart is read by pleamar's own session; on Hyprland add"
-echo "                         exec-once = pleamar --autostart"
+echo "  With the desktop:      autostart is read by pleamar's own session; on Hyprland run \`pleamar --autostart\`:"
+echo "                         hyprland.lua:   hl.on(\"hyprland.start\", function () hl.exec_cmd(\"pleamar --autostart\") end)"
+echo "                         hyprland.conf:  exec-once = pleamar --autostart"
 echo "  Update later:          run this script again"
 echo "  Its settings:          $data/pleamar/vitreus  (iris.json, weather-config.json, ...)"
 echo

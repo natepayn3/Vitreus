@@ -144,6 +144,7 @@ git-ignored; the stock colours are tracked as `palette.default.plm`.
 | `vitreus.luau` | the logic: services, scanning, weather, Iris, history — it only reports facts |
 | `palette.default.plm` | the stock palette (copy to `palette.plm`) |
 | `wave.wgsl` | the shader that bends the bar's glass on the beat |
+| `lockscreen/` | a lock screen, **off**: nothing starts it, and `kind: lock` needs a fix in pleamar first; see its README |
 
 ---
 
