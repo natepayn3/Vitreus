@@ -1,8 +1,20 @@
-// The lock screen's liquid entrance: a ring-shaped disturbance leaves the centre of the wallpaper and
-// settles, so it behaves like water something was dropped into. Ported from Synoptik's lockwave.frag.
+// The lock screen's wallpaper, in one pass: Synoptik's liquid entrance (a ring-shaped disturbance leaves the centre
+// and settles), then the darkening, then a dither.
 //
-// s.a.x entrance progress (0..1) · s.a.y peak displacement, in texture units · s.a.z rings across the
-// surface. Once progress reaches 1 the envelope is exactly zero, so the resting image is pixel-exact.
+// The wave is Synoptik's lockwave.frag, ported. Once progress reaches 1 its envelope is exactly zero, so the resting
+// image is pixel-exact.
+//
+// The darkening and the dither are here, and not a black box over the picture, on purpose. A dark gradient in 8 bits
+// steps by one level and the steps show as rings. Darkening in this shader, in float, turns each step of the source
+// into less than one level of the output; the noise added before the value is stored then hides what is left. Done as
+// separate layers, each one stored in 8 bits, the steps were kept and the rings stayed.
+//
+// s.a.x entrance progress (0..1) · s.a.y peak displacement, in texture units · s.a.z rings across the surface
+// s.a.w how much of the light is left after the darkening (Synoptik puts 58 % black over it: 0.42)
+
+fn hash(p: vec2<f32>) -> f32 {
+    return fract(sin(dot(p, vec2<f32>(12.9898, 78.233))) * 43758.5453);
+}
 
 fn shade(s: Shader) -> vec4<f32> {
     let aspect = s.size.x / s.size.y;
@@ -30,5 +42,10 @@ fn shade(s: Shader) -> vec4<f32> {
     sample_uv = abs(sample_uv);
     if (sample_uv.x > 1.0) { sample_uv.x = 2.0 - sample_uv.x; }
     if (sample_uv.y > 1.0) { sample_uv.y = 2.0 - sample_uv.y; }
-    return inside(s, sample_uv * s.size);
+    let c = inside(s, sample_uv * s.size);
+
+    // Triangular noise, plus and minus one level, from two independent draws per pixel.
+    let q = floor(s.pos * s.scale);
+    let n = hash(q) + hash(q + vec2<f32>(17.31, 5.17)) - 1.0;
+    return vec4<f32>(c.rgb * s.a.w + vec3<f32>(n / 255.0), c.a);
 }

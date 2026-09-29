@@ -55,8 +55,8 @@ on("media_next", function() sys.call("media.next") end)
 
 -- ── The wallpaper, made ready before it is needed ────────────────────────────────────────────────────
 -- A lock has to be instant, so the two pictures it uses are made ahead of time, each time the wallpaper
--- changes: a sharp one, and a small one already blurred (the renderer scales it up smoothly, which is how a
--- 60-pixel blur costs nothing while locked). The names carry a hash of the wallpaper's path, so a new
+-- changes: a sharp one, and one already blurred, at half the size of the screen's worth of pixels (a blur that small and smooth is cheap to
+-- draw; one made at a tenth of that size showed as round blobs when stretched over the screen). The names carry a hash of the wallpaper's path, so a new
 -- wallpaper is a new file and never a stale cached one.
 --
 -- An `image` is declared with a fixed size, 1920 x 1080 in the scene, and the picture is fitted inside that
@@ -101,7 +101,7 @@ local function prepare_wallpaper()
         local path = line:match("currently displaying: image: (.-)%s*$")
         local geo = line:match("%d+x%d+")
         if not path or not geo then return done() end
-        local key = hash("2 " .. path)
+        local key = hash("3 " .. path)
         if key == made_key then return done() end
         local s, b = dir .. "/sharp-" .. key .. ".jpg", dir .. "/blur-" .. key .. ".jpg"
         run("ls", { s, b }, function(_, code)
@@ -113,7 +113,7 @@ local function prepare_wallpaper()
             run("mkdir", { "-p", dir }, function()
                 run("magick", { path, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "1920x1080!", "-quality", "90", s }, function(_, c1)
                     if c1 ~= 0 then return done() end
-                    run("magick", { path, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "12.5%", "-blur", "0x4", "-resize", "240x135!", "-quality", "85", b }, function(_, c2)
+                    run("magick", { path, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "960x", "-blur", "0x18", "-resize", "1920x1080!", "-quality", "95", "-sampling-factor", "4:4:4", b }, function(_, c2)
                         if c2 == 0 then
                             made_key = key
                             publish(s, b)
