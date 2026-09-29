@@ -5,7 +5,7 @@
   <p><strong>A liquid-glass desktop shell: a bar, and panels that drip out of it.</strong></p>
 
   <p>
-    <a href="https://github.com/k4ditano/pleamar"><img src="https://img.shields.io/badge/pleamar-0.1-9ed6bd?style=for-the-badge" alt="pleamar" /></a>
+    <a href="https://github.com/k4ditano/pleamar"><img src="https://img.shields.io/badge/pleamar-0.2-9ed6bd?style=for-the-badge" alt="pleamar" /></a>
     <a href="https://hyprland.org"><img src="https://img.shields.io/badge/Hyprland-33CCFF?style=for-the-badge&logo=hyprland&logoColor=white" alt="Hyprland" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="MIT License" /></a>
   </p>
@@ -20,7 +20,7 @@
 
 **Vitreus** is a desktop shell for Wayland, written for [pleamar](https://github.com/k4ditano/pleamar). It is a single
 floating pill of frosted glass at the top of the screen. Everything else — the calendar, the quick controls, the
-player, the settings, the volume indicator, an incoming notification — is a drawer that drips out of the bar in the
+player, the settings, the launcher, the volume indicator, an incoming notification — is a drawer that drips out of the bar in the
 same glass, with the same spring, and folds back into it.
 
 It is built to be *not boring*: a shell that morphs rather than pops. On pleamar the animation, the springs and the
@@ -34,22 +34,35 @@ layout all run in the renderer, and the logic only reports facts.
 * Workspace indicator whose dots morph into capsules and a wide accent pill.
 * The focused window's app and title, mini media controls, and a clock with an oversized hour, accent-coloured
   minutes and the weekday stacked over the am/pm.
+* Buttons for Settings, the launcher (a magnifying glass) and the controls, left of the clock.
 * Text and icons are drawn outside the bar's bass-wave shader with a soft shadow, so they stay sharp and legible on
   light wallpapers.
 
-**Panels** — each one is a drawer from the bar, centred, with its content fading in after the glass has settled
+**Panels** — each one is a drawer from the bar, centred, that falls as a liquid drop and lands with a little wobble,
+with its content fading in after the glass has settled
 * **Calendar** — a clock card, a month grid, reminders you can write in plain words (`3:30pm Call mom`) that fire a
   desktop notification when due, and a weather strip: now, and the next seven days.
 * **Controls** — Wi-Fi and Bluetooth tiles that each open their own window (scan, connect, forget, password entry),
-  a **Notifications** module (Do Not Disturb with a timer, and a notification history), Caffeine, brightness, volume
-  with an output picker.
+  a **Notifications** module (Do Not Disturb with a timer, and a notification history), Caffeine (with timers),
+  brightness, volume with an output picker.
 * **Player** — a media card with cover art and a live spectrum from `cava`, plus the running windows (focus or close
   them) and background apps from the tray.
-* **Settings** — a sidebar and pages of cards; the wallpaper picker is the first: a gallery of your wallpaper folder
-  with a preview, Random, and paging.
+* **Launcher** (`SUPER + Space`) — a search field over its results; the first character picks the search: apps (with
+  their descriptions, most-used first, and a sum is answered as you type), `#` files, `>` commands, `:` emoji, `^` the
+  clipboard history, `~` wallpapers. Files, wallpapers and the clipboard have a preview beside the rows: the picture
+  or the text, and the file's size, date and type. Arrows and Enter, or the mouse.
+* **Settings** (`SUPER + SHIFT + Space`) — a sidebar and pages of cards.
+  *Visuals:* **Wallpaper** (a gallery of your wallpaper folder with a preview, Random, paging, a slideshow, and a
+  colour filter), **Glass** (how frosted and how solid the panels are), **Display** (a canvas to arrange your
+  monitors, mode, refresh rate, scale, rotation, SDR levels, saved profiles; a change is on trial for 15 seconds and
+  goes back unless you keep it). *System:* **Hyprland** (layout, gaps, resize from border, tearing, animations,
+  pointer sensitivity, focus following, natural scroll).
 * **Volume** — a small face and a wave whose curves stretch out as the volume rises.
 * **Notifications** — Vitreus is the notification server. Banners grow to fit their title, body and buttons; critical
   ones stay until dismissed; everything lands in the history, including what Do Not Disturb held back.
+
+**Lock screen** — a lock screen after Synoptik's, in [`lockscreen/`](lockscreen/README.md). It is a scene of its own
+and is not started unless you turn it on.
 
 **Theming** — [Iris](#-theming-with-iris) reads your wallpaper and Vitreus recolours itself, with a legibility floor on
 the text. It takes about half a second after a wallpaper change.
@@ -58,7 +71,8 @@ the text. It takes about half a second after a wallpaper change.
 
 ## 📦 Requirements
 
-* [**pleamar**](https://github.com/k4ditano/pleamar) 0.1 — the runtime Vitreus is written for.
+* [**pleamar**](https://github.com/k4ditano/pleamar) 0.2.2 or newer — the runtime Vitreus is written for. (The lock
+  screen needs 0.2.2: earlier versions crash the session on `kind: lock`.)
 * A Wayland compositor with layer-shell. It is developed on **Hyprland**; the running-windows list uses `hyprctl`,
   so that part is Hyprland-only.
 * The **Space Grotesk** font.
@@ -71,12 +85,16 @@ Optional, each enabling one thing (Vitreus runs without them and that part stays
 | `playerctl` | cover art for the player |
 | `awww` | the wallpaper picker, and Iris following your wallpaper |
 | `iris` | theming from the wallpaper |
-| `imagemagick` | wallpaper thumbnails (cropped once, cached) |
+| `imagemagick` | wallpaper thumbnails (cropped once, cached), and the launcher's picture previews |
+| `wl-clipboard` (`wl-copy`) | the launcher copying an emoji, a sum's answer or a clipboard entry |
+| `cliphist` | the launcher's clipboard search (`^`). Something has to fill it: `wl-paste --watch cliphist store` at startup |
+| `xdg-utils` (`xdg-open`) | the launcher opening a file |
 | `curl` | weather and remote cover art |
 | NetworkManager (`nmcli`) | Wi-Fi scanning |
 | BlueZ (`bluetoothctl`) | Bluetooth scanning |
 | `brightnessctl` | the brightness slider |
 | `hypridle` + systemd | Caffeine |
+| `hyprctl` | running windows, Settings > Display and > Hyprland, and the launcher starting apps |
 | `notify-send` | calendar reminders |
 
 ---
@@ -105,7 +123,20 @@ pleamar --scene ~/.config/pleamar/shells/vitreus/vitreus.plm --no-hud
 ```
 
 To start it with the desktop, add that last line to `~/.config/pleamar/autostart`, and on Hyprland put
-`exec-once = pleamar --autostart` in your config. The scene reloads itself whenever a file in the folder is saved.
+`exec-once = pleamar --autostart` in your config (`hl.on("hyprland.start", …)` in a Lua config). The scene reloads
+itself whenever a file in the folder is saved.
+
+Two things the script does that you would do by hand: link `bin/vitreus-clipimg` into a folder on your `PATH` (the
+launcher's clipboard pictures), and, on Hyprland with a Lua config, load the key binds and what Settings saves:
+
+```lua
+require("hypr_vitreus")                 -- SUPER + Space launcher, SUPER + SHIFT + Space settings, SUPER + L lock
+pcall(require, "vitreus_monitors")      -- written by Settings > Display
+pcall(require, "vitreus_hypr")          -- written by Settings > Hyprland
+```
+
+after linking `hypr_vitreus.lua` into `~/.config/hypr`. (The script adds these lines to the end of `hyprland.lua`
+after asking, keeps a copy as `hyprland.lua.before-vitreus`, and takes them out again on `--uninstall`.)
 
 Vitreus takes over `org.freedesktop.Notifications` from whatever handled notifications before it, and hands it back
 when it exits.
@@ -122,10 +153,18 @@ still growing, so a few settings are plain files there:
 | `iris.json` | `{ "enabled": true, "intensity": "medium" }` — `subtle`, `medium` or `bold` |
 | `weather-config.json` | `{ "location": "", "units": "fahrenheit" }` — a place name, or empty for IP-based; or `celsius` |
 | `dnd.json` | Do Not Disturb: by hand, and any timer still running |
+| `caffeine.json` | Caffeine: the timer still running |
+| `glass.json` | the Glass page: how frosted and how solid |
+| `wallpaper.json`, `wallpaper-colors.json` | the wallpaper slideshow, and the colours found in each picture |
+| `display.json`, `display-profiles.json` | the Display page: what was kept, and the saved profiles |
+| `launcher.json` | how often each app was started from the launcher |
 | `calendar.json` | your reminders |
 | `notification-history.json` | the notification history |
 
 The wallpaper picker reads `<Pictures>/Wallpapers`. Thumbnails are cached in `$XDG_CACHE_HOME/pleamar/vitreus/wp`.
+
+Two files Settings writes are Lua, for Hyprland to load at start: `~/.config/hypr/vitreus_monitors.lua` (Display) and
+`~/.config/hypr/vitreus_hypr.lua` (Hyprland). Changes are also sent to the running Hyprland at once.
 
 ### 🎨 Theming with Iris
 
@@ -141,16 +180,25 @@ git-ignored; the stock colours are tracked as `palette.default.plm`.
 | File | |
 | --- | --- |
 | `vitreus.plm` | the scene: every shape, panel, spring and rule |
-| `vitreus.luau` | the logic: services, scanning, weather, Iris, history — it only reports facts |
+| `vitreus.luau` | the logic: services, scanning, weather, Iris, history, the launcher's searches — it only reports facts |
+| `hypr_vitreus.lua` | Hyprland key binds: `SUPER + Space` launcher, `SUPER + SHIFT + Space` Settings, `SUPER + L` lock |
+| `bin/vitreus-clipimg` | a helper for the launcher's clipboard pictures (thumbnail, copy back) |
+| `assets/emoji.json` | the emoji the launcher searches |
+| `install.sh` | installs, updates and removes Vitreus |
 | `palette.default.plm` | the stock palette (copy to `palette.plm`) |
 | `wave.wgsl` | the shader that bends the bar's glass on the beat |
-| `lockscreen/` | a lock screen, **off**: nothing starts it, and `kind: lock` needs a fix in pleamar first; see its README |
+| `lockscreen/` | a lock screen, **off** until you start it (pleamar 0.2.2 or newer); see its README |
 
 ---
 
 ## Known limits
 
 * The wallpaper chosen in Settings is not restored after a restart (awww forgets it).
+* The launcher's file search looks five folders deep in your home, skipping hidden folders. Clipboard history is only
+  as good as what fills `cliphist`; the launcher's apps come from the desktop files pleamar can see.
+* Settings > Hyprland and Display write Lua for Hyprland's Lua config; with a `hyprland.conf` they still change the
+  running session, but nothing is kept for the next start.
+* Settings > Display has only been tried with one monitor: arranging several is untested.
 * Bluetooth and Wi-Fi scans go through `bluetoothctl` and `nmcli`: pleamar's own scan calls answer without error but
   nothing scans.
 * Wi-Fi rescans within about 15 seconds of the previous one are ignored by NetworkManager.

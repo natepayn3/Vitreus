@@ -34,7 +34,7 @@ autostart="$conf/pleamar/autostart"
 fonts="$data/fonts/SpaceGrotesk"
 
 # Official-repo packages, then AUR ones: what each is for is in the README.
-pacman_pkgs="git curl fontconfig imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle libnotify xdg-user-dirs awww"
+pacman_pkgs="git curl fontconfig imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww"
 aur_pkgs="iris-colors"
 
 assume_yes=false
@@ -148,7 +148,10 @@ if $deps; then
     playerctl       cover art
     awww            the wallpaper picker
     iris            theming from the wallpaper (https://aur.archlinux.org/packages/iris-colors)
-    imagemagick     wallpaper thumbnails
+    imagemagick     wallpaper thumbnails, the launcher's picture previews
+    wl-clipboard    the launcher copying (wl-copy)
+    cliphist        the launcher's clipboard search (something must run: wl-paste --watch cliphist store)
+    xdg-utils       the launcher opening a file (xdg-open)
     curl            weather and remote cover art
     NetworkManager  Wi-Fi (nmcli)
     BlueZ           Bluetooth (bluetoothctl)
@@ -163,7 +166,11 @@ LIST
 
     # ── 2. pleamar ──
     if have pleamar || [ -x "$HOME/.local/bin/pleamar" ]; then
-        say "pleamar is installed"
+        pv=$( { pleamar --version 2> /dev/null || "$HOME/.local/bin/pleamar" --version 2> /dev/null; } | sed -n 's/^pleamar \([0-9][0-9.]*\).*/\1/p' | head -1)
+        say "pleamar is installed${pv:+ ($pv)}"
+        case "$pv" in
+            0.0*|0.1*|0.2.0*|0.2.1*) warn "Vitreus needs pleamar 0.2.2 or newer (the lock screen crashes the session on older ones): update it" ;;
+        esac
     else
         say "pleamar, the runtime Vitreus is written for, is not installed"
         if ask "install it now? (it is built from source; the first time takes a few minutes)"; then
@@ -289,6 +296,8 @@ echo "  Start it now:          $line"
 echo "  With the desktop:      autostart is read by pleamar's own session; on Hyprland run \`pleamar --autostart\`:"
 echo "                         hyprland.lua:   hl.on(\"hyprland.start\", function () hl.exec_cmd(\"pleamar --autostart\") end)"
 echo "                         hyprland.conf:  exec-once = pleamar --autostart"
+echo "  Keys (with the binds): SUPER + Space launcher, SUPER + SHIFT + Space settings, SUPER + L lock (see lockscreen/README.md)"
+echo "  Clipboard search:      needs  wl-paste --watch cliphist store  running at startup, or ^ has nothing to show"
 echo "  Update later:          run this script again"
 echo "  Its settings:          $data/pleamar/vitreus  (iris.json, weather-config.json, ...)"
 echo
