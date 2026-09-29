@@ -89,15 +89,15 @@ scene Vitreus {
     }                  // 0..1, from cava: how hard the low end is hitting
     model outlist max 6 { name: text; current: bool }   // every place the sound can go
     //  The mixer under the volume slider (right-click it): one row per app that is playing sound.
-    model mixer max 6 { name: text; pct: number; muted: bool; corked: bool; icon: image 20, 20 }
+    model mixer max 6 { name: text; pct: number; muted: bool; corked: bool; icon: image 27, 27 }
     event mix_set ->                // a row's slider: the row times 4, plus 0..1 along its track (one number)
     event mix_mute ->               // a row's speaker
     //  The running windows (asked of Hyprland by the logic: the window service has no list there) and
     //  the apps that live in the tray, for the panel that hangs from the window title. Icons are named
     //  by the logic, which matches each window's class to an app.
-    model tasks max 12 { title: text; ws: text; active: bool; icon: image 22, 22 }
+    model tasks max 12 { title: text; ws: text; active: bool; icon: image 30, 30 }
     fact tasks_watch = false       // the panel is open: keep the list fresh
-    model trays max 8 { title: text; icon: image 22, 22 }
+    model trays max 8 { title: text; icon: image 30, 30 }
     //  The two transient panels (volume, and a notification arriving) share one drawer. `osd_kind` is
     //  which one it draws; unlike `panel` it stays put while the drawer closes, so it fades out
     //  showing what it was showing.
@@ -150,6 +150,7 @@ scene Vitreus {
     event launch_open ->
     event launch_move ->            // -1 up, +1 down
     event launch_pick ->            // a row, by place
+    event launch_scroll ->          // the wheel over the rows: notches, positive is down
     event launch_run ->             // Enter
     event launch_hint ->            // a hint under the field: type its first character
     text lq = ""                    // the search field
@@ -175,7 +176,7 @@ scene Vitreus {
     text lp_imgpath = ""             // a small copy of the picture, at a fixed path with a version on the end
     fact lp_img_on = false
     image lp_img = from lp_imgpath, 480, 320
-    model lres max 8 { title: text; sub: text; desc: text; hasdesc: bool; glyph: text; sel: bool; hasicon: bool; icon: image 26, 26 }
+    model lres max 6 { title: text; sub: text; desc: text; hasdesc: bool; glyph: text; sel: bool; hasicon: bool; icon: image 35, 35 }
     event settings_toggle ->        // from a key bind (hypr_vitreus.lua): open or close Settings
     event glass_reset ->
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
@@ -411,7 +412,7 @@ scene Vitreus {
     follow do   = if(panel == volume or panel == notif, 1, 0)
     follow ds   = if(panel == settings, 1, 0)
     follow dl   = if(panel == launch, 1, 0)
-    follow lr   = max(1, lcount, if(lp_on, 7, 1))
+    follow lr   = max(1, lcount, if(lp_on, 6, 1))
     follow okv  = if(osd_kind == vol, 1, 0)
     follow okn  = if(osd_kind == note, 1, 0)
     on ntnew {
@@ -552,7 +553,7 @@ scene Vitreus {
 
     //  One number scales the whole shell. The exclusive zone (`reserve` above) is
     //  the bar and a little air: 8 + bar.h + 6.
-    let u = 1.35
+    let u = 1.35                    // (the icon models are declared at their size times this: 20 → 27, 22 → 30, 26 → 35)
     //  One reminder of the chosen day: a circle to tick it off, its time, its words, a cross.
     component CalRow(e: record, tick: event, gone: event) {
         //  30 px tall at least, and as tall as its title needs: a reminder wraps onto more lines rather
@@ -716,7 +717,7 @@ scene Vitreus {
     //  bold if it has the keyboard), and a close button that shows while the row is under the pointer.
     //  A press gives it the keyboard; a middle press closes it.
     component TaskRow(t: record, focus: event, kill: event) {
-        size: 288 * u, 36 * u
+        size: 288 * u, floor(36 * u + 0.5)          // whole pixels (with the list's gap), so the icon is not drawn between two
         zone box touch { from: 0, 0; size: 288 * u, 36 * u; corner: 12 * u; cursor: pointer }
         box { from: 0, 0; size: 288 * u, 36 * u; corner: 12 * u; color: ink; opacity: if(t.active, 11%, 5%) + 8% * touch.hover }
         image t.icon { at: floor(8 * u + 0.5), floor(7 * u + 0.5); size: floor(22 * u + 0.5), floor(22 * u + 0.5) }
@@ -736,7 +737,7 @@ scene Vitreus {
 
     //  One app in the mixer: its icon, its name, a small slider and its percentage, and a speaker that silences it.
     component MixRow(m: record, set: event, mute: event) {
-        size: 288 * u, 28 * u
+        size: 288 * u, floor(28 * u + 0.5)          // whole pixels (with the list's gap), so the icon is not drawn between two
         opacity: if(m.corked, 55%, 100%)
         image m.icon { at: floor(10 * u + 0.5), floor(5 * u + 0.5); size: floor(20 * u + 0.5), floor(20 * u + 0.5) }
         text m.name { at: floor(38 * u + 0.5), floor(13 * u + 0.5); anchor: left center; size: 11 * u; width: 78 * u; lines: 1; color: ink; family: "Space Grotesk" }
@@ -771,7 +772,7 @@ scene Vitreus {
     //  One app that lives in the tray, with no window of its own: its icon and name. A press is what
     //  clicking its icon would do.
     component TrayRow(t: record, click: event) {
-        size: 288 * u, 36 * u
+        size: 288 * u, floor(36 * u + 0.5)          // whole pixels (with the list's gap), so the icon is not drawn between two
         zone box touch { from: 0, 0; size: 288 * u, 36 * u; corner: 12 * u; cursor: pointer }
         box { from: 0, 0; size: 288 * u, 36 * u; corner: 12 * u; color: ink; opacity: 5% + 8% * touch.hover }
         image t.icon { at: floor(8 * u + 0.5), floor(7 * u + 0.5); size: floor(22 * u + 0.5), floor(22 * u + 0.5) }
@@ -1435,7 +1436,7 @@ scene Vitreus {
             column mixcol {
                 at: floor(cx - 144 * u + 0.5), floor(mix_top + 0.5)
                 view: 288 * u, max(1, mixer.count * 32 - 4) * u
-                gap: 4 * u
+                gap: floor(4 * u + 0.5)
                 for m in mixer { MixRow(m, set: mix_set, mute: mix_mute) }
             }
         }
@@ -1867,7 +1868,7 @@ scene Vitreus {
             column task_col {
                 at: floor(mdx - 144 * u + 0.5), floor(ck + tasks_list * u + 0.5)
                 view: 288 * u, (task_rows * 40 - 4) * u
-                gap: 4 * u
+                gap: floor(4 * u + 0.5)
                 for w in tasks { TaskRow(w, focus: task_focus, kill: task_close) }
             }
             //  The apps that only live in the tray: no window to list, so they get their own section.
@@ -1877,7 +1878,7 @@ scene Vitreus {
                 column tray_col {
                     at: floor(mdx - 144 * u + 0.5), floor(ck + tray_list * u + 0.5)
                     view: 288 * u, (max(1, tray_rows) * 40 - 4) * u
-                    gap: 4 * u
+                    gap: floor(4 * u + 0.5)
                     for a in trays { TrayRow(a, click: tray_click) }
                 }
             }
@@ -2024,10 +2025,13 @@ scene Vitreus {
             zone box lhint_hit.$i { at: hc, hy; size: 84 * u, 18 * u; corner: 9 * u; cursor: pointer }
             on press lhint_hit.$i { emit launch_hint(i) }
         }
+        //  The wheel over the rows scrolls the list (under the rows, so their presses still win).
+        zone box lwheel { from: lx, lry; size: lw, lph }
+        on scroll lwheel { emit launch_scroll(-wheel) }
         column lcol {
-            at: lx, lry
-            view: lw, lph
-            gap: 4 * u
+            at: floor(lx + 0.5), floor(lry + 0.5)     // on whole pixels, as each row's height and the gap are: an icon
+            view: lw, lph                             // between two pixels picks up a sliver of its neighbour in the atlas
+            gap: floor(4 * u + 0.5)
             for r in lres { LRow(r, pick: launch_pick) }
         }
         text lmsg { at: floor(lx + lw / 2 + 0.5), floor(lry + 20 * u + 0.5); anchor: center; align: center; size: 12 * u; color: faint; width: lw - 16 * u; lines: 2; family: "Space Grotesk"; show: lcount < 1 }

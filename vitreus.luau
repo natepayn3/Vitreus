@@ -2578,13 +2578,13 @@ do
 end
 
 -- ── The launcher (SUPER + Space) ──────────────────────────────────────────────────────────────────────────────
--- After Synoptik's LauncherOSD. The scene has a field (`text.lq`) and a list (`model.lres`, eight rows at most, with
--- the chosen one in the middle of the window). What is typed picks the search: apps by default (and a sum, if the text
+-- After Synoptik's LauncherOSD. The scene has a field (`text.lq`) and a list (`model.lres`, six rows at most, with
+-- the chosen one in the middle of the window; the wheel scrolls the window, and the chosen one stays inside it). What is typed picks the search: apps by default (and a sum, if the text
 -- is one), and after a first character `#` files, `>` commands, `:` emoji, `^` the clipboard, `~` wallpapers.
 ;(function()
     local schedule_preview_fwd
     local S = { desc = {}, apps = {}, res = {}, sel = 1, start = 1, last = nil, seq = 0, counts = {}, emoji = nil, clip = nil }
-    local ROWS = 8
+    local ROWS = 6
     local MODES = { ["#"] = "files", [">"] = "commands", [":"] = "emoji", ["^"] = "clipboard", ["~"] = "wallpapers" }
     local LABEL = { apps = "Apps", calc = "Calc", files = "Files", commands = "Commands", emoji = "Emoji", clipboard = "Clipboard", wallpapers = "Wallpapers" }
     local HINT = {
@@ -2595,10 +2595,11 @@ end
     local function lq() return text.lq or "" end
 
     -- The window of rows shown: the chosen one is kept in view.
-    local function render()
+    local function render(keep)
         local n = #S.res
         S.sel = math.max(1, math.min(math.max(1, n), S.sel))
-        S.start = math.max(1, math.min(S.sel - math.floor(ROWS / 2), n - ROWS + 1))
+        if keep then S.start = math.max(1, math.min(S.start, n - ROWS + 1))
+        else S.start = math.max(1, math.min(S.sel - math.floor(ROWS / 2), n - ROWS + 1)) end
         local rows = {}
         for i = 0, ROWS - 1 do
             local r = S.res[S.start + i]
@@ -3084,6 +3085,20 @@ end
         S.sel = S.sel + math.floor(d + 0.5)
         if S.sel < 1 then S.sel = n elseif S.sel > n then S.sel = 1 end
         render()
+    end)
+    -- The wheel: the window moves a row a notch (a touchpad's fractions add up), and the chosen one is carried along
+    -- when it would fall out of view.
+    local wheel_left = 0
+    on("launch_scroll", function(d)
+        local n = #S.res
+        if n <= ROWS then return end
+        wheel_left = wheel_left + d
+        local steps = wheel_left >= 0 and math.floor(wheel_left) or math.ceil(wheel_left)
+        if steps == 0 then return end
+        wheel_left = wheel_left - steps
+        S.start = math.max(1, math.min(S.start + steps, n - ROWS + 1))
+        S.sel = math.max(S.start, math.min(S.sel, S.start + ROWS - 1))
+        render(true)
     end)
     local function run_result(r)
         if not r or not r.run then return end
