@@ -1753,7 +1753,8 @@ wp_load()
 -- ── glass ─────────────────────────────────────────────────────────────────────────────────────────────
 -- The Glass page's two sliders. `frost` is how much of the glass effect the bar and the drawers have (their
 -- tint, the edge light, and whether the compositor is asked to blur what is behind: below 30 % it is not; at 0
--- they are solid); `opacity` is how solid they are, from 30 % to 100 %. Both are numbers from 0 to 1 that the
+-- they are solid); `opacity` is how solid they are, from 30 % to 100 % (its track is 0 to 100 %, the first 30 %
+-- of it shaded). Both are numbers from 0 to 1 that the
 -- scene reads, kept in `glass.json` a moment after the last change so a drag does not write a file per pixel.
 local glass = { frost = 1, opacity = 1 }
 local GLASS_OP_MIN = 0.3
@@ -1789,7 +1790,8 @@ on("glass_frost_set", function(t)
     glass_save_soon()
 end)
 on("glass_op_set", function(t)
-    local v = GLASS_OP_MIN + (1 - GLASS_OP_MIN) * math.max(0, math.min(1, t))
+    -- the track is 0 to 100 %, like the Glass one; a press in the shaded first 30 % gives the least it can be
+    local v = math.max(GLASS_OP_MIN, math.min(1, t))
     glass.opacity = math.floor(v * 100 + 0.5) / 100
     glass_refresh()
     glass_save_soon()
@@ -1799,6 +1801,562 @@ on("glass_reset", function()
     glass_refresh()
     glass_save_soon()
 end)
+
+-- ── Display ───────────────────────────────────────────────────────────────────────────────────────────
+-- The Display page of the settings, after Synoptik's: what Hyprland reports for each monitor (`hyprctl monitors -j`)
+-- is read into a DRAFT that the page edits (the mode, its position, scale, rotation and the SDR levels), and
+-- Apply sends it to Hyprland with `hyprctl eval` (`hl.monitor{…}`, since this Hyprland reads a Lua config).
+-- A change to how the screen looks can leave you with a screen you cannot read, so an applied change is on trial
+-- for 15 seconds: Keep makes it stay (and writes it to `vitreus_monitors.lua`, which `hyprland.lua` loads, so it
+-- survives a restart), and anything else, including not answering, puts back what was there.
+-- (In a block of its own: the file is at Luau's limit of 200 locals in one scope, and this section's are its own.)
+do
+local DISP_SCALES = { "auto", 1.0, 1.25, 1.333333, 1.5, 1.75, 2.0 }
+local DISP_TRIAL = 15
+local disp_mons = {}                      -- what Hyprland says: { name, desc, key, w, h, hz, x, y, scale, transform, modes, sdrb, sdrs }
+local disp_draft = {}                     -- name -> { res, hz, x, y, scale, transform, sdrb, sdrs }: what the page edits
+local disp_saved = {}                     -- name -> the spec last kept, for monitors that are not connected now too
+local disp_profiles = {}                  -- { name, key, mons = { name -> spec } }
+local disp_auto = true
+local disp_sel = 1
+local disp_key_seen = nil                 -- the set of connected displays the last time it was looked at
+local disp_trial = 0                      -- seconds left of a change on trial; 0 for none
+local disp_before = nil                   -- the eval that puts back what a change on trial replaced
+local disp_grab = nil                     -- a monitor being dragged on the canvas: { i, dx, dy } in canvas pixels
+local disp_grab_scale, disp_grab_origin = 1, nil   -- how the canvas maps to the desk: set each time it is drawn
+
+local function disp_num(n, d) return (string.format("%." .. (d or 2) .. "f", n):gsub("0+$", ""):gsub("%.$", "")) end
+
+-- A display is told apart by what it is and not by its name, which is only the order it was plugged in: make,
+-- model and serial when there are, else its description, else its name.
+local function disp_key_of(m)
+    local serial, make, model = m.serial or "", m.make or "", m.model or ""
+    if serial ~= "" and model ~= "" then return make .. "|" .. model .. "|" .. serial end
+    if (m.description or "") ~= "" then return "desc:" .. m.description end
+    return "name:" .. (m.name or "?")
+end
+
+-- "3440x1440@59.999" or "3440x1440@60.00Hz" -> "3440x1440", 60
+local function disp_parse_mode(str)
+    local w, h, hz = str:match("^(%d+)x(%d+)@([%d%.]+)")
+    if not w then return nil end
+    return w .. "x" .. h, math.floor(tonumber(hz) + 0.5)
+end
+
+local function disp_rotated(t) return t == 1 or t == 3 or t == 5 or t == 7 end
+local function disp_size(m, d)            -- the size on the desk: the mode, turned if it is rotated, and shrunk by the scale
+    local w, h = tonumber((d.res or ""):match("^(%d+)")) or m.w, tonumber((d.res or ""):match("x(%d+)$")) or m.h
+    if disp_rotated(d.transform or 0) then w, h = h, w end
+    -- Hyprland lays the monitors out in scaled pixels: a 1920 x 1080 one at scale 2 takes 960 x 540 of the desk
+    local scale = d.scale == "auto" and m.scale or d.scale or 1
+    return math.floor(w / scale + 0.5), math.floor(h / scale + 0.5)
+end
+
+-- The resolutions a monitor offers, biggest first, and for each the refresh rates it has.
+local function disp_options(m)
+    local by, order = {}, {}
+    for _, mode in ipairs(m.modes) do
+        local res, hz = disp_parse_mode(mode)
+        if res then
+            if not by[res] then
+                by[res] = {}
+                order[#order + 1] = res
+            end
+            local seen = false
+            for _, v in ipairs(by[res]) do if v == hz then seen = true end end
+            if not seen then by[res][#by[res] + 1] = hz end
+        end
+    end
+    table.sort(order, function(a, b)
+        local aw, ah = a:match("^(%d+)x(%d+)")
+        local bw, bh = b:match("^(%d+)x(%d+)")
+        return tonumber(aw) * tonumber(ah) > tonumber(bw) * tonumber(bh)
+    end)
+    for _, res in ipairs(order) do table.sort(by[res], function(a, b) return a > b end) end
+    return order, by
+end
+
+-- The code that tells Hyprland how a set of monitors is to be.
+local function disp_spec_code(specs)
+    local parts = {}
+    for name, d in pairs(specs) do
+        local scale = d.scale == "auto" and '"auto"' or disp_num(d.scale, 6)
+        parts[#parts + 1] = string.format(
+            'hl.monitor({ output = "%s", mode = "%s@%d", position = "%dx%d", scale = %s, transform = %d, sdrbrightness = %s, sdrsaturation = %s })',
+            name, d.res, d.hz, d.x, d.y, scale, d.transform or 0, disp_num(d.sdrb or 1, 2), disp_num(d.sdrs or 1, 2))
+    end
+    table.sort(parts)
+    return table.concat(parts, "\n")
+end
+
+local function disp_spec_of(m)            -- what a monitor is at this moment, as a spec
+    local res = m.w .. "x" .. m.h
+    return { res = res, hz = math.floor(m.hz + 0.5), x = m.x, y = m.y, scale = m.scale, transform = m.transform,
+             sdrb = m.sdrb, sdrs = m.sdrs }
+end
+
+local function disp_copy(d)
+    local c = {}
+    for k, v in pairs(d) do c[k] = v end
+    return c
+end
+
+local function disp_changed(m, d)
+    local cur = disp_spec_of(m)
+    return cur.res ~= d.res or cur.hz ~= d.hz or cur.x ~= d.x or cur.y ~= d.y or math.abs(cur.scale - (d.scale == "auto" and cur.scale or d.scale)) > 0.001
+        or d.scale == "auto" or cur.transform ~= d.transform or math.abs((cur.sdrb or 1) - (d.sdrb or 1)) > 0.004
+        or math.abs((cur.sdrs or 1) - (d.sdrs or 1)) > 0.004
+end
+
+-- What the page shows: the canvas (each monitor a box, all fitted into 400 x 118), the rows of choices for the
+-- monitor that is selected, and how far its draft is from what is on the screen.
+local function disp_render()
+    local n = #disp_mons
+    fact.disp_count = n
+    if disp_sel > n then disp_sel = math.max(1, n) end
+    fact.disp_sel = disp_sel - 1
+    local dirty = false
+    for _, m in ipairs(disp_mons) do
+        if disp_changed(m, disp_draft[m.name]) then dirty = true end
+    end
+    fact.disp_dirty = dirty
+    if n == 0 then
+        text.disp_title, text.disp_desc, text.disp_cur = "No monitor", "", ""
+        for i = 0, 3 do fact["disp_b." .. i .. ".on"] = false end
+        for i = 0, 5 do fact["disp_hz." .. i .. ".on"] = false end
+        for i = 0, 13 do fact["disp_r." .. i .. ".on"] = false end
+        fact.disp_res_count = 0
+        return
+    end
+    -- the canvas
+    local x0, y0, x1, y1 = math.huge, math.huge, -math.huge, -math.huge
+    for _, m in ipairs(disp_mons) do
+        local d = disp_draft[m.name]
+        local w, h = disp_size(m, d)
+        x0, y0 = math.min(x0, d.x), math.min(y0, d.y)
+        x1, y1 = math.max(x1, d.x + w), math.max(y1, d.y + h)
+    end
+    local cw, ch, pad = 400, 96, 12
+    local f = math.min((cw - 2 * pad) / math.max(1, x1 - x0), (ch - 2 * pad) / math.max(1, y1 - y0))
+    local ox = (cw - (x1 - x0) * f) / 2
+    local oy = (ch - (y1 - y0) * f) / 2
+    for i = 0, 3 do
+        local m = disp_mons[i + 1]
+        if not m then
+            fact["disp_b." .. i .. ".on"] = false
+        else
+            local d = disp_draft[m.name]
+            local w, h = disp_size(m, d)
+            fact["disp_b." .. i .. ".on"] = true
+            fact["disp_b." .. i .. ".x"] = ox + (d.x - x0) * f
+            fact["disp_b." .. i .. ".y"] = oy + (d.y - y0) * f
+            fact["disp_b." .. i .. ".w"] = math.max(14, w * f)
+            fact["disp_b." .. i .. ".h"] = math.max(10, h * f)
+            fact["disp_b." .. i .. ".sel"] = i + 1 == disp_sel
+            fact["disp_b." .. i .. ".dirty"] = disp_changed(m, d)
+            text["disp_b." .. i .. ".name"] = m.name
+            text["disp_b." .. i .. ".mode"] = d.res:gsub("x", " × ") .. " · " .. d.hz .. " Hz"
+        end
+    end
+    disp_grab_scale = f
+    disp_grab_origin = { x0 = x0, y0 = y0, ox = ox, oy = oy }
+    -- the selected monitor
+    local m = disp_mons[disp_sel]
+    local d = disp_draft[m.name]
+    text.disp_title = m.name
+    text.disp_desc = m.desc ~= "" and m.desc or "Unknown display"
+    text.disp_cur = string.format("On now: %dx%d @ %d Hz · scale %s%s", m.w, m.h, math.floor(m.hz + 0.5), disp_num(m.scale, 2),
+        m.transform ~= 0 and (" · turned " .. (m.transform % 4) * 90 .. "°") or "")
+    local order, by = disp_options(m)
+    text.disp_res_text = (d.res:gsub("x", " × "))
+    -- the dropdown's options, biggest first (at most 14)
+    fact.disp_res_count = math.min(#order, 14)
+    local longest = 0
+    for i = 1, math.min(#order, 14) do longest = math.max(longest, #(order[i]:gsub("x", " × "))) end
+    fact.disp_res_chars = longest
+    for i = 0, 13 do
+        local r = order[i + 1]
+        fact["disp_r." .. i .. ".on"] = r ~= nil
+        fact["disp_r." .. i .. ".lit"] = r ~= nil and r == d.res
+        text["disp_r." .. i .. ".text"] = r and (r:gsub("x", " × ")) or ""
+    end
+    local hzs = by[d.res] or {}
+    for i = 0, 5 do
+        local hz = hzs[i + 1]
+        fact["disp_hz." .. i .. ".on"] = hz ~= nil
+        fact["disp_hz." .. i .. ".lit"] = hz ~= nil and hz == d.hz
+        text["disp_hz." .. i .. ".text"] = hz and (hz .. " Hz") or ""
+    end
+    -- the monitors, for the inspector's pills
+    for i = 0, 3 do
+        local mm = disp_mons[i + 1]
+        fact["disp_pill." .. i .. ".on"] = mm ~= nil and n > 1
+        text["disp_pill." .. i .. ".text"] = mm and mm.name or ""
+    end
+    local si = 0
+    for i, v in ipairs(DISP_SCALES) do
+        if (d.scale == "auto" and v == "auto") or (v ~= "auto" and d.scale ~= "auto" and math.abs(v - d.scale) < 0.02) then si = i end
+    end
+    fact.disp_scale = si - 1
+    fact.disp_rot = (d.transform or 0) < 4 and (d.transform or 0) or -1
+    fact.disp_sdrb = d.sdrb or 1
+    fact.disp_sdrs = d.sdrs or 1
+    text.disp_sdrb_text = disp_num(d.sdrb or 1, 2)
+    text.disp_sdrs_text = disp_num(d.sdrs or 1, 2)
+    -- the topology and the profiles
+    local keys = {}
+    for _, mm in ipairs(disp_mons) do keys[#keys + 1] = mm.key end
+    table.sort(keys)
+    local names = {}
+    for _, mm in ipairs(disp_mons) do names[#names + 1] = mm.name end
+    text.disp_topo = table.concat(names, " + ")
+    local current = table.concat(keys, " + ")
+    for i = 0, 3 do
+        local p = disp_profiles[i + 1]
+        fact["disp_p." .. i .. ".on"] = p ~= nil
+        if p then
+            local pn = {}
+            for name in pairs(p.mons) do pn[#pn + 1] = name end
+            table.sort(pn)
+            text["disp_p." .. i .. ".name"] = p.name
+            text["disp_p." .. i .. ".sub"] = table.concat(pn, " + ")
+            fact["disp_p." .. i .. ".active"] = p.key == current
+        end
+    end
+    fact.disp_auto = disp_auto
+    fact.disp_pcount = math.min(#disp_profiles, 4)
+end
+
+local function disp_profiles_save()
+    pcall(sys.call, "files.write", "display-profiles.json", { auto = disp_auto, profiles = disp_profiles })
+end
+
+-- Read what Hyprland says, and keep the draft of every monitor that is there.
+local function disp_read(done)
+    run("hyprctl", { "monitors", "-j" }, function(out, code)
+        if code ~= 0 or not out then return done and done() end
+        local ok, list = pcall(json.decode, out)
+        if not ok or type(list) ~= "table" then return done and done() end
+        local mons = {}
+        for _, j in ipairs(list) do
+            local modes = {}
+            for _, mode in ipairs(j.availableModes or {}) do modes[#modes + 1] = mode end
+            mons[#mons + 1] = {
+                name = j.name, desc = j.description or "", key = disp_key_of(j), w = j.width, h = j.height, hz = j.refreshRate or 60,
+                x = j.x, y = j.y, scale = j.scale or 1, transform = j.transform or 0, modes = modes,
+                sdrb = j.sdrBrightness or 1, sdrs = j.sdrSaturation or 1,
+            }
+        end
+        disp_mons = mons
+        local fresh = {}
+        for _, m in ipairs(mons) do
+            -- a draft that is untouched follows the screen; one being edited is left alone
+            local d = disp_draft[m.name]
+            if not d or not disp_changed(m, d) then fresh[m.name] = disp_spec_of(m) else fresh[m.name] = d end
+        end
+        disp_draft = fresh
+        disp_render()
+        if done then done() end
+    end)
+end
+
+-- The file `hyprland.lua` loads: every monitor that has been kept, connected or not.
+local function disp_write_file()
+    local lines = {
+        "-- Written by Vitreus (Settings > Display); edits here are overwritten.",
+        "-- hyprland.lua loads it after hypr_style.lua, so it wins for the monitors it names.",
+    }
+    local names = {}
+    for name in pairs(disp_saved) do names[#names + 1] = name end
+    table.sort(names)
+    local specs = {}
+    for _, name in ipairs(names) do specs[name] = disp_saved[name] end
+    lines[#lines + 1] = disp_spec_code(specs)
+    local body = table.concat(lines, "\n") .. "\n"
+    with_dirs(function(d)
+        pcall(sys.call, "files.write", "vitreus_monitors.lua", body)
+        local hypr = d.conf:gsub("/pleamar/shells/vitreus$", "/hypr")
+        run("cp", { "-f", d.data .. "/vitreus_monitors.lua", hypr .. "/vitreus_monitors.lua" }, function() end)
+        pcall(sys.call, "files.write", "display.json", { saved = disp_saved })
+    end)
+end
+
+local function disp_specs_now()           -- what the screens are, as specs: to put back
+    local specs = {}
+    for _, m in ipairs(disp_mons) do specs[m.name] = disp_spec_of(m) end
+    return specs
+end
+
+-- Sends specs to Hyprland; answers whether it took them.
+local function disp_send(specs, then_)
+    run("hyprctl", { "eval", disp_spec_code(specs) }, function(out, code)
+        local ok = code == 0 and (out or ""):match("^%s*ok") ~= nil
+        if not ok then text.disp_msg = "Hyprland did not take it: " .. ((out or ""):gsub("%s+$", "")) end
+        after(900, function() disp_read(function() then_(ok) end) end)
+    end)
+end
+
+local function disp_trial_text()
+    text.disp_trial_text = string.format("Keep these display settings? Putting them back in %d s", disp_trial)
+end
+
+local function disp_keep()
+    disp_trial, disp_before = 0, nil
+    fact.disp_trial = 0
+    for _, m in ipairs(disp_mons) do
+        disp_saved[m.name] = disp_spec_of(m)
+        disp_draft[m.name] = disp_spec_of(m)
+    end
+    disp_render()
+    disp_write_file()
+    text.disp_msg = "Kept, and saved for the next start."
+end
+
+local function disp_revert()
+    if not disp_before then return end
+    local before = disp_before
+    disp_trial, disp_before = 0, nil
+    fact.disp_trial = 0
+    disp_send(before, function()
+        for _, m in ipairs(disp_mons) do disp_draft[m.name] = disp_spec_of(m) end
+        disp_render()
+        text.disp_msg = "Put back."
+    end)
+end
+
+local function disp_apply()
+    if disp_trial > 0 then return end
+    local specs = {}
+    -- every position is measured from the top left of the whole arrangement
+    local mx, my = math.huge, math.huge
+    for _, m in ipairs(disp_mons) do
+        local d = disp_draft[m.name]
+        mx, my = math.min(mx, d.x), math.min(my, d.y)
+    end
+    for _, m in ipairs(disp_mons) do
+        local d = disp_copy(disp_draft[m.name])
+        d.x, d.y = d.x - mx, d.y - my
+        -- only what is different from what is on the screen is sent: a monitor that was not touched is not told anything
+        if disp_changed(m, d) then specs[m.name] = d end
+    end
+    if next(specs) == nil then
+        text.disp_msg = "Nothing to change."
+        return
+    end
+    disp_before = {}
+    for name in pairs(specs) do
+        for _, m in ipairs(disp_mons) do
+            if m.name == name then disp_before[name] = disp_spec_of(m) end
+        end
+    end
+    text.disp_msg = "Applying…"
+    disp_send(specs, function(ok)
+        if not ok then
+            disp_before = nil
+            return
+        end
+        disp_trial = DISP_TRIAL
+        fact.disp_trial = DISP_TRIAL
+        disp_trial_text()
+        text.disp_msg = ""
+    end)
+end
+
+every(1000, function()
+    if disp_trial <= 0 then return end
+    disp_trial = disp_trial - 1
+    fact.disp_trial = disp_trial
+    if disp_trial <= 0 then
+        disp_revert()
+    else
+        disp_trial_text()
+    end
+end)
+
+-- ── the page's events ──
+local function disp_edit(fn)
+    local m = disp_mons[disp_sel]
+    if not m then return end
+    fn(m, disp_draft[m.name])
+    disp_render()
+end
+on("disp_pick_mon", function(i) disp_sel = math.max(1, math.min(#disp_mons, i + 1)); disp_render() end)
+on("disp_pick_res", function(i)
+    disp_edit(function(m, d)
+        local order, by = disp_options(m)
+        local res = order[i + 1]
+        if not res then return end
+        d.res = res
+        -- keep the refresh rate if the new resolution has it, else the highest
+        local has = false
+        for _, hz in ipairs(by[res]) do if hz == d.hz then has = true end end
+        if not has then d.hz = by[res][1] end
+    end)
+end)
+on("disp_pick_hz", function(i)
+    disp_edit(function(m, d)
+        local _, by = disp_options(m)
+        local hz = (by[d.res] or {})[i + 1]
+        if hz then d.hz = hz end
+    end)
+end)
+on("disp_pick_scale", function(i) disp_edit(function(_, d) d.scale = DISP_SCALES[i + 1] or d.scale end) end)
+on("disp_pick_rot", function(i) disp_edit(function(_, d) d.transform = i end) end)
+-- The sliders: SDR brightness from 1.0 to 2.0, saturation from 0.9 to 1.1, in hundredths.
+on("disp_sdrb_set", function(t) disp_edit(function(_, d) d.sdrb = math.floor((1 + math.max(0, math.min(1, t))) * 100 + 0.5) / 100 end) end)
+on("disp_sdrs_set", function(t) disp_edit(function(_, d) d.sdrs = math.floor((0.9 + 0.2 * math.max(0, math.min(1, t))) * 100 + 0.5) / 100 end) end)
+on("disp_apply", disp_apply)
+on("disp_keep", disp_keep)
+on("disp_revert", disp_revert)
+on("disp_reset", function()
+    for _, m in ipairs(disp_mons) do disp_draft[m.name] = disp_spec_of(m) end
+    disp_render()
+end)
+on("disp_refresh", function() disp_read() end)
+
+-- Dragging a monitor on the canvas: the page says where the pointer is (canvas units, in `fact.disp_px/py`) when it
+-- grabs a box and as it moves; the box keeps the distance it was grabbed at, and snaps to the edges of the others.
+on("disp_grab", function()
+    local i = fact.disp_grab_i + 1
+    local m = disp_mons[i]
+    if not m or not disp_grab_origin then return end
+    disp_sel = i
+    local d = disp_draft[m.name]
+    local f, o = disp_grab_scale, disp_grab_origin
+    disp_grab = { i = i, dx = fact.disp_px - (o.ox + (d.x - o.x0) * f), dy = fact.disp_py - (o.oy + (d.y - o.y0) * f) }
+    disp_render()
+end)
+on("disp_drag", function()
+    if not disp_grab or not disp_grab_origin then return end
+    local m = disp_mons[disp_grab.i]
+    if not m then return end
+    local d = disp_draft[m.name]
+    local f, o = disp_grab_scale, disp_grab_origin
+    local x = o.x0 + (fact.disp_px - disp_grab.dx - o.ox) / f
+    local y = o.y0 + (fact.disp_py - disp_grab.dy - o.oy) / f
+    local w, h = disp_size(m, d)
+    local snap = 40 / f * 0.4              -- a few canvas pixels, in real ones
+    for _, other in ipairs(disp_mons) do
+        if other ~= m then
+            local od = disp_draft[other.name]
+            local ow, oh = disp_size(other, od)
+            -- edge to edge, and lined up on the other axis
+            local xs = { od.x + ow, od.x - w, od.x, od.x + ow - w }
+            local ys = { od.y + oh, od.y - h, od.y, od.y + oh - h }
+            for _, c in ipairs(xs) do if math.abs(x - c) < snap then x = c end end
+            for _, c in ipairs(ys) do if math.abs(y - c) < snap then y = c end end
+        end
+    end
+    d.x, d.y = math.floor(x + 0.5), math.floor(y + 0.5)
+    disp_render()
+end)
+on("disp_drop", function() disp_grab = nil end)
+-- Buttons over the canvas: side by side, or the two swapped.
+on("disp_arrange", function()
+    local x = 0
+    for _, m in ipairs(disp_mons) do
+        local d = disp_draft[m.name]
+        local w = disp_size(m, d)
+        d.x, d.y = x, 0
+        x = x + w
+    end
+    disp_render()
+end)
+on("disp_swap", function()
+    -- the order left to right, turned round, and packed side by side again
+    if #disp_mons < 2 then return end
+    local order = {}
+    for _, m in ipairs(disp_mons) do order[#order + 1] = m end
+    table.sort(order, function(a, b) return disp_draft[a.name].x < disp_draft[b.name].x end)
+    local x = 0
+    for i = #order, 1, -1 do
+        local d = disp_draft[order[i].name]
+        local w = disp_size(order[i], d)
+        d.x, d.y = x, 0
+        x = x + w
+    end
+    disp_render()
+end)
+
+-- ── profiles ──
+local function disp_topology_key()
+    local keys = {}
+    for _, m in ipairs(disp_mons) do keys[#keys + 1] = m.key end
+    table.sort(keys)
+    return table.concat(keys, " + ")
+end
+on("disp_profile_save", function()
+    if #disp_mons == 0 then return end
+    local key = disp_topology_key()
+    local specs = {}
+    for _, m in ipairs(disp_mons) do specs[m.name] = disp_spec_of(m) end
+    -- a set of displays has one profile: saving again replaces it
+    for i, p in ipairs(disp_profiles) do
+        if p.key == key then table.remove(disp_profiles, i) break end
+    end
+    local name = ((text.disp_profile_name or ""):gsub("^%s+", ""):gsub("%s+$", ""))
+    if name == "" then name = "Profile " .. (#disp_profiles + 1) end
+    table.insert(disp_profiles, 1, { name = name, key = key, mons = specs })
+    while #disp_profiles > 6 do table.remove(disp_profiles) end
+    text.disp_profile_name = ""
+    disp_profiles_save()
+    disp_render()
+    text.disp_msg = "Saved “" .. name .. "”."
+end)
+on("disp_profile_apply", function(i)
+    local p = disp_profiles[i + 1]
+    if not p then return end
+    for name, spec in pairs(p.mons) do
+        if disp_draft[name] then disp_draft[name] = disp_copy(spec) end
+    end
+    disp_render()
+    disp_apply()
+end)
+on("disp_profile_delete", function(i)
+    table.remove(disp_profiles, i + 1)
+    disp_profiles_save()
+    disp_render()
+end)
+on("disp_auto_toggle", function()
+    disp_auto = not disp_auto
+    disp_profiles_save()
+    fact.disp_auto = disp_auto
+end)
+
+-- Plugging a display in or out: the set of displays that is there changes, and if a profile was saved for exactly
+-- that set (and automatic arrangement is on) it is put on, without the trial: it is one the user has already kept.
+local function disp_watch()
+    disp_read(function()
+        local key = disp_topology_key()
+        if disp_key_seen ~= nil and key ~= disp_key_seen and disp_auto and disp_trial <= 0 then
+            for _, p in ipairs(disp_profiles) do
+                if p.key == key then
+                    local specs = {}
+                    for name, spec in pairs(p.mons) do
+                        if disp_draft[name] then specs[name] = disp_copy(spec) end
+                    end
+                    disp_key_seen = key
+                    disp_send(specs, function() text.disp_msg = "Put on the profile “" .. p.name .. "”." end)
+                    return
+                end
+            end
+        end
+        disp_key_seen = key
+    end)
+end
+
+do
+    local ok, saved = pcall(sys.ask, "files.read", "display-profiles.json", "json")
+    if ok and type(saved) == "table" then
+        if type(saved.auto) == "boolean" then disp_auto = saved.auto end
+        if type(saved.profiles) == "table" then disp_profiles = saved.profiles end
+    end
+    local ok2, kept = pcall(sys.ask, "files.read", "display.json", "json")
+    if ok2 and type(kept) == "table" and type(kept.saved) == "table" then disp_saved = kept.saved end
+end
+disp_read()
+every(5000, function() if disp_trial <= 0 and disp_grab == nil then disp_watch() end end)
+end
 
 -- ── Weather, for the calendar panel ──────────────────────────────────────────────────────
 -- Fetched from Open-Meteo, as in Synoptik: the place is found by IP (ipwho.is) unless `location` is set
