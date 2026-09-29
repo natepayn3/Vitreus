@@ -55,15 +55,17 @@ on("media_next", function() sys.call("media.next") end)
 
 -- ── The wallpaper, made ready before it is needed ────────────────────────────────────────────────────
 -- A lock has to be instant, so the two pictures it uses are made ahead of time, each time the wallpaper
--- changes: a sharp one, and one already blurred, at half the size of the screen's worth of pixels (a blur that small and smooth is cheap to
--- draw; one made at a tenth of that size showed as round blobs when stretched over the screen). The names carry a hash of the wallpaper's path, so a new
+-- changes: a sharp one, and one already blurred (a blur that smooth needs few pixels; one made at a tenth of the
+-- screen's showed as round blobs when stretched over it). The names carry a hash of the wallpaper's path, so a new
 -- wallpaper is a new file and never a stale cached one.
 --
--- An `image` is declared with a fixed size, 1920 x 1080 in the scene, and the picture is fitted inside that
--- cell and then the cell is stretched over the screen. So both pictures are made exactly 16:9 (the cell), from
--- the wallpaper cropped to the MONITOR's shape and then squashed to fit it: drawn over the screen, the cell
--- stretches them back to the shape they had. (The renderer will not hold a bigger picture than that, and the
--- sharp one is only on screen while it blurs away.)
+-- An `image` is declared with a fixed size in the scene (1280 x 720 for the sharp one, 960 x 540 for the blur), and
+-- the picture is fitted inside that cell and then the cell is stretched over the screen. So both pictures are made
+-- exactly 16:9 (the cell), from the wallpaper cropped to the MONITOR's shape and then squashed to fit it: drawn over
+-- the screen, the cell stretches them back to the shape they had. They are small on purpose: pleamar keeps images and
+-- glyphs in one 2048 x 2048 texture, and two 1920 x 1080 pictures filled it, so the clock's new digits had no room and
+-- were not painted. The blur is smooth, so half the pixels lose nothing; the sharp one is only on screen while it
+-- blurs away.
 local prep_busy = false
 local made_key = nil
 
@@ -73,22 +75,28 @@ local function hash(str)
     return tostring(h)
 end
 
--- The renderer only picks up a picture whose path was there when the scene was read: one published later
--- draws nothing on the lock (measured: paths set while running, blank; the same paths after a reload, drawn).
--- So a new wallpaper is published and then the scene is reloaded, by touching its own file. It only ever
--- happens while unlocked, since `prepare_wallpaper` does not run when locked.
-local function publish(s, b)
-    local changed = text.wp_sharp ~= s or text.wp_blur ~= b
-    if text.wp_sharp ~= s then text.wp_sharp = s end
-    if text.wp_blur ~= b then text.wp_blur = b end
-    fact.has_wall = true
-    if changed and home ~= "" then
-        after(300, function()
-            if not fact.locked then
-                run("touch", { home .. "/.config/pleamar/shells/vitreus/lockscreen/lockscreen.plm" }, function() end)
+-- What the scene draws is always the same two files, `sharp.jpg` and `blur.jpg`, overwritten with the new
+-- wallpaper's pictures and asked for again by a version on the end of the path (`blur.jpg?7`): that is how pleamar
+-- is told a file written under the same name has changed. (A scene that instead was pointed at a new file
+-- name each time, and had the old files deleted, drew nothing on the lock: it went on asking for a path that
+-- was gone.) The pictures made for each wallpaper are kept under their own names, one pair at a time.
+local publish_count = 0
+
+local function publish(s, b, done)
+    local dir = home .. "/.cache/pleamar/lockscreen"
+    local fs, fb = dir .. "/sharp.jpg", dir .. "/blur.jpg"
+    run("cp", { "-f", s, fs }, function(_, c1)
+        run("cp", { "-f", b, fb }, function(_, c2)
+            if c1 == 0 and c2 == 0 then
+                publish_count = publish_count + 1
+                local version = "?" .. (os.time() * 100 + publish_count % 100)
+                text.wp_sharp = fs .. version
+                text.wp_blur = fb .. version
+                fact.has_wall = true
             end
+            if done then done() end
         end)
-    end
+    end)
 end
 
 local function prepare_wallpaper()
@@ -101,32 +109,38 @@ local function prepare_wallpaper()
         local path = line:match("currently displaying: image: (.-)%s*$")
         local geo = line:match("%d+x%d+")
         if not path or not geo then return done() end
-        local key = hash("3 " .. path)
+        local key = hash("4 " .. path)
         if key == made_key then return done() end
         local s, b = dir .. "/sharp-" .. key .. ".jpg", dir .. "/blur-" .. key .. ".jpg"
+        -- the pictures of every earlier wallpaper are of no use any more (the two the scene draws are not theirs)
+        local function forget_old()
+            run("ls", { dir }, function(listing)
+                for name in (listing or ""):gmatch("[^\n]+") do
+                    if (name:match("^sharp%-%d+%.jpg$") or name:match("^blur%-%d+%.jpg$")) and not name:find("-" .. key .. ".jpg", 1, true) then
+                        run("rm", { "-f", dir .. "/" .. name }, function() end)
+                    end
+                end
+            end)
+        end
         run("ls", { s, b }, function(_, code)
             if code == 0 then
                 made_key = key
-                publish(s, b)
-                return done()
+                publish(s, b, done)
+                return
             end
             run("mkdir", { "-p", dir }, function()
-                run("magick", { path, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "1920x1080!", "-quality", "90", s }, function(_, c1)
+                run("magick", { path, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "1280x720!", "-quality", "90", s }, function(_, c1)
                     if c1 ~= 0 then return done() end
-                    run("magick", { path, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "960x", "-blur", "0x18", "-resize", "1920x1080!", "-quality", "95", "-sampling-factor", "4:4:4", b }, function(_, c2)
+                    run("magick", { path, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "480x", "-blur", "0x9", "-resize", "960x540!", "-quality", "95", "-sampling-factor", "4:4:4", b }, function(_, c2)
                         if c2 == 0 then
                             made_key = key
-                            publish(s, b)
-                            -- the pictures of every earlier wallpaper are of no use any more
-                            run("ls", { dir }, function(listing)
-                                for name in (listing or ""):gmatch("[^\n]+") do
-                                    if not name:find("-" .. key .. ".jpg", 1, true) then
-                                        run("rm", { "-f", dir .. "/" .. name }, function() end)
-                                    end
-                                end
+                            publish(s, b, function()
+                                forget_old()
+                                done()
                             end)
+                        else
+                            done()
                         end
-                        done()
                     end)
                 end)
             end)
@@ -189,26 +203,13 @@ on("clear", function()
 end)
 
 -- ── Locking and unlocking ────────────────────────────────────────────────────────────────────────────
-local scene_file = "/.config/pleamar/shells/vitreus/lockscreen/lockscreen.plm"
-local cleaning = false
-
 -- What has to happen once a lock is over, however it ended: nothing of it is left written (the password, its
--- shapes, the verdict), and the scene reloads itself. The renderer draws the wallpaper on the first lock after the
--- scene is read and on no later one (measured: locks after the first were black until a reload), so reloading once
--- the lock has gone makes the next lock a first one; what the scene knows survives a reload.
--- This is called from both ways a lock can end: from outside (`fact:locked`, which only fires for a change made from
--- outside the logic) and from the logic itself, when the password was right, which does not fire it.
+-- shapes, the verdict). This is called from both ways a lock can end: from outside (`fact:locked`, which only fires
+-- for a change made from outside the logic) and from the logic itself, when the password was right, which does not
+-- fire it.
 local function after_unlock()
-    if cleaning then return end
-    cleaning = true
     reset()
     fact.settled = false
-    after(700, function()
-        cleaning = false
-        if home ~= "" and not fact.locked then
-            run("touch", { home .. scene_file }, function() end)
-        end
-    end)
 end
 
 on("fact:locked", function(v)
