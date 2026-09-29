@@ -1360,6 +1360,7 @@ check_wallpaper()
 -- above then sees the change, which is also what re-runs Iris.
 local WP_PER_PAGE = 12
 local wp_files = {}
+local wp_view = {}                        -- wp_files narrowed by the colour filter: what the gallery pages over
 local wp_page = 0
 local wp_cur = nil
 local wp_dir = nil
@@ -1369,7 +1370,80 @@ sys.watch("clock", function(c)
     clock_seed = ((c.day * 24 + c.hour) * 60 + c.minute) * 60 + c.second
 end)
 
-local function wp_pages() return math.max(1, math.ceil(#wp_files / WP_PER_PAGE)) end
+local function wp_pages() return math.max(1, math.ceil(#wp_view / WP_PER_PAGE)) end
+
+-- ── colour filter ──────────────────────────────────────────────────────────────────────────────────────
+-- Each wallpaper is tagged with every colour it really has, not the one that covers the most. (Synoptik keeps
+-- only that one, and a dark night scene with neon signs is then just "black": the red, orange and pink that
+-- make it what it is never count. Counting every bucket with a few percent of the area is no better: the haze
+-- and tan of a landscape then make it "orange".) ImageMagick reduces it to 32 colours, each is put in a bucket
+-- (red, orange, ... black) and the areas are added up. A hue bucket is a tag when
+--   · it covers a lot (15 %): a dark blue night is blue, however dim, or
+--   · 3 % of the picture is VIVID in it (saturation and value both 0.4 or more): neon and flame count, haze does not;
+--   · for pink only, 3 % is enough of a soft, pale magenta (saturation 0.12): a glow reads as pink at a saturation
+--     where a tan would not read as orange.
+-- Black, white, gray and brown, which are about area, need 5 %. Once each, in the background, kept in
+-- `wallpaper-colors.json`. The filter, Random and the slideshow all work on what the filter leaves.
+local WP_BUCKETS = { "red", "orange", "yellow", "green", "cyan", "blue", "purple", "pink", "brown", "white", "gray", "black" }
+local WP_TAG_SHARE = 0.03
+local WP_RULE = 3                          -- which rule made the tags in the file: an older file is read again
+local wp_tags = {}                        -- path -> { bucket, ... }, the biggest first
+local wp_filter = nil                     -- a bucket name, or nil for every wallpaper
+local wp_analysing = 0                    -- how many are still waiting to be tagged
+
+local function wp_bucket(r, g, b)         -- 0..255 each; answers the bucket, the saturation and the value
+    r, g, b = r / 255, g / 255, b / 255
+    local mx, mn = math.max(r, g, b), math.min(r, g, b)
+    local v, d = mx, mx - mn
+    local sat = mx == 0 and 0 or d / mx
+    local h = 0
+    if d > 0 then
+        if mx == r then h = ((g - b) / d) % 6
+        elseif mx == g then h = (b - r) / d + 2
+        else h = (r - g) / d + 4 end
+        h = h * 60
+    end
+    local bucket
+    if v < 0.16 then bucket = "black"
+    elseif sat < 0.10 then bucket = v > 0.85 and "white" or "gray"
+    -- brown is a dark, only moderately saturated orange; a saturated dark red still reads as red
+    elseif h >= 10 and h <= 50 and v >= 0.15 and v <= 0.55 and sat >= 0.20 and sat <= 0.75 then bucket = "brown"
+    elseif h < 15 or h >= 345 then bucket = "red"
+    elseif h < 45 then bucket = "orange"
+    elseif h < 65 then bucket = "yellow"
+    elseif h < 170 then bucket = "green"
+    elseif h < 200 then bucket = "cyan"
+    elseif h < 255 then bucket = "blue"
+    elseif h < 290 then bucket = "purple"
+    else bucket = "pink" end
+    return bucket, sat, v
+end
+
+local function wp_count_text()
+    local n = #wp_files
+    local t = wp_filter and string.format("%d of %d", #wp_view, n) or (n .. " wallpapers")
+    if wp_analysing > 0 then t = t .. " · reading colours" end
+    text.wp_count = t
+end
+
+local function wp_rebuild_view()
+    if wp_filter then
+        wp_view = {}
+        for _, f in ipairs(wp_files) do
+            for _, tag in ipairs(wp_tags[f] or {}) do
+                if tag == wp_filter then
+                    wp_view[#wp_view + 1] = f
+                    break
+                end
+            end
+        end
+    else
+        wp_view = wp_files
+    end
+    wp_count_text()
+end
+
+local wp_load_tags                        -- set below, once the analysis is defined
 
 -- Thumbnails are cropped to exactly 16:9 by ImageMagick into a cache folder (`$XDG_CACHE_HOME/pleamar/
 -- vitreus/wp`, else under `$HOME/.cache`), once each: every tile the scene draws is then the same shape and
@@ -1403,7 +1477,7 @@ end
 local function wp_show_page()
     local rows, sel = {}, -1
     for i = 1, WP_PER_PAGE do
-        local f = wp_files[wp_page * WP_PER_PAGE + i]
+        local f = wp_view[wp_page * WP_PER_PAGE + i]
         if not f then break end
         local t = crop_path(f, "t")
         rows[i] = { thumb = wp_made[t] == true and t or f }
@@ -1420,7 +1494,7 @@ local function wp_refresh()
     if not wp_cache then return end
     local page, on = wp_page, {}
     for i = 1, WP_PER_PAGE do
-        local f = wp_files[wp_page * WP_PER_PAGE + i]
+        local f = wp_view[wp_page * WP_PER_PAGE + i]
         if f then on[#on + 1] = f end
     end
     wp_crop(on, "t", 260, 146, function()
@@ -1441,7 +1515,7 @@ wp_on_change = function(path)
     else
         text.wp_curpath = path
     end
-    for i, f in ipairs(wp_files) do
+    for i, f in ipairs(wp_view) do
         if f == path then wp_page = (i - 1) // WP_PER_PAGE break end
     end
     wp_refresh()
@@ -1456,6 +1530,93 @@ local function wp_apply(path)
         iris_last_wp = path
         run_iris(path)
     end
+end
+
+-- Tag every wallpaper that has no colour yet, three at a time so the shell stays quick.
+local function wp_tags_write()
+    local out = { rule = WP_RULE }
+    for path, tags in pairs(wp_tags) do out[path] = tags end
+    pcall(sys.call, "files.write", "wallpaper-colors.json", out)
+end
+
+local WP_NEUTRAL = { black = true, white = true, gray = true, brown = true }
+
+local function wp_analyse_one(f, done)
+    run("magick", { f .. "[0]", "-thumbnail", "100x100", "-colors", "32", "-format", "%c", "histogram:info:" }, function(out, code)
+        if code == 0 and out then
+            local area, vivid, soft_pink, total = {}, {}, 0, 0
+            for count, r, g, b in out:gmatch("(%d+):%s*%(%s*([%d%.]+)%s*,%s*([%d%.]+)%s*,%s*([%d%.]+)") do
+                local n = tonumber(count)
+                local bk, sat, val = wp_bucket(tonumber(r), tonumber(g), tonumber(b))
+                area[bk] = (area[bk] or 0) + n
+                total = total + n
+                if sat >= 0.40 and val >= 0.40 then vivid[bk] = (vivid[bk] or 0) + n end
+                if bk == "pink" and sat >= 0.12 and val >= 0.25 then soft_pink = soft_pink + n end
+            end
+            local order = {}
+            for bk in pairs(area) do order[#order + 1] = bk end
+            table.sort(order, function(x, y) return area[x] > area[y] end)
+            local tags = {}
+            for _, bk in ipairs(order) do
+                local share, live = area[bk] / total, (vivid[bk] or 0) / total
+                local keep
+                if WP_NEUTRAL[bk] then
+                    keep = share >= 0.05
+                else
+                    keep = share >= 0.15 or live >= WP_TAG_SHARE or (bk == "pink" and soft_pink / total >= WP_TAG_SHARE)
+                end
+                if keep then tags[#tags + 1] = bk end
+            end
+            if #tags == 0 and order[1] then tags[1] = order[1] end
+            if #tags > 0 then wp_tags[f] = tags end
+        end
+        done()
+    end)
+end
+
+local function wp_analyse_missing()
+    local todo = {}
+    for _, f in ipairs(wp_files) do
+        if wp_tags[f] == nil then todo[#todo + 1] = f end
+    end
+    wp_analysing = #todo
+    wp_count_text()
+    if #todo == 0 then return end
+    local nexti, active, finished = 1, 0, 0
+    local function pump()
+        while active < 3 and nexti <= #todo do
+            local f = todo[nexti]
+            nexti = nexti + 1
+            active = active + 1
+            wp_analyse_one(f, function()
+                active = active - 1
+                finished = finished + 1
+                wp_analysing = #todo - finished
+                if finished % 8 == 0 or wp_analysing == 0 then
+                    wp_tags_write()
+                    if wp_filter then
+                        wp_rebuild_view()
+                        wp_refresh()
+                    else
+                        wp_count_text()
+                    end
+                end
+                pump()
+            end)
+        end
+    end
+    pump()
+end
+
+wp_load_tags = function()
+    local ok, saved = pcall(sys.ask, "files.read", "wallpaper-colors.json", "json")
+    if ok and type(saved) == "table" and saved.rule == WP_RULE then
+        for path, tags in pairs(saved) do
+            if type(tags) == "table" then wp_tags[path] = tags end
+        end
+    end
+    wp_rebuild_view()
+    wp_analyse_missing()
 end
 
 local function wp_load()
@@ -1480,14 +1641,16 @@ local function wp_load()
                         wp_files[#wp_files + 1] = wp_dir .. "/" .. name
                     end
                 end
+                wp_rebuild_view()
                 if wp_cur then wp_on_change(wp_cur) else wp_refresh() end
+                wp_load_tags()
             end)
         end)
     end)
 end
 
 on("wp_pick", function(i)
-    local f = wp_files[wp_page * WP_PER_PAGE + i + 1]
+    local f = wp_view[wp_page * WP_PER_PAGE + i + 1]
     if f then wp_apply(f) end
 end)
 on("wp_prev", function()
@@ -1500,12 +1663,89 @@ on("wp_next", function()
     if wp_page >= wp_pages() then wp_page = 0 end
     wp_refresh()
 end)
-on("wp_random", function()
-    if #wp_files < 2 then return end
+-- A random one from what the colour filter leaves, never the one already in use.
+local function wp_random_pick()
+    local pool = wp_view
+    if #pool == 0 or (#pool == 1 and pool[1] == wp_cur) then return nil end
     math.randomseed(clock_seed)
     local f
-    repeat f = wp_files[math.random(1, #wp_files)] until f ~= wp_cur
-    wp_apply(f)
+    repeat f = pool[math.random(1, #pool)] until f ~= wp_cur
+    return f
+end
+on("wp_random", function()
+    local f = wp_random_pick()
+    if f then wp_apply(f) end
+end)
+
+-- A colour swatch: filters the gallery, Random and the slideshow to it; the lit one, pressed again, clears it.
+on("wp_filter_set", function(i)
+    local name = WP_BUCKETS[i + 1]
+    wp_filter = (name ~= nil and wp_filter ~= name) and name or nil
+    fact.wp_filter = wp_filter and i or -1
+    wp_page = 0
+    wp_rebuild_view()
+    wp_refresh()
+end)
+
+-- ── slideshow ────────────────────────────────────────────────────────────────────────────────────────
+-- A timer that puts a random wallpaper (from what the filter leaves) on every so many minutes. The setting
+-- is kept in `wallpaper.json`. A wallpaper change re-runs Iris, so the palette follows.
+local WP_STEPS = { 1, 2, 5, 10, 15, 30, 60, 120, 240, 480 }
+local wp_show, wp_mins, wp_next = false, 5, 0
+
+local function wp_show_save()
+    pcall(sys.call, "files.write", "wallpaper.json", { slideshow = wp_show, minutes = wp_mins })
+end
+local function wp_show_refresh()
+    fact.wp_show = wp_show
+    text.wp_mins_text = wp_mins < 60 and (wp_mins .. " min") or ((wp_mins // 60) .. (wp_mins == 60 and " hour" or " hours"))
+    if wp_show then
+        local r = math.max(0, wp_next - os.time())
+        if r >= 3600 then
+            text.wp_show_sub = string.format("Next change in %d:%02d:%02d", r // 3600, (r % 3600) // 60, r % 60)
+        else
+            text.wp_show_sub = string.format("Next change in %d:%02d", r // 60, r % 60)
+        end
+    else
+        text.wp_show_sub = "Puts a random wallpaper on, on a timer"
+    end
+end
+
+do
+    local ok, saved = pcall(sys.ask, "files.read", "wallpaper.json", "json")
+    if ok and type(saved) == "table" then
+        wp_show = saved.slideshow == true
+        if type(saved.minutes) == "number" and saved.minutes >= 1 then wp_mins = saved.minutes end
+    end
+    if wp_show then wp_next = os.time() + wp_mins * 60 end
+    wp_show_refresh()
+end
+
+on("wp_show_toggle", function()
+    wp_show = not wp_show
+    if wp_show then wp_next = os.time() + wp_mins * 60 end
+    wp_show_save()
+    wp_show_refresh()
+end)
+-- The interval's stepper: the next value up or down a short list (a minute, ... eight hours).
+on("wp_mins_step", function(d)
+    local at = 1
+    for i, m in ipairs(WP_STEPS) do
+        if m <= wp_mins then at = i end
+    end
+    wp_mins = WP_STEPS[math.max(1, math.min(#WP_STEPS, at + d))]
+    if wp_show then wp_next = os.time() + wp_mins * 60 end
+    wp_show_save()
+    wp_show_refresh()
+end)
+every(1000, function()
+    if not wp_show then return end
+    if os.time() >= wp_next then
+        wp_next = os.time() + wp_mins * 60
+        local f = wp_random_pick()
+        if f then wp_apply(f) end
+    end
+    wp_show_refresh()
 end)
 
 wp_load()

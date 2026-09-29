@@ -120,6 +120,15 @@ scene Vitreus {
     event wp_prev ->
     event wp_next ->
     event wp_random ->
+    //  The colour filter (twelve swatches; the lit one is `wp_filter`, -1 for none) and the slideshow.
+    fact wp_filter = -1
+    text wp_count = ""              // 57 wallpapers, or 12 of 57 with a colour picked
+    event wp_filter_set ->          // a swatch, by position
+    fact wp_show = false            // the slideshow is on
+    text wp_show_sub = ""           // Next change in 4:31
+    text wp_mins_text = ""          // 5 min
+    event wp_show_toggle ->
+    event wp_mins_step ->           // the stepper: -1 or 1 along a short list of intervals
     //  Weather, for the calendar panel: what it is now, and the week ahead. The logic fetches it (Open-Meteo)
     //  and gives each day a `kind`: 0 clear, 1 partly cloudy, 2 cloud, 3 fog, 4 rain, 5 snow, 6 storm.
     fact wx_ok = false
@@ -298,9 +307,11 @@ scene Vitreus {
     follow bt_on   = if(bt.powered, 1, 0)
     prop dnd_pill = 0 ~pop
     prop caf_pill = 0 ~pop
+    prop wp_show_pill = 0 ~pop
     prop dnd_wobble = 0 ~pop       // the bell, swung when DND flips
     follow dnd_pill = if(dnd_on, 1, 0)
     follow caf_pill = if(caf_on, 1, 0)
+    follow wp_show_pill = if(wp_show, 1, 0)
     on change dnd_on {
         dnd_wobble: -1 ~30ms
         dnd_wobble: 0 ~400ms after 60ms
@@ -751,7 +762,7 @@ scene Vitreus {
     follow osd_h = if(osd_kind == note, nt_h, 64)
     //  The settings panel: 620 wide. A header (36), then the sidebar and the page side by side (352).
     let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * u
-    let ss.hh = bar.h / 2 + (8 + 36 + 8 + 352 + 16) * u * ds0 + max(0, sag)
+    let ss.hh = bar.h / 2 + (8 + 36 + 8 + 456 + 16) * u * ds0 + max(0, sag)
     let os.w = (120 + 220 * (min(1, do0 * 1.6) + max(0, do0 - 1) * 0.6)) * u
     let os.hh = bar.h / 2 + (8 + osd_h + 16) * u * do0 + max(0, sag)
     let dm.w = (120 + 192 * (min(1, dm0 * 1.6) + max(0, dm0 - 1) * 0.6)) * u
@@ -1690,7 +1701,7 @@ scene Vitreus {
         on press set_x { panel = none }
 
         //  Sidebar: the sections, grouped. One so far.
-        box { at: sl + 75 * u, sby + 176 * u; size: 150 * u, 352 * u; corner: 14 * u; color: ink; opacity: 4% }
+        box { at: sl + 75 * u, sby + 228 * u; size: 150 * u, 456 * u; corner: 14 * u; color: ink; opacity: 4% }
         text "VISUALS" { at: floor(sl + 14 * u + 0.5), floor(sby + 18 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
         box { at: sl + 75 * u, sby + 42 * u; size: 134 * u, 28 * u; corner: 10 * u; color: mint; opacity: 16% }
         group {
@@ -1716,21 +1727,63 @@ scene Vitreus {
         zone box wp_rand_hit { at: spx + 195 * u, sby + 74 * u; size: 80 * u, 26 * u; corner: 13 * u; cursor: pointer }
         on press wp_rand_hit { emit wp_random }
 
-        //  Card two: the gallery, twelve at a time, with a pager.
-        box { at: spx + 219 * u, sby + 226 * u; size: 438 * u, 252 * u; corner: 14 * u; color: ink; opacity: veil }
-        text "WALLPAPER GALLERY" { at: floor(spx + 14 * u + 0.5), floor(sby + 116 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
-        text wp_dirtext { at: floor(spx + 424 * u + 0.5), floor(sby + 116 * u + 0.5); anchor: right center; size: 9.5 * u; width: 260 * u; lines: 1; align: right; color: faint; opacity: 70%; family: "Space Grotesk" }
+        //  Card two: the slideshow. A switch, and how often: a stepper along a short list of intervals.
+        box { at: spx + 219 * u, sby + 122 * u; size: 438 * u, 44 * u; corner: 14 * u; color: ink; opacity: veil }
+        text "Slideshow" { at: floor(spx + 14 * u + 0.5), floor(sby + 113 * u + 0.5); anchor: left center; size: 12.5 * u; weight: 700; color: ink; family: "Space Grotesk" }
+        text wp_show_sub { at: floor(spx + 14 * u + 0.5), floor(sby + 130 * u + 0.5); anchor: left center; size: 10 * u; width: 190 * u; lines: 1; color: if(wp_show, mint, faint); family: "Space Grotesk" }
+        group {
+            opacity: 40% + 60% * wp_show_pill
+            ellipse { at: spx + 250 * u, sby + 122 * u; radius: 11 * u; color: ink; opacity: 8% + 12% * wp_min_hit.hover }
+            box { at: spx + 250 * u, sby + 122 * u; size: 9 * u, 1.6 * u; corner: 0.8 * u; color: ink }
+            box { at: spx + 295 * u, sby + 122 * u; size: 58 * u, 24 * u; corner: 7 * u; color: ink; opacity: 8% }
+            text wp_mins_text { at: floor(spx + 295 * u + 0.5), floor(sby + 122 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 700; width: 56 * u; lines: 1; color: mint; family: "Space Grotesk" }
+            ellipse { at: spx + 340 * u, sby + 122 * u; radius: 11 * u; color: ink; opacity: 8% + 12% * wp_plus_hit.hover }
+            box { at: spx + 340 * u, sby + 122 * u; size: 9 * u, 1.6 * u; corner: 0.8 * u; color: ink }
+            box { at: spx + 340 * u, sby + 122 * u; size: 1.6 * u, 9 * u; corner: 0.8 * u; color: ink }
+        }
+        zone box wp_min_hit { at: spx + 250 * u, sby + 122 * u; size: 26 * u, 26 * u; corner: 13 * u; cursor: pointer }
+        zone box wp_plus_hit { at: spx + 340 * u, sby + 122 * u; size: 26 * u, 26 * u; corner: 13 * u; cursor: pointer }
+        on press wp_min_hit { emit wp_mins_step(-1) }
+        on press wp_plus_hit { emit wp_mins_step(1) }
+        body {
+            color: mix(off, mint, clamp(wp_show_pill, 0, 1))
+            box { at: spx + 405 * u, sby + 122 * u; size: 38 * u, 22 * u; corner: 11 * u }
+        }
+        box { at: spx + 397 * u + wp_show_pill * 16 * u, sby + 122 * u; size: (17 + 9 * clamp(4 * wp_show_pill * (1 - wp_show_pill), 0, 1)) * u, (17 - 3 * clamp(4 * wp_show_pill * (1 - wp_show_pill), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * wp_show_pill * (1 - wp_show_pill), 0, 1)) * u; color: ink }
+        zone box wp_show_hit { at: spx + 405 * u, sby + 122 * u; size: 46 * u, 30 * u; cursor: pointer }
+        on press wp_show_hit { emit wp_show_toggle }
+
+        //  Card three: the colour filter. Twelve swatches: the gallery, Random and the slideshow narrow to the
+        //  wallpapers whose dominant colour it is; the lit one, pressed again, clears it.
+        box { at: spx + 219 * u, sby + 174 * u; size: 438 * u, 44 * u; corner: 14 * u; color: ink; opacity: veil }
+        text "COLOR" { at: floor(spx + 14 * u + 0.5), floor(sby + 165 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+        text wp_count { at: floor(spx + 14 * u + 0.5), floor(sby + 182 * u + 0.5); anchor: left center; size: 9.5 * u; width: 100 * u; lines: 1; color: if(wp_filter >= 0, mint, faint); family: "Space Grotesk" }
+        repeat i in 0..12 {
+            let swx = spx + 124 * u + i * 26 * u
+            let lit = if(wp_filter == i, 1, 0)
+            box { at: swx, sby + 174 * u; size: (18 + 3 * lit) * u, (18 + 3 * lit) * u; corner: 5 * u; color: pick(i, #e53935, #fb8c00, #fdd835, #43a047, #00acc1, #1e88e5, #8e24aa, #ec407a, #6d4c41, #f5f5f5, #9e9e9e, #212121) }
+            box { at: swx, sby + 174 * u; size: (18 + 3 * lit) * u, (18 + 3 * lit) * u; corner: 5 * u; stroke: 1 * u; color: #000000; opacity: 35% }
+            box { at: swx, sby + 174 * u; size: 25 * u, 25 * u; corner: 7 * u; stroke: 2 * u; color: mint; opacity: lit * 100% }
+            zone box wp_sw.$i { at: swx, sby + 174 * u; size: 24 * u, 24 * u; corner: 6 * u; cursor: pointer }
+            on press wp_sw.$i { emit wp_filter_set(i) }
+        }
+
+        //  Card four: the gallery, twelve at a time, with a pager.
+        box { at: spx + 219 * u, sby + 330 * u; size: 438 * u, 252 * u; corner: 14 * u; color: ink; opacity: veil }
+        text "WALLPAPER GALLERY" { at: floor(spx + 14 * u + 0.5), floor(sby + 220 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+        text wp_dirtext { at: floor(spx + 424 * u + 0.5), floor(sby + 220 * u + 0.5); anchor: right center; size: 9.5 * u; width: 260 * u; lines: 1; align: right; color: faint; opacity: 70%; family: "Space Grotesk" }
+        text "No wallpaper of this color" { at: floor(spx + 219 * u + 0.5), floor(sby + 330 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: wps.count < 1 }
         row wp_grid {
-            at: floor(spx + 15 * u + 0.5), floor(sby + 134 * u + 0.5)
+            at: floor(spx + 15 * u + 0.5), floor(sby + 238 * u + 0.5)
             gap: 8 * u
             wrap: 4
             for w in wps { WpThumb(w, pick: wp_pick) }
         }
-        path { at: spx + 40 * u, sby + 334 * u; stroke: 1.6 * u; color: ink; opacity: 55% + 45% * wp_prev_hit.hover; move 3 * u, -5 * u; line -3 * u, 0; line 3 * u, 5 * u }
-        text wp_pager { at: floor(spx + 219 * u + 0.5), floor(sby + 334 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 600; width: 100 * u; lines: 1; color: faint; family: "Space Grotesk" }
-        path { at: spx + 398 * u, sby + 334 * u; stroke: 1.6 * u; color: ink; opacity: 55% + 45% * wp_next_hit.hover; move -3 * u, -5 * u; line 3 * u, 0; line -3 * u, 5 * u }
-        zone box wp_prev_hit { at: spx + 40 * u, sby + 334 * u; size: 30 * u, 28 * u; corner: 14 * u; cursor: pointer }
-        zone box wp_next_hit { at: spx + 398 * u, sby + 334 * u; size: 30 * u, 28 * u; corner: 14 * u; cursor: pointer }
+        path { at: spx + 40 * u, sby + 438 * u; stroke: 1.6 * u; color: ink; opacity: 55% + 45% * wp_prev_hit.hover; move 3 * u, -5 * u; line -3 * u, 0; line 3 * u, 5 * u }
+        text wp_pager { at: floor(spx + 219 * u + 0.5), floor(sby + 438 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 600; width: 100 * u; lines: 1; color: faint; family: "Space Grotesk" }
+        path { at: spx + 398 * u, sby + 438 * u; stroke: 1.6 * u; color: ink; opacity: 55% + 45% * wp_next_hit.hover; move -3 * u, -5 * u; line 3 * u, 0; line -3 * u, 5 * u }
+        zone box wp_prev_hit { at: spx + 40 * u, sby + 438 * u; size: 30 * u, 28 * u; corner: 14 * u; cursor: pointer }
+        zone box wp_next_hit { at: spx + 398 * u, sby + 438 * u; size: 30 * u, 28 * u; corner: 14 * u; cursor: pointer }
         on press wp_prev_hit { emit wp_prev }
         on press wp_next_hit { emit wp_next }
     }
