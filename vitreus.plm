@@ -7,7 +7,7 @@ import "palette.plm"
 //  bar: it is the same silhouette, melted, so it hangs from it like a drop.
 
 scene Vitreus {
-    surface { size: 900, 1100; anchor: top; margin: 0; reserve: 68; keyboard: exclusive while panel != none and panel != volume and panel != notif }
+    surface { size: 900, 800; anchor: top; margin: 0; reserve: 68; keyboard: exclusive while panel != none and panel != volume and panel != notif }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli" }
 
@@ -130,10 +130,16 @@ scene Vitreus {
     text glass_op_text = "100%"
     event glass_frost_set ->        // the Glass slider: 0..1 along its track
     event glass_op_set ->           // the Opacity slider: 0..1 along its track
+    event hy_layout_set ->
+    event hy_gaps_set ->
+    event hy_sens_set ->
+    event hy_follow_set ->
+    event hy_toggle ->
+    event hy_refresh ->
     event glass_reset ->
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
     //  panel's height, which follows the page).
-    fact set_page: pg_wall | pg_glass | pg_disp = pg_wall
+    fact set_page: pg_wall | pg_glass | pg_disp | pg_hypr = pg_wall
     //  The Display page: what the logic reads from Hyprland and the draft the page edits (see the Display
     //  section of vitreus.luau). `disp_boxes` is the canvas, one box per monitor, in canvas units.
     //  The canvas's boxes, the refresh-rate chips, the monitor pills and the profile rows are numbered slots.
@@ -162,6 +168,7 @@ scene Vitreus {
     text disp_res_text = ""
     measure disp_rw                 // how wide the resolution's text is: the dropdown is as wide as that needs
     fact disp_res_open = false      // the resolution dropdown is open
+    fact disp_scroll_to = 0         // where the Display page is scrolled to (unscaled units, from the top)
     fact disp_res_chars = 10        // how many characters the longest resolution in the list has
     fact disp_res_count = 0         // how many resolutions it lists
     fact disp_pcount = 0            // how many saved profiles there are (the card is as tall as they need)
@@ -415,8 +422,10 @@ scene Vitreus {
     prop wp_show_pill = 0 ~pop
     prop set_pg = 0 ~calm
     prop set_pgd = 0 ~calm
+    prop set_pgh = 0 ~calm
     prop disp_auto_pill = 0 ~pop
     prop disp_dd = 0 ~calm            // the resolution dropdown, 0 shut .. 1 open
+    prop disp_scroll = 0 ~quick       // the page's scroll, following disp_scroll_to
     prop disp_pn_s = 0 ~calm          // the profiles card's rows, smoothed: it grows and shrinks with them
     prop dnd_wobble = 0 ~pop       // the bell, swung when DND flips
     follow dnd_pill = if(dnd_on, 1, 0)
@@ -424,8 +433,29 @@ scene Vitreus {
     follow wp_show_pill = if(wp_show, 1, 0)
     follow set_pg = if(set_page == pg_glass, 1, 0)
     follow set_pgd = if(set_page == pg_disp, 1, 0)
+    follow set_pgh = if(set_page == pg_hypr, 1, 0)
+    //  Settings > Hyprland: what Hyprland has now (see the logic), and the toggles' knobs.
+    fact hy_layout = 3
+    fact hy_gaps = 5
+    fact hy_sens = 0
+    fact hy_follow = 1
+    fact hy_resize = false
+    fact hy_tear = false
+    fact hy_anim = true
+    fact hy_nat = false
+    text hy_gaps_text = "5 px"
+    text hy_sens_text = "0.00"
+    prop hy_k0 = 0 ~quick
+    prop hy_k1 = 0 ~quick
+    prop hy_k2 = 1 ~quick
+    prop hy_k3 = 0 ~quick
+    follow hy_k0 = if(hy_resize, 1, 0)
+    follow hy_k1 = if(hy_tear, 1, 0)
+    follow hy_k2 = if(hy_anim, 1, 0)
+    follow hy_k3 = if(hy_nat, 1, 0)
     follow disp_auto_pill = if(disp_auto, 1, 0)
     follow disp_dd = if(disp_res_open, 1, 0)
+    follow disp_scroll = disp_scroll_to
     follow disp_pn_s = disp_pcount
     on change dnd_on {
         dnd_wobble: -1 ~30ms
@@ -439,8 +469,8 @@ scene Vitreus {
         swap: 1 ~700ms after 30ms
     }
     follow dd = if(dd_open and panel == controls, 1, 0)
-    on change panel { dd_open = false; panel_sub = none; disp_res_open = false }
-    on change set_page { disp_res_open = false }
+    on change panel { dd_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0 }
+    on change set_page { disp_res_open = false; disp_scroll_to = 0; emit hy_refresh }
     on change panel { tasks_watch = panel == player }
     on pick_out { dd_open = false }
     follow pulse = bass
@@ -889,7 +919,7 @@ scene Vitreus {
     //  The Display page: its cards down to the profiles one, which is as tall as its rows (none: a line).
     let disp.prows = max(24, disp_pn_s * 30)
     let disp.h = 460 + disp.prows + 114
-    let set.h = mix(mix(456, 262, set_pg), disp.h, set_pgd)
+    let set.h = mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 392, set_pgh)
     let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * u
     let ss.hh = bar.h / 2 + (8 + 36 + 8 + set.h + 16) * u * ds0 + max(0, sag)
     let os.w = (120 + 220 * (min(1, do0 * 1.6) + max(0, do0 - 1) * 0.6)) * u
@@ -1822,11 +1852,13 @@ scene Vitreus {
         }
         text "SETTINGS" { at: floor(sl + 40 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 14 * u; weight: 700; color: ink; family: "Space Grotesk" }
         box { at: sl + 178 * u, hy; size: 132 * u, 22 * u; corner: 11 * u; color: ink; opacity: 6% }
-        text "VISUALS" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+        text "VISUALS" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 1 - set_pgh; family: "Space Grotesk" }
+        text "SYSTEM" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: set_pgh; family: "Space Grotesk" }
         path { at: sl + 168 * u, hy; stroke: 1.3 * u; color: faint; move -2 * u, -3.5 * u; line 2 * u, 0; line -2 * u, 3.5 * u }
-        text "Wallpaper" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd; family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgh; family: "Space Grotesk" }
         text "Display" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgd; family: "Space Grotesk" }
         text "Glass" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pg; family: "Space Grotesk" }
+        text "Hyprland" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgh; family: "Space Grotesk" }
         ellipse { at: cx + 282 * u, hy; radius: 13 * u; color: ink; opacity: 5% + 10% * set_x.hover }
         line { from: cx + 277.5 * u, hy - 4.5 * u; to: cx + 286.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
         line { from: cx + 286.5 * u, hy - 4.5 * u; to: cx + 277.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
@@ -1836,14 +1868,14 @@ scene Vitreus {
         //  Sidebar: the sections, grouped. One so far.
         box { at: sl + 75 * u, sby + set.h / 2 * u; size: 150 * u, set.h * u; corner: 14 * u; color: ink; opacity: 4% }
         text "VISUALS" { at: floor(sl + 14 * u + 0.5), floor(sby + 18 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
-        box { at: sl + 75 * u, sby + (42 + 32 * (set_pg + 2 * set_pgd)) * u; size: 134 * u, 28 * u; corner: 10 * u; color: mint; opacity: 16% }
+        box { at: sl + 75 * u, sby + mix(42 + 32 * (set_pg + 2 * set_pgd), 162, set_pgh) * u; size: 134 * u, 28 * u; corner: 10 * u; color: mint; opacity: 16% }
         group {
-            opacity: 100%
-            box { at: sl + 24 * u, sby + 42 * u; size: 13 * u, 10 * u; corner: 2 * u; stroke: 1.3 * u; color: mint }
-            path { at: sl + 24 * u, sby + 42 * u; color: mint; move -5 * u, 3 * u; line -1.5 * u, -1 * u; line 1 * u, 1.5 * u; line 2.5 * u, -1.5 * u; line 5 * u, 3 * u; close }
-            ellipse { at: sl + 27 * u, sby + 39 * u; radius: 1.2 * u; color: mint }
+            opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgh, 0, 1))
+            box { at: sl + 24 * u, sby + 42 * u; size: 13 * u, 10 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgh, 0, 1)) }
+            path { at: sl + 24 * u, sby + 42 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgh, 0, 1)); move -5 * u, 3 * u; line -1.5 * u, -1 * u; line 1 * u, 1.5 * u; line 2.5 * u, -1.5 * u; line 5 * u, 3 * u; close }
+            ellipse { at: sl + 27 * u, sby + 39 * u; radius: 1.2 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgh, 0, 1)) }
         }
-        text "Wallpaper" { at: floor(sl + 40 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(mint, ink, set_pg); opacity: 100% - 15% * set_pg; family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 40 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgh, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgh, 0, 1); family: "Space Grotesk" }
         //  Glass: a pane with a highlight across its corner.
         group {
             opacity: 65% + 35% * set_pg
@@ -1859,6 +1891,16 @@ scene Vitreus {
             line { from: sl + 20.5 * u, sby + 112.5 * u; to: sl + 27.5 * u, sby + 112.5 * u; width: 1.3 * u; color: mix(ink, mint, set_pgd) }
         }
         text "Display" { at: floor(sl + 40 * u + 0.5), floor(sby + 106 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(ink, mint, set_pgd); opacity: 85% + 15% * set_pgd; family: "Space Grotesk" }
+        text "SYSTEM" { at: floor(sl + 14 * u + 0.5), floor(sby + 140 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
+        //  Hyprland: a window with its title bar.
+        group {
+            opacity: 65% + 35% * set_pgh
+            box { at: sl + 24 * u, sby + 162 * u; size: 14 * u, 11 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(ink, mint, set_pgh) }
+            line { from: sl + 17 * u, sby + 160 * u; to: sl + 31 * u, sby + 160 * u; width: 1.3 * u; color: mix(ink, mint, set_pgh) }
+        }
+        text "Hyprland" { at: floor(sl + 40 * u + 0.5), floor(sby + 162 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(ink, mint, set_pgh); opacity: 85% + 15% * set_pgh; family: "Space Grotesk" }
+        zone box side_hy { at: sl + 75 * u, sby + 162 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
+        on press side_hy { set_page = pg_hypr }
         zone box side_dp { at: sl + 75 * u, sby + 106 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
         on press side_dp { set_page = pg_disp }
         zone box side_wp { at: sl + 75 * u, sby + 42 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
@@ -1867,8 +1909,8 @@ scene Vitreus {
         on press side_gl { set_page = pg_glass }
 
         group {
-            show: set_pg + set_pgd < 0.99
-            opacity: 1 - set_pg - set_pgd
+            show: set_pg + set_pgd + set_pgh < 0.99
+            opacity: 1 - set_pg - set_pgd - set_pgh
             //  The wallpaper page. Card one: the wallpaper in use, and Random.
             box { at: spx + 219 * u, sby + 46 * u; size: 438 * u, 92 * u; corner: 14 * u; color: ink; opacity: veil }
             group {
@@ -2011,6 +2053,89 @@ scene Vitreus {
             on press glass_reset_hit { emit glass_reset }
         }
 
+        //  The Hyprland page, after Synoptik's: layout and gaps, border resize and tearing, animations and input.
+        //  Every change goes to Hyprland at once and is kept for the next start (see the Hyprland section of
+        //  vitreus.luau). It fits the page, so it does not scroll.
+        group {
+            show: set_pgh > 0.01
+            opacity: set_pgh
+            let hsl.x0 = spx + 122 * u
+            let hsl.w = 250 * u
+            let hh = 12 * u
+
+            box { at: spx + 219 * u, sby + 86 * u; size: 438 * u, 172 * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: spx + 219 * u, sby + 213 * u; size: 438 * u, 58 * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: spx + 219 * u, sby + 323 * u; size: 438 * u, 138 * u; corner: 14 * u; color: ink; opacity: veil }
+            text "GENERAL & LAYOUT" { at: floor(spx + 14 * u + 0.5), floor(sby + 13 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text "ANIMATIONS" { at: floor(spx + 14 * u + 0.5), floor(sby + 197 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text "INPUT" { at: floor(spx + 14 * u + 0.5), floor(sby + 267 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+
+            //  Layout.
+            text "Layout" { at: floor(spx + 14 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+            repeat i in 0..3 {
+                let lx = spx + 164 * u + i * 90 * u
+                box { at: lx, sby + 42 * u; size: 84 * u, 24 * u; corner: 12 * u; color: if(hy_layout == i + 1, mint, ink); opacity: if(hy_layout == i + 1, 24%, 8% + 10% * hy_lay_hit.$i.hover) }
+                text pick(i, "Dwindle", "Master", "Scrolling") { at: floor(lx + 0.5), floor(sby + 42 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 80 * u; lines: 1; color: if(hy_layout == i + 1, mint, ink); family: "Space Grotesk" }
+                zone box hy_lay_hit.$i { at: lx, sby + 42 * u; size: 86 * u, 26 * u; corner: 13 * u; cursor: pointer }
+                on press hy_lay_hit.$i { emit hy_layout_set(i + 1) }
+            }
+
+            //  Gaps, 0 to 30 px.
+            text "Gaps" { at: floor(spx + 14 * u + 0.5), floor(sby + 78 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+            body { color: deep; rim: 9%; box { at: hsl.x0 + hsl.w / 2, sby + 78 * u; size: hsl.w, hh; corner: hh / 2 } }
+            group {
+                glow: 6 * u, 50%, mint
+                body {
+                    gradient: hsl.x0, 0 to hsl.x0 + hsl.w, 0, mintlo, mint 55%, minthi
+                    rim: 22%
+                    box { from: hsl.x0, sby + 78 * u - hh / 2; size: max(0.1, hsl.w * hy_gaps / 30), hh; corner: hh / 2 }
+                }
+            }
+            text hy_gaps_text { at: floor(spx + 424 * u + 0.5), floor(sby + 78 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
+            zone box hy_gaps_hit { at: hsl.x0 + hsl.w / 2, sby + 78 * u; size: hsl.w + 24 * u, 30 * u; cursor: pointer }
+            on press hy_gaps_hit { emit hy_gaps_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
+            on drag hy_gaps_hit { emit hy_gaps_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
+
+            //  Sensitivity, -1 to 1.
+            text "Sensitivity" { at: floor(spx + 14 * u + 0.5), floor(sby + 296 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+            body { color: deep; rim: 9%; box { at: hsl.x0 + hsl.w / 2, sby + 296 * u; size: hsl.w, hh; corner: hh / 2 } }
+            group {
+                glow: 6 * u, 50%, mint
+                body {
+                    gradient: hsl.x0, 0 to hsl.x0 + hsl.w, 0, mintlo, mint 55%, minthi
+                    rim: 22%
+                    box { from: hsl.x0, sby + 296 * u - hh / 2; size: max(0.1, hsl.w * (hy_sens + 1) / 2), hh; corner: hh / 2 }
+                }
+            }
+            box { at: hsl.x0 + hsl.w / 2, sby + 296 * u; size: 1.5 * u, hh + 6 * u; corner: 0.75 * u; color: ink; opacity: 40% }
+            text hy_sens_text { at: floor(spx + 424 * u + 0.5), floor(sby + 296 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
+            zone box hy_sens_hit { at: hsl.x0 + hsl.w / 2, sby + 296 * u; size: hsl.w + 24 * u, 30 * u; cursor: pointer }
+            on press hy_sens_hit { emit hy_sens_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
+            on drag hy_sens_hit { emit hy_sens_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
+
+            //  Focus follows the mouse: off, on, loose, full.
+            text "Follow mouse" { at: floor(spx + 14 * u + 0.5), floor(sby + 332 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+            repeat i in 0..4 {
+                let fx = spx + 152 * u + i * 66 * u
+                box { at: fx, sby + 332 * u; size: 60 * u, 24 * u; corner: 12 * u; color: if(hy_follow == i, mint, ink); opacity: if(hy_follow == i, 24%, 8% + 10% * hy_fol_hit.$i.hover) }
+                text pick(i, "Off", "On", "Loose", "Full") { at: floor(fx + 0.5), floor(sby + 332 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 56 * u; lines: 1; color: if(hy_follow == i, mint, ink); family: "Space Grotesk" }
+                zone box hy_fol_hit.$i { at: fx, sby + 332 * u; size: 62 * u, 26 * u; corner: 13 * u; cursor: pointer }
+                on press hy_fol_hit.$i { emit hy_follow_set(i) }
+            }
+
+            //  The switches: resize from the border, tearing, animations, natural scroll.
+            repeat i in 0..4 {
+                let ty = sby + pick(i, 114, 148, 222, 368) * u
+                let tk = pick(i, hy_k0, hy_k1, hy_k2, hy_k3)
+                text pick(i, "Resize from border", "Allow screen tearing", "Window manager animations", "Natural scroll (touchpad)") { at: floor(spx + 14 * u + 0.5), floor(ty - 6 * u + 0.5); anchor: left center; size: 11.5 * u; weight: 600; color: ink; family: "Space Grotesk" }
+                text pick(i, "Grab a window's edge anywhere to resize it", "Lets opted-in fullscreen apps skip vsync", "Hyprland's own window and workspace motion", "Reverses the touchpad's scroll direction") { at: floor(spx + 14 * u + 0.5), floor(ty + 8 * u + 0.5); anchor: left center; size: 9.5 * u; color: faint; family: "Space Grotesk" }
+                box { at: spx + 404 * u, ty; size: 40 * u, 22 * u; corner: 11 * u; color: mix(ink, mint, tk); opacity: 14% + 34% * tk + 8% * hy_tg_hit.$i.hover }
+                ellipse { at: spx + (404 - 9 + 18 * tk) * u, ty; radius: 8 * u; color: mix(ink, mint, tk); opacity: 80% + 20% * tk }
+                zone box hy_tg_hit.$i { at: spx + 219 * u, ty; size: 430 * u, 32 * u; corner: 10 * u; cursor: pointer }
+                on press hy_tg_hit.$i { emit hy_toggle(i) }
+            }
+        }
+
         //  The Display page, after Synoptik's: the monitors on a canvas you can drag them on, an inspector for the
         //  one that is selected (mode, refresh rate, scale, rotation, SDR levels), and saved profiles. What it
         //  edits is a draft; Apply sends it to Hyprland and the change is on trial until it is kept (see the Display
@@ -2018,21 +2143,32 @@ scene Vitreus {
         group {
             show: set_pgd > 0.01
             opacity: set_pgd
+            let disp.sc = clamp(disp_scroll, 0, max(0, disp.h - 456))     // how far the page is scrolled, unscaled
+            let disp.off = disp.sc * u
             let cvx = spx + 19 * u
             let cvy = sby + 26 * u
             let dtop = sby + 140 * u                      // the inspector card's top
             let ptop = sby + 460 * u                      // the profiles card's top
+
+            //  The page scrolls: everything below moves up by `disp.off` inside a viewport as tall as the Wallpaper page
+            //  (456), and only the controls that are in view are live, so one scrolled out of sight catches no click
+            //  (a clip does not stop a zone). The wheel is caught by the zone under everything else.
+            clip box { at: spx + 224 * u, sby + 228 * u; size: 456 * u, 456 * u }
+            zone box disp_wheel { at: spx + 219 * u, sby + 228 * u; size: 446 * u, 456 * u }
+            on scroll disp_wheel { disp_scroll_to = clamp(disp_scroll_to + wheel * 40, 0, max(0, disp.h - 456)) }
+            group {
+                move: 0, -disp.off
 
             //  ── Card one: the monitors ──
             box { at: spx + 219 * u, sby + 66 * u; size: 438 * u, 132 * u; corner: 14 * u; color: ink; opacity: veil }
             text "MONITORS" { at: floor(spx + 14 * u + 0.5), floor(sby + 13 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
             box { at: spx + 322 * u, sby + 13 * u; size: 92 * u, 20 * u; corner: 10 * u; color: ink; opacity: (8% + 10% * disp_arr_hit.hover) * (40% + 60% * clamp(disp_count - 1, 0, 1)) }
             text "Auto-arrange" { at: floor(spx + 322 * u + 0.5), floor(sby + 13 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 88 * u; lines: 1; color: ink; opacity: 85% * (40% + 60% * clamp(disp_count - 1, 0, 1)); family: "Space Grotesk" }
-            zone box disp_arr_hit { at: spx + 322 * u, sby + 13 * u; size: 94 * u, 22 * u; corner: 11 * u; cursor: pointer; active: disp_count > 1 }
+            zone box disp_arr_hit { at: spx + 322 * u, sby + 13 * u; size: 94 * u, 22 * u; corner: 11 * u; cursor: pointer; active: (disp_count > 1) and (sby + 13 * u) - disp.off > sby and (sby + 13 * u) - disp.off < sby + 456 * u }
             on press disp_arr_hit { emit disp_arrange }
             box { at: spx + 394 * u, sby + 13 * u; size: 48 * u, 20 * u; corner: 10 * u; color: ink; opacity: (8% + 10% * disp_swap_hit.hover) * (40% + 60% * clamp(disp_count - 1, 0, 1)) }
             text "Swap" { at: floor(spx + 394 * u + 0.5), floor(sby + 13 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 44 * u; lines: 1; color: ink; opacity: 85% * (40% + 60% * clamp(disp_count - 1, 0, 1)); family: "Space Grotesk" }
-            zone box disp_swap_hit { at: spx + 394 * u, sby + 13 * u; size: 50 * u, 22 * u; corner: 11 * u; cursor: pointer; active: disp_count > 1 }
+            zone box disp_swap_hit { at: spx + 394 * u, sby + 13 * u; size: 50 * u, 22 * u; corner: 11 * u; cursor: pointer; active: (disp_count > 1) and (sby + 13 * u) - disp.off > sby and (sby + 13 * u) - disp.off < sby + 456 * u }
             on press disp_swap_hit { emit disp_swap }
             box { at: cvx + 200 * u, cvy + 48 * u; size: 400 * u, 96 * u; corner: 10 * u; color: #000000; opacity: 22% }
             repeat i in 0..4 {
@@ -2045,9 +2181,9 @@ scene Vitreus {
                 ellipse { at: bx + bw - 7 * u, by + 7 * u; radius: 2.5 * u; color: mint; opacity: if(disp_b.$i.on and disp_b.$i.dirty, 100%, 0%) }
                 text disp_b.$i.name { at: floor(bx + bw / 2 + 0.5), floor(by + bh / 2 - 6 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 700; width: max(10 * u, bw - 8 * u); lines: 1; color: ink; show: disp_b.$i.on; family: "Space Grotesk" }
                 text disp_b.$i.mode { at: floor(bx + bw / 2 + 0.5), floor(by + bh / 2 + 7 * u + 0.5); anchor: center; align: center; size: 9 * u; width: max(10 * u, bw - 8 * u); lines: 1; color: faint; show: disp_b.$i.on and bh > 30 * u; family: "Space Grotesk" }
-                zone box disp_mz.$i { from: bx, by; size: bw, bh; cursor: grab; active: disp_b.$i.on }
-                on press disp_mz.$i { disp_grab_i = i; disp_px = (pointer.x - cvx) / u; disp_py = (pointer.y - cvy) / u; emit disp_grab }
-                on drag disp_mz.$i { disp_px = (pointer.x - cvx) / u; disp_py = (pointer.y - cvy) / u; emit disp_drag }
+                zone box disp_mz.$i { from: bx, by; size: bw, bh; cursor: grab; active: (disp_b.$i.on) and (by + (bh) / 2) - disp.off > sby and (by + (bh) / 2) - disp.off < sby + 456 * u }
+                on press disp_mz.$i { disp_grab_i = i; disp_px = (pointer.x - cvx) / u; disp_py = (pointer.y - (cvy - disp.off)) / u; emit disp_grab }
+                on drag disp_mz.$i { disp_px = (pointer.x - cvx) / u; disp_py = (pointer.y - (cvy - disp.off)) / u; emit disp_drag }
                 on release disp_mz.$i { emit disp_drop }
             }
 
@@ -2058,7 +2194,7 @@ scene Vitreus {
                 let pxx = spx + 424 * u - 30 * u - i * 64 * u
                 box { at: pxx, dtop + 13 * u; size: 58 * u, 20 * u; corner: 10 * u; color: if(disp_sel == 3 - i, mint, ink); opacity: if(disp_pill.$i.on, if(disp_sel == 3 - i, 24%, 8% + 10% * disp_pill_hit.$i.hover), 0%) }
                 text disp_pill.$i.text { at: floor(pxx + 0.5), floor(dtop + 13 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 54 * u; lines: 1; color: if(disp_sel == 3 - i, mint, ink); show: disp_pill.$i.on; family: "Space Grotesk" }
-                zone box disp_pill_hit.$i { at: pxx, dtop + 13 * u; size: 60 * u, 22 * u; corner: 11 * u; cursor: pointer; active: disp_pill.$i.on }
+                zone box disp_pill_hit.$i { at: pxx, dtop + 13 * u; size: 60 * u, 22 * u; corner: 11 * u; cursor: pointer; active: (disp_pill.$i.on) and (dtop + 13 * u) - disp.off > sby and (dtop + 13 * u) - disp.off < sby + 456 * u }
                 on press disp_pill_hit.$i { emit disp_pick_mon(3 - i) }
             }
             text disp_title { at: floor(spx + 14 * u + 0.5), floor(dtop + 36 * u + 0.5); anchor: left center; size: 13 * u; weight: 700; color: ink; family: "Space Grotesk" }
@@ -2073,7 +2209,7 @@ scene Vitreus {
             box { from: rx0, dtop + 85 * u; size: rtw, 26 * u; corner: 13 * u; stroke: 1.2 * u; color: mint; opacity: 70% * disp_dd }
             text disp_res_text { at: floor(rx0 + 16 * u + 0.5), floor(dtop + 98 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: ink; measure: disp_rw; family: "Space Grotesk" }
             path { at: rx0 + rtw - 17 * u, dtop + 98 * u; stroke: 1.6 * u; color: ink; opacity: 60% + 40% * disp_res_hit.hover; move -4 * u, (-2 + 4 * disp_dd) * u; line 0, (2 - 4 * disp_dd) * u; line 4 * u, (-2 + 4 * disp_dd) * u }
-            zone box disp_res_hit { from: rx0, dtop + 85 * u; size: rtw, 26 * u; corner: 13 * u; cursor: pointer; active: disp_res_count > 1 }
+            zone box disp_res_hit { from: rx0, dtop + 85 * u; size: rtw, 26 * u; corner: 13 * u; cursor: pointer; active: (disp_res_count > 1) and (dtop + 85 * u + (26 * u) / 2) - disp.off > sby and (dtop + 85 * u + (26 * u) / 2) - disp.off < sby + 456 * u }
             on press disp_res_hit { toggle disp_res_open }
 
             //  Refresh rate: the rates this resolution has.
@@ -2082,7 +2218,7 @@ scene Vitreus {
                 let hx = spx + 148 * u + i * 56 * u                // 122 + half a chip: the shared left edge
                 box { at: hx, dtop + 130 * u; size: 52 * u, 24 * u; corner: 12 * u; color: if(disp_hz.$i.lit, mint, ink); opacity: if(disp_hz.$i.on, if(disp_hz.$i.lit, 24%, 8% + 10% * disp_hz_hit.$i.hover), 0%) }
                 text disp_hz.$i.text { at: floor(hx + 0.5), floor(dtop + 130 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 50 * u; lines: 1; color: if(disp_hz.$i.lit, mint, ink); show: disp_hz.$i.on; family: "Space Grotesk" }
-                zone box disp_hz_hit.$i { at: hx, dtop + 130 * u; size: 54 * u, 26 * u; corner: 13 * u; cursor: pointer; active: disp_hz.$i.on }
+                zone box disp_hz_hit.$i { at: hx, dtop + 130 * u; size: 54 * u, 26 * u; corner: 13 * u; cursor: pointer; active: (disp_hz.$i.on) and (dtop + 130 * u) - disp.off > sby and (dtop + 130 * u) - disp.off < sby + 456 * u }
                 on press disp_hz_hit.$i { emit disp_pick_hz(i) }
             }
 
@@ -2092,7 +2228,7 @@ scene Vitreus {
                 let sx = spx + 142 * u + i * 44 * u
                 box { at: sx, dtop + 162 * u; size: 40 * u, 24 * u; corner: 12 * u; color: if(disp_scale == i, mint, ink); opacity: if(disp_scale == i, 24%, 8% + 10% * disp_sc_hit.$i.hover) }
                 text pick(i, "Auto", "1.0×", "1.25×", "1.33×", "1.5×", "1.75×", "2.0×") { at: floor(sx + 0.5), floor(dtop + 162 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 38 * u; lines: 1; color: if(disp_scale == i, mint, ink); family: "Space Grotesk" }
-                zone box disp_sc_hit.$i { at: sx, dtop + 162 * u; size: 42 * u, 26 * u; corner: 13 * u; cursor: pointer }
+                zone box disp_sc_hit.$i { at: sx, dtop + 162 * u; size: 42 * u, 26 * u; corner: 13 * u; cursor: pointer; active: (dtop + 162 * u) - disp.off > sby and (dtop + 162 * u) - disp.off < sby + 456 * u }
                 on press disp_sc_hit.$i { emit disp_pick_scale(i) }
             }
 
@@ -2102,7 +2238,7 @@ scene Vitreus {
                 let rx = spx + 152 * u + i * 66 * u
                 box { at: rx, dtop + 194 * u; size: 60 * u, 24 * u; corner: 12 * u; color: if(disp_rot == i, mint, ink); opacity: if(disp_rot == i, 24%, 8% + 10% * disp_rot_hit.$i.hover) }
                 text pick(i, "Normal", "90°", "180°", "270°") { at: floor(rx + 0.5), floor(dtop + 194 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 56 * u; lines: 1; color: if(disp_rot == i, mint, ink); family: "Space Grotesk" }
-                zone box disp_rot_hit.$i { at: rx, dtop + 194 * u; size: 62 * u, 26 * u; corner: 13 * u; cursor: pointer }
+                zone box disp_rot_hit.$i { at: rx, dtop + 194 * u; size: 62 * u, 26 * u; corner: 13 * u; cursor: pointer; active: (dtop + 194 * u) - disp.off > sby and (dtop + 194 * u) - disp.off < sby + 456 * u }
                 on press disp_rot_hit.$i { emit disp_pick_rot(i) }
             }
 
@@ -2117,7 +2253,7 @@ scene Vitreus {
                 body { gradient: dsl.x0, 0 to dsl.x0 + dsl.w, 0, mintlo, mint 55%, minthi; rim: 22%; box { from: dsl.x0, dtop + 226 * u - dh / 2; size: max(0.1, dsl.w * clamp(disp_sdrb - 1, 0, 1)), dh; corner: dh / 2 } }
             }
             text disp_sdrb_text { at: floor(spx + 424 * u + 0.5), floor(dtop + 226 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
-            zone box disp_sdrb_hit { at: dsl.x0 + dsl.w / 2, dtop + 226 * u; size: dsl.w + 24 * u, 30 * u; cursor: pointer }
+            zone box disp_sdrb_hit { at: dsl.x0 + dsl.w / 2, dtop + 226 * u; size: dsl.w + 24 * u, 30 * u; cursor: pointer; active: (dtop + 226 * u) - disp.off > sby and (dtop + 226 * u) - disp.off < sby + 456 * u }
             on press disp_sdrb_hit { emit disp_sdrb_set(clamp((pointer.x - dsl.x0) / dsl.w, 0, 1)) }
             on drag disp_sdrb_hit { emit disp_sdrb_set(clamp((pointer.x - dsl.x0) / dsl.w, 0, 1)) }
             text "SDR saturation" { at: floor(spx + 14 * u + 0.5), floor(dtop + 256 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
@@ -2127,7 +2263,7 @@ scene Vitreus {
                 body { gradient: dsl.x0, 0 to dsl.x0 + dsl.w, 0, mintlo, mint 55%, minthi; rim: 22%; box { from: dsl.x0, dtop + 256 * u - dh / 2; size: max(0.1, dsl.w * clamp((disp_sdrs - 0.9) / 0.2, 0, 1)), dh; corner: dh / 2 } }
             }
             text disp_sdrs_text { at: floor(spx + 424 * u + 0.5), floor(dtop + 256 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
-            zone box disp_sdrs_hit { at: dsl.x0 + dsl.w / 2, dtop + 256 * u; size: dsl.w + 24 * u, 30 * u; cursor: pointer }
+            zone box disp_sdrs_hit { at: dsl.x0 + dsl.w / 2, dtop + 256 * u; size: dsl.w + 24 * u, 30 * u; cursor: pointer; active: (dtop + 256 * u) - disp.off > sby and (dtop + 256 * u) - disp.off < sby + 456 * u }
             on press disp_sdrs_hit { emit disp_sdrs_set(clamp((pointer.x - dsl.x0) / dsl.w, 0, 1)) }
             on drag disp_sdrs_hit { emit disp_sdrs_set(clamp((pointer.x - dsl.x0) / dsl.w, 0, 1)) }
 
@@ -2137,20 +2273,20 @@ scene Vitreus {
             text "HDR is experimental in Hyprland: some apps look washed out." { at: floor(spx + 14 * u + 0.5), floor(dtop + 300 * u + 0.5); anchor: left center; size: 9 * u; width: 300 * u; lines: 1; color: faint; opacity: 80%; show: disp_trial <= 0; family: "Space Grotesk" }
             box { at: spx + 314 * u, dtop + 294 * u; size: 56 * u, 24 * u; corner: 12 * u; color: ink; opacity: if(disp_trial <= 0, 8% + 10% * disp_reset_hit.hover, 0%) }
             text "Reset" { at: floor(spx + 314 * u + 0.5), floor(dtop + 294 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; color: ink; opacity: 85%; show: disp_trial <= 0; family: "Space Grotesk" }
-            zone box disp_reset_hit { at: spx + 314 * u, dtop + 294 * u; size: 58 * u, 26 * u; corner: 13 * u; cursor: pointer; active: disp_trial <= 0 }
+            zone box disp_reset_hit { at: spx + 314 * u, dtop + 294 * u; size: 58 * u, 26 * u; corner: 13 * u; cursor: pointer; active: (disp_trial <= 0) and (dtop + 294 * u) - disp.off > sby and (dtop + 294 * u) - disp.off < sby + 456 * u }
             on press disp_reset_hit { emit disp_reset }
             box { at: spx + 384 * u, dtop + 294 * u; size: 64 * u, 24 * u; corner: 12 * u; color: mint; opacity: if(disp_trial <= 0, (35% + 65% * if(disp_dirty, 1, 0)) * (85% + 15% * disp_apply_hit.hover), 0%) }
             text "Apply" { at: floor(spx + 384 * u + 0.5), floor(dtop + 294 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 700; color: onmint; show: disp_trial <= 0; family: "Space Grotesk" }
-            zone box disp_apply_hit { at: spx + 384 * u, dtop + 294 * u; size: 66 * u, 26 * u; corner: 13 * u; cursor: pointer; active: disp_trial <= 0 and disp_dirty }
+            zone box disp_apply_hit { at: spx + 384 * u, dtop + 294 * u; size: 66 * u, 26 * u; corner: 13 * u; cursor: pointer; active: (disp_trial <= 0 and disp_dirty) and (dtop + 294 * u) - disp.off > sby and (dtop + 294 * u) - disp.off < sby + 456 * u }
             on press disp_apply_hit { emit disp_apply }
             text disp_trial_text { at: floor(spx + 14 * u + 0.5), floor(dtop + 294 * u + 0.5); anchor: left center; size: 11 * u; weight: 600; width: 250 * u; lines: 1; color: mint; show: disp_trial > 0; family: "Space Grotesk" }
             box { at: spx + 314 * u, dtop + 294 * u; size: 64 * u, 24 * u; corner: 12 * u; color: ink; opacity: if(disp_trial > 0, 8% + 12% * disp_revert_hit.hover, 0%) }
             text "Revert" { at: floor(spx + 314 * u + 0.5), floor(dtop + 294 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; color: ink; show: disp_trial > 0; family: "Space Grotesk" }
-            zone box disp_revert_hit { at: spx + 314 * u, dtop + 294 * u; size: 66 * u, 26 * u; corner: 13 * u; cursor: pointer; active: disp_trial > 0 }
+            zone box disp_revert_hit { at: spx + 314 * u, dtop + 294 * u; size: 66 * u, 26 * u; corner: 13 * u; cursor: pointer; active: (disp_trial > 0) and (dtop + 294 * u) - disp.off > sby and (dtop + 294 * u) - disp.off < sby + 456 * u }
             on press disp_revert_hit { emit disp_revert }
             box { at: spx + 388 * u, dtop + 294 * u; size: 64 * u, 24 * u; corner: 12 * u; color: mint; opacity: if(disp_trial > 0, 85% + 15% * disp_keep_hit.hover, 0%) }
             text "Keep" { at: floor(spx + 388 * u + 0.5), floor(dtop + 294 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 700; color: onmint; show: disp_trial > 0; family: "Space Grotesk" }
-            zone box disp_keep_hit { at: spx + 388 * u, dtop + 294 * u; size: 66 * u, 26 * u; corner: 13 * u; cursor: pointer; active: disp_trial > 0 }
+            zone box disp_keep_hit { at: spx + 388 * u, dtop + 294 * u; size: 66 * u, 26 * u; corner: 13 * u; cursor: pointer; active: (disp_trial > 0) and (dtop + 294 * u) - disp.off > sby and (dtop + 294 * u) - disp.off < sby + 456 * u }
             on press disp_keep_hit { emit disp_keep }
 
             //  ── Card three: the profiles ──
@@ -2159,7 +2295,7 @@ scene Vitreus {
             text "Reapply when these displays are connected" { at: floor(spx + 350 * u + 0.5), floor(ptop + 13 * u + 0.5); anchor: right center; size: 9.5 * u; color: faint; family: "Space Grotesk" }
             body { color: mix(off, mint, disp_auto_pill); box { at: spx + 405 * u, ptop + 13 * u; size: 38 * u, 22 * u; corner: 11 * u } }
             box { at: spx + 397 * u + disp_auto_pill * 16 * u, ptop + 13 * u; size: (17 + 9 * clamp(4 * disp_auto_pill * (1 - disp_auto_pill), 0, 1)) * u, (17 - 3 * clamp(4 * disp_auto_pill * (1 - disp_auto_pill), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * disp_auto_pill * (1 - disp_auto_pill), 0, 1)) * u; color: ink }
-            zone box disp_auto_hit { at: spx + 405 * u, ptop + 13 * u; size: 46 * u, 30 * u; cursor: pointer }
+            zone box disp_auto_hit { at: spx + 405 * u, ptop + 13 * u; size: 46 * u, 30 * u; cursor: pointer; active: (ptop + 13 * u) - disp.off > sby and (ptop + 13 * u) - disp.off < sby + 456 * u }
             on press disp_auto_hit { emit disp_auto_toggle }
             text "Connected now: {disp_topo}" { at: floor(spx + 14 * u + 0.5), floor(ptop + 36 * u + 0.5); anchor: left center; size: 10.5 * u; width: 410 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
             text "No saved profiles yet" { at: floor(spx + 219 * u + 0.5), floor(ptop + 74 * u + 0.5); anchor: center; size: 11 * u; color: faint; opacity: 1 - clamp(disp_pn_s, 0, 1); show: disp_pcount < 1; family: "Space Grotesk" }
@@ -2172,22 +2308,22 @@ scene Vitreus {
                 text disp_p.$i.sub { at: floor(spx + 180 * u + 0.5), floor(ry + 13 * u + 0.5); anchor: left center; size: 10 * u; width: 150 * u; lines: 1; color: faint; show: disp_p.$i.on; family: "Space Grotesk" }
                 box { at: spx + 355 * u, ry + 13 * u; size: 52 * u, 20 * u; corner: 10 * u; color: mint; opacity: if(disp_p.$i.on, 16% + 14% * disp_pa_hit.$i.hover, 0%) }
                 text "Apply" { at: floor(spx + 355 * u + 0.5), floor(ry + 13 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; color: mint; show: disp_p.$i.on; family: "Space Grotesk" }
-                zone box disp_pa_hit.$i { at: spx + 355 * u, ry + 13 * u; size: 54 * u, 22 * u; corner: 11 * u; cursor: pointer; active: disp_p.$i.on and disp_trial <= 0 }
+                zone box disp_pa_hit.$i { at: spx + 355 * u, ry + 13 * u; size: 54 * u, 22 * u; corner: 11 * u; cursor: pointer; active: (disp_p.$i.on and disp_trial <= 0) and (ry + 13 * u) - disp.off > sby and (ry + 13 * u) - disp.off < sby + 456 * u }
                 on press disp_pa_hit.$i { emit disp_profile_apply(i) }
                 line { from: spx + 400.5 * u, ry + 9.5 * u; to: spx + 407.5 * u, ry + 16.5 * u; width: 1.4 * u; color: ink; opacity: if(disp_p.$i.on, 45% + 45% * disp_pd_hit.$i.hover, 0%) }
                 line { from: spx + 407.5 * u, ry + 9.5 * u; to: spx + 400.5 * u, ry + 16.5 * u; width: 1.4 * u; color: ink; opacity: if(disp_p.$i.on, 45% + 45% * disp_pd_hit.$i.hover, 0%) }
-                zone box disp_pd_hit.$i { at: spx + 404 * u, ry + 13 * u; size: 22 * u, 22 * u; corner: 11 * u; cursor: pointer; active: disp_p.$i.on }
+                zone box disp_pd_hit.$i { at: spx + 404 * u, ry + 13 * u; size: 22 * u, 22 * u; corner: 11 * u; cursor: pointer; active: (disp_p.$i.on) and (ry + 13 * u) - disp.off > sby and (ry + 13 * u) - disp.off < sby + 456 * u }
                 on press disp_pd_hit.$i { emit disp_profile_delete(i) }
             }
             box { at: spx + 130 * u, ptop + (62 + disp.prows + 21) * u; size: 232 * u, 26 * u; corner: 13 * u; color: ink; opacity: 8% }
             input disp_profile_name { at: spx + 26 * u, ptop + (62 + disp.prows + 12) * u; width: 210 * u; size: 11 * u; color: ink; family: "Space Grotesk"; placeholder: "Name for the current arrangement" }
             box { at: spx + 350 * u, ptop + (62 + disp.prows + 21) * u; size: 106 * u, 26 * u; corner: 13 * u; color: mint; opacity: 85% + 15% * disp_save_hit.hover }
             text "Save current" { at: floor(spx + 350 * u + 0.5), floor(ptop + (62 + disp.prows + 21) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 700; color: onmint; family: "Space Grotesk" }
-            zone box disp_save_hit { at: spx + 350 * u, ptop + (62 + disp.prows + 21) * u; size: 108 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            zone box disp_save_hit { at: spx + 350 * u, ptop + (62 + disp.prows + 21) * u; size: 108 * u, 28 * u; corner: 14 * u; cursor: pointer; active: (ptop + (62 + disp.prows + 21) * u) - disp.off > sby and (ptop + (62 + disp.prows + 21) * u) - disp.off < sby + 456 * u }
             on press disp_save_hit { emit disp_profile_save }
 
             //  ── The resolution dropdown, drawn last so its rows win the press over everything under it ──
-            zone box disp_res_catch { at: spx + 219 * u, dtop + 156 * u; size: 438 * u, 312 * u; active: disp_res_open }
+            zone box disp_res_catch { at: spx + 219 * u, dtop + 156 * u; size: 438 * u, 312 * u; active: (disp_res_open) and (dtop + 156 * u) - disp.off > sby and (dtop + 156 * u) - disp.off < sby + 456 * u }
             on press disp_res_catch { disp_res_open = false }
             group {
                 show: disp_dd > 0.02
@@ -2205,10 +2341,35 @@ scene Vitreus {
                     let ry = dtop + 116 * u + 5 * u + i * 24 * u + 12 * u
                     box { at: rx0 + rdw / 2, ry; size: rdw - 10 * u, 22 * u; corner: 11 * u; color: if(disp_r.$i.lit, mint, ink); opacity: if(disp_r.$i.on, if(disp_r.$i.lit, 24%, 0%) + 10% * disp_rr_hit.$i.hover, 0%) }
                     text disp_r.$i.text { at: floor(rx0 + 16 * u + 0.5), floor(ry + 0.5); anchor: left center; size: 11.5 * u; weight: 600; width: rdw - 24 * u; lines: 1; color: if(disp_r.$i.lit, mint, ink); show: disp_r.$i.on; family: "Space Grotesk" }
-                    zone box disp_rr_hit.$i { at: rx0 + rdw / 2, ry; size: rdw - 8 * u, 24 * u; corner: 12 * u; cursor: pointer; active: disp_r.$i.on and disp_res_open }
+                    zone box disp_rr_hit.$i { at: rx0 + rdw / 2, ry; size: rdw - 8 * u, 24 * u; corner: 12 * u; cursor: pointer; active: (disp_r.$i.on and disp_res_open) and (ry) - disp.off > sby and (ry) - disp.off < sby + 456 * u }
                     on press disp_rr_hit.$i { emit disp_pick_res(i); disp_res_open = false }
                 }
             }
+            }
+
+            //  The scrollbar: a thumb as tall as the viewport is of the page, shown when there is something to scroll to.
+            let thh = 456 * 456 / max(456, disp.h)
+            let thy = thh / 2 + disp.sc / max(1, disp.h - 456) * (456 - thh)
+            box { at: spx + 442 * u, sby + 228 * u; size: 3 * u, 456 * u; corner: 1.5 * u; color: ink; opacity: if(disp.h > 456, 6%, 0%) }
+            box { at: spx + 442 * u, sby + thy * u; size: 3 * u, thh * u; corner: 1.5 * u; color: mint; opacity: if(disp.h > 456, 55%, 0%) }
+            //  The cue that there is more below: the page fades into the panel and a small "More" pill bobs at the
+            //  foot of the view. It goes away at the end of the page, and pressing it scrolls a screenful down.
+            let cue = clamp((disp.h - 456 - disp.sc) / 24, 0, 1)
+            let cuey = sby + (456 - 26) * u + 2.5 * u * sin(time * 270)
+            repeat i in 0..16 {
+                let fk = (i + 1) / 16
+                box { from: spx - 4 * u, sby + (400 + i * 3.5) * u; size: 448 * u, 3.5 * u + 0.5; color: deep; opacity: 45% * fk * fk * cue }
+            }
+            box { at: spx + 224 * u, cuey; size: 76 * u, 26 * u; corner: 13 * u; color: deep; opacity: 80% * cue }
+            box { at: spx + 224 * u, cuey; size: 76 * u, 26 * u; corner: 13 * u; color: mint; opacity: (10% + 14% * disp_cue_hit.hover) * cue }
+            path { at: spx + 204 * u, cuey - 1 * u; stroke: 1.6 * u; color: mint; opacity: cue; move -4 * u, -3 * u; line 0, 1 * u; line 4 * u, -3 * u }
+            path { at: spx + 204 * u, cuey + 4 * u; stroke: 1.6 * u; color: mint; opacity: cue; move -4 * u, -3 * u; line 0, 1 * u; line 4 * u, -3 * u }
+            text "More" { at: spx + 232 * u, cuey; anchor: center; size: 11 * u; weight: 700; color: ink; opacity: cue; family: "Space Grotesk" }
+            zone box disp_cue_hit { at: spx + 224 * u, sby + (456 - 26) * u; size: 76 * u, 26 * u; corner: 13 * u; cursor: pointer; active: cue > 0.5 }
+            on press disp_cue_hit { disp_scroll_to = clamp(disp_scroll_to + 342, 0, max(0, disp.h - 456)) }
+            zone box disp_bar_hit { at: spx + 442 * u, sby + 228 * u; size: 14 * u, 456 * u; cursor: pointer; active: disp.h > 456 }
+            on press disp_bar_hit { disp_scroll_to = clamp(((pointer.y - sby) / u - thh / 2) / max(1, 456 - thh) * (disp.h - 456), 0, max(0, disp.h - 456)) }
+            on drag disp_bar_hit { disp_scroll_to = clamp(((pointer.y - sby) / u - thh / 2) / max(1, 456 - thh) * (disp.h - 456), 0, max(0, disp.h - 456)) }
         }
     }
     prop volume_level = 0 ~calm

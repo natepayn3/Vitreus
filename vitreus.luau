@@ -2479,3 +2479,100 @@ do
 end
 wx_refresh_now()
 every(1800000, wx_refresh_now)           -- every half hour
+
+-- ── Settings > Hyprland ───────────────────────────────────────────────────────────────────────────────────────
+-- Window-manager knobs after Synoptik's: layout, gaps, border resize, tearing, animations and input. The values
+-- shown are what Hyprland says now. A change is sent with `hyprctl eval` at once, and once it has settled it is
+-- written to vitreus_hypr.lua, which hyprland.lua loads after hypr_style.lua so it wins on the next start.
+do
+    local LAYOUTS = { "dwindle", "master", "scrolling" }
+    local hy = { layout = 3, gaps = 5, resize = false, tear = false, anim = true, sens = 0, follow = 1, nat = false }
+    local hy_dirty, hy_waiting = false, false
+
+    local function hy_show()
+        fact.hy_layout = hy.layout
+        fact.hy_gaps = hy.gaps
+        fact.hy_resize = hy.resize
+        fact.hy_tear = hy.tear
+        fact.hy_anim = hy.anim
+        fact.hy_sens = hy.sens
+        fact.hy_follow = hy.follow
+        fact.hy_nat = hy.nat
+        text.hy_gaps_text = string.format("%d px", hy.gaps)
+        text.hy_sens_text = string.format("%.2f", hy.sens)
+    end
+
+    local function b(v) return v and "true" or "false" end
+    local function hy_code()
+        return string.format(
+            "hl.config({ general = { gaps_in = %d, layout = \"%s\", resize_on_border = %s, allow_tearing = %s }, " ..
+            "animations = { enabled = %s }, input = { sensitivity = %.2f, follow_mouse = %d, touchpad = { natural_scroll = %s } } })",
+            hy.gaps, LAYOUTS[hy.layout], b(hy.resize), b(hy.tear), b(hy.anim), hy.sens, hy.follow, b(hy.nat))
+    end
+
+    local function hy_write_file()
+        local body = "-- Written by Vitreus (Settings > Hyprland); edits here are overwritten.\n" ..
+            "-- hyprland.lua loads it after hypr_style.lua, so it wins over the values there.\n" .. hy_code() .. "\n"
+        with_dirs(function(d)
+            pcall(sys.call, "files.write", "vitreus_hypr.lua", body)
+            local hypr = d.conf:gsub("/pleamar/shells/vitreus$", "/hypr")
+            run("cp", { "-f", d.data .. "/vitreus_hypr.lua", hypr .. "/vitreus_hypr.lua" }, function() end)
+        end)
+    end
+
+    local function hy_changed()
+        hy_show()
+        hy_dirty = true
+        run("hyprctl", { "eval", hy_code() }, function() end)
+        if hy_waiting then return end
+        hy_waiting = true
+        after(800, function()
+            hy_waiting = false
+            hy_write_file()
+        end)
+    end
+
+    local function hy_read()
+        local function opt(name, cb)
+            run("hyprctl", { "getoption", name, "-j" }, function(out, code)
+                if code ~= 0 then return end
+                local ok, j = pcall(json.decode, out or "")
+                if ok and type(j) == "table" then cb(j) end
+            end)
+        end
+        opt("general:layout", function(j)
+            for i, n in ipairs(LAYOUTS) do if n == j.str then hy.layout = i end end
+            hy_show()
+        end)
+        opt("general:gaps_in", function(j)
+            local n = tonumber(tostring(j.css or ""):match("^(%d+)"))
+            if n then hy.gaps = n; hy_show() end
+        end)
+        opt("general:resize_on_border", function(j) hy.resize = j.bool == true; hy_show() end)
+        opt("general:allow_tearing", function(j) hy.tear = j.bool == true; hy_show() end)
+        opt("animations:enabled", function(j) hy.anim = j.bool == true; hy_show() end)
+        opt("input:sensitivity", function(j) hy.sens = tonumber(j.float) or 0; hy_show() end)
+        opt("input:follow_mouse", function(j) hy.follow = tonumber(j.int) or 1; hy_show() end)
+        opt("input:touchpad:natural_scroll", function(j) hy.nat = j.bool == true; hy_show() end)
+    end
+
+    hy_show()
+    hy_read()
+
+    on("hy_layout_set", function(i) hy.layout = math.max(1, math.min(3, math.floor(i + 0.5))); hy_changed() end)
+    on("hy_gaps_set", function(t) hy.gaps = math.floor(math.max(0, math.min(1, t)) * 30 + 0.5); hy_changed() end)
+    on("hy_sens_set", function(t)
+        hy.sens = math.floor((math.max(0, math.min(1, t)) * 2 - 1) * 20 + 0.5) / 20
+        hy_changed()
+    end)
+    on("hy_follow_set", function(i) hy.follow = math.max(0, math.min(3, math.floor(i + 0.5))); hy_changed() end)
+    on("hy_toggle", function(k)
+        k = math.floor(k + 0.5)
+        if k == 0 then hy.resize = not hy.resize
+        elseif k == 1 then hy.tear = not hy.tear
+        elseif k == 2 then hy.anim = not hy.anim
+        else hy.nat = not hy.nat end
+        hy_changed()
+    end)
+    on("hy_refresh", function() hy_read() end)
+end
