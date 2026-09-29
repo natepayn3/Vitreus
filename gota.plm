@@ -9,10 +9,10 @@ import "palette.plm"
 scene Gota {
     surface { size: 900, 800; anchor: top; margin: 0; reserve: 68; keyboard: exclusive while panel != none and panel != volume and panel != notif }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir" }
+                  run: "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
-    model bt_devices max 8 { name: text; address: text; paired: bool; connected: bool; battery: number }
+    model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number }
 
     service clock as now { time: text = "--:--"; date: text }
     service audio { volume: number; muted: bool }
@@ -20,10 +20,17 @@ scene Gota {
     service media { playing: bool; title: text; artist: text; player: text }
     service brightness { present: bool; level: number }
     service network as net { online: bool; wifi: bool; name: text; strength: number; networks: wifi_nets }
-    service bluetooth as bt { present: bool; powered: bool; devices: bt_devices }
+    service bluetooth as bt { present: bool; powered: bool }        // the list itself is built by the logic
 
     text clock12 = "--:--"
     text datelong = ""
+    //  The clock card's pieces: the numerals, the am/pm tucked beside them, and the date as weekday | month day.
+    text clock_hm = "--:--"
+    text clock_ap = ""
+    text date_wd = ""
+    text date_md = ""
+    measure hmw                    // how wide the big numerals are, to tuck the am/pm against them
+    measure mdw                    // and the month and day, the date being right-aligned from them
     text arturl = ""               // the cover: a path to an image file, from the logic
     fact art_on = false            // is there one
     image art = from arturl, 200, 200
@@ -106,6 +113,13 @@ scene Gota {
     event wp_prev ->
     event wp_next ->
     event wp_random ->
+    //  Weather, for the calendar panel: what it is now, and the week ahead. The logic fetches it (Open-Meteo)
+    //  and gives each day a `kind`: 0 clear, 1 partly cloudy, 2 cloud, 3 fog, 4 rain, 5 snow, 6 storm.
+    fact wx_ok = false
+    fact wx_kind = 2
+    text wx_temp = ""
+    text wx_desc = ""
+    model wx_days max 7 { label: text; kind: number; hi: text; lo: text; today: bool }
     event task_focus ->            // a window's row, by position: give it the keyboard
     event task_close ->            // its close button, or a middle click
     event tray_click ->            // a tray app's row
@@ -202,8 +216,6 @@ scene Gota {
     follow dm   = if(panel == player, 1, 0)
     follow do   = if(panel == volume or panel == notif, 1, 0)
     follow ds   = if(panel == settings, 1, 0)
-    follow fs   = if(panel == settings, 1, 0)
-    follow fo   = if(panel == volume or panel == notif, 1, 0)
     follow okv  = if(osd_kind == vol, 1, 0)
     follow okn  = if(osd_kind == note, 1, 0)
     on ntnew {
@@ -238,14 +250,20 @@ scene Gota {
     repeat i in 1..6 { follow ws.tall.$i = if(ws.$i.busy, 1, 0) }
 
     on change drop > 0.97 while drop > 0.97 { impulse sag 220 }
-
-    follow f1   = if(panel == calendar, 1, 0)
-    follow f4   = if(panel == calendar, 1, 0)
-    follow f2   = if(panel == controls, 1, 0)
-    follow f3   = if(panel == player, 1, 0)
-    follow f5   = if(panel == controls, 1, 0)
-    follow f6   = if(panel == controls, 1, 0)
-    follow f7   = if(panel == controls, 1, 0)
+    //  What is inside a panel arrives after the drawer has come down, not with it (it was showing while the
+    //  drawer was still a sliver under the bar, over the bar's lower half), and leaves at once when the panel
+    //  closes, so nothing is left hanging over the bar as it shuts. Each keeps its own spring, so the
+    //  controls' plates still arrive one after another.
+    on change panel while panel == calendar   { f1: 1 after 220ms; f4: 1 after 300ms }
+    on change panel while panel != calendar   { f1: 0 ~80ms; f4: 0 ~80ms }
+    on change panel while panel == controls   { f2: 1 after 200ms; f5: 1 after 200ms; f6: 1 after 200ms; f7: 1 after 200ms }
+    on change panel while panel != controls   { f2: 0 ~80ms; f5: 0 ~80ms; f6: 0 ~80ms; f7: 0 ~80ms }
+    on change panel while panel == player     { f3: 1 after 200ms }
+    on change panel while panel != player     { f3: 0 ~80ms }
+    on change panel while panel == settings   { fs: 1 after 220ms }
+    on change panel while panel != settings   { fs: 0 ~80ms }
+    on change panel while panel == volume or panel == notif { fo: 1 after 140ms }
+    on change panel while panel != volume and panel != notif { fo: 0 ~80ms }
     follow wifi_on = if(net.wifi, 1, 0)
     follow bt_on   = if(bt.powered, 1, 0)
     prop dnd_pill = 0 ~pop
@@ -308,12 +326,12 @@ scene Gota {
 
     //  One row of the output dropdown: a dot if it is the current one, its name.
     component OutRow(f: record, pick: event) {
-        size: 276 * u, 28 * u
+        size: 276 * u, floor(28 * u + 0.5)
         zone box touch { from: 0, 0; size: 276 * u, 28 * u; corner: 10 * u; cursor: pointer }
         box { from: 0, 0; size: 276 * u, 28 * u; corner: 10 * u; color: ink
               opacity: if(f.current, 12%, 0%) + 9% * touch.hover }
         ellipse { at: 14 * u, 14 * u; radius: 3 * u; color: mint; opacity: if(f.current, 100%, 0%) }
-        text f.name { at: 28 * u, 14 * u; anchor: left center; size: 13.5 * u; width: 236 * u; lines: 1
+        text f.name { at: floor(28 * u + 0.5), floor(14 * u + 0.5); anchor: left center; size: 13.5 * u; width: 236 * u; lines: 1
                       color: ink; family: "Space Grotesk" }
         on press touch { emit pick(f.index) }
     }
@@ -326,16 +344,16 @@ scene Gota {
     //  Connect/Disconnect and Forget for anything else. `wifi_open_row` is the
     //  one index that's open at a time, so opening another closes the last one.
     component WifiRow(n: record, pick: event, forget: event, joingo: event) {
-        size: 264 * u, (30 + if(wifi_open_row == n.index, 44, 0)) * u
+        size: 264 * u, floor((30 + if(wifi_open_row == n.index, 44, 0)) * u + 0.5)
         let isopen = wifi_open_row == n.index
         zone box touch { from: 0, 0; size: 264 * u, 30 * u; corner: 10 * u; cursor: pointer }
         box { from: 0, 0; size: 264 * u, 30 * u; corner: 10 * u; color: ink; opacity: if(n.active, 12%, 0%) + 9% * touch.hover }
         ellipse { at: 14 * u, 15 * u; radius: 3 * u; color: mint; opacity: if(n.active, 100%, 0%) }
-        text n.ssid { at: 28 * u, 15 * u; anchor: left center; size: 12.5 * u; width: 150 * u; lines: 1; color: ink; family: "Space Grotesk" }
-        text "Connected" { at: 250 * u, 15 * u; anchor: right center; size: 10 * u; color: mint; family: "Space Grotesk"; show: n.active }
-        text "Saved" { at: 250 * u, 15 * u; anchor: right center; size: 10 * u; color: faint; family: "Space Grotesk"; show: n.known and not n.active }
-        text "Secured" { at: 250 * u, 15 * u; anchor: right center; size: 10 * u; color: faint; family: "Space Grotesk"; show: n.secure and not n.known and not n.active }
-        text "Open" { at: 250 * u, 15 * u; anchor: right center; size: 10 * u; color: faint; family: "Space Grotesk"; show: not n.secure and not n.known and not n.active }
+        text n.ssid { at: floor(28 * u + 0.5), floor(15 * u + 0.5); anchor: left center; size: 12.5 * u; width: 150 * u; lines: 1; color: ink; family: "Space Grotesk" }
+        text "Connected" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: mint; family: "Space Grotesk"; show: n.active }
+        text "Saved" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: faint; family: "Space Grotesk"; show: n.known and not n.active }
+        text "Secured" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: faint; family: "Space Grotesk"; show: n.secure and not n.known and not n.active }
+        text "Open" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: faint; family: "Space Grotesk"; show: not n.secure and not n.known and not n.active }
         on press touch { wifi_open_row = if(isopen, -1, n.index) }
 
         group {
@@ -344,9 +362,9 @@ scene Gota {
             //  A secured network never seen before: the password, right here.
             group {
                 show: n.secure and not n.known and not n.active
-                input wifi_pw { at: 14 * u, 45 * u - 6.3 * u; width: 150 * u; size: 11.5 * u; color: ink; family: "Space Grotesk"; secret: true; placeholder: "Password" }
+                input wifi_pw { at: floor(14 * u + 0.5), floor(45 * u - 6.3 * u + 0.5); width: 150 * u; size: 11.5 * u; color: ink; family: "Space Grotesk"; secret: true; placeholder: "Password" }
                 box { at: 224 * u, 45 * u; size: 40 * u, 24 * u; corner: 12 * u; color: mint; opacity: 80% + 20% * joinbtn.hover }
-                text "Join" { at: 224 * u, 45 * u; anchor: center; size: 10.5 * u; weight: 700; color: onmint; family: "Space Grotesk" }
+                text "Join" { at: floor(224 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 10.5 * u; weight: 700; color: onmint; family: "Space Grotesk" }
                 zone box joinbtn { at: 224 * u, 45 * u; size: 44 * u, 28 * u; corner: 14 * u; cursor: pointer }
                 on press joinbtn { emit joingo(n.index) }
             }
@@ -354,7 +372,7 @@ scene Gota {
             group {
                 show: not n.secure and not n.known and not n.active
                 box { at: 132 * u, 45 * u; size: 110 * u, 24 * u; corner: 12 * u; color: mint; opacity: 80% + 20% * connbtn.hover }
-                text "Connect" { at: 132 * u, 45 * u; anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk" }
+                text "Connect" { at: floor(132 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk" }
                 zone box connbtn { at: 132 * u, 45 * u; size: 114 * u, 28 * u; corner: 14 * u; cursor: pointer }
                 on press connbtn { emit pick(n.index) }
             }
@@ -362,12 +380,12 @@ scene Gota {
             group {
                 show: n.known or n.active
                 box { at: 90 * u, 45 * u; size: 96 * u, 24 * u; corner: 12 * u; color: if(n.active, off, mint); opacity: 80% + 20% * primbtn.hover }
-                text "Disconnect" { at: 90 * u, 45 * u; anchor: center; size: 10.5 * u; weight: 700; color: ink; family: "Space Grotesk"; show: n.active }
-                text "Connect" { at: 90 * u, 45 * u; anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk"; show: not n.active }
+                text "Disconnect" { at: floor(90 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 10.5 * u; weight: 700; color: ink; family: "Space Grotesk"; show: n.active }
+                text "Connect" { at: floor(90 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk"; show: not n.active }
                 zone box primbtn { at: 90 * u, 45 * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
                 on press primbtn { emit pick(n.index) }
                 box { at: 194 * u, 45 * u; size: 76 * u, 24 * u; corner: 12 * u; color: ink; opacity: 8% + 10% * forgetbtn.hover }
-                text "Forget" { at: 194 * u, 45 * u; anchor: center; size: 10.5 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
+                text "Forget" { at: floor(194 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 10.5 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
                 zone box forgetbtn { at: 194 * u, 45 * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
                 on press forgetbtn { emit forget(n.index) }
             }
@@ -377,16 +395,16 @@ scene Gota {
     //  One row of the Bluetooth window: connected (with its battery, if it says), paired, or just seen.
     //  Tapping it opens Connect/Disconnect and Forget underneath, the same as a Wi-Fi row.
     component BtRow(d: record, pick: event, forget: event) {
-        size: 264 * u, (30 + if(bt_open_row == d.index, 44, 0)) * u
+        size: 264 * u, floor((30 + if(bt_open_row == d.index, 44, 0)) * u + 0.5)
         let isopen = bt_open_row == d.index
         zone box touch { from: 0, 0; size: 264 * u, 30 * u; corner: 10 * u; cursor: pointer }
         box { from: 0, 0; size: 264 * u, 30 * u; corner: 10 * u; color: ink; opacity: if(d.connected, 12%, 0%) + 9% * touch.hover }
         ellipse { at: 14 * u, 15 * u; radius: 3 * u; color: mint; opacity: if(d.connected, 100%, 0%) }
-        text d.name { at: 28 * u, 15 * u; anchor: left center; size: 12.5 * u; width: 150 * u; lines: 1; color: ink; family: "Space Grotesk" }
-        text "Connected" { at: 250 * u, 15 * u; anchor: right center; size: 10 * u; color: mint; family: "Space Grotesk"; show: d.connected and d.battery < 0 }
-        text number(d.battery * 100, 0, "%") { at: 250 * u, 15 * u; anchor: right center; size: 10 * u; color: mint; family: "Space Grotesk"; show: d.connected and d.battery >= 0 }
-        text "Paired" { at: 250 * u, 15 * u; anchor: right center; size: 10 * u; color: faint; family: "Space Grotesk"; show: d.paired and not d.connected }
-        text "Not paired" { at: 250 * u, 15 * u; anchor: right center; size: 10 * u; color: faint; family: "Space Grotesk"; show: not d.paired and not d.connected }
+        text d.name { at: floor(28 * u + 0.5), floor(15 * u + 0.5); anchor: left center; size: 12.5 * u; width: 150 * u; lines: 1; color: ink; family: "Space Grotesk" }
+        text "Connected" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: mint; family: "Space Grotesk"; show: d.connected and d.battery < 0 }
+        text number(d.battery * 100, 0, "%") { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: mint; family: "Space Grotesk"; show: d.connected and d.battery >= 0 }
+        text "Paired" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: faint; family: "Space Grotesk"; show: d.paired and not d.connected }
+        text "Not paired" { at: floor(250 * u + 0.5), floor(15 * u + 0.5); anchor: right center; size: 10 * u; color: faint; family: "Space Grotesk"; show: not d.paired and not d.connected }
         on press touch { bt_open_row = if(isopen, -1, d.index) }
 
         group {
@@ -395,19 +413,19 @@ scene Gota {
             group {
                 show: not d.paired and not d.connected
                 box { at: 132 * u, 45 * u; size: 130 * u, 24 * u; corner: 12 * u; color: mint; opacity: 80% + 20% * pairbtn.hover }
-                text "Pair & Connect" { at: 132 * u, 45 * u; anchor: center; size: 10.5 * u; weight: 700; color: onmint; family: "Space Grotesk" }
+                text "Pair & Connect" { at: floor(132 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 10.5 * u; weight: 700; color: onmint; family: "Space Grotesk" }
                 zone box pairbtn { at: 132 * u, 45 * u; size: 134 * u, 28 * u; corner: 14 * u; cursor: pointer }
                 on press pairbtn { emit pick(d.index) }
             }
             group {
                 show: d.paired or d.connected
                 box { at: 90 * u, 45 * u; size: 96 * u, 24 * u; corner: 12 * u; color: if(d.connected, off, mint); opacity: 80% + 20% * primbtn.hover }
-                text "Disconnect" { at: 90 * u, 45 * u; anchor: center; size: 10.5 * u; weight: 700; color: ink; family: "Space Grotesk"; show: d.connected }
-                text "Connect" { at: 90 * u, 45 * u; anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk"; show: not d.connected }
+                text "Disconnect" { at: floor(90 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 10.5 * u; weight: 700; color: ink; family: "Space Grotesk"; show: d.connected }
+                text "Connect" { at: floor(90 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk"; show: not d.connected }
                 zone box primbtn { at: 90 * u, 45 * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
                 on press primbtn { emit pick(d.index) }
                 box { at: 194 * u, 45 * u; size: 76 * u, 24 * u; corner: 12 * u; color: ink; opacity: 8% + 10% * forgetbtn.hover }
-                text "Forget" { at: 194 * u, 45 * u; anchor: center; size: 10.5 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
+                text "Forget" { at: floor(194 * u + 0.5), floor(45 * u + 0.5); anchor: center; size: 10.5 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
                 zone box forgetbtn { at: 194 * u, 45 * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
                 on press forgetbtn { emit forget(d.index) }
             }
@@ -449,10 +467,10 @@ scene Gota {
 
     //  A notification's button (Reply, Mark read…): a small pill with its label.
     component NtAct(a: record, click: event) {
-        size: 82 * u, 26 * u
+        size: floor(82 * u + 0.5), floor(26 * u + 0.5)
         zone box touch { from: 0, 0; size: 82 * u, 26 * u; corner: 8 * u; cursor: pointer }
         box { from: 0, 0; size: 82 * u, 26 * u; corner: 8 * u; color: if(touch.hover, mint, ink); opacity: if(touch.hover, 100%, 8%) }
-        text a.label { at: 41 * u, 13 * u; anchor: center; align: center; size: 12.5 * u; weight: 700; width: 74 * u; lines: 1; color: if(touch.hover, onmint, ink); family: "Space Grotesk" }
+        text a.label { at: floor(41 * u + 0.5), floor(13 * u + 0.5); anchor: center; align: center; size: 12.5 * u; weight: 700; width: 74 * u; lines: 1; color: if(touch.hover, onmint, ink); family: "Space Grotesk" }
         on press touch { emit click(a.index) }
     }
 
@@ -470,6 +488,92 @@ scene Gota {
         on press touch { emit pick(t.index) }
     }
 
+    //  A weather icon, drawn from shapes (there is no icon font): `kind` 0 clear · 1 partly cloudy · 2 cloud ·
+    //  3 fog · 4 rain · 5 snow · 6 storm. The cloud is `cloud`; the sun, rain, snow and bolt are `sun`.
+    component WxIcon(kind: number, cloud: color = ink, sun: color = mint) {
+        size: 26 * u, 20 * u
+        //  clear
+        group {
+            show: kind == 0
+            ellipse { at: 13 * u, 10 * u; radius: 4.6 * u; color: sun }
+            repeat i in 0..8 {
+                group {
+                    pivot: 13 * u, 10 * u
+                    rotate: i * 45deg
+                    box { at: 13 * u, 10 * u - 7.8 * u; size: 1.7 * u, 3 * u; corner: 0.8 * u; color: sun }
+                }
+            }
+        }
+        //  partly cloudy: a small sun behind a cloud
+        group {
+            show: kind == 1
+            ellipse { at: 8.5 * u, 7.5 * u; radius: 3.4 * u; color: sun }
+            repeat i in 0..8 {
+                group {
+                    pivot: 8.5 * u, 7.5 * u
+                    rotate: i * 45deg
+                    box { at: 8.5 * u, 7.5 * u - 5.9 * u; size: 1.4 * u, 2.2 * u; corner: 0.7 * u; color: sun }
+                }
+            }
+            ellipse { at: 10 * u, 13 * u; radius: 3.6 * u; color: cloud }
+            ellipse { at: 15 * u, 11.5 * u; radius: 4.6 * u; color: cloud }
+            ellipse { at: 19 * u, 13.5 * u; radius: 3.2 * u; color: cloud }
+            box { at: 14.5 * u, 15.5 * u; size: 13 * u, 4.5 * u; corner: 2.2 * u; color: cloud }
+        }
+        //  the cloud alone, and the cloud that rain, snow and storm hang from
+        group {
+            show: kind == 2 or kind == 4 or kind == 5 or kind == 6
+            let cy0 = if(kind == 2, 10, 7.5) * u
+            ellipse { at: 9 * u, cy0 + 1 * u; radius: 4 * u; color: cloud }
+            ellipse { at: 14 * u, cy0 - 1.5 * u; radius: 5 * u; color: cloud }
+            ellipse { at: 18.5 * u, cy0 + 1 * u; radius: 3.6 * u; color: cloud }
+            box { at: 13.5 * u, cy0 + 3 * u; size: 14 * u, 5 * u; corner: 2.5 * u; color: cloud }
+        }
+        //  fog
+        group {
+            show: kind == 3
+            box { at: 13 * u, 5.5 * u; size: 17 * u, 2 * u; corner: 1 * u; color: cloud }
+            box { at: 13 * u, 10 * u; size: 13 * u, 2 * u; corner: 1 * u; color: cloud }
+            box { at: 13 * u, 14.5 * u; size: 17 * u, 2 * u; corner: 1 * u; color: cloud }
+        }
+        //  rain
+        group {
+            show: kind == 4
+            line { from: 8.5 * u, 14 * u; to: 7 * u, 18 * u; width: 1.5 * u; color: sun }
+            line { from: 13.5 * u, 14 * u; to: 12 * u, 18 * u; width: 1.5 * u; color: sun }
+            line { from: 18.5 * u, 14 * u; to: 17 * u, 18 * u; width: 1.5 * u; color: sun }
+        }
+        //  snow
+        group {
+            show: kind == 5
+            ellipse { at: 8 * u, 15.5 * u; radius: 1.3 * u; color: sun }
+            ellipse { at: 13 * u, 17.5 * u; radius: 1.3 * u; color: sun }
+            ellipse { at: 18 * u, 15.5 * u; radius: 1.3 * u; color: sun }
+        }
+        //  storm: a bolt
+        path {
+            show: kind == 6
+            at: floor(13 * u + 0.5), floor(11 * u + 0.5)
+            color: sun
+            move 1.5 * u, 0
+            line -2.5 * u, 4.5 * u
+            line 0.2 * u, 4.5 * u
+            line -1.2 * u, 4 * u
+            line 4 * u, -5.5 * u
+            line 0.5 * u, -5.5 * u
+            close
+        }
+    }
+
+    //  One day of the forecast: its name, its icon, its high and its low. Today is in the accent.
+    component WxDay(d: record) {
+        size: floor(42 * u + 0.5), floor(50 * u + 0.5)
+        text d.label { at: floor(21 * u + 0.5), floor(7 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 40 * u; lines: 1; color: if(d.today, mint, faint); family: "Space Grotesk" }
+        column icon_col { at: 8 * u, 15 * u; WxIcon(d.kind, if(d.today, mint, ink), mint) }
+        text d.hi { at: floor(12 * u + 0.5), floor(42 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 700; width: 20 * u; lines: 1; color: ink; family: "Space Grotesk" }
+        text d.lo { at: floor(31 * u + 0.5), floor(42 * u + 0.5); anchor: center; align: center; size: 10 * u; width: 20 * u; lines: 1; color: faint; family: "Space Grotesk" }
+    }
+
     let cx = 450
     let bar.w = 450 * u
     let bar.h = 40 * u
@@ -483,6 +587,9 @@ scene Gota {
     let ctl.x = clock.left - 20 * u
     let set.x = ctl.x - 24 * u
     let mc = set.x - 44 * u
+    //  Where the window title starts, and how far it may reach (it gives way to the player's buttons).
+    let win.x = cx - bar.w / 2 + 116 * u
+    let win.w = mix(set.x - 22 * u, mc - 32 * u, mshow) - win.x
     let room = 10 * u
 
     //  The music only moves the bar: it fades out as the panel opens (gone by a third of
@@ -507,7 +614,7 @@ scene Gota {
     //  same overshoot instead of sitting there rigid while the height does all
     //  the springing.
     let card.w = bar.w * (min(1, dc0 * 3) + max(0, dc0 - 1) * 0.6)
-    let card.h = 303 * u * dc0
+    let card.h = 373 * u * dc0        // 303, and 70 more for the weather strip
     //  The controls drawer: as wide as its plates and their margins need (288 + 2 x 12), coming
     //  out of the bar. It starts narrow and wide-open in height last, and widens to its place.
     //  It reaches up into the bar so the two can melt; `dk.hh` is how far down it goes.
@@ -619,29 +726,21 @@ scene Gota {
             let wx = cx - bar.w / 2 + 26 * u + (i - 1) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
             //  One shape per workspace that morphs: a dot, a taller capsule if it has windows, and a
             //  wide mint pill while it is the active one.
-            box ws.dot.$i { at: wx, bar.y; size: (6 + 14 * ws.act.$i) * u, (6 + 4 * ws.tall.$i * (1 - ws.act.$i)) * u; corner: 3 * u
-                            color: mix(ink, mint, ws.act.$i); opacity: mix(28% + 62% * ws.tall.$i, 100%, ws.act.$i) }
             zone box ws.hit.$i { at: wx, bar.y; size: 15 * u, bar.h; cursor: pointer }
             on press ws.hit.$i { emit go(i) }
         }
 
-        text clock12 { at: cx + bar.w / 2 - 20 * u, bar.y; anchor: right center; measure: clkw; size: 19 * u; weight: 600; color: ink; family: "Space Grotesk"
-                                gradient: 0, bar.y - 11 * u to 0, bar.y + 11 * u, ink, faint }
         //  What is in front: the app in small type above, the title under it, cut
         //  with an ellipsis where the clock starts.
-        let win.x = cx - bar.w / 2 + 116 * u
         //  The title gives up room to the controls while something plays.
-        let win.w = mix(set.x - 22 * u, mc - 32 * u, mshow) - win.x
-        text win.class { at: win.x, bar.y - 6.5 * u; anchor: left center; size: 17 * u; weight: 600; width: win.w; lines: 1; color: faint; opacity: 55%; family: "Space Grotesk" }
-        text win.title { at: win.x, bar.y + 8.75 * u; anchor: left center; size: 13.5 * u; weight: 500; width: win.w; lines: 1; color: ink; family: "Space Grotesk" }
 
         //  The whole title area is a button: it opens the controls panel. Declared before
         //  the little player controls below, which sit over it and win where they overlap.
         //  It is only as wide as the text it holds (never past `win.w`, never thinner than a
         //  fingertip), not the whole gap up to the clock. Unseen copies, with no width limit,
         //  only to know how wide the app name and the title really are.
-        text win.class { at: win.x, bar.y - 6.5 * u; anchor: left center; size: 17 * u; weight: 600; lines: 1; measure: clsw; opacity: 0; family: "Space Grotesk" }
-        text win.title { at: win.x, bar.y + 8.75 * u; anchor: left center; size: 13.5 * u; weight: 500; lines: 1; measure: titw; opacity: 0; family: "Space Grotesk" }
+        text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; lines: 1; measure: clsw; opacity: 0; family: "Space Grotesk" }
+        text win.title { at: floor(win.x + 0.5), floor(bar.y + 8.75 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 500; lines: 1; measure: titw; opacity: 0; family: "Space Grotesk" }
         let win.hw = clamp(max(clsw.width, titw.width) + 12 * u, 48 * u, win.w)
         zone box win_hit { at: win.x - 6 * u + win.hw / 2, bar.y; size: win.hw, bar.h; cursor: pointer }
         on press win_hit { panel = if(panel == player, none, player) }
@@ -653,14 +752,6 @@ scene Gota {
             //  Centred in the gap between where the title ends and where the clock
             //  starts (`mc`), and small: 17 between centres.
             let by = bar.y
-            box { at: mc - 20.5 * u, by; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * bp.prev.hover }
-            path { at: mc - 17 * u, by; color: ink; opacity: 65% + 35% * bp.prev.hover; move 3 * u, -3.5 * u; line -2.5 * u, 0; line 3 * u, 3.5 * u; close }
-            //  Pause while it plays, play while it is paused.
-            box { at: mc - 3 * u, by; size: 2.6 * u, 9 * u; corner: 1 * u; color: ink; opacity: 85% + 15% * bp.play.hover; show: media.playing }
-            box { at: mc + 3 * u, by; size: 2.6 * u, 9 * u; corner: 1 * u; color: ink; opacity: 85% + 15% * bp.play.hover; show: media.playing }
-            path { at: mc, by; color: ink; opacity: 85% + 15% * bp.play.hover; show: not media.playing; move -3 * u, -4.5 * u; line 7 * u, 0; line -3 * u, 4.5 * u; close }
-            path { at: mc + 17 * u, by; color: ink; opacity: 65% + 35% * bp.next.hover; move -3 * u, -3.5 * u; line 2.5 * u, 0; line -3 * u, 3.5 * u; close }
-            box { at: mc + 20.5 * u, by; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * bp.next.hover }
             zone box bp.prev { at: mc - 17 * u, by; size: 17 * u, bar.h; cursor: pointer }
             zone box bp.play { at: mc, by; size: 17 * u, bar.h; cursor: pointer }
             zone box bp.next { at: mc + 17 * u, by; size: 17 * u, bar.h; cursor: pointer }
@@ -669,6 +760,48 @@ scene Gota {
             on press bp.next { emit mcmd(2) }
         }
 
+        zone box set_hit { at: set.x, bar.y; size: 24 * u, bar.h; cursor: pointer }
+        on press set_hit { panel = if(panel == settings, none, settings) }
+
+        zone box ctl_hit { at: ctl.x, bar.y; size: 26 * u, bar.h; cursor: pointer }
+        on press ctl_hit { panel = if(panel == controls, none, controls) }
+
+        //  The calendar's button is the clock and a little around it: from just left of the measured clock to
+        //  near the bar's right edge, so it stops where the controls button begins.
+        zone box bar_hit { at: (clock.left - 4 * u + cx + bar.w / 2 - 6 * u) / 2, bar.y; size: (cx + bar.w / 2 - 6 * u) - (clock.left - 4 * u), bar.h; cursor: pointer }
+        on press bar_hit { panel = if(panel == calendar, none, calendar) }
+        //  Right-click closes whatever is open. It also matters for a reason that
+        //  has nothing to do with the calendar: pleamar treats an unclaimed right
+        //  click, anywhere in a scene that never uses the right button at all, as
+        //  an emergency exit and quits outright - which is exactly what looked
+        //  like "everything crashes." Claiming it here, once, disarms that for
+        //  the whole scene.
+        on press right bar_hit { panel = none }
+    }
+
+    //  The bar's icons are drawn here, on top of the bar and outside its wave-shader group, with a soft dark
+    //  halo (a group `glow` in the palette's dark colour) so they hold up on a light wallpaper, as the text
+    //  does. An effect cannot sit inside another effect's group, hence outside. The click areas and rules
+    //  stay in the bar group above.
+    group {
+        glow: 2.4 * u, 45%, deep
+        repeat i in 1..6 {
+            let wxs = cx - bar.w / 2 + 26 * u + (i - 1) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
+            box ws.dot.$i { at: wxs, bar.y; size: (6 + 14 * ws.act.$i) * u, (6 + 4 * ws.tall.$i * (1 - ws.act.$i)) * u; corner: 3 * u
+                            color: mix(ink, mint, ws.act.$i); opacity: mix(28% + 62% * ws.tall.$i, 100%, ws.act.$i) }
+        }
+        //  The player's buttons.
+        group {
+            opacity: mshow
+            box { at: mc - 20.5 * u, bar.y; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * bp.prev.hover }
+            path { at: mc - 17 * u, bar.y; color: ink; opacity: 65% + 35% * bp.prev.hover; move 3 * u, -3.5 * u; line -2.5 * u, 0; line 3 * u, 3.5 * u; close }
+            //  Pause while it plays, play while it is paused.
+            box { at: mc - 3 * u, bar.y; size: 2.6 * u, 9 * u; corner: 1 * u; color: ink; opacity: 85% + 15% * bp.play.hover; show: media.playing }
+            box { at: mc + 3 * u, bar.y; size: 2.6 * u, 9 * u; corner: 1 * u; color: ink; opacity: 85% + 15% * bp.play.hover; show: media.playing }
+            path { at: mc, bar.y; color: ink; opacity: 85% + 15% * bp.play.hover; show: not media.playing; move -3 * u, -4.5 * u; line 7 * u, 0; line -3 * u, 4.5 * u; close }
+            path { at: mc + 17 * u, bar.y; color: ink; opacity: 65% + 35% * bp.next.hover; move -3 * u, -3.5 * u; line 2.5 * u, 0; line -3 * u, 3.5 * u; close }
+            box { at: mc + 20.5 * u, bar.y; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * bp.next.hover }
+        }
         //  The settings button: a gear, between the player's buttons and the controls button.
         group {
             opacity: 65% + 35% * max(set_hit.hover, clamp(ds, 0, 1))
@@ -681,9 +814,6 @@ scene Gota {
                 }
             }
         }
-        zone box set_hit { at: set.x, bar.y; size: 24 * u, bar.h; cursor: pointer }
-        on press set_hit { panel = if(panel == settings, none, settings) }
-
         //  The controls button, between the settings button and the clock: two sliders.
         group {
             opacity: 65% + 35% * max(ctl_hit.hover, clamp(dk, 0, 1))
@@ -692,19 +822,15 @@ scene Gota {
             ellipse { at: ctl.x + 2.5 * u, bar.y - 3.5 * u; radius: 2.6 * u; color: mix(ink, mint, clamp(dk, 0, 1)) }
             ellipse { at: ctl.x - 2.5 * u, bar.y + 3.5 * u; radius: 2.6 * u; color: mix(ink, mint, clamp(dk, 0, 1)) }
         }
-        zone box ctl_hit { at: ctl.x, bar.y; size: 26 * u, bar.h; cursor: pointer }
-        on press ctl_hit { panel = if(panel == controls, none, controls) }
-
-        zone box bar_hit { at: cx + bar.w / 2 - 50 * u, bar.y; size: 80 * u, bar.h; cursor: pointer }
-        on press bar_hit { panel = if(panel == calendar, none, calendar) }
-        //  Right-click closes whatever is open. It also matters for a reason that
-        //  has nothing to do with the calendar: pleamar treats an unclaimed right
-        //  click, anywhere in a scene that never uses the right button at all, as
-        //  an emergency exit and quits outright - which is exactly what looked
-        //  like "everything crashes." Claiming it here, once, disarms that for
-        //  the whole scene.
-        on press right bar_hit { panel = none }
     }
+
+    //  The bar's text is drawn on top of the bar, outside its wave-shader group: inside it the letters are
+    //  resampled by the shader, which blurs them and smears them whenever the music makes the wave move.
+    //  The glass and the icons still bend; the words stay sharp.
+    text clock12 { at: floor(cx + bar.w / 2 - 20 * u + 0.5), floor(bar.y + 0.5); anchor: right center; measure: clkw; size: 26; weight: 600; color: ink; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk"
+                            gradient: 0, bar.y - 11 * u to 0, bar.y + 11 * u, ink, faint }
+    text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; width: win.w; lines: 1; color: faint; opacity: 55%; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text win.title { at: floor(win.x + 0.5), floor(bar.y + 8.75 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 500; width: win.w; lines: 1; color: ink; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
 
     // ── the panel ────────────────────────────────────────────────
     group {
@@ -716,21 +842,29 @@ scene Gota {
         //  on the left and the one on the right share a top and a bottom.
         group {
             opacity: f1
-            move: 0, (1 - f1) * 12 * u
+            move: 0, (1 - f1) * 12 * u + floor(68 * u + 0.5)
             box { at: cx - 130 * u, cy - 76 * u; size: 166 * u, 72 * u; corner: 14 * u; color: ink; opacity: veil }
             box { at: cx - 130 * u, cy + 43 * u; size: 166 * u, 154 * u; corner: 14 * u; color: ink; opacity: veil }
-            text clock12 { at: cx - 201 * u, cy - 88 * u; anchor: left center; size: 34 * u; weight: 300; color: ink; family: "Space Grotesk"
-                           gradient: 0, cy - 106 * u to 0, cy - 66 * u, ink, faint }
-            text datelong { at: cx - 200 * u, cy - 57 * u; anchor: left center; size: 11 * u; width: 142 * u; lines: 2; color: faint; family: "Space Grotesk" }
-            text cal.sel_title { at: cx - 201 * u, cy - 14 * u; anchor: left center; size: 13 * u; weight: 600; width: 142 * u; lines: 1; color: ink; family: "Space Grotesk" }
-            text cal.sel_sub { at: cx - 201 * u, cy + 1 * u; anchor: left center; size: 10.5 * u; width: 142 * u; lines: 1; color: faint; opacity: 75%; family: "Space Grotesk" }
+            //  The clock card: big numerals, the am/pm tucked small at their top-right in the accent, and under
+            //  them, indented a little, the date as weekday | month day with the pipe in the accent.
+            text clock_hm { at: floor(cx - 201 * u + 0.5), floor(cy - 88 * u + 0.5); anchor: left center; size: 56; weight: 700; measure: hmw; color: ink; family: "Space Grotesk" }
+            //  The am/pm is a small pill in the accent, vertically centred on the numerals and set against their right side.
+            box { at: floor(cx - 201 * u + hmw.width + 8 * u + 17 + 0.5), floor(cy - 88 * u + 0.5); size: 34, 20; corner: 10; color: mint; opacity: 20% }
+            text clock_ap { at: floor(cx - 201 * u + hmw.width + 8 * u + 17 + 0.5), floor(cy - 88 * u + 0.5); anchor: center; align: center; size: 12; weight: 700; width: 34; lines: 1; color: mint; family: "Space Grotesk" }
+            //  The date is right-aligned to the card's inner edge (cx - 59): the month and day first, then the pipe
+            //  and the weekday laid out leftwards from it, each placed from the measured width of the one after.
+            text date_md { at: floor(cx - 59 * u + 0.5), floor(cy - 55 * u + 0.5); anchor: right center; size: 12; weight: 700; measure: mdw; color: ink; family: "Space Grotesk" }
+            text "|" { at: floor(cx - 59 * u - mdw.width - 8 * u + 0.5), floor(cy - 55 * u + 0.5); anchor: right center; size: 14; weight: 300; color: mint; family: "Space Grotesk" }
+            text date_wd { at: floor(cx - 59 * u - mdw.width - 20 * u + 0.5), floor(cy - 55 * u + 0.5); anchor: right center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text cal.sel_title { at: floor(cx - 201 * u + 0.5), floor(cy - 14 * u + 0.5); anchor: left center; size: 13 * u; weight: 600; width: 142 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            text cal.sel_sub { at: floor(cx - 201 * u + 0.5), floor(cy + 1 * u + 0.5); anchor: left center; size: 10.5 * u; width: 142 * u; lines: 1; color: faint; opacity: 75%; family: "Space Grotesk" }
             column cal_list {
                 at: floor(cx - 207 * u + 0.5), floor(cy + 14 * u + 0.5)
                 view: 154 * u, 106 * u
                 gap: 4
                 for e in cal_events { CalRow(e, tick: cal_check, gone: cal_delete) }
             }
-            text "Add one below" { at: cx - 201 * u, cy + 28 * u; anchor: left center; size: 11.5 * u; color: faint; opacity: 55%; family: "Space Grotesk"; show: cal_events.count < 1 }
+            text "Add one below" { at: floor(cx - 201 * u + 0.5), floor(cy + 28 * u + 0.5); anchor: left center; size: 11.5 * u; color: faint; opacity: 55%; family: "Space Grotesk"; show: cal_events.count < 1 }
         }
         group {
             opacity: f4
@@ -739,12 +873,14 @@ scene Gota {
             let cal.ch = 27 * u
             let cal.gx = cx - 13 * u                 // the middle of the first column
             let cal.gy = cy - 42 * u                 // the middle of the first row
+            group {
+                move: 0, floor(68 * u + 0.5)        // the month sits 68 lower, under the weather strip (a whole number of pixels)
             box { at: cx + 86 * u, cy + 4 * u; size: 254 * u, 232 * u; corner: 14 * u; color: ink; opacity: veil }
             //  Month, and the three buttons that move it.
-            text cal.month { at: cx - 30 * u, cy - 92 * u; anchor: left center; size: 15 * u; weight: 600; color: ink; family: "Space Grotesk" }
+            text cal.month { at: floor(cx - 30 * u + 0.5), floor(cy - 92 * u + 0.5); anchor: left center; size: 15 * u; weight: 600; color: ink; family: "Space Grotesk" }
             path { at: cx + 134 * u, cy - 92 * u; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * cal_prev_btn.hover; move 2.5 * u, -5 * u; line -2.5 * u, 0; line 2.5 * u, 5 * u }
             box { at: cx + 163 * u, cy - 92 * u; size: 40 * u, 20 * u; corner: 10 * u; color: ink; opacity: 8% + 10% * cal_today_btn.hover }
-            text "Today" { at: cx + 163 * u, cy - 92 * u; anchor: center; size: 10 * u; weight: 600; color: ink; opacity: 80%; family: "Space Grotesk" }
+            text "Today" { at: floor(cx + 163 * u + 0.5), floor(cy - 92 * u + 0.5); anchor: center; size: 10 * u; weight: 600; color: ink; opacity: 80%; family: "Space Grotesk" }
             path { at: cx + 192 * u, cy - 92 * u; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * cal_next_btn.hover; move -2.5 * u, -5 * u; line 2.5 * u, 0; line -2.5 * u, 5 * u }
             zone box cal_prev_btn { at: cx + 134 * u, cy - 92 * u; size: 26 * u, 26 * u; corner: 13 * u; cursor: pointer }
             zone box cal_today_btn { at: cx + 163 * u, cy - 92 * u; size: 42 * u, 24 * u; corner: 12 * u; cursor: pointer }
@@ -754,7 +890,7 @@ scene Gota {
             on press cal_next_btn { emit cal_next }
             //  The weekdays.
             repeat w in 1..8 {
-                text cal.wd.$w { at: cal.gx + (w - 1) * cal.cw, cy - 66 * u; anchor: center; size: 9.5 * u; weight: 600; color: faint; opacity: 65%; family: "Space Grotesk" }
+                text cal.wd.$w { at: floor(cal.gx + (w - 1) * cal.cw + 0.5), floor(cy - 66 * u + 0.5); anchor: center; size: 9.5 * u; weight: 600; color: faint; opacity: 65%; family: "Space Grotesk" }
             }
             //  The days.
             repeat k in 0..42 {
@@ -772,22 +908,43 @@ scene Gota {
                         glow: 5 * u, 60%, mint
                         ellipse { at: dx, dy; radius: 13 * u; stroke: 1.5 * u; color: mint; show: cal.today.$k }
                     }
-                    text number(cal.day.$k, 0) { at: dx, dy - 0.5 * u; anchor: center; size: 11.5 * u; weight: 500 + 200 * if(cal.today.$k, 1, 0)
+                    text number(cal.day.$k, 0) { at: floor(dx + 0.5), floor(dy - 0.5 * u + 0.5); anchor: center; size: 11.5 * u; weight: 500 + 200 * if(cal.today.$k, 1, 0)
                                                  color: mix(ink, onmint, cal.pick.$k); family: "Space Grotesk" }
                     ellipse { at: dx, dy + 8.5 * u; radius: 1.5 * u; color: mix(mint, onmint, cal.pick.$k); opacity: if(cal.n.$k > 0, 100%, 0) }
                 }
                 zone box cal_cell.$k { at: dx, dy; size: 30 * u, 26 * u; corner: 13 * u; cursor: pointer }
                 on press cal_cell.$k { emit cal_pick(k) }
             }
+            }
+            //  The weather, at the very top: what it is now, on the left, and the week, on the right.
+            box { at: cx, cy - 82 * u; size: 426 * u, 60 * u; corner: 14 * u; color: ink; opacity: veil }
+            text "Loading weather…" { at: floor(cx + 0.5), floor(cy - 82 * u + 0.5); anchor: center; align: center; size: 11.5 * u; width: 300 * u; lines: 1; color: faint; family: "Space Grotesk"; show: not wx_ok }
+            group {
+                show: wx_ok
+                group {
+                    pivot: cx - 190 * u, cy - 90 * u
+                    scale: 1.5
+                    column wx_now { at: cx - 203 * u, cy - 100 * u; WxIcon(wx_kind) }
+                }
+                text wx_temp { at: floor(cx - 160 * u + 0.5), floor(cy - 92 * u + 0.5); anchor: left center; size: 19 * u; weight: 700; width: 70 * u; lines: 1; color: ink; family: "Space Grotesk" }
+                text wx_desc { at: floor(cx - 160 * u + 0.5), floor(cy - 73 * u + 0.5); anchor: left center; size: 10 * u; width: 100 * u; lines: 1; color: faint; family: "Space Grotesk" }
+                box { at: cx - 96 * u, cy - 82 * u; size: 1 * u, 40 * u; color: ink; opacity: 12% }
+                row wx_row {
+                    at: floor(cx - 90 * u + 0.5), floor(cy - 107 * u + 0.5)
+                    gap: 1
+                    for d in wx_days { WxDay(d) }
+                }
+            }
+
             //  Writing one: the field, and a button. Enter saves it as well.
-            box { at: cx, cy + 143 * u; size: 426 * u, 34 * u; corner: 14 * u; color: ink; opacity: veil }
-            ellipse { at: cx - 201 * u, cy + 143 * u; radius: 4 * u; color: mint; opacity: 85% }
+            box { at: cx, cy + 213 * u; size: 426 * u, 34 * u; corner: 14 * u; color: ink; opacity: veil }
+            ellipse { at: cx - 201 * u, cy + 213 * u; radius: 4 * u; color: mint; opacity: 85% }
             //  An input's `at` is not its middle: it is lifted 6.3 so its text sits on the row's centre.
-            input cal_new { at: cx - 189 * u, cy + 136.7 * u; width: 330 * u; size: 13 * u; color: ink; family: "Space Grotesk"
+            input cal_new { at: floor(cx - 189 * u + 0.5), floor(cy + 206.7 * u + 0.5); width: 330 * u; size: 13 * u; color: ink; family: "Space Grotesk"
                             placeholder: "New reminder: 3:30pm Call mom"; selection: mintlo }
-            box { at: cx + 178 * u, cy + 143 * u; size: 46 * u, 24 * u; corner: 12 * u; color: mint; opacity: 80% + 20% * cal_add_btn.hover }
-            text "Add" { at: cx + 178 * u, cy + 143 * u; anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk" }
-            zone box cal_add_btn { at: cx + 178 * u, cy + 143 * u; size: 48 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            box { at: cx + 178 * u, cy + 213 * u; size: 46 * u, 24 * u; corner: 12 * u; color: mint; opacity: 80% + 20% * cal_add_btn.hover }
+            text "Add" { at: floor(cx + 178 * u + 0.5), floor(cy + 213 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk" }
+            zone box cal_add_btn { at: cx + 178 * u, cy + 213 * u; size: 48 * u, 28 * u; corner: 14 * u; cursor: pointer }
             on press cal_add_btn { emit cal_add }
         }
         //  Opening the calendar puts the cursor in the field and the grid back on today.
@@ -852,17 +1009,17 @@ scene Gota {
             //  Name and chevron are one button, right-aligned next to the percentage: the
             //  name ends where the chevron starts, and the zone is measured from the name.
             //  Unseen copy with no width limit, only to know how wide the name really is.
-            text outname { at: cx + 66 * u, vol_cy - 14 * u; anchor: right center; size: 14 * u; lines: 1; measure: outw; opacity: 0; family: "Space Grotesk" }
-            text outname { at: cx + 66 * u, vol_cy - 14 * u; anchor: right center; align: right; size: 14 * u; width: 130 * u; lines: 1; color: faint; opacity: 65% + 35% * out_hit.hover; family: "Space Grotesk" }
+            text outname { at: floor(cx + 66 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: right center; size: 14 * u; lines: 1; measure: outw; opacity: 0; family: "Space Grotesk" }
+            text outname { at: floor(cx + 66 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: right center; align: right; size: 14 * u; width: 130 * u; lines: 1; color: faint; opacity: 65% + 35% * out_hit.hover; family: "Space Grotesk" }
             //  The percentage is centred between the end of the track (cx + 74) and the plate's edge (cx + 158).
-            text number(audio.volume * 100, 0, "%") { at: cx + 128 * u, vol_cy - 14 * u; anchor: right center; size: 16 * u; weight: 600; color: ink; family: "Space Grotesk"; show: not audio.muted }
-            text "Muted" { at: cx + 128 * u, vol_cy - 14 * u; anchor: right center; size: 16 * u; weight: 600; color: faint; family: "Space Grotesk"; show: audio.muted }
+            text number(audio.volume * 100, 0, "%") { at: floor(cx + 128 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: right center; size: 16 * u; weight: 600; color: ink; family: "Space Grotesk"; show: not audio.muted }
+            text "Muted" { at: floor(cx + 128 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: right center; size: 16 * u; weight: 600; color: faint; family: "Space Grotesk"; show: audio.muted }
             //  The output name is a button: it opens the list of outputs.
             path { at: cx + 76 * u, vol_cy - 14 * u; stroke: 1.4 * u; color: ink; opacity: 55% + 35% * out_hit.hover; move -3.5 * u, -2 * u; line 0, 2 * u; line 3.5 * u, -2 * u }
             let out.w = min(outw.width, 130 * u) + 30 * u
             zone box out_hit { at: cx + 86 * u - out.w / 2, vol_cy - 14 * u; size: out.w, 30 * u; cursor: pointer }
             on press out_hit { toggle dd_open }
-            text "Volume" { at: cx - 128 * u, vol_cy - 14 * u; anchor: left center; size: 14 * u; color: faint; family: "Space Grotesk" }
+            text "Volume" { at: floor(cx - 128 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: left center; size: 14 * u; color: faint; family: "Space Grotesk" }
         }
 
         //  Brightness: the volume slider's shape again, in miniature — a sun
@@ -898,10 +1055,10 @@ scene Gota {
             zone box bright_hit { at: bsl.x0 + bsl.w / 2, bsy; size: bsl.w + 28 * u, 34 * u; cursor: pointer; active: brightness.present and bright_avail }
             on press bright_hit { emit setbright(clamp((pointer.x - bsl.x0) / bsl.w, 0, 1)) }
             on drag bright_hit { emit setbright(clamp((pointer.x - bsl.x0) / bsl.w, 0, 1)) }
-            text number(bright_level * 100, 0, "%") { at: cx + 128 * u, bcy - 14 * u; anchor: right center; size: 16 * u; weight: 600; color: ink; family: "Space Grotesk"; show: brightness.present and bright_avail }
-            text "No backlight" { at: cx + 128 * u, bcy - 14 * u; anchor: right center; size: 13 * u; color: faint; family: "Space Grotesk"; show: not brightness.present }
-            text "brightnessctl missing" { at: cx + 128 * u, bcy - 14 * u; anchor: right center; size: 12 * u; color: faint; family: "Space Grotesk"; show: brightness.present and not bright_avail }
-            text "Brightness" { at: cx - 128 * u, bcy - 14 * u; anchor: left center; size: 14 * u; color: faint; family: "Space Grotesk" }
+            text number(bright_level * 100, 0, "%") { at: floor(cx + 128 * u + 0.5), floor(bcy - 14 * u + 0.5); anchor: right center; size: 16 * u; weight: 600; color: ink; family: "Space Grotesk"; show: brightness.present and bright_avail }
+            text "No backlight" { at: floor(cx + 128 * u + 0.5), floor(bcy - 14 * u + 0.5); anchor: right center; size: 13 * u; color: faint; family: "Space Grotesk"; show: not brightness.present }
+            text "brightnessctl missing" { at: floor(cx + 128 * u + 0.5), floor(bcy - 14 * u + 0.5); anchor: right center; size: 12 * u; color: faint; family: "Space Grotesk"; show: brightness.present and not bright_avail }
+            text "Brightness" { at: floor(cx - 128 * u + 0.5), floor(bcy - 14 * u + 0.5); anchor: left center; size: 14 * u; color: faint; family: "Space Grotesk" }
         }
 
         //  Wi-Fi and Bluetooth: two narrow tiles side by side, each just its
@@ -919,10 +1076,10 @@ scene Gota {
             box { at: wtx - 53 * u, tile_cy - 14 * u; size: 3 * u, 6 * u;  corner: 1.5 * u; color: ink; opacity: if(net.wifi, 45% + 55% * clamp(net.strength / 0.3, 0, 1), 30%) }
             box { at: wtx - 48 * u, tile_cy - 16 * u; size: 3 * u, 10 * u; corner: 1.5 * u; color: ink; opacity: if(net.wifi, 45% + 55% * clamp(net.strength / 0.65, 0, 1), 30%) }
             box { at: wtx - 43 * u, tile_cy - 18 * u; size: 3 * u, 14 * u; corner: 1.5 * u; color: ink; opacity: if(net.wifi, 45% + 55% * clamp(net.strength / 1.0, 0, 1), 30%) }
-            text "Wi-Fi" { at: wtx - 58 * u, tile_cy + 4 * u; anchor: left center; size: 13 * u; color: ink; family: "Space Grotesk" }
-            text net.name { at: wtx - 58 * u, tile_cy + 19 * u; anchor: left center; size: 10.5 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: net.online }
-            text "Disconnected" { at: wtx - 58 * u, tile_cy + 19 * u; anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: net.wifi and not net.online }
-            text "Off" { at: wtx - 58 * u, tile_cy + 19 * u; anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not net.wifi }
+            text "Wi-Fi" { at: floor(wtx - 58 * u + 0.5), floor(tile_cy + 4 * u + 0.5); anchor: left center; size: 13 * u; color: ink; family: "Space Grotesk" }
+            text net.name { at: floor(wtx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: net.online }
+            text "Disconnected" { at: floor(wtx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: net.wifi and not net.online }
+            text "Off" { at: floor(wtx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not net.wifi }
             body {
                 color: mix(off, mint, clamp(wifi_on, 0, 1))
                 box { at: wtx + 46 * u, tile_cy - 18 * u; size: 26 * u, 14 * u; corner: 7 * u }
@@ -937,10 +1094,10 @@ scene Gota {
             box { at: btx - 48 * u, tile_cy - 18 * u; size: 2.4 * u, 16 * u; corner: 1.2 * u; color: ink; opacity: 45% + 55% * bt_on }
             path { at: btx - 48 * u, tile_cy - 18 * u; stroke: 1.5 * u; color: ink; opacity: 45% + 55% * bt_on; move -4 * u, -4 * u; line 4 * u, 4 * u }
             path { at: btx - 48 * u, tile_cy - 18 * u; stroke: 1.5 * u; color: ink; opacity: 45% + 55% * bt_on; move 4 * u, -4 * u; line -4 * u, 4 * u }
-            text "Bluetooth" { at: btx - 58 * u, tile_cy + 4 * u; anchor: left center; size: 13 * u; color: ink; family: "Space Grotesk" }
-            text bt_name { at: btx - 58 * u, tile_cy + 19 * u; anchor: left center; size: 10.5 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: bt_connected }
-            text "No device" { at: btx - 58 * u, tile_cy + 19 * u; anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: bt.powered and not bt_connected }
-            text "Off" { at: btx - 58 * u, tile_cy + 19 * u; anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not bt.powered }
+            text "Bluetooth" { at: floor(btx - 58 * u + 0.5), floor(tile_cy + 4 * u + 0.5); anchor: left center; size: 13 * u; color: ink; family: "Space Grotesk" }
+            text bt_name { at: floor(btx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: bt_connected }
+            text "No device" { at: floor(btx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: bt.powered and not bt_connected }
+            text "Off" { at: floor(btx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not bt.powered }
             body {
                 color: mix(off, mint, clamp(bt_on, 0, 1))
                 box { at: btx + 46 * u, tile_cy - 18 * u; size: 26 * u, 14 * u; corner: 7 * u }
@@ -967,9 +1124,9 @@ scene Gota {
                 ellipse { at: wtx - 48 * u, tile2_cy - 11 * u; radius: 1.6 * u; color: ink }
             }
             path { at: wtx - 48 * u, tile2_cy - 18 * u; stroke: 1.8 * u; color: alert; opacity: dnd_pill; move -8 * u, -8 * u; line 8 * u, 8 * u }
-            text "Do Not Disturb" { at: wtx - 58 * u, tile2_cy + 4 * u; anchor: left center; size: 13 * u; width: 116 * u; lines: 1; color: ink; family: "Space Grotesk" }
-            text "On" { at: wtx - 58 * u, tile2_cy + 19 * u; anchor: left center; size: 10.5 * u; color: mint; opacity: 90%; family: "Space Grotesk"; show: dnd_on }
-            text "Off" { at: wtx - 58 * u, tile2_cy + 19 * u; anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not dnd_on }
+            text "Do Not Disturb" { at: floor(wtx - 58 * u + 0.5), floor(tile2_cy + 4 * u + 0.5); anchor: left center; size: 13 * u; width: 116 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            text "On" { at: floor(wtx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: mint; opacity: 90%; family: "Space Grotesk"; show: dnd_on }
+            text "Off" { at: floor(wtx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not dnd_on }
             body {
                 color: mix(off, mint, clamp(dnd_pill, 0, 1))
                 box { at: wtx + 46 * u, tile2_cy - 18 * u; size: 26 * u, 14 * u; corner: 7 * u }
@@ -992,10 +1149,10 @@ scene Gota {
                     let sp = fract(time * 0.7 + i * 0.33)
                     box { at: btx - 52 * u + i * 3.5 * u, tile2_cy - 24 * u - sp * 6 * u; size: 1.4 * u, 5 * u; corner: 0.7 * u; color: ink; opacity: caf_pill * 55% * sin(sp * 180) }
                 }
-                text "Caffeine" { at: btx - 58 * u, tile2_cy + 4 * u; anchor: left center; size: 13 * u; color: ink; family: "Space Grotesk" }
-                text "Awake" { at: btx - 58 * u, tile2_cy + 19 * u; anchor: left center; size: 10.5 * u; color: mint; opacity: 90%; family: "Space Grotesk"; show: caf_on }
-                text "Off" { at: btx - 58 * u, tile2_cy + 19 * u; anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not caf_on and caf_avail }
-                text "No hypridle" { at: btx - 58 * u, tile2_cy + 19 * u; anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not caf_avail }
+                text "Caffeine" { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 4 * u + 0.5); anchor: left center; size: 13 * u; color: ink; family: "Space Grotesk" }
+                text "Awake" { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: mint; opacity: 90%; family: "Space Grotesk"; show: caf_on }
+                text "Off" { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not caf_on and caf_avail }
+                text "No hypridle" { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not caf_avail }
                 body {
                     color: mix(off, mint, clamp(caf_pill, 0, 1))
                     box { at: btx + 46 * u, tile2_cy - 18 * u; size: 26 * u, 14 * u; corner: 7 * u }
@@ -1017,9 +1174,9 @@ scene Gota {
             path { at: cx - 124 * u, ex_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * wifi_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
             zone box wifi_back { at: cx - 124 * u, ex_cy; size: 30 * u, 30 * u; cursor: pointer }
             on press wifi_back { panel_sub = none }
-            text "WI-FI" { at: cx - 102 * u, ex_cy; anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            text "WI-FI" { at: floor(cx - 102 * u + 0.5), floor(ex_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
             box { at: cx + 112 * u, ex_cy; size: 52 * u, 24 * u; corner: 12 * u; color: if(wifi_scanning, mint, ink); opacity: if(wifi_scanning, 22%, 8% + 10% * wifi_scan_hit.hover) }
-            text "Scan" { at: cx + 112 * u, ex_cy; anchor: center; size: 11 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not wifi_scanning }
+            text "Scan" { at: floor(cx + 112 * u + 0.5), floor(ex_cy + 0.5); anchor: center; size: 11 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not wifi_scanning }
             //  While it runs: a ring turning where the word was, and the list says so.
             group {
                 show: wifi_scanning
@@ -1031,13 +1188,13 @@ scene Gota {
             on press wifi_scan_hit { emit wifi_scan }
             box { at: cx, ex_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
             column wifi_list_col ~quick {
-                at: cx - 138 * u, ex_top + 54 * u
+                at: floor(cx - 138 * u + 0.5), floor(ex_top + 54 * u + 0.5)
                 view: 276 * u, list_view_h * u
-                gap: 4 * u
+                gap: 5
                 for n in wifi_nets { WifiRow(n, pick: wifi_pick, forget: wifi_forget, joingo: wifi_join_go) }
             }
-            text "No networks in range" { at: cx, ex_top + 54 * u + 15 * u; anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: wifi_nets.count < 1 and not wifi_scanning }
-            text "Scanning…" { at: cx, ex_top + 54 * u + 15 * u; anchor: center; size: 12 * u; color: mint; family: "Space Grotesk"; show: wifi_nets.count < 1 and wifi_scanning }
+            text "No networks in range" { at: floor(cx + 0.5), floor(ex_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: wifi_nets.count < 1 and not wifi_scanning }
+            text "Scanning…" { at: floor(cx + 0.5), floor(ex_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: mint; family: "Space Grotesk"; show: wifi_nets.count < 1 and wifi_scanning }
         }
 
         //  The Bluetooth tile's own window: paired and nearby devices, connected first.
@@ -1049,9 +1206,9 @@ scene Gota {
             path { at: cx - 124 * u, ex2_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * bt_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
             zone box bt_back { at: cx - 124 * u, ex2_cy; size: 30 * u, 30 * u; cursor: pointer }
             on press bt_back { panel_sub = none }
-            text "BLUETOOTH" { at: cx - 102 * u, ex2_cy; anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            text "BLUETOOTH" { at: floor(cx - 102 * u + 0.5), floor(ex2_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
             box { at: cx + 112 * u, ex2_cy; size: 52 * u, 24 * u; corner: 12 * u; color: if(bt_scanning, mint, ink); opacity: if(bt_scanning, 22%, 8% + 10% * bt_scan_hit.hover) }
-            text "Scan" { at: cx + 112 * u, ex2_cy; anchor: center; size: 11 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not bt_scanning }
+            text "Scan" { at: floor(cx + 112 * u + 0.5), floor(ex2_cy + 0.5); anchor: center; size: 11 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not bt_scanning }
             //  While it runs: a ring turning where the word was, and the list says so.
             group {
                 show: bt_scanning
@@ -1063,13 +1220,13 @@ scene Gota {
             on press bt_scan_hit { emit bt_scan }
             box { at: cx, ex2_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
             column bt_list_col ~quick {
-                at: cx - 138 * u, ex2_top + 54 * u
+                at: floor(cx - 138 * u + 0.5), floor(ex2_top + 54 * u + 0.5)
                 view: 276 * u, list_view_h * u
-                gap: 4 * u
+                gap: 5
                 for d in bt_devices { BtRow(d, pick: bt_pick, forget: bt_forget) }
             }
-            text "No devices found" { at: cx, ex2_top + 54 * u + 15 * u; anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: bt_devices.count < 1 and not bt_scanning }
-            text "Scanning…" { at: cx, ex2_top + 54 * u + 15 * u; anchor: center; size: 12 * u; color: mint; family: "Space Grotesk"; show: bt_devices.count < 1 and bt_scanning }
+            text "No devices found" { at: floor(cx + 0.5), floor(ex2_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: bt_devices.count < 1 and not bt_scanning }
+            text "Scanning…" { at: floor(cx + 0.5), floor(ex2_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: mint; family: "Space Grotesk"; show: bt_devices.count < 1 and bt_scanning }
         }
 
         //  The dropdown: a solid card that drops from the volume row over what is
@@ -1082,11 +1239,11 @@ scene Gota {
             box { at: cx, ck + (vol_top + 32) * u + ddh / 2; size: 288 * u, ddh; corner: 14 * u; color: panel }
             zone box dd_block { at: cx, ck + (vol_top + 32) * u + ddh / 2; size: 288 * u, ddh }
             column dd_list {
-                at: cx - 138 * u, ck + (vol_top + 32) * u + 6 * u
-                gap: 2 * u
+                at: floor(cx - 138 * u + 0.5), floor(ck + (vol_top + 32) * u + 6 * u + 0.5)
+                gap: 3
                 for o in outlist { OutRow(o, pick: pick_out) }
             }
-            text "No outputs" { at: cx, ck + (vol_top + 32) * u + ddh / 2; anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: outlist.count < 1 }
+            text "No outputs" { at: floor(cx + 0.5), floor(ck + (vol_top + 32) * u + ddh / 2 + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: outlist.count < 1 }
         }
     }
     //  The player's panel: it hangs from the window title, not from the middle of the bar, in
@@ -1122,8 +1279,8 @@ scene Gota {
                     box { at: mdx - 118.5 * u - 1.5, my - 1 * u; size: 2 * u, 18 * u; corner: 1 * u; color: ink }
                     path { at: mdx - 118.5 * u - 1.5, my - 10 * u; stroke: 2 * u; color: ink; move 0, 0.5 * u; curve 6 * u, 8 * u via 6.5 * u, 2.5 * u }
                 }
-                text "Media" { at: mdx - 96 * u, my - 8 * u; anchor: left center; size: 14 * u; color: ink; family: "Space Grotesk" }
-                text "Nothing playing" { at: mdx - 96 * u, my + 8 * u; anchor: left center; size: 12 * u; color: faint; family: "Space Grotesk" }
+                text "Media" { at: floor(mdx - 96 * u + 0.5), floor(my - 8 * u + 0.5); anchor: left center; size: 14 * u; color: ink; family: "Space Grotesk" }
+                text "Nothing playing" { at: floor(mdx - 96 * u + 0.5), floor(my + 8 * u + 0.5); anchor: left center; size: 12 * u; color: faint; family: "Space Grotesk" }
             }
 
             //  Playing, or paused with something loaded: the full card.
@@ -1157,8 +1314,8 @@ scene Gota {
                     }
                 }
 
-                text media.title { at: mdx - 50 * u, my - 24 * u; anchor: left center; size: 14.5 * u; weight: 700; width: 186 * u; lines: 1; color: ink; family: "Space Grotesk" }
-                text media.artist { at: mdx - 50 * u, my - 6 * u; anchor: left center; size: 12 * u; width: 186 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk" }
+                text media.title { at: floor(mdx - 50 * u + 0.5), floor(my - 24 * u + 0.5); anchor: left center; size: 14.5 * u; weight: 700; width: 186 * u; lines: 1; color: ink; family: "Space Grotesk" }
+                text media.artist { at: floor(mdx - 50 * u + 0.5), floor(my - 6 * u + 0.5); anchor: left center; size: 12 * u; width: 186 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk" }
 
                 //  previous
                 box { at: px - 6 * u, ny; size: 2.2 * u, 12 * u; corner: 1.1 * u; color: ink; opacity: 75% + 25% * mp.prev.hover }
@@ -1197,7 +1354,7 @@ scene Gota {
         group {
             opacity: f3
             move: 0, (1 - f3) * 12 * u
-            text "No active windows" { at: mdx, ck + tasks_list * u + 16 * u; anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: tasks.count < 1 }
+            text "No active windows" { at: floor(mdx + 0.5), floor(ck + tasks_list * u + 16 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: tasks.count < 1 }
             column task_col {
                 at: floor(mdx - 144 * u + 0.5), floor(ck + tasks_list * u + 0.5)
                 view: 288 * u, (task_rows * 40 - 4) * u
@@ -1207,7 +1364,7 @@ scene Gota {
             //  The apps that only live in the tray: no window to list, so they get their own section.
             group {
                 show: trays.count > 0
-                text "BACKGROUND APPS" { at: mdx - 138 * u, ck + tray_top * u + 11 * u; anchor: left center; size: 13.5 * u; weight: 700; color: ink; family: "Space Grotesk" }
+                text "BACKGROUND APPS" { at: floor(mdx - 138 * u + 0.5), floor(ck + tray_top * u + 11 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 700; color: ink; family: "Space Grotesk" }
                 column tray_col {
                     at: floor(mdx - 144 * u + 0.5), floor(ck + tray_list * u + 0.5)
                     view: 288 * u, (max(1, tray_rows) * 40 - 4) * u
@@ -1276,8 +1433,8 @@ scene Gota {
             }
             line { from: tr0 + span, vy; to: tr0 + trw, vy; width: 5 * u; color: ink; opacity: 12% }
             box { at: clamp(tr0 + span, tr0 + 4 * u, tr0 + trw - 4 * u), vy; size: 6 * u, 26 * u; corner: 3 * u; color: ink }
-            text number(audio.volume * 100, 0, "%") { at: cx + 116 * u, vy; anchor: center; align: center; size: 21 * u; weight: 700; color: ink; family: "Space Grotesk"; show: not audio.muted }
-            text "Muted" { at: cx + 116 * u, vy; anchor: center; align: center; size: 21 * u; weight: 700; color: faint; family: "Space Grotesk"; show: audio.muted }
+            text number(audio.volume * 100, 0, "%") { at: floor(cx + 116 * u + 0.5), floor(vy + 0.5); anchor: center; align: center; size: 21 * u; weight: 700; color: ink; family: "Space Grotesk"; show: not audio.muted }
+            text "Muted" { at: floor(cx + 116 * u + 0.5), floor(vy + 0.5); anchor: center; align: center; size: 21 * u; weight: 700; color: faint; family: "Space Grotesk"; show: audio.muted }
         }
 
         // ── a notification ──
@@ -1303,13 +1460,13 @@ scene Gota {
             ellipse { at: ntx, nty; radius: (24 + 22 * nt_ring) * u; stroke: 2 * u; color: if(nt_urgent, alert, mint); opacity: 90% * (1 - nt_ring) }
             ellipse { at: ntx + 20 * u, nty - 20 * u; radius: 5 * u; color: alert; opacity: if(nt_urgent, 60% + 40% * sin(time * 300), 0) }
 
-            text nt_app { at: ntl, ot + 12 * u + 9 * u; anchor: left center; size: 13 * u; weight: 700; width: 190 * u; lines: 1; color: faint; family: "Space Grotesk" }
-            text nt_title { at: ntl, ot + 35 * u; anchor: left top; size: 19 * u; weight: 700; width: 236 * u; lines: 3; measure: ntt; color: ink; family: "Space Grotesk" }
-            text nt_body { at: ntl, ot + (39 + nt_th) * u; anchor: left top; size: 15.5 * u; width: 236 * u; lines: 6; measure: ntb; color: faint; family: "Space Grotesk"; show: nt_body_on }
+            text nt_app { at: floor(ntl + 0.5), floor(ot + 12 * u + 9 * u + 0.5); anchor: left center; size: 13 * u; weight: 700; width: 190 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            text nt_title { at: floor(ntl + 0.5), floor(ot + 35 * u + 0.5); anchor: left top; size: 19 * u; weight: 700; width: 236 * u; lines: 3; measure: ntt; color: ink; family: "Space Grotesk" }
+            text nt_body { at: floor(ntl + 0.5), floor(ot + (39 + nt_th) * u + 0.5); anchor: left top; size: 15.5 * u; width: 236 * u; lines: 6; measure: ntb; color: faint; family: "Space Grotesk"; show: nt_body_on }
             //  Its buttons, under the words.
             row nt_row {
-                at: ntl, ot + (nt_content + 8) * u
-                gap: 6 * u
+                at: floor(ntl + 0.5), floor(ot + (nt_content + 8) * u + 0.5)
+                gap: 8
                 for a in nt_acts { NtAct(a, click: nt_act) }
             }
             //  Close.
@@ -1345,11 +1502,11 @@ scene Gota {
                 }
             }
         }
-        text "SETTINGS" { at: sl + 40 * u, hy; anchor: left center; size: 14 * u; weight: 700; color: ink; family: "Space Grotesk" }
+        text "SETTINGS" { at: floor(sl + 40 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 14 * u; weight: 700; color: ink; family: "Space Grotesk" }
         box { at: sl + 178 * u, hy; size: 132 * u, 22 * u; corner: 11 * u; color: ink; opacity: 6% }
-        text "VISUALS" { at: sl + 122 * u, hy; anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+        text "VISUALS" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
         path { at: sl + 168 * u, hy; stroke: 1.3 * u; color: faint; move -2 * u, -3.5 * u; line 2 * u, 0; line -2 * u, 3.5 * u }
-        text "Wallpaper" { at: sl + 176 * u, hy; anchor: left center; size: 9.5 * u; weight: 700; color: mint; family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; family: "Space Grotesk" }
         ellipse { at: cx + 282 * u, hy; radius: 13 * u; color: ink; opacity: 5% + 10% * set_x.hover }
         line { from: cx + 277.5 * u, hy - 4.5 * u; to: cx + 286.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
         line { from: cx + 286.5 * u, hy - 4.5 * u; to: cx + 277.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
@@ -1358,7 +1515,7 @@ scene Gota {
 
         //  Sidebar: the sections, grouped. One so far.
         box { at: sl + 75 * u, sby + 176 * u; size: 150 * u, 352 * u; corner: 14 * u; color: ink; opacity: 4% }
-        text "VISUALS" { at: sl + 14 * u, sby + 18 * u; anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
+        text "VISUALS" { at: floor(sl + 14 * u + 0.5), floor(sby + 18 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
         box { at: sl + 75 * u, sby + 42 * u; size: 134 * u, 28 * u; corner: 10 * u; color: mint; opacity: 16% }
         group {
             opacity: 100%
@@ -1366,7 +1523,7 @@ scene Gota {
             path { at: sl + 24 * u, sby + 42 * u; color: mint; move -5 * u, 3 * u; line -1.5 * u, -1 * u; line 1 * u, 1.5 * u; line 2.5 * u, -1.5 * u; line 5 * u, 3 * u; close }
             ellipse { at: sl + 27 * u, sby + 39 * u; radius: 1.2 * u; color: mint }
         }
-        text "Wallpaper" { at: sl + 40 * u, sby + 42 * u; anchor: left center; size: 12 * u; weight: 700; color: mint; family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 40 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mint; family: "Space Grotesk" }
 
         //  The page. Card one: the wallpaper in use, and Random.
         let spx = sl + 158 * u                             // the page's left edge
@@ -1375,26 +1532,26 @@ scene Gota {
             clip inset 0 box { at: spx + 77 * u, sby + 46 * u; size: 130 * u, 73 * u; corner: 10 * u }
             image wp_cur { at: spx + 12 * u, sby + 9.5 * u; size: 130 * u, 73 * u }
         }
-        text "ACTIVE WALLPAPER" { at: spx + 154 * u, sby + 16 * u; anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
-        text wp_name { at: spx + 154 * u, sby + 36 * u; anchor: left center; size: 13 * u; weight: 700; width: 268 * u; lines: 1; color: ink; family: "Space Grotesk" }
-        text wp_dirtext { at: spx + 154 * u, sby + 53 * u; anchor: left center; size: 10 * u; width: 268 * u; lines: 1; color: faint; family: "Space Grotesk" }
+        text "ACTIVE WALLPAPER" { at: floor(spx + 154 * u + 0.5), floor(sby + 16 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+        text wp_name { at: floor(spx + 154 * u + 0.5), floor(sby + 36 * u + 0.5); anchor: left center; size: 13 * u; weight: 700; width: 268 * u; lines: 1; color: ink; family: "Space Grotesk" }
+        text wp_dirtext { at: floor(spx + 154 * u + 0.5), floor(sby + 53 * u + 0.5); anchor: left center; size: 10 * u; width: 268 * u; lines: 1; color: faint; family: "Space Grotesk" }
         box { at: spx + 195 * u, sby + 74 * u; size: 78 * u, 24 * u; corner: 12 * u; color: ink; opacity: 8% + 10% * wp_rand_hit.hover }
-        text "Random" { at: spx + 195 * u, sby + 74 * u; anchor: center; align: center; size: 10.5 * u; weight: 600; width: 74 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
+        text "Random" { at: floor(spx + 195 * u + 0.5), floor(sby + 74 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 74 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
         zone box wp_rand_hit { at: spx + 195 * u, sby + 74 * u; size: 80 * u, 26 * u; corner: 13 * u; cursor: pointer }
         on press wp_rand_hit { emit wp_random }
 
         //  Card two: the gallery, twelve at a time, with a pager.
         box { at: spx + 219 * u, sby + 226 * u; size: 438 * u, 252 * u; corner: 14 * u; color: ink; opacity: veil }
-        text "WALLPAPER GALLERY" { at: spx + 14 * u, sby + 116 * u; anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
-        text wp_dirtext { at: spx + 424 * u, sby + 116 * u; anchor: right center; size: 9.5 * u; width: 260 * u; lines: 1; align: right; color: faint; opacity: 70%; family: "Space Grotesk" }
+        text "WALLPAPER GALLERY" { at: floor(spx + 14 * u + 0.5), floor(sby + 116 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+        text wp_dirtext { at: floor(spx + 424 * u + 0.5), floor(sby + 116 * u + 0.5); anchor: right center; size: 9.5 * u; width: 260 * u; lines: 1; align: right; color: faint; opacity: 70%; family: "Space Grotesk" }
         row wp_grid {
-            at: spx + 15 * u, sby + 134 * u
+            at: floor(spx + 15 * u + 0.5), floor(sby + 134 * u + 0.5)
             gap: 8 * u
             wrap: 4
             for w in wps { WpThumb(w, pick: wp_pick) }
         }
         path { at: spx + 40 * u, sby + 334 * u; stroke: 1.6 * u; color: ink; opacity: 55% + 45% * wp_prev_hit.hover; move 3 * u, -5 * u; line -3 * u, 0; line 3 * u, 5 * u }
-        text wp_pager { at: spx + 219 * u, sby + 334 * u; anchor: center; align: center; size: 11 * u; weight: 600; width: 100 * u; lines: 1; color: faint; family: "Space Grotesk" }
+        text wp_pager { at: floor(spx + 219 * u + 0.5), floor(sby + 334 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 600; width: 100 * u; lines: 1; color: faint; family: "Space Grotesk" }
         path { at: spx + 398 * u, sby + 334 * u; stroke: 1.6 * u; color: ink; opacity: 55% + 45% * wp_next_hit.hover; move -3 * u, -5 * u; line 3 * u, 0; line -3 * u, 5 * u }
         zone box wp_prev_hit { at: spx + 40 * u, sby + 334 * u; size: 30 * u, 28 * u; corner: 14 * u; cursor: pointer }
         zone box wp_next_hit { at: spx + 398 * u, sby + 334 * u; size: 30 * u, 28 * u; corner: 14 * u; cursor: pointer }

@@ -24,6 +24,11 @@ sys.watch("clock", function(c)
     if h == 0 then h = 12 end
     text.clock12 = string.format("%d:%02d %s", h, c.minute, c.hour < 12 and "am" or "pm")
     text.datelong = string.format("%s, %s %d, %d", days[c.weekday], months[c.month], c.day, c.year)
+    -- The clock card's pieces.
+    text.clock_hm = string.format("%d:%02d", h, c.minute)
+    text.clock_ap = c.hour < 12 and "AM" or "PM"
+    text.date_wd = days[c.weekday]:upper()
+    text.date_md = months[c.month]:sub(1, 3):upper() .. " " .. c.day
 end)
 
 -- The player: whether there is one, and what the three buttons do.
@@ -247,17 +252,56 @@ end)
 -- so a row's tap (a position - see the Wi-Fi list below for why) can find its
 -- address.
 local bt_list = {}
+local bt_last = nil                       -- the last thing the service said
+local bt_sig = nil                        -- what the list said last time it was handed over
+local bt_scanning = false                 -- a scan is running (see `bt_scan` below)
 
-sys.watch("bluetooth", function(b)
+-- The list is built here, the way Synoptik's was: what is connected first, then what is paired, then the
+-- rest, named ones alphabetically and the anonymous ones (BLE beacons, mostly, which are dozens) last, by
+-- address. Unpaired devices are only shown while a scan is running: BlueZ goes on reporting what walked past
+-- for minutes afterwards, and a stale list of strangers is worse than none.
+local function bt_is_mac(n) return n:match("^%x%x[-:]%x%x[-:]%x%x[-:]%x%x[-:]%x%x[-:]%x%x$") ~= nil end
+
+local function bt_render()
+    local b = bt_last
+    if not b then return end
     local name = ""
-    local list = {}
-    for i, d in ipairs(b.devices or {}) do
+    local rows = {}
+    for _, d in ipairs(b.devices or {}) do
         if d.connected then name = d.name end
-        list[i] = { address = d.address, connected = d.connected }
+        if d.paired or d.connected or bt_scanning then
+            local nm = (d.name ~= nil and d.name ~= "") and d.name or d.address
+            rows[#rows + 1] = {
+                name = nm, address = d.address, paired = d.paired and true or false,
+                connected = d.connected and true or false, battery = d.battery or -1,
+                anon = bt_is_mac(nm),
+            }
+        end
     end
+    table.sort(rows, function(x, y)
+        if x.connected ~= y.connected then return x.connected end
+        if x.paired ~= y.paired then return x.paired end
+        if x.anon ~= y.anon then return not x.anon end
+        return x.name:lower() < y.name:lower()
+    end)
+    while #rows > 24 do table.remove(rows) end
     fact.bt_connected = name ~= ""
     text.bt_name = name
-    bt_list = list
+    bt_list = rows
+    local sig = {}
+    for i, r in ipairs(rows) do
+        sig[i] = r.address .. "|" .. r.name .. "|" .. tostring(r.paired) .. "|" .. tostring(r.connected) .. "|" .. tostring(r.battery)
+    end
+    local joined = table.concat(sig, "\n")
+    if joined ~= bt_sig then
+        bt_sig = joined
+        model.bt_devices = rows
+    end
+end
+
+sys.watch("bluetooth", function(b)
+    bt_last = b
+    bt_render()
 end)
 
 on("bt_pick", function(i)
@@ -277,74 +321,36 @@ on("bt_forget", function(i)
     fact.bt_open_row = -1
 end)
 
--- A scan gives no sign of its own, so the scene is told to show one: Wi-Fi asks once and
--- answers within a few seconds; Bluetooth discovery runs until it is stopped, so it is
--- stopped after a while too.
-local bt_scanning = false
+-- A scan gives the scene no sign of its own, so it is told to show one. Discovery is held open by
+-- `bluetoothctl --timeout 12 scan on`, as Synoptik's first version did: pleamar's own `bluetooth.scan` answers
+-- without an error but BlueZ never starts discovering (`Discovering` stays "no"), while this does, and the
+-- service picks up what it finds. It ends by itself after twelve seconds.
 on("bt_scan", function()
     if bt_scanning then return end
     bt_scanning = true
     fact.bt_scanning = true
-    sys.call("bluetooth.scan", true)
-    after(8000, function()
-        pcall(sys.call, "bluetooth.scan", false)
+    bt_render()
+    run("bluetoothctl", { "--timeout", "12", "scan", "on" }, function()
         bt_scanning = false
         fact.bt_scanning = false
+        bt_render()
     end)
 end)
 
--- Wi-Fi: the scene draws the network list straight from the service (a model
--- can bind to one with no logic at all), but a row only tells the logic which
--- position was tapped - so this keeps its own copy, the same shape as the
--- Bluetooth one above, to turn a position back into an SSID.
-local wifi_list = {}
-
-sys.watch("network", function(n)
-    local list = {}
-    for i, w in ipairs(n.networks or {}) do
-        list[i] = { ssid = w.ssid, active = w.active }
-    end
-    wifi_list = list
-end)
-
-on("wifi_pick", function(i)
-    local w = wifi_list[i + 1]
-    if not w then return end
-    if w.active then
-        sys.call("network.disconnect")
-    else
-        sys.call("network.connect", w.ssid)
-    end
-end)
-
-on("wifi_forget", function(i)
-    local w = wifi_list[i + 1]
-    if not w then return end
-    sys.call("network.forget", w.ssid)
-    fact.wifi_open_row = -1
-end)
-
--- The Join button carries its row; Enter in the field doesn't, so it acts on
--- whichever row is open (there's only ever the one).
-local function wifi_join(i)
-    local w = wifi_list[(i or fact.wifi_open_row) + 1]
-    if not w then return end
-    sys.call("network.connect", w.ssid, text.wifi_pw)
-    fact.wifi_open_row = -1
-    text.wifi_pw = ""
-end
-on("wifi_join_go", wifi_join)
-on("submit:wifi_pw", function() wifi_join(nil) end)
-
+-- Wi-Fi asks NetworkManager once and the answer arrives within a few seconds, so its spinner is timed. As with
+-- Bluetooth, pleamar's own `network.scan` returns without an error but NetworkManager's `LastScan` never moves;
+-- `nmcli device wifi rescan` does move it, so the rescan goes through that. NetworkManager refuses a rescan
+-- straight after another one, and says so: the spinner is shown regardless, since the list is fresh anyway.
 local wifi_scanning = false
 on("wifi_scan", function()
     if wifi_scanning then return end
     wifi_scanning = true
     fact.wifi_scanning = true
-    sys.call("network.scan")
-    after(4000, function()
-        wifi_scanning = false
-        fact.wifi_scanning = false
+    run("nmcli", { "device", "wifi", "rescan" }, function()
+        after(3500, function()
+            wifi_scanning = false
+            fact.wifi_scanning = false
+        end)
     end)
 end)
 
@@ -1218,3 +1224,125 @@ on("wp_random", function()
 end)
 
 wp_load()
+
+-- ── Weather, for the calendar panel ──────────────────────────────────────────────────────
+-- Fetched from Open-Meteo, as in Synoptik: the place is found by IP (ipwho.is) unless `location` is set
+-- in `weather-config.json` in Gota's data folder, when it is looked up by name; then the current
+-- conditions and the next seven days. `units` there is "fahrenheit" (the default) or "celsius".
+-- The sandbox has no JSON parser for what curl brings, so curl writes each answer into the data folder
+-- and `files.read` parses it.
+local wx_cfg = { location = "", units = "fahrenheit" }
+local wx_loc = nil                        -- { lat, lon }
+local wx_busy = false
+local WX_DESC = {
+    [0] = "Clear sky", [1] = "Mainly clear", [2] = "Partly cloudy", [3] = "Overcast",
+    [45] = "Foggy", [48] = "Rime fog", [51] = "Light drizzle", [53] = "Drizzle", [55] = "Dense drizzle",
+    [56] = "Freezing drizzle", [57] = "Freezing drizzle", [61] = "Slight rain", [63] = "Rain", [65] = "Heavy rain",
+    [66] = "Freezing rain", [67] = "Freezing rain", [71] = "Light snow", [73] = "Snow", [75] = "Heavy snow",
+    [77] = "Snow grains", [80] = "Light showers", [81] = "Showers", [82] = "Violent showers",
+    [85] = "Snow showers", [86] = "Heavy snow showers", [95] = "Thunderstorm", [96] = "Thunderstorm, hail",
+    [99] = "Severe thunderstorm",
+}
+local WX_DAYS = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" }
+
+-- 0 clear · 1 partly cloudy · 2 cloud · 3 fog · 4 rain · 5 snow · 6 storm
+local function wx_kind(code)
+    if code == 0 then return 0 end
+    if code == 1 or code == 2 then return 1 end
+    if code == 3 then return 2 end
+    if code == 45 or code == 48 then return 3 end
+    if (code >= 51 and code <= 67) or (code >= 80 and code <= 82) then return 4 end
+    if (code >= 71 and code <= 77) or code == 85 or code == 86 then return 5 end
+    if code >= 95 then return 6 end
+    return 2
+end
+
+local function wx_round(x) return math.floor(x + 0.5) end
+local function urlenc(s) return (s:gsub("[^%w%-_%.~]", function(c) return string.format("%%%02X", c:byte()) end)) end
+
+local function wx_show(w)
+    if type(w) ~= "table" or type(w.current) ~= "table" or type(w.daily) ~= "table" then return false end
+    local sym = wx_cfg.units == "celsius" and "°C" or "°F"
+    local code = w.current.weather_code or 3
+    text.wx_temp = wx_round(w.current.temperature_2m or 0) .. sym
+    text.wx_desc = WX_DESC[code] or "—"
+    fact.wx_kind = wx_kind(code)
+    local rows = {}
+    local dd = w.daily
+    for i = 1, math.min(7, #(dd.time or {})) do
+        local y, m, d = dd.time[i]:match("^(%d+)-(%d+)-(%d+)$")
+        local label = "—"
+        if y then
+            local wd = os.date("*t", os.time({ year = tonumber(y), month = tonumber(m), day = tonumber(d), hour = 12 })).wday
+            label = WX_DAYS[wd]
+        end
+        rows[i] = {
+            label = label, kind = wx_kind(dd.weather_code[i] or 3),
+            hi = wx_round(dd.temperature_2m_max[i]) .. "°", lo = wx_round(dd.temperature_2m_min[i]) .. "°",
+            today = i == 1,
+        }
+    end
+    model.wx_days = rows
+    fact.wx_ok = true
+    return true
+end
+
+local function wx_read(name)
+    local ok, v = pcall(sys.ask, "files.read", name, "json")
+    if ok and type(v) == "table" then return v end
+    return nil
+end
+
+local function wx_done(ok)
+    wx_busy = false
+    if not ok then after(60000, function() if not wx_busy then wx_refresh_now() end end) end
+end
+
+local function wx_forecast(d)
+    local unit = wx_cfg.units == "celsius" and "celsius" or "fahrenheit"
+    local url = "https://api.open-meteo.com/v1/forecast?latitude=" .. wx_loc.lat .. "&longitude=" .. wx_loc.lon
+        .. "&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min"
+        .. "&temperature_unit=" .. unit .. "&timezone=auto&forecast_days=7"
+    run("curl", { "-s", "-L", "--max-time", "10", "-o", d.data .. "/wx.json", url }, function(_, code)
+        wx_done(code == 0 and wx_show(wx_read("wx.json")))
+    end)
+end
+
+function wx_refresh_now()
+    if wx_busy then return end
+    wx_busy = true
+    with_dirs(function(d)
+        if wx_loc then wx_forecast(d) return end
+        local loc = wx_cfg.location
+        local url = loc ~= "" and ("https://geocoding-api.open-meteo.com/v1/search?name=" .. urlenc(loc) .. "&count=1&format=json")
+            or "https://ipwho.is/"
+        run("curl", { "-s", "-L", "--max-time", "10", "-o", d.data .. "/wx-loc.json", url }, function(_, code)
+            local r = code == 0 and wx_read("wx-loc.json") or nil
+            local lat, lon
+            if r and loc ~= "" and type(r.results) == "table" and r.results[1] then
+                lat, lon = r.results[1].latitude, r.results[1].longitude
+            elseif r and loc == "" and r.success then
+                lat, lon = r.latitude, r.longitude
+            end
+            if lat and lon then
+                wx_loc = { lat = lat, lon = lon }
+                wx_forecast(d)
+            else
+                wx_done(false)
+            end
+        end)
+    end)
+end
+
+do
+    local ok, saved = pcall(sys.ask, "files.read", "weather-config.json", "json")
+    if ok and type(saved) == "table" then
+        if type(saved.location) == "string" then wx_cfg.location = saved.location end
+        if saved.units == "celsius" or saved.units == "fahrenheit" then wx_cfg.units = saved.units end
+    else
+        pcall(sys.call, "files.write", "weather-config.json", wx_cfg)   -- so there is a file to edit
+    end
+    wx_show(wx_read("wx.json"))          -- what was fetched last time, while the new answer is on its way
+end
+wx_refresh_now()
+every(1800000, wx_refresh_now)           -- every half hour
