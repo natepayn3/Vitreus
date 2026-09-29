@@ -452,7 +452,7 @@ scene Gota {
         size: 82 * u, 26 * u
         zone box touch { from: 0, 0; size: 82 * u, 26 * u; corner: 8 * u; cursor: pointer }
         box { from: 0, 0; size: 82 * u, 26 * u; corner: 8 * u; color: if(touch.hover, mint, ink); opacity: if(touch.hover, 100%, 8%) }
-        text a.label { at: 41 * u, 13 * u; anchor: center; align: center; size: 10.5 * u; weight: 700; width: 74 * u; lines: 1; color: if(touch.hover, onmint, ink); family: "Space Grotesk" }
+        text a.label { at: 41 * u, 13 * u; anchor: center; align: center; size: 12.5 * u; weight: 700; width: 74 * u; lines: 1; color: if(touch.hover, onmint, ink); family: "Space Grotesk" }
         on press touch { emit click(a.index) }
     }
 
@@ -558,9 +558,9 @@ scene Gota {
     //  The notification's plate is as tall as what is on it: the app line, the title (one line or more),
     //  the body if there is one (as many lines as it needs), and a row of buttons if it brought any,
     //  with 12 of air around. Never shorter than its icon tile. Each text measures itself once wrapped.
-    let nt_th = max(17, ntt.height / u)
+    let nt_th = max(24, ntt.height / u)
     let nt_bh = ntb.height / u
-    let nt_content = if(nt_body_on, 33 + nt_th + nt_bh, 30 + nt_th)
+    let nt_content = if(nt_body_on, 39 + nt_th + nt_bh, 35 + nt_th)
     let nt_h = max(68, nt_content + if(nt_acts.count > 0, 34, 0) + 12)
     follow osd_h = if(osd_kind == note, nt_h, 64)
     //  The settings panel: 620 wide. A header (36), then the sidebar and the page side by side (352).
@@ -1283,7 +1283,7 @@ scene Gota {
         group {
             opacity: okn
             show: okn > 0.01
-            let nty = ot + 12 * u + 22 * u                // the tile's middle
+            let nty = oy                                  // the tile's middle: the plate's, so it sits vertically centred
             let ntx = cx - 128 * u
             let ntl = cx - 96 * u                         // where its words start
             box { at: ntx, nty; size: 44 * u, 44 * u; corner: 12 * u; color: ink; opacity: 6% }
@@ -1302,9 +1302,9 @@ scene Gota {
             ellipse { at: ntx, nty; radius: (24 + 22 * nt_ring) * u; stroke: 2 * u; color: if(nt_urgent, alert, mint); opacity: 90% * (1 - nt_ring) }
             ellipse { at: ntx + 20 * u, nty - 20 * u; radius: 5 * u; color: alert; opacity: if(nt_urgent, 60% + 40% * sin(time * 300), 0) }
 
-            text nt_app { at: ntl, ot + 12 * u + 8 * u; anchor: left center; size: 10 * u; weight: 700; width: 190 * u; lines: 1; color: faint; family: "Space Grotesk" }
-            text nt_title { at: ntl, ot + 30 * u; anchor: left top; size: 13.5 * u; weight: 700; width: 236 * u; lines: 3; measure: ntt; color: ink; family: "Space Grotesk" }
-            text nt_body { at: ntl, ot + (33 + nt_th) * u; anchor: left top; size: 11.5 * u; width: 236 * u; lines: 6; measure: ntb; color: faint; family: "Space Grotesk"; show: nt_body_on }
+            text nt_app { at: ntl, ot + 12 * u + 9 * u; anchor: left center; size: 13 * u; weight: 700; width: 190 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            text nt_title { at: ntl, ot + 35 * u; anchor: left top; size: 19 * u; weight: 700; width: 236 * u; lines: 3; measure: ntt; color: ink; family: "Space Grotesk" }
+            text nt_body { at: ntl, ot + (39 + nt_th) * u; anchor: left top; size: 15.5 * u; width: 236 * u; lines: 6; measure: ntb; color: faint; family: "Space Grotesk"; show: nt_body_on }
             //  Its buttons, under the words.
             row nt_row {
                 at: ntl, ot + (nt_content + 8) * u
