@@ -1809,6 +1809,8 @@ scene Vitreus {
                 gap: 5
                 for n in wifi_nets { WifiRow(n, pick: wifi_pick, forget: wifi_forget, joingo: wifi_join_go) }
             }
+            //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
+            box { from: cx + 141 * u, ex_top + 54 * u + wifi_list_col.scroll / max(wifi_list_col.content, 1) * (list_view_h * u); size: 3 * u, (list_view_h * u) * (list_view_h * u) / max(wifi_list_col.content, list_view_h * u); corner: 1.5 * u; color: ink; opacity: if(wifi_list_col.content > (list_view_h * u) + 1, 35%, 0%) }
             text "No networks in range" { at: floor(cx + 0.5), floor(ex_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: wifi_nets.count < 1 and not wifi_scanning }
             text "Scanning…" { at: floor(cx + 0.5), floor(ex_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: mint; family: "Space Grotesk"; show: wifi_nets.count < 1 and wifi_scanning }
         }
@@ -1841,6 +1843,8 @@ scene Vitreus {
                 gap: 5
                 for d in bt_devices { BtRow(d, pick: bt_pick, forget: bt_forget) }
             }
+            //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
+            box { from: cx + 141 * u, ex2_top + 54 * u + bt_list_col.scroll / max(bt_list_col.content, 1) * (list_view_h * u); size: 3 * u, (list_view_h * u) * (list_view_h * u) / max(bt_list_col.content, list_view_h * u); corner: 1.5 * u; color: ink; opacity: if(bt_list_col.content > (list_view_h * u) + 1, 35%, 0%) }
             text "No devices found" { at: floor(cx + 0.5), floor(ex2_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: bt_devices.count < 1 and not bt_scanning }
             text "Scanning…" { at: floor(cx + 0.5), floor(ex2_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: mint; family: "Space Grotesk"; show: bt_devices.count < 1 and bt_scanning }
         }
@@ -1891,6 +1895,8 @@ scene Vitreus {
                 gap: 6
                 for h in nt_hist { NtHistRow(h, del: nt_hist_del) }
             }
+            //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
+            box { from: cx + 141 * u, nx_top + 138 * u + nt_hist_col.scroll / max(nt_hist_col.content, 1) * (list_view_h * u); size: 3 * u, (list_view_h * u) * (list_view_h * u) / max(nt_hist_col.content, list_view_h * u); corner: 1.5 * u; color: ink; opacity: if(nt_hist_col.content > (list_view_h * u) + 1, 35%, 0%) }
             text "No notifications yet" { at: floor(cx + 0.5), floor(nx_top + 138 * u + 20 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: nt_hist.count < 1 }
         }
 
@@ -2067,6 +2073,8 @@ scene Vitreus {
                 gap: floor(4 * u + 0.5)
                 for w in tasks { TaskRow(w, focus: task_focus, kill: task_close) }
             }
+            //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
+            box { from: mdx + 147 * u, ck + tasks_list * u + task_col.scroll / max(task_col.content, 1) * ((task_rows * 40 - 4) * u); size: 3 * u, ((task_rows * 40 - 4) * u) * ((task_rows * 40 - 4) * u) / max(task_col.content, (task_rows * 40 - 4) * u); corner: 1.5 * u; color: ink; opacity: if(task_col.content > ((task_rows * 40 - 4) * u) + 1, 35%, 0%) }
             //  The apps that only live in the tray: no window to list, so they get their own section.
             group {
                 show: trays.count > 0
@@ -2077,6 +2085,8 @@ scene Vitreus {
                     gap: floor(4 * u + 0.5)
                     for a in trays { TrayRow(a, click: tray_click, pin: tray_pin, menu: tray_menu_open) }
                 }
+                //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
+                box { from: mdx + 147 * u, ck + tray_list * u + tray_col.scroll / max(tray_col.content, 1) * ((max(1, tray_rows) * 40 - 4) * u); size: 3 * u, ((max(1, tray_rows) * 40 - 4) * u) * ((max(1, tray_rows) * 40 - 4) * u) / max(tray_col.content, (max(1, tray_rows) * 40 - 4) * u); corner: 1.5 * u; color: ink; opacity: if(tray_col.content > ((max(1, tray_rows) * 40 - 4) * u) + 1, 35%, 0%) }
                 //  What the bar shows of them: every app, or only the pinned ones.
                 box { at: mdx + 96 * u, ck + tray_top * u + 11 * u; size: 86 * u, 20 * u; corner: 10 * u; color: if(tray_only_pinned, mint, ink); opacity: if(tray_only_pinned, 22%, 8% + 10% * tray_mode_hit.hover) }
                 text "Bar: pinned" { at: floor(mdx + 96 * u + 0.5), floor(ck + tray_top * u + 11 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 82 * u; lines: 1; color: mint; show: tray_only_pinned; family: "Space Grotesk" }
@@ -2120,6 +2130,8 @@ scene Vitreus {
                 gap: floor(2 * u + 0.5)
                 for r in tray_menu { TmRow(r, pick: tray_menu_pick) }
             }
+            //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
+            box { from: mdx + 147 * u, ck + 100 * u + tm_col.scroll / max(tm_col.content, 1) * (tm.list * u); size: 3 * u, (tm.list * u) * (tm.list * u) / max(tm_col.content, tm.list * u); corner: 1.5 * u; color: ink; opacity: if(tm_col.content > (tm.list * u) + 1, 35%, 0%) }
         }
 
     }
