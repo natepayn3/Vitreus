@@ -407,7 +407,7 @@ scene Vitreus {
     event rec_start ->             // the same
     event rec_stop ->
     event rec_toggle ->            // the tile's button
-    event pow_press ->             // a session button held for three seconds: 0 lock, 1 sleep, 2 log out, 3 restart, 4 power off
+    event pow_press ->             // a session button held for two seconds: 0 lock, 1 sleep, 2 log out, 3 restart, 4 power off
     event pow_prof_set ->          // 0, 1 or 2
     fact ws.active = 1
     repeat i in 1..6 { fact ws.$i.busy = false }
@@ -554,11 +554,26 @@ scene Vitreus {
     prop dnd_pill = 0 ~pop
     prop caf_pill = 0 ~pop
     prop rec_pill = 0 ~pop
-    prop pw_hp0 = 0 ~calm             // how far the Lock button's hold has got: 0 to 1 over three seconds
-    prop pw_hp1 = 0 ~calm             // how far the Sleep button's hold has got: 0 to 1 over three seconds
-    prop pw_hp2 = 0 ~calm             // how far the Log out button's hold has got: 0 to 1 over three seconds
-    prop pw_hp3 = 0 ~calm             // how far the Restart button's hold has got: 0 to 1 over three seconds
-    prop pw_hp4 = 0 ~calm             // how far the Power off button's hold has got: 0 to 1 over three seconds
+    fact pw_s0 = 0                   // when the Lock button was pressed (`time`)
+    prop pw_hp0 = 0 ~80ms             // how far its hold has got, 0 to 1 in a steady two seconds (this spring only smooths the ends)
+    fact pw_d0 = false               // it is being held
+    follow pw_hp0 = if(pw_d0, clamp((time - pw_s0) / 2, 0, 1), 0)
+    fact pw_s1 = 0                   // when the Sleep button was pressed (`time`)
+    prop pw_hp1 = 0 ~80ms             // how far its hold has got, 0 to 1 in a steady two seconds (this spring only smooths the ends)
+    fact pw_d1 = false               // it is being held
+    follow pw_hp1 = if(pw_d1, clamp((time - pw_s1) / 2, 0, 1), 0)
+    fact pw_s2 = 0                   // when the Log out button was pressed (`time`)
+    prop pw_hp2 = 0 ~80ms             // how far its hold has got, 0 to 1 in a steady two seconds (this spring only smooths the ends)
+    fact pw_d2 = false               // it is being held
+    follow pw_hp2 = if(pw_d2, clamp((time - pw_s2) / 2, 0, 1), 0)
+    fact pw_s3 = 0                   // when the Restart button was pressed (`time`)
+    prop pw_hp3 = 0 ~80ms             // how far its hold has got, 0 to 1 in a steady two seconds (this spring only smooths the ends)
+    fact pw_d3 = false               // it is being held
+    follow pw_hp3 = if(pw_d3, clamp((time - pw_s3) / 2, 0, 1), 0)
+    fact pw_s4 = 0                   // when the Power off button was pressed (`time`)
+    prop pw_hp4 = 0 ~80ms             // how far its hold has got, 0 to 1 in a steady two seconds (this spring only smooths the ends)
+    fact pw_d4 = false               // it is being held
+    follow pw_hp4 = if(pw_d4, clamp((time - pw_s4) / 2, 0, 1), 0)
     prop pow_th = 1 ~pop                // where the power-profile thumb is: 0 saver, 1 balanced, 2 performance
     prop wp_show_pill = 0 ~pop
     prop set_pg = 0 ~calm
@@ -1342,7 +1357,8 @@ scene Vitreus {
     let disp.prows = max(24, disp_pn_s * 30)
     let disp.h = 460 + disp.prows + 114
     let set.h = max(290, mix(mix(mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 330, set_pgb), 392, set_pgh), 262, set_pga), 312, set_pgn))
-    let need_clock = ((wifi_scanning or bt_scanning or bt_working or caf_on) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or nt_urgent)) or (set_pgd > 0.01 and disp.h > 456)
+    //  A held Power button counts two seconds on this clock, and a recording pulses on it, so they need it too.
+    let need_clock = ((wifi_scanning or bt_scanning or bt_working or caf_on or rec_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or nt_urgent)) or (set_pgd > 0.01 and disp.h > 456)
     spin time by if(need_clock, 1, 0)
     let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * u
     let ss.hh = bar.h / 2 + (8 + 36 + 8 + set.h + 16) * u * ds0 + max(0, sag)
@@ -2199,7 +2215,7 @@ scene Vitreus {
             }
         }
 
-        //  The Power window: the session as five icon tiles, each of which has to be held for three seconds (it fills from the bottom and
+        //  The Power window: the session as five icon tiles, each of which has to be held for two seconds (it fills from the bottom and
         //  counts down while it is held, and lets go if you do), and the power profile as a track with a glass thumb that slides, on a
         //  spring that overshoots, to the one in use.
         group {
@@ -2223,11 +2239,11 @@ scene Vitreus {
             path { at: cx + -113.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t0.hover, clamp(pw_hp0 * 3, 0, 1))); opacity: 100%; move -3.5 * u, -1 * u; line -3.5 * u, -4 * u; curve 3.5 * u, -4 * u via 0 * u, -10.5 * u; line 3.5 * u, -1 * u }
             box { at: cx + -113.0 * u, px_top + 96 * u - 8 * u + 3.5 * u; size: 13 * u, 9.5 * u; corner: 2.5 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t0.hover, clamp(pw_hp0 * 3, 0, 1))); opacity: 100% }
             text "Lock" { at: floor(cx + -113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp0 < 0.03 }
-            text number(3 - 3 * clamp(pw_hp0, 0, 1), 1, "s") { at: floor(cx + -113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp0 >= 0.03 }
+            text number(2 - 2 * clamp(pw_hp0, 0, 1), 1, "s") { at: floor(cx + -113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp0 >= 0.03 }
             zone box pw_t0 { at: cx + -113.0 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
-            on press pw_t0 { pw_hp0: 1 ~3000ms }
-            on release pw_t0 { pw_hp0: 0 ~180ms }
-            on hold pw_t0 for 3000ms { pw_hp0: 0 ~300ms; emit pow_press(0) }
+            on press pw_t0 { pw_s0 = time; pw_d0 = true }
+            on release pw_t0 { pw_d0 = false }
+            on hold pw_t0 for 2000ms { pw_d0 = false; emit pow_press(0) }
             box { at: cx + -56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t1.hover }
             box { at: cx + -56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t1.hover }
             group {
@@ -2237,11 +2253,11 @@ scene Vitreus {
             }
             path { at: cx + -56.5 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t1.hover, clamp(pw_hp1 * 3, 0, 1))); opacity: 100%; move 2.5 * u, -8.5 * u; curve 2.5 * u, 8.5 * u via -11 * u, 0 * u; curve 2.5 * u, -8.5 * u via -3 * u, 0 * u }
             text "Sleep" { at: floor(cx + -56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp1 < 0.03 }
-            text number(3 - 3 * clamp(pw_hp1, 0, 1), 1, "s") { at: floor(cx + -56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp1 >= 0.03 }
+            text number(2 - 2 * clamp(pw_hp1, 0, 1), 1, "s") { at: floor(cx + -56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp1 >= 0.03 }
             zone box pw_t1 { at: cx + -56.5 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
-            on press pw_t1 { pw_hp1: 1 ~3000ms }
-            on release pw_t1 { pw_hp1: 0 ~180ms }
-            on hold pw_t1 for 3000ms { pw_hp1: 0 ~300ms; emit pow_press(1) }
+            on press pw_t1 { pw_s1 = time; pw_d1 = true }
+            on release pw_t1 { pw_d1 = false }
+            on hold pw_t1 for 2000ms { pw_d1 = false; emit pow_press(1) }
             box { at: cx + 0.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t2.hover }
             box { at: cx + 0.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t2.hover }
             group {
@@ -2253,11 +2269,11 @@ scene Vitreus {
             path { at: cx + 0.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t2.hover, clamp(pw_hp2 * 3, 0, 1))); opacity: 100%; move -2 * u, 0 * u; line 7 * u, 0 * u }
             path { at: cx + 0.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t2.hover, clamp(pw_hp2 * 3, 0, 1))); opacity: 100%; move 4 * u, -3.2 * u; line 7.2 * u, 0 * u; line 4 * u, 3.2 * u }
             text "Log out" { at: floor(cx + 0.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp2 < 0.03 }
-            text number(3 - 3 * clamp(pw_hp2, 0, 1), 1, "s") { at: floor(cx + 0.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp2 >= 0.03 }
+            text number(2 - 2 * clamp(pw_hp2, 0, 1), 1, "s") { at: floor(cx + 0.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp2 >= 0.03 }
             zone box pw_t2 { at: cx + 0.0 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
-            on press pw_t2 { pw_hp2: 1 ~3000ms }
-            on release pw_t2 { pw_hp2: 0 ~180ms }
-            on hold pw_t2 for 3000ms { pw_hp2: 0 ~300ms; emit pow_press(2) }
+            on press pw_t2 { pw_s2 = time; pw_d2 = true }
+            on release pw_t2 { pw_d2 = false }
+            on hold pw_t2 for 2000ms { pw_d2 = false; emit pow_press(2) }
             box { at: cx + 56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t3.hover }
             box { at: cx + 56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t3.hover }
             group {
@@ -2268,11 +2284,11 @@ scene Vitreus {
             path { at: cx + 56.5 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t3.hover, clamp(pw_hp3 * 3, 0, 1))); opacity: 100%; move 5.3 * u, -5.3 * u; line 6.8 * u, -3.17 * u; line 7.47 * u, -0.65 * u; line 7.24 * u, 1.94 * u; line 6.14 * u, 4.3 * u; line 4.3 * u, 6.14 * u; line 1.94 * u, 7.24 * u; line -0.65 * u, 7.47 * u; line -3.17 * u, 6.8 * u; line -5.3 * u, 5.3 * u; line -6.8 * u, 3.17 * u; line -7.47 * u, 0.65 * u; line -7.24 * u, -1.94 * u; line -6.14 * u, -4.3 * u; line -4.3 * u, -6.14 * u }
             path { at: cx + 56.5 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t3.hover, clamp(pw_hp3 * 3, 0, 1))); opacity: 100%; move -6.75 * u, -8.04 * u; line -2.17 * u, -7.63 * u; line -3.36 * u, -3.19 * u }
             text "Restart" { at: floor(cx + 56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp3 < 0.03 }
-            text number(3 - 3 * clamp(pw_hp3, 0, 1), 1, "s") { at: floor(cx + 56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp3 >= 0.03 }
+            text number(2 - 2 * clamp(pw_hp3, 0, 1), 1, "s") { at: floor(cx + 56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp3 >= 0.03 }
             zone box pw_t3 { at: cx + 56.5 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
-            on press pw_t3 { pw_hp3: 1 ~3000ms }
-            on release pw_t3 { pw_hp3: 0 ~180ms }
-            on hold pw_t3 for 3000ms { pw_hp3: 0 ~300ms; emit pow_press(3) }
+            on press pw_t3 { pw_s3 = time; pw_d3 = true }
+            on release pw_t3 { pw_d3 = false }
+            on hold pw_t3 for 2000ms { pw_d3 = false; emit pow_press(3) }
             box { at: cx + 113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t4.hover }
             box { at: cx + 113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t4.hover }
             group {
@@ -2283,11 +2299,11 @@ scene Vitreus {
             path { at: cx + 113.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t4.hover, clamp(pw_hp4 * 3, 0, 1))); opacity: 100%; move 4.43 * u, -5.67 * u; line 6.11 * u, -3.82 * u; line 7.04 * u, -1.5 * u; line 7.13 * u, 1 * u; line 6.36 * u, 3.38 * u; line 4.82 * u, 5.35 * u; line 2.7 * u, 6.68 * u; line 0.25 * u, 7.2 * u; line -2.22 * u, 6.85 * u; line -4.43 * u, 5.67 * u; line -6.11 * u, 3.82 * u; line -7.04 * u, 1.5 * u; line -7.13 * u, -1 * u; line -6.36 * u, -3.38 * u; line -4.82 * u, -5.35 * u; line -4.43 * u, -5.67 * u }
             box { at: cx + 113.0 * u, px_top + 96 * u - 8 * u - 5.5 * u; size: 1.6 * u, 9 * u; corner: 0.8 * u; color: mix(ink, mint, max(pw_t4.hover, clamp(pw_hp4 * 3, 0, 1))); opacity: 100% }
             text "Power off" { at: floor(cx + 113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp4 < 0.03 }
-            text number(3 - 3 * clamp(pw_hp4, 0, 1), 1, "s") { at: floor(cx + 113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp4 >= 0.03 }
+            text number(2 - 2 * clamp(pw_hp4, 0, 1), 1, "s") { at: floor(cx + 113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp4 >= 0.03 }
             zone box pw_t4 { at: cx + 113.0 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
-            on press pw_t4 { pw_hp4: 1 ~3000ms }
-            on release pw_t4 { pw_hp4: 0 ~180ms }
-            on hold pw_t4 for 3000ms { pw_hp4: 0 ~300ms; emit pow_press(4) }
+            on press pw_t4 { pw_s4 = time; pw_d4 = true }
+            on release pw_t4 { pw_d4 = false }
+            on hold pw_t4 for 2000ms { pw_d4 = false; emit pow_press(4) }
             text "POWER PROFILE" { at: floor(cx - 138 * u + 0.5), floor(px_top + 142 * u + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: faint; family: "Space Grotesk" }
             group { opacity: mix(0.45, 1, clamp(pow_prof + 1, 0, 1))
                 box { at: cx, px_top + 176 * u; size: 276 * u, 46 * u; corner: 16 * u; color: ink; opacity: 8% }

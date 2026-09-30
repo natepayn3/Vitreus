@@ -71,7 +71,7 @@ with its content fading in after the glass has settled
   a **Notifications** module (Do Not Disturb with a timer, and a notification history), Caffeine (with timers),
   **Capture** (a screenshot of a region or the whole screen, copied and saved to `~/Pictures/Screenshots`, and a screen
   recording into `~/Videos`, started and stopped from the tile's button) and **Power** (lock, sleep, log out,
-  restart and power off, each of which has to be held for three seconds; and the power profile, on a sliding glass switch), brightness, volume with an output picker and a per-app mixer (right-click the volume card, or press its dots: one
+  restart and power off, each of which has to be held for two seconds; and the power profile, on a sliding glass switch), brightness, volume with an output picker and a per-app mixer (right-click the volume card, or press its dots: one
   slider and mute button for each app playing sound; needs `pactl`).
 * **Player** — a media card with cover art and a live spectrum from `cava`, plus the running windows (focus or close
   them) and background apps from the tray.
