@@ -77,7 +77,7 @@ scene Vitreus {
     measure cdw
     //  Which panel hangs from the bar: the clock and calendar (click the clock), or the
     //  controls (click the window title).
-    fact panel: none | calendar | controls | player | volume | notif | settings | launch = none
+    fact panel: none | calendar | controls | player | volume | notif | settings | launch | tray = none
     fact media_on = false          // is there a player at all
     fact bass = 0
     //  The six bars cava reports, 0..1 each, for the equalizer in the media card. Each one
@@ -97,7 +97,29 @@ scene Vitreus {
     //  by the logic, which matches each window's class to an app.
     model tasks max 12 { title: text; ws: text; active: bool; icon: image 30, 30 }
     fact tasks_watch = false       // the panel is open: keep the list fresh
-    model trays max 8 { title: text; icon: image 30, 30 }
+    model trays max 16 { title: text; icon: image 30, 30; pinned: bool; menu: bool }
+    model bartrays max 8 { icon: image 36, 36 }          // the tray apps that ride the bar
+    //  One entry of a tray app's menu, flattened: an open submenu is followed by its own entries, `depth` deeper.
+    model tray_menu max 40 { label: text; enabled: bool; sep: bool; checked: bool; kids: bool; open: bool; depth: number }
+    //  The tray menu panel (it hangs from the window title, like the player's) is about one app.
+    text tm_title = ""
+    text tm_sub = ""
+    text tm_iconurl = ""
+    image tm_icon = from tm_iconurl, 44, 44
+    fact tm_pinned = false
+    fact tm_has_menu = false
+    fact tm_h = 0                       // how tall the menu's rows are, unscaled
+    fact tray_only_pinned = false       // the bar shows only the pinned apps
+    fact dm_mode: dmm_player | dmm_tray = dmm_player      // what the window-title panel holds
+    event tray_pin ->
+    event tray_menu_open ->
+    event bar_tray_click ->
+    event bar_tray_menu ->
+    event tray_menu_pick ->
+    event tm_pin ->
+    event tm_open ->
+    event tm_alt ->
+    event tray_mode ->
     //  The two transient panels (volume, and a notification arriving) share one drawer. `osd_kind` is
     //  which one it draws; unlike `panel` it stays put while the drawer closes, so it fades out
     //  showing what it was showing.
@@ -197,20 +219,22 @@ scene Vitreus {
     fact bo.ws = 0
     fact bo.title = 1
     fact bo.media = 2
-    fact bo.set = 3
-    fact bo.sr = 4
-    fact bo.ctl = 5
-    fact bo.clock = 6
+    fact bo.tray = 3
+    fact bo.set = 4
+    fact bo.sr = 5
+    fact bo.ctl = 6
+    fact bo.clock = 7
     fact bv.ws = true
     fact bv.title = true
     fact bv.media = true
     fact bv.sr = true
     fact bv.ctl = true
     fact bv.clock = true
+    fact bv.tray = true
     //  The layout editor on the Bar page: a chip per piece (0 workspaces, 1 title, 2 player, 3 settings, 4 search,
-    //  5 controls, 6 clock), where the logic puts it (`bc.$i`, top-left and width, in the editor's unscaled units:
+    //  5 controls, 6 clock, 7 tray), where the logic puts it (`bc.$i`, top-left and width, in the editor's unscaled units:
     //  the bar row starts at y 4, the hidden tray at 56), and the one being dragged, which follows the pointer.
-    repeat i in 0..7 {
+    repeat i in 0..8 {
         fact bc.$i.x = 0
         fact bc.$i.y = 4
         fact bc.$i.w = 34
@@ -442,7 +466,7 @@ scene Vitreus {
     follow hot  = if(panel != none, 1, 0)
     follow dc   = if(panel == calendar, 1, 0)
     follow dk   = if(panel == controls, 1, 0)
-    follow dm   = if(panel == player, 1, 0)
+    follow dm   = if(panel == player or panel == tray, 1, 0)
     follow do   = if(panel == volume or panel == notif, 1, 0)
     follow ds   = if(panel == settings, 1, 0)
     follow dl   = if(panel == launch, 1, 0)
@@ -497,8 +521,10 @@ scene Vitreus {
     on change panel while panel != calendar   { f1: 0 ~80ms; f4: 0 ~80ms }
     on change panel while panel == controls   { f2: 1 after 200ms; f5: 1 after 200ms; f6: 1 after 200ms; f7: 1 after 200ms }
     on change panel while panel != controls   { f2: 0 ~80ms; f5: 0 ~80ms; f6: 0 ~80ms; f7: 0 ~80ms }
-    on change panel while panel == player     { f3: 1 after 200ms }
-    on change panel while panel != player     { f3: 0 ~80ms }
+    on change panel while panel == player     { dm_mode = dmm_player }
+    on change panel while panel == tray       { dm_mode = dmm_tray }
+    on change panel while panel == player or panel == tray { f3: 1 after 200ms }
+    on change panel while panel != player and panel != tray { f3: 0 ~80ms }
     on change panel while panel == settings   { fs: 1 after 220ms }
     on change panel while panel == launch     { fl: 1 after 200ms; focus lq; emit launch_open }
     on change panel while panel != launch     { fl: 0 ~80ms }
@@ -527,6 +553,8 @@ scene Vitreus {
     prop bs.sr = 1 ~calm
     prop bs.ctl = 1 ~calm
     prop bs.clock = 1 ~calm
+    prop bs.tray = 1 ~calm
+    prop trn = 0 ~calm                // how many tray icons the bar holds, smoothly: the bar widens with it
     prop disp_auto_pill = 0 ~pop
     prop disp_dd = 0 ~calm            // the resolution dropdown, 0 shut .. 1 open
     prop disp_scroll = 0 ~quick       // the page's scroll, following disp_scroll_to
@@ -546,7 +574,9 @@ scene Vitreus {
     follow bs.sr = if(bv.sr, 1, 0)
     follow bs.ctl = if(bv.ctl, 1, 0)
     follow bs.clock = if(bv.clock, 1, 0)
-    repeat i in 0..7 {
+    follow bs.tray = if(bv.tray, 1, 0)
+    follow trn = bartrays.count
+    repeat i in 0..8 {
         prop bcx.$i = 0 ~quick
         prop bcy.$i = 4 ~quick
         prop bcw.$i = 34 ~quick
@@ -836,15 +866,57 @@ scene Vitreus {
         on press touch { emit pick(t.index) }
     }
 
-    //  One app that lives in the tray, with no window of its own: its icon and name. A press is what
-    //  clicking its icon would do.
-    component TrayRow(t: record, click: event) {
+    //  One app that lives in the tray, with no window of its own: its icon and name. A press is what clicking its
+    //  icon would do; the dots open its menu, and the pin keeps it on the bar.
+    component TrayRow(t: record, click: event, pin: event, menu: event) {
         size: 288 * u, floor(36 * u + 0.5)          // whole pixels (with the list's gap), so the icon is not drawn between two
         zone box touch { from: 0, 0; size: 288 * u, 36 * u; corner: 12 * u; cursor: pointer }
         box { from: 0, 0; size: 288 * u, 36 * u; corner: 12 * u; color: ink; opacity: 5% + 8% * touch.hover }
         image t.icon { at: floor(8 * u + 0.5), floor(7 * u + 0.5); size: floor(22 * u + 0.5), floor(22 * u + 0.5) }
-        text t.title { at: floor(38 * u + 0.5), floor(18 * u + 0.5); anchor: left center; size: 12.5 * u; width: 240 * u; lines: 1; color: ink; family: "Space Grotesk" }
+        text t.title { at: floor(38 * u + 0.5), floor(18 * u + 0.5); anchor: left center; size: 12.5 * u; width: 184 * u; lines: 1; color: ink; family: "Space Grotesk" }
+        //  Its menu: three dots.
+        group {
+            show: t.menu
+            opacity: 45% + 55% * menu_z.hover
+            ellipse { at: 232 * u, 18 * u; radius: 1.4 * u; color: ink }
+            ellipse { at: 238 * u, 18 * u; radius: 1.4 * u; color: ink }
+            ellipse { at: 244 * u, 18 * u; radius: 1.4 * u; color: ink }
+        }
+        zone box menu_z { at: 238 * u, 18 * u; size: 24 * u, 28 * u; corner: 10 * u; cursor: pointer; active: t.menu }
+        //  The pin: shown on the row under the pointer, and always on a pinned one.
+        group {
+            opacity: if(t.pinned, 100%, 55% * touch.hover + 25% * pin_z.hover)
+            ellipse { at: 266 * u, 15 * u; radius: 3.6 * u; color: mint; opacity: if(t.pinned, 100%, 0%) }
+            ellipse { at: 266 * u, 15 * u; radius: 3.6 * u; stroke: 1.3 * u; color: ink; opacity: if(t.pinned, 0%, 100%) }
+            line { from: 266 * u, 18.5 * u; to: 266 * u, 24 * u; width: 1.4 * u; color: if(t.pinned, mint, ink) }
+        }
+        zone box pin_z { at: 266 * u, 18 * u; size: 22 * u, 28 * u; corner: 10 * u; cursor: pointer }
         on press touch { emit click(t.index); panel = none }
+        on press menu_z { emit menu(t.index) }
+        on press pin_z { emit pin(t.index) }
+    }
+
+    //  One entry of a tray app's menu: a check if it is ticked, its label (in a step for each level of submenu
+    //  it is under), and an arrow if it opens more. A separator is a line.
+    component TmRow(r: record, pick: event) {
+        size: 288 * u, floor(if(r.sep, 10, 28) * u + 0.5)
+        zone box touch { from: 0, 0; size: 288 * u, 28 * u; corner: 9 * u; cursor: pointer; active: r.enabled and not r.sep }
+        box { from: 0, 0; size: 288 * u, 28 * u; corner: 9 * u; color: ink; opacity: if(r.sep, 0%, 9% * touch.hover) }
+        box { at: 144 * u, 5 * u; size: 264 * u, 1 * u; color: ink; opacity: if(r.sep, 12%, 0%) }
+        path { at: 15 * u, 14 * u; stroke: 1.6 * u; color: mint; opacity: if(r.checked, 100%, 0%); move -3.5 * u, 0.5 * u; line -1 * u, 3 * u; line 4 * u, -3.5 * u }
+        text r.label { at: floor((30 + r.depth * 14) * u + 0.5), floor(14 * u + 0.5); anchor: left center; size: 12.5 * u; width: (226 - r.depth * 14) * u; lines: 1; color: ink; opacity: if(r.enabled, 100%, 40%); show: not r.sep; family: "Space Grotesk" }
+        path { at: 274 * u, 14 * u; stroke: 1.5 * u; color: ink; rotate: if(r.open, 90deg, 0deg); opacity: if(r.kids, 60%, 0%); move -2 * u, -3.5 * u; line 2 * u, 0; line -2 * u, 3.5 * u }
+        on press touch { emit pick(r.index) }
+    }
+
+    //  A tray app's icon on the bar: a left click is what clicking it would do, a right click opens its menu.
+    component BarTray(t: record, click: event, menu: event) {
+        size: floor(18 * u + 0.5), floor(18 * u + 0.5)
+        box { at: 9 * u, 9 * u; size: 26 * u, 26 * u; corner: 8 * u; color: ink; opacity: 14% * touch.hover * bs.tray }
+        image t.icon { at: 0, 0; size: floor(18 * u + 0.5), floor(18 * u + 0.5); opacity: (78% + 22% * touch.hover) * bs.tray }
+        zone box touch { at: 9 * u, 9 * u; size: 24 * u, 30 * u; cursor: pointer; active: bs.tray > 0.5 }
+        on press touch { emit click(t.index) }
+        on press right touch { emit menu(t.index) }
     }
 
     //  A notification's button (Reply, Mark read…): a small pill with its label.
@@ -973,7 +1045,12 @@ scene Vitreus {
     }
 
     let cx = 450
-    let bar.w = 450 * u
+    //  The tray's icons (the pinned apps, or all of them) are a piece of the bar like the others; the bar widens for them.
+    let bar.gap = 12 * u
+    let fw.tray = max(0, trn * 24 - 6) * u               // icons 18 wide, 6 apart
+    let vw.tray = fw.tray * bs.tray
+    let bw.tray = (fw.tray + bar.gap * min(1, trn)) * bs.tray
+    let bar.w = 450 * u + bw.tray
     let bar.h = 40 * u
     let bar.y = 8 + bar.h / 2
     let bar.rad = 14 * u                 // the bar's corner when shut: the same as the plates', not a full pill
@@ -987,7 +1064,6 @@ scene Vitreus {
     let clock.col = max(caw.width, cdw.width)
     let bar.l = cx - bar.w / 2 + 16 * u
     let bar.r = cx + bar.w / 2 - 16 * u
-    let bar.gap = 12 * u
     let fw.ws = 76 * u                   // five dots 15 apart, one of them the 20-wide pill
     let fw.media = 43 * u                // previous, play, next: their bars at ±20.5
     let fw.set = 15 * u                  // the gear with its teeth
@@ -1006,26 +1082,29 @@ scene Vitreus {
     let bw.ctl = (fw.ctl + bar.gap) * bs.ctl
     let bw.clock = (fw.clock + bar.gap) * bs.clock
     //  How much of the row comes before each piece (`pre.*`) and after it (`post.*`).
-    let pre.ws = if(bo.media < bo.ws, bw.media, 0) + if(bo.set < bo.ws, bw.set, 0) + if(bo.sr < bo.ws, bw.sr, 0) + if(bo.ctl < bo.ws, bw.ctl, 0) + if(bo.clock < bo.ws, bw.clock, 0)
-    let post.ws = if(bo.media > bo.ws, bw.media, 0) + if(bo.set > bo.ws, bw.set, 0) + if(bo.sr > bo.ws, bw.sr, 0) + if(bo.ctl > bo.ws, bw.ctl, 0) + if(bo.clock > bo.ws, bw.clock, 0)
-    let pre.media = if(bo.ws < bo.media, bw.ws, 0) + if(bo.set < bo.media, bw.set, 0) + if(bo.sr < bo.media, bw.sr, 0) + if(bo.ctl < bo.media, bw.ctl, 0) + if(bo.clock < bo.media, bw.clock, 0)
-    let post.media = if(bo.ws > bo.media, bw.ws, 0) + if(bo.set > bo.media, bw.set, 0) + if(bo.sr > bo.media, bw.sr, 0) + if(bo.ctl > bo.media, bw.ctl, 0) + if(bo.clock > bo.media, bw.clock, 0)
-    let pre.set = if(bo.ws < bo.set, bw.ws, 0) + if(bo.media < bo.set, bw.media, 0) + if(bo.sr < bo.set, bw.sr, 0) + if(bo.ctl < bo.set, bw.ctl, 0) + if(bo.clock < bo.set, bw.clock, 0)
-    let post.set = if(bo.ws > bo.set, bw.ws, 0) + if(bo.media > bo.set, bw.media, 0) + if(bo.sr > bo.set, bw.sr, 0) + if(bo.ctl > bo.set, bw.ctl, 0) + if(bo.clock > bo.set, bw.clock, 0)
-    let pre.sr = if(bo.ws < bo.sr, bw.ws, 0) + if(bo.media < bo.sr, bw.media, 0) + if(bo.set < bo.sr, bw.set, 0) + if(bo.ctl < bo.sr, bw.ctl, 0) + if(bo.clock < bo.sr, bw.clock, 0)
-    let post.sr = if(bo.ws > bo.sr, bw.ws, 0) + if(bo.media > bo.sr, bw.media, 0) + if(bo.set > bo.sr, bw.set, 0) + if(bo.ctl > bo.sr, bw.ctl, 0) + if(bo.clock > bo.sr, bw.clock, 0)
-    let pre.ctl = if(bo.ws < bo.ctl, bw.ws, 0) + if(bo.media < bo.ctl, bw.media, 0) + if(bo.set < bo.ctl, bw.set, 0) + if(bo.sr < bo.ctl, bw.sr, 0) + if(bo.clock < bo.ctl, bw.clock, 0)
-    let post.ctl = if(bo.ws > bo.ctl, bw.ws, 0) + if(bo.media > bo.ctl, bw.media, 0) + if(bo.set > bo.ctl, bw.set, 0) + if(bo.sr > bo.ctl, bw.sr, 0) + if(bo.clock > bo.ctl, bw.clock, 0)
-    let pre.clock = if(bo.ws < bo.clock, bw.ws, 0) + if(bo.media < bo.clock, bw.media, 0) + if(bo.set < bo.clock, bw.set, 0) + if(bo.sr < bo.clock, bw.sr, 0) + if(bo.ctl < bo.clock, bw.ctl, 0)
-    let post.clock = if(bo.ws > bo.clock, bw.ws, 0) + if(bo.media > bo.clock, bw.media, 0) + if(bo.set > bo.clock, bw.set, 0) + if(bo.sr > bo.clock, bw.sr, 0) + if(bo.ctl > bo.clock, bw.ctl, 0)
-    let pre.title = if(bo.ws < bo.title, bw.ws, 0) + if(bo.media < bo.title, bw.media, 0) + if(bo.set < bo.title, bw.set, 0) + if(bo.sr < bo.title, bw.sr, 0) + if(bo.ctl < bo.title, bw.ctl, 0) + if(bo.clock < bo.title, bw.clock, 0)
-    let post.title = if(bo.ws > bo.title, bw.ws, 0) + if(bo.media > bo.title, bw.media, 0) + if(bo.set > bo.title, bw.set, 0) + if(bo.sr > bo.title, bw.sr, 0) + if(bo.ctl > bo.title, bw.ctl, 0) + if(bo.clock > bo.title, bw.clock, 0)
+    let pre.ws = if(bo.media < bo.ws, bw.media, 0) + if(bo.set < bo.ws, bw.set, 0) + if(bo.sr < bo.ws, bw.sr, 0) + if(bo.ctl < bo.ws, bw.ctl, 0) + if(bo.clock < bo.ws, bw.clock, 0) + if(bo.tray < bo.ws, bw.tray, 0)
+    let post.ws = if(bo.media > bo.ws, bw.media, 0) + if(bo.set > bo.ws, bw.set, 0) + if(bo.sr > bo.ws, bw.sr, 0) + if(bo.ctl > bo.ws, bw.ctl, 0) + if(bo.clock > bo.ws, bw.clock, 0) + if(bo.tray > bo.ws, bw.tray, 0)
+    let pre.media = if(bo.ws < bo.media, bw.ws, 0) + if(bo.set < bo.media, bw.set, 0) + if(bo.sr < bo.media, bw.sr, 0) + if(bo.ctl < bo.media, bw.ctl, 0) + if(bo.clock < bo.media, bw.clock, 0) + if(bo.tray < bo.media, bw.tray, 0)
+    let post.media = if(bo.ws > bo.media, bw.ws, 0) + if(bo.set > bo.media, bw.set, 0) + if(bo.sr > bo.media, bw.sr, 0) + if(bo.ctl > bo.media, bw.ctl, 0) + if(bo.clock > bo.media, bw.clock, 0) + if(bo.tray > bo.media, bw.tray, 0)
+    let pre.set = if(bo.ws < bo.set, bw.ws, 0) + if(bo.media < bo.set, bw.media, 0) + if(bo.sr < bo.set, bw.sr, 0) + if(bo.ctl < bo.set, bw.ctl, 0) + if(bo.clock < bo.set, bw.clock, 0) + if(bo.tray < bo.set, bw.tray, 0)
+    let post.set = if(bo.ws > bo.set, bw.ws, 0) + if(bo.media > bo.set, bw.media, 0) + if(bo.sr > bo.set, bw.sr, 0) + if(bo.ctl > bo.set, bw.ctl, 0) + if(bo.clock > bo.set, bw.clock, 0) + if(bo.tray > bo.set, bw.tray, 0)
+    let pre.sr = if(bo.ws < bo.sr, bw.ws, 0) + if(bo.media < bo.sr, bw.media, 0) + if(bo.set < bo.sr, bw.set, 0) + if(bo.ctl < bo.sr, bw.ctl, 0) + if(bo.clock < bo.sr, bw.clock, 0) + if(bo.tray < bo.sr, bw.tray, 0)
+    let post.sr = if(bo.ws > bo.sr, bw.ws, 0) + if(bo.media > bo.sr, bw.media, 0) + if(bo.set > bo.sr, bw.set, 0) + if(bo.ctl > bo.sr, bw.ctl, 0) + if(bo.clock > bo.sr, bw.clock, 0) + if(bo.tray > bo.sr, bw.tray, 0)
+    let pre.ctl = if(bo.ws < bo.ctl, bw.ws, 0) + if(bo.media < bo.ctl, bw.media, 0) + if(bo.set < bo.ctl, bw.set, 0) + if(bo.sr < bo.ctl, bw.sr, 0) + if(bo.clock < bo.ctl, bw.clock, 0) + if(bo.tray < bo.ctl, bw.tray, 0)
+    let post.ctl = if(bo.ws > bo.ctl, bw.ws, 0) + if(bo.media > bo.ctl, bw.media, 0) + if(bo.set > bo.ctl, bw.set, 0) + if(bo.sr > bo.ctl, bw.sr, 0) + if(bo.clock > bo.ctl, bw.clock, 0) + if(bo.tray > bo.ctl, bw.tray, 0)
+    let pre.clock = if(bo.ws < bo.clock, bw.ws, 0) + if(bo.media < bo.clock, bw.media, 0) + if(bo.set < bo.clock, bw.set, 0) + if(bo.sr < bo.clock, bw.sr, 0) + if(bo.ctl < bo.clock, bw.ctl, 0) + if(bo.tray < bo.clock, bw.tray, 0)
+    let post.clock = if(bo.ws > bo.clock, bw.ws, 0) + if(bo.media > bo.clock, bw.media, 0) + if(bo.set > bo.clock, bw.set, 0) + if(bo.sr > bo.clock, bw.sr, 0) + if(bo.ctl > bo.clock, bw.ctl, 0) + if(bo.tray > bo.clock, bw.tray, 0)
+    let pre.title = if(bo.ws < bo.title, bw.ws, 0) + if(bo.media < bo.title, bw.media, 0) + if(bo.set < bo.title, bw.set, 0) + if(bo.sr < bo.title, bw.sr, 0) + if(bo.ctl < bo.title, bw.ctl, 0) + if(bo.clock < bo.title, bw.clock, 0) + if(bo.tray < bo.title, bw.tray, 0)
+    let post.title = if(bo.ws > bo.title, bw.ws, 0) + if(bo.media > bo.title, bw.media, 0) + if(bo.set > bo.title, bw.set, 0) + if(bo.sr > bo.title, bw.sr, 0) + if(bo.ctl > bo.title, bw.ctl, 0) + if(bo.clock > bo.title, bw.clock, 0) + if(bo.tray > bo.title, bw.tray, 0)
+    let pre.tray = if(bo.ws < bo.tray, bw.ws, 0) + if(bo.media < bo.tray, bw.media, 0) + if(bo.set < bo.tray, bw.set, 0) + if(bo.sr < bo.tray, bw.sr, 0) + if(bo.ctl < bo.tray, bw.ctl, 0) + if(bo.clock < bo.tray, bw.clock, 0)
+    let post.tray = if(bo.ws > bo.tray, bw.ws, 0) + if(bo.media > bo.tray, bw.media, 0) + if(bo.set > bo.tray, bw.set, 0) + if(bo.sr > bo.tray, bw.sr, 0) + if(bo.ctl > bo.tray, bw.ctl, 0) + if(bo.clock > bo.tray, bw.clock, 0)
     //  Each piece's middle: from the left edge before the title, from the right edge after it.
     let at.ws = if(bo.ws < bo.title, bar.l + pre.ws + vw.ws / 2, bar.r - post.ws - vw.ws / 2)
     let mc = if(bo.media < bo.title, bar.l + pre.media + vw.media / 2, bar.r - post.media - vw.media / 2)
     let set.x = if(bo.set < bo.title, bar.l + pre.set + fw.set / 2, bar.r - post.set - fw.set / 2)
     let sr.x = if(bo.sr < bo.title, bar.l + pre.sr + vw.sr / 2, bar.r - post.sr - vw.sr / 2)
     let ctl.x = if(bo.ctl < bo.title, bar.l + pre.ctl + vw.ctl / 2, bar.r - post.ctl - vw.ctl / 2)
+    let tr.x = if(bo.tray < bo.title, bar.l + pre.tray + vw.tray / 2, bar.r - post.tray - vw.tray / 2)
     let at.clock = if(bo.clock < bo.title, bar.l + pre.clock + vw.clock / 2, bar.r - post.clock - vw.clock / 2)
     //  The clock's texts are set against its right edge: the day column, the minutes, the hour.
     let clock.r = at.clock + fw.clock / 2
@@ -1166,7 +1245,10 @@ scene Vitreus {
     let tray_top = tasks_bot + 8
     let tray_list = tray_top + 26
     let panel_bot = if(trays.count > 0, tray_list + tray_rows * 40 - 4, tasks_bot)
-    let dm.hh = bar.h / 2 + (panel_bot + 16) * u * dm0 + max(0, sag)
+    //  The tray menu: the app's plate (8..60), Open and Alt (66..92), then its menu from 100 (or a line saying it has none).
+    let tm.list = min(tm_h, 224)
+    let tm_bot = 100 + if(tm_has_menu, tm.list, 30) + 8
+    let dm.hh = bar.h / 2 + (if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * u * dm0 + max(0, sag)
     let mdx = cx
     //  Where the contents hang from: the panel's old middle, so they keep their
     //  place when the panel grows to make room for the player.
@@ -1268,6 +1350,11 @@ scene Vitreus {
     //  stay in the bar group above.
     group {
         glow: 2.4 * u, 45%, deep
+        row tray_bar_row {
+            at: floor(tr.x - (bartrays.count * 24 - 6) * u / 2 + 0.5), floor(bar.y - 9 * u + 0.5)
+            gap: floor(6 * u + 0.5)
+            for t in bartrays { BarTray(t, click: bar_tray_click, menu: bar_tray_menu) }
+        }
         repeat i in 1..6 {
             let wxs = at.ws + (i - 3) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
             box ws.dot.$i { at: wxs, bar.y; size: (6 + 14 * ws.act.$i) * u, (6 + 4 * ws.tall.$i * (1 - ws.act.$i)) * u; corner: 3 * u
@@ -1873,6 +1960,7 @@ scene Vitreus {
         //  `media_open` is what moves; `media_h`, above, already reads it, so every
         //  plate under this one is already where it should be.
         group {
+            show: dm_mode == dmm_player
             opacity: f3
             move: 0, (1 - f3) * 12 * u
             let my = ck + (media_top + media_h / 2) * u
@@ -1969,6 +2057,7 @@ scene Vitreus {
 
         //  ── the running windows ──
         group {
+            show: dm_mode == dmm_player
             opacity: f3
             move: 0, (1 - f3) * 12 * u
             text "No active windows" { at: floor(mdx + 0.5), floor(ck + tasks_list * u + 16 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: tasks.count < 1 }
@@ -1986,8 +2075,50 @@ scene Vitreus {
                     at: floor(mdx - 144 * u + 0.5), floor(ck + tray_list * u + 0.5)
                     view: 288 * u, (max(1, tray_rows) * 40 - 4) * u
                     gap: floor(4 * u + 0.5)
-                    for a in trays { TrayRow(a, click: tray_click) }
+                    for a in trays { TrayRow(a, click: tray_click, pin: tray_pin, menu: tray_menu_open) }
                 }
+                //  What the bar shows of them: every app, or only the pinned ones.
+                box { at: mdx + 96 * u, ck + tray_top * u + 11 * u; size: 86 * u, 20 * u; corner: 10 * u; color: if(tray_only_pinned, mint, ink); opacity: if(tray_only_pinned, 22%, 8% + 10% * tray_mode_hit.hover) }
+                text "Bar: pinned" { at: floor(mdx + 96 * u + 0.5), floor(ck + tray_top * u + 11 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 82 * u; lines: 1; color: mint; show: tray_only_pinned; family: "Space Grotesk" }
+                text "Bar: all" { at: floor(mdx + 96 * u + 0.5), floor(ck + tray_top * u + 11 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 82 * u; lines: 1; color: ink; opacity: 85%; show: not tray_only_pinned; family: "Space Grotesk" }
+                zone box tray_mode_hit { at: mdx + 96 * u, ck + tray_top * u + 11 * u; size: 88 * u, 22 * u; corner: 11 * u; cursor: pointer }
+                on press tray_mode_hit { emit tray_mode }
+            }
+        }
+
+        //  ── a tray app's menu ──
+        group {
+            show: dm_mode == dmm_tray
+            opacity: f3
+            move: 0, (1 - f3) * 12 * u
+            let ty = ck + 34 * u                           // the app plate's middle
+            box { at: mdx, ty; size: 288 * u, 52 * u; corner: 14 * u; color: ink; opacity: veil }
+            image tm_icon { at: floor(mdx - 132 * u + 0.5), floor(ty - 15 * u + 0.5); size: floor(30 * u + 0.5), floor(30 * u + 0.5) }
+            text tm_title { at: floor(mdx - 94 * u + 0.5), floor(ty - 8 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 700; width: 170 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            text tm_sub { at: floor(mdx - 94 * u + 0.5), floor(ty + 9 * u + 0.5); anchor: left center; size: 10.5 * u; width: 170 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            //  The pin: a thumbtack, filled while the app is kept on the bar.
+            ellipse { at: mdx + 122 * u, ty; radius: 14 * u; color: ink; opacity: 6% + 10% * tm_pin_hit.hover }
+            ellipse { at: mdx + 122 * u, ty - 3 * u; radius: 4 * u; color: mix(ink, mint, if(tm_pinned, 1, 0)); opacity: if(tm_pinned, 100%, 0%) }
+            ellipse { at: mdx + 122 * u, ty - 3 * u; radius: 4 * u; stroke: 1.4 * u; color: mix(ink, mint, if(tm_pinned, 1, 0)); opacity: if(tm_pinned, 0%, 70%) }
+            line { from: mdx + 122 * u, ty + 1 * u; to: mdx + 122 * u, ty + 7 * u; width: 1.5 * u; color: mix(ink, mint, if(tm_pinned, 1, 0)); opacity: if(tm_pinned, 100%, 70%) }
+            zone box tm_pin_hit { at: mdx + 122 * u, ty; size: 28 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press tm_pin_hit { emit tm_pin }
+            //  Open and Alt: what a left and a middle click on its icon would do.
+            box { at: mdx - 71 * u, ck + 79 * u; size: 138 * u, 26 * u; corner: 9 * u; color: ink; opacity: 8% + 10% * tm_open_hit.hover }
+            text "Open" { at: floor(mdx - 71 * u + 0.5), floor(ck + 79 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 600; width: 130 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
+            zone box tm_open_hit { at: mdx - 71 * u, ck + 79 * u; size: 140 * u, 28 * u; corner: 9 * u; cursor: pointer }
+            on press tm_open_hit { emit tm_open }
+            box { at: mdx + 71 * u, ck + 79 * u; size: 138 * u, 26 * u; corner: 9 * u; color: ink; opacity: 8% + 10% * tm_alt_hit.hover }
+            text "Alt" { at: floor(mdx + 71 * u + 0.5), floor(ck + 79 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 600; width: 130 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
+            zone box tm_alt_hit { at: mdx + 71 * u, ck + 79 * u; size: 140 * u, 28 * u; corner: 9 * u; cursor: pointer }
+            on press tm_alt_hit { emit tm_alt }
+            //  Its menu.
+            text "This app provides no menu." { at: floor(mdx + 0.5), floor(ck + 115 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: not tm_has_menu }
+            column tm_col {
+                at: floor(mdx - 144 * u + 0.5), floor(ck + 100 * u + 0.5)
+                view: 288 * u, tm.list * u
+                gap: floor(2 * u + 0.5)
+                for r in tray_menu { TmRow(r, pick: tray_menu_pick) }
             }
         }
 
@@ -2485,7 +2616,7 @@ scene Vitreus {
             zone box blay_area { from: mbx - 8 * u, mby - 8 * u; size: 426 * u, 104 * u }     // the small bar and the tray, not Reset
             on drag blay_area { bdx = (pointer.x - mbx) / u; bdy = (pointer.y - mby) / u; emit bar_lay_drag }
             //  The chips' zones, apart from their drawing: pressing one takes it.
-            repeat i in 0..7 {
+            repeat i in 0..8 {
                 let zx = mbx + if(bdrag == i, bdx - bgx, bcx.$i) * u
                 let zy = mby + if(bdrag == i, bdy - bgy, bcy.$i) * u
                 zone box bchip.$i { from: zx, zy; size: bcw.$i * u, 28 * u; corner: 9 * u; cursor: grab }
@@ -2493,7 +2624,7 @@ scene Vitreus {
                 on release bchip.$i { emit bar_lay_drop }
             }
             repeat pass in 0..2 {
-            repeat i in 0..7 {
+            repeat i in 0..8 {
                 let dragging = bdrag == i
               group {
                 show: (pass == 0 and not dragging) or (pass == 1 and dragging)
@@ -2544,6 +2675,12 @@ scene Vitreus {
                     box { at: ccx, ccy + 3.5 * u; size: 13 * u, 1.5 * u; corner: 0.75 * u; color: ink2 }
                     ellipse { at: ccx + 2.5 * u, ccy - 3.5 * u; radius: 2.4 * u; color: ink2 }
                     ellipse { at: ccx - 2.5 * u, ccy + 3.5 * u; radius: 2.4 * u; color: ink2 }
+                }
+                group {
+                    show: i == 7
+                    ellipse { at: ccx - 9 * u, ccy; radius: 3 * u; color: ink2 }
+                    ellipse { at: ccx, ccy; radius: 3 * u; color: ink2 }
+                    ellipse { at: ccx + 9 * u, ccy; radius: 3 * u; color: ink2 }
                 }
                 text "4:20" { at: floor(ccx + 0.5), floor(ccy + 0.5); anchor: center; align: center; size: 13 * u; weight: 700; width: chw; lines: 1; color: mix(mint, ink, 0.25); show: i == 6; family: "Space Grotesk" }
               }
