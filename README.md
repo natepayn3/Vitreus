@@ -10,8 +10,8 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="MIT License" /></a>
   </p>
 
-  <img src="assets/screenshots/demo.webp" alt="Vitreus: panels flowing out of the bar" width="49%" />
-  <img src="assets/screenshots/wallpaper-demo.webp" alt="The wallpaper picker: a honeycomb of glass hexagons, the one under the pointer swelling and tilting toward it" width="49%" />
+  <img src="assets/screenshots/demo.webp" alt="Vitreus: panels flowing out of the bar" height="340" />
+  <img src="assets/screenshots/wallpaper-demo.webp" alt="The wallpaper picker: a honeycomb of glass hexagons, the one under the pointer swelling and tilting toward it" height="340" />
   <br /><sub>Panels flowing out of the bar &nbsp;·&nbsp; the wallpaper picker (<code>SUPER + B</code>)</sub>
 
 </div>
