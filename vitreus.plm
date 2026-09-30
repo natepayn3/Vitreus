@@ -204,7 +204,7 @@ scene Vitreus {
     event glass_reset ->
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
     //  panel's height, which follows the page).
-    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_hypr | pg_about = pg_wall
+    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_night | pg_hypr | pg_about = pg_wall
     //  The Bar page: which monitors the bar is on (see the Bar section of vitreus.luau). `bar_scr` is -1 for all
     //  of them, or which monitor tile is chosen.
     fact bar_scr = -1
@@ -548,6 +548,7 @@ scene Vitreus {
     prop set_pgd = 0 ~calm
     prop set_pgh = 0 ~calm
     prop set_pga = 0 ~calm
+    prop set_pgn = 0 ~calm
     prop set_pgb = 0 ~calm
     prop bs.ws = 1 ~calm              // each piece of the bar, 1 shown .. 0 hidden: its room and its opacity
     prop bs.title = 1 ~calm
@@ -595,6 +596,7 @@ scene Vitreus {
     follow set_pgh = if(set_page == pg_hypr, 1, 0)
     follow set_pgb = if(set_page == pg_bar, 1, 0)
     follow set_pga = if(set_page == pg_about, 1, 0)
+    follow set_pgn = if(set_page == pg_night, 1, 0)
     follow bs.ws = if(bv.ws, 1, 0)
     follow bs.title = if(bv.title, 1, 0)
     follow bs.media = if(bv.media, 1, 0)
@@ -628,6 +630,24 @@ scene Vitreus {
     text about_msg = ""
     fact about_behind = -1              // commits waiting upstream; -1 not known yet
     fact about_busy = false
+    //  Night mode (Settings > Night mode): a warm tint over the whole screen, made by Hyprland's screen shader (see the
+    //  logic), by hand or on a schedule.
+    fact night_on = false               // the shader is on now
+    fact night_auto = false             // it switches itself on and off on the schedule
+    fact night_t = 0.65                 // how warm, 0 (6500 K) to 1 (2500 K), along the slider
+    text night_temp_text = "3900 K"
+    text night_start_text = "9:00 PM"
+    text night_end_text = "6:00 AM"
+    text night_status = "Off"
+    prop night_pill = 0 ~pop
+    prop night_auto_pill = 0 ~pop
+    follow night_pill = if(night_on, 1, 0)
+    follow night_auto_pill = if(night_auto, 1, 0)
+    event night_toggle ->
+    event night_auto_toggle ->
+    event night_temp_set ->             // the slider: 0..1
+    event night_start_step ->           // -1 or 1, a half hour
+    event night_end_step ->
     event about_check ->
     event about_update ->
     event about_restart ->
@@ -1250,7 +1270,7 @@ scene Vitreus {
     //  The Display page: its cards down to the profiles one, which is as tall as its rows (none: a line).
     let disp.prows = max(24, disp_pn_s * 30)
     let disp.h = 460 + disp.prows + 114
-    let set.h = mix(mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 330, set_pgb), 392, set_pgh), 262, set_pga)
+    let set.h = max(290, mix(mix(mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 330, set_pgb), 392, set_pgh), 262, set_pga), 312, set_pgn))
     let need_clock = ((wifi_scanning or bt_scanning or bt_working or caf_on) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or nt_urgent)) or (set_pgd > 0.01 and disp.h > 456)
     spin time by if(need_clock, 1, 0)
     let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * u
@@ -2414,12 +2434,13 @@ scene Vitreus {
         text "VISUALS" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 1 - set_pgh - set_pga; family: "Space Grotesk" }
         text "SYSTEM" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: set_pgh + set_pga; family: "Space Grotesk" }
         path { at: sl + 168 * u, hy; stroke: 1.3 * u; color: faint; move -2 * u, -3.5 * u; line 2 * u, 0; line -2 * u, 3.5 * u }
-        text "Wallpaper" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgb - set_pgh - set_pga; family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga; family: "Space Grotesk" }
         text "Display" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgd; family: "Space Grotesk" }
         text "Glass" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pg; family: "Space Grotesk" }
         text "Hyprland" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgh; family: "Space Grotesk" }
         text "Bar" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgb; family: "Space Grotesk" }
         text "About" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pga; family: "Space Grotesk" }
+        text "Night mode" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgn; family: "Space Grotesk" }
         ellipse { at: cx + 282 * u, hy; radius: 13 * u; color: ink; opacity: 5% + 10% * set_x.hover }
         line { from: cx + 277.5 * u, hy - 4.5 * u; to: cx + 286.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
         line { from: cx + 286.5 * u, hy - 4.5 * u; to: cx + 277.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
@@ -2429,14 +2450,14 @@ scene Vitreus {
         //  Sidebar: the sections, grouped. One so far.
         box { at: sl + 75 * u, sby + set.h / 2 * u; size: 150 * u, set.h * u; corner: 14 * u; color: ink; opacity: 4% }
         text "VISUALS" { at: floor(sl + 14 * u + 0.5), floor(sby + 18 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
-        box { at: sl + 75 * u, sby + mix(mix(42 + 32 * (set_pg + 2 * set_pgd + 3 * set_pgb), 194, set_pgh), 226, set_pga) * u; size: 134 * u, 28 * u; corner: 10 * u; color: mint; opacity: 16% }
+        box { at: sl + 75 * u, sby + mix(mix(42 + 32 * (set_pg + 2 * set_pgd + 3 * set_pgb + 4 * set_pgn), 226, set_pgh), 258, set_pga) * u; size: 134 * u, 28 * u; corner: 10 * u; color: mint; opacity: 16% }
         group {
-            opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgh + set_pga, 0, 1))
-            box { at: sl + 24 * u, sby + 42 * u; size: 13 * u, 10 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh + set_pga, 0, 1)) }
-            path { at: sl + 24 * u, sby + 42 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh + set_pga, 0, 1)); move -5 * u, 3 * u; line -1.5 * u, -1 * u; line 1 * u, 1.5 * u; line 2.5 * u, -1.5 * u; line 5 * u, 3 * u; close }
-            ellipse { at: sl + 27 * u, sby + 39 * u; radius: 1.2 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh + set_pga, 0, 1)) }
+            opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga, 0, 1))
+            box { at: sl + 24 * u, sby + 42 * u; size: 13 * u, 10 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga, 0, 1)) }
+            path { at: sl + 24 * u, sby + 42 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga, 0, 1)); move -5 * u, 3 * u; line -1.5 * u, -1 * u; line 1 * u, 1.5 * u; line 2.5 * u, -1.5 * u; line 5 * u, 3 * u; close }
+            ellipse { at: sl + 27 * u, sby + 39 * u; radius: 1.2 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga, 0, 1)) }
         }
-        text "Wallpaper" { at: floor(sl + 40 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh + set_pga, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgb + set_pgh + set_pga, 0, 1); family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 40 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga, 0, 1); family: "Space Grotesk" }
         //  Glass: a pane with a highlight across its corner.
         group {
             opacity: 65% + 35% * set_pg
@@ -2459,25 +2480,34 @@ scene Vitreus {
             repeat k in 0..3 { ellipse { at: sl + (21 + k * 3) * u, sby + 138 * u; radius: 0.9 * u; color: mix(ink, mint, set_pgb) } }
         }
         text "Bar" { at: floor(sl + 40 * u + 0.5), floor(sby + 138 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(ink, mint, set_pgb); opacity: 85% + 15% * set_pgb; family: "Space Grotesk" }
-        text "SYSTEM" { at: floor(sl + 14 * u + 0.5), floor(sby + 172 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
+        //  Night mode: a crescent.
+        group {
+            opacity: 65% + 35% * set_pgn
+            arc { at: sl + 24 * u, sby + 170 * u; radius: 5.5 * u; span: 250deg; width: 1.8 * u; color: mix(ink, mint, set_pgn); rotate: 200deg }
+            ellipse { at: sl + 26.5 * u, sby + 166 * u; radius: 1 * u; color: mix(ink, mint, set_pgn) }
+        }
+        text "Night mode" { at: floor(sl + 40 * u + 0.5), floor(sby + 170 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(ink, mint, set_pgn); opacity: 85% + 15% * set_pgn; family: "Space Grotesk" }
+        zone box side_nt { at: sl + 75 * u, sby + 170 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
+        on press side_nt { set_page = pg_night }
+        text "SYSTEM" { at: floor(sl + 14 * u + 0.5), floor(sby + 204 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
         //  Hyprland: a window with its title bar.
         group {
             opacity: 65% + 35% * set_pgh
-            box { at: sl + 24 * u, sby + 194 * u; size: 14 * u, 11 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(ink, mint, set_pgh) }
-            line { from: sl + 17 * u, sby + 192 * u; to: sl + 31 * u, sby + 192 * u; width: 1.3 * u; color: mix(ink, mint, set_pgh) }
+            box { at: sl + 24 * u, sby + 226 * u; size: 14 * u, 11 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(ink, mint, set_pgh) }
+            line { from: sl + 17 * u, sby + 224 * u; to: sl + 31 * u, sby + 224 * u; width: 1.3 * u; color: mix(ink, mint, set_pgh) }
         }
-        text "Hyprland" { at: floor(sl + 40 * u + 0.5), floor(sby + 194 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(ink, mint, set_pgh); opacity: 85% + 15% * set_pgh; family: "Space Grotesk" }
+        text "Hyprland" { at: floor(sl + 40 * u + 0.5), floor(sby + 226 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(ink, mint, set_pgh); opacity: 85% + 15% * set_pgh; family: "Space Grotesk" }
         //  About: an i in a circle.
         group {
             opacity: 65% + 35% * set_pga
-            ellipse { at: sl + 24 * u, sby + 226 * u; radius: 6.5 * u; stroke: 1.3 * u; color: mix(ink, mint, set_pga) }
-            line { from: sl + 24 * u, sby + 226 * u; to: sl + 24 * u, sby + 229.5 * u; width: 1.3 * u; color: mix(ink, mint, set_pga) }
-            ellipse { at: sl + 24 * u, sby + 222.8 * u; radius: 0.9 * u; color: mix(ink, mint, set_pga) }
+            ellipse { at: sl + 24 * u, sby + 258 * u; radius: 6.5 * u; stroke: 1.3 * u; color: mix(ink, mint, set_pga) }
+            line { from: sl + 24 * u, sby + 258 * u; to: sl + 24 * u, sby + 261.5 * u; width: 1.3 * u; color: mix(ink, mint, set_pga) }
+            ellipse { at: sl + 24 * u, sby + 254.8 * u; radius: 0.9 * u; color: mix(ink, mint, set_pga) }
         }
-        text "About" { at: floor(sl + 40 * u + 0.5), floor(sby + 226 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(ink, mint, set_pga); opacity: 85% + 15% * set_pga; family: "Space Grotesk" }
-        zone box side_ab { at: sl + 75 * u, sby + 226 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
+        text "About" { at: floor(sl + 40 * u + 0.5), floor(sby + 258 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(ink, mint, set_pga); opacity: 85% + 15% * set_pga; family: "Space Grotesk" }
+        zone box side_ab { at: sl + 75 * u, sby + 258 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
         on press side_ab { set_page = pg_about }
-        zone box side_hy { at: sl + 75 * u, sby + 194 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
+        zone box side_hy { at: sl + 75 * u, sby + 226 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
         on press side_hy { set_page = pg_hypr }
         zone box side_dp { at: sl + 75 * u, sby + 106 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
         on press side_dp { set_page = pg_disp }
@@ -2489,8 +2519,8 @@ scene Vitreus {
         on press side_gl { set_page = pg_glass }
 
         group {
-            show: set_pg + set_pgd + set_pgb + set_pgh + set_pga < 0.99
-            opacity: 1 - set_pg - set_pgd - set_pgb - set_pgh - set_pga
+            show: set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga < 0.99
+            opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga
             //  The wallpaper page. Card one: the wallpaper in use, and Random.
             box { at: spx + 219 * u, sby + 46 * u; size: 438 * u, 92 * u; corner: 14 * u; color: ink; opacity: veil }
             group {
@@ -2769,6 +2799,86 @@ scene Vitreus {
               }
             }
             }
+        }
+
+        //  The Night mode page (Visuals): the switch, how warm the tint is, and when it turns itself on and off.
+        group {
+            show: set_pgn > 0.01
+            opacity: set_pgn
+            let ntx0 = spx + 14 * u
+            let ntw = 410 * u
+
+            //  Card one: the switch.
+            box { at: spx + 219 * u, sby + 26 * u; size: 438 * u, 52 * u; corner: 14 * u; color: ink; opacity: veil }
+            text "Night mode" { at: floor(spx + 14 * u + 0.5), floor(sby + 16 * u + 0.5); anchor: left center; size: 12.5 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            text night_status { at: floor(spx + 14 * u + 0.5), floor(sby + 35 * u + 0.5); anchor: left center; size: 10 * u; width: 300 * u; lines: 1; color: if(night_on, mint, faint); family: "Space Grotesk" }
+            body {
+                color: mix(off, mint, clamp(night_pill, 0, 1))
+                box { at: spx + 405 * u, sby + 26 * u; size: 38 * u, 22 * u; corner: 11 * u }
+            }
+            box { at: spx + 397 * u + night_pill * 16 * u, sby + 26 * u; size: (17 + 9 * clamp(4 * night_pill * (1 - night_pill), 0, 1)) * u, (17 - 3 * clamp(4 * night_pill * (1 - night_pill), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * night_pill * (1 - night_pill), 0, 1)) * u; color: ink }
+            zone box night_sw_hit { at: spx + 405 * u, sby + 26 * u; size: 46 * u, 30 * u; cursor: pointer }
+            on press night_sw_hit { emit night_toggle }
+
+            //  Card two: how warm. The track is the range itself, from neutral to the warmest, so what is being picked
+            //  can be seen; the knob sits where the tint is.
+            box { at: spx + 219 * u, sby + 104 * u; size: 438 * u, 84 * u; corner: 14 * u; color: ink; opacity: veil }
+            text "COLOR" { at: floor(spx + 14 * u + 0.5), floor(sby + 73 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text "Warmth" { at: floor(spx + 14 * u + 0.5), floor(sby + 94 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+            text night_temp_text { at: floor(spx + 424 * u + 0.5), floor(sby + 94 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
+            body {
+                gradient: ntx0, 0 to ntx0 + ntw, 0, #f4f7ff, #ffd9ad 45%, #ff9a45
+                rim: 12%
+                box { at: ntx0 + ntw / 2, sby + 116 * u; size: ntw, 12 * u; corner: 6 * u }
+            }
+            ellipse { at: ntx0 + ntw * night_t, sby + 116 * u; radius: 10 * u; color: ink }
+            ellipse { at: ntx0 + ntw * night_t, sby + 116 * u; radius: 10 * u; stroke: 1 * u; color: #000000; opacity: 30% }
+            text "6500 K" { at: floor(ntx0 + 0.5), floor(sby + 137 * u + 0.5); anchor: left center; size: 9 * u; color: faint; family: "Space Grotesk" }
+            text "2500 K" { at: floor(ntx0 + ntw + 0.5), floor(sby + 137 * u + 0.5); anchor: right center; size: 9 * u; color: faint; family: "Space Grotesk" }
+            zone box night_t_hit { at: ntx0 + ntw / 2, sby + 116 * u; size: ntw + 24 * u, 30 * u; cursor: pointer }
+            on press night_t_hit { emit night_temp_set(clamp((pointer.x - ntx0) / ntw, 0, 1)) }
+            on drag night_t_hit { emit night_temp_set(clamp((pointer.x - ntx0) / ntw, 0, 1)) }
+
+            //  Card three: the schedule. Automatic, and the two times, in half hours.
+            box { at: spx + 219 * u, sby + 240 * u; size: 438 * u, 136 * u; corner: 14 * u; color: ink; opacity: veil }
+            text "SCHEDULE" { at: floor(spx + 14 * u + 0.5), floor(sby + 179 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text "Automatic" { at: floor(spx + 14 * u + 0.5), floor(sby + 197 * u + 0.5); anchor: left center; size: 12.5 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            text "Turns itself on and off at these times" { at: floor(spx + 14 * u + 0.5), floor(sby + 214 * u + 0.5); anchor: left center; size: 10 * u; width: 300 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            body {
+                color: mix(off, mint, clamp(night_auto_pill, 0, 1))
+                box { at: spx + 405 * u, sby + 205 * u; size: 38 * u, 22 * u; corner: 11 * u }
+            }
+            box { at: spx + 397 * u + night_auto_pill * 16 * u, sby + 205 * u; size: (17 + 9 * clamp(4 * night_auto_pill * (1 - night_auto_pill), 0, 1)) * u, (17 - 3 * clamp(4 * night_auto_pill * (1 - night_auto_pill), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * night_auto_pill * (1 - night_auto_pill), 0, 1)) * u; color: ink }
+            zone box night_auto_hit { at: spx + 405 * u, sby + 205 * u; size: 46 * u, 30 * u; cursor: pointer }
+            on press night_auto_hit { emit night_auto_toggle }
+            //  From and Until: dimmed while it is not automatic, and still there to be set.
+            group {
+                opacity: 40% + 60% * night_auto_pill
+                text "From" { at: floor(spx + 14 * u + 0.5), floor(sby + 245 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+                ellipse { at: spx + 292 * u, sby + 245 * u; radius: 11 * u; color: ink; opacity: 8% + 12% * night_sm_hit.hover }
+                box { at: spx + 292 * u, sby + 245 * u; size: 9 * u, 1.6 * u; corner: 0.8 * u; color: ink }
+                box { at: spx + 345 * u, sby + 245 * u; size: 78 * u, 24 * u; corner: 7 * u; color: ink; opacity: 8% }
+                text night_start_text { at: floor(spx + 345 * u + 0.5), floor(sby + 245 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 700; width: 74 * u; lines: 1; color: mint; family: "Space Grotesk" }
+                ellipse { at: spx + 398 * u, sby + 245 * u; radius: 11 * u; color: ink; opacity: 8% + 12% * night_sp_hit.hover }
+                box { at: spx + 398 * u, sby + 245 * u; size: 9 * u, 1.6 * u; corner: 0.8 * u; color: ink }
+                box { at: spx + 398 * u, sby + 245 * u; size: 1.6 * u, 9 * u; corner: 0.8 * u; color: ink }
+                text "Until" { at: floor(spx + 14 * u + 0.5), floor(sby + 281 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+                ellipse { at: spx + 292 * u, sby + 281 * u; radius: 11 * u; color: ink; opacity: 8% + 12% * night_em_hit.hover }
+                box { at: spx + 292 * u, sby + 281 * u; size: 9 * u, 1.6 * u; corner: 0.8 * u; color: ink }
+                box { at: spx + 345 * u, sby + 281 * u; size: 78 * u, 24 * u; corner: 7 * u; color: ink; opacity: 8% }
+                text night_end_text { at: floor(spx + 345 * u + 0.5), floor(sby + 281 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 700; width: 74 * u; lines: 1; color: mint; family: "Space Grotesk" }
+                ellipse { at: spx + 398 * u, sby + 281 * u; radius: 11 * u; color: ink; opacity: 8% + 12% * night_ep_hit.hover }
+                box { at: spx + 398 * u, sby + 281 * u; size: 9 * u, 1.6 * u; corner: 0.8 * u; color: ink }
+                box { at: spx + 398 * u, sby + 281 * u; size: 1.6 * u, 9 * u; corner: 0.8 * u; color: ink }
+            }
+            zone box night_sm_hit { at: spx + 292 * u, sby + 245 * u; size: 26 * u, 26 * u; corner: 13 * u; cursor: pointer }
+            zone box night_sp_hit { at: spx + 398 * u, sby + 245 * u; size: 26 * u, 26 * u; corner: 13 * u; cursor: pointer }
+            zone box night_em_hit { at: spx + 292 * u, sby + 281 * u; size: 26 * u, 26 * u; corner: 13 * u; cursor: pointer }
+            zone box night_ep_hit { at: spx + 398 * u, sby + 281 * u; size: 26 * u, 26 * u; corner: 13 * u; cursor: pointer }
+            on press night_sm_hit { emit night_start_step(-1) }
+            on press night_sp_hit { emit night_start_step(1) }
+            on press night_em_hit { emit night_end_step(-1) }
+            on press night_ep_hit { emit night_end_step(1) }
         }
 
         //  The About page: the build (this shell's commit and pleamar's version) and the way to update it.
