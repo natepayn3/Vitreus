@@ -95,6 +95,12 @@ with its content fading in after the glass has settled
   asked, whose password it is, shakes when the password is wrong, and `Esc` cancels. The password is read out of the
   scene's field by the agent over pleamar's own socket, so it is never on a command line or on disk. Only one agent can
   hold a session: if polkit-gnome or hyprpolkitagent is already running, that one keeps answering (see Requirements).
+* **Notification rules and sounds** (Settings > System > Notifications) — one place decides what happens to each notification:
+  whether it is shown, heard and kept in the history, and for how long. Per app (the apps that have sent you something are
+  listed): mute its popups (still kept in the history), silence its sound, let it through Do Not Disturb, keep it out of the
+  history altogether, force its urgency, choose how long it stays (or until you close it), and give it its own sound from
+  eight. Globally: sounds on or off, the default sound, and whether critical notifications (a low battery, a failed build)
+  get through Do Not Disturb. Each app's page says in words what will now happen to it, and a button sends a test.
 * **System monitor** (Settings > System) — a scrolling page of live cards: the machine's name, uptime and load; the CPU as a
   gauge with a minute of history and a bar for each core; memory as a ring (in use, cache, free) with swap; the graphics card
   (load, video memory, power, temperature, fan and clocks; NVIDIA through `nvidia-smi`, AMD through sysfs); the network as a
@@ -145,6 +151,7 @@ Optional, each enabling one thing (Vitreus runs without them and that part stays
 | `power-profiles-daemon` (`powerprofilesctl`) | the power profile in Power |
 | `systemd` (`systemctl`, `loginctl`) | Power's sleep, restart, power off and log out |
 | `polkit` + `python-gobject` | the authentication dialog (`bin/vitreus-polkit-agent`, started by the shell; needs no other agent running) |
+| `pipewire-audio` (`pw-play`) + `sound-theme-freedesktop` | the sounds notifications make |
 | `pactl` (PipeWire or PulseAudio) | the per-app volume mixer |
 | `hyprctl` | running windows, Settings > Display and > Hyprland, and the launcher starting apps |
 | `notify-send` | calendar reminders |

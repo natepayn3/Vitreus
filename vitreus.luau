@@ -264,12 +264,15 @@ local function dnd_left_text()
     return string.format("%d:%02d", r // 60, r % 60)
 end
 
+local NTR = {}                           -- the notification rules (see "Notification rules and sounds"): decide, play, sync
 local function dnd_refresh()
     if dnd_until > 0 and os.time() >= dnd_until then
         dnd_until, dnd_len = 0, 0
         dnd_save()
     end
+    local was = dnd
     dnd = dnd_manual or dnd_until > 0
+    if dnd ~= was and NTR.sync then NTR.sync() end   -- an app's explanation says whether Do Not Disturb holds it back
     fact.dnd_on = dnd
     fact.dnd_len = dnd_until > 0 and dnd_len or 0
     if dnd_until > 0 then
@@ -1057,6 +1060,184 @@ local function strip(s)
     return ((s or ""):gsub("<[^>]*>", ""):gsub("&amp;", "&"):gsub("&lt;", "<"):gsub("&gt;", ">"):gsub("&quot;", '"'))
 end
 
+-- (all of it in one scope, exposing three names: a Lua chunk may only have 200 local variables, and this file is long)
+do
+-- ── Notification rules and sounds ──────────────────────────────────────────────────────────────────────────────
+-- After Synoptik's NotificationRules: ONE place decides what happens to an arriving notification (`decide`): is it recorded in
+-- the history, is it shown, does it make a sound, how long does it stay. A rule belongs to an app (its name, lower-cased: the
+-- notification service does not say more than that), and only what differs from the defaults is kept. The rules, the apps that have
+-- spoken (so the list of them does not depend on a history that is cleared) and the global switches are in `notification-rules.json`.
+--
+--   mute    no popup (still in the history)        silent   no sound           bypass   shows even in Do Not Disturb
+--   hide    not even in the history                sound    one of the sounds below (0: the default one)
+--   timeout 0 the usual, else milliseconds, -1 until dismissed         urgency  0 as sent, 1 low, 2 normal, 3 critical
+local NT_SOUNDS = {
+    { "message-new-instant", "Message" }, { "message", "Soft" }, { "bell", "Bell" }, { "dialog-information", "Info" },
+    { "complete", "Done" }, { "device-added", "Device" }, { "alarm-clock-elapsed", "Alarm" }, { "dialog-warning", "Warning" },
+}
+local NT_SOUND_DIR = "/usr/share/sounds/freedesktop/stereo/"
+local NT_TIMEOUTS = { 0, 4000, 8000, 15000, -1 }
+local nt_rules = {}                          -- key -> { mute, silent, bypass, hide, sound, timeout, urgency } (sparse)
+local nt_apps = {}                           -- key -> { label, count }
+local nt_glob = { sounds = true, sound = 1, allow_critical = true }
+local nt_sel = nil                           -- the app whose rules are open in Settings
+local nt_dirty = false
+local nt_list = {}                           -- the apps as Settings lists them (sorted), by position
+local nt_sync_ui                             -- (defined below: `decide` needs it before it exists)
+
+local RULE_DEFAULTS = { mute = false, silent = false, bypass = false, hide = false, sound = 0, timeout = 0, urgency = 0 }
+local function nt_key(app) return ((app or ""):gsub("^%s+", ""):gsub("%s+$", "")):lower() end
+local function rule_for(key)
+    local r, stored = {}, nt_rules[key] or {}
+    for k, v in pairs(RULE_DEFAULTS) do if stored[k] ~= nil then r[k] = stored[k] else r[k] = v end end
+    return r
+end
+local function nt_save()
+    nt_dirty = false
+    pcall(sys.call, "files.write", "notification-rules.json", { rules = nt_rules, apps = nt_apps, global = nt_glob })
+end
+local function nt_play(idx)
+    local snd = NT_SOUNDS[idx] or NT_SOUNDS[1]
+    run("pw-play", { "--volume=0.7", NT_SOUND_DIR .. snd[1] .. ".oga" }, function() end)
+end
+
+-- What becomes of this one: recorded, shown, heard, and for how long.
+local function decide(n)
+    local key = nt_key(n.app ~= "" and n.app or "system")
+    local a = nt_apps[key]
+    if not a then a = { label = (n.app ~= nil and n.app ~= "") and n.app or "System", count = 0 }; nt_apps[key] = a end
+    a.count = a.count + 1
+    if not nt_dirty then nt_dirty = true; after(4000, function() if nt_dirty then nt_save() end end) end
+    nt_sync_ui()                                   -- the list in Settings follows what has been heard
+
+    local r = rule_for(key)
+    local u = tostring(n.urgency)
+    local sent = (u == "critical" or u == "2") and 3 or ((u == "low" or u == "0") and 1 or 2)
+    local eff = r.urgency > 0 and r.urgency or sent
+    local critical = eff == 3
+    local d = { key = key, record = true, show = true, sound = false, critical = critical, timeout = 4000, sound_idx = 1 }
+    if r.hide then d.record = false; d.show = false; return d end
+    if r.mute then d.show = false; return d end
+    if dnd and not r.bypass and not (critical and nt_glob.allow_critical) then d.show = false; return d end
+    d.sound = nt_glob.sounds and not r.silent
+    d.sound_idx = r.sound > 0 and r.sound or nt_glob.sound
+    if r.timeout == -1 then d.timeout = 0
+    elseif r.timeout > 0 then d.timeout = r.timeout
+    elseif critical then d.timeout = 0
+    else d.timeout = (n.actions ~= nil and #n.actions > 0) and 8000 or 4000 end
+    return d
+end
+
+-- A plain account of what would happen to an ordinary notification from this app right now, for Settings.
+local function nt_explain(key)
+    local r = rule_for(key)
+    local lines = {}
+    if r.hide then lines[#lines + 1] = "Hidden: no popup, no sound, not in the history."
+    elseif r.mute then lines[#lines + 1] = "Muted: kept in the history only."
+    elseif dnd and not r.bypass then lines[#lines + 1] = "Held back by Do Not Disturb: kept in the history only."
+    else
+        local quiet = r.silent or not nt_glob.sounds
+        lines[#lines + 1] = "Shown" .. (quiet and ", without sound." or (", with " .. NT_SOUNDS[r.sound > 0 and r.sound or nt_glob.sound][2] .. "."))
+    end
+    if r.urgency > 0 then lines[#lines + 1] = "Urgency is always " .. ({ "low", "normal", "critical" })[r.urgency] .. "." end
+    if r.timeout == -1 then lines[#lines + 1] = "Stays until you dismiss it."
+    elseif r.timeout > 0 then lines[#lines + 1] = "Stays " .. (r.timeout // 1000) .. " seconds." end
+    if r.bypass then lines[#lines + 1] = "Ignores Do Not Disturb." end
+    if not nt_rules[key] then lines[#lines + 1] = "No rule of its own: the shell's defaults." end
+    return table.concat(lines, " ")
+end
+
+-- The facts and models Settings reads.
+nt_sync_ui = function()
+    fact.ntg_sounds = nt_glob.sounds
+    fact.ntg_crit = nt_glob.allow_critical
+    fact.ntg_snd = nt_glob.sound - 1
+    local list = {}
+    for k, a in pairs(nt_apps) do list[#list + 1] = { key = k, label = a.label, count = a.count } end
+    table.sort(list, function(x, y) if x.count ~= y.count then return x.count > y.count end return x.label:lower() < y.label:lower() end)
+    local rows = {}
+    local sel_idx = -1
+    for i, e in ipairs(list) do
+        if i > 14 then break end
+        rows[i] = { name = e.label, info = e.count == 1 and "1 notification" or (e.count .. " notifications"), rule = nt_rules[e.key] ~= nil }
+        if e.key == nt_sel then sel_idx = i - 1 end
+    end
+    model.nta_apps = rows
+    fact.nta_sel = sel_idx
+    fact.nta_count = #rows
+    nt_list = list
+    if nt_sel and sel_idx >= 0 then
+        local r = rule_for(nt_sel)
+        fact.nta_mute, fact.nta_silent, fact.nta_bypass, fact.nta_hide = r.mute, r.silent, r.bypass, r.hide
+        fact.nta_urg = r.urgency
+        local ti = 0
+        for i, v in ipairs(NT_TIMEOUTS) do if v == r.timeout then ti = i - 1 end end
+        fact.nta_to = ti
+        fact.nta_snd = r.sound
+        text.nta_name = nt_apps[nt_sel] and nt_apps[nt_sel].label or nt_sel
+        text.nta_explain = nt_explain(nt_sel)
+        fact.nta_has_rule = nt_rules[nt_sel] ~= nil
+    end
+end
+
+-- Settings > Notifications: what the page presses comes back here.
+do
+    local ok, saved = pcall(sys.ask, "files.read", "notification-rules.json", "json")
+    if ok and type(saved) == "table" then
+        if type(saved.rules) == "table" then nt_rules = saved.rules end
+        if type(saved.apps) == "table" then nt_apps = saved.apps end
+        if type(saved.global) == "table" then for k, v in pairs(saved.global) do nt_glob[k] = v end end
+    end
+    if type(nt_glob.sound) ~= "number" or not NT_SOUNDS[nt_glob.sound] then nt_glob.sound = 1 end
+    nt_sync_ui()
+end
+local function rule_set(field, value)
+    if not nt_sel then return end
+    local r = nt_rules[nt_sel] or {}
+    if value == RULE_DEFAULTS[field] then r[field] = nil else r[field] = value end
+    if next(r) == nil then nt_rules[nt_sel] = nil else nt_rules[nt_sel] = r end
+    nt_save()
+    nt_sync_ui()
+end
+on("nta_pick", function(i)
+    i = math.floor(i + 0.5)
+    local e = nt_list[i + 1]
+    if not e then return end
+    nt_sel = (nt_sel == e.key) and nil or e.key
+    nt_sync_ui()
+end)
+on("nta_flag", function(k)
+    k = math.floor(k + 0.5)
+    local f = ({ "mute", "silent", "bypass", "hide" })[k + 1]
+    if f and nt_sel then rule_set(f, not rule_for(nt_sel)[f]) end
+end)
+on("nta_urgency", function(v) rule_set("urgency", math.floor(v + 0.5)) end)
+on("nta_timeout", function(v) rule_set("timeout", NT_TIMEOUTS[math.floor(v + 0.5) + 1] or 0) end)
+on("nta_sound", function(v)
+    v = math.floor(v + 0.5)
+    rule_set("sound", v)
+    if v > 0 then nt_play(v) end
+end)
+on("nta_reset", function()
+    if nt_sel and nt_rules[nt_sel] then nt_rules[nt_sel] = nil; nt_save(); nt_sync_ui() end
+end)
+on("ntg_flag", function(k)
+    k = math.floor(k + 0.5)
+    if k == 0 then nt_glob.sounds = not nt_glob.sounds else nt_glob.allow_critical = not nt_glob.allow_critical end
+    nt_save()
+    nt_sync_ui()
+end)
+on("ntg_sound", function(v)
+    v = math.floor(v + 0.5) + 1
+    if NT_SOUNDS[v] then nt_glob.sound = v; nt_save(); nt_sync_ui(); nt_play(v) end
+end)
+on("nt_test", function()
+    run("notify-send", { "-a", "Vitreus", "Notification test", "This is how a notification looks and sounds with the rules as they are." }, function() end)
+end)
+
+NTR.decide, NTR.play, NTR.sync = decide, nt_play, nt_sync_ui
+end
+
 local function finish_notification()
     if nt_now then
         pcall(sys.call, "notifications.dismiss", nt_now.id)
@@ -1067,7 +1248,9 @@ end
 
 local pump
 local function show_notification(n)
-    local critical = tostring(n.urgency) == "critical" or tostring(n.urgency) == "2"
+    local d = n._d or { critical = tostring(n.urgency) == "critical" or tostring(n.urgency) == "2", sound = false, timeout = nil }
+    local critical = d.critical
+    if d.sound then NTR.play(d.sound_idx) end
     local keys, rows = {}, {}
     for _, a in ipairs(n.actions or {}) do
         if a.key ~= "default" and a.label and a.label ~= "" and #rows < 3 then
@@ -1091,9 +1274,11 @@ local function show_notification(n)
     fact.osd_kind = "note"
     set_panel("notif")
     emit("ntnew")
-    -- A critical one stays until it is dismissed; one with buttons stays longer.
-    if not critical then
-        after(#rows > 0 and 8000 or 4000, function()
+    -- How long it stays is decided with the rest (`decide`): a critical one until it is dismissed, one with buttons longer, and
+    -- an app's own rule over both. 0 is "until it is dismissed".
+    local stay = d.timeout or (critical and 0 or (#rows > 0 and 8000 or 4000))
+    if stay > 0 then
+        after(stay, function()
             if gen == osd_gen and nt_now and nt_now.id == n.id then
                 finish_notification()
                 after(400, pump)
@@ -1115,11 +1300,13 @@ sys.watch("notifications", function(list)
         if not nt_seen[n.id] then
             nt_seen[n.id] = true
             if not nt_first then
-                nt_add(n)
-                if dnd then
-                    pcall(sys.call, "notifications.dismiss", n.id)   -- Do Not Disturb: it never shows
-                else
+                local d = NTR.decide(n)
+                n._d = d
+                if d.record then nt_add(n) end
+                if d.show then
                     nt_queue[#nt_queue + 1] = n
+                else
+                    pcall(sys.call, "notifications.dismiss", n.id)   -- muted, hidden or held back by Do Not Disturb: it never shows
                 end
             end
         end
@@ -2912,6 +3099,8 @@ end
         { "Settings: Hyprland", "open", open_settings("pg_hypr") },
         { "Settings: About", "open", open_settings("pg_about") },
         { "Settings: System monitor", "open", open_settings("pg_sys") },
+        { "Settings: Notifications", "open", open_settings("pg_nt") },
+        { "Settings: Bar", "open", open_settings("pg_bar") },
         { "Calendar", "panel", function() set_panel("calendar"); return true end },
         { "Controls", "panel", function() set_panel("controls"); return true end },
         { "Player", "panel", function() set_panel("player"); return true end },

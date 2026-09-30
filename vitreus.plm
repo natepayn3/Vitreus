@@ -9,7 +9,7 @@ import "palette.plm"
 scene Vitreus {
     surface { size: full, 1440; anchor: top; margin: 0; reserve: 68; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or gal_open or pk_open }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "git", "pleamar", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon" }
+                  run: "git", "pleamar", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
     model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number }
@@ -204,7 +204,7 @@ scene Vitreus {
     event glass_reset ->
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
     //  panel's height, which follows the page).
-    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_night | pg_hypr | pg_about | pg_sys = pg_wall
+    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_night | pg_hypr | pg_about | pg_sys | pg_nt = pg_wall
     //  The Bar page: which monitors the bar is on (see the Bar section of vitreus.luau). `bar_scr` is -1 for all
     //  of them, or which monitor tile is chosen.
     fact bar_scr = -1
@@ -582,6 +582,7 @@ scene Vitreus {
     prop set_pga = 0 ~calm
     prop set_pgn = 0 ~calm
     prop set_pgs = 0 ~calm
+    prop set_pgt = 0 ~calm
     prop set_pgb = 0 ~calm
     prop bs.ws = 1 ~calm              // each piece of the bar, 1 shown .. 0 hidden: its room and its opacity
     prop bs.title = 1 ~calm
@@ -633,6 +634,7 @@ scene Vitreus {
     follow set_pga = if(set_page == pg_about, 1, 0)
     follow set_pgn = if(set_page == pg_night, 1, 0)
     follow set_pgs = if(set_page == pg_sys, 1, 0)
+    follow set_pgt = if(set_page == pg_nt, 1, 0)
     follow bs.ws = if(bv.ws, 1, 0)
     follow bs.title = if(bv.title, 1, 0)
     follow bs.media = if(bv.media, 1, 0)
@@ -814,6 +816,48 @@ scene Vitreus {
     model sm_mnt max 6 { name: text; info: text; pct: number }
     model sm_tmp max 8 { label: text; txt: text; f: number; heat: number }
     model sm_proc max 8 { name: text; cpu_txt: text; mem_txt: text; cpu: number }
+    //  Settings > Notifications (see "Notification rules and sounds" in vitreus.luau): the global switches and default sound, the apps that
+    //  have sent something, and the rules of the one that is open.
+    fact nt_scroll_to = 0
+    prop nt_scroll = 0 ~quick
+    follow nt_scroll = nt_scroll_to
+    fact ntg_sounds = true             // a sound when one is shown
+    fact ntg_crit = true               // critical ones ignore Do Not Disturb
+    fact ntg_snd = 0                  // the default sound, 0..7
+    fact nta_sel = -1                 // the app whose rules are open (its row), -1 none
+    fact nta_count = 0
+    fact nta_mute = false
+    fact nta_silent = false
+    fact nta_bypass = false
+    fact nta_hide = false
+    fact nta_urg = 0                  // 0 as the app sent it, 1 low, 2 normal, 3 critical
+    fact nta_to = 0                   // 0 the usual, 1 4 s, 2 8 s, 3 15 s, 4 until dismissed
+    fact nta_snd = 0                  // 0 the default sound, else 1..8
+    fact nta_has_rule = false
+    text nta_name = ""
+    text nta_explain = ""
+    model nta_apps max 14 { name: text; info: text; rule: bool }
+    event nta_pick ->
+    event nta_flag ->
+    event nta_urgency ->
+    event nta_timeout ->
+    event nta_sound ->
+    event nta_reset ->
+    event ntg_flag ->
+    event ntg_sound ->
+    event nt_test ->
+    prop ntk0 = 0 ~quick
+    prop ntk1 = 0 ~quick
+    prop ntk2 = 0 ~quick
+    prop ntk3 = 0 ~quick
+    prop ntk4 = 0 ~quick
+    prop ntk5 = 0 ~quick
+    follow ntk0 = if(ntg_sounds, 1, 0)
+    follow ntk1 = if(ntg_crit, 1, 0)
+    follow ntk2 = if(nta_mute, 1, 0)
+    follow ntk3 = if(nta_silent, 1, 0)
+    follow ntk4 = if(nta_bypass, 1, 0)
+    follow ntk5 = if(nta_hide, 1, 0)
     event about_check ->
     event about_update ->
     event about_restart ->
@@ -847,8 +891,8 @@ scene Vitreus {
     follow mvis = if(mixer.count > 0 or vm_open, 1, 0)
     on launch_toggle { panel = if(panel == launch, none, launch) }
     on settings_toggle { panel = if(panel == settings, none, settings) }
-    on change panel { dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0 }
-    on change set_page { disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; emit hy_refresh }
+    on change panel { dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0 }
+    on change set_page { disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; emit hy_refresh }
     on change panel { tasks_watch = panel == player }
     on pick_out { dd_open = false }
     follow pulse = bass
@@ -1449,12 +1493,16 @@ scene Vitreus {
     //  Settings' minimum height follows it (see `set.h`).
     let side.hy = 226
     let side.mon = side.hy + 32
-    let side.last = side.mon
+    let side.nt = side.mon + 32
+    let side.last = side.nt
     let side.ab = side.last + 32
     let sm.ds = (4 - clamp(sm_mnt.count, 1, 4)) * 38
     let sm.dt = (8 - clamp(sm_tmp.count, 1, 8)) * 24
     let sm.h = 1536 - sm.ds - sm.dt
-    let set.h = max(side.ab + 40, mix(mix(mix(mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 330, set_pgb), 392, set_pgh), 262, set_pga), 312, set_pgn), 456, set_pgs))
+    //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
+    let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36
+    let nt.h = 246 + 552 - nt.ds + 8 + if(nta_sel >= 0, 456, 0) + 12
+    let set.h = max(side.ab + 40, mix(mix(mix(mix(mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 330, set_pgb), 392, set_pgh), 262, set_pga), 312, set_pgn), 456, set_pgs), 456, set_pgt))
     //  A held Power button counts two seconds on this clock, and a recording pulses on it, so they need it too.
     let need_clock = ((wifi_scanning or bt_scanning or bt_working or caf_on or rec_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or nt_urgent)) or (set_pgd > 0.01 and disp.h > 456)
     spin time by if(need_clock, 1, 0)
@@ -2830,10 +2878,10 @@ scene Vitreus {
         }
         text "SETTINGS" { at: floor(sl + 40 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 14 * u; weight: 700; color: ink; family: "Space Grotesk" }
         box { at: sl + 178 * u, hy; size: 132 * u, 22 * u; corner: 11 * u; color: ink; opacity: 6% }
-        text "VISUALS" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 1 - set_pgh - set_pga - set_pgs; family: "Space Grotesk" }
-        text "SYSTEM" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: set_pgh + set_pga + set_pgs; family: "Space Grotesk" }
+        text "VISUALS" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 1 - set_pgh - set_pga - set_pgs - set_pgt; family: "Space Grotesk" }
+        text "SYSTEM" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: set_pgh + set_pga + set_pgs + set_pgt; family: "Space Grotesk" }
         path { at: sl + 168 * u, hy; stroke: 1.3 * u; color: faint; move -2 * u, -3.5 * u; line 2 * u, 0; line -2 * u, 3.5 * u }
-        text "Wallpaper" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs; family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs - set_pgt; family: "Space Grotesk" }
         text "Display" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgd; family: "Space Grotesk" }
         text "Glass" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pg; family: "Space Grotesk" }
         text "Hyprland" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgh; family: "Space Grotesk" }
@@ -2841,6 +2889,7 @@ scene Vitreus {
         text "About" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pga; family: "Space Grotesk" }
         text "Night mode" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgn; family: "Space Grotesk" }
         text "System monitor" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgs; family: "Space Grotesk" }
+        text "Notifications" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgt; family: "Space Grotesk" }
         ellipse { at: cx + 282 * u, hy; radius: 13 * u; color: ink; opacity: 5% + 10% * set_x.hover }
         line { from: cx + 277.5 * u, hy - 4.5 * u; to: cx + 286.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
         line { from: cx + 286.5 * u, hy - 4.5 * u; to: cx + 277.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
@@ -2852,14 +2901,14 @@ scene Vitreus {
         text "VISUALS" { at: floor(sl + 14 * u + 0.5), floor(sby + 18 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
         //  The highlight's place is each page's own selection (a spring, 0 or 1) times its row, summed: a straight line from one row to the next.
         //  (Nested `mix`es bent it: the old row's value falling while the new one rises dragged it back towards the top row and down again.)
-        box { at: sl + 75 * u, sby + (42 + 32 * (set_pg + 2 * set_pgd + 3 * set_pgb + 4 * set_pgn) + (side.hy - 42) * set_pgh + (side.mon - 42) * set_pgs + (side.ab - 42) * set_pga) * u; size: 134 * u, 28 * u; corner: 10 * u; color: mint; opacity: 16% }
+        box { at: sl + 75 * u, sby + (42 + 32 * (set_pg + 2 * set_pgd + 3 * set_pgb + 4 * set_pgn) + (side.hy - 42) * set_pgh + (side.mon - 42) * set_pgs + (side.nt - 42) * set_pgt + (side.ab - 42) * set_pga) * u; size: 134 * u, 28 * u; corner: 10 * u; color: mint; opacity: 16% }
         group {
-            opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs, 0, 1))
-            box { at: sl + 24 * u, sby + 42 * u; size: 13 * u, 10 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs, 0, 1)) }
-            path { at: sl + 24 * u, sby + 42 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs, 0, 1)); move -5 * u, 3 * u; line -1.5 * u, -1 * u; line 1 * u, 1.5 * u; line 2.5 * u, -1.5 * u; line 5 * u, 3 * u; close }
-            ellipse { at: sl + 27 * u, sby + 39 * u; radius: 1.2 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs, 0, 1)) }
+            opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt, 0, 1))
+            box { at: sl + 24 * u, sby + 42 * u; size: 13 * u, 10 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt, 0, 1)) }
+            path { at: sl + 24 * u, sby + 42 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt, 0, 1)); move -5 * u, 3 * u; line -1.5 * u, -1 * u; line 1 * u, 1.5 * u; line 2.5 * u, -1.5 * u; line 5 * u, 3 * u; close }
+            ellipse { at: sl + 27 * u, sby + 39 * u; radius: 1.2 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt, 0, 1)) }
         }
-        text "Wallpaper" { at: floor(sl + 40 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs, 0, 1); family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 40 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt, 0, 1); family: "Space Grotesk" }
         //  Glass: a pane with a highlight across its corner.
         group {
             opacity: 65% + 35% * set_pg
@@ -2913,6 +2962,15 @@ scene Vitreus {
             path { at: sl + 24 * u, sby + side.mon * u; stroke: 1.3 * u; color: mix(ink, mint, set_pgs); move -7 * u, 1 * u; line -3.5 * u, 1 * u; line -1.5 * u, -5 * u; line 1.5 * u, 5 * u; line 3.5 * u, -1 * u; line 7 * u, -1 * u }
         }
         text "System monitor" { at: floor(sl + 40 * u + 0.5), floor(sby + side.mon * u + 0.5); anchor: left center; size: 12 * u; weight: 700; width: 108 * u; lines: 1; color: mix(ink, mint, set_pgs); opacity: 85% + 15% * set_pgs; family: "Space Grotesk" }
+        //  Notifications: a bell.
+        group {
+            opacity: 65% + 35% * set_pgt
+            path { at: sl + 24 * u, sby + side.nt * u; stroke: 1.3 * u; color: mix(ink, mint, set_pgt); move -5.5 * u, 4 * u; line -5.5 * u, 3 * u; line -4 * u, 1.5 * u; line -4 * u, -2.5 * u; curve 4 * u, -2.5 * u via 0, -9 * u; line 4 * u, 1.5 * u; line 5.5 * u, 3 * u; line 5.5 * u, 4 * u; close }
+            ellipse { at: sl + 24 * u, sby + (side.nt + 6.5) * u; radius: 1.6 * u; color: mix(ink, mint, set_pgt) }
+        }
+        text "Notifications" { at: floor(sl + 40 * u + 0.5), floor(sby + side.nt * u + 0.5); anchor: left center; size: 12 * u; weight: 700; width: 108 * u; lines: 1; color: mix(ink, mint, set_pgt); opacity: 85% + 15% * set_pgt; family: "Space Grotesk" }
+        zone box side_nt2 { at: sl + 75 * u, sby + side.nt * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
+        on press side_nt2 { set_page = pg_nt }
         zone box side_sy { at: sl + 75 * u, sby + side.mon * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
         on press side_sy { set_page = pg_sys }
         zone box side_ab { at: sl + 75 * u, sby + side.ab * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
@@ -2929,8 +2987,8 @@ scene Vitreus {
         on press side_gl { set_page = pg_glass }
 
         group {
-            show: set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs < 0.99
-            opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs
+            show: set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt < 0.99
+            opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs - set_pgt
             //  The wallpaper page. Card one: the wallpaper in use, and Random.
             box { at: spx + 219 * u, sby + 46 * u; size: 438 * u, 92 * u; corner: 14 * u; color: ink; opacity: veil }
             group {
@@ -3419,6 +3477,200 @@ scene Vitreus {
                 on press hy_tg_hit.$i { emit hy_toggle(i) }
             }
         }
+
+        //  ── Notifications page: BEGIN (generated) ──
+        //  Scrolls like the System monitor page: a clipped viewport, the content moved by a whole-pixel `nt.off`, the wheel caught under it.
+        group {
+            show: set_pgt > 0.01
+            opacity: set_pgt
+            let nt.sc = clamp(nt_scroll, 0, max(0, nt.h - 456))
+            let nt.off = floor(nt.sc * u + 0.5)
+            clip box { at: spx + 224 * u, sby + 228 * u; size: 456 * u, 456 * u }
+            zone box nt_wheel { at: spx + 219 * u, sby + 228 * u; size: 446 * u, 456 * u }
+            on scroll nt_wheel { nt_scroll_to = clamp(nt_scroll_to + wheel * 44, 0, max(0, nt.h - 456)) }
+            group {
+                move: 0, -nt.off
+            box { at: spx + 219 * u, sby + 122 * u; size: 438 * u, 232 * u; corner: 14 * u; color: ink; opacity: veil }
+            text "DELIVERY" { at: floor(spx + 14 * u + 0.5), floor(sby + 22 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text "Play a sound" { at: floor(spx + 14 * u + 0.5), floor(sby + 43 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 340 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            text "When a notification is shown" { at: floor(spx + 14 * u + 0.5), floor(sby + 59 * u + 0.5); anchor: left center; size: 9.5 * u; weight: 500; width: 340 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            box { at: spx + 404 * u, sby + 50 * u; size: 40 * u, 22 * u; corner: 11 * u; color: mix(ink, mint, ntk0); opacity: 14% + 34% * ntk0 + 8% * ntg_snd_hit.hover }
+            ellipse { at: spx + (404 - 9 + 18 * ntk0) * u, sby + 50 * u; radius: 8 * u; color: mix(ink, mint, ntk0); opacity: 80% + 20% * ntk0 }
+            zone box ntg_snd_hit { at: spx + 219 * u, sby + 50 * u; size: 430 * u, 32 * u; corner: 10 * u; cursor: pointer }
+            on press ntg_snd_hit { emit ntg_flag(0) }
+            text "Let critical ones through Do Not Disturb" { at: floor(spx + 14 * u + 0.5), floor(sby + 81 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 340 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            text "A low battery, a build that broke: the ones you would want" { at: floor(spx + 14 * u + 0.5), floor(sby + 97 * u + 0.5); anchor: left center; size: 9.5 * u; weight: 500; width: 340 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            box { at: spx + 404 * u, sby + 88 * u; size: 40 * u, 22 * u; corner: 11 * u; color: mix(ink, mint, ntk1); opacity: 14% + 34% * ntk1 + 8% * ntg_crit_hit.hover }
+            ellipse { at: spx + (404 - 9 + 18 * ntk1) * u, sby + 88 * u; radius: 8 * u; color: mix(ink, mint, ntk1); opacity: 80% + 20% * ntk1 }
+            zone box ntg_crit_hit { at: spx + 219 * u, sby + 88 * u; size: 430 * u, 32 * u; corner: 10 * u; cursor: pointer }
+            on press ntg_crit_hit { emit ntg_flag(1) }
+            text "DEFAULT SOUND" { at: floor(spx + 14 * u + 0.5), floor(sby + 122 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            box { at: spx + 63 * u, sby + 146 * u; size: 98 * u, 26 * u; corner: 13 * u; color: if(ntg_snd == 0, mint, ink); opacity: if(ntg_snd == 0, 24%, 8% + 9% * ntg_s0.hover) }
+            text "Message" { at: floor(spx + 63 * u + 0.5), floor(sby + 146 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 92 * u; lines: 1; color: if(ntg_snd == 0, mint, ink); opacity: if(ntg_snd == 0, 100%, 85%); family: "Space Grotesk" }
+            zone box ntg_s0 { at: spx + 63 * u, sby + 146 * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press ntg_s0 { emit ntg_sound(0) }
+            box { at: spx + 167.5 * u, sby + 146 * u; size: 98 * u, 26 * u; corner: 13 * u; color: if(ntg_snd == 1, mint, ink); opacity: if(ntg_snd == 1, 24%, 8% + 9% * ntg_s1.hover) }
+            text "Soft" { at: floor(spx + 167.5 * u + 0.5), floor(sby + 146 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 92 * u; lines: 1; color: if(ntg_snd == 1, mint, ink); opacity: if(ntg_snd == 1, 100%, 85%); family: "Space Grotesk" }
+            zone box ntg_s1 { at: spx + 167.5 * u, sby + 146 * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press ntg_s1 { emit ntg_sound(1) }
+            box { at: spx + 272 * u, sby + 146 * u; size: 98 * u, 26 * u; corner: 13 * u; color: if(ntg_snd == 2, mint, ink); opacity: if(ntg_snd == 2, 24%, 8% + 9% * ntg_s2.hover) }
+            text "Bell" { at: floor(spx + 272 * u + 0.5), floor(sby + 146 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 92 * u; lines: 1; color: if(ntg_snd == 2, mint, ink); opacity: if(ntg_snd == 2, 100%, 85%); family: "Space Grotesk" }
+            zone box ntg_s2 { at: spx + 272 * u, sby + 146 * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press ntg_s2 { emit ntg_sound(2) }
+            box { at: spx + 376.5 * u, sby + 146 * u; size: 98 * u, 26 * u; corner: 13 * u; color: if(ntg_snd == 3, mint, ink); opacity: if(ntg_snd == 3, 24%, 8% + 9% * ntg_s3.hover) }
+            text "Info" { at: floor(spx + 376.5 * u + 0.5), floor(sby + 146 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 92 * u; lines: 1; color: if(ntg_snd == 3, mint, ink); opacity: if(ntg_snd == 3, 100%, 85%); family: "Space Grotesk" }
+            zone box ntg_s3 { at: spx + 376.5 * u, sby + 146 * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press ntg_s3 { emit ntg_sound(3) }
+            box { at: spx + 63 * u, sby + 178 * u; size: 98 * u, 26 * u; corner: 13 * u; color: if(ntg_snd == 4, mint, ink); opacity: if(ntg_snd == 4, 24%, 8% + 9% * ntg_s4.hover) }
+            text "Done" { at: floor(spx + 63 * u + 0.5), floor(sby + 178 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 92 * u; lines: 1; color: if(ntg_snd == 4, mint, ink); opacity: if(ntg_snd == 4, 100%, 85%); family: "Space Grotesk" }
+            zone box ntg_s4 { at: spx + 63 * u, sby + 178 * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press ntg_s4 { emit ntg_sound(4) }
+            box { at: spx + 167.5 * u, sby + 178 * u; size: 98 * u, 26 * u; corner: 13 * u; color: if(ntg_snd == 5, mint, ink); opacity: if(ntg_snd == 5, 24%, 8% + 9% * ntg_s5.hover) }
+            text "Device" { at: floor(spx + 167.5 * u + 0.5), floor(sby + 178 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 92 * u; lines: 1; color: if(ntg_snd == 5, mint, ink); opacity: if(ntg_snd == 5, 100%, 85%); family: "Space Grotesk" }
+            zone box ntg_s5 { at: spx + 167.5 * u, sby + 178 * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press ntg_s5 { emit ntg_sound(5) }
+            box { at: spx + 272 * u, sby + 178 * u; size: 98 * u, 26 * u; corner: 13 * u; color: if(ntg_snd == 6, mint, ink); opacity: if(ntg_snd == 6, 24%, 8% + 9% * ntg_s6.hover) }
+            text "Alarm" { at: floor(spx + 272 * u + 0.5), floor(sby + 178 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 92 * u; lines: 1; color: if(ntg_snd == 6, mint, ink); opacity: if(ntg_snd == 6, 100%, 85%); family: "Space Grotesk" }
+            zone box ntg_s6 { at: spx + 272 * u, sby + 178 * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press ntg_s6 { emit ntg_sound(6) }
+            box { at: spx + 376.5 * u, sby + 178 * u; size: 98 * u, 26 * u; corner: 13 * u; color: if(ntg_snd == 7, mint, ink); opacity: if(ntg_snd == 7, 24%, 8% + 9% * ntg_s7.hover) }
+            text "Warning" { at: floor(spx + 376.5 * u + 0.5), floor(sby + 178 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 92 * u; lines: 1; color: if(ntg_snd == 7, mint, ink); opacity: if(ntg_snd == 7, 100%, 85%); family: "Space Grotesk" }
+            zone box ntg_s7 { at: spx + 376.5 * u, sby + 178 * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press ntg_s7 { emit ntg_sound(7) }
+            box { at: spx + 107 * u, sby + 214 * u; size: 186 * u, 26 * u; corner: 13 * u; color: if(0, mint, ink); opacity: if(0, 24%, 8% + 9% * nt_test_hit.hover) }
+            text "Send a test notification" { at: floor(spx + 107 * u + 0.5), floor(sby + 214 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 180 * u; lines: 1; color: if(0, mint, ink); opacity: if(0, 100%, 85%); family: "Space Grotesk" }
+            zone box nt_test_hit { at: spx + 107 * u, sby + 214 * u; size: 188 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nt_test_hit { emit nt_test }
+            box { at: spx + 219 * u, sby + (246 + (552 - nt.ds) / 2) * u; size: 438 * u, (552 - nt.ds) * u; corner: 14 * u; color: ink; opacity: veil }
+            text "APPS" { at: floor(spx + 14 * u + 0.5), floor(sby + 262 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text "Tap one to set its rules" { at: floor(spx + 424 * u + 0.5), floor(sby + 262 * u + 0.5); anchor: right center; size: 9.5 * u; weight: 500; color: faint; family: "Space Grotesk"; align: right }
+            text "Nothing has sent you a notification yet" { at: floor(spx + 219 * u + 0.5), floor(sby + 316 * u + 0.5); anchor: center center; size: 12 * u; weight: 500; width: 360 * u; lines: 1; color: faint; family: "Space Grotesk"; align: center; show: nta_count < 1 }
+            repeat r in 0..14 {
+                let ry = 286 + r * 36
+                box { at: spx + 219 * u, sby + ry * u; size: 420 * u, 32 * u; corner: 12 * u; color: if(nta_sel == r, mint, ink); opacity: if(nta_sel == r, 18%, 5% + 7% * nta_row.$r.hover); show: r < nta_count }
+                ellipse { at: spx + 26 * u, sby + ry * u; radius: 3.2 * u; color: mint; opacity: if(nta_apps.$r.rule, 100%, 0%); show: r < nta_count }
+                text nta_apps.$r.name { at: floor(spx + 40 * u + 0.5), floor(sby + ry * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 230 * u; lines: 1; color: if(nta_sel == r, mint, ink); family: "Space Grotesk"; show: r < nta_count }
+                text nta_apps.$r.info { at: floor(spx + 420 * u + 0.5), floor(sby + ry * u + 0.5); anchor: right center; align: right; size: 10 * u; width: 150 * u; lines: 1; color: faint; family: "Space Grotesk"; show: r < nta_count }
+                zone box nta_row.$r { at: spx + 219 * u, sby + ry * u; size: 422 * u, 34 * u; corner: 13 * u; cursor: pointer; active: r < nta_count }
+                on press nta_row.$r { emit nta_pick(r) }
+            }
+            group {
+                show: nta_sel >= 0
+            box { at: spx + 219 * u, sby + (1034 - nt.ds) * u; size: 438 * u, 456 * u; corner: 14 * u; color: ink; opacity: veil }
+            text "RULES FOR" { at: floor(spx + 14 * u + 0.5), floor(sby + (822 - nt.ds) * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text nta_name { at: floor(spx + 82 * u + 0.5), floor(sby + (822 - nt.ds) * u + 0.5); anchor: left center; size: 13 * u; weight: 700; width: 330 * u; lines: 1; color: mint; family: "Space Grotesk" }
+            text "Mute popups" { at: floor(spx + 14 * u + 0.5), floor(sby + (847 - nt.ds) * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 340 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            text "Still kept in the history" { at: floor(spx + 14 * u + 0.5), floor(sby + (863 - nt.ds) * u + 0.5); anchor: left center; size: 9.5 * u; weight: 500; width: 340 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            box { at: spx + 404 * u, sby + (854 - nt.ds) * u; size: 40 * u, 22 * u; corner: 11 * u; color: mix(ink, mint, ntk2); opacity: 14% + 34% * ntk2 + 8% * nta_mute_hit.hover }
+            ellipse { at: spx + (404 - 9 + 18 * ntk2) * u, sby + (854 - nt.ds) * u; radius: 8 * u; color: mix(ink, mint, ntk2); opacity: 80% + 20% * ntk2 }
+            zone box nta_mute_hit { at: spx + 219 * u, sby + (854 - nt.ds) * u; size: 430 * u, 32 * u; corner: 10 * u; cursor: pointer }
+            on press nta_mute_hit { emit nta_flag(0) }
+            text "Silent" { at: floor(spx + 14 * u + 0.5), floor(sby + (881 - nt.ds) * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 340 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            text "Shown, but with no sound" { at: floor(spx + 14 * u + 0.5), floor(sby + (897 - nt.ds) * u + 0.5); anchor: left center; size: 9.5 * u; weight: 500; width: 340 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            box { at: spx + 404 * u, sby + (888 - nt.ds) * u; size: 40 * u, 22 * u; corner: 11 * u; color: mix(ink, mint, ntk3); opacity: 14% + 34% * ntk3 + 8% * nta_silent_hit.hover }
+            ellipse { at: spx + (404 - 9 + 18 * ntk3) * u, sby + (888 - nt.ds) * u; radius: 8 * u; color: mix(ink, mint, ntk3); opacity: 80% + 20% * ntk3 }
+            zone box nta_silent_hit { at: spx + 219 * u, sby + (888 - nt.ds) * u; size: 430 * u, 32 * u; corner: 10 * u; cursor: pointer }
+            on press nta_silent_hit { emit nta_flag(1) }
+            text "Ignore Do Not Disturb" { at: floor(spx + 14 * u + 0.5), floor(sby + (915 - nt.ds) * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 340 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            text "Shows, and sounds, even while it is on" { at: floor(spx + 14 * u + 0.5), floor(sby + (931 - nt.ds) * u + 0.5); anchor: left center; size: 9.5 * u; weight: 500; width: 340 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            box { at: spx + 404 * u, sby + (922 - nt.ds) * u; size: 40 * u, 22 * u; corner: 11 * u; color: mix(ink, mint, ntk4); opacity: 14% + 34% * ntk4 + 8% * nta_bypass_hit.hover }
+            ellipse { at: spx + (404 - 9 + 18 * ntk4) * u, sby + (922 - nt.ds) * u; radius: 8 * u; color: mix(ink, mint, ntk4); opacity: 80% + 20% * ntk4 }
+            zone box nta_bypass_hit { at: spx + 219 * u, sby + (922 - nt.ds) * u; size: 430 * u, 32 * u; corner: 10 * u; cursor: pointer }
+            on press nta_bypass_hit { emit nta_flag(2) }
+            text "Keep out of the history" { at: floor(spx + 14 * u + 0.5), floor(sby + (949 - nt.ds) * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 340 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            text "No popup, no sound, no record" { at: floor(spx + 14 * u + 0.5), floor(sby + (965 - nt.ds) * u + 0.5); anchor: left center; size: 9.5 * u; weight: 500; width: 340 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            box { at: spx + 404 * u, sby + (956 - nt.ds) * u; size: 40 * u, 22 * u; corner: 11 * u; color: mix(ink, mint, ntk5); opacity: 14% + 34% * ntk5 + 8% * nta_hide_hit.hover }
+            ellipse { at: spx + (404 - 9 + 18 * ntk5) * u, sby + (956 - nt.ds) * u; radius: 8 * u; color: mix(ink, mint, ntk5); opacity: 80% + 20% * ntk5 }
+            zone box nta_hide_hit { at: spx + 219 * u, sby + (956 - nt.ds) * u; size: 430 * u, 32 * u; corner: 10 * u; cursor: pointer }
+            on press nta_hide_hit { emit nta_flag(3) }
+            text "URGENCY" { at: floor(spx + 14 * u + 0.5), floor(sby + (992 - nt.ds) * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            box { at: spx + 63 * u, sby + (1012 - nt.ds) * u; size: 98 * u, 26 * u; corner: 13 * u; color: if(nta_urg == 0, mint, ink); opacity: if(nta_urg == 0, 24%, 8% + 9% * nta_u0.hover) }
+            text "As sent" { at: floor(spx + 63 * u + 0.5), floor(sby + (1012 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 92 * u; lines: 1; color: if(nta_urg == 0, mint, ink); opacity: if(nta_urg == 0, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_u0 { at: spx + 63 * u, sby + (1012 - nt.ds) * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_u0 { emit nta_urgency(0) }
+            box { at: spx + 167.5 * u, sby + (1012 - nt.ds) * u; size: 98 * u, 26 * u; corner: 13 * u; color: if(nta_urg == 1, mint, ink); opacity: if(nta_urg == 1, 24%, 8% + 9% * nta_u1.hover) }
+            text "Low" { at: floor(spx + 167.5 * u + 0.5), floor(sby + (1012 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 92 * u; lines: 1; color: if(nta_urg == 1, mint, ink); opacity: if(nta_urg == 1, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_u1 { at: spx + 167.5 * u, sby + (1012 - nt.ds) * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_u1 { emit nta_urgency(1) }
+            box { at: spx + 272 * u, sby + (1012 - nt.ds) * u; size: 98 * u, 26 * u; corner: 13 * u; color: if(nta_urg == 2, mint, ink); opacity: if(nta_urg == 2, 24%, 8% + 9% * nta_u2.hover) }
+            text "Normal" { at: floor(spx + 272 * u + 0.5), floor(sby + (1012 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 92 * u; lines: 1; color: if(nta_urg == 2, mint, ink); opacity: if(nta_urg == 2, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_u2 { at: spx + 272 * u, sby + (1012 - nt.ds) * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_u2 { emit nta_urgency(2) }
+            box { at: spx + 376.5 * u, sby + (1012 - nt.ds) * u; size: 98 * u, 26 * u; corner: 13 * u; color: if(nta_urg == 3, mint, ink); opacity: if(nta_urg == 3, 24%, 8% + 9% * nta_u3.hover) }
+            text "Critical" { at: floor(spx + 376.5 * u + 0.5), floor(sby + (1012 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 92 * u; lines: 1; color: if(nta_urg == 3, mint, ink); opacity: if(nta_urg == 3, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_u3 { at: spx + 376.5 * u, sby + (1012 - nt.ds) * u; size: 100 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_u3 { emit nta_urgency(3) }
+            text "STAYS ON SCREEN" { at: floor(spx + 14 * u + 0.5), floor(sby + (1046 - nt.ds) * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            box { at: spx + 52 * u, sby + (1066 - nt.ds) * u; size: 78 * u, 26 * u; corner: 13 * u; color: if(nta_to == 0, mint, ink); opacity: if(nta_to == 0, 24%, 8% + 9% * nta_t0.hover) }
+            text "Usual" { at: floor(spx + 52 * u + 0.5), floor(sby + (1066 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 72 * u; lines: 1; color: if(nta_to == 0, mint, ink); opacity: if(nta_to == 0, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_t0 { at: spx + 52 * u, sby + (1066 - nt.ds) * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_t0 { emit nta_timeout(0) }
+            box { at: spx + 135.5 * u, sby + (1066 - nt.ds) * u; size: 78 * u, 26 * u; corner: 13 * u; color: if(nta_to == 1, mint, ink); opacity: if(nta_to == 1, 24%, 8% + 9% * nta_t1.hover) }
+            text "4 s" { at: floor(spx + 135.5 * u + 0.5), floor(sby + (1066 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 72 * u; lines: 1; color: if(nta_to == 1, mint, ink); opacity: if(nta_to == 1, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_t1 { at: spx + 135.5 * u, sby + (1066 - nt.ds) * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_t1 { emit nta_timeout(1) }
+            box { at: spx + 219 * u, sby + (1066 - nt.ds) * u; size: 78 * u, 26 * u; corner: 13 * u; color: if(nta_to == 2, mint, ink); opacity: if(nta_to == 2, 24%, 8% + 9% * nta_t2.hover) }
+            text "8 s" { at: floor(spx + 219 * u + 0.5), floor(sby + (1066 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 72 * u; lines: 1; color: if(nta_to == 2, mint, ink); opacity: if(nta_to == 2, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_t2 { at: spx + 219 * u, sby + (1066 - nt.ds) * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_t2 { emit nta_timeout(2) }
+            box { at: spx + 302.5 * u, sby + (1066 - nt.ds) * u; size: 78 * u, 26 * u; corner: 13 * u; color: if(nta_to == 3, mint, ink); opacity: if(nta_to == 3, 24%, 8% + 9% * nta_t3.hover) }
+            text "15 s" { at: floor(spx + 302.5 * u + 0.5), floor(sby + (1066 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 72 * u; lines: 1; color: if(nta_to == 3, mint, ink); opacity: if(nta_to == 3, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_t3 { at: spx + 302.5 * u, sby + (1066 - nt.ds) * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_t3 { emit nta_timeout(3) }
+            box { at: spx + 386 * u, sby + (1066 - nt.ds) * u; size: 78 * u, 26 * u; corner: 13 * u; color: if(nta_to == 4, mint, ink); opacity: if(nta_to == 4, 24%, 8% + 9% * nta_t4.hover) }
+            text "Until closed" { at: floor(spx + 386 * u + 0.5), floor(sby + (1066 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 72 * u; lines: 1; color: if(nta_to == 4, mint, ink); opacity: if(nta_to == 4, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_t4 { at: spx + 386 * u, sby + (1066 - nt.ds) * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_t4 { emit nta_timeout(4) }
+            text "SOUND" { at: floor(spx + 14 * u + 0.5), floor(sby + (1100 - nt.ds) * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            box { at: spx + 52 * u, sby + (1120 - nt.ds) * u; size: 78 * u, 26 * u; corner: 13 * u; color: if(nta_snd == 0, mint, ink); opacity: if(nta_snd == 0, 24%, 8% + 9% * nta_s0.hover) }
+            text "Default" { at: floor(spx + 52 * u + 0.5), floor(sby + (1120 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 72 * u; lines: 1; color: if(nta_snd == 0, mint, ink); opacity: if(nta_snd == 0, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_s0 { at: spx + 52 * u, sby + (1120 - nt.ds) * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_s0 { emit nta_sound(0) }
+            box { at: spx + 135.5 * u, sby + (1120 - nt.ds) * u; size: 78 * u, 26 * u; corner: 13 * u; color: if(nta_snd == 1, mint, ink); opacity: if(nta_snd == 1, 24%, 8% + 9% * nta_s1.hover) }
+            text "Message" { at: floor(spx + 135.5 * u + 0.5), floor(sby + (1120 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 72 * u; lines: 1; color: if(nta_snd == 1, mint, ink); opacity: if(nta_snd == 1, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_s1 { at: spx + 135.5 * u, sby + (1120 - nt.ds) * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_s1 { emit nta_sound(1) }
+            box { at: spx + 219 * u, sby + (1120 - nt.ds) * u; size: 78 * u, 26 * u; corner: 13 * u; color: if(nta_snd == 2, mint, ink); opacity: if(nta_snd == 2, 24%, 8% + 9% * nta_s2.hover) }
+            text "Soft" { at: floor(spx + 219 * u + 0.5), floor(sby + (1120 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 72 * u; lines: 1; color: if(nta_snd == 2, mint, ink); opacity: if(nta_snd == 2, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_s2 { at: spx + 219 * u, sby + (1120 - nt.ds) * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_s2 { emit nta_sound(2) }
+            box { at: spx + 302.5 * u, sby + (1120 - nt.ds) * u; size: 78 * u, 26 * u; corner: 13 * u; color: if(nta_snd == 3, mint, ink); opacity: if(nta_snd == 3, 24%, 8% + 9% * nta_s3.hover) }
+            text "Bell" { at: floor(spx + 302.5 * u + 0.5), floor(sby + (1120 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 72 * u; lines: 1; color: if(nta_snd == 3, mint, ink); opacity: if(nta_snd == 3, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_s3 { at: spx + 302.5 * u, sby + (1120 - nt.ds) * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_s3 { emit nta_sound(3) }
+            box { at: spx + 386 * u, sby + (1120 - nt.ds) * u; size: 78 * u, 26 * u; corner: 13 * u; color: if(nta_snd == 4, mint, ink); opacity: if(nta_snd == 4, 24%, 8% + 9% * nta_s4.hover) }
+            text "Info" { at: floor(spx + 386 * u + 0.5), floor(sby + (1120 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 72 * u; lines: 1; color: if(nta_snd == 4, mint, ink); opacity: if(nta_snd == 4, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_s4 { at: spx + 386 * u, sby + (1120 - nt.ds) * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_s4 { emit nta_sound(4) }
+            box { at: spx + 52 * u, sby + (1152 - nt.ds) * u; size: 78 * u, 26 * u; corner: 13 * u; color: if(nta_snd == 5, mint, ink); opacity: if(nta_snd == 5, 24%, 8% + 9% * nta_s5.hover) }
+            text "Done" { at: floor(spx + 52 * u + 0.5), floor(sby + (1152 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 72 * u; lines: 1; color: if(nta_snd == 5, mint, ink); opacity: if(nta_snd == 5, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_s5 { at: spx + 52 * u, sby + (1152 - nt.ds) * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_s5 { emit nta_sound(5) }
+            box { at: spx + 135.5 * u, sby + (1152 - nt.ds) * u; size: 78 * u, 26 * u; corner: 13 * u; color: if(nta_snd == 6, mint, ink); opacity: if(nta_snd == 6, 24%, 8% + 9% * nta_s6.hover) }
+            text "Device" { at: floor(spx + 135.5 * u + 0.5), floor(sby + (1152 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 72 * u; lines: 1; color: if(nta_snd == 6, mint, ink); opacity: if(nta_snd == 6, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_s6 { at: spx + 135.5 * u, sby + (1152 - nt.ds) * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_s6 { emit nta_sound(6) }
+            box { at: spx + 219 * u, sby + (1152 - nt.ds) * u; size: 78 * u, 26 * u; corner: 13 * u; color: if(nta_snd == 7, mint, ink); opacity: if(nta_snd == 7, 24%, 8% + 9% * nta_s7.hover) }
+            text "Alarm" { at: floor(spx + 219 * u + 0.5), floor(sby + (1152 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 72 * u; lines: 1; color: if(nta_snd == 7, mint, ink); opacity: if(nta_snd == 7, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_s7 { at: spx + 219 * u, sby + (1152 - nt.ds) * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_s7 { emit nta_sound(7) }
+            box { at: spx + 302.5 * u, sby + (1152 - nt.ds) * u; size: 78 * u, 26 * u; corner: 13 * u; color: if(nta_snd == 8, mint, ink); opacity: if(nta_snd == 8, 24%, 8% + 9% * nta_s8.hover) }
+            text "Warning" { at: floor(spx + 302.5 * u + 0.5), floor(sby + (1152 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 72 * u; lines: 1; color: if(nta_snd == 8, mint, ink); opacity: if(nta_snd == 8, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_s8 { at: spx + 302.5 * u, sby + (1152 - nt.ds) * u; size: 80 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            on press nta_s8 { emit nta_sound(8) }
+            text nta_explain { at: floor(spx + 14 * u + 0.5), floor(sby + (1178 - nt.ds) * u + 0.5); anchor: left top; size: 10.5 * u; width: 410 * u; lines: 3; color: faint; family: "Space Grotesk" }
+            box { at: spx + 79 * u, sby + (1238 - nt.ds) * u; size: 130 * u, 26 * u; corner: 13 * u; color: if(0, mint, ink); opacity: if(0, 24%, 8% + 9% * nta_reset_hit.hover) }
+            text "Reset to defaults" { at: floor(spx + 79 * u + 0.5), floor(sby + (1238 - nt.ds) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 124 * u; lines: 1; color: if(0, mint, ink); opacity: if(0, 100%, 85%); family: "Space Grotesk" }
+            zone box nta_reset_hit { at: spx + 79 * u, sby + (1238 - nt.ds) * u; size: 132 * u, 28 * u; corner: 14 * u; cursor: pointer; active: nta_has_rule }
+            on press nta_reset_hit { emit nta_reset }
+            }
+            }
+            let nt.thh = 456 * 456 / nt.h
+            let nt.thy = nt.thh / 2 + nt.sc / max(1, nt.h - 456) * (456 - nt.thh)
+            box { at: spx + 442 * u, sby + 228 * u; size: 3 * u, 456 * u; corner: 1.5 * u; color: ink; opacity: 6% }
+            box { at: spx + 442 * u, sby + nt.thy * u; size: 3 * u, nt.thh * u; corner: 1.5 * u; color: mint; opacity: 55% }
+        }
+        //  ── Notifications page: END ──
 
         //  ── System monitor page: BEGIN (generated; see bin/vitreus-sysmon) ──
         //  The page scrolls like Display's: a clipped viewport as tall as the Wallpaper page, the content moved up by `sm.off`, and the wheel

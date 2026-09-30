@@ -35,7 +35,7 @@ autostart="$conf/pleamar/autostart"
 fonts="$data/fonts/SpaceGrotesk"
 
 # Official-repo packages, then AUR ones: what each is for is in the README.
-pacman_pkgs="git curl fontconfig imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle hyprsunset libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww grim slurp wf-recorder power-profiles-daemon polkit python-gobject"
+pacman_pkgs="git curl fontconfig imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle hyprsunset libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww grim slurp wf-recorder power-profiles-daemon polkit python-gobject pipewire-audio sound-theme-freedesktop"
 aur_pkgs="iris-colors"
 
 assume_yes=false
@@ -154,6 +154,7 @@ if $deps; then
     imagemagick     wallpaper thumbnails, the launcher's picture previews
     wl-clipboard    the launcher copying (wl-copy), and Capture copying a screenshot
     polkit, python-gobject  the authentication dialog (Vitreus asks for your password when something wants admin rights)
+    pipewire (pw-play), sound-theme-freedesktop  the sounds notifications make
     grim, slurp     Capture's screenshots (slurp picks the region)
     wf-recorder     Capture's screen recording (slurp picks the region)
     power-profiles-daemon  the power profile in Power (powerprofilesctl)
