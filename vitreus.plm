@@ -9,7 +9,7 @@ import "palette.plm"
 scene Vitreus {
     surface { size: 900, 800; anchor: top; margin: 0; reserve: 68; screens: all; keyboard: exclusive while panel != none and panel != volume and panel != notif }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid" }
+                  run: "git", "pleamar", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
     model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number }
@@ -181,7 +181,7 @@ scene Vitreus {
     event glass_reset ->
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
     //  panel's height, which follows the page).
-    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_hypr = pg_wall
+    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_hypr | pg_about = pg_wall
     //  The Bar page: which monitors the bar is on (see the Bar section of vitreus.luau). `bar_scr` is -1 for all
     //  of them, or which monitor tile is chosen.
     fact bar_scr = -1
@@ -519,6 +519,7 @@ scene Vitreus {
     prop set_pg = 0 ~calm
     prop set_pgd = 0 ~calm
     prop set_pgh = 0 ~calm
+    prop set_pga = 0 ~calm
     prop set_pgb = 0 ~calm
     prop bs.ws = 1 ~calm              // each piece of the bar, 1 shown .. 0 hidden: its room and its opacity
     prop bs.title = 1 ~calm
@@ -538,6 +539,7 @@ scene Vitreus {
     follow set_pgd = if(set_page == pg_disp, 1, 0)
     follow set_pgh = if(set_page == pg_hypr, 1, 0)
     follow set_pgb = if(set_page == pg_bar, 1, 0)
+    follow set_pga = if(set_page == pg_about, 1, 0)
     follow bs.ws = if(bv.ws, 1, 0)
     follow bs.title = if(bv.title, 1, 0)
     follow bs.media = if(bv.media, 1, 0)
@@ -561,6 +563,17 @@ scene Vitreus {
     fact hy_tear = false
     fact hy_anim = true
     fact hy_nat = false
+    //  The About page (Settings > System): what this shell is built from, and how to update it.
+    text about_commit = "…"
+    text about_date = ""
+    text about_sub = ""
+    text about_pl = ""
+    text about_msg = ""
+    fact about_behind = -1              // commits waiting upstream; -1 not known yet
+    fact about_busy = false
+    event about_check ->
+    event about_update ->
+    event about_restart ->
     text hy_gaps_text = "5 px"
     text hy_sens_text = "0.00"
     prop hy_k0 = 0 ~quick
@@ -1131,7 +1144,7 @@ scene Vitreus {
     //  The Display page: its cards down to the profiles one, which is as tall as its rows (none: a line).
     let disp.prows = max(24, disp_pn_s * 30)
     let disp.h = 460 + disp.prows + 114
-    let set.h = mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 330, set_pgb), 392, set_pgh)
+    let set.h = mix(mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 330, set_pgb), 392, set_pgh), 262, set_pga)
     let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * u
     let ss.hh = bar.h / 2 + (8 + 36 + 8 + set.h + 16) * u * ds0 + max(0, sag)
     //  The launcher: a drop that widens to the bar's width as it lands, like the calendar. The search field (40), the
@@ -2184,14 +2197,15 @@ scene Vitreus {
         }
         text "SETTINGS" { at: floor(sl + 40 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 14 * u; weight: 700; color: ink; family: "Space Grotesk" }
         box { at: sl + 178 * u, hy; size: 132 * u, 22 * u; corner: 11 * u; color: ink; opacity: 6% }
-        text "VISUALS" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 1 - set_pgh; family: "Space Grotesk" }
-        text "SYSTEM" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: set_pgh; family: "Space Grotesk" }
+        text "VISUALS" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 1 - set_pgh - set_pga; family: "Space Grotesk" }
+        text "SYSTEM" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: set_pgh + set_pga; family: "Space Grotesk" }
         path { at: sl + 168 * u, hy; stroke: 1.3 * u; color: faint; move -2 * u, -3.5 * u; line 2 * u, 0; line -2 * u, 3.5 * u }
-        text "Wallpaper" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgb - set_pgh; family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgb - set_pgh - set_pga; family: "Space Grotesk" }
         text "Display" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgd; family: "Space Grotesk" }
         text "Glass" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pg; family: "Space Grotesk" }
         text "Hyprland" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgh; family: "Space Grotesk" }
         text "Bar" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgb; family: "Space Grotesk" }
+        text "About" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pga; family: "Space Grotesk" }
         ellipse { at: cx + 282 * u, hy; radius: 13 * u; color: ink; opacity: 5% + 10% * set_x.hover }
         line { from: cx + 277.5 * u, hy - 4.5 * u; to: cx + 286.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
         line { from: cx + 286.5 * u, hy - 4.5 * u; to: cx + 277.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
@@ -2201,14 +2215,14 @@ scene Vitreus {
         //  Sidebar: the sections, grouped. One so far.
         box { at: sl + 75 * u, sby + set.h / 2 * u; size: 150 * u, set.h * u; corner: 14 * u; color: ink; opacity: 4% }
         text "VISUALS" { at: floor(sl + 14 * u + 0.5), floor(sby + 18 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
-        box { at: sl + 75 * u, sby + mix(42 + 32 * (set_pg + 2 * set_pgd + 3 * set_pgb), 194, set_pgh) * u; size: 134 * u, 28 * u; corner: 10 * u; color: mint; opacity: 16% }
+        box { at: sl + 75 * u, sby + mix(mix(42 + 32 * (set_pg + 2 * set_pgd + 3 * set_pgb), 194, set_pgh), 226, set_pga) * u; size: 134 * u, 28 * u; corner: 10 * u; color: mint; opacity: 16% }
         group {
-            opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgh, 0, 1))
-            box { at: sl + 24 * u, sby + 42 * u; size: 13 * u, 10 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh, 0, 1)) }
-            path { at: sl + 24 * u, sby + 42 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh, 0, 1)); move -5 * u, 3 * u; line -1.5 * u, -1 * u; line 1 * u, 1.5 * u; line 2.5 * u, -1.5 * u; line 5 * u, 3 * u; close }
-            ellipse { at: sl + 27 * u, sby + 39 * u; radius: 1.2 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh, 0, 1)) }
+            opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgh + set_pga, 0, 1))
+            box { at: sl + 24 * u, sby + 42 * u; size: 13 * u, 10 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh + set_pga, 0, 1)) }
+            path { at: sl + 24 * u, sby + 42 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh + set_pga, 0, 1)); move -5 * u, 3 * u; line -1.5 * u, -1 * u; line 1 * u, 1.5 * u; line 2.5 * u, -1.5 * u; line 5 * u, 3 * u; close }
+            ellipse { at: sl + 27 * u, sby + 39 * u; radius: 1.2 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh + set_pga, 0, 1)) }
         }
-        text "Wallpaper" { at: floor(sl + 40 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgb + set_pgh, 0, 1); family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 40 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgh + set_pga, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgb + set_pgh + set_pga, 0, 1); family: "Space Grotesk" }
         //  Glass: a pane with a highlight across its corner.
         group {
             opacity: 65% + 35% * set_pg
@@ -2239,6 +2253,16 @@ scene Vitreus {
             line { from: sl + 17 * u, sby + 192 * u; to: sl + 31 * u, sby + 192 * u; width: 1.3 * u; color: mix(ink, mint, set_pgh) }
         }
         text "Hyprland" { at: floor(sl + 40 * u + 0.5), floor(sby + 194 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(ink, mint, set_pgh); opacity: 85% + 15% * set_pgh; family: "Space Grotesk" }
+        //  About: an i in a circle.
+        group {
+            opacity: 65% + 35% * set_pga
+            ellipse { at: sl + 24 * u, sby + 226 * u; radius: 6.5 * u; stroke: 1.3 * u; color: mix(ink, mint, set_pga) }
+            line { from: sl + 24 * u, sby + 226 * u; to: sl + 24 * u, sby + 229.5 * u; width: 1.3 * u; color: mix(ink, mint, set_pga) }
+            ellipse { at: sl + 24 * u, sby + 222.8 * u; radius: 0.9 * u; color: mix(ink, mint, set_pga) }
+        }
+        text "About" { at: floor(sl + 40 * u + 0.5), floor(sby + 226 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(ink, mint, set_pga); opacity: 85% + 15% * set_pga; family: "Space Grotesk" }
+        zone box side_ab { at: sl + 75 * u, sby + 226 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
+        on press side_ab { set_page = pg_about }
         zone box side_hy { at: sl + 75 * u, sby + 194 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
         on press side_hy { set_page = pg_hypr }
         zone box side_dp { at: sl + 75 * u, sby + 106 * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
@@ -2251,8 +2275,8 @@ scene Vitreus {
         on press side_gl { set_page = pg_glass }
 
         group {
-            show: set_pg + set_pgd + set_pgb + set_pgh < 0.99
-            opacity: 1 - set_pg - set_pgd - set_pgb - set_pgh
+            show: set_pg + set_pgd + set_pgb + set_pgh + set_pga < 0.99
+            opacity: 1 - set_pg - set_pgd - set_pgb - set_pgh - set_pga
             //  The wallpaper page. Card one: the wallpaper in use, and Random.
             box { at: spx + 219 * u, sby + 46 * u; size: 438 * u, 92 * u; corner: 14 * u; color: ink; opacity: veil }
             group {
@@ -2525,6 +2549,47 @@ scene Vitreus {
               }
             }
             }
+        }
+
+        //  The About page: the build (this shell's commit and pleamar's version) and the way to update it.
+        //  Checking is a `git fetch`, updating a `git pull --ff-only`, and after that the shell starts again.
+        group {
+            show: set_pga > 0.01
+            opacity: set_pga
+
+            box { at: spx + 219 * u, sby + 70 * u; size: 438 * u, 140 * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: spx + 219 * u, sby + 201 * u; size: 438 * u, 98 * u; corner: 14 * u; color: ink; opacity: veil }
+            text "BUILD" { at: floor(spx + 14 * u + 0.5), floor(sby + 13 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text "UPDATE" { at: floor(spx + 14 * u + 0.5), floor(sby + 165 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+
+            text "Vitreus" { at: floor(spx + 14 * u + 0.5), floor(sby + 40 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+            text about_commit { at: floor(spx + 424 * u + 0.5), floor(sby + 40 * u + 0.5); anchor: right center; size: 12 * u; weight: 600; width: 300 * u; lines: 1; align: right; color: ink; family: "Space Grotesk" }
+            text "Committed" { at: floor(spx + 14 * u + 0.5), floor(sby + 66 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+            text about_date { at: floor(spx + 424 * u + 0.5), floor(sby + 66 * u + 0.5); anchor: right center; size: 12 * u; weight: 600; width: 300 * u; lines: 1; align: right; color: ink; family: "Space Grotesk" }
+            text "Last change" { at: floor(spx + 14 * u + 0.5), floor(sby + 92 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+            text about_sub { at: floor(spx + 424 * u + 0.5), floor(sby + 92 * u + 0.5); anchor: right center; size: 11 * u; width: 300 * u; lines: 1; align: right; color: ink; opacity: 85%; family: "Space Grotesk" }
+            text "pleamar" { at: floor(spx + 14 * u + 0.5), floor(sby + 118 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+            text about_pl { at: floor(spx + 424 * u + 0.5), floor(sby + 118 * u + 0.5); anchor: right center; size: 12 * u; weight: 600; width: 300 * u; lines: 1; align: right; color: ink; family: "Space Grotesk" }
+
+            text about_msg { at: floor(spx + 14 * u + 0.5), floor(sby + 190 * u + 0.5); anchor: left center; size: 11 * u; width: 410 * u; lines: 1; color: if(about_behind > 0, mint, faint); family: "Space Grotesk" }
+
+            //  Check for updates.
+            box { at: spx + 78 * u, sby + 226 * u; size: 128 * u, 24 * u; corner: 12 * u; color: ink; opacity: if(about_busy, 5%, 8% + 10% * about_chk_hit.hover) }
+            text "Check for updates" { at: floor(spx + 78 * u + 0.5), floor(sby + 226 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 124 * u; lines: 1; color: ink; opacity: if(about_busy, 40%, 85%); family: "Space Grotesk" }
+            zone box about_chk_hit { at: spx + 78 * u, sby + 226 * u; size: 130 * u, 26 * u; corner: 13 * u; cursor: pointer; active: not about_busy }
+            on press about_chk_hit { emit about_check }
+
+            //  Update, and start again: only when there is something to pull.
+            box { at: spx + 219 * u, sby + 226 * u; size: 128 * u, 24 * u; corner: 12 * u; color: mint; opacity: if(about_behind > 0 and not about_busy, 24% + 12% * about_upd_hit.hover, 6%) }
+            text "Update & restart" { at: floor(spx + 219 * u + 0.5), floor(sby + 226 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 124 * u; lines: 1; color: mint; opacity: if(about_behind > 0 and not about_busy, 100%, 35%); family: "Space Grotesk" }
+            zone box about_upd_hit { at: spx + 219 * u, sby + 226 * u; size: 130 * u, 26 * u; corner: 13 * u; cursor: pointer; active: about_behind > 0 and not about_busy }
+            on press about_upd_hit { emit about_update }
+
+            //  Restart.
+            box { at: spx + 360 * u, sby + 226 * u; size: 128 * u, 24 * u; corner: 12 * u; color: ink; opacity: if(about_busy, 5%, 8% + 10% * about_rst_hit.hover) }
+            text "Restart shell" { at: floor(spx + 360 * u + 0.5), floor(sby + 226 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 124 * u; lines: 1; color: ink; opacity: if(about_busy, 40%, 85%); family: "Space Grotesk" }
+            zone box about_rst_hit { at: spx + 360 * u, sby + 226 * u; size: 130 * u, 26 * u; corner: 13 * u; cursor: pointer; active: not about_busy }
+            on press about_rst_hit { emit about_restart }
         }
 
         //  The Hyprland page, after Synoptik's: layout and gaps, border resize and tearing, animations and input.
