@@ -35,7 +35,7 @@ autostart="$conf/pleamar/autostart"
 fonts="$data/fonts/SpaceGrotesk"
 
 # Official-repo packages, then AUR ones: what each is for is in the README.
-pacman_pkgs="git curl fontconfig imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle hyprsunset libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww"
+pacman_pkgs="git curl fontconfig imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle hyprsunset libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww grim slurp wf-recorder power-profiles-daemon"
 aur_pkgs="iris-colors"
 
 assume_yes=false
@@ -150,7 +150,10 @@ if $deps; then
     awww            the wallpaper picker
     iris            theming from the wallpaper (https://aur.archlinux.org/packages/iris-colors)
     imagemagick     wallpaper thumbnails, the launcher's picture previews
-    wl-clipboard    the launcher copying (wl-copy)
+    wl-clipboard    the launcher copying (wl-copy), and Capture copying a screenshot
+    grim, slurp     Capture's screenshots (slurp picks the region)
+    wf-recorder     Capture's screen recording (slurp picks the region)
+    power-profiles-daemon  the power profile in Power (powerprofilesctl)
     cliphist        the launcher's clipboard search (something must run: wl-paste --watch cliphist store)
     xdg-utils       the launcher opening a file (xdg-open)
     curl            weather and remote cover art
@@ -297,6 +300,7 @@ fi
 if have systemctl; then
     systemctl is-active --quiet bluetooth 2> /dev/null || say "Bluetooth is off: sudo systemctl enable --now bluetooth"
     systemctl is-active --quiet NetworkManager 2> /dev/null || say "NetworkManager is not running: Wi-Fi needs it (sudo systemctl enable --now NetworkManager)"
+    have powerprofilesctl && { systemctl is-active --quiet power-profiles-daemon 2> /dev/null || say "power-profiles-daemon is not running: the power profile in Power needs it (sudo systemctl enable --now power-profiles-daemon)"; }
 fi
 
 say "done."
@@ -305,7 +309,7 @@ echo "  Start it now:          $line"
 echo "  With the desktop:      autostart is read by pleamar's own session; on Hyprland run \`pleamar --autostart\`:"
 echo "                         hyprland.lua:   hl.on(\"hyprland.start\", function () hl.exec_cmd(\"PATH=\\\"\$HOME/.local/bin:\$PATH\\\" pleamar --autostart\") end)"
 echo "                         hyprland.conf:  exec-once = ~/.local/bin/pleamar --autostart   (Hyprland's PATH may lack ~/.local/bin)"
-echo "  Keys (with the binds): SUPER + Space launcher, SUPER + SHIFT + Space settings, SUPER + L lock (see lockscreen/README.md)"
+echo "  Keys (with the binds): SUPER + Space launcher, SUPER + SHIFT + Space settings, SUPER + B wallpaper picker, SUPER + L lock (see lockscreen/README.md)"
 echo "  Clipboard search:      needs  wl-paste --watch cliphist store  running at startup, or ^ has nothing to show"
 echo "  Update later:          run this script again"
 echo "  Its settings:          $data/pleamar/vitreus  (iris.json, weather-config.json, ...)"
