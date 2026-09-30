@@ -13,6 +13,9 @@ sys.watch("workspaces", function(w)
     fact["ws.active"] = w.active
 end)
 on("go", function(i) sys.call("workspaces.focus", i) end)
+-- From the overview: the overview holds the keyboard while it is open, and when it lets go Hyprland gives the focus back to the window
+-- you came from, which would take you straight back. So it closes first and the switch comes once it has let go.
+on("ov_go", function(i) after(250, function() sys.call("workspaces.focus", i) end) end)
 
 -- The clock, written the way it is read here: 12 hours with am/pm, and the long date.
 local days = { [0] = "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }
@@ -4597,7 +4600,7 @@ end)()
     end)
     on("ov_focus", function(n)
         local addr = addrs[n + 1]
-        if addr then focus_window(addr) end
+        if addr then after(250, function() focus_window(addr) end) end       -- once the overview has let go (see `ov_go`)
     end)
 end)()
 

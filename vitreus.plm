@@ -412,6 +412,7 @@ scene Vitreus {
     fact ws.active = 1
     repeat i in 1..6 { fact ws.$i.busy = false }
     event go ->
+    event ov_go ->                     // a click on a workspace in the overview: it closes, then the switch
 
     //  The colours live in palette.plm (ink, faint, mint, tint…); only the veil is the scene's.
     let veil  = 8%
@@ -4280,7 +4281,7 @@ scene Vitreus {
             let ovc.act = if(ws.active == c + 1, 1, 0)
             let ovc.drop = if(ovl.moving > 0 and ovl.col == c, 1, 0)
             zone box ov_hz.$c { at: ovc.x, ovc.top + 104 * ovu; size: 290 * ovu, 208 * ovu; corner: 18 * ovu; cursor: pointer; active: ov_show > 0.5 }
-            on press ov_hz.$c { emit go(c + 1); ov_open = false }
+            on press ov_hz.$c { ov_open = false; emit ov_go(c + 1) }
             body {
                 color: tint
                 glass: glass_frost
