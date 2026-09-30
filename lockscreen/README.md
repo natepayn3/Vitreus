@@ -11,11 +11,11 @@ drawn on the lock only appeared on the first lock after the scene was read. Both
 
 ## Turning it on
 
-1. Start it with the desktop: add
-   `pleamar --scene ~/.config/pleamar/shells/vitreus/lockscreen/lockscreen.plm --no-hud` to `~/.config/pleamar/autostart`.
+1. The installer adds it to `~/.config/pleamar/autostart` for you, so it starts with the desktop. By hand, the line is
+   `pleamar --scene ~/.config/pleamar/shells/vitreus/lockscreen/lockscreen.plm --no-hud`.
 2. Lock with `pleamar --say lockscreen "fact locked true"`. For idle and sleep, point hypridle's `lock_cmd`,
-   `before_sleep_cmd` and idle listener at that same command, and bind a key to it. Something like
-   `pleamar --say lockscreen "fact locked true" || <your old locker>` keeps a lock working if the scene is not running.
+   `before_sleep_cmd` and idle listener at that same command, and bind a key to it. The Vitreus binds (`SUPER + L`) and its
+   lock buttons already use it, and do nothing while the scene is not running.
 3. Try it first with `fact safe = true` in `lockscreen.plm`: then Esc on an empty box, or a minute of nothing, opens
    the lock, so a lock that does not behave cannot keep you out. It is `false` as shipped: only the password opens it.
    Have a TTY (Ctrl+Alt+F3) ready the first time either way.

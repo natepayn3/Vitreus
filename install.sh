@@ -296,12 +296,22 @@ fi
 
 # ── start with the desktop ─────────────────────────────────────────────────
 line="pleamar --scene $dest/vitreus.plm --no-hud"
+lockline="pleamar --scene $dest/lockscreen/lockscreen.plm --no-hud"
 if $do_autostart; then
     if [ -f "$autostart" ] && grep -q 'vitreus.plm' "$autostart"; then
         say "it is already in $autostart"
     elif ask "start Vitreus with the desktop (add a line to $autostart)?"; then
         run mkdir -p "$(dirname "$autostart")"
         if $dry; then echo "    would add to $autostart: $line"; else printf '%s\n' "$line" >> "$autostart"; fi
+    fi
+    # The lock screen is a scene of its own (a session lock has to be its own program, so that restarting the shell cannot unlock
+    # the session), and the lock buttons and SUPER + L only work while it runs: it always starts with the desktop.
+    if [ -f "$autostart" ] && grep -q 'lockscreen/lockscreen.plm' "$autostart"; then
+        say "the lock screen is already in $autostart"
+    else
+        run mkdir -p "$(dirname "$autostart")"
+        if $dry; then echo "    would add to $autostart: $lockline"; else printf '%s\n' "$lockline" >> "$autostart"; fi
+        say "the lock screen starts with the desktop too (a line in $autostart): the lock buttons and SUPER + L need it"
     fi
 fi
 
@@ -315,6 +325,7 @@ fi
 say "done."
 echo
 echo "  Start it now:          $line"
+echo "  Lock screen, too:      $lockline"
 echo "  With the desktop:      autostart is read by pleamar's own session; on Hyprland run \`pleamar --autostart\`:"
 echo "                         hyprland.lua:   hl.on(\"hyprland.start\", function () hl.exec_cmd(\"PATH=\\\"\$HOME/.local/bin:\$PATH\\\" pleamar --autostart\") end)"
 echo "                         hyprland.conf:  exec-once = ~/.local/bin/pleamar --autostart   (Hyprland's PATH may lack ~/.local/bin)"

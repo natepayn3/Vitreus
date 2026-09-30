@@ -118,7 +118,7 @@ with its content fading in after the glass has settled
   ones stay until dismissed; everything lands in the history, including what Do Not Disturb held back.
 
 **Lock screen** — a lock screen, in [`lockscreen/`](lockscreen/README.md). It is a scene of its own
-and is not started unless you turn it on.
+(a session lock has to be its own program), and the installer starts it with the desktop: the lock buttons and `SUPER + L` need it running.
 
 **Theming** — [Iris](#-theming-with-iris) reads your wallpaper and Vitreus recolours itself, with a legibility floor on
 the text. It takes about half a second after a wallpaper change.
