@@ -8,7 +8,7 @@ import "palette.plm"
 
 scene Vitreus {
     surface { size: 900, 800; anchor: top; margin: 0; reserve: 68; screens: all; keyboard: exclusive while panel != none and panel != volume and panel != notif }
-    permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
+    permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "pleamar", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
@@ -19,6 +19,7 @@ scene Vitreus {
     service window as win { title: text; class: text }
     service media { playing: bool; title: text; artist: text; player: text }
     service brightness { present: bool; level: number }
+    service battery as pwr { present: bool; percent: number; charging: bool }     // the bar is its gauge (see `batt_*`)
     service network as net { online: bool; wifi: bool; name: text; strength: number; networks: wifi_nets }
     service bluetooth as bt { present: bool; powered: bool }        // the list itself is built by the logic
 
@@ -560,6 +561,19 @@ scene Vitreus {
     //  something on screen is using it (the scan rings, the pulse of a device being connected, the volume drawer's
     //  face and ripple, the caffeine steam, the urgent dot, the "More" cue), and the scene sleeps the rest of the time.
     prop time = 0
+    //  The battery: the bar itself is the gauge. A soft fill grows from its left edge as far as the charge goes, and
+    //  goes red below 20 % while it is draining. A machine with no battery (a desktop) draws nothing.
+    prop batt_fill = 0 ~calm            // 0..1, the charge, smoothly
+    prop batt_on = 0 ~calm              // 1 when there is a battery
+    prop batt_low = 0 ~calm             // 1 while below 20 % and not charging
+    //  The gauge is not there at rest. It appears (grows a little and fades in) while the pointer is on the bar (any of
+    //  its zones: a zone is only hovered while it is the topmost one under the pointer, so it is the most of them all),
+    //  and stays while the charge is under 20 %, whatever the pointer does.
+    prop batt_open = 0 ~calm
+    repeat i in 1..6 { prop wsh.$i = 0 ~quick }         // each workspace dot's hover, brought out of its `repeat`
+    follow batt_fill = clamp(pwr.percent / 100, 0, 1)
+    follow batt_on = if(pwr.present, 1, 0)
+    follow batt_low = if(pwr.percent < 20 and not pwr.charging, 1, 0)
     prop trn = 0 ~calm                // how many tray icons the bar holds, smoothly: the bar widens with it
     prop disp_auto_pill = 0 ~pop
     prop disp_dd = 0 ~calm            // the resolution dropdown, 0 shut .. 1 open
@@ -1290,8 +1304,34 @@ scene Vitreus {
             box odrawer { at: cx, bar.y + os.hh / 2; size: os.w * (1 - 0.07 * do.bell + 0.003 * wobble), os.hh * (1 - 0.002 * wobble); corner: mix(min(os.w, os.hh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * do.bell) * u * min(1, do0 * 4); show: do0 > 0.004 }
             box mdrawer { at: mdx, bar.y + dm.hh / 2; size: dm.w * (1 - 0.07 * dm.bell + 0.003 * wobble), dm.hh * (1 - 0.002 * wobble); corner: mix(min(dm.w, dm.hh) / 2, 26 * u, clamp(dm0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dm.bell) * u * min(1, dm0 * 4); show: dm0 > 0.004 }
         }
+        //  The battery gauge, inside the bar with a thick margin of empty glass round it (`bf.m`). It is only there
+        //  while `batt_open` (the pointer is on the bar, or the charge is under 20 %): it fades in and grows a little
+        //  from its middle line. It is a tint of the accent that brightens towards its front (a red one while it is
+        //  draining below 20 %), and its own rim gives it an edge. It follows the bar's shape (which swells with the
+        //  beat) and never moves by itself: an animation here would keep the scene painting, and most of all when
+        //  the battery is low.
+        group {
+            let bf.m = 7 * u                                        // the margin between the gauge and the bar's edge
+            let bf.x = cx - (bar.w + pv * 10 * u) / 2 + bf.m
+            let bf.mid = bar.y - bar.h / 2 + (bar.h + pop) / 2      // the pill's middle line
+            let bf.full = bar.w + pv * 10 * u - 2 * bf.m           // the gauge's length at 100 %
+            let bf.tall = bar.h + pop - 2 * bf.m                   // the pill's height
+            let bf.show = clamp(batt_open, 0, 1)
+            let bf.hh = bf.tall * (0.7 + 0.3 * bf.show)
+            let bf.len = max(0.1, bf.full * batt_fill)
+            let bf.c = mix(mint, #e0655a, batt_low)
+            body {
+                gradient: bf.x, 0 to bf.x + max(1, bf.len), 0, mix(tint, bf.c, 0.28), bf.c
+                rim: 18%
+                opacity: (19% + 9% * batt_low) * bf.show * batt_on
+                box { from: bf.x, bf.mid - bf.hh / 2; size: bf.len, bf.hh; corner: min(bf.hh / 2, max(0.5, bar.rad - bf.m)) }
+            }
+        }
 
         // ── the bar ──────────────────────────────────────────────────
+        //  Under everything else on the bar (declared first, so the pieces win their presses): it only says that the
+        //  pointer is over the bar, in the gaps between them.
+        zone box bar_hover { at: cx, bar.y; size: bar.w, bar.h }
         repeat i in 1..6 {
             //  The others sit 15 apart; the ones beside the active one slide away from it by `room / 2`
             //  each, so the widening one has space, and the row flows as the amounts change.
@@ -1300,6 +1340,7 @@ scene Vitreus {
             //  wide mint pill while it is the active one.
             zone box ws.hit.$i { at: wx, bar.y; size: 15 * u, bar.h; cursor: pointer; active: bs.ws > 0.5 }
             on press ws.hit.$i { emit go(i) }
+            follow wsh.$i = ws.hit.$i.hover
         }
 
         //  What is in front: the app in small type above, the title under it, cut
@@ -1350,6 +1391,8 @@ scene Vitreus {
         //  like "everything crashes." Claiming it here, once, disarms that for
         //  the whole scene.
         on press right bar_hit { panel = none }
+        //  How open the battery gauge is (see `batt_open`): it lives here, where the bar's zones are, to read their hover.
+        follow batt_open = if(max(max(max(max(max(max(max(max(max(max(max(max(max(bar_hover.hover, wsh.1), wsh.2), wsh.3), wsh.4), wsh.5), win_hit.hover), bp.prev.hover), bp.play.hover), bp.next.hover), set_hit.hover), sr_hit.hover), ctl_hit.hover), bar_hit.hover) > 0.15 or (pwr.percent < 20 and pwr.present), 1, 0)
     }
 
     //  The bar's icons are drawn here, on top of the bar and outside its wave-shader group, with a soft dark
