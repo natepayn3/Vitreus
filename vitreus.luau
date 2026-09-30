@@ -1627,6 +1627,7 @@ local function wp_rebuild_view()
 end
 
 local wp_load_tags                        -- set below, once the analysis is defined
+local wp_picker_start = function() end   -- the picker takes this over, further down: it builds as soon as the folder is listed
 
 -- Thumbnails are cropped to exactly 16:9 by ImageMagick into a cache folder (`$XDG_CACHE_HOME/pleamar/
 -- vitreus/wp`, else under `$HOME/.cache`), once each: every tile the scene draws is then the same shape and
@@ -1833,6 +1834,7 @@ local function wp_load()
                 wp_rebuild_view()
                 if wp_cur then wp_on_change(wp_cur) else wp_refresh() end
                 wp_load_tags()
+                wp_picker_start()
             end)
         end)
     end)
@@ -3110,7 +3112,7 @@ end
         { "Calendar", "panel", function() set_panel("calendar"); return true end },
         { "Controls", "panel", function() set_panel("controls"); return true end },
         { "Player", "panel", function() set_panel("player"); return true end },
-        { "Wallpaper picker", "action", function() spawn('pleamar --say vitreus "emit gal_toggle"') end },
+        { "Wallpaper picker", "action", function() spawn('pleamar --say vitreus "emit wp_picker_toggle"') end },
         { "Workspace overview", "action", function() spawn('pleamar --say vitreus "emit ov_toggle"') end },
         { "Random wallpaper", "action", function() local f = wp_random_pick(); if f then wp_apply(f) end end },
         { "Lock session", "action", function() spawn('pleamar --say lockscreen "fact locked true"') end },
@@ -4319,11 +4321,11 @@ end)()
     local function set_name(i)
         local f = G.files and G.files[i + 1]
         if not f then return end
-        text.gal_hero_name = stem(f)
-        text.gal_hex_img = hex_of(f)
-        fact.gal_hero_cur = f == wp_cur
+        text.wp_picker_hero_name = stem(f)
+        text.wp_picker_hex_img = hex_of(f)
+        fact.wp_picker_hero_cur = f == wp_cur
     end
-    on("fact:gal_hot", function(v) if type(v) == "number" and v >= 0 then set_name(math.floor(v + 0.5)) end end)
+    on("fact:wp_picker_hot", function(v) if type(v) == "number" and v >= 0 then set_name(math.floor(v + 0.5)) end end)
 
     local function build()
         local rows = {}
@@ -4339,7 +4341,7 @@ end)()
             rows[i] = { img = hex_of(f), hue = d.h, cur = f == wp_cur, dim = dim, name = stem(f) }
         end
         G.files = files
-        model.gal = rows
+        model.wp_picker = rows
     end
 
     local function finish()
@@ -4355,8 +4357,8 @@ end)()
             analyse(f, function()
                 G.busy = G.busy - 1
                 G.have[name_of(f)] = G.data[f] ~= nil
-                text.gal_status = string.format("Reading your wallpapers…  %d of %d", G.total - #G.queue - G.busy, G.total)
-                if G.busy == 0 and #G.queue == 0 then text.gal_status = ""; finish() else pump() end
+                text.wp_picker_status = string.format("Reading your wallpapers…  %d of %d", G.total - #G.queue - G.busy, G.total)
+                if G.busy == 0 and #G.queue == 0 then text.wp_picker_status = ""; finish() else pump() end
             end)
         end
     end
@@ -4366,7 +4368,7 @@ end)()
         if G.started or #wp_files == 0 then return end
         G.started = true
         with_dirs(function(d)
-            G.dir = d.cache .. "/gal"
+            G.dir = d.cache .. "/wp_picker"
             run("mkdir", { "-p", G.dir }, function()
                 -- the earlier versions' pictures are not used any more
                 run("find", { G.dir, "-maxdepth", "1", "(", "-name", "*.bead.png", "-o", "-name", "*.jpg", ")", "-delete" }, function() end)
@@ -4391,42 +4393,43 @@ end)()
                         build()
                     else
                         G.total = missing
-                        text.gal_status = string.format("Reading your wallpapers…  0 of %d", missing)
+                        text.wp_picker_status = string.format("Reading your wallpapers…  0 of %d", missing)
                         pump()
                     end
                 end)
             end)
         end)
     end
-    every(2000, function() if not G.started then start() end end)
+    wp_picker_start = start                              -- built at once when the folder is listed, not when the picker is first opened
+    every(2000, function() if not G.started then start() end end)    -- and again if the first listing found nothing
 
-    on("gal_toggle", function()
-        local opening = not fact.gal_open
+    on("wp_picker_toggle", function()
+        local opening = not fact.wp_picker_open
         if opening then set_panel("none"); if G.laid then build() end end
-        fact.gal_open = opening
+        fact.wp_picker_open = opening
     end)
 
-    -- A hexagon was pressed: its wallpaper blooms out of it. `gal_px`, `gal_py` are where it is on the screen, from the
+    -- A hexagon was pressed: its wallpaper blooms out of it. `wp_picker_px`, `wp_picker_py` are where it is on the screen, from the
     -- bottom left, which is where awww counts from. Then the tray leaves, and the desktop is what is left.
-    on("gal_pick", function(i)
+    on("wp_picker_pick", function(i)
         local f = G.files and G.files[i + 1]
         if not f then return end
-        local px, py = math.floor((fact.gal_px or 0) + 0.5), math.floor((fact.gal_py or 0) + 0.5)
+        local px, py = math.floor((fact.wp_picker_px or 0) + 0.5), math.floor((fact.wp_picker_py or 0) + 0.5)
         wp_apply(f, { "--transition-type", "grow", "--transition-pos", px .. "," .. py, "--transition-duration", "1.6",
                       "--transition-fps", "60", "--transition-step", "60" }, function()
             -- Only now does the tray leave: before, the desktop would show the old wallpaper while awww is still decoding the new one.
-            fact.gal_leaving = true
-            after(350, function() fact.gal_open = false; fact.gal_leaving = false end)
+            fact.wp_picker_leaving = true
+            after(350, function() fact.wp_picker_open = false; fact.wp_picker_leaving = false end)
         end)
     end)
     -- Random: any wallpaper, from the middle of the screen.
-    on("gal_random", function()
+    on("wp_picker_random", function()
         local f = wp_random_pick()
         if not f then return end
         wp_apply(f, { "--transition-type", "grow", "--transition-pos", "center", "--transition-duration", "1.6",
                       "--transition-fps", "60", "--transition-step", "60" }, function()
-            fact.gal_leaving = true
-            after(350, function() fact.gal_open = false; fact.gal_leaving = false end)
+            fact.wp_picker_leaving = true
+            after(350, function() fact.wp_picker_open = false; fact.wp_picker_leaving = false end)
         end)
     end)
 end)()
@@ -4461,7 +4464,7 @@ end)()
 
     -- Take a picture of each window on the workspace in front, one after another.
     local function capture(done)
-        if busy or fact.ov_open or fact.gal_open or fact.pk_open then if done then done() end return end
+        if busy or fact.ov_open or fact.wp_picker_open or fact.pk_open then if done then done() end return end
         busy = true
         local function finish() busy = false; if done then done() end end
         ensure_dir(function()
@@ -4575,7 +4578,7 @@ end)()
             open = false
             return
         end
-        fact.gal_open = false
+        fact.wp_picker_open = false
         -- A drawer that is open would be in the pictures: let it go, and wait for it to leave.
         local wait = 0
         if tostring(fact.panel) ~= "none" then fact.panel = "none"; wait = 350 end

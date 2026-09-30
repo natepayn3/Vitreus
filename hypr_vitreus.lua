@@ -16,7 +16,7 @@ hl.bind("SUPER + L", hl.dsp.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --
 
 -- SUPER + B opens the wallpaper picker: every wallpaper as a glass hexagon.
 hl.unbind("SUPER + B")
-hl.bind("SUPER + B", hl.dsp.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --say vitreus \"emit gal_toggle\""))
+hl.bind("SUPER + B", hl.dsp.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --say vitreus \"emit wp_picker_toggle\""))
 
 -- SUPER + TAB opens or closes the workspace overview.
 hl.unbind("SUPER + TAB")

@@ -7,7 +7,7 @@ import "palette.plm"
 //  bar: it is the same silhouette, melted, so it hangs from it like a drop.
 
 scene Vitreus {
-    surface { size: full, 1440; anchor: top; margin: 0; reserve: 68; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or gal_open or ov_open or pk_open }
+    surface { size: full, 1440; anchor: top; margin: 0; reserve: 68; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "pleamar", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play" }
 
@@ -690,50 +690,50 @@ scene Vitreus {
     event night_end_step ->
     //  The wallpaper picker (SUPER + B): glass hexagons centred on the screen, drawn at the end of this scene. Every wallpaper is one
     //  hexagon (its picture already cut to the hexagon by the logic); how many there are sets how big they are, so that they always fill
-    //  the tray. The logic makes the pictures (`gal`), orders them by colour and does the awww side of a pick.
-    model gal max 200 { img: image 120, 139; hue: number; cur: bool; dim: bool; name: text }
-    fact gal_open = false
-    text gal_status = ""                // "Reading your wallpapers… 42 of 137" while the first analysis runs
-    text gal_hero_name = ""             // the name of the hexagon under the pointer
-    fact gal_hero_cur = false           // the one under the pointer is the wallpaper in use
-    fact gal_hot = -1                   // the hexagon under the pointer, -1 none
-    fact gal_px = 0                     // where a pick was, for awww: pixels from the bottom left
-    fact gal_py = 0
-    event gal_toggle ->
-    event gal_pick ->
-    event gal_random ->
-    fact gal_leaving = false            // a wallpaper was picked: the tray fades so the desktop's own transition shows
-    prop gal_veil = 1 ~calm             // 1 normal, 0 while it is leaving
-    follow gal_veil = if(gal_leaving, 0, 1)
-    prop gal_show = 0 ~calm             // 0 shut, 1 open
-    follow gal_show = if(gal_open, 1, 0)
+    //  the tray. The logic makes the pictures (`wp_picker`), orders them by colour and does the awww side of a pick.
+    model wp_picker max 200 { img: image 120, 139; hue: number; cur: bool; dim: bool; name: text }
+    fact wp_picker_open = false
+    text wp_picker_status = ""                // "Reading your wallpapers… 42 of 137" while the first analysis runs
+    text wp_picker_hero_name = ""             // the name of the hexagon under the pointer
+    fact wp_picker_hero_cur = false           // the one under the pointer is the wallpaper in use
+    fact wp_picker_hot = -1                   // the hexagon under the pointer, -1 none
+    fact wp_picker_px = 0                     // where a pick was, for awww: pixels from the bottom left
+    fact wp_picker_py = 0
+    event wp_picker_toggle ->
+    event wp_picker_pick ->
+    event wp_picker_random ->
+    fact wp_picker_leaving = false            // a wallpaper was picked: the tray fades so the desktop's own transition shows
+    prop wp_picker_veil = 1 ~calm             // 1 normal, 0 while it is leaving
+    follow wp_picker_veil = if(wp_picker_leaving, 0, 1)
+    prop wp_picker_show = 0 ~calm             // 0 shut, 1 open
+    follow wp_picker_show = if(wp_picker_open, 1, 0)
     //  The hexagon under the pointer is drawn again, on top, as a piece of liquid glass (see the end of the scene): it swells
     //  with a spring that overshoots, glides from one hexagon to the next, has a light sweep across it each time the pointer
     //  arrives, and its edge ripples (`liquid.wgsl`).
     shader liquid = file "liquid.wgsl"
-    spring gal_pop = 240, 14             // a spring that overshoots (about 17%): the snap out to the large size bounces
-    text gal_hex_img = ""               // the hovered hexagon's picture, from the logic
-    image gal_lens = from gal_hex_img, 120, 139
-    fact gal_hx = 0                     // where the hovered hexagon is
-    fact gal_hy = 0
-    prop gal_hs = 0 ~gal_pop            // 0 at rest, 1 hovered (it overshoots)
-    prop gal_lx = 0 ~quick
-    prop gal_ly = 0 ~quick
-    prop gal_sw = 0 ~calm               // the light sweep's progress, 0 to 1
-    prop gal_tx = 0 ~quick              // where the pointer is on the hovered tile, -0.5 to 0.5 across and down: the tilt follows it
-    prop gal_ty = 0 ~quick
+    spring wp_picker_pop = 240, 14             // a spring that overshoots (about 17%): the snap out to the large size bounces
+    text wp_picker_hex_img = ""               // the hovered hexagon's picture, from the logic
+    image wp_picker_lens = from wp_picker_hex_img, 120, 139
+    fact wp_picker_hx = 0                     // where the hovered hexagon is
+    fact wp_picker_hy = 0
+    prop wp_picker_hs = 0 ~wp_picker_pop            // 0 at rest, 1 hovered (it overshoots)
+    prop wp_picker_lx = 0 ~quick
+    prop wp_picker_ly = 0 ~quick
+    prop wp_picker_sw = 0 ~calm               // the light sweep's progress, 0 to 1
+    prop wp_picker_tx = 0 ~quick              // where the pointer is on the hovered tile, -0.5 to 0.5 across and down: the tilt follows it
+    prop wp_picker_ty = 0 ~quick
     //  Every tile has its own spring for how hovered it is, so each one morphs from small to large (and back) with a bounce.
     repeat i in 0..200 {
-        prop gt.$i = 0 ~gal_pop
-        follow gt.$i = if(gal_hot == i and gal_open, 1, 0)
+        prop gt.$i = 0 ~wp_picker_pop
+        follow gt.$i = if(wp_picker_hot == i and wp_picker_open, 1, 0)
     }
-    follow gal_hs = if(gal_hot >= 0 and gal_open, 1, 0)
-    follow gal_lx = gal_hx
-    follow gal_ly = gal_hy
-    on change gal_hot while gal_hot >= 0 { gal_sw: 0 ~40ms }
-    on change gal_hot while gal_hot >= 0 { gal_sw: 1 ~700ms after 60ms }
-    on change gal_open while not gal_open { gal_hot = -1 }
-    on key Escape while gal_open { gal_open = false }
+    follow wp_picker_hs = if(wp_picker_hot >= 0 and wp_picker_open, 1, 0)
+    follow wp_picker_lx = wp_picker_hx
+    follow wp_picker_ly = wp_picker_hy
+    on change wp_picker_hot while wp_picker_hot >= 0 { wp_picker_sw: 0 ~40ms }
+    on change wp_picker_hot while wp_picker_hot >= 0 { wp_picker_sw: 1 ~700ms after 60ms }
+    on change wp_picker_open while not wp_picker_open { wp_picker_hot = -1 }
+    on key Escape while wp_picker_open { wp_picker_open = false }
     //  The workspace overview (right-click the bar's workspace dots, or the launcher): a card for each of the five workspaces,
     //  listing the windows on it. The logic fills `ovw` a slot at a time (nine to a workspace, in order) from `hyprctl clients`, each with a
     //  picture of the window taken while its workspace was in front.
@@ -1332,9 +1332,9 @@ scene Vitreus {
     //  Click away. The surface is the whole screen (its input region is only what has a zone, so the rest lets clicks through), and this
     //  zone, declared before everything else so that everything else wins over it, closes the panel on a press anywhere that is not
     //  the panel or the bar. A second surface for this would take Escape away from the panel, so it is done here.
-    zone box away_z { at: screen.width / 2, screen.height / 2; size: screen.width, screen.height; active: (panel != none and panel != volume and panel != notif) or gal_open or ov_open }
-    on press away_z { panel = none; gal_open = false; ov_open = false }
-    on press right away_z { panel = none; gal_open = false; ov_open = false }
+    zone box away_z { at: screen.width / 2, screen.height / 2; size: screen.width, screen.height; active: (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open }
+    on press away_z { panel = none; wp_picker_open = false; ov_open = false }
+    on press right away_z { panel = none; wp_picker_open = false; ov_open = false }
     //  The tray's icons (the pinned apps, or all of them) are a piece of the bar like the others; the bar widens for them.
     let bar.gap = 12 * u
     let fw.tray = max(0, trn * 24 - 6) * u               // icons 18 wide, 6 apart
@@ -3033,7 +3033,7 @@ scene Vitreus {
             box { at: spx + 285 * u, sby + 74 * u; size: 92 * u, 24 * u; corner: 12 * u; color: mint; opacity: 16% + 14% * wp_gal_hit.hover }
             text "Picker" { at: floor(spx + 285 * u + 0.5), floor(sby + 74 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 700; width: 88 * u; lines: 1; color: mint; family: "Space Grotesk" }
             zone box wp_gal_hit { at: spx + 285 * u, sby + 74 * u; size: 94 * u, 26 * u; corner: 13 * u; cursor: pointer }
-            on press wp_gal_hit { emit gal_toggle }
+            on press wp_gal_hit { emit wp_picker_toggle }
 
             //  Card two: the slideshow. A switch, and how often: a stepper along a short list of intervals.
             box { at: spx + 219 * u, sby + 122 * u; size: 438 * u, 44 * u; corner: 14 * u; color: ink; opacity: veil }
@@ -4144,7 +4144,7 @@ scene Vitreus {
     //  ── the wallpaper picker ─────────────────────────────────────
     //  The tray hangs under the bar. Which layout fits N hexagons best (the biggest ones that still fit the tray) is worked out here,
     //  from a few column counts around the one that N and the tray's shape suggest.
-    let g.n = max(1, gal.count)
+    let g.n = max(1, wp_picker.count)
     let g.aw = min(screen.width - 168, 2400)              // the room for the hexagons
     let g.ah = vh - 260                        // and the height: the bar above, the foot below, some air
     let g.c0 = floor(g.aw / (1.7321 * sqrt(g.aw * g.ah / (2.6 * g.n))))
@@ -4168,50 +4168,50 @@ scene Vitreus {
     let g.x0 = cx - g.gw / 2
     //  Round the hovered hexagon the others give way: they are pushed outwards (by K, most at about a tile's distance and not at all far
     //  off) and the ring next to it shrinks a little. The hovered one grows on its own spring (`gt`). `sg` is how far this reaches.
-    let g.K = 0.55 * clamp(gal_hs, 0, 1.1)
+    let g.K = 0.55 * clamp(wp_picker_hs, 0, 1.1)
     let g.sg = 1.5 * g.w
-    follow gal_tx = clamp((cursor.x - gal_lx) / (1.732 * g.R * 0.93 * (1 + 0.8 * gal_hs)), -0.6, 0.6)
-    follow gal_ty = clamp((cursor.y - gal_ly) / (2 * g.R * 0.93 * (1 + 0.8 * gal_hs)), -0.6, 0.6)
+    follow wp_picker_tx = clamp((cursor.x - wp_picker_lx) / (1.732 * g.R * 0.93 * (1 + 0.8 * wp_picker_hs)), -0.6, 0.6)
+    follow wp_picker_ty = clamp((cursor.y - wp_picker_ly) / (2 * g.R * 0.93 * (1 + 0.8 * wp_picker_hs)), -0.6, 0.6)
     let g.y0 = (vh - g.gh - 60) / 2             // centred on the screen (the foot line takes 60 below the hexagons)
 
     group {
-        show: gal_show > 0.01
-        opacity: gal_show * gal_veil
+        show: wp_picker_show > 0.01
+        opacity: wp_picker_show * wp_picker_veil
         repeat i in 0..200 {
             let grow = floor(i / g.cols)
             let bx = g.x0 + g.w * (i - grow * g.cols + 0.5 + 0.5 * mod(grow, 2))
             let by = g.y0 + g.R + grow * 1.5 * g.R
-            let hv = gal_z.$i.hover
-            let cu = if(gal.$i.cur, 1, 0)
-            let ent = clamp(gal_show * 2.4 - i * 0.008, 0, 1)
-            let dxh = bx - gal_lx
-            let dyh = by - gal_ly
+            let hv = wp_picker_z.$i.hover
+            let cu = if(wp_picker.$i.cur, 1, 0)
+            let ent = clamp(wp_picker_show * 2.4 - i * 0.008, 0, 1)
+            let dxh = bx - wp_picker_lx
+            let dyh = by - wp_picker_ly
             let xx = length(dxh, dyh) / g.sg
             let ee = exp(-xx * xx)
-            let ring = 1 - 0.26 * clamp(gal_hs, 0, 1) * exp(-pow((xx - 1.25) / 0.6, 2))
-            let bxl = gal_lx + dxh * (1 + g.K * ee)              // where the others have been pushed to, to make room
-            let byl = gal_ly + dyh * (1 + g.K * ee)
+            let ring = 1 - 0.26 * clamp(wp_picker_hs, 0, 1) * exp(-pow((xx - 1.25) / 0.6, 2))
+            let bxl = wp_picker_lx + dxh * (1 + g.K * ee)              // where the others have been pushed to, to make room
+            let byl = wp_picker_ly + dyh * (1 + g.K * ee)
             let gi = gt.$i
             let rr = g.R * 0.93 * (0.6 + 0.4 * ent) * ring * (1 + 0.8 * gi)
             group {
-                show: i < g.n and i < gal.count and gal_hot != i
+                show: i < g.n and i < wp_picker.count and wp_picker_hot != i
                 //  The fade goes on each shape, not on the group: a group with an opacity (or a clip) is drawn in a layer of its own, and the renderer gives only
                 //  sixty-four of those a frame, so the lower tiles lost their opacity and the hovered one its tilt. The pictures are already cut to the hexagon.
-                let to = ent * if(gal.$i.dim, 25%, 1) * (0.75 + 0.25 * max(hv, cu))
+                let to = ent * if(wp_picker.$i.dim, 25%, 1) * (0.75 + 0.25 * max(hv, cu))
                 //  No blurred shadow under the resting tiles: a hundred and forty blur passes a frame were most of what this page cost. The hovered tile has its own.
                 body {
                     color: #05070d
                     opacity: 30% * to
                     path { at: bxl, byl; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
                 }
-                image gal.$i.img { at: bxl - 0.866 * rr, byl - rr; size: 1.732 * rr, 2 * rr; opacity: to }
+                image wp_picker.$i.img { at: bxl - 0.866 * rr, byl - rr; size: 1.732 * rr, 2 * rr; opacity: to }
                 path { at: bxl, byl; stroke: 2.6 + 1.6 * cu; color: mix(#ffffff, mint, cu); opacity: (55% + 45% * max(hv, cu)) * to; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
             }
             //  The hovered one: the same tile as liquid glass. Its group's shader adds the light (a soft spot under the pointer, and a band
             //  that sweeps across on arrival), and it stands off the grid on a deeper shadow.
             group {
-                show: i < g.n and i < gal.count and gal_hot == i
-                shader: liquid, clamp(gi, 0, 1), 22, gal_sw, gal_tx, gal_ty, 0, 0, 0
+                show: i < g.n and i < wp_picker.count and wp_picker_hot == i
+                shader: liquid, clamp(gi, 0, 1), 22, wp_picker_sw, wp_picker_tx, wp_picker_ty, 0, 0, 0
                 //  The hovered tile grows to the large hexagon on its own spring (`gi`), which overshoots a little: that is the bounce.
                 opacity: 0.75 + 0.25 * clamp(gi * 4, 0, 1)
                 //  Room around the hexagon, so the tilt's perspective has somewhere to reach.
@@ -4225,22 +4225,22 @@ scene Vitreus {
                 }
                 group {
                     clip path { at: bxl, byl; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
-                    image gal.$i.img { at: bxl - 0.866 * rr, byl - rr; size: 1.732 * rr, 2 * rr }
+                    image wp_picker.$i.img { at: bxl - 0.866 * rr, byl - rr; size: 1.732 * rr, 2 * rr }
                 }
                 path { at: bxl, byl; stroke: 3.4; color: if(cu > 0, mint, #ffffff); opacity: 95%; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
             }
             //  Its zone is the circle inside the hexagon, as big as the hexagon is now.
-            zone box gal_z.$i { at: bxl, byl; size: 1.732 * rr, 1.732 * rr; corner: 0.866 * rr; cursor: pointer; active: i < g.n and i < gal.count and gal_show > 0.5 and gal_leaving == 0 }
-            on enter gal_z.$i { gal_hot = i; gal_hx = bx; gal_hy = by }
-            on away gal_z.$i for 200ms while gal_hot == i { gal_hot = -1 }
-            on press gal_z.$i { gal_px = bxl; gal_py = mh - byl; emit gal_pick(i) }
+            zone box wp_picker_z.$i { at: bxl, byl; size: 1.732 * rr, 1.732 * rr; corner: 0.866 * rr; cursor: pointer; active: i < g.n and i < wp_picker.count and wp_picker_show > 0.5 and wp_picker_leaving == 0 }
+            on enter wp_picker_z.$i { wp_picker_hot = i; wp_picker_hx = bx; wp_picker_hy = by }
+            on away wp_picker_z.$i for 200ms while wp_picker_hot == i { wp_picker_hot = -1 }
+            on press wp_picker_z.$i { wp_picker_px = bxl; wp_picker_py = mh - byl; emit wp_picker_pick(i) }
         }
 
         //  The foot: the name of the one under the pointer, or a line of help; and Random.
         let fy = g.y0 + g.gh + 36
-        text gal_hero_name { at: floor(cx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 640; lines: 1; color: #ffffff; family: "Space Grotesk"; show: gal_hot >= 0 }
-        text "Pick a wallpaper  ·  Esc or a click outside closes" { at: floor(cx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 13; color: #ffffff; opacity: 42%; family: "Space Grotesk"; show: gal_hot < 0 and gal.count > 0 }
-        text gal_status { at: floor(cx + 0.5), floor(vh / 2 + 0.5); anchor: center; align: center; size: 16; weight: 600; width: 600; lines: 1; color: #ffffff; opacity: 70%; family: "Space Grotesk"; show: gal.count < 1 }
+        text wp_picker_hero_name { at: floor(cx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 640; lines: 1; color: #ffffff; family: "Space Grotesk"; show: wp_picker_hot >= 0 }
+        text "Pick a wallpaper  ·  Esc or a click outside closes" { at: floor(cx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 13; color: #ffffff; opacity: 42%; family: "Space Grotesk"; show: wp_picker_hot < 0 and wp_picker.count > 0 }
+        text wp_picker_status { at: floor(cx + 0.5), floor(vh / 2 + 0.5); anchor: center; align: center; size: 16; weight: 600; width: 600; lines: 1; color: #ffffff; opacity: 70%; family: "Space Grotesk"; show: wp_picker.count < 1 }
     }
 
     //  ── the workspace overview ────────────────────────────────────────────────────────────────────────────────────────────────
