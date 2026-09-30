@@ -1321,6 +1321,13 @@ scene Vitreus {
     }
 
     let cx = screen.width / 2
+    //  The surface is a fixed 1440 tall (`size: full, full` would lose the bar's reserved strip), so on a monitor of another height
+    //  `screen.height` is not the screen. The logic reports the monitor's real height (`mon_h`, 0 until it is known, and always 0
+    //  where it cannot ask): `vh` is what to centre on (never more than the surface, which is all there is to draw on), `mh` the
+    //  monitor's own, for the compositor's coordinates.
+    fact mon_h = 0
+    let vh = if(mon_h > 0, min(mon_h, screen.height), screen.height)
+    let mh = if(mon_h > 0, mon_h, screen.height)
     //  Click away. The surface is the whole screen (its input region is only what has a zone, so the rest lets clicks through), and this
     //  zone, declared before everything else so that everything else wins over it, closes the panel on a press anywhere that is not
     //  the panel or the bar. A second surface for this would take Escape away from the panel, so it is done here.
@@ -4139,7 +4146,7 @@ scene Vitreus {
     //  from a few column counts around the one that N and the tray's shape suggest.
     let g.n = max(1, gal.count)
     let g.aw = min(screen.width - 168, 2400)              // the room for the hexagons
-    let g.ah = screen.height - 260                        // and the height: the bar above, the foot below, some air
+    let g.ah = vh - 260                        // and the height: the bar above, the foot below, some air
     let g.c0 = floor(g.aw / (1.7321 * sqrt(g.aw * g.ah / (2.6 * g.n))))
     let g.c1 = max(1, min(g.n, g.c0 - 2))
     let g.c2 = max(1, min(g.n, g.c0 - 1))
@@ -4165,7 +4172,7 @@ scene Vitreus {
     let g.sg = 1.5 * g.w
     follow gal_tx = clamp((cursor.x - gal_lx) / (1.732 * g.R * 0.93 * (1 + 0.8 * gal_hs)), -0.6, 0.6)
     follow gal_ty = clamp((cursor.y - gal_ly) / (2 * g.R * 0.93 * (1 + 0.8 * gal_hs)), -0.6, 0.6)
-    let g.y0 = (screen.height - g.gh - 60) / 2             // centred on the screen (the foot line takes 60 below the hexagons)
+    let g.y0 = (vh - g.gh - 60) / 2             // centred on the screen (the foot line takes 60 below the hexagons)
 
     group {
         show: gal_show > 0.01
@@ -4228,14 +4235,14 @@ scene Vitreus {
             zone box gal_z.$i { at: bxl, byl; size: 1.732 * rr, 1.732 * rr; corner: 0.866 * rr; cursor: pointer; active: i < g.n and i < gal.count and gal_show > 0.5 and gal_leaving == 0 }
             on enter gal_z.$i { gal_hot = i; gal_hx = bx; gal_hy = by }
             on away gal_z.$i for 200ms while gal_hot == i { gal_hot = -1 }
-            on press gal_z.$i { gal_px = bxl; gal_py = screen.height - byl; emit gal_pick(i) }
+            on press gal_z.$i { gal_px = bxl; gal_py = mh - byl; emit gal_pick(i) }
         }
 
         //  The foot: the name of the one under the pointer, or a line of help; and Random.
         let fy = g.y0 + g.gh + 36
         text gal_hero_name { at: floor(cx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 640; lines: 1; color: #ffffff; family: "Space Grotesk"; show: gal_hot >= 0 }
         text "Pick a wallpaper  ·  Esc or a click outside closes" { at: floor(cx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 13; color: #ffffff; opacity: 42%; family: "Space Grotesk"; show: gal_hot < 0 and gal.count > 0 }
-        text gal_status { at: floor(cx + 0.5), floor(screen.height / 2 + 0.5); anchor: center; align: center; size: 16; weight: 600; width: 600; lines: 1; color: #ffffff; opacity: 70%; family: "Space Grotesk"; show: gal.count < 1 }
+        text gal_status { at: floor(cx + 0.5), floor(vh / 2 + 0.5); anchor: center; align: center; size: 16; weight: 600; width: 600; lines: 1; color: #ffffff; opacity: 70%; family: "Space Grotesk"; show: gal.count < 1 }
     }
 
     //  ── the workspace overview ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -4251,7 +4258,7 @@ scene Vitreus {
         //  two by two by one, or one under another (five rows), and whichever it is, scaled (up to a quarter larger than the rest of
         //  the shell) so that it fits with room to spare.
         let ovl.sw = screen.width - 48
-        let ovl.sh = screen.height - 170
+        let ovl.sh = vh - 170
         let ovl.k5 = min(1.25, min(ovl.sw / (1506 * u), ovl.sh / (208 * u)))
         let ovl.k3 = min(1.25, min(ovl.sw / (898 * u), ovl.sh / (432 * u)))
         let ovl.k2 = min(1.25, min(ovl.sw / (594 * u), ovl.sh / (656 * u)))
@@ -4262,7 +4269,7 @@ scene Vitreus {
         let ovu = u * ovl.k
         let ovl.w = ((ovl.nc - 1) * 304 + 290) * ovu
         let ovl.h = (ovl.rows * 224 - 16) * ovu
-        let ovl.cy = floor(screen.height / 2 + 12 * ovu * (1 - ov_show) + 0.5)
+        let ovl.cy = floor(vh / 2 + 12 * ovu * (1 - ov_show) + 0.5)
         let ovl.l = floor(cx - ovl.w / 2 + 0.5)
         let ovl.t = floor(ovl.cy - ovl.h / 2 + 0.5)
         let ovl.moving = if(ov_drag >= 0 and length(ov_dx, ov_dy) > 8, 1, 0)
@@ -4378,7 +4385,7 @@ scene Vitreus {
     group {
         show: pk_show > 0.01
         opacity: pk_show
-        let pk.cy = screen.height * 0.34 - 14 * u * (1 - pk_show)
+        let pk.cy = vh * 0.34 - 14 * u * (1 - pk_show)
         let pk.x = cx + pk_sk * 14 * u
         let pk.top = pk.cy - 128 * u
         let pk.l = pk.x - 176 * u

@@ -4597,6 +4597,33 @@ end)()
     end)
 end)()
 
+-- The monitor's real height, for the scene to centre on (`mon_h`): its surface is a fixed 1440 tall, which is only the screen on a
+-- 1440 monitor. Hyprland's logical size of the focused monitor (its height over its scale, swapped when it is turned on its side);
+-- where there is no hyprctl it stays 0 and the scene uses its surface.
+;(function()
+    local function sync()
+        run("hyprctl", { "monitors", "-j" }, function(out, code)
+            if code ~= 0 or not out then return end
+            local ok, list = pcall(json.decode, out)
+            if not ok or type(list) ~= "table" then return end
+            local pick = nil
+            for _, m in ipairs(list) do
+                if m.focused then pick = m end
+            end
+            pick = pick or list[1]
+            if not pick then return end
+            local h = ((tonumber(pick.transform) or 0) % 2 == 1) and pick.width or pick.height
+            local scale = tonumber(pick.scale) or 1
+            if h and scale > 0 then
+                local v = math.floor(h / scale + 0.5)
+                if v ~= fact.mon_h then fact.mon_h = v end
+            end
+        end)
+    end
+    sync()
+    every(4000, sync)
+end)()
+
 -- Capture (screenshots and screen recording) and Power (the session, and the power profile): the two tiles of the
 -- Controls drawer's third row, and their windows. Nothing here is drawn by this file: it starts the programs, and reports
 -- the state of the recording and of the profile as facts.
