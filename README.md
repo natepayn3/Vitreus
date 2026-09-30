@@ -16,6 +16,10 @@
 
 ---
 
+> [!WARNING]
+> **Vitreus is in active development.** Features, settings and behaviour can change at any time, and things may break
+> between updates.
+
 > **vit·re·us** _(Latin)_ — *of glass; glassy, transparent.*
 
 **Vitreus** is a desktop shell for Wayland, written for [pleamar](https://github.com/k4ditano/pleamar). It is a single
