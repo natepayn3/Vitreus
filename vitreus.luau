@@ -4707,7 +4707,7 @@ end)()
 
     -- ── The session ──────────────────────────────────────────────────────────────────────────────────────────────
     -- 0 lock, 1 sleep, 2 log out, 3 restart, 4 power off. The scene only says so (`pow_press`) after the button has
-    -- been held for two seconds, so nothing here has to ask again.
+    -- been held for one second, so nothing here has to ask again.
     local user = nil
     run("printenv", { "USER" }, function(out) user = (out or ""):gsub("%s+$", "") end)
     local function do_it(i)
