@@ -4005,18 +4005,18 @@ void main() {
     end)
 end)()
 
--- The wallpaper galaxy (SUPER + B): every wallpaper as a glass bead, placed on a colour wheel by its dominant hue (the
--- angle) and how vivid it is (the radius: greys in the middle, saturated ones out at the rim), so the whole collection
--- reads as a map of colour. This is the logic side: one ImageMagick pass per wallpaper makes its square bead picture and
--- reads its colours (the same 32-colour histogram the colour filter uses), the beads are then laid out (a relaxation so
--- none overlaps, drawn back towards where its hue puts it), and the result is kept in wallpaper-galaxy.json so this
--- happens once. The overlay itself is in vitreus.plm (`surface galaxy`).
+-- The wallpaper galaxy (SUPER + B): every wallpaper as a glass hexagon in a tray under the bar. This is the logic side: one
+-- ImageMagick pass per wallpaper makes its hexagon picture (already cut to the shape) and reads its
+-- colours (the same 32-colour histogram the colour filter uses), the wallpapers are ordered by hue (greys last, by
+-- brightness) so the tray reads as a colour ramp, and what was learned is kept in wallpaper-galaxy.json so this happens
+-- once. How big the hexagons are, and where each one goes, is worked out by the scene from how many there are (see
+-- the end of vitreus.plm).
 ;(function()
-    local RULE = 3                                       -- which version made the file: an older one is made again
-    local BEAD = 88                                      -- the bead picture, in pixels: small, there are 140 of them in one atlas
-    local HERO = 260                                     -- the picture of the one under the pointer, and the middle
-    local MAX = 140                                      -- what the model holds
-    local G = { data = {}, dir = nil, busy = 0, queue = {}, started = false, laid = false, total = 0 }
+    local RULE = 5                                       -- which version made the file: an older one is made again
+    local TW, TH = 120, 139                              -- the hexagon picture, in pixels (a pointy-top hexagon is 0.866 as wide as tall)
+    local HERO = 260                                     -- the square picture the hexagon is cut from
+    local MAX = 200                                      -- what the model holds
+    local G = { data = {}, dir = nil, busy = 0, queue = {}, started = false, laid = false, total = 0, have = {} }
     local atan2 = math.atan2 or math.atan
 
     local function name_of(f) return f:match("([^/]+)$") or f end
@@ -4033,16 +4033,6 @@ end)()
         end
         return h, mx == 0 and 0 or d / mx, mx
     end
-    local function hex(h, s2, v)                          -- the inverse, as "#rrggbb"
-        local c = v * s2
-        local x = c * (1 - math.abs((h / 60) % 2 - 1))
-        local m = v - c
-        local r, g, b = 0, 0, 0
-        local k = math.floor(h / 60) % 6
-        if k == 0 then r, g, b = c, x, 0 elseif k == 1 then r, g, b = x, c, 0 elseif k == 2 then r, g, b = 0, c, x
-        elseif k == 3 then r, g, b = 0, x, c elseif k == 4 then r, g, b = x, 0, c else r, g, b = c, 0, x end
-        return string.format("#%02x%02x%02x", math.floor((r + m) * 255 + 0.5), math.floor((g + m) * 255 + 0.5), math.floor((b + m) * 255 + 0.5))
-    end
     local function seed_hue(f)                            -- a grey has no hue: any steady angle will do
         local h = 5381
         for i = 1, #f do h = (h * 33 + f:byte(i)) % 360007 end
@@ -4050,12 +4040,11 @@ end)()
     end
 
     local function hero_of(f) return G.dir .. "/" .. name_of(f) .. ".hero.jpg" end
-    local function bead_of(f) return G.dir .. "/" .. name_of(f) .. ".bead.png" end
+    local function hex_of(f) return G.dir .. "/" .. name_of(f) .. ".hex.png" end
 
-    -- One wallpaper: its square picture and its colours (one ImageMagick pass), then its bead: that picture made small,
-    -- cut to a circle with a little gloss on it. One picture per bead, already round, is what keeps the atlas (one texture
-    -- for every image and letter on screen) from filling up: at 160 pixels each, 140 of them did not fit, and the ones
-    -- that did not were drawn again every frame.
+    -- One wallpaper: its square picture and its colours (one ImageMagick pass), then its hexagon: that picture cut to the
+    -- shape, with a little gloss on it. One small picture per wallpaper, already the right shape, keeps the atlas (one
+    -- texture for every image and letter on screen) from filling up.
     local function analyse(f, done)
         run("magick", { f .. "[0]", "-thumbnail", HERO .. "x" .. HERO .. "^", "-gravity", "center", "-extent", HERO .. "x" .. HERO,
                         "-quality", "88", "-write", hero_of(f), "-thumbnail", "100x100", "-colors", "32", "-format", "%c", "histogram:info:" },
@@ -4076,18 +4065,16 @@ end)()
                     end
                     if total > 0 then
                         local hue = (wsum > 1e-6 and (x * x + y * y) > 1e-9) and (math.deg(atan2(y, x)) % 360) or seed_hue(f)
-                        local sat, val = sat_sum / total, val_sum / total
-                        G.data[f] = { h = hue, s = sat, v = val }
+                        G.data[f] = { h = hue, s = sat_sum / total, v = val_sum / total }
                     end
                 end
                 if not G.data[f] then return done() end
-                local c, r = BEAD / 2, BEAD / 2
-                run("magick", { hero_of(f), "-resize", BEAD .. "x" .. BEAD, "-alpha", "set",
-                                "(", "-size", BEAD .. "x" .. BEAD, "xc:none", "-fill", "white", "-draw", string.format("circle %d,%d %d,0", c, c, c), ")",
+                local hw = TW / 2
+                local poly = string.format("polygon %g,0 %d,%g %d,%g %g,%d 0,%g 0,%g", hw, TW, TH * 0.25, TW, TH * 0.75, hw, TH, TH * 0.75, TH * 0.25)
+                run("magick", { hero_of(f), "-resize", TW .. "x" .. TH .. "^", "-gravity", "center", "-extent", TW .. "x" .. TH, "-alpha", "set",
+                                "(", "-size", TW .. "x" .. TH, "xc:none", "-fill", "white", "-draw", poly, ")",
                                 "-compose", "DstIn", "-composite",
-                                "(", "-size", BEAD .. "x" .. BEAD, "xc:none", "-fill", "rgba(255,255,255,0.11)",
-                                "-draw", string.format("ellipse %d,%d %d,%d 0,360", math.floor(c * 0.72), math.floor(c * 0.6), math.floor(c * 0.52), math.floor(c * 0.42)), ")",
-                                "-compose", "Over", "-composite", "PNG32:" .. bead_of(f) },
+                                "PNG32:" .. hex_of(f) },
                     function(_, code2)
                         if code2 ~= 0 then G.data[f] = nil end
                         done()
@@ -4095,74 +4082,41 @@ end)()
             end)
     end
 
-    -- Where each bead goes: its hue is its angle, its vividness its distance from the middle; then nobody may overlap.
-    local function layout(files)
-        local P, T = {}, {}
-        for i, f in ipairs(files) do
-            local d = G.data[f]
-            local ang = math.rad(d.h) - math.pi / 2                -- red at the top, round clockwise
-            local q = math.max(0, math.min(1, d.s / 0.62))
-            local rho = 0.30 + 0.66 * q ^ 0.6                      -- the middle is left for the wallpaper in use
-            T[i] = { math.cos(ang) * rho, math.sin(ang) * rho }
-            P[i] = { T[i][1], T[i][2] }
-        end
-        local gap = 0.142                                            -- bead spacing, as a fraction of the wheel's radius
-        for iter = 1, 200 do
-            local pull = 0.07 * (1 - iter / 200)                     -- drawn back less and less, so nobody ends up on top
-            for i = 1, #P do
-                for j = i + 1, #P do
-                    local dx, dy = P[j][1] - P[i][1], P[j][2] - P[i][2]
-                    local dist = math.sqrt(dx * dx + dy * dy)
-                    if dist < gap then
-                        if dist < 1e-6 then dx, dy, dist = 0.001, 0, 0.001 end
-                        local push = (gap - dist) / 2 / dist
-                        P[i][1], P[i][2] = P[i][1] - dx * push, P[i][2] - dy * push
-                        P[j][1], P[j][2] = P[j][1] + dx * push, P[j][2] + dy * push
-                    end
-                end
-            end
-            for i = 1, #P do                                         -- drawn back towards its own place; kept inside the wheel
-                P[i][1] = P[i][1] + (T[i][1] - P[i][1]) * pull
-                P[i][2] = P[i][2] + (T[i][2] - P[i][2]) * pull
-                local r = math.sqrt(P[i][1] ^ 2 + P[i][2] ^ 2)
-                if r > 0.95 then P[i][1], P[i][2] = P[i][1] * 0.95 / r, P[i][2] * 0.95 / r end
-                if r < 0.27 then P[i][1], P[i][2] = P[i][1] * 0.27 / math.max(r, 1e-6), P[i][2] * 0.27 / math.max(r, 1e-6) end
-            end
-        end
-        for i, f in ipairs(files) do G.data[f].x, G.data[f].y = P[i][1], P[i][2] end
-    end
-
     local function save()
         local out = { rule = RULE }
-        for f, d in pairs(G.data) do out[f] = { h = d.h, s = d.s, v = d.v, x = d.x, y = d.y } end
+        for f, d in pairs(G.data) do out[f] = { h = d.h, s = d.s, v = d.v } end
         pcall(sys.call, "files.write", "wallpaper-galaxy.json", out)
     end
 
-    -- The lens (the bead under the pointer, swollen) and the middle (the wallpaper in use) are each ONE picture, big and
-    -- sharp: the picture of whichever wallpaper is meant is copied over a fixed file and loaded again in place (`?n`).
-    -- A picture of their own for every bead would take room in the atlas for good, one for each one hovered over.
-    local lens_n, now_n = 0, 0
-    local function set_lens(i)
+    -- The tray's order: the colourful ones round the colour wheel, then the greys from dark to light.
+    local function ordered()
+        local files = {}
+        for _, f in ipairs(wp_files) do if G.data[f] and G.have[name_of(f)] then files[#files + 1] = f end end
+        local function key(f)
+            local d = G.data[f]
+            if d.s < 0.12 then return 1000 + d.v * 100 end
+            return d.h
+        end
+        table.sort(files, function(a, b)
+            local ka, kb = key(a), key(b)
+            if ka ~= kb then return ka < kb end
+            return a < b
+        end)
+        return files
+    end
+
+    local function set_name(i)
         local f = G.files and G.files[i + 1]
         if not f then return end
         text.gal_hero_name = stem(f)
+        text.gal_hex_img = hex_of(f)
         fact.gal_hero_cur = f == wp_cur
-        run("cp", { "-f", hero_of(f), G.dir .. "/lens.jpg" }, function(_, code)
-            if code == 0 then lens_n = lens_n + 1; text.gal_hero = G.dir .. "/lens.jpg?" .. lens_n end
-        end)
     end
-    local function set_now()
-        if not wp_cur or not G.dir then return end
-        run("cp", { "-f", hero_of(wp_cur), G.dir .. "/now.jpg" }, function(_, code)
-            if code == 0 then now_n = now_n + 1; text.gal_now = G.dir .. "/now.jpg?" .. now_n end
-        end)
-    end
-    on("fact:gal_hot", function(v) if type(v) == "number" and v >= 0 then set_lens(math.floor(v + 0.5)) end end)
+    on("fact:gal_hot", function(v) if type(v) == "number" and v >= 0 then set_name(math.floor(v + 0.5)) end end)
 
     local function build()
         local rows = {}
-        local files = {}
-        for _, f in ipairs(wp_files) do if G.data[f] and G.data[f].x then files[#files + 1] = f end end
+        local files = ordered()
         for i, f in ipairs(files) do
             if i > MAX then break end
             local d = G.data[f]
@@ -4171,18 +4125,13 @@ end)()
                 dim = true
                 for _, tag in ipairs(wp_tags[f] or {}) do if tag == wp_filter then dim = false; break end end
             end
-            rows[i] = { img = bead_of(f), x = d.x, y = d.y, hue = d.h, hi = math.floor(d.h / 10 + 0.5) % 36,
-                        cur = f == wp_cur, dim = dim, name = stem(f) }
+            rows[i] = { img = hex_of(f), hue = d.h, cur = f == wp_cur, dim = dim, name = stem(f) }
         end
         G.files = files
         model.gal = rows
-        set_now()
     end
 
     local function finish()
-        local files = {}
-        for _, f in ipairs(wp_files) do if G.data[f] then files[#files + 1] = f end end
-        layout(files)
         save()
         G.laid = true
         build()
@@ -4194,6 +4143,7 @@ end)()
             G.busy = G.busy + 1
             analyse(f, function()
                 G.busy = G.busy - 1
+                G.have[name_of(f)] = G.data[f] ~= nil
                 text.gal_status = string.format("Reading your wallpapers…  %d of %d", G.total - #G.queue - G.busy, G.total)
                 if G.busy == 0 and #G.queue == 0 then text.gal_status = ""; finish() else pump() end
             end)
@@ -4207,29 +4157,33 @@ end)()
         with_dirs(function(d)
             G.dir = d.cache .. "/gal"
             run("mkdir", { "-p", G.dir }, function()
-                -- the earlier version's 160 pixel pictures (`name.jpg`) are not used any more; the new ones are `.hero.jpg` and `.bead.png`
-                run("find", { G.dir, "-maxdepth", "1", "-name", "*.jpg", "!", "-name", "*.hero.jpg", "-delete" }, function() end)
-                local ok, saved = pcall(sys.ask, "files.read", "wallpaper-galaxy.json", "json")
-                if ok and type(saved) == "table" and saved.rule == RULE then
-                    for f, e in pairs(saved) do
-                        if type(e) == "table" and e.x then G.data[f] = e end
+                -- the earlier versions' pictures are not used any more
+                run("find", { G.dir, "-maxdepth", "1", "(", "-name", "*.bead.png", "-o", "(", "-name", "*.jpg", "!", "-name", "*.hero.jpg", ")", ")", "-delete" }, function() end)
+                run("find", { G.dir, "-maxdepth", "1", "-name", "*.hex.png", "-printf", "%f\n" }, function(out)
+                    for line in (out or ""):gmatch("[^\n]+") do G.have[line:gsub("%.hex%.png$", "")] = true end
+                    local ok, saved = pcall(sys.ask, "files.read", "wallpaper-galaxy.json", "json")
+                    if ok and type(saved) == "table" and saved.rule == RULE then
+                        for f, e in pairs(saved) do
+                            if type(e) == "table" and e.h then G.data[f] = e end
+                        end
                     end
-                end
-                local missing, all_laid = 0, true
-                for _, f in ipairs(wp_files) do
-                    if not G.data[f] then
-                        G.queue[#G.queue + 1] = f
-                        missing = missing + 1
+                    local missing = 0
+                    for _, f in ipairs(wp_files) do
+                        if not (G.data[f] and G.have[name_of(f)]) then
+                            G.data[f] = nil
+                            G.queue[#G.queue + 1] = f
+                            missing = missing + 1
+                        end
                     end
-                end
-                if missing == 0 then
-                    G.laid = true
-                    build()
-                else
-                    G.total = missing
-                    text.gal_status = string.format("Reading your wallpapers…  0 of %d", missing)
-                    pump()
-                end
+                    if missing == 0 then
+                        G.laid = true
+                        build()
+                    else
+                        G.total = missing
+                        text.gal_status = string.format("Reading your wallpapers…  0 of %d", missing)
+                        pump()
+                    end
+                end)
             end)
         end)
     end
@@ -4241,18 +4195,18 @@ end)()
         fact.gal_open = opening
     end)
 
-    -- A bead was pressed: its wallpaper blooms out of it. `gal_px`, `gal_py` are where it is on the screen, from the
-    -- bottom left, which is where awww counts from. Then the overlay leaves, and the desktop is what is left.
+    -- A hexagon was pressed: its wallpaper blooms out of it. `gal_px`, `gal_py` are where it is on the screen, from the
+    -- bottom left, which is where awww counts from. Then the tray leaves, and the desktop is what is left.
     on("gal_pick", function(i)
         local f = G.files and G.files[i + 1]
         if not f then return end
         local px, py = math.floor((fact.gal_px or 0) + 0.5), math.floor((fact.gal_py or 0) + 0.5)
         wp_apply(f, { "--transition-type", "grow", "--transition-pos", px .. "," .. py, "--transition-duration", "1.6",
                       "--transition-fps", "60", "--transition-step", "60" })
-        fact.gal_leaving = true                            -- the overlay fades, and the desktop is what is left to see
+        fact.gal_leaving = true                            -- the tray fades, and the desktop is what is left to see
         after(1900, function() fact.gal_open = false; fact.gal_leaving = false end)
     end)
-    -- The middle of the wheel: any wallpaper, from the middle of the screen.
+    -- Random: any wallpaper, from the middle of the screen.
     on("gal_random", function()
         local f = wp_random_pick()
         if not f then return end
