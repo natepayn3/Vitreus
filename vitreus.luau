@@ -4281,7 +4281,10 @@ end)()
         if fact.rec_on then rec_stop() else rec_start(0) end
     end)
     every(1000, function() if fact.rec_on then rec_show(true) end end)
-    every(2000, rec_poll)
+    -- Asking `pgrep` is a process started each time, so it is only done while it matters: a recording is on (to see it end),
+    -- or the Controls drawer, where the Capture tile shows it, is open; and once as that drawer opens.
+    every(2000, function() if fact.rec_on or fact.panel == "controls" then rec_poll() end end)
+    on("fact:panel", function(v) if v == "controls" then rec_poll() end end)
     rec_poll()
 
     -- ── The session ──────────────────────────────────────────────────────────────────────────────────────────────
