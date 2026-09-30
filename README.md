@@ -10,7 +10,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="MIT License" /></a>
   </p>
 
-  <img src="assets/screenshots/control-center.webp" alt="The controls drawer dripping out of the bar" width="640" />
+  <img src="assets/screenshots/demo.webp" alt="Vitreus: drawers dripping out of the bar" width="640" />
 
 </div>
 
@@ -36,15 +36,16 @@ layout all run in the renderer, and the logic only reports facts.
 
 <table>
   <tr>
+    <td align="center"><img src="assets/screenshots/control-center.webp" alt="The controls drawer" /><br /><sub><b>Controls</b> — Wi-Fi, Bluetooth, brightness and volume</sub></td>
     <td align="center"><img src="assets/screenshots/calendar.webp" alt="Calendar, weather and reminders" /><br /><sub><b>Calendar</b> — weather, month, and reminders</sub></td>
+  </tr>
+  <tr>
     <td align="center"><img src="assets/screenshots/launcher.webp" alt="The launcher" /><br /><sub><b>Launcher</b> — apps, files, commands, emoji, clipboard, wallpapers</sub></td>
-  </tr>
-  <tr>
     <td align="center"><img src="assets/screenshots/player-and-windows.webp" alt="The player and the running windows" /><br /><sub><b>Player and windows</b> — hangs from the window title</sub></td>
-    <td align="center"><img src="assets/screenshots/system-tray.webp" alt="A tray app's menu" /><br /><sub><b>System tray</b> — an app's own menu, drawn in the shell's glass</sub></td>
   </tr>
   <tr>
-    <td colspan="2" align="center"><img src="assets/screenshots/settings-about.webp" alt="Settings, About page" width="640" /><br /><sub><b>Settings</b> — the About page shows the build and updates the shell</sub></td>
+    <td align="center"><img src="assets/screenshots/system-tray.webp" alt="A tray app's menu" /><br /><sub><b>System tray</b> — an app's own menu, drawn in the shell's glass</sub></td>
+    <td align="center"><img src="assets/screenshots/settings-about.webp" alt="Settings, About page" /><br /><sub><b>Settings</b> — the About page shows the build and updates the shell</sub></td>
   </tr>
 </table>
 
