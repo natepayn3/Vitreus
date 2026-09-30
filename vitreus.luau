@@ -1515,7 +1515,7 @@ wp_on_change = function(path)
 end
 
 local function wp_apply(path, how)
-    -- `how`: awww's transition flags. The galaxy asks for a bloom from the bead that was pressed.
+    -- `how`: awww's transition flags. The wallpaper picker asks for a bloom from the tile that was pressed.
     local args = { "img", path }
     for _, a in ipairs(how or { "--transition-type", "fade", "--transition-duration", "0.8" }) do args[#args + 1] = a end
     run("awww", args, function() end)
@@ -2914,7 +2914,7 @@ end
         { "Calendar", "panel", function() set_panel("calendar"); return true end },
         { "Controls", "panel", function() set_panel("controls"); return true end },
         { "Player", "panel", function() set_panel("player"); return true end },
-        { "Wallpaper galaxy", "action", function() spawn('pleamar --say vitreus "emit gal_toggle"') end },
+        { "Wallpaper picker", "action", function() spawn('pleamar --say vitreus "emit gal_toggle"') end },
         { "Random wallpaper", "action", function() local f = wp_random_pick(); if f then wp_apply(f) end end },
         { "Lock session", "action", function() spawn('pleamar --say lockscreen "fact locked true"') end },
         { "Suspend", "action", function() run("systemctl", { "suspend" }, function() end) end },
@@ -4005,7 +4005,7 @@ void main() {
     end)
 end)()
 
--- The wallpaper galaxy (SUPER + B): every wallpaper as a glass hexagon in a tray under the bar. This is the logic side: one
+-- The wallpaper picker (SUPER + B): every wallpaper as a glass hexagon in a tray under the bar. This is the logic side: one
 -- ImageMagick pass per wallpaper makes its hexagon picture (already cut to the shape) and reads its
 -- colours (the same 32-colour histogram the colour filter uses), the wallpapers are ordered by hue (greys last, by
 -- brightness) so the tray reads as a colour ramp, and what was learned is kept in wallpaper-galaxy.json so this happens
@@ -4215,4 +4215,109 @@ end)()
         fact.gal_leaving = true
         after(1900, function() fact.gal_open = false; fact.gal_leaving = false end)
     end)
+end)()
+
+
+-- Capture (screenshots and screen recording) and Power (the session, and the power profile): the two tiles of the
+-- Controls drawer's third row, and their windows. Nothing here is drawn by this file: it starts the programs, and reports
+-- the state of the recording and of the profile as facts.
+;(function()
+    local function lua_quote(s) return (string.format("%q", s):gsub("\\\n", "\\n")) end
+    local function spawn(cmd)                      -- start it on the desktop, detached from this shell
+        run("hyprctl", { "dispatch", "hl.dsp.exec_cmd(" .. lua_quote(cmd) .. ")" }, function() end)
+    end
+    local function sh(script) return "sh -c '" .. script .. "'" end   -- the scripts below hold no single quote
+
+    -- The drawer has to be out of the way before anything is captured.
+    local function after_closed(fn)
+        set_panel("none")
+        after(450, fn)
+    end
+
+    -- ── Screenshots ──────────────────────────────────────────────────────────────────────────────────────────────
+    -- Region (0) or the whole screen (1). The picture is kept in ~/Pictures/Screenshots and copied to the clipboard.
+    on("shot", function(mode)
+        after_closed(function()
+            local pick = (mode == 0) and 'g=$(slurp) || exit 0; grim -g "$g" "$f"' or 'grim "$f"'
+            spawn(sh('d="$HOME/Pictures/Screenshots"; mkdir -p "$d"; f="$d/screenshot_$(date +%F_%H-%M-%S).png"; '
+                .. pick .. ' && wl-copy < "$f" && notify-send -a Vitreus "Screenshot copied and saved" "$f"'))
+        end)
+    end)
+
+    -- ── Screen recording ─────────────────────────────────────────────────────────────────────────────────────────
+    -- `wf-recorder`, video only, into ~/Videos. Pressing the tile's button again (or Stop) ends it cleanly, which is
+    -- what makes the file playable. Whether it is running is asked of `pgrep`, so a recording started from anywhere counts.
+    local seen = nil                                -- when it was first seen running
+    local function rec_show(running)
+        fact.rec_on = running
+        if running then
+            seen = seen or os.time()
+            local n = os.time() - seen
+            text.rec_time = string.format("%d:%02d", n // 60, n % 60)
+        else
+            seen = nil
+            text.rec_time = ""
+        end
+    end
+    local function rec_poll()
+        run("pgrep", { "-x", "wf-recorder" }, function(_, code) rec_show(code == 0) end)
+    end
+    local function rec_start(mode)
+        if fact.rec_on then return end
+        after_closed(function()
+            local pick = (mode == 0) and 'g=$(slurp) || exit 0; wf-recorder -g "$g" -f "$f"' or 'wf-recorder -f "$f"'
+            spawn(sh('d="$HOME/Videos"; mkdir -p "$d"; f="$d/recording_$(date +%F_%H-%M-%S).mp4"; '
+                .. pick .. '; notify-send -a Vitreus "Recording saved" "$f"'))
+            after(1500, rec_poll)
+        end)
+    end
+    local function rec_stop()
+        run("pkill", { "-INT", "-x", "wf-recorder" }, function() after(800, rec_poll) end)
+    end
+    on("rec_start", rec_start)
+    on("rec_stop", rec_stop)
+    -- The tile's button: stop if recording, else record a region.
+    on("rec_toggle", function()
+        if fact.rec_on then rec_stop() else rec_start(0) end
+    end)
+    every(1000, function() if fact.rec_on then rec_show(true) end end)
+    every(2000, rec_poll)
+    rec_poll()
+
+    -- ── The session ──────────────────────────────────────────────────────────────────────────────────────────────
+    -- 0 lock, 1 sleep, 2 log out, 3 restart, 4 power off. The scene only says so (`pow_press`) after the button has
+    -- been held for three seconds, so nothing here has to ask again.
+    local user = nil
+    run("printenv", { "USER" }, function(out) user = (out or ""):gsub("%s+$", "") end)
+    local function do_it(i)
+        if i == 0 then spawn('pleamar --say lockscreen "fact locked true"')
+        elseif i == 1 then run("systemctl", { "suspend" }, function() end)
+        elseif i == 2 then run("loginctl", { "terminate-user", user or "" }, function() end)
+        elseif i == 3 then run("systemctl", { "reboot" }, function() end)
+        elseif i == 4 then run("systemctl", { "poweroff" }, function() end) end
+    end
+    on("pow_press", function(i)
+        i = math.floor(i + 0.5)
+        set_panel("none")
+        after(300, function() do_it(i) end)
+    end)
+
+    -- ── The power profile ────────────────────────────────────────────────────────────────────────────────────────
+    -- power-profiles-daemon, through `powerprofilesctl`: 0 power saver, 1 balanced, 2 performance, -1 not there.
+    local NAMES = { "power-saver", "balanced", "performance" }
+    local function prof_poll()
+        run("powerprofilesctl", { "get" }, function(out, code)
+            if code ~= 0 then fact.pow_prof = -1; return end
+            local now = (out or ""):gsub("%s+$", "")
+            fact.pow_prof = -1
+            for i, n in ipairs(NAMES) do if n == now then fact.pow_prof = i - 1 end end
+        end)
+    end
+    on("pow_prof_set", function(i)
+        local name = NAMES[math.floor(i + 0.5) + 1]
+        if not name then return end
+        run("powerprofilesctl", { "set", name }, function() prof_poll() end)
+    end)
+    every(30000, prof_poll)
+    prof_poll()
 end)()

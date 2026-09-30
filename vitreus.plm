@@ -9,7 +9,7 @@ import "palette.plm"
 scene Vitreus {
     surface { size: full, 1440; anchor: top; margin: 0; reserve: 68; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or gal_open }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "git", "pleamar", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid" }
+                  run: "git", "pleamar", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
     model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number }
@@ -362,8 +362,8 @@ scene Vitreus {
     //  Tapping the rest of a tile (not its toggle) grows it into its own window.
     //  `showing_sub` only follows `panel_sub` on the way in - see its rule below -
     //  so the window it drew stays up, fading out, while it closes.
-    fact panel_sub: none | netview | btview | notifview | cafview = none
-    fact showing_sub: none | netview | btview | notifview | cafview = none
+    fact panel_sub: none | netview | btview | notifview | cafview | capview | powview = none
+    fact showing_sub: none | netview | btview | notifview | cafview | capview | powview = none
     //  Which row is open, in each list - its password field or its
     //  Connect/Disconnect/Forget, right underneath it. -1 is none.
     fact on_wifi = false            // the connection in use is Wi-Fi (not wired): the logic reads network.kind
@@ -399,6 +399,16 @@ scene Vitreus {
     text caf_tile_sub = ""         // the tile's second line while a timer runs: Awake · 23:41
     event togglecaf ->
     event caf_for ->               // a timer chip: minutes, or 0 for until it is turned off
+    //  Capture and Power, the third row of tiles: screenshots and screen recording, the session and the power profile.
+    fact rec_on = false            // wf-recorder is running
+    text rec_time = ""             // how long, 1:23
+    fact pow_prof = -1             // 0 power saver, 1 balanced, 2 performance, -1 no power-profiles-daemon
+    event shot ->                  // 0 a region, 1 the whole screen
+    event rec_start ->             // the same
+    event rec_stop ->
+    event rec_toggle ->            // the tile's button
+    event pow_press ->             // a session button held for three seconds: 0 lock, 1 sleep, 2 log out, 3 restart, 4 power off
+    event pow_prof_set ->          // 0, 1 or 2
     fact ws.active = 1
     repeat i in 1..6 { fact ws.$i.busy = false }
     event go ->
@@ -543,6 +553,13 @@ scene Vitreus {
     follow bt_on   = if(bt.powered, 1, 0)
     prop dnd_pill = 0 ~pop
     prop caf_pill = 0 ~pop
+    prop rec_pill = 0 ~pop
+    prop pw_hp0 = 0 ~calm             // how far the Lock button's hold has got: 0 to 1 over three seconds
+    prop pw_hp1 = 0 ~calm             // how far the Sleep button's hold has got: 0 to 1 over three seconds
+    prop pw_hp2 = 0 ~calm             // how far the Log out button's hold has got: 0 to 1 over three seconds
+    prop pw_hp3 = 0 ~calm             // how far the Restart button's hold has got: 0 to 1 over three seconds
+    prop pw_hp4 = 0 ~calm             // how far the Power off button's hold has got: 0 to 1 over three seconds
+    prop pow_th = 1 ~pop                // where the power-profile thumb is: 0 saver, 1 balanced, 2 performance
     prop wp_show_pill = 0 ~pop
     prop set_pg = 0 ~calm
     prop set_pgd = 0 ~calm
@@ -590,6 +607,8 @@ scene Vitreus {
     prop dnd_wobble = 0 ~pop       // the bell, swung when DND flips
     follow dnd_pill = if(dnd_on, 1, 0)
     follow caf_pill = if(caf_on, 1, 0)
+    follow rec_pill = if(rec_on, 1, 0)
+    follow pow_th = if(pow_prof < 0, 1, pow_prof)
     follow wp_show_pill = if(wp_show, 1, 0)
     follow set_pg = if(set_page == pg_glass, 1, 0)
     follow set_pgd = if(set_page == pg_disp, 1, 0)
@@ -648,7 +667,7 @@ scene Vitreus {
     event night_temp_set ->             // the slider: 0..1
     event night_start_step ->           // -1 or 1, a half hour
     event night_end_step ->
-    //  The wallpaper galaxy (SUPER + B): a tray of glass hexagons under the bar, drawn at the end of this scene. Every wallpaper is one
+    //  The wallpaper picker (SUPER + B): glass hexagons centred on the screen, drawn at the end of this scene. Every wallpaper is one
     //  hexagon (its picture already cut to the hexagon by the logic); how many there are sets how big they are, so that they always fill
     //  the tray. The logic makes the pictures (`gal`), orders them by colour and does the awww side of a pick.
     model gal max 200 { img: image 120, 139; hue: number; cur: bool; dim: bool; name: text }
@@ -1282,7 +1301,7 @@ scene Vitreus {
     let nt_rows_h = (max(1, nt_hist.count) * 60 - 6) / u
     let list_view_h = min(if(showing_sub == btview, bt_rows_h, if(showing_sub == notifview, nt_rows_h, wifi_rows_h)), if(showing_sub == notifview, 150, list_max))
     //  The Caffeine window is a row and two lines of chips (91 under its title), and has no list.
-    let sub_content = if(showing_sub == cafview, 91, if(showing_sub == notifview, 84, 0) + list_view_h)
+    let sub_content = if(showing_sub == cafview, 91, if(showing_sub == capview, 142, if(showing_sub == powview, 151, if(showing_sub == notifview, 84, 0) + list_view_h)))
     let sub_bot = tiles_top + 54 + sub_content + 16
     //  The output list drops over what is under the volume row; with more than a couple of outputs
     //  it reaches past the drawer, so the drawer grows to hold it while it is open.
@@ -1825,101 +1844,133 @@ scene Vitreus {
             opacity: f2 * clamp(1 - expand0, 0, 1)
             move: 0, (1 - f2) * 12 * u
             let tile_cy = ck + (tiles_top + tiles_h / 2) * u
-            let wtx = cx - 74 * u
-            let btx = cx + 74 * u
+            let tile2_cy = ck + (tiles2_top + tiles_h / 2) * u
+            //  Six tiles, three across and two down. Each one hangs its content from a `base` 21 right of its middle: tile 1's middle
+            //  is 97 left of the drawer's, tile 3's 97 right of it.
+            let tb1 = cx - 76 * u
+            let tb2 = cx + 21 * u
+            let tb3 = cx + 118 * u
 
-            box { at: wtx, tile_cy; size: 140 * u, tiles_h * u; corner: 14 * u; color: ink; opacity: veil }
-            box { at: wtx - 53 * u, tile_cy - 14 * u; size: 3 * u, 6 * u;  corner: 1.5 * u; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 0.3, 0, 1), 30%) }
-            box { at: wtx - 48 * u, tile_cy - 16 * u; size: 3 * u, 10 * u; corner: 1.5 * u; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 0.65, 0, 1), 30%) }
-            box { at: wtx - 43 * u, tile_cy - 18 * u; size: 3 * u, 14 * u; corner: 1.5 * u; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 1.0, 0, 1), 30%) }
-            text "Wi-Fi" { at: floor(wtx - 58 * u + 0.5), floor(tile_cy + 4 * u + 0.5); anchor: left center; size: 13 * u; color: ink; family: "Space Grotesk" }
-            text net.name { at: floor(wtx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: on_wifi }
-            text "Disconnected" { at: floor(wtx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: net.wifi and not (on_wifi) }
-            text "Off" { at: floor(wtx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not net.wifi }
+            box { at: tb1 - 21 * u, tile_cy; size: 94 * u, tiles_h * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: tb1 - 53 * u, tile_cy - 14 * u; size: 3 * u, 6 * u;  corner: 1.5 * u; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 0.3, 0, 1), 30%) }
+            box { at: tb1 - 48 * u, tile_cy - 16 * u; size: 3 * u, 10 * u; corner: 1.5 * u; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 0.65, 0, 1), 30%) }
+            box { at: tb1 - 43 * u, tile_cy - 18 * u; size: 3 * u, 14 * u; corner: 1.5 * u; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 1.0, 0, 1), 30%) }
+            text "Wi-Fi" { at: floor(tb1 - 58 * u + 0.5), floor(tile_cy + 4 * u + 0.5); anchor: left center; size: 11.5 * u; color: ink; family: "Space Grotesk" }
+            text net.name { at: floor(tb1 - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: on_wifi }
+            text "Disconnected" { at: floor(tb1 - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; color: faint; family: "Space Grotesk"; show: net.wifi and not (on_wifi) }
+            text "Off" { at: floor(tb1 - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; color: faint; family: "Space Grotesk"; show: not net.wifi }
             body {
                 color: mix(off, mint, clamp(wifi_on, 0, 1))
-                box { at: wtx + 40 * u, tile_cy - 18 * u; size: 38 * u, 22 * u; corner: 11 * u }
+                box { at: tb1 + 5 * u, tile_cy - 18 * u; size: 38 * u, 22 * u; corner: 11 * u }
             }
-            box { at: wtx + 32 * u + wifi_on * 16 * u, tile_cy - 18 * u; size: (17 + 9 * clamp(4 * wifi_on * (1 - wifi_on), 0, 1)) * u, (17 - 3 * clamp(4 * wifi_on * (1 - wifi_on), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * wifi_on * (1 - wifi_on), 0, 1)) * u; color: ink }
-            zone box wifi_tile_hit { at: wtx, tile_cy; size: 140 * u, tiles_h * u; cursor: pointer }
+            box { at: tb1 - 3 * u + wifi_on * 16 * u, tile_cy - 18 * u; size: (17 + 9 * clamp(4 * wifi_on * (1 - wifi_on), 0, 1)) * u, (17 - 3 * clamp(4 * wifi_on * (1 - wifi_on), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * wifi_on * (1 - wifi_on), 0, 1)) * u; color: ink }
+            zone box wifi_tile_hit { at: tb1 - 21 * u, tile_cy; size: 94 * u, tiles_h * u; cursor: pointer }
             on press wifi_tile_hit { panel_sub = if(panel_sub == netview, none, netview) }
-            zone box wifi_toggle_hit { at: wtx + 40 * u, tile_cy - 18 * u; size: 46 * u, 30 * u; cursor: pointer }
+            zone box wifi_toggle_hit { at: tb1 + 5 * u, tile_cy - 18 * u; size: 46 * u, 30 * u; cursor: pointer }
             on press wifi_toggle_hit { emit togglewifi(not net.wifi) }
 
-            box { at: btx, tile_cy; size: 140 * u, tiles_h * u; corner: 14 * u; color: ink; opacity: veil }
-            box { at: btx - 48 * u, tile_cy - 18 * u; size: 2.4 * u, 16 * u; corner: 1.2 * u; color: ink; opacity: 45% + 55% * bt_on }
-            path { at: btx - 48 * u, tile_cy - 18 * u; stroke: 1.5 * u; color: ink; opacity: 45% + 55% * bt_on; move -4 * u, -4 * u; line 4 * u, 4 * u }
-            path { at: btx - 48 * u, tile_cy - 18 * u; stroke: 1.5 * u; color: ink; opacity: 45% + 55% * bt_on; move 4 * u, -4 * u; line -4 * u, 4 * u }
-            text "Bluetooth" { at: floor(btx - 58 * u + 0.5), floor(tile_cy + 4 * u + 0.5); anchor: left center; size: 13 * u; color: ink; family: "Space Grotesk" }
-            text bt_name { at: floor(btx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: bt_connected }
-            text "No device" { at: floor(btx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: bt.powered and not bt_connected }
-            text "Off" { at: floor(btx - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not bt.powered }
+            box { at: tb1 - 21 * u, tile2_cy; size: 94 * u, tiles_h * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: tb1 - 48 * u, tile2_cy - 18 * u; size: 2.4 * u, 16 * u; corner: 1.2 * u; color: ink; opacity: 45% + 55% * bt_on }
+            path { at: tb1 - 48 * u, tile2_cy - 18 * u; stroke: 1.5 * u; color: ink; opacity: 45% + 55% * bt_on; move -4 * u, -4 * u; line 4 * u, 4 * u }
+            path { at: tb1 - 48 * u, tile2_cy - 18 * u; stroke: 1.5 * u; color: ink; opacity: 45% + 55% * bt_on; move 4 * u, -4 * u; line -4 * u, 4 * u }
+            text "Bluetooth" { at: floor(tb1 - 58 * u + 0.5), floor(tile2_cy + 4 * u + 0.5); anchor: left center; size: 11.5 * u; color: ink; family: "Space Grotesk" }
+            text bt_name { at: floor(tb1 - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: bt_connected }
+            text "No device" { at: floor(tb1 - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; color: faint; family: "Space Grotesk"; show: bt.powered and not bt_connected }
+            text "Off" { at: floor(tb1 - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; color: faint; family: "Space Grotesk"; show: not bt.powered }
             body {
                 color: mix(off, mint, clamp(bt_on, 0, 1))
-                box { at: btx + 40 * u, tile_cy - 18 * u; size: 38 * u, 22 * u; corner: 11 * u }
+                box { at: tb1 + 5 * u, tile2_cy - 18 * u; size: 38 * u, 22 * u; corner: 11 * u }
             }
-            box { at: btx + 32 * u + bt_on * 16 * u, tile_cy - 18 * u; size: (17 + 9 * clamp(4 * bt_on * (1 - bt_on), 0, 1)) * u, (17 - 3 * clamp(4 * bt_on * (1 - bt_on), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * bt_on * (1 - bt_on), 0, 1)) * u; color: ink }
-            zone box bt_tile_hit { at: btx, tile_cy; size: 140 * u, tiles_h * u; cursor: pointer }
+            box { at: tb1 - 3 * u + bt_on * 16 * u, tile2_cy - 18 * u; size: (17 + 9 * clamp(4 * bt_on * (1 - bt_on), 0, 1)) * u, (17 - 3 * clamp(4 * bt_on * (1 - bt_on), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * bt_on * (1 - bt_on), 0, 1)) * u; color: ink }
+            zone box bt_tile_hit { at: tb1 - 21 * u, tile2_cy; size: 94 * u, tiles_h * u; cursor: pointer }
             on press bt_tile_hit { panel_sub = if(panel_sub == btview, none, btview) }
-            zone box bt_toggle_hit { at: btx + 40 * u, tile_cy - 18 * u; size: 46 * u, 30 * u; cursor: pointer }
+            zone box bt_toggle_hit { at: tb1 + 5 * u, tile2_cy - 18 * u; size: 46 * u, 30 * u; cursor: pointer }
             on press bt_toggle_hit { emit togglebt(not bt.powered) }
 
             //  Notifications (Do Not Disturb, with its own window) and Caffeine (the whole tile is its toggle), underneath.
-            let tile2_cy = ck + (tiles2_top + tiles_h / 2) * u
 
-            box { at: wtx, tile2_cy; size: 140 * u, tiles_h * u; corner: 14 * u; color: ink; opacity: veil + 6% * dnd_hit.hover }
+            box { at: tb3 - 21 * u, tile_cy; size: 94 * u, tiles_h * u; corner: 14 * u; color: ink; opacity: veil + 6% * dnd_hit.hover }
             //  A bell: dome, rim and clapper, struck through while it is on.
             group {
-                pivot: wtx - 48 * u, tile2_cy - 18 * u
+                pivot: tb3 - 48 * u, tile_cy - 18 * u
                 rotate: dnd_wobble * 14deg
                 //  Solid parts, faded as one group: partial opacity per part shows the overlaps.
                 opacity: 45% + 55% * dnd_pill
-                ellipse { at: wtx - 48 * u, tile2_cy - 19 * u; radius: 5.5 * u; color: ink }
-                box { at: wtx - 48 * u, tile2_cy - 14.5 * u; size: 14 * u, 3 * u; corner: 1.5 * u; color: ink }
-                ellipse { at: wtx - 48 * u, tile2_cy - 11 * u; radius: 1.6 * u; color: ink }
+                ellipse { at: tb3 - 48 * u, tile_cy - 19 * u; radius: 5.5 * u; color: ink }
+                box { at: tb3 - 48 * u, tile_cy - 14.5 * u; size: 14 * u, 3 * u; corner: 1.5 * u; color: ink }
+                ellipse { at: tb3 - 48 * u, tile_cy - 11 * u; radius: 1.6 * u; color: ink }
             }
-            path { at: wtx - 48 * u, tile2_cy - 18 * u; stroke: 1.8 * u; color: alert; opacity: dnd_pill; move -8 * u, -8 * u; line 8 * u, 8 * u }
-            text "Notifications" { at: floor(wtx - 58 * u + 0.5), floor(tile2_cy + 4 * u + 0.5); anchor: left center; size: 13 * u; width: 116 * u; lines: 1; color: ink; family: "Space Grotesk" }
-            text nt_tile_sub { at: floor(wtx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; width: 116 * u; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
+            path { at: tb3 - 48 * u, tile_cy - 18 * u; stroke: 1.8 * u; color: alert; opacity: dnd_pill; move -8 * u, -8 * u; line 8 * u, 8 * u }
+            text "Notifications" { at: floor(tb3 - 58 * u + 0.5), floor(tile_cy + 4 * u + 0.5); anchor: left center; size: 11.5 * u; width: 74 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            text nt_tile_sub { at: floor(tb3 - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; width: 74 * u; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
             body {
                 color: mix(off, mint, clamp(dnd_pill, 0, 1))
-                box { at: wtx + 40 * u, tile2_cy - 18 * u; size: 38 * u, 22 * u; corner: 11 * u }
+                box { at: tb3 + 5 * u, tile_cy - 18 * u; size: 38 * u, 22 * u; corner: 11 * u }
             }
-            box { at: wtx + 32 * u + dnd_pill * 16 * u, tile2_cy - 18 * u; size: (17 + 9 * clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)) * u, (17 - 3 * clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)) * u; color: ink }
-            zone box dnd_hit { at: wtx, tile2_cy; size: 140 * u, tiles_h * u; cursor: pointer }
+            box { at: tb3 - 3 * u + dnd_pill * 16 * u, tile_cy - 18 * u; size: (17 + 9 * clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)) * u, (17 - 3 * clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)) * u; color: ink }
+            zone box dnd_hit { at: tb3 - 21 * u, tile_cy; size: 94 * u, tiles_h * u; cursor: pointer }
             on press dnd_hit { panel_sub = if(panel_sub == notifview, none, notifview) }
-            zone box dnd_toggle_hit { at: wtx + 40 * u, tile2_cy - 18 * u; size: 46 * u, 30 * u; cursor: pointer }
+            zone box dnd_toggle_hit { at: tb3 + 5 * u, tile_cy - 18 * u; size: 46 * u, 30 * u; cursor: pointer }
             on press dnd_toggle_hit { emit togglednd }
 
             //  Caffeine: a cup that steams while the machine is being kept awake. Dimmed on a
             //  machine with no hypridle, which is what the card would be stopping.
             group {
                 opacity: mix(0.45, 1, caf_avail)
-                box { at: btx, tile2_cy; size: 140 * u, tiles_h * u; corner: 14 * u; color: ink; opacity: veil + 6% * caf_hit.hover * caf_avail }
+                box { at: tb2 - 21 * u, tile_cy; size: 94 * u, tiles_h * u; corner: 14 * u; color: ink; opacity: veil + 6% * caf_hit.hover * caf_avail }
                 group {
                     opacity: 45% + 55% * caf_pill
-                    box { at: btx - 49 * u, tile2_cy - 16 * u; size: 12 * u, 10 * u; corner: 3 * u; color: ink }
-                    ellipse { at: btx - 41.5 * u, tile2_cy - 16 * u; radius: 3 * u; stroke: 1.5 * u; color: ink }
+                    box { at: tb2 - 49 * u, tile_cy - 16 * u; size: 12 * u, 10 * u; corner: 3 * u; color: ink }
+                    ellipse { at: tb2 - 41.5 * u, tile_cy - 16 * u; radius: 3 * u; stroke: 1.5 * u; color: ink }
                 }
                 repeat i in 0..3 {
                     let sp = fract(time * 0.7 + i * 0.33)
-                    box { at: btx - 52 * u + i * 3.5 * u, tile2_cy - 24 * u - sp * 6 * u; size: 1.4 * u, 5 * u; corner: 0.7 * u; color: ink; opacity: caf_pill * 55% * sin(sp * 180) }
+                    box { at: tb2 - 52 * u + i * 3.5 * u, tile_cy - 24 * u - sp * 6 * u; size: 1.4 * u, 5 * u; corner: 0.7 * u; color: ink; opacity: caf_pill * 55% * sin(sp * 180) }
                 }
-                text "Caffeine" { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 4 * u + 0.5); anchor: left center; size: 13 * u; color: ink; family: "Space Grotesk" }
-                text "Awake" { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: mint; opacity: 90%; family: "Space Grotesk"; show: caf_on and caf_len == 0 }
-                text caf_tile_sub { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: caf_on and caf_len > 0 }
-                text "Off" { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not caf_on and caf_avail }
-                text "No hypridle" { at: floor(btx - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: not caf_avail }
+                text "Caffeine" { at: floor(tb2 - 58 * u + 0.5), floor(tile_cy + 4 * u + 0.5); anchor: left center; size: 11.5 * u; color: ink; family: "Space Grotesk" }
+                text "Awake" { at: floor(tb2 - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; color: mint; opacity: 90%; family: "Space Grotesk"; show: caf_on and caf_len == 0 }
+                text caf_tile_sub { at: floor(tb2 - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: caf_on and caf_len > 0 }
+                text "Off" { at: floor(tb2 - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; color: faint; family: "Space Grotesk"; show: not caf_on and caf_avail }
+                text "No hypridle" { at: floor(tb2 - 58 * u + 0.5), floor(tile_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; color: faint; family: "Space Grotesk"; show: not caf_avail }
                 body {
                     color: mix(off, mint, clamp(caf_pill, 0, 1))
-                    box { at: btx + 40 * u, tile2_cy - 18 * u; size: 38 * u, 22 * u; corner: 11 * u }
+                    box { at: tb2 + 5 * u, tile_cy - 18 * u; size: 38 * u, 22 * u; corner: 11 * u }
                 }
-                box { at: btx + 32 * u + caf_pill * 16 * u, tile2_cy - 18 * u; size: (17 + 9 * clamp(4 * caf_pill * (1 - caf_pill), 0, 1)) * u, (17 - 3 * clamp(4 * caf_pill * (1 - caf_pill), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * caf_pill * (1 - caf_pill), 0, 1)) * u; color: ink }
-                zone box caf_hit { at: btx, tile2_cy; size: 140 * u, tiles_h * u; cursor: pointer; active: caf_avail }
+                box { at: tb2 - 3 * u + caf_pill * 16 * u, tile_cy - 18 * u; size: (17 + 9 * clamp(4 * caf_pill * (1 - caf_pill), 0, 1)) * u, (17 - 3 * clamp(4 * caf_pill * (1 - caf_pill), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * caf_pill * (1 - caf_pill), 0, 1)) * u; color: ink }
+                zone box caf_hit { at: tb2 - 21 * u, tile_cy; size: 94 * u, tiles_h * u; cursor: pointer; active: caf_avail }
                 on press caf_hit { panel_sub = if(panel_sub == cafview, none, cafview) }
-                zone box caf_toggle_hit { at: btx + 40 * u, tile2_cy - 18 * u; size: 46 * u, 30 * u; cursor: pointer; active: caf_avail }
+                zone box caf_toggle_hit { at: tb2 + 5 * u, tile_cy - 18 * u; size: 46 * u, 30 * u; cursor: pointer; active: caf_avail }
                 on press caf_toggle_hit { emit togglecaf }
             }
+
+            //  Capture and Power: a third row. Capture's button starts and stops a recording; the rest of the tile opens its window
+            //  (screenshots, and a recording of the whole screen). Power has no switch: the whole tile opens its window.
+
+            box { at: tb2 - 21 * u, tile2_cy; size: 94 * u, tiles_h * u; corner: 14 * u; color: ink; opacity: veil + 6% * cap_hit.hover }
+            box { at: tb2 - 48 * u, tile2_cy - 17 * u; size: 16 * u, 12 * u; corner: 3 * u; stroke: 1.5 * u; color: ink; opacity: 45% + 55% * rec_pill }
+            ellipse { at: tb2 - 48 * u, tile2_cy - 17 * u; radius: 2.6 * u; stroke: 1.4 * u; color: ink; opacity: 45% + 55% * rec_pill }
+            text "Capture" { at: floor(tb2 - 58 * u + 0.5), floor(tile2_cy + 4 * u + 0.5); anchor: left center; size: 11.5 * u; color: ink; family: "Space Grotesk" }
+            text rec_time { at: floor(tb2 - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; width: 74 * u; lines: 1; color: mint; family: "Space Grotesk"; show: rec_on }
+            text "Shot · Record" { at: floor(tb2 - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; width: 74 * u; lines: 1; color: faint; family: "Space Grotesk"; show: not rec_on }
+            //  The record button: a ring with a dot in it, which becomes a square (and beats) while it records.
+            ellipse { at: tb2 + 5 * u, tile2_cy - 18 * u; radius: 10 * u; stroke: 1.5 * u; color: mint; opacity: 55% + 45% * rec_pill }
+            box { at: tb2 + 5 * u, tile2_cy - 18 * u; size: (10 - 2 * rec_pill) * u, (10 - 2 * rec_pill) * u; corner: (5 - 3 * rec_pill) * u; color: mint; opacity: 65% + 35% * rec_pill - rec_pill * 0.25 * (0.5 + 0.5 * sin(time * 300)) }
+            zone box cap_hit { at: tb2 - 21 * u, tile2_cy; size: 94 * u, tiles_h * u; cursor: pointer }
+            on press cap_hit { panel_sub = if(panel_sub == capview, none, capview) }
+            zone box cap_rec_hit { at: tb2 + 5 * u, tile2_cy - 18 * u; size: 34 * u, 30 * u; corner: 15 * u; cursor: pointer }
+            on press cap_rec_hit { emit rec_toggle }
+
+            box { at: tb3 - 21 * u, tile2_cy; size: 94 * u, tiles_h * u; corner: 14 * u; color: ink; opacity: veil + 6% * pow_hit.hover }
+            //  A power symbol: a ring open at the top, and the bar through the gap.
+            path { at: tb3 - 48 * u, tile2_cy - 17 * u; stroke: 1.6 * u; color: ink; opacity: 75%; move 3.73 * u, -5.32 * u; line 5.32 * u, -3.73 * u; line 6.28 * u, -1.68 * u; line 6.48 * u, 0.57 * u; line 5.89 * u, 2.75 * u; line 4.60 * u, 4.60 * u; line 2.75 * u, 5.89 * u; line 0.57 * u, 6.48 * u; line -1.68 * u, 6.28 * u; line -3.73 * u, 5.32 * u; line -5.32 * u, 3.73 * u; line -6.28 * u, 1.68 * u; line -6.48 * u, -0.57 * u; line -5.89 * u, -2.75 * u; line -4.60 * u, -4.60 * u }
+            box { at: tb3 - 48 * u, tile2_cy - 21.5 * u; size: 1.6 * u, 8 * u; corner: 0.8 * u; color: ink; opacity: 75% }
+            text "Power" { at: floor(tb3 - 58 * u + 0.5), floor(tile2_cy + 4 * u + 0.5); anchor: left center; size: 11.5 * u; color: ink; family: "Space Grotesk" }
+            text "Power saver" { at: floor(tb3 - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: pow_prof == 0 }
+            text "Balanced" { at: floor(tb3 - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: pow_prof == 1 }
+            text "Performance" { at: floor(tb3 - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; width: 74 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: pow_prof == 2 }
+            text "Lock · Sleep · Off" { at: floor(tb3 - 58 * u + 0.5), floor(tile2_cy + 19 * u + 0.5); anchor: left center; size: 10 * u; width: 74 * u; lines: 1; color: faint; family: "Space Grotesk"; show: pow_prof < 0 }
+            zone box pow_hit { at: tb3 - 21 * u, tile2_cy; size: 94 * u, tiles_h * u; cursor: pointer }
+            on press pow_hit { panel_sub = if(panel_sub == powview, none, powview) }
         }
 
         //  The Wi-Fi tile's own window: the networks in range, strongest first.
@@ -2079,6 +2130,188 @@ scene Vitreus {
                     zone box caf_chip.$i { at: chx, chy; size: 90 * u, 28 * u; corner: 14 * u; cursor: pointer; active: caf_avail }
                     on press caf_chip.$i { emit caf_for(pick(i, 15, 30, 60, 120, 240, 0)) }
                 }
+            }
+        }
+
+        //  The Capture window: a screenshot of a region or of the whole screen (kept in ~/Pictures/Screenshots and copied), and
+        //  a screen recording (kept in ~/Videos), with a Stop while one is running. Big tiles with an icon each.
+        group {
+            show: showing_sub == capview
+            opacity: expand0
+            let qx_top = ck + tiles_top * u
+            let qx_cy = qx_top + 22 * u
+            path { at: cx - 124 * u, qx_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * qx_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
+            zone box qx_back { at: cx - 124 * u, qx_cy; size: 30 * u, 30 * u; cursor: pointer }
+            on press qx_back { panel_sub = none }
+            text "CAPTURE" { at: floor(cx - 102 * u + 0.5), floor(qx_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: cx, qx_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
+            text "SCREENSHOT" { at: floor(cx - 138 * u + 0.5), floor(qx_top + 62 * u + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            box { at: cx - 70 * u, qx_top + 92 * u; size: 134 * u, 52 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * cap_s0.hover }
+            box { at: cx - 70 * u, qx_top + 92 * u; size: 134 * u, 52 * u; corner: 14 * u; color: mint; opacity: 16% * cap_s0.hover }
+            path { at: cx - 70 * u - 37.0 * u, qx_top + 92 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move -7 * u, -3 * u; line -7 * u, -7 * u; line -3 * u, -7 * u }
+            path { at: cx - 70 * u - 37.0 * u, qx_top + 92 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move -7 * u, 3 * u; line -7 * u, 7 * u; line -3 * u, 7 * u }
+            path { at: cx - 70 * u - 37.0 * u, qx_top + 92 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move 7 * u, -3 * u; line 7 * u, -7 * u; line 3 * u, -7 * u }
+            path { at: cx - 70 * u - 37.0 * u, qx_top + 92 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move 7 * u, 3 * u; line 7 * u, 7 * u; line 3 * u, 7 * u }
+            ellipse { at: cx - 70 * u - 37.0 * u, qx_top + 92 * u; radius: 1.5 * u; color: mix(ink, mint, cap_s0.hover); opacity: 100% }
+            text "Region" { at: floor(cx - 70 * u - 17.0 * u + 0.5), floor(qx_top + 92 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 72 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            zone box cap_s0 { at: cx - 70 * u, qx_top + 92 * u; size: 136 * u, 54 * u; corner: 15 * u; cursor: pointer }
+            on press cap_s0 { emit shot(0) }
+            box { at: cx + 70 * u, qx_top + 92 * u; size: 134 * u, 52 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * cap_s1.hover }
+            box { at: cx + 70 * u, qx_top + 92 * u; size: 134 * u, 52 * u; corner: 14 * u; color: mint; opacity: 16% * cap_s1.hover }
+            box { at: cx + 70 * u - 37.0 * u, qx_top + 92 * u - 1 * u; size: 17 * u, 11.5 * u; corner: 2.5 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s1.hover); opacity: 100% }
+            path { at: cx + 70 * u - 37.0 * u, qx_top + 92 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s1.hover); opacity: 100%; move -3 * u, 7.5 * u; line 3 * u, 7.5 * u }
+            text "Full screen" { at: floor(cx + 70 * u - 17.0 * u + 0.5), floor(qx_top + 92 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 72 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            zone box cap_s1 { at: cx + 70 * u, qx_top + 92 * u; size: 136 * u, 54 * u; corner: 15 * u; cursor: pointer }
+            on press cap_s1 { emit shot(1) }
+            text "SCREEN RECORDING" { at: floor(cx - 138 * u + 0.5), floor(qx_top + 134 * u + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text rec_time { at: floor(cx + 138 * u + 0.5), floor(qx_top + 134 * u + 0.5); anchor: right center; size: 10.5 * u; weight: 600; color: mint; family: "Space Grotesk"; show: rec_on }
+            group {
+                show: not rec_on
+                box { at: cx - 70 * u, qx_top + 164 * u; size: 134 * u, 52 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * cap_r0.hover }
+                box { at: cx - 70 * u, qx_top + 164 * u; size: 134 * u, 52 * u; corner: 14 * u; color: mint; opacity: 14% * cap_r0.hover }
+                path { at: cx - 70 * u - 37 * u, qx_top + 164 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move -7 * u, -3 * u; line -7 * u, -7 * u; line -3 * u, -7 * u }
+                path { at: cx - 70 * u - 37 * u, qx_top + 164 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move -7 * u, 3 * u; line -7 * u, 7 * u; line -3 * u, 7 * u }
+                path { at: cx - 70 * u - 37 * u, qx_top + 164 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move 7 * u, -3 * u; line 7 * u, -7 * u; line 3 * u, -7 * u }
+                path { at: cx - 70 * u - 37 * u, qx_top + 164 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move 7 * u, 3 * u; line 7 * u, 7 * u; line 3 * u, 7 * u }
+                ellipse { at: cx - 70 * u - 37 * u, qx_top + 164 * u; radius: 1.5 * u; color: mix(ink, mint, cap_r0.hover); opacity: 100% }
+                ellipse { at: cx - 70 * u - 37 * u + 10 * u, qx_top + 164 * u - 10 * u; radius: 2.8 * u; color: mint }
+                text "Region" { at: floor(cx - 70 * u - 17 * u + 0.5), floor(qx_top + 164 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 72 * u; lines: 1; color: ink; family: "Space Grotesk" }
+                zone box cap_r0 { at: cx - 70 * u, qx_top + 164 * u; size: 136 * u, 54 * u; corner: 15 * u; cursor: pointer }
+                on press cap_r0 { emit rec_start(0) }
+                box { at: cx + 70 * u, qx_top + 164 * u; size: 134 * u, 52 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * cap_r1.hover }
+                box { at: cx + 70 * u, qx_top + 164 * u; size: 134 * u, 52 * u; corner: 14 * u; color: mint; opacity: 14% * cap_r1.hover }
+                box { at: cx + 70 * u - 37 * u, qx_top + 164 * u - 1 * u; size: 17 * u, 11.5 * u; corner: 2.5 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r1.hover); opacity: 100% }
+                path { at: cx + 70 * u - 37 * u, qx_top + 164 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r1.hover); opacity: 100%; move -3 * u, 7.5 * u; line 3 * u, 7.5 * u }
+                ellipse { at: cx + 70 * u - 37 * u + 10 * u, qx_top + 164 * u - 10 * u; radius: 2.8 * u; color: mint }
+                text "Full screen" { at: floor(cx + 70 * u - 17 * u + 0.5), floor(qx_top + 164 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 72 * u; lines: 1; color: ink; family: "Space Grotesk" }
+                zone box cap_r1 { at: cx + 70 * u, qx_top + 164 * u; size: 136 * u, 54 * u; corner: 15 * u; cursor: pointer }
+                on press cap_r1 { emit rec_start(1) }
+            }
+            group {
+                show: rec_on
+                box { at: cx, qx_top + 164 * u; size: 276 * u, 52 * u; corner: 14 * u; color: mint; opacity: 14% + 8% * cap_stop.hover }
+                ellipse { at: cx - 104 * u, qx_top + 164 * u; radius: (9 + 2 * sin(time * 300)) * u; color: mint; opacity: 30% }
+                box { at: cx - 104 * u, qx_top + 164 * u; size: 11 * u, 11 * u; corner: 2.5 * u; color: mint }
+                text "Stop recording" { at: floor(cx - 80 * u + 0.5), floor(qx_top + 164 * u + 0.5); anchor: left center; size: 12.5 * u; weight: 700; width: 150 * u; lines: 1; color: mint; family: "Space Grotesk" }
+                text rec_time { at: floor(cx + 128 * u + 0.5), floor(qx_top + 164 * u + 0.5); anchor: right center; size: 12 * u; weight: 600; color: mint; family: "Space Grotesk" }
+                zone box cap_stop { at: cx, qx_top + 164 * u; size: 278 * u, 54 * u; corner: 15 * u; cursor: pointer }
+                on press cap_stop { emit rec_stop }
+            }
+        }
+
+        //  The Power window: the session as five icon tiles, each of which has to be held for three seconds (it fills from the bottom and
+        //  counts down while it is held, and lets go if you do), and the power profile as a track with a glass thumb that slides, on a
+        //  spring that overshoots, to the one in use.
+        group {
+            show: showing_sub == powview
+            opacity: expand0
+            let px_top = ck + tiles_top * u
+            let px_cy = px_top + 22 * u
+            path { at: cx - 124 * u, px_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * px_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
+            zone box px_back { at: cx - 124 * u, px_cy; size: 30 * u, 30 * u; cursor: pointer }
+            on press px_back { panel_sub = none }
+            text "POWER" { at: floor(cx - 102 * u + 0.5), floor(px_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: cx, px_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
+            text "SESSION" { at: floor(cx - 138 * u + 0.5), floor(px_top + 62 * u + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            box { at: cx + -113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t0.hover }
+            box { at: cx + -113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t0.hover }
+            group {
+                clip inset 0 box { at: cx + -113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u }
+                box { at: cx + -113.0 * u, px_top + 96 * u + 29 * u - 29 * u * clamp(pw_hp0, 0, 1); size: 52 * u, 58 * u * clamp(pw_hp0, 0, 1); color: mint; opacity: 34% }
+                box { at: cx + -113.0 * u, px_top + 96 * u + 29 * u - 58 * u * clamp(pw_hp0, 0, 1); size: 52 * u, 2 * u; color: mint; opacity: 70% * clamp(pw_hp0 * 8, 0, 1) }
+            }
+            path { at: cx + -113.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t0.hover, clamp(pw_hp0 * 3, 0, 1))); opacity: 100%; move -3.5 * u, -1 * u; line -3.5 * u, -4 * u; curve 3.5 * u, -4 * u via 0 * u, -10.5 * u; line 3.5 * u, -1 * u }
+            box { at: cx + -113.0 * u, px_top + 96 * u - 8 * u + 3.5 * u; size: 13 * u, 9.5 * u; corner: 2.5 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t0.hover, clamp(pw_hp0 * 3, 0, 1))); opacity: 100% }
+            text "Lock" { at: floor(cx + -113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp0 < 0.03 }
+            text number(3 - 3 * clamp(pw_hp0, 0, 1), 1, "s") { at: floor(cx + -113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp0 >= 0.03 }
+            zone box pw_t0 { at: cx + -113.0 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
+            on press pw_t0 { pw_hp0: 1 ~3000ms }
+            on release pw_t0 { pw_hp0: 0 ~180ms }
+            on hold pw_t0 for 3000ms { pw_hp0: 0 ~300ms; emit pow_press(0) }
+            box { at: cx + -56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t1.hover }
+            box { at: cx + -56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t1.hover }
+            group {
+                clip inset 0 box { at: cx + -56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u }
+                box { at: cx + -56.5 * u, px_top + 96 * u + 29 * u - 29 * u * clamp(pw_hp1, 0, 1); size: 52 * u, 58 * u * clamp(pw_hp1, 0, 1); color: mint; opacity: 34% }
+                box { at: cx + -56.5 * u, px_top + 96 * u + 29 * u - 58 * u * clamp(pw_hp1, 0, 1); size: 52 * u, 2 * u; color: mint; opacity: 70% * clamp(pw_hp1 * 8, 0, 1) }
+            }
+            path { at: cx + -56.5 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t1.hover, clamp(pw_hp1 * 3, 0, 1))); opacity: 100%; move 2.5 * u, -8.5 * u; curve 2.5 * u, 8.5 * u via -11 * u, 0 * u; curve 2.5 * u, -8.5 * u via -3 * u, 0 * u }
+            text "Sleep" { at: floor(cx + -56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp1 < 0.03 }
+            text number(3 - 3 * clamp(pw_hp1, 0, 1), 1, "s") { at: floor(cx + -56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp1 >= 0.03 }
+            zone box pw_t1 { at: cx + -56.5 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
+            on press pw_t1 { pw_hp1: 1 ~3000ms }
+            on release pw_t1 { pw_hp1: 0 ~180ms }
+            on hold pw_t1 for 3000ms { pw_hp1: 0 ~300ms; emit pow_press(1) }
+            box { at: cx + 0.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t2.hover }
+            box { at: cx + 0.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t2.hover }
+            group {
+                clip inset 0 box { at: cx + 0.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u }
+                box { at: cx + 0.0 * u, px_top + 96 * u + 29 * u - 29 * u * clamp(pw_hp2, 0, 1); size: 52 * u, 58 * u * clamp(pw_hp2, 0, 1); color: mint; opacity: 34% }
+                box { at: cx + 0.0 * u, px_top + 96 * u + 29 * u - 58 * u * clamp(pw_hp2, 0, 1); size: 52 * u, 2 * u; color: mint; opacity: 70% * clamp(pw_hp2 * 8, 0, 1) }
+            }
+            path { at: cx + 0.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t2.hover, clamp(pw_hp2 * 3, 0, 1))); opacity: 100%; move 1 * u, -7.5 * u; line -5.5 * u, -7.5 * u; line -5.5 * u, 7.5 * u; line 1 * u, 7.5 * u }
+            path { at: cx + 0.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t2.hover, clamp(pw_hp2 * 3, 0, 1))); opacity: 100%; move -2 * u, 0 * u; line 7 * u, 0 * u }
+            path { at: cx + 0.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t2.hover, clamp(pw_hp2 * 3, 0, 1))); opacity: 100%; move 4 * u, -3.2 * u; line 7.2 * u, 0 * u; line 4 * u, 3.2 * u }
+            text "Log out" { at: floor(cx + 0.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp2 < 0.03 }
+            text number(3 - 3 * clamp(pw_hp2, 0, 1), 1, "s") { at: floor(cx + 0.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp2 >= 0.03 }
+            zone box pw_t2 { at: cx + 0.0 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
+            on press pw_t2 { pw_hp2: 1 ~3000ms }
+            on release pw_t2 { pw_hp2: 0 ~180ms }
+            on hold pw_t2 for 3000ms { pw_hp2: 0 ~300ms; emit pow_press(2) }
+            box { at: cx + 56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t3.hover }
+            box { at: cx + 56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t3.hover }
+            group {
+                clip inset 0 box { at: cx + 56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u }
+                box { at: cx + 56.5 * u, px_top + 96 * u + 29 * u - 29 * u * clamp(pw_hp3, 0, 1); size: 52 * u, 58 * u * clamp(pw_hp3, 0, 1); color: mint; opacity: 34% }
+                box { at: cx + 56.5 * u, px_top + 96 * u + 29 * u - 58 * u * clamp(pw_hp3, 0, 1); size: 52 * u, 2 * u; color: mint; opacity: 70% * clamp(pw_hp3 * 8, 0, 1) }
+            }
+            path { at: cx + 56.5 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t3.hover, clamp(pw_hp3 * 3, 0, 1))); opacity: 100%; move 5.3 * u, -5.3 * u; line 6.8 * u, -3.17 * u; line 7.47 * u, -0.65 * u; line 7.24 * u, 1.94 * u; line 6.14 * u, 4.3 * u; line 4.3 * u, 6.14 * u; line 1.94 * u, 7.24 * u; line -0.65 * u, 7.47 * u; line -3.17 * u, 6.8 * u; line -5.3 * u, 5.3 * u; line -6.8 * u, 3.17 * u; line -7.47 * u, 0.65 * u; line -7.24 * u, -1.94 * u; line -6.14 * u, -4.3 * u; line -4.3 * u, -6.14 * u }
+            path { at: cx + 56.5 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t3.hover, clamp(pw_hp3 * 3, 0, 1))); opacity: 100%; move -6.75 * u, -8.04 * u; line -2.17 * u, -7.63 * u; line -3.36 * u, -3.19 * u }
+            text "Restart" { at: floor(cx + 56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp3 < 0.03 }
+            text number(3 - 3 * clamp(pw_hp3, 0, 1), 1, "s") { at: floor(cx + 56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp3 >= 0.03 }
+            zone box pw_t3 { at: cx + 56.5 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
+            on press pw_t3 { pw_hp3: 1 ~3000ms }
+            on release pw_t3 { pw_hp3: 0 ~180ms }
+            on hold pw_t3 for 3000ms { pw_hp3: 0 ~300ms; emit pow_press(3) }
+            box { at: cx + 113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t4.hover }
+            box { at: cx + 113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t4.hover }
+            group {
+                clip inset 0 box { at: cx + 113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u }
+                box { at: cx + 113.0 * u, px_top + 96 * u + 29 * u - 29 * u * clamp(pw_hp4, 0, 1); size: 52 * u, 58 * u * clamp(pw_hp4, 0, 1); color: mint; opacity: 34% }
+                box { at: cx + 113.0 * u, px_top + 96 * u + 29 * u - 58 * u * clamp(pw_hp4, 0, 1); size: 52 * u, 2 * u; color: mint; opacity: 70% * clamp(pw_hp4 * 8, 0, 1) }
+            }
+            path { at: cx + 113.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t4.hover, clamp(pw_hp4 * 3, 0, 1))); opacity: 100%; move 4.43 * u, -5.67 * u; line 6.11 * u, -3.82 * u; line 7.04 * u, -1.5 * u; line 7.13 * u, 1 * u; line 6.36 * u, 3.38 * u; line 4.82 * u, 5.35 * u; line 2.7 * u, 6.68 * u; line 0.25 * u, 7.2 * u; line -2.22 * u, 6.85 * u; line -4.43 * u, 5.67 * u; line -6.11 * u, 3.82 * u; line -7.04 * u, 1.5 * u; line -7.13 * u, -1 * u; line -6.36 * u, -3.38 * u; line -4.82 * u, -5.35 * u; line -4.43 * u, -5.67 * u }
+            box { at: cx + 113.0 * u, px_top + 96 * u - 8 * u - 5.5 * u; size: 1.6 * u, 9 * u; corner: 0.8 * u; color: mix(ink, mint, max(pw_t4.hover, clamp(pw_hp4 * 3, 0, 1))); opacity: 100% }
+            text "Power off" { at: floor(cx + 113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp4 < 0.03 }
+            text number(3 - 3 * clamp(pw_hp4, 0, 1), 1, "s") { at: floor(cx + 113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp4 >= 0.03 }
+            zone box pw_t4 { at: cx + 113.0 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
+            on press pw_t4 { pw_hp4: 1 ~3000ms }
+            on release pw_t4 { pw_hp4: 0 ~180ms }
+            on hold pw_t4 for 3000ms { pw_hp4: 0 ~300ms; emit pow_press(4) }
+            text "POWER PROFILE" { at: floor(cx - 138 * u + 0.5), floor(px_top + 142 * u + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            group { opacity: mix(0.45, 1, clamp(pow_prof + 1, 0, 1))
+                box { at: cx, px_top + 176 * u; size: 276 * u, 46 * u; corner: 16 * u; color: ink; opacity: 8% }
+                body {
+                    color: mint
+                    opacity: 24%
+                    rim: 40%
+                    shadow: 0, 2 * u, 8 * u, 25%, #000000
+                    box { at: cx + (pow_th - 1) * 92 * u, px_top + 176 * u; size: (90 + 8 * abs(pow_th - if(pow_prof < 0, 1, pow_prof))) * u, 40 * u; corner: 14 * u }
+                }
+                path { at: cx + -92 * u, px_top + 176 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); move -6.5 * u, 6.5 * u; curve 6.5 * u, -6.5 * u via -8 * u, -6 * u; curve -6.5 * u, 6.5 * u via 8 * u, 6 * u }
+                path { at: cx + -92 * u, px_top + 176 * u - 8 * u; stroke: 1.3 * u; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); move -6.5 * u, 6.5 * u; line 1 * u, -1 * u }
+                text "Saver" { at: floor(cx + -92 * u + 0.5), floor(px_top + 176 * u + 12 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 88 * u; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); family: "Space Grotesk" }
+                zone box pw_p0 { at: cx + -92 * u, px_top + 176 * u; size: 90 * u, 44 * u; corner: 15 * u; cursor: pointer; active: pow_prof >= 0 }
+                on press pw_p0 { emit pow_prof_set(0) }
+                box { at: cx + 0 * u, px_top + 176 * u - 8 * u - 3 * u; size: 13 * u, 1.7 * u; corner: 0.85 * u; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover) }
+                box { at: cx + 0 * u, px_top + 176 * u - 8 * u + 3 * u; size: 13 * u, 1.7 * u; corner: 0.85 * u; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover) }
+                text "Balanced" { at: floor(cx + 0 * u + 0.5), floor(px_top + 176 * u + 12 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 88 * u; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover); family: "Space Grotesk" }
+                zone box pw_p1 { at: cx + 0 * u, px_top + 176 * u; size: 90 * u, 44 * u; corner: 15 * u; cursor: pointer; active: pow_prof >= 0 }
+                on press pw_p1 { emit pow_prof_set(1) }
+                path { at: cx + 92 * u, px_top + 176 * u - 8 * u; stroke: 1.5 * u; color: mix(ink, mint, clamp(1 - abs(pow_th - 2), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 2), 0, 1), pw_p2.hover); move 1.5 * u, -8.5 * u; line -5 * u, 1.5 * u; line -0.6 * u, 1.5 * u; line -1.6 * u, 8.5 * u; line 5 * u, -1.5 * u; line 0.6 * u, -1.5 * u; line 1.5 * u, -8.5 * u }
+                text "Performance" { at: floor(cx + 92 * u + 0.5), floor(px_top + 176 * u + 12 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 88 * u; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 2), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 2), 0, 1), pw_p2.hover); family: "Space Grotesk" }
+                zone box pw_p2 { at: cx + 92 * u, px_top + 176 * u; size: 90 * u, 44 * u; corner: 15 * u; cursor: pointer; active: pow_prof >= 0 }
+                on press pw_p2 { emit pow_prof_set(2) }
             }
         }
 
@@ -2586,9 +2819,9 @@ scene Vitreus {
             text "Random" { at: floor(spx + 195 * u + 0.5), floor(sby + 74 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 74 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
             zone box wp_rand_hit { at: spx + 195 * u, sby + 74 * u; size: 80 * u, 26 * u; corner: 13 * u; cursor: pointer }
             on press wp_rand_hit { emit wp_random }
-            //  The galaxy: every wallpaper on a colour wheel (SUPER + B).
+            //  The wallpaper picker: every wallpaper as a hexagon (SUPER + B).
             box { at: spx + 285 * u, sby + 74 * u; size: 92 * u, 24 * u; corner: 12 * u; color: mint; opacity: 16% + 14% * wp_gal_hit.hover }
-            text "Galaxy" { at: floor(spx + 285 * u + 0.5), floor(sby + 74 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 700; width: 88 * u; lines: 1; color: mint; family: "Space Grotesk" }
+            text "Picker" { at: floor(spx + 285 * u + 0.5), floor(sby + 74 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 700; width: 88 * u; lines: 1; color: mint; family: "Space Grotesk" }
             zone box wp_gal_hit { at: spx + 285 * u, sby + 74 * u; size: 94 * u, 26 * u; corner: 13 * u; cursor: pointer }
             on press wp_gal_hit { emit gal_toggle }
 
@@ -3314,7 +3547,7 @@ scene Vitreus {
     on key Escape while dd_open { dd_open = false }
     on key Escape while panel != none and not dd_open { panel = none }
 
-    //  ── the wallpaper galaxy ─────────────────────────────────────
+    //  ── the wallpaper picker ─────────────────────────────────────
     //  The tray hangs under the bar. Which layout fits N hexagons best (the biggest ones that still fit the tray) is worked out here,
     //  from a few column counts around the one that N and the tray's shape suggest.
     let g.n = max(1, gal.count)

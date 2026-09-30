@@ -69,7 +69,9 @@ with its content fading in after the glass has settled
   desktop notification when due, and a weather strip: now, and the next seven days.
 * **Controls** — Wi-Fi and Bluetooth tiles that each open their own window (scan, connect, forget, password entry),
   a **Notifications** module (Do Not Disturb with a timer, and a notification history), Caffeine (with timers),
-  brightness, volume with an output picker and a per-app mixer (right-click the volume card, or press its dots: one
+  **Capture** (a screenshot of a region or the whole screen, copied and saved to `~/Pictures/Screenshots`, and a screen
+  recording into `~/Videos`, started and stopped from the tile's button) and **Power** (lock, sleep, log out,
+  restart and power off, each of which has to be held for three seconds; and the power profile, on a sliding glass switch), brightness, volume with an output picker and a per-app mixer (right-click the volume card, or press its dots: one
   slider and mute button for each app playing sound; needs `pactl`).
 * **Player** — a media card with cover art and a live spectrum from `cava`, plus the running windows (focus or close
   them) and background apps from the tray.
@@ -127,6 +129,10 @@ Optional, each enabling one thing (Vitreus runs without them and that part stays
 | BlueZ (`bluetoothctl`) | Bluetooth scanning |
 | `brightnessctl` | the brightness slider |
 | `hypridle` + systemd | Caffeine |
+| `grim` + `slurp` + `wl-clipboard` | Capture's screenshots (a region is picked with `slurp`) |
+| `wf-recorder` + `slurp` | Capture's screen recording (video only, no audio) |
+| `power-profiles-daemon` (`powerprofilesctl`) | the power profile in Power |
+| `systemd` (`systemctl`, `loginctl`) | Power's sleep, restart, power off and log out |
 | `pactl` (PipeWire or PulseAudio) | the per-app volume mixer |
 | `hyprctl` | running windows, Settings > Display and > Hyprland, and the launcher starting apps |
 | `notify-send` | calendar reminders |
