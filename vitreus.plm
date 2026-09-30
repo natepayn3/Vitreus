@@ -131,7 +131,7 @@ scene Vitreus {
     measure ntt                    // how tall the notification's title really is once wrapped
     measure ntb                    // and its body
     text nt_iconpath = ""          // the app's icon, or the picture it brought: a name or a path
-    image nt_img = from nt_iconpath, 44, 44
+    image nt_img = from nt_iconpath, 59, 59       // drawn at 44 * u = 59: declared at that, or it is made at 44 and stretched (soft, with a jagged edge)
     fact nt_icon_on = false
     fact nt_body_on = false
     fact nt_urgent = false
@@ -2704,7 +2704,7 @@ scene Vitreus {
             }
             group {
                 show: nt_icon_on
-                image nt_img { at: ntx - 22 * u, nty - 22 * u; size: 44 * u, 44 * u }
+                image nt_img { at: floor(ntx - 22 * u + 0.5), floor(nty - 22 * u + 0.5); size: floor(44 * u + 0.5), floor(44 * u + 0.5) }
             }
             //  A ring off the tile when it arrives.
             ellipse { at: ntx, nty; radius: (24 + 22 * nt_ring) * u; stroke: 2 * u; color: if(nt_urgent, alert, mint); opacity: 90% * (1 - nt_ring) }
