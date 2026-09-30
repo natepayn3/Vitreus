@@ -12,3 +12,7 @@ hl.bind("SUPER + SHIFT + Space", hl.dsp.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\
 -- SUPER + L locks with the pleamar lock screen, falling back to Synoptik's if that scene is not running.
 hl.unbind("SUPER + L")
 hl.bind("SUPER + L", hl.dsp.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --say lockscreen \"fact locked true\" || qs -c Synoptik ipc call lockscreen lock"))
+
+-- SUPER + B opens the wallpaper galaxy: every wallpaper as a bead on a colour wheel (it was Synoptik's wallpaper picker's key).
+hl.unbind("SUPER + B")
+hl.bind("SUPER + B", hl.dsp.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --say vitreus \"emit gal_toggle\" || qs -c Synoptik ipc call wallpaper toggle"))
