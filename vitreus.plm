@@ -7,7 +7,7 @@ import "palette.plm"
 //  bar: it is the same silhouette, melted, so it hangs from it like a drop.
 
 scene Vitreus {
-    surface { size: 900, 800; anchor: top; margin: 0; reserve: 68; screens: all; keyboard: exclusive while panel != none and panel != volume and panel != notif }
+    surface { size: full, 800; anchor: top; margin: 0; reserve: 68; screens: all; keyboard: exclusive while panel != none and panel != volume and panel != notif }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "pleamar", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid" }
 
@@ -1124,7 +1124,13 @@ scene Vitreus {
         on press del_z { emit del(h.index) }
     }
 
-    let cx = 450
+    let cx = screen.width / 2
+    //  Click away. The surface is the whole screen (its input region is only what has a zone, so the rest lets clicks through), and this
+    //  zone, declared before everything else so that everything else wins over it, closes the panel on a press anywhere that is not
+    //  the panel or the bar. A second surface for this would take Escape away from the panel, so it is done here.
+    zone box away_z { at: screen.width / 2, screen.height / 2; size: screen.width, screen.height; active: panel != none and panel != volume and panel != notif }
+    on press away_z { panel = none }
+    on press right away_z { panel = none }
     //  The tray's icons (the pinned apps, or all of them) are a piece of the bar like the others; the bar widens for them.
     let bar.gap = 12 * u
     let fw.tray = max(0, trn * 24 - 6) * u               // icons 18 wide, 6 apart
@@ -3295,139 +3301,4 @@ scene Vitreus {
     on key Escape while dd_open { dd_open = false }
     on key Escape while panel != none and not dd_open { panel = none }
 
-    //  ── the wallpaper galaxy ─────────────────────────────────────
-    surface galaxy {
-        size: full, full
-        anchor: center
-        level: overlay
-        keyboard: exclusive while gal_open
-        open: gal_show > 0.01
-
-        let gcx = galaxy.width / 2
-        let gcy = galaxy.height / 2
-        let gR = min(galaxy.width, galaxy.height) * 0.43            // the wheel's radius, in pixels
-
-        //  The room: the desktop dimmed and blurred behind (the shape is bigger than the screen, so the glass's edge light
-        //  falls outside it), and a soft pool of colour in the middle. `gal_veil` takes all of it away when a wallpaper has
-        //  been picked, so that the desktop's own transition is seen.
-        let gv = gal_show * gal_veil
-        body {
-            color: #05070d
-            glass: 100%
-            lens: false
-            rim: 0%
-            opacity: 68% * gv
-            box { at: gcx, gcy; size: galaxy.width + 120, galaxy.height + 120 }
-        }
-        body {
-            gradient: radial gcx, gcy radius gR * 1.35, #232b45, #05070d
-            opacity: 55% * gv
-            box { at: gcx, gcy; size: galaxy.width, galaxy.height }
-        }
-        //  The hovered colour washes over the room from where the bead is (it is the colour of its hue).
-        let wq = gal_hue / 60
-        let wc = mix(mix(mix(mix(mix(mix(#ff3d3d, #ffc61f, clamp(wq, 0, 1)), #35f06a, clamp(wq - 1, 0, 1)), #22d8ff, clamp(wq - 2, 0, 1)), #4a63ff, clamp(wq - 3, 0, 1)), #ff35d2, clamp(wq - 4, 0, 1)), #ff3d3d, clamp(wq - 5, 0, 1))
-        body {
-            gradient: radial gal_hxs, gal_hys radius gR * 1.3, wc, #05070d
-            opacity: 30% * gal_hs * gv
-            box { at: gcx, gcy; size: galaxy.width, galaxy.height }
-        }
-        //  Pressing anywhere that is not a bead closes it; a bead, declared later, wins its own press.
-        zone box gal_bg { at: gcx, gcy; size: galaxy.width, galaxy.height }
-        on press gal_bg { gal_open = false }
-        on press right gal_bg { gal_open = false }
-
-        //  The wheel: guide rings (the middle is grey and dim, the rim is vivid), and the spectrum round the rim, which
-        //  is what the angle means. Red is at the top and it goes round clockwise, as the beads do.
-        repeat k in 1..4 {
-            ellipse { at: gcx, gcy; radius: gR * k / 3 * (0.94 + 0.06 * gal_show); stroke: 1; color: #ffffff; opacity: 6% * gv }
-        }
-        repeat k in 0..72 {
-            arc { at: gcx, gcy; radius: gR * 1.085; span: 5.4deg; width: 4 + 4 * gal_hs * clamp(1 - abs(mod(k * 5 - gal_hue + 540, 360) - 180) / 40, 0, 1); color: pick(k, #ff3d3d, #ff483a, #ff5438, #ff5f36, #ff6b33, #ff7630, #ff822e, #ff8d2c, #ff9829, #ffa426, #ffaf24, #ffbb22, #ffc61f, #eeca25, #ddcd2c, #ccd032, #bcd438, #abd83e, #9adb44, #89de4b, #78e251, #68e657, #57e95e, #46ec64, #35f06a, #33ee76, #32ec83, #30ea8f, #2fe89c, #2de6a8, #2ce4b4, #2ae2c1, #28e0cd, #27deda, #25dce6, #24daf3, #22d8ff, #25ceff, #29c5ff, #2cbbff, #2fb1ff, #33a7ff, #369eff, #3994ff, #3d8aff, #4080ff, #4376ff, #476dff, #4a63ff, #595ffb, #685bf8, #7758f4, #8654f0, #9550ec, #a44ce8, #b448e5, #c344e1, #d240dd, #e13dda, #f039d6, #ff35d2, #ff36c6, #ff36b9, #ff37ad, #ff38a0, #ff3894, #ff3988, #ff3a7b, #ff3a6f, #ff3b62, #ff3c56, #ff3c49); rotate: k * 5deg; opacity: (34% + 30% * gal_hs) * gv }
-        }
-        //  Where the hovered bead's hue is on the rim: a bright mark.
-        ellipse { at: gcx + sin(gal_hue) * gR * 1.085, gcy - cos(gal_hue) * gR * 1.085; radius: 6; color: #ffffff; opacity: 90% * gal_hs * gv }
-
-        //  The middle: the wallpaper in use, as a disc. Pressing it is Random: any wallpaper, growing from the middle of
-        //  the screen.
-        let cr = gR * 0.21
-        zone box gal_center { at: gcx, gcy; size: cr * 2, cr * 2; corner: cr; cursor: pointer; active: gal_show > 0.5 }
-        on press gal_center { emit gal_random }
-        group {
-            opacity: gv
-            let ch = 1 + 0.06 * gal_center.hover
-            ellipse { at: gcx, gcy; radius: cr * ch + 10; color: #ffffff; opacity: 7% + 8% * gal_center.hover }
-            group {
-                clip inset 0 ellipse { at: gcx, gcy; radius: cr * ch }
-                image gal_nowimg { at: gcx - cr * ch, gcy - cr * ch; size: 2 * cr * ch, 2 * cr * ch }
-                ellipse { at: gcx, gcy; radius: cr * ch; color: #05070d; opacity: 18% + 42% * gal_center.hover }
-                ellipse { at: gcx - cr * 0.3, gcy - cr * 0.4; radius: cr * 0.62; color: #ffffff; opacity: 8% }
-            }
-            ellipse { at: gcx, gcy; radius: cr * ch; stroke: 2; color: #ffffff; opacity: 80% }
-            text "NOW" { at: gcx, floor(gcy - cr * 0.55 + 0.5); anchor: center; align: center; size: 11; weight: 700; color: #ffffff; opacity: 65% * (1 - gal_center.hover); family: "Space Grotesk" }
-            text "Random" { at: gcx, gcy; anchor: center; align: center; size: 20; weight: 700; color: #ffffff; opacity: gal_center.hover; family: "Space Grotesk" }
-            text "any wallpaper" { at: gcx, floor(gcy + 26); anchor: center; align: center; size: 11; color: #ffffff; opacity: 70% * gal_center.hover; family: "Space Grotesk" }
-        }
-
-        //  The beads. One that is not under the pointer is small, with a ring of its own colour; the ones near the pointer
-        //  lean away from it (all of them, by how near, `inf`), which is what makes room for the one that swells. They come
-        //  in one after another (`ent`) as the overlay opens.
-        repeat i in 0..140 {
-            let bx0 = gcx + gal.$i.x * gR
-            let by0 = gcy + gal.$i.y * gR
-            let dxh = bx0 - gal_hxs
-            let dyh = by0 - gal_hys
-            let dh = if(gal_hs > 0.002, max(1, length(dxh, dyh)), 1)
-            let inf = if(gal_hs > 0.002, gal_hs * pow(clamp(1 - dh / 210, 0, 1), 2), 0)
-            let bx = bx0 + dxh / dh * inf * 100
-            let by = by0 + dyh / dh * inf * 100
-            let sw = gal_z.$i.hover
-            let ent = clamp(gal_show * 2.2 - i * 0.0085, 0, 1)
-            let rr = (22 + 3 * sw) * (0.55 + 0.45 * ent) * (1 - 0.3 * gal_hs * clamp(1 - dh / 250, 0, 1))
-            group {
-                show: i < gal.count and gal_hot != i
-                opacity: ent * gal_veil * if(gal.$i.dim, 30%, 100%)
-                ellipse { at: bx, by; radius: rr + 3; color: pick(gal.$i.hi, #ff3d3d, #ff5438, #ff6b33, #ff822e, #ff9829, #ffaf24, #ffc61f, #ddcd2c, #bcd438, #9adb44, #78e251, #57e95e, #35f06a, #32ec83, #2fe89c, #2ce4b4, #28e0cd, #25dce6, #22d8ff, #29c5ff, #2fb1ff, #369eff, #3d8aff, #4376ff, #4a63ff, #685bf8, #8654f0, #a44ce8, #c344e1, #e13dda, #ff35d2, #ff36b9, #ff38a0, #ff3988, #ff3a6f, #ff3c56); opacity: 16% + 20% * sw }
-                image gal.$i.img { at: bx - rr, by - rr; size: 2 * rr, 2 * rr }
-                ellipse { at: bx, by; radius: rr; stroke: 1.5; color: pick(gal.$i.hi, #ff3d3d, #ff5438, #ff6b33, #ff822e, #ff9829, #ffaf24, #ffc61f, #ddcd2c, #bcd438, #9adb44, #78e251, #57e95e, #35f06a, #32ec83, #2fe89c, #2ce4b4, #28e0cd, #25dce6, #22d8ff, #29c5ff, #2fb1ff, #369eff, #3d8aff, #4376ff, #4a63ff, #685bf8, #8654f0, #a44ce8, #c344e1, #e13dda, #ff35d2, #ff36b9, #ff38a0, #ff3988, #ff3a6f, #ff3c56); opacity: 75% }
-                ellipse { at: bx, by; radius: rr + 5; stroke: 1.5; color: #ffffff; opacity: if(gal.$i.cur, 85%, 0%) }
-            }
-            //  Its zone is small, and swells with the bead that is under the pointer, so the pointer can stay anywhere on the
-            //  lens. (The others are pushed clear of it, so their zones do not meet it.)
-            let zs = 46 + 84 * gal_hs * if(gal_hot == i, 1, 0)
-            zone box gal_z.$i { at: bx, by; size: zs, zs; corner: zs / 2; cursor: pointer; active: i < gal.count and gal_show > 0.5 and gal_leaving == 0 }
-        }
-        //  Entering a bead makes it the one; it stops being the one when the pointer has been away from it for a moment and
-        //  nothing else has taken over (so crossing the gap from one bead to the next never blinks).
-        repeat i in 0..140 { on enter gal_z.$i { gal_hot = i; gal_hx = gcx + gal.$i.x * gR; gal_hy = gcy + gal.$i.y * gR; gal_hue = gal.$i.hue } }
-        repeat i in 0..140 { on away gal_z.$i for 260ms while gal_hot == i { gal_hot = -1 } }
-        repeat i in 0..140 {
-            on press gal_z.$i { gal_px = gcx + gal.$i.x * gR; gal_py = galaxy.height - (gcy + gal.$i.y * gR); emit gal_pick(i) }
-        }
-
-        //  The bead under the pointer, swollen into a lens, with its name. It is one drawing that glides from bead to bead
-        //  (its place is the leaning point's spring), with one big picture that the logic swaps.
-        group {
-            show: gal_hs > 0.01
-            opacity: gal_show * gal_veil * min(1, gal_hs * 3)
-            let hr = 26 + 52 * gal_hs
-            ellipse { at: gal_hxs, gal_hys; radius: hr + 16; color: wc; opacity: 14% }
-            ellipse { at: gal_hxs, gal_hys; radius: hr + 7; color: wc; opacity: 26% }
-            group {
-                clip inset 0 ellipse { at: gal_hxs, gal_hys; radius: hr }
-                image gal_lens { at: gal_hxs - hr, gal_hys - hr; size: 2 * hr, 2 * hr }
-                ellipse { at: gal_hxs - hr * 0.3, gal_hys - hr * 0.42; radius: hr * 0.6; color: #ffffff; opacity: 10% }
-            }
-            ellipse { at: gal_hxs, gal_hys; radius: hr; stroke: 2; color: wc }
-            ellipse { at: gal_hxs, gal_hys; radius: hr + 6; stroke: 1.5; color: #ffffff; opacity: if(gal_hero_cur, 85%, 0%) }
-            box { at: gal_hxs, gal_hys + hr + 28; size: 230, 30; corner: 15; color: #05070d; opacity: 66% }
-            box { at: gal_hxs, gal_hys + hr + 28; size: 230, 30; corner: 15; stroke: 1; color: wc; opacity: 55% }
-            text gal_hero_name { at: floor(gal_hxs + 0.5), floor(gal_hys + hr + 28 + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 220; lines: 1; color: #ffffff; family: "Space Grotesk" }
-        }
-
-        text gal_status { at: gcx, floor(gcy + 0.5); anchor: center; align: center; size: 18; weight: 600; width: 600; lines: 1; color: #ffffff; opacity: 70% * gv; family: "Space Grotesk"; show: gal.count < 1 }
-
-        //  A line of help, at the foot.
-        text "Pick a wallpaper  ·  the middle is Random  ·  Esc closes" { at: gcx, floor(galaxy.height - 46 + 0.5); anchor: center; align: center; size: 13; color: #ffffff; opacity: 42% * gv; family: "Space Grotesk" }
-    }
 }
