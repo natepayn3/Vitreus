@@ -4195,19 +4195,17 @@ scene Vitreus {
             let rr = g.R * 0.93 * (0.6 + 0.4 * ent) * ring * (1 + 0.8 * gi)
             group {
                 show: i < g.n and i < gal.count and gal_hot != i
-                opacity: ent * if(gal.$i.dim, 25%, 1) * (0.75 + 0.25 * max(hv, cu))
-                //  A soft shadow under every tile gives the grid some depth.
+                //  The fade goes on each shape, not on the group: a group with an opacity (or a clip) is drawn in a layer of its own, and the renderer gives only
+                //  sixty-four of those a frame, so the lower tiles lost their opacity and the hovered one its tilt. The pictures are already cut to the hexagon.
+                let to = ent * if(gal.$i.dim, 25%, 1) * (0.75 + 0.25 * max(hv, cu))
+                //  No blurred shadow under the resting tiles: a hundred and forty blur passes a frame were most of what this page cost. The hovered tile has its own.
                 body {
                     color: #05070d
-                    opacity: 30%
-                    shadow: 0, 8, 18, 70%, #000000
+                    opacity: 30% * to
                     path { at: bxl, byl; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
                 }
-                group {
-                    clip path { at: bxl, byl; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
-                    image gal.$i.img { at: bxl - 0.866 * rr, byl - rr; size: 1.732 * rr, 2 * rr }
-                }
-                path { at: bxl, byl; stroke: 2.6 + 1.6 * cu; color: mix(#ffffff, mint, cu); opacity: 55% + 45% * max(hv, cu); move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
+                image gal.$i.img { at: bxl - 0.866 * rr, byl - rr; size: 1.732 * rr, 2 * rr; opacity: to }
+                path { at: bxl, byl; stroke: 2.6 + 1.6 * cu; color: mix(#ffffff, mint, cu); opacity: (55% + 45% * max(hv, cu)) * to; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
             }
             //  The hovered one: the same tile as liquid glass. Its group's shader adds the light (a soft spot under the pointer, and a band
             //  that sweeps across on arrival), and it stands off the grid on a deeper shadow.

@@ -1645,7 +1645,10 @@ local function wp_crop(files, kind, w, h, done)
     for _, f in ipairs(todo) do
         local out = crop_path(f, kind)
         wp_made[out] = "busy"
-        run("magick", { f .. "[0]", "-thumbnail", w .. "x" .. h .. "^", "-gravity", "center",
+        -- `jpeg:size` lets the decoder shrink while it reads (a 4K picture is not decoded whole to make a thumbnail), and one
+        -- thread each keeps a page of these from taking every core.
+        run("magick", { "-limit", "thread", "1", "-define", "jpeg:size=" .. (w * 2) .. "x" .. (h * 2), f .. "[0]",
+                        "-thumbnail", w .. "x" .. h .. "^", "-gravity", "center",
                         "-extent", w .. "x" .. h, "-quality", "88", out }, function(_, code)
             wp_made[out] = code == 0
             left = left - 1
@@ -1701,11 +1704,11 @@ wp_on_change = function(path)
     wp_refresh()
 end
 
-local function wp_apply(path, how)
+local function wp_apply(path, how, started)
     -- `how`: awww's transition flags. The wallpaper picker asks for a bloom from the tile that was pressed.
     local args = { "img", path }
     for _, a in ipairs(how or { "--transition-type", "fade", "--transition-duration", "0.8" }) do args[#args + 1] = a end
-    run("awww", args, function() end)
+    run("awww", args, function() if started then started() end end)     -- `started`: awww has the picture, the change is under way
     wp_on_change(path)
     -- The path is known: Iris starts now, while the fade plays, not when the watcher next notices the
     -- change. Marking it seen stops the watcher running it a second time.
@@ -4246,15 +4249,23 @@ end)()
         return h % 360
     end
 
-    local function hero_of(f) return G.dir .. "/" .. name_of(f) .. ".hero.jpg" end
     local function hex_of(f) return G.dir .. "/" .. name_of(f) .. ".hex.png" end
 
     -- One wallpaper: its square picture and its colours (one ImageMagick pass), then its hexagon: that picture cut to the
     -- shape, with a little gloss on it. One small picture per wallpaper, already the right shape, keeps the atlas (one
     -- texture for every image and letter on screen) from filling up.
     local function analyse(f, done)
-        run("magick", { f .. "[0]", "-thumbnail", HERO .. "x" .. HERO .. "^", "-gravity", "center", "-extent", HERO .. "x" .. HERO,
-                        "-quality", "88", "-write", hero_of(f), "-thumbnail", "100x100", "-colors", "32", "-format", "%c", "histogram:info:" },
+        local hw = TW / 2
+        local poly = string.format("polygon %g,0 %d,%g %d,%g %g,%d 0,%g 0,%g", hw, TW, TH * 0.25, TW, TH * 0.75, hw, TH, TH * 0.75, TH * 0.25)
+        -- One pass, one thread: the picture is read once (shrunk while it is decoded, `jpeg:size`), cut to the hexagon and written,
+        -- and the same square picture gives the colour histogram. This was two programs per wallpaper, the first reading the whole
+        -- picture with every core, and the second reading back the square picture it had written.
+        run("magick", { "-limit", "thread", "1", "-define", "jpeg:size=" .. (HERO * 2) .. "x" .. (HERO * 2), f .. "[0]",
+                        "-thumbnail", HERO .. "x" .. HERO .. "^", "-gravity", "center", "-extent", HERO .. "x" .. HERO,
+                        "(", "+clone", "-resize", TW .. "x" .. TH .. "^", "-extent", TW .. "x" .. TH, "-alpha", "set",
+                             "(", "-size", TW .. "x" .. TH, "xc:none", "-fill", "white", "-draw", poly, ")",
+                             "-compose", "DstIn", "-composite", "-write", "PNG32:" .. hex_of(f), "+delete", ")",
+                        "-thumbnail", "100x100", "-colors", "32", "-format", "%c", "histogram:info:" },
             function(res, code)
                 if code == 0 and res then
                     local total, sat_sum, val_sum, x, y, wsum = 0, 0, 0, 0, 0, 0
@@ -4275,17 +4286,7 @@ end)()
                         G.data[f] = { h = hue, s = sat_sum / total, v = val_sum / total }
                     end
                 end
-                if not G.data[f] then return done() end
-                local hw = TW / 2
-                local poly = string.format("polygon %g,0 %d,%g %d,%g %g,%d 0,%g 0,%g", hw, TW, TH * 0.25, TW, TH * 0.75, hw, TH, TH * 0.75, TH * 0.25)
-                run("magick", { hero_of(f), "-resize", TW .. "x" .. TH .. "^", "-gravity", "center", "-extent", TW .. "x" .. TH, "-alpha", "set",
-                                "(", "-size", TW .. "x" .. TH, "xc:none", "-fill", "white", "-draw", poly, ")",
-                                "-compose", "DstIn", "-composite",
-                                "PNG32:" .. hex_of(f) },
-                    function(_, code2)
-                        if code2 ~= 0 then G.data[f] = nil end
-                        done()
-                    end)
+                done()
             end)
     end
 
@@ -4345,7 +4346,7 @@ end)()
     end
 
     local function pump()
-        while G.busy < 2 and #G.queue > 0 do
+        while G.busy < 3 and #G.queue > 0 do
             local f = table.remove(G.queue)
             G.busy = G.busy + 1
             analyse(f, function()
@@ -4365,7 +4366,7 @@ end)()
             G.dir = d.cache .. "/gal"
             run("mkdir", { "-p", G.dir }, function()
                 -- the earlier versions' pictures are not used any more
-                run("find", { G.dir, "-maxdepth", "1", "(", "-name", "*.bead.png", "-o", "(", "-name", "*.jpg", "!", "-name", "*.hero.jpg", ")", ")", "-delete" }, function() end)
+                run("find", { G.dir, "-maxdepth", "1", "(", "-name", "*.bead.png", "-o", "-name", "*.jpg", ")", "-delete" }, function() end)
                 run("find", { G.dir, "-maxdepth", "1", "-name", "*.hex.png", "-printf", "%f\n" }, function(out)
                     for line in (out or ""):gmatch("[^\n]+") do G.have[line:gsub("%.hex%.png$", "")] = true end
                     local ok, saved = pcall(sys.ask, "files.read", "wallpaper-galaxy.json", "json")
@@ -4409,18 +4410,21 @@ end)()
         if not f then return end
         local px, py = math.floor((fact.gal_px or 0) + 0.5), math.floor((fact.gal_py or 0) + 0.5)
         wp_apply(f, { "--transition-type", "grow", "--transition-pos", px .. "," .. py, "--transition-duration", "1.6",
-                      "--transition-fps", "60", "--transition-step", "60" })
-        fact.gal_leaving = true                            -- the tray fades, and the desktop is what is left to see
-        after(1900, function() fact.gal_open = false; fact.gal_leaving = false end)
+                      "--transition-fps", "60", "--transition-step", "60" }, function()
+            -- Only now does the tray leave: before, the desktop would show the old wallpaper while awww is still decoding the new one.
+            fact.gal_leaving = true
+            after(350, function() fact.gal_open = false; fact.gal_leaving = false end)
+        end)
     end)
     -- Random: any wallpaper, from the middle of the screen.
     on("gal_random", function()
         local f = wp_random_pick()
         if not f then return end
         wp_apply(f, { "--transition-type", "grow", "--transition-pos", "center", "--transition-duration", "1.6",
-                      "--transition-fps", "60", "--transition-step", "60" })
-        fact.gal_leaving = true
-        after(1900, function() fact.gal_open = false; fact.gal_leaving = false end)
+                      "--transition-fps", "60", "--transition-step", "60" }, function()
+            fact.gal_leaving = true
+            after(350, function() fact.gal_open = false; fact.gal_leaving = false end)
+        end)
     end)
 end)()
 
