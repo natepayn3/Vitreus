@@ -99,6 +99,8 @@ the text. It takes about half a second after a wallpaper change.
   screen needs 0.2.2: earlier versions crash the session on `kind: lock`.)
 * A Wayland compositor with layer-shell. It is developed on **Hyprland**; the running-windows list uses `hyprctl`,
   so that part is Hyprland-only.
+* [**hyprsunset**](https://github.com/hyprwm/hyprsunset) — Hyprland's blue-light filter, which Night mode drives (the installer
+  requires it). It tints the screen by handing the compositor a colour transform, so nothing is re-rendered.
 * The **Space Grotesk** font.
 
 Optional, each enabling one thing (Vitreus runs without them and that part stays quiet):

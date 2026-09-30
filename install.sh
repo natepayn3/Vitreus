@@ -12,7 +12,8 @@
 #
 # What it does, in order:
 #   1. the packages Vitreus uses      (Arch and its relatives: pacman, and yay/paru for the AUR;
-#                                      on any other distribution it lists what to install by hand)
+#                                      on any other distribution it lists what to install by hand).
+#                                      hyprsunset is required (Night mode): without it, this stops
 #   2. pleamar, the runtime           (its own installer, into your home; a few minutes to build)
 #   3. the Space Grotesk font         (into ~/.local/share/fonts, no sudo)
 #   4. the shell                      (into ~/.config/pleamar/shells/vitreus: cloned, or updated)
@@ -34,7 +35,7 @@ autostart="$conf/pleamar/autostart"
 fonts="$data/fonts/SpaceGrotesk"
 
 # Official-repo packages, then AUR ones: what each is for is in the README.
-pacman_pkgs="git curl fontconfig imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww"
+pacman_pkgs="git curl fontconfig imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle hyprsunset libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww"
 aur_pkgs="iris-colors"
 
 assume_yes=false
@@ -142,7 +143,7 @@ if $deps; then
         fi
     else
         say "this is not an Arch-family system, so nothing is installed for you. Vitreus uses these programs"
-        say "(all optional except pleamar: each one only enables one feature):"
+        say "(all optional except pleamar and hyprsunset: each of the others only enables one feature):"
         cat <<'LIST'
     cava            the bass pulse and the equalizer
     playerctl       cover art
@@ -157,10 +158,16 @@ if $deps; then
     BlueZ           Bluetooth (bluetoothctl)
     brightnessctl   the brightness slider
     hypridle        Caffeine
+    hyprsunset      Night mode (REQUIRED: https://github.com/hyprwm/hyprsunset)
     libnotify       calendar reminders (notify-send)
     xdg-user-dirs   finding your Pictures folder
     git, fontconfig
 LIST
+    fi
+    # hyprsunset is not optional: Night mode is driven by it. Without it the shell would have to fall back to a Hyprland
+    # screen shader, which makes Hyprland rebuild its buffers on every change and flicker while a panel is open.
+    if ! $dry && ! have hyprsunset; then
+        fail "hyprsunset is required (it is what Night mode uses) and it is not installed. Install it and run this again: sudo pacman -S hyprsunset (Arch), or your distribution's package (https://github.com/hyprwm/hyprsunset)"
     fi
     have hyprctl || warn "Hyprland was not found. Vitreus needs a Wayland compositor with layer-shell; the list of running windows needs Hyprland."
 
