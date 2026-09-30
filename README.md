@@ -90,6 +90,11 @@ with its content fading in after the glass has settled
   with a slight bounce and tilts in 3D toward the pointer while the tiles round it make room; click one and it blooms
   out of the tile as the new wallpaper. The first time it opens it reads your wallpapers once (thumbnails are cached);
   `Esc` or a click outside closes it.
+* **Authentication** — Vitreus is the session's polkit agent. When something asks for admin rights (`pkexec`, a disk or
+  package tool's GUI), a card in the bar's glass asks for your password over a dimmed desktop: it says what is being
+  asked, whose password it is, shakes when the password is wrong, and `Esc` cancels. The password is read out of the
+  scene's field by the agent over pleamar's own socket, so it is never on a command line or on disk. Only one agent can
+  hold a session: if polkit-gnome or hyprpolkitagent is already running, that one keeps answering (see Requirements).
 * **Volume** — a small face and a wave whose curves stretch out as the volume rises.
 * **Notifications** — Vitreus is the notification server. Banners grow to fit their title, body and buttons; critical
   ones stay until dismissed; everything lands in the history, including what Do Not Disturb held back.
@@ -133,6 +138,7 @@ Optional, each enabling one thing (Vitreus runs without them and that part stays
 | `wf-recorder` + `slurp` | Capture's screen recording (video only, no audio) |
 | `power-profiles-daemon` (`powerprofilesctl`) | the power profile in Power |
 | `systemd` (`systemctl`, `loginctl`) | Power's sleep, restart, power off and log out |
+| `polkit` + `python-gobject` | the authentication dialog (`bin/vitreus-polkit-agent`, started by the shell; needs no other agent running) |
 | `pactl` (PipeWire or PulseAudio) | the per-app volume mixer |
 | `hyprctl` | running windows, Settings > Display and > Hyprland, and the launcher starting apps |
 | `notify-send` | calendar reminders |

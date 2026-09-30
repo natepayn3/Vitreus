@@ -18,7 +18,7 @@
 #   3. the Space Grotesk font         (into ~/.local/share/fonts, no sudo)
 #   4. the shell                      (into ~/.config/pleamar/shells/vitreus: cloned, or updated)
 #   5. your palette, autostart entry  (made once and never written over)
-#   5b. the launcher's helper        (bin/vitreus-clipimg, linked into ~/.local/bin)
+#   5b. the helpers                  (bin/vitreus-clipimg and bin/vitreus-polkit-agent, linked into ~/.local/bin)
 #   6. its Hyprland key binds         (hypr_vitreus.lua linked into ~/.config/hypr, and loaded from hyprland.lua)
 #
 # It never installs a compositor: Vitreus is developed on Hyprland, and needs one that has layer-shell.
@@ -35,7 +35,7 @@ autostart="$conf/pleamar/autostart"
 fonts="$data/fonts/SpaceGrotesk"
 
 # Official-repo packages, then AUR ones: what each is for is in the README.
-pacman_pkgs="git curl fontconfig imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle hyprsunset libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww grim slurp wf-recorder power-profiles-daemon"
+pacman_pkgs="git curl fontconfig imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle hyprsunset libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww grim slurp wf-recorder power-profiles-daemon polkit python-gobject"
 aur_pkgs="iris-colors"
 
 assume_yes=false
@@ -100,6 +100,7 @@ if [ "$action" = uninstall ]; then
         say "removed Vitreus's lines from $hyprlua (SUPER + L and SUPER + Space go back to what hypr_style.lua binds)"
     fi
     if [ -L "$HOME/.local/bin/vitreus-clipimg" ]; then run rm -f "$HOME/.local/bin/vitreus-clipimg"; fi
+    if [ -L "$HOME/.local/bin/vitreus-polkit-agent" ]; then run rm -f "$HOME/.local/bin/vitreus-polkit-agent"; fi
     if [ -L "$conf/hypr/hypr_vitreus.lua" ]; then run rm -f "$conf/hypr/hypr_vitreus.lua"; fi
     run rm -f "$conf/hypr/vitreus_monitors.lua" "$conf/hypr/vitreus_hypr.lua"
     if [ -d "$dest" ] && ask "delete $dest?"; then run rm -rf "$dest"; fi
@@ -151,6 +152,7 @@ if $deps; then
     iris            theming from the wallpaper (https://aur.archlinux.org/packages/iris-colors)
     imagemagick     wallpaper thumbnails, the launcher's picture previews
     wl-clipboard    the launcher copying (wl-copy), and Capture copying a screenshot
+    polkit, python-gobject  the authentication dialog (Vitreus asks for your password when something wants admin rights)
     grim, slurp     Capture's screenshots (slurp picks the region)
     wf-recorder     Capture's screen recording (slurp picks the region)
     power-profiles-daemon  the power profile in Power (powerprofilesctl)
@@ -249,6 +251,9 @@ fi
 if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
     run mkdir -p "$HOME/.local/bin"
     run ln -sf "$dest/bin/vitreus-clipimg" "$HOME/.local/bin/vitreus-clipimg"
+    # The authentication dialog's agent, which the shell starts by itself. Only one polkit agent can hold a session: if another is
+    # already running (polkit-gnome, hyprpolkitagent...), it keeps answering and this one says so and ends.
+    [ -x "$dest/bin/vitreus-polkit-agent" ] && run ln -sf "$dest/bin/vitreus-polkit-agent" "$HOME/.local/bin/vitreus-polkit-agent"
     case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) warn "$HOME/.local/bin is not in your PATH: the launcher's clipboard pictures need it" ;; esac
 # Hyprland does not read ~/.bashrc: if ~/.local/bin is only added there, its binds and exec-once lines never find
 # `pleamar`. hypr_vitreus.lua adds it to PATH itself; whatever you start from hyprland.lua has to do the same.

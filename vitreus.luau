@@ -3518,12 +3518,25 @@ pkill -f "^pleamar --scene $P"
 sleep 0.3
 exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
 ]]
-    local SSH = "core.sshCommand=ssh -o BatchMode=yes -o ConnectTimeout=15"
+    local SSH = "core.sshCommand=ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=5 -o ServerAliveCountMax=3"
 
     local function busy(b, msg)
         A.busy = b
         fact.about_busy = b
         if msg then text.about_msg = msg end
+        -- A network command that hangs (a connection that stalls instead of failing, on a flaky network) must not leave the page
+        -- busy for good, so after a while it lets go of it: the page is usable again, and a late answer only fills in its text.
+        A.gen = (A.gen or 0) + 1
+        if b then
+            local mine = A.gen
+            after(45000, function()
+                if A.gen == mine and A.busy then
+                    A.busy = false
+                    fact.about_busy = false
+                    text.about_msg = "That took too long and was given up on. Check the network and try again."
+                end
+            end)
+        end
     end
 
     local function git(args, cb)
@@ -3600,9 +3613,12 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
     end
 
     on("about_check", function() check() end)
+    -- Restart does not wait for a check or an update to finish (or to hang): it is the way out of one, and it only guards
+    -- against being pressed twice.
     on("about_restart", function()
-        if A.busy then return end
-        A.busy = true
+        if A.restarting then return end
+        A.restarting = true
+        fact.about_restarting = true
         restart()
     end)
     on("about_update", function()
@@ -4323,4 +4339,16 @@ end)()
     end)
     every(30000, prof_poll)
     prof_poll()
+end)()
+
+-- The authentication dialog. Vitreus is this session's polkit agent: `bin/vitreus-polkit-agent` (started here) registers with
+-- polkit, and when something asks for admin rights it sets `pk_open` and the dialog's texts in the scene. The scene handles the
+-- dialog's own keys and buttons itself (Enter sets `pk_go`, Cancel and Escape close it), and the agent watches those facts and
+-- reads the password out of the scene's `pk_pw` field itself (never through a command line). Nothing in this file is needed for
+-- that: it only starts the agent. If another agent already holds the session (polkit-gnome, hyprpolkitagent...), ours says so and
+-- ends, and that one keeps answering.
+;(function()
+    spawn("vitreus-polkit-agent", { "--scene", "vitreus" },
+        function(line) log("polkit agent:", line) end,
+        function(_, code) log("polkit agent ended:", code) end)
 end)()

@@ -7,9 +7,9 @@ import "palette.plm"
 //  bar: it is the same silhouette, melted, so it hangs from it like a drop.
 
 scene Vitreus {
-    surface { size: full, 1440; anchor: top; margin: 0; reserve: 68; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or gal_open }
+    surface { size: full, 1440; anchor: top; margin: 0; reserve: 68; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or gal_open or pk_open }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "git", "pleamar", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl" }
+                  run: "git", "pleamar", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
     model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number }
@@ -664,6 +664,7 @@ scene Vitreus {
     text about_msg = ""
     fact about_behind = -1              // commits waiting upstream; -1 not known yet
     fact about_busy = false
+    fact about_restarting = false   // Restart was pressed: the shell is about to be replaced (the only reason to grey the button out)
     //  Night mode (Settings > Night mode): a warm tint over the whole screen, made by Hyprland's screen shader (see the
     //  logic), by hand or on a schedule.
     fact night_on = false               // the shader is on now
@@ -728,6 +729,27 @@ scene Vitreus {
     on change gal_hot while gal_hot >= 0 { gal_sw: 1 ~700ms after 60ms }
     on change gal_open while not gal_open { gal_hot = -1 }
     on key Escape while gal_open { gal_open = false }
+    //  The authentication dialog. Vitreus is this session's polkit agent (bin/vitreus-polkit-agent, which the logic starts): when
+    //  something asks for admin rights, the agent sets `pk_open` and the texts below; when Authenticate is pressed it reads the
+    //  password out of `pk_pw` itself and clears the field.
+    fact pk_open = false
+    fact pk_busy = false            // polkit's helper is checking the password
+    fact pk_shake = false           // the last password was wrong (and, with it, `pk_error` is showing)
+    text pk_message = ""            // what polkit says: "Authentication is required to ..."
+    text pk_user = ""               // whose password it asks for
+    text pk_error = ""
+    text pk_pw = ""                 // the password field
+    fact pk_go = false              // Enter or Authenticate was pressed: the agent sees it, reads the field, and puts this back
+    prop pk_show = 0 ~calm
+    prop pk_sk = 0 ~pop             // the card's shake when the password is wrong
+    follow pk_show = if(pk_open, 1, 0)
+    on change pk_open while pk_open { focus pk_pw }
+    on change pk_shake while pk_shake { pk_sk: -1 ~30ms }
+    on change pk_shake while pk_shake { pk_sk: 0 ~450ms after 70ms }
+    //  Everything here is the scene's own, so the dialog can always be put away: closing it (`pk_open` false) is what cancels the
+    //  request, which the agent notices by asking; nothing has to get through the logic.
+    on key Escape while pk_open { pk_open = false }
+    on submit pk_pw { pk_go = true }
     event about_check ->
     event about_update ->
     event about_restart ->
@@ -3211,7 +3233,7 @@ scene Vitreus {
 
             //  Check for updates.
             box { at: spx + 78 * u, sby + 226 * u; size: 128 * u, 24 * u; corner: 12 * u; color: ink; opacity: if(about_busy, 5%, 8% + 10% * about_chk_hit.hover) }
-            text "Check for updates" { at: floor(spx + 78 * u + 0.5), floor(sby + 226 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 124 * u; lines: 1; color: ink; opacity: if(about_busy, 40%, 85%); family: "Space Grotesk" }
+            text "Check for updates" { at: floor(spx + 78 * u + 0.5), floor(sby + 226 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 124 * u; lines: 1; color: ink; opacity: if(about_restarting, 40%, 85%); family: "Space Grotesk" }
             zone box about_chk_hit { at: spx + 78 * u, sby + 226 * u; size: 130 * u, 26 * u; corner: 13 * u; cursor: pointer; active: not about_busy }
             on press about_chk_hit { emit about_check }
 
@@ -3222,9 +3244,9 @@ scene Vitreus {
             on press about_upd_hit { emit about_update }
 
             //  Restart.
-            box { at: spx + 360 * u, sby + 226 * u; size: 128 * u, 24 * u; corner: 12 * u; color: ink; opacity: if(about_busy, 5%, 8% + 10% * about_rst_hit.hover) }
-            text "Restart shell" { at: floor(spx + 360 * u + 0.5), floor(sby + 226 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 124 * u; lines: 1; color: ink; opacity: if(about_busy, 40%, 85%); family: "Space Grotesk" }
-            zone box about_rst_hit { at: spx + 360 * u, sby + 226 * u; size: 130 * u, 26 * u; corner: 13 * u; cursor: pointer; active: not about_busy }
+            box { at: spx + 360 * u, sby + 226 * u; size: 128 * u, 24 * u; corner: 12 * u; color: ink; opacity: if(about_restarting, 5%, 8% + 10% * about_rst_hit.hover) }
+            text "Restart shell" { at: floor(spx + 360 * u + 0.5), floor(sby + 226 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 124 * u; lines: 1; color: ink; opacity: if(about_restarting, 40%, 85%); family: "Space Grotesk" }
+            zone box about_rst_hit { at: spx + 360 * u, sby + 226 * u; size: 130 * u, 26 * u; corner: 13 * u; cursor: pointer; active: not about_restarting }
             on press about_rst_hit { emit about_restart }
         }
 
@@ -3665,6 +3687,54 @@ scene Vitreus {
         text gal_hero_name { at: floor(cx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 640; lines: 1; color: #ffffff; family: "Space Grotesk"; show: gal_hot >= 0 }
         text "Pick a wallpaper  ·  Esc or a click outside closes" { at: floor(cx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 13; color: #ffffff; opacity: 42%; family: "Space Grotesk"; show: gal_hot < 0 and gal.count > 0 }
         text gal_status { at: floor(cx + 0.5), floor(screen.height / 2 + 0.5); anchor: center; align: center; size: 16; weight: 600; width: 600; lines: 1; color: #ffffff; opacity: 70%; family: "Space Grotesk"; show: gal.count < 1 }
+    }
+
+    //  ── the authentication dialog ────────────────────────────────────────────────────────────────────────────────────────────
+    //  A card in the bar's glass, in the upper third of the screen, over a dimmed desktop. It is modal: the veil takes every press.
+    group {
+        show: pk_show > 0.01
+        opacity: pk_show
+        let pk.cy = screen.height * 0.34 - 14 * u * (1 - pk_show)
+        let pk.x = cx + pk_sk * 14 * u
+        let pk.top = pk.cy - 128 * u
+        let pk.l = pk.x - 176 * u
+        box { at: cx, screen.height / 2; size: screen.width, screen.height; color: #000000; opacity: 34% }
+        zone box pk_block { at: cx, screen.height / 2; size: screen.width, screen.height; cursor: pointer }
+        body {
+            color: tint
+            glass: glass_frost
+            opacity: glass_op
+            lens: false
+            rim: 14%
+            shadow: 0, 18 * u, 50 * u, 45%, deep
+            box { at: pk.x, pk.cy; size: 400 * u, 256 * u; corner: 26 * u }
+        }
+        zone box pk_card { at: pk.x, pk.cy; size: 400 * u, 256 * u; corner: 26 * u }
+        //  A padlock, then the title.
+        path { at: pk.l + 12 * u, pk.top + 38 * u; stroke: 1.7 * u; color: mint; move -4 * u, -1 * u; line -4 * u, -5 * u; curve 4 * u, -5 * u via 0, -12 * u; line 4 * u, -1 * u }
+        box { at: pk.l + 12 * u, pk.top + 41 * u; size: 15 * u, 11 * u; corner: 3 * u; stroke: 1.7 * u; color: mint }
+        text "Authentication required" { at: floor(pk.l + 32 * u + 0.5), floor(pk.top + 38 * u + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
+        text pk_message { at: floor(pk.l + 0.5), floor(pk.top + 62 * u + 0.5); anchor: left top; size: 11.5 * u; width: 352 * u; lines: 3; color: ink; opacity: 78%; family: "Space Grotesk" }
+        //  Whose password it is.
+        ellipse { at: pk.l + 10 * u, pk.top + 132 * u; radius: 9 * u; color: mint; opacity: 24% }
+        ellipse { at: pk.l + 10 * u, pk.top + 129 * u; radius: 2.6 * u; color: mint }
+        path { at: pk.l + 10 * u, pk.top + 138 * u; stroke: 1.5 * u; color: mint; move -4.5 * u, 0; curve 4.5 * u, 0 via 0, -7 * u }
+        text pk_user { at: floor(pk.l + 28 * u + 0.5), floor(pk.top + 132 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; color: ink; family: "Space Grotesk" }
+        //  The password field.
+        box { at: pk.x, pk.top + 166 * u; size: 352 * u, 38 * u; corner: 13 * u; color: ink; opacity: 8% }
+        box { at: pk.x, pk.top + 166 * u; size: 352 * u, 38 * u; corner: 13 * u; stroke: 1.4 * u; color: mint; opacity: 40% + 50% * pk_sk * pk_sk }
+        input pk_pw { at: floor(pk.l + 14 * u + 0.5), floor(pk.top + 166 * u - 8 * u + 0.5); width: 324 * u; size: 14 * u; color: ink; family: "Space Grotesk"; placeholder: "Password"; secret: true }
+        text pk_error { at: floor(pk.l + 2 * u + 0.5), floor(pk.top + 194 * u + 0.5); anchor: left center; size: 10.5 * u; width: 350 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pk_shake and not pk_busy }
+        text "Checking…" { at: floor(pk.l + 2 * u + 0.5), floor(pk.top + 194 * u + 0.5); anchor: left center; size: 10.5 * u; color: faint; family: "Space Grotesk"; show: pk_busy }
+        //  Cancel and Authenticate.
+        box { at: pk.x - 88 * u, pk.top + 226 * u; size: 172 * u, 32 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pk_cancel_hit.hover }
+        text "Cancel" { at: floor(pk.x - 88 * u + 0.5), floor(pk.top + 226 * u + 0.5); anchor: center; align: center; size: 12 * u; weight: 600; color: ink; family: "Space Grotesk" }
+        zone box pk_cancel_hit { at: pk.x - 88 * u, pk.top + 226 * u; size: 174 * u, 34 * u; corner: 15 * u; cursor: pointer }
+        on press pk_cancel_hit { pk_open = false }
+        box { at: pk.x + 88 * u, pk.top + 226 * u; size: 172 * u, 32 * u; corner: 14 * u; color: mint; opacity: if(pk_busy, 28%, 80% + 20% * pk_ok_hit.hover) }
+        text "Authenticate" { at: floor(pk.x + 88 * u + 0.5), floor(pk.top + 226 * u + 0.5); anchor: center; align: center; size: 12 * u; weight: 700; color: onmint; family: "Space Grotesk" }
+        zone box pk_ok_hit { at: pk.x + 88 * u, pk.top + 226 * u; size: 174 * u, 34 * u; corner: 15 * u; cursor: pointer; active: not pk_busy }
+        on press pk_ok_hit { pk_go = true }
     }
 
 }

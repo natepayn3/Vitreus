@@ -1,0 +1,399 @@
+#!/usr/bin/env python3
+"""Vitreus's polkit authentication agent.
+
+A polkit agent is the program that asks for your password when something wants admin rights (pkexec, a package
+manager's GUI, a disk tool). This one has no window of its own: it asks the Vitreus scene to show its dialog, and
+takes the password straight out of the scene's password field when you press Enter.
+
+    vitreus-polkit-agent [--scene NAME]     run as this session's agent (Vitreus starts it by itself)
+    vitreus-polkit-agent --ctl submit       what the dialog's Authenticate button runs
+    vitreus-polkit-agent --ctl cancel       and its Cancel button
+
+How the password gets here: the scene keeps what you type in a text called `pk_pw`, and this program reads it with
+`pleamar --say NAME "get pk_pw"`, which goes over pleamar's own socket (only you can open it). It is never on a command
+line, in the environment or on disk, and it is handed to polkit's helper over its socket and then forgotten. The scene
+clears the field as soon as `--ctl submit` returns.
+
+Talking to polkit needs only Python and GLib's D-Bus (python-gobject); the conversation with the helper is over
+/run/polkit/agent-helper.socket, which is how polkit 0.121 and later do it (there is no setuid helper).
+"""
+import os
+import pwd
+import grp
+import socket
+import subprocess
+import sys
+import threading
+import time
+
+CTL_NAME = "vitreus-polkit.sock"
+HELPER_SOCKET = "/run/polkit/agent-helper.socket"
+AGENT_PATH = "/org/vitreus/PolicyKit1/AuthenticationAgent"
+
+
+def runtime_dir():
+    return os.environ.get("XDG_RUNTIME_DIR") or "/run/user/%d" % os.getuid()
+
+
+def ctl_path():
+    return os.path.join(runtime_dir(), CTL_NAME)
+
+
+# ── the client half: what the dialog's buttons run ───────────────────────────────────────────────────────────────
+def ctl(command):
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.settimeout(10)
+    try:
+        s.connect(ctl_path())
+        s.sendall((command + "\n").encode())
+        reply = s.recv(64).decode().strip()
+        return 0 if reply == "ok" else 1
+    except OSError as e:
+        print("vitreus-polkit-agent: is it running? %s" % e, file=sys.stderr)
+        return 2
+    finally:
+        s.close()
+
+
+if len(sys.argv) >= 3 and sys.argv[1] == "--ctl":
+    sys.exit(ctl(sys.argv[2]))
+
+import warnings  # noqa: E402
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)  # register_object is the plain way to export an object
+import gi  # noqa: E402
+
+gi.require_version("Gio", "2.0")
+from gi.repository import Gio, GLib  # noqa: E402
+
+SCENE = "vitreus"
+if "--scene" in sys.argv:
+    SCENE = sys.argv[sys.argv.index("--scene") + 1]
+
+INTROSPECTION = """
+<node>
+  <interface name="org.freedesktop.PolicyKit1.AuthenticationAgent">
+    <method name="BeginAuthentication">
+      <arg type="s" name="action_id" direction="in"/>
+      <arg type="s" name="message" direction="in"/>
+      <arg type="s" name="icon_name" direction="in"/>
+      <arg type="a{ss}" name="details" direction="in"/>
+      <arg type="s" name="cookie" direction="in"/>
+      <arg type="a(sa{sv})" name="identities" direction="in"/>
+    </method>
+    <method name="CancelAuthentication">
+      <arg type="s" name="cookie" direction="in"/>
+    </method>
+  </interface>
+</node>
+"""
+
+
+def say(command):
+    """Say something to the scene; False if it could not be heard (it is not running, or has no such fact)."""
+    try:
+        r = subprocess.run(["pleamar", "--say", SCENE, command], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0:
+        return None
+    out = r.stdout.rstrip("\n")
+    # `--say` is silent about a fact it does not know when setting it, but `get` answers "? I don't know 'x'".
+    if out.startswith("? "):
+        return None
+    return out
+
+
+def dialog_ready():
+    """Is the dialog there to be shown? (The scene is running and has the `pk_open` fact.)"""
+    return say("get pk_open") is not None
+
+
+def clean(text):
+    return " ".join(str(text).split())
+
+
+class Request:
+    def __init__(self, cookie, invocation, user):
+        self.cookie = cookie
+        self.invocation = invocation
+        self.user = user
+        self.busy = False
+        self.done = False
+
+
+current = None
+loop = GLib.MainLoop()
+
+
+def pick_user(identities):
+    """Who to ask the password of: you, when you are one of the identities (or in the group that is one); else the first user."""
+    me = os.getuid()
+    my_groups = set(os.getgroups())
+    first = None
+    for kind, details in identities:
+        if kind == "unix-user":
+            uid = details["uid"]
+            if uid == me:
+                return pwd.getpwuid(me).pw_name
+            if first is None:
+                first = uid
+        elif kind == "unix-group" and details["gid"] in my_groups:
+            return pwd.getpwuid(me).pw_name
+    if first is not None:
+        try:
+            return pwd.getpwuid(first).pw_name
+        except KeyError:
+            return None
+    return None
+
+
+def finish(req, ok, error=None):
+    """Answer polkit's BeginAuthentication and put the dialog away."""
+    global current
+    if req.done:
+        return
+    req.done = True
+    if current is req:
+        current = None
+    if ok:
+        req.invocation.return_value(None)
+    else:
+        req.invocation.return_dbus_error("org.freedesktop.PolicyKit1.Error.Cancelled", error or "cancelled")
+    say("fact pk_go false")
+    say("text pk_pw ")
+    say("fact pk_busy false")
+    say("fact pk_open false")
+
+
+def watch(req):
+    """While a request is open, look at what the dialog is doing: the scene handles Enter, the buttons and Escape by itself
+    (`pk_go` goes true on Enter or Authenticate, `pk_open` goes false on Cancel or Escape), so the agent asks, four times a second."""
+    while not req.done:
+        time.sleep(0.25)
+        if req.done:
+            return
+        opened = say("get pk_open")
+        if opened == "false":
+            GLib.idle_add(user_cancel, req)
+            return
+        if not req.busy and say("get pk_go") == "true":
+            say("fact pk_go false")
+            password = say("get pk_pw") or ""
+            say("text pk_pw ")
+            GLib.idle_add(user_submit, req, password)
+
+
+def user_cancel(req):
+    if not req.done:
+        finish(req, False, "dismissed")
+    return False
+
+
+def user_submit(req, password):
+    if req.done or req.busy or password == "":
+        return False
+    req.busy = True
+    say("fact pk_busy true")
+    say("fact pk_shake false")
+    threading.Thread(target=authenticate, args=(req, password), daemon=True).start()
+    return False
+
+
+def on_method_call(connection, sender, path, interface, method, params, invocation):
+    global current
+    if method == "BeginAuthentication":
+        action_id, message, icon, details, cookie, identities = params.unpack()
+        user = pick_user(identities)
+        if current is not None or user is None:
+            invocation.return_dbus_error("org.freedesktop.PolicyKit1.Error.Failed", "busy or no identity")
+            return
+        if not dialog_ready():
+            print("vitreus-polkit-agent: the scene '%s' has no dialog to show; cancelling" % SCENE, file=sys.stderr)
+            invocation.return_dbus_error("org.freedesktop.PolicyKit1.Error.Cancelled", "no dialog")
+            return
+        req = Request(cookie, invocation, user)
+        current = req
+        ok = say("text pk_message " + clean(message))
+        ok = ok is not None and say("text pk_user " + user) is not None
+        ok = ok is not None and say("text pk_error ") is not None
+        ok = ok is not None and say("fact pk_busy false") is not None
+        ok = ok is not None and say("fact pk_open true") is not None
+        if not ok:
+            print("vitreus-polkit-agent: the scene '%s' did not answer; cancelling" % SCENE, file=sys.stderr)
+            finish(req, False, "no dialog")
+        else:
+            threading.Thread(target=watch, args=(req,), daemon=True).start()
+    elif method == "CancelAuthentication":
+        (cookie,) = params.unpack()
+        if current is not None and current.cookie == cookie:
+            finish(current, False, "cancelled by polkit")
+        invocation.return_value(None)
+
+
+def authenticate(req, password):
+    """The conversation with polkit's helper, in a thread: it takes a moment, and a wrong password takes a couple of seconds."""
+    result, info = "FAILURE", ""
+    try:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.settimeout(30)
+        s.connect(HELPER_SOCKET)
+        s.sendall((req.user + "\n").encode())
+        s.sendall((req.cookie + "\n").encode())
+        buf = b""
+        sent = False
+        while True:
+            chunk = s.recv(4096)
+            if not chunk:
+                break
+            buf += chunk
+            while b"\n" in buf:
+                line, buf = buf.split(b"\n", 1)
+                text = line.decode(errors="replace")
+                if text.startswith("PAM_PROMPT_ECHO_OFF") or text.startswith("PAM_PROMPT_ECHO_ON"):
+                    if sent:
+                        result = "FAILURE"
+                        raise StopIteration
+                    s.sendall((password + "\n").encode())
+                    sent = True
+                elif text.startswith("PAM_ERROR_MSG") or text.startswith("PAM_TEXT_INFO"):
+                    info = text.split(" ", 1)[1] if " " in text else ""
+                elif text in ("SUCCESS", "FAILURE"):
+                    result = text
+                    raise StopIteration
+    except StopIteration:
+        pass
+    except OSError as e:
+        print("vitreus-polkit-agent: the helper: %s" % e, file=sys.stderr)
+        info = "Could not reach polkit's helper"
+    finally:
+        try:
+            s.close()
+        except Exception:
+            pass
+        password = None
+    GLib.idle_add(after_auth, req, result == "SUCCESS", info)
+
+
+def after_auth(req, ok, info):
+    if req.done:
+        return False
+    req.busy = False
+    if ok:
+        finish(req, True)
+    else:
+        say("text pk_error " + (clean(info) or "Incorrect password"))
+        say("fact pk_busy false")
+        say("fact pk_shake true")
+    return False
+
+
+def submit():
+    req = current
+    if req is None or req.busy or req.done:
+        return
+    password = say("get pk_pw")
+    if password is None:
+        return
+    if password == "":
+        return
+    req.busy = True
+    say("fact pk_busy true")
+    say("fact pk_shake false")
+    threading.Thread(target=authenticate, args=(req, password), daemon=True).start()
+
+
+def cancel():
+    if current is not None:
+        finish(current, False, "dismissed")
+
+
+def serve_ctl():
+    path = ctl_path()
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        pass
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    old = os.umask(0o077)
+    try:
+        srv.bind(path)
+    finally:
+        os.umask(old)
+    srv.listen(4)
+
+    def accept():
+        while True:
+            conn, _ = srv.accept()
+            try:
+                line = conn.recv(64).decode().strip()
+                done = threading.Event()
+
+                def run():
+                    if line == "submit":
+                        submit()
+                    elif line == "cancel":
+                        cancel()
+                    done.set()
+                    return False
+
+                GLib.idle_add(run)
+                done.wait(5)
+                conn.sendall(b"ok\n")
+            except OSError:
+                pass
+            finally:
+                conn.close()
+
+    threading.Thread(target=accept, daemon=True).start()
+
+
+def main():
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+    except GLib.Error as e:
+        print("vitreus-polkit-agent: no system bus: %s" % e, file=sys.stderr)
+        return 1
+    info = Gio.DBusNodeInfo.new_for_xml(INTROSPECTION)
+    bus.register_object(AGENT_PATH, info.interfaces[0], on_method_call, None, None)
+    sid = os.environ.get("XDG_SESSION_ID")
+    if not sid:
+        try:
+            out = subprocess.run(["loginctl", "show-user", str(os.getuid()), "-p", "Display", "--value"], capture_output=True, text=True).stdout.strip()
+            sid = out or None
+        except OSError:
+            sid = None
+    if not sid:
+        print("vitreus-polkit-agent: no session id (XDG_SESSION_ID)", file=sys.stderr)
+        return 1
+    subject = GLib.Variant("(sa{sv})", ("unix-session", {"session-id": GLib.Variant("s", sid)}))
+    locale = os.environ.get("LANG", "en_US.UTF-8")
+    try:
+        bus.call_sync("org.freedesktop.PolicyKit1", "/org/freedesktop/PolicyKit1/Authority",
+                      "org.freedesktop.PolicyKit1.Authority", "RegisterAuthenticationAgent",
+                      GLib.Variant("((sa{sv})ss)", (("unix-session", {"session-id": GLib.Variant("s", sid)}), locale, AGENT_PATH)),
+                      None, Gio.DBusCallFlags.NONE, -1, None)
+    except GLib.Error as e:
+        print("vitreus-polkit-agent: could not register (another agent is running?): %s" % e.message, file=sys.stderr)
+        return 1
+    serve_ctl()
+    print("vitreus-polkit-agent: registered for session %s; dialog in scene '%s'" % (sid, SCENE), flush=True)
+    try:
+        loop.run()
+    finally:
+        try:
+            bus.call_sync("org.freedesktop.PolicyKit1", "/org/freedesktop/PolicyKit1/Authority",
+                          "org.freedesktop.PolicyKit1.Authority", "UnregisterAuthenticationAgent",
+                          GLib.Variant("((sa{sv})s)", (("unix-session", {"session-id": GLib.Variant("s", sid)}), AGENT_PATH)),
+                          None, Gio.DBusCallFlags.NONE, 2000, None)
+        except GLib.Error:
+            pass
+        try:
+            os.unlink(ctl_path())
+        except OSError:
+            pass
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
