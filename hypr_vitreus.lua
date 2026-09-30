@@ -16,3 +16,4 @@ hl.bind("SUPER + L", hl.dsp.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --
 -- SUPER + B opens the wallpaper picker: every wallpaper as a glass hexagon (it was Synoptik's wallpaper picker's key).
 hl.unbind("SUPER + B")
 hl.bind("SUPER + B", hl.dsp.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --say vitreus \"emit gal_toggle\" || qs -c Synoptik ipc call wallpaper toggle"))
+hl.bind("SUPER + TAB", hl.dsp.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --say vitreus \"emit ov_toggle\" || qs -c Synoptik ipc call workspaceoverview toggle"))

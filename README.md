@@ -90,6 +90,12 @@ with its content fading in after the glass has settled
   with a slight bounce and tilts in 3D toward the pointer while the tiles round it make room; click one and it blooms
   out of the tile as the new wallpaper. The first time it opens it reads your wallpapers once (thumbnails are cached);
   `Esc` or a click outside closes it.
+* **Workspace overview** (`SUPER + TAB`, right-click the bar's workspace dots, or the launcher) — five glass cards, each a 16:9
+  screen for a workspace, its windows laid out as pictures in a grid that grows with their number (one fills the
+  screen, two sit side by side, up to nine in three by three). A compositor will not stream a window it is not showing, so the
+  pictures are taken with `grim` a moment after you arrive on a workspace and just before the overview opens; a window on another
+  workspace shows the last picture taken of it (its icon, until one has been). Click a window to go to it, drag it onto another
+  workspace to move it there, or click anywhere else on a screen to go to that workspace; `Esc` or a click outside closes it.
 * **Authentication** — Vitreus is the session's polkit agent. When something asks for admin rights (`pkexec`, a disk or
   package tool's GUI), a card in the bar's glass asks for your password over a dimmed desktop: it says what is being
   asked, whose password it is, shakes when the password is wrong, and `Esc` cancels. The password is read out of the
