@@ -2,7 +2,7 @@
 
   <h1>VITREUS</h1>
 
-  <p><strong>A liquid-glass desktop shell: a bar, and panels that drip out of it.</strong></p>
+  <p><strong>A liquid-glass desktop shell: a bar, and panels that flow out of it.</strong></p>
 
   <p>
     <a href="https://github.com/k4ditano/pleamar"><img src="https://img.shields.io/badge/pleamar-0.2-9ed6bd?style=for-the-badge" alt="pleamar" /></a>
@@ -10,7 +10,9 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="MIT License" /></a>
   </p>
 
-  <img src="assets/screenshots/demo.webp" alt="Vitreus: drawers dripping out of the bar" width="640" />
+  <img src="assets/screenshots/demo.webp" alt="Vitreus: panels flowing out of the bar" width="49%" />
+  <img src="assets/screenshots/wallpaper-demo.webp" alt="The wallpaper picker: a honeycomb of glass hexagons, the one under the pointer swelling and tilting toward it" width="49%" />
+  <br /><sub>Panels flowing out of the bar &nbsp;·&nbsp; the wallpaper picker (<code>SUPER + B</code>)</sub>
 
 </div>
 
@@ -24,7 +26,7 @@
 
 **Vitreus** is a desktop shell for Wayland, written for [pleamar](https://github.com/k4ditano/pleamar). It is a single
 floating pill of frosted glass at the top of the screen. Everything else — the calendar, the quick controls, the
-player, the settings, the launcher, the volume indicator, an incoming notification — is a drawer that drips out of the bar in the
+player, the settings, the launcher, the volume indicator, an incoming notification — is a drawer that grows out of the bar, joined to it by a liquid neck, in the
 same glass, with the same spring, and folds back into it.
 
 It is built to be *not boring*: a shell that morphs rather than pops. On pleamar the animation, the springs and the
@@ -61,7 +63,7 @@ layout all run in the renderer, and the logic only reports facts.
 * Text and icons are drawn outside the bar's bass-wave shader with a soft shadow, so they stay sharp and legible on
   light wallpapers.
 
-**Panels** — each one is a drawer from the bar, centred, that falls as a liquid drop and lands with a little wobble,
+**Panels** — each one is a drawer from the bar, centred, that swells out of the bar on a spring, stays joined to it by a liquid neck, and settles with a little wobble,
 with its content fading in after the glass has settled
 * **Calendar** — a clock card, a month grid, reminders you can write in plain words (`3:30pm Call mom`) that fire a
   desktop notification when due, and a weather strip: now, and the next seven days.
@@ -81,6 +83,11 @@ with its content fading in after the glass has settled
   monitors, mode, refresh rate, scale, rotation, SDR levels, saved profiles; a change is on trial for 15 seconds and
   goes back unless you keep it). *System:* **Hyprland** (layout, gaps, resize from border, tearing, animations,
   pointer sensitivity, focus following, natural scroll).
+* **Wallpaper picker** (`SUPER + B`) — every wallpaper as a glass hexagon in a honeycomb centred on the screen, ordered
+  round the colour wheel. How many wallpapers you have sets how big the hexagons are. The one under the pointer swells
+  with a slight bounce and tilts in 3D toward the pointer while the tiles round it make room; click one and it blooms
+  out of the tile as the new wallpaper. The first time it opens it reads your wallpapers once (thumbnails are cached);
+  `Esc` or a click outside closes it.
 * **Volume** — a small face and a wave whose curves stretch out as the volume rises.
 * **Notifications** — Vitreus is the notification server. Banners grow to fit their title, body and buttons; critical
   ones stay until dismissed; everything lands in the history, including what Do Not Disturb held back.
