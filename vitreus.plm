@@ -570,6 +570,13 @@ scene Vitreus {
     //  its zones: a zone is only hovered while it is the topmost one under the pointer, so it is the most of them all),
     //  and stays while the charge is under 20 %, whatever the pointer does.
     prop batt_open = 0 ~calm
+    //  While the charger is filling the battery, a soft glint crosses the bar every 5 seconds (and once as soon as it
+    //  is plugged in): `charge_sweep` goes from 0 to 1 over 0.9 s and then rests at 1. It is a timer that wakes the
+    //  scene for that second and lets it sleep for the other four. A battery that says "charging" at 98 % or more is
+    //  full and only being held there, so it does not glint.
+    prop charge_sweep = 1 ~calm
+    every 5s while pwr.charging and pwr.percent < 98 { charge_sweep: 0 ~0ms; charge_sweep: 1 ~900ms after 40ms }
+    on change pwr.charging while pwr.charging and pwr.percent < 98 { charge_sweep: 0 ~0ms; charge_sweep: 1 ~900ms after 40ms }
     repeat i in 1..6 { prop wsh.$i = 0 ~quick }         // each workspace dot's hover, brought out of its `repeat`
     follow batt_fill = clamp(pwr.percent / 100, 0, 1)
     follow batt_on = if(pwr.present, 1, 0)
@@ -1325,6 +1332,19 @@ scene Vitreus {
                 rim: 18%
                 opacity: (19% + 9% * batt_low) * bf.show * batt_on
                 box { from: bf.x, bf.mid - bf.hh / 2; size: bf.len, bf.hh; corner: min(bf.hh / 2, max(0.5, bar.rad - bf.m)) }
+            }
+        }
+
+        //  The charging glint: a soft band of the accent that crosses the bar from left to right, inside its shape. Built
+        //  of thin slices whose strength follows a bell, so it has no hard edge; it is strongest in the middle of the
+        //  crossing and gone (opacity 0) whenever `charge_sweep` rests at 1.
+        group {
+            clip inset 0 box { at: cx, bar.y - bar.h / 2 + (bar.h + pop) / 2; size: bar.w + pv * 10 * u, bar.h + pop; corner: bar.rad }
+            let cg.w = 130 * u                                                   // the band's width
+            let cg.x = mix(cx - bar.w / 2 - cg.w / 2, cx + bar.w / 2 + cg.w / 2, clamp(charge_sweep, 0, 1))
+            let cg.a = sin(clamp(charge_sweep, 0, 1) * 180) * batt_on           // fades in and out over the crossing
+            repeat k in 0..14 {
+                box { at: cg.x + (k - 6.5) * cg.w / 14, bar.y; size: cg.w / 14 + 1, bar.h + pop; color: mint; opacity: 15% * cg.a * sin((k + 0.5) / 14 * 180) }
             }
         }
 
