@@ -373,6 +373,7 @@ scene Vitreus {
     event wifi_scan ->              // the rescan button
     fact wifi_scanning = false      // a scan is running: the logic holds it up for a few seconds
     fact bt_scanning = false
+    fact bt_working = false         // a device is being connected or disconnected (its row pulses)
     text wifi_pw = ""               // the password field open under a row
     event wifi_join_go ->           // its Join button, or Enter in the field
     event bt_pick ->                // a device row's own button: connect, or leave it
@@ -554,6 +555,11 @@ scene Vitreus {
     prop bs.ctl = 1 ~calm
     prop bs.clock = 1 ~calm
     prop bs.tray = 1 ~calm
+    //  The scene's own `time`. If a scene only names `time`, pleamar makes one that never stops, and a scene with a
+    //  clock that never stops never rests: it paints every frame for as long as it lives. This one turns only while
+    //  something on screen is using it (the scan rings, the pulse of a device being connected, the volume drawer's
+    //  face and ripple, the caffeine steam, the urgent dot, the "More" cue), and the scene sleeps the rest of the time.
+    prop time = 0
     prop trn = 0 ~calm                // how many tray icons the bar holds, smoothly: the bar widens with it
     prop disp_auto_pill = 0 ~pop
     prop disp_dd = 0 ~calm            // the resolution dropdown, 0 shut .. 1 open
@@ -1224,6 +1230,8 @@ scene Vitreus {
     let disp.prows = max(24, disp_pn_s * 30)
     let disp.h = 460 + disp.prows + 114
     let set.h = mix(mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 330, set_pgb), 392, set_pgh), 262, set_pga)
+    let need_clock = ((wifi_scanning or bt_scanning or bt_working or caf_on) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or nt_urgent)) or (set_pgd > 0.01 and disp.h > 456)
+    spin time by if(need_clock, 1, 0)
     let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * u
     let ss.hh = bar.h / 2 + (8 + 36 + 8 + set.h + 16) * u * ds0 + max(0, sag)
     //  The launcher: a drop that widens to the bar's width as it lands, like the calendar. The search field (40), the

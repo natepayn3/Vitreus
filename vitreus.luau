@@ -78,7 +78,11 @@ end)
 listen = function()
     want_listen = true
     if cava or not cava_conf then return end
-    cava = spawn("cava", { "-p", cava_conf }, function(line)
+    -- `mine` is this run of cava: one that was asked to stop can still print a last line, and its exit can arrive
+    -- after a new one has started, so neither may touch what the new one is doing.
+    local mine
+    mine = spawn("cava", { "-p", cava_conf }, function(line)
+        if cava ~= mine then return end
         local b = {}
         for v in string.gmatch(line, "(%d+);") do b[#b + 1] = tonumber(v) / 1000 end
         if #b < 2 then return end
@@ -98,12 +102,15 @@ listen = function()
             last = bass
             fact.bass = bass
         end
-    end, function() cava = nil end)
+    end, function() if cava == mine then cava = nil end end)
+    cava = mine
 end
 
 local function hush()
     want_listen = false
-    if cava then kill(cava); cava = nil end
+    -- Asked to stop, not killed: pleamar only collects (wait()s for) a process that leaves by itself, so a plain
+    -- `kill` leaves a zombie behind every time (measured: 22 of them after less than an hour).
+    if cava then kill(cava, "term"); cava = nil end
     last = 0
     fact.bass = 0
     for i = 1, 6 do spec_last[i] = 0; fact["spec." .. (i - 1)] = 0 end
@@ -531,6 +538,9 @@ local function bt_render()
         return x.name:lower() < y.name:lower()
     end)
     while #rows > 24 do table.remove(rows) end
+    local working = false
+    for _, r in ipairs(rows) do if r.busy == 1 or r.busy == 2 then working = true end end
+    fact.bt_working = working
     fact.bt_connected = name ~= ""
     text.bt_name = name
     bt_list = rows
@@ -1330,8 +1340,10 @@ do
         pcall(sys.call, "files.write", "iris.json", iris_cfg)     -- so there is a file to edit
     end
 end
--- `awww query` takes a couple of milliseconds, so a wallpaper changed from elsewhere is noticed fast.
-every(500, check_wallpaper)
+-- A wallpaper that Vitreus sets is known at once (see `wp_apply`); this is only for one changed from elsewhere, so it
+-- does not need to look often. Every look starts a program (`awww query`): twice a second was most of what the shell
+-- launched while doing nothing.
+every(2000, check_wallpaper)
 check_wallpaper()
 
 -- ── Settings: the wallpaper picker ───────────────────────────────────────────────────────
