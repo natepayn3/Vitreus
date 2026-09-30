@@ -240,6 +240,8 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
     run mkdir -p "$HOME/.local/bin"
     run ln -sf "$dest/bin/vitreus-clipimg" "$HOME/.local/bin/vitreus-clipimg"
     case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) warn "$HOME/.local/bin is not in your PATH: the launcher's clipboard pictures need it" ;; esac
+# Hyprland does not read ~/.bashrc: if ~/.local/bin is only added there, its binds and exec-once lines never find
+# `pleamar`. hypr_vitreus.lua adds it to PATH itself; whatever you start from hyprland.lua has to do the same.
 fi
 
 # ── 6. Hyprland key binds ──────────────────────────────────────────────────
@@ -294,8 +296,8 @@ say "done."
 echo
 echo "  Start it now:          $line"
 echo "  With the desktop:      autostart is read by pleamar's own session; on Hyprland run \`pleamar --autostart\`:"
-echo "                         hyprland.lua:   hl.on(\"hyprland.start\", function () hl.exec_cmd(\"pleamar --autostart\") end)"
-echo "                         hyprland.conf:  exec-once = pleamar --autostart"
+echo "                         hyprland.lua:   hl.on(\"hyprland.start\", function () hl.exec_cmd(\"PATH=\\\"\$HOME/.local/bin:\$PATH\\\" pleamar --autostart\") end)"
+echo "                         hyprland.conf:  exec-once = ~/.local/bin/pleamar --autostart   (Hyprland's PATH may lack ~/.local/bin)"
 echo "  Keys (with the binds): SUPER + Space launcher, SUPER + SHIFT + Space settings, SUPER + L lock (see lockscreen/README.md)"
 echo "  Clipboard search:      needs  wl-paste --watch cliphist store  running at startup, or ^ has nothing to show"
 echo "  Update later:          run this script again"
