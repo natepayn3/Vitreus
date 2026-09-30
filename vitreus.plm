@@ -1355,7 +1355,7 @@ scene Vitreus {
     let bar.l = cx - bar.w / 2 + 16 * u
     let bar.r = cx + bar.w / 2 - 16 * u
     let fw.ws = 76 * u                   // five dots 15 apart, one of them the 20-wide pill
-    let fw.media = 43 * u                // previous, play, next: their bars at ±20.5
+    let fw.media = 0                     // previous, play, next have no slot of their own: they sit inside the window title's button, top right
     let fw.set = 15 * u                  // the gear with its teeth
     let fw.sr = 12 * u                   // the magnifier, glass and handle
     let fw.ctl = 13 * u                  // the two sliders
@@ -1654,20 +1654,28 @@ scene Vitreus {
         //  only to know how wide the app name and the title really are.
         text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; lines: 1; measure: clsw; opacity: 0; family: "Space Grotesk" }
         text win.title { at: floor(win.x + 0.5), floor(bar.y + 8.75 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 500; lines: 1; measure: titw; opacity: 0; family: "Space Grotesk" }
-        let win.hw = clamp(max(clsw.width, titw.width) + 12 * u, 48 * u, win.w)
-        zone box win_hit { at: win.x - 6 * u + win.hw / 2, bar.y; size: win.hw, bar.h; cursor: pointer; active: bs.title > 0.5 }
+        //  While a player exists its buttons (previous, play, next: 48 wide) sit in this button's top right, beside the app name.
+        let mctl = 54 * u * mshow * bs.media * bs.title
+        let win.hw = clamp(max(clsw.width + mctl, titw.width) + 12 * u, 48 * u, win.w)
+        //  With a name in front (`win.have` 1) the button is as wide as the name, with the player's buttons in its top right. With no window
+        //  the texts are empty, and the button would be a narrow strip at the left: it then takes most of the gap and is centred in it, with the
+        //  player's buttons in the middle.
+        let win.have = clamp(max(clsw.width, titw.width) / (6 * u), 0, 1)
+        let win.zc = mix(win.x + win.w / 2, win.x - 6 * u + win.hw / 2, win.have)
+        let win.zw = mix(max(48 * u, win.w - 12 * u), win.hw, win.have)
+        let mcx = mix(win.x + win.w / 2, win.x - 6 * u + win.hw - 27.5 * u, win.have)
+        let mcy = mix(bar.y, bar.y - 6.5 * u, win.have)
+        zone box win_hit { at: win.zc, bar.y; size: win.zw, bar.h; cursor: pointer; active: bs.title > 0.5 }
         on press win_hit { panel = if(panel == player, none, player) }
 
         // ── the player, small, in the bar ────────────────────────────
         //  While there is a player, playing or paused; they fade in as the title gives them room.
         group {
             opacity: mshow * bs.media
-            //  Centred in the gap between where the title ends and where the clock
-            //  starts (`mc`), and small: 17 between centres.
-            let by = bar.y
-            zone box bp.prev { at: mc - 17 * u, by; size: 17 * u, bar.h; cursor: pointer }
-            zone box bp.play { at: mc, by; size: 17 * u, bar.h; cursor: pointer }
-            zone box bp.next { at: mc + 17 * u, by; size: 17 * u, bar.h; cursor: pointer }
+            //  In the title button's top right (`mcx`, `mcy`), and small: 17 between centres.
+            zone box bp.prev { at: mcx - 17 * u, mcy; size: 17 * u, 18 * u; cursor: pointer }
+            zone box bp.play { at: mcx, mcy; size: 17 * u, 18 * u; cursor: pointer }
+            zone box bp.next { at: mcx + 17 * u, mcy; size: 17 * u, 18 * u; cursor: pointer }
             on press bp.prev { emit mcmd(0) }
             on press bp.play { emit mcmd(1) }
             on press bp.next { emit mcmd(2) }
@@ -1713,15 +1721,15 @@ scene Vitreus {
         }
         //  The player's buttons.
         group {
-            opacity: mshow * bs.media
-            box { at: mc - 20.5 * u, bar.y; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * bp.prev.hover }
-            path { at: mc - 17 * u, bar.y; color: ink; opacity: 65% + 35% * bp.prev.hover; move 3 * u, -3.5 * u; line -2.5 * u, 0; line 3 * u, 3.5 * u; close }
+            opacity: mshow * bs.media * bs.title
+            box { at: mcx - 20.5 * u, mcy; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * bp.prev.hover }
+            path { at: mcx - 17 * u, mcy; color: ink; opacity: 65% + 35% * bp.prev.hover; move 3 * u, -3.5 * u; line -2.5 * u, 0; line 3 * u, 3.5 * u; close }
             //  Pause while it plays, play while it is paused.
-            box { at: mc - 3 * u, bar.y; size: 2.6 * u, 9 * u; corner: 1 * u; color: ink; opacity: 85% + 15% * bp.play.hover; show: media.playing }
-            box { at: mc + 3 * u, bar.y; size: 2.6 * u, 9 * u; corner: 1 * u; color: ink; opacity: 85% + 15% * bp.play.hover; show: media.playing }
-            path { at: mc, bar.y; color: ink; opacity: 85% + 15% * bp.play.hover; show: not media.playing; move -3 * u, -4.5 * u; line 7 * u, 0; line -3 * u, 4.5 * u; close }
-            path { at: mc + 17 * u, bar.y; color: ink; opacity: 65% + 35% * bp.next.hover; move -3 * u, -3.5 * u; line 2.5 * u, 0; line -3 * u, 3.5 * u; close }
-            box { at: mc + 20.5 * u, bar.y; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * bp.next.hover }
+            box { at: mcx - 3 * u, mcy; size: 2.6 * u, 9 * u; corner: 1 * u; color: ink; opacity: 85% + 15% * bp.play.hover; show: media.playing }
+            box { at: mcx + 3 * u, mcy; size: 2.6 * u, 9 * u; corner: 1 * u; color: ink; opacity: 85% + 15% * bp.play.hover; show: media.playing }
+            path { at: mcx, mcy; color: ink; opacity: 85% + 15% * bp.play.hover; show: not media.playing; move -3 * u, -4.5 * u; line 7 * u, 0; line -3 * u, 4.5 * u; close }
+            path { at: mcx + 17 * u, mcy; color: ink; opacity: 65% + 35% * bp.next.hover; move -3 * u, -3.5 * u; line 2.5 * u, 0; line -3 * u, 3.5 * u; close }
+            box { at: mcx + 20.5 * u, mcy; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * bp.next.hover }
         }
         //  The settings button: a gear, between the player's buttons and the controls button.
         group {
@@ -1762,8 +1770,8 @@ scene Vitreus {
     text bar_ap { at: floor(clock.r - clock.col / 2 + 0.5), floor(bar.y + 7 + 0.5); anchor: center; size: 14; weight: 600; measure: caw; color: faint; opacity: bs.clock; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     text clock_mm { at: floor(clock.r - clock.col - 3 + 0.5), floor(bar.y + 3 + 0.5); anchor: right center; size: 26; weight: 700; measure: cmw; letter_move: 3 * ((letters - 1 - letter) - if(letter == 0, 1, 0)), 0; color: mint; opacity: bs.clock; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     text clock_h { at: floor(clock.r - clock.col - cmw.width + 0.5), floor(bar.y + 0.5); anchor: right center; size: 40; weight: 700; measure: chw; color: ink; opacity: bs.clock; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; width: win.w; lines: 1; color: faint; opacity: 55% * bs.title; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text win.title { at: floor(win.x + 0.5), floor(bar.y + 8.75 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 500; width: win.w; lines: 1; color: ink; opacity: bs.title; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; width: max(0, win.hw - 12 * u - mctl); lines: 1; color: faint; opacity: 55% * bs.title; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text win.title { at: floor(win.x + 0.5), floor(bar.y + 8.75 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 500; width: max(0, win.hw - 12 * u); lines: 1; color: ink; opacity: bs.title; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
 
     // ── the panel ────────────────────────────────────────────────
     group {
