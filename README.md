@@ -10,7 +10,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="MIT License" /></a>
   </p>
 
-  <!-- Add a screenshot or a short capture here: assets/screenshots/... -->
+  <img src="assets/screenshots/control-center.webp" alt="The controls drawer dripping out of the bar" width="640" />
 
 </div>
 
@@ -25,6 +25,24 @@ same glass, with the same spring, and folds back into it.
 
 It is built to be *not boring*: a shell that morphs rather than pops. On pleamar the animation, the springs and the
 layout all run in the renderer, and the logic only reports facts.
+
+---
+
+## 📸 Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="assets/screenshots/calendar.webp" alt="Calendar, weather and reminders" /><br /><sub><b>Calendar</b> — weather, month, and reminders</sub></td>
+    <td align="center"><img src="assets/screenshots/launcher.webp" alt="The launcher" /><br /><sub><b>Launcher</b> — apps, files, commands, emoji, clipboard, wallpapers</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/screenshots/player-and-windows.webp" alt="The player and the running windows" /><br /><sub><b>Player and windows</b> — hangs from the window title</sub></td>
+    <td align="center"><img src="assets/screenshots/system-tray.webp" alt="A tray app's menu" /><br /><sub><b>System tray</b> — an app's own menu, drawn in the shell's glass</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="assets/screenshots/settings-about.webp" alt="Settings, About page" width="640" /><br /><sub><b>Settings</b> — the About page shows the build and updates the shell</sub></td>
+  </tr>
+</table>
 
 ---
 
