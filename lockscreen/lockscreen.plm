@@ -33,6 +33,11 @@ scene Lockscreen {
     fact has_wall = false
     fact pw_len = 0
     fact t0 = 0                    // `time` when the lock closed
+    //  Our own clock, in seconds, which runs only while the screen is locked. The built-in `time` keeps a scene painting for as
+    //  long as it is named anywhere, even with nothing on screen (this scene, unlocked, cost 3% of a core for that); a clock that
+    //  is spun by a condition lets it go idle. It is called `time` so that everything below reads it as before.
+    prop time = 0
+    spin time by if(locked, 1, 0)
     text password = ""
     text status = "System Locked"
     text realname = "User"
