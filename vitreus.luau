@@ -2816,7 +2816,8 @@ end
 
     local function lua_quote(s) return string.format("%q", s):gsub("\\\n", "\\n") end
     local function spawn(cmd)              -- start it on the desktop, detached from this shell
-        run("hyprctl", { "dispatch", "hl.dsp.exec_cmd(" .. lua_quote(cmd) .. ")" }, function() end)
+        -- Hyprland starts it with its own PATH, which has no ~/.local/bin (where pleamar is): without this, `pleamar --say ...` is not found.
+        run("hyprctl", { "dispatch", "hl.dsp.exec_cmd(" .. lua_quote('export PATH="$HOME/.local/bin:$PATH"; ' .. cmd) .. ")" }, function() end)
     end
     local function set_panel(name) cur_panel = name; fact.panel = name end
     local function close() set_panel("none") end
@@ -4640,7 +4641,8 @@ end)()
 ;(function()
     local function lua_quote(s) return (string.format("%q", s):gsub("\\\n", "\\n")) end
     local function spawn(cmd)                      -- start it on the desktop, detached from this shell
-        run("hyprctl", { "dispatch", "hl.dsp.exec_cmd(" .. lua_quote(cmd) .. ")" }, function() end)
+        -- Hyprland starts it with its own PATH, which has no ~/.local/bin (where pleamar is): without this, `pleamar --say ...` is not found.
+        run("hyprctl", { "dispatch", "hl.dsp.exec_cmd(" .. lua_quote('export PATH="$HOME/.local/bin:$PATH"; ' .. cmd) .. ")" }, function() end)
     end
     local function sh(script) return "sh -c '" .. script .. "'" end   -- the scripts below hold no single quote
 
