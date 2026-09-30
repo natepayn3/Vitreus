@@ -2911,6 +2911,7 @@ end
         { "Night mode: toggle", "action", function() spawn('pleamar --say vitreus "emit night_toggle"') end },
         { "Settings: Hyprland", "open", open_settings("pg_hypr") },
         { "Settings: About", "open", open_settings("pg_about") },
+        { "Settings: System monitor", "open", open_settings("pg_sys") },
         { "Calendar", "panel", function() set_panel("calendar"); return true end },
         { "Controls", "panel", function() set_panel("controls"); return true end },
         { "Player", "panel", function() set_panel("player"); return true end },
@@ -4351,4 +4352,159 @@ end)()
     spawn("vitreus-polkit-agent", { "--scene", "vitreus" },
         function(line) log("polkit agent:", line) end,
         function(_, code) log("polkit agent ended:", code) end)
+end)()
+
+-- Settings > System monitor. `bin/vitreus-sysmon` prints what the machine is doing once a second (as a line of JSON); it is started when
+-- that page is showing and stopped (asked to, with "term": a plain kill would leave a zombie, as it did with cava) when it is not, so
+-- nothing runs while nobody looks. Every line is turned into the facts, texts and models the page reads (see the top of vitreus.plm).
+;(function()
+    local N = 60
+    local hist = {}                       -- the last minute: { cpu, mem, gpu, rx, tx, dr, dw }, raw (rates in bytes a second)
+    local proc = nil
+    local mounts_cache = {}
+
+    local function clamp(v) return math.max(0, math.min(1, v or 0)) end
+    local function size(b)
+        b = b or 0
+        local units = { "B", "KB", "MB", "GB", "TB", "PB" }
+        local i = 1
+        while b >= 1024 and i < #units do b = b / 1024; i = i + 1 end
+        if i == 1 then return string.format("%d B", b) end
+        if b >= 100 then return string.format("%.0f %s", b, units[i]) end
+        if b >= 10 then return string.format("%.1f %s", b, units[i]) end
+        return string.format("%.2f %s", b, units[i])
+    end
+    local function rate(b) return size(b) .. "/s" end
+    local function kb(v) return size((v or 0) * 1024) end
+    local function uptime(s)
+        s = s or 0
+        local d, h, m = math.floor(s / 86400), math.floor(s % 86400 / 3600), math.floor(s % 3600 / 60)
+        if d > 0 then return string.format("%dd %dh", d, h) end
+        if h > 0 then return string.format("%dh %dm", h, m) end
+        return string.format("%dm", m)
+    end
+
+    local function on_line(line)
+        local ok, d = pcall(json.decode, line)
+        if not ok or type(d) ~= "table" or not d.cpu then return end
+        if d.info then
+            text.sm_host = d.info.host or ""
+            text.sm_cpu_name = d.info.cpu or ""
+            text.sm_kernel = d.info.kernel or ""
+            text.sm_threads = string.format("%d threads", d.info.threads or 0)
+        end
+
+        -- the processor
+        local c = d.cpu
+        local total = c.total or 0
+        fact.sm_cpu = clamp(total / 100)
+        text.sm_cpu_txt = string.format("%d%%", math.floor(total + 0.5))
+        local sum, n = 0, 0
+        for _, f in ipairs(c.mhz or {}) do if f > 0 then sum = sum + f; n = n + 1 end end
+        local meta = n > 0 and string.format("%.1f GHz", sum / n / 1000) or ""
+        for _, t in ipairs(d.temps or {}) do
+            if t.l == "CPU package" then meta = (meta ~= "" and (meta .. " · ") or "") .. string.format("%d°C", math.floor(t.c + 0.5)); break end
+        end
+        text.sm_cpu_meta = meta
+        if c.load then text.sm_load = string.format("%.2f  %.2f  %.2f", c.load[1] or 0, c.load[2] or 0, c.load[3] or 0) end
+        text.sm_uptime = uptime(d.up)
+        local cores = {}
+        for i, p in ipairs(c.cores or {}) do cores[i] = { pct = clamp(p / 100) } end
+        model.sm_core = cores
+
+        -- memory
+        local m = d.mem or {}
+        local mt = math.max(m.total or 1, 1)
+        fact.sm_mem_f = clamp((m.used or 0) / mt)
+        fact.sm_cache_f = clamp((m.cache or 0) / mt)
+        text.sm_mem_pct = string.format("%d%%", math.floor(clamp((m.used or 0) / mt) * 100 + 0.5))
+        text.sm_mem_total = kb(m.total) .. " installed"
+        text.sm_mem_used = kb(m.used)
+        text.sm_mem_cache = kb(m.cache)
+        text.sm_mem_free = kb(m.free)
+        fact.sm_swap_f = (m.swap_total or 0) > 0 and clamp((m.swap_used or 0) / m.swap_total) or 0
+        text.sm_swap_txt = (m.swap_total or 0) > 0 and (kb(m.swap_used) .. " of " .. kb(m.swap_total)) or "none"
+
+        -- the graphics card
+        local g = d.gpu
+        fact.sm_gpu_on = g ~= nil
+        if g then
+            fact.sm_gpu_f = clamp((g.util or 0) / 100)
+            fact.sm_vram_f = (g.mem_total or 0) > 0 and clamp((g.mem_used or 0) / g.mem_total) or 0
+            fact.sm_pw_f = (g.power_max or 0) > 0 and clamp((g.power or 0) / g.power_max) or 0
+            text.sm_gpu_name = g.name or ""
+            text.sm_gpu_txt = string.format("%d%%", math.floor((g.util or 0) + 0.5))
+            text.sm_gpu_vram = (g.mem_total or 0) > 0 and string.format("%.1f / %.1f GB", (g.mem_used or 0) / 1024, g.mem_total / 1024) or ""
+            text.sm_gpu_power = (g.power_max or 0) > 0 and string.format("%.0f / %.0f W", g.power or 0, g.power_max) or "—"
+            text.sm_gpu_temp = g.temp and string.format("%d°C", math.floor(g.temp + 0.5)) or "—"
+            text.sm_gpu_fan = g.fan and string.format("%d%%", math.floor(g.fan + 0.5)) or "—"
+            text.sm_gpu_clock = g.clock and string.format("%d MHz", math.floor(g.clock + 0.5)) or "—"
+        end
+
+        -- the network and the drives
+        local nt = d.net or {}
+        text.sm_iface = nt.iface or ""
+        text.sm_rx_txt = rate(nt.rx)
+        text.sm_tx_txt = rate(nt.tx)
+        text.sm_rx_total = size(nt.rx_total) .. " received"
+        text.sm_tx_total = size(nt.tx_total) .. " sent"
+        local dk = d.disk or {}
+        text.sm_dr_txt = rate(dk.read)
+        text.sm_dw_txt = rate(dk.write)
+        local mts = {}
+        for i, mo in ipairs(dk.mounts or {}) do
+            mts[i] = { name = mo.m, info = size(mo.used) .. " of " .. size(mo.total), pct = clamp(mo.total > 0 and mo.used / mo.total or 0) }
+        end
+        if #mts > 0 or #mounts_cache == 0 then mounts_cache = mts end
+        model.sm_mnt = mounts_cache
+
+        -- temperatures and fans
+        local tmps = {}
+        for i, t in ipairs(d.temps or {}) do
+            tmps[i] = { label = t.l, txt = string.format("%d°C", math.floor(t.c + 0.5)), f = clamp((t.c - 25) / 70), heat = clamp((t.c - 70) / 25) }
+        end
+        model.sm_tmp = tmps
+        local fans = {}
+        for _, f in ipairs(d.fans or {}) do fans[#fans + 1] = string.format("%s %d rpm", f.l or "Fan", f.rpm or 0) end
+        text.sm_fans = #fans > 0 and table.concat(fans, "   ·   ") or ""
+
+        -- the busiest programs
+        local prs = {}
+        for i, p in ipairs(d.procs or {}) do
+            prs[i] = { name = p.n, cpu = clamp((p.cpu or 0) / 100), cpu_txt = string.format("%.1f%%", p.cpu or 0), mem_txt = string.format("%.1f%%", p.mem or 0) }
+        end
+        model.sm_proc = prs
+
+        -- the last minute of it: rates are drawn against the biggest one in view
+        hist[#hist + 1] = { cpu = clamp(total / 100), mem = clamp((m.used or 0) / mt), gpu = g and clamp((g.util or 0) / 100) or 0,
+                            rx = nt.rx or 0, tx = nt.tx or 0, dr = dk.read or 0, dw = dk.write or 0 }
+        if #hist > N then table.remove(hist, 1) end
+        local mx_net, mx_dk = 50 * 1024, 1024 * 1024
+        for _, h in ipairs(hist) do
+            mx_net = math.max(mx_net, h.rx, h.tx)
+            mx_dk = math.max(mx_dk, h.dr, h.dw)
+        end
+        local rows = {}
+        for i, h in ipairs(hist) do
+            rows[i] = { cpu = h.cpu, mem = h.mem, gpu = h.gpu, rx = h.rx / mx_net, tx = h.tx / mx_net, dr = h.dr / mx_dk, dw = h.dw / mx_dk }
+        end
+        model.sm_hist = rows
+    end
+
+    local function refresh()
+        local want = fact.panel == "settings" and fact.set_page == "pg_sys"
+        if want and not proc then
+            hist = {}
+            local mine
+            mine = spawn("vitreus-sysmon", {}, function(line) if proc == mine then on_line(line) end end,
+                function() if proc == mine then proc = nil end end)
+            proc = mine
+        elseif not want and proc then
+            kill(proc, "term")
+            proc = nil
+        end
+    end
+    on("fact:panel", refresh)
+    on("fact:set_page", refresh)
+    refresh()
 end)()

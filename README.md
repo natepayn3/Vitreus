@@ -95,6 +95,12 @@ with its content fading in after the glass has settled
   asked, whose password it is, shakes when the password is wrong, and `Esc` cancels. The password is read out of the
   scene's field by the agent over pleamar's own socket, so it is never on a command line or on disk. Only one agent can
   hold a session: if polkit-gnome or hyprpolkitagent is already running, that one keeps answering (see Requirements).
+* **System monitor** (Settings > System) — a scrolling page of live cards: the machine's name, uptime and load; the CPU as a
+  gauge with a minute of history and a bar for each core; memory as a ring (in use, cache, free) with swap; the graphics card
+  (load, video memory, power, temperature, fan and clocks; NVIDIA through `nvidia-smi`, AMD through sysfs); the network as a
+  mirrored graph of what comes in and goes out; each drive's space and its read and write traffic; every temperature sensor and
+  fan; and the busiest programs. The numbers come from `bin/vitreus-sysmon`, which reads `/proc` and `/sys` and runs only while
+  the page is open (about 1.5 % of a core), so nothing polls in the background.
 * **Volume** — a small face and a wave whose curves stretch out as the volume rises.
 * **Notifications** — Vitreus is the notification server. Banners grow to fit their title, body and buttons; critical
   ones stay until dismissed; everything lands in the history, including what Do Not Disturb held back.
