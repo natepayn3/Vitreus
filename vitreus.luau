@@ -4221,7 +4221,7 @@ end)()
 -- The wallpaper picker (SUPER + B): every wallpaper as a glass hexagon in a tray under the bar. This is the logic side: one
 -- ImageMagick pass per wallpaper makes its hexagon picture (already cut to the shape) and reads its
 -- colours (the same 32-colour histogram the colour filter uses), the wallpapers are ordered by hue (greys last, by
--- brightness) so the tray reads as a colour ramp, and what was learned is kept in wallpaper-galaxy.json so this happens
+-- brightness) so the tray reads as a colour ramp, and what was learned is kept in the data folder so this happens
 -- once. How big the hexagons are, and where each one goes, is worked out by the scene from how many there are (see
 -- the end of vitreus.plm).
 ;(function()
@@ -4296,7 +4296,7 @@ end)()
     local function save()
         local out = { rule = RULE }
         for f, d in pairs(G.data) do out[f] = { h = d.h, s = d.s, v = d.v } end
-        pcall(sys.call, "files.write", "wallpaper-galaxy.json", out)
+        pcall(sys.call, "files.write", "wallpaper-picker.json", out)
     end
 
     -- The tray's order: the colourful ones round the colour wheel, then the greys from dark to light.
@@ -4372,7 +4372,7 @@ end)()
                 run("find", { G.dir, "-maxdepth", "1", "(", "-name", "*.bead.png", "-o", "-name", "*.jpg", ")", "-delete" }, function() end)
                 run("find", { G.dir, "-maxdepth", "1", "-name", "*.hex.png", "-printf", "%f\n" }, function(out)
                     for line in (out or ""):gmatch("[^\n]+") do G.have[line:gsub("%.hex%.png$", "")] = true end
-                    local ok, saved = pcall(sys.ask, "files.read", "wallpaper-galaxy.json", "json")
+                    local ok, saved = pcall(sys.ask, "files.read", "wallpaper-picker.json", "json")
                     if ok and type(saved) == "table" and saved.rule == RULE then
                         for f, e in pairs(saved) do
                             if type(e) == "table" and e.h then G.data[f] = e end
