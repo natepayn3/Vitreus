@@ -483,7 +483,7 @@ local bt_last = nil                       -- the last thing the service said
 local bt_sig = nil                        -- what the list said last time it was handed over
 local bt_scanning = false                 -- a scan is running (see `bt_scan` below)
 
--- The list is built here, the way Synoptik's was: what is connected first, then what is paired, then the
+-- The list is built here: what is connected first, then what is paired, then the
 -- rest, named ones alphabetically and the anonymous ones (BLE beacons, mostly, which are dozens) last, by
 -- address. Unpaired devices are only shown while a scan is running: BlueZ goes on reporting what walked past
 -- for minutes afterwards, and a stale list of strangers is worse than none.
@@ -619,7 +619,7 @@ on("bt_forget", function(i)
 end)
 
 -- A scan gives the scene no sign of its own, so it is told to show one. Discovery is held open by
--- `bluetoothctl --timeout 12 scan on`, as Synoptik's first version did: pleamar's own `bluetooth.scan` answers
+-- `bluetoothctl --timeout 12 scan on`: pleamar's own `bluetooth.scan` answers
 -- without an error but BlueZ never starts discovering (`Discovering` stays "no"), while this does, and the
 -- service picks up what it finds. It ends by itself after twelve seconds.
 on("bt_scan", function()
@@ -940,7 +940,7 @@ local function refresh_tasks()
         for _, w in ipairs(pc) do
             if w.mapped == "1" then list[#list + 1] = w end
         end
-        -- The one with the keyboard first, then by workspace, then by title: Synoptik's order.
+        -- The one with the keyboard first, then by workspace, then by title.
         table.sort(list, function(a, b)
             local aa, ab = a.focusHistoryID == "0", b.focusHistoryID == "0"
             if aa ~= ab then return aa end
@@ -1063,7 +1063,7 @@ end
 -- (all of it in one scope, exposing three names: a Lua chunk may only have 200 local variables, and this file is long)
 do
 -- ── Notification rules and sounds ──────────────────────────────────────────────────────────────────────────────
--- After Synoptik's NotificationRules: ONE place decides what happens to an arriving notification (`decide`): is it recorded in
+-- ONE place decides what happens to an arriving notification (`decide`): is it recorded in
 -- the history, is it shown, does it make a sound, how long does it stay. A rule belongs to an app (its name, lower-cased: the
 -- notification service does not say more than that), and only what differs from the defaults is kept. The rules, the apps that have
 -- spoken (so the list of them does not depend on a history that is cleared) and the global switches are in `notification-rules.json`.
@@ -1340,8 +1340,8 @@ on("fact:panel", function(v)
 end)
 
 -- ── Iris: the palette from the wallpaper ─────────────────────────────────────────────────
--- Synoptik ran `iris --json-only <wallpaper>` and used its bg / surface / fg / dim / accent / red,
--- with a legibility floor on the text and a subtle / medium / bold push on the accent. Here the scene
+-- Iris is run as `iris --json-only <wallpaper>` and its bg / surface / fg / dim / accent / red are used,
+-- with a legibility floor on the text and a subtle / medium / bold push on the accent. The scene
 -- cannot be handed a colour at runtime, so the result is written into `palette.plm`, the library of
 -- `let` colours the scene imports, and the scene reloads in them. `iris.json` in Vitreus's data folder
 -- holds the two settings: { enabled = true, intensity = "medium" | "subtle" | "bold" }.
@@ -1553,8 +1553,8 @@ end)
 local function wp_pages() return math.max(1, math.ceil(#wp_view / WP_PER_PAGE)) end
 
 -- ── colour filter ──────────────────────────────────────────────────────────────────────────────────────
--- Each wallpaper is tagged with every colour it really has, not the one that covers the most. (Synoptik keeps
--- only that one, and a dark night scene with neon signs is then just "black": the red, orange and pink that
+-- Each wallpaper is tagged with every colour it really has, not the one that covers the most. (Keeping
+-- only that one, a dark night scene with neon signs is then just "black": the red, orange and pink that
 -- make it what it is never count. Counting every bucket with a few percent of the area is no better: the haze
 -- and tan of a landscape then make it "orange".) ImageMagick reduces it to 32 colours, each is put in a bucket
 -- (red, orange, ... black) and the areas are added up. A hue bucket is a tag when
@@ -1989,7 +1989,7 @@ on("glass_reset", function()
 end)
 
 -- ── Display ───────────────────────────────────────────────────────────────────────────────────────────
--- The Display page of the settings, after Synoptik's: what Hyprland reports for each monitor (`hyprctl monitors -j`)
+-- The Display page of the settings: what Hyprland reports for each monitor (`hyprctl monitors -j`)
 -- is read into a DRAFT that the page edits (the mode, its position, scale, rotation and the SDR levels), and
 -- Apply sends it to Hyprland with `hyprctl eval` (`hl.monitor{…}`, since this Hyprland reads a Lua config).
 -- A change to how the screen looks can leave you with a screen you cannot read, so an applied change is on trial
@@ -2545,7 +2545,7 @@ every(5000, function() if disp_trial <= 0 and disp_grab == nil then disp_watch()
 end
 
 -- ── Weather, for the calendar panel ──────────────────────────────────────────────────────
--- Fetched from Open-Meteo, as in Synoptik: the place is found by IP (ipwho.is) unless `location` is set
+-- Fetched from Open-Meteo: the place is found by IP (ipwho.is) unless `location` is set
 -- in `weather-config.json` in Vitreus's data folder, when it is looked up by name; then the current
 -- conditions and the next seven days. `units` there is "fahrenheit" (the default) or "celsius".
 -- The sandbox has no JSON parser for what curl brings, so curl writes each answer into the data folder
@@ -2667,7 +2667,7 @@ wx_refresh_now()
 every(1800000, wx_refresh_now)           -- every half hour
 
 -- ── Settings > Hyprland ───────────────────────────────────────────────────────────────────────────────────────
--- Window-manager knobs after Synoptik's: layout, gaps, border resize, tearing, animations and input. The values
+-- Window-manager knobs: layout, gaps, border resize, tearing, animations and input. The values
 -- shown are what Hyprland says now. A change is sent with `hyprctl eval` at once, and once it has settled it is
 -- written to vitreus_hypr.lua, which hyprland.lua loads after hypr_style.lua so it wins on the next start.
 do
@@ -2764,7 +2764,7 @@ do
 end
 
 -- ── The launcher (SUPER + Space) ──────────────────────────────────────────────────────────────────────────────
--- After Synoptik's LauncherOSD. The scene has a field (`text.lq`) and a list (`model.lres`, six rows at most, with
+-- The launcher. The scene has a field (`text.lq`) and a list (`model.lres`, six rows at most, with
 -- the chosen one in the middle of the window; the wheel scrolls the window, and the chosen one stays inside it). What is typed picks the search: apps by default (and a sum, if the text
 -- is one), and after a first character `#` files, `>` commands, `:` emoji, `^` the clipboard, `~` wallpapers.
 ;(function()
@@ -3307,8 +3307,8 @@ end
 end)()
 
 -- ── The mixer under the volume slider ─────────────────────────────────────────────────────────────────────────
--- Right-click the volume plate in Controls: one slider for each app that is playing sound, after Synoptik's per-app
--- volumes. pleamar's audio service has no per-app streams, so these are `pactl` sink inputs: listed while the mixer is
+-- Right-click the volume plate in Controls: one slider for each app that is playing sound.
+-- pleamar's audio service has no per-app streams, so these are `pactl` sink inputs: listed while the mixer is
 -- open (once a second), set with `set-sink-input-volume`, silenced with `set-sink-input-mute`.
 ;(function()
     local M = { ids = {}, rows = {}, open = false, busy_until = 0, pending = nil, waiting = false }

@@ -1,4 +1,4 @@
-// The hovered wallpaper hexagon, tilted in 3D toward the pointer (the way Synoptik's wallpaper carousel tilts a thumbnail) and lit.
+// The hovered wallpaper hexagon, tilted in 3D toward the pointer and lit.
 // It is a group's shader: it reads the group (the hexagon's picture and rim) with `inside`. For every point of the output it works
 // out which point of the flat picture lands there once the picture is turned in space (a rotation about X and Y, then a
 // perspective projection), which is what a 4x4 transform matrix does.

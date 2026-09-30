@@ -1,6 +1,6 @@
 # Lock screen
 
-A lock screen for Vitreus, drawn after Synoptik's: the wallpaper arrives sharp and blurs into place under a ring of
+A lock screen for Vitreus, the wallpaper arrives sharp and blurs into place under a ring of
 liquid that leaves the centre (`lockwave.wgsl`), then the clock, avatar and password bar rise in one after another.
 Typed characters become random shapes (`shapes.svg`); the password itself is never drawn. It checks the password with
 PAM (`auth.check`) and opens when it is right.

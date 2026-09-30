@@ -1,7 +1,7 @@
-// The lock screen's wallpaper, in one pass: Synoptik's liquid entrance (a ring-shaped disturbance leaves the centre
+// The lock screen's wallpaper, in one pass: a liquid entrance (a ring-shaped disturbance leaves the centre
 // and settles), then the darkening, then a dither.
 //
-// The wave is Synoptik's lockwave.frag, ported. Once progress reaches 1 its envelope is exactly zero, so the resting
+// Once progress reaches 1 its envelope is exactly zero, so the resting
 // image is pixel-exact.
 //
 // The darkening and the dither are here, and not a black box over the picture, on purpose. A dark gradient in 8 bits
@@ -10,7 +10,7 @@
 // separate layers, each one stored in 8 bits, the steps were kept and the rings stayed.
 //
 // s.a.x entrance progress (0..1) · s.a.y peak displacement, in texture units · s.a.z rings across the surface
-// s.a.w how much of the light is left after the darkening (Synoptik puts 58 % black over it: 0.42)
+// s.a.w how much of the light is left after the darkening (58 % black over it: 0.42)
 
 fn hash(p: vec2<f32>) -> f32 {
     return fract(sin(dot(p, vec2<f32>(12.9898, 78.233))) * 43758.5453);
