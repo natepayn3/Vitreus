@@ -70,6 +70,7 @@ sys.watch("clock", function(c)
     -- The bar clock's three parts.
     text.clock_h = tostring(h)
     text.clock_mm = string.format(":%02d", c.minute)
+    text.clock_mn = string.format("%02d", c.minute)     -- for the clock stacked down the left bar
     text.bar_ap = c.hour < 12 and "am" or "pm"
     text.bar_date = days[c.weekday]:sub(1, 3):upper()      -- just the day: MON
     text.datelong = string.format("%s, %s %d, %d", days[c.weekday], months[c.month], c.day, c.year)
@@ -1130,6 +1131,7 @@ local function panel_is(name) return tostring(cur_panel) == name end
 -- every write from here also updates the local copy.
 local function set_panel(name)
     cur_panel = name
+    nt_queue.want = name     -- what was asked for: the scene closes an open panel before opening another (it goes through "none"), see below
     fact.panel = name
 end
 local function osd_free() return panel_is("none") or panel_is("volume") or panel_is("notif") end
@@ -1146,13 +1148,24 @@ sys.watch("audio", function(a)
     local changed = last_vol ~= nil and (vol ~= last_vol or mute ~= last_mute)
     last_vol, last_mute = vol, mute
     if not changed then return end
-    if not (panel_is("none") or panel_is("volume")) then return end
+    if panel_is("notif") and nt_now and nt_now.n then
+        -- The volume comes first: the notification on screen goes back to the front of the queue and shows again once the volume has gone.
+        table.insert(nt_queue, 1, nt_now.n)
+        nt_now = nil
+    elseif not (panel_is("none") or panel_is("volume")) then
+        return
+    end
     osd_gen = osd_gen + 1
     local gen = osd_gen
+    nt_queue.hold = true            -- no notification is shown while the volume is (see `pump`)
     fact.osd_kind = "vol"
     set_panel("volume")
     after(2000, function()
-        if gen == osd_gen then hide_osd("vol") end
+        if gen == osd_gen then
+            hide_osd("vol")
+            nt_queue.hold = false
+            if nt_queue.pump then nt_queue.pump() end      -- `pump` is declared further down
+        end
     end)
 end)
 
@@ -1361,7 +1374,7 @@ local function show_notification(n)
     end
     local icon = (n.image ~= nil and n.image ~= "") and n.image or (n.icon or "")
     local body = strip(n.body)
-    nt_now = { id = n.id, keys = keys }
+    nt_now = { id = n.id, keys = keys, n = n }
     text.nt_app = ((n.app ~= nil and n.app ~= "") and n.app or "System"):upper()
     text.nt_title = strip((n.title ~= nil and n.title ~= "") and n.title or "Notification")
     text.nt_body = body
@@ -1389,9 +1402,10 @@ local function show_notification(n)
 end
 
 pump = function()
-    if nt_now or #nt_queue == 0 or not osd_free() then return end
+    if nt_now or #nt_queue == 0 or not osd_free() or nt_queue.hold then return end
     show_notification(table.remove(nt_queue, 1))
 end
+nt_queue.pump = pump
 
 pcall(sys.call, "notifications.keep", true)
 sys.watch("notifications", function(list)
@@ -1430,6 +1444,10 @@ end)
 
 -- Which panel is open, as the scene has it: a panel the user closes lets the next notification in.
 on("fact:panel", function(v)
+    -- The scene closes the panel that is open before it opens the one asked for, so on its way it says "none": that is not a panel being
+    -- closed by the user, and the notification on screen must not count as seen because of it.
+    if tostring(v) == "none" and nt_queue.want and nt_queue.want ~= "none" then return end
+    nt_queue.want = nil
     cur_panel = v
     -- The notification's drawer was closed from elsewhere (a click on the bar, Escape): it counts as
     -- seen, and the next one may come.
@@ -1573,6 +1591,7 @@ function iris_fx.border_code(pal)
 end
 
 function iris_fx.apply_palette(pal)
+    iris_fx.last_pal = pal
     local order = { "ink", "faint", "mint", "mintlo", "minthi", "onmint", "tint", "panel", "deep", "off", "alert" }
     local lines = {
         "//  Written by Vitreus's logic from the wallpaper (Iris); edits here are overwritten.",
@@ -1584,8 +1603,10 @@ function iris_fx.apply_palette(pal)
     lines[#lines + 1] = "}"
     local text_out = table.concat(lines, "\n") .. "\n"
     if text_out == iris_last_text then return end
+    local first = iris_last_text == nil          -- the first palette since the shell started: it only changes anything if the file says otherwise
     iris_last_text = text_out
     with_dirs(function(d)
+      local function go(changed)
         -- Written into the data folder, then copied over the scene's palette.
         pcall(sys.call, "files.write", "palette.plm", text_out)
         run("cp", { d.data .. "/palette.plm", d.conf .. "/palette.plm" }, function() end)
@@ -1598,12 +1619,64 @@ function iris_fx.apply_palette(pal)
             pcall(sys.call, "files.write", "wm-palette.plm", wm_text)
             run("cp", { d.data .. "/wm-palette.plm", d.conf .. "/wm-palette.plm" }, function() end)
         end
-        -- And Hyprland's window borders.
-        local code = iris_fx.border_code(pal)
-        run("hyprctl", { "eval", code }, function() end)
+        iris_fx.apply_hypr()
+        -- A new palette makes the running scene reload itself, and a reloaded scene loses the glass of the frame down the left (the edge light and
+        -- the tint go; the blur stays), however it is built: the strip alone does it, and the top bar does not. Only starting again brings it back. So
+        -- with the bar on the left, the shell starts again a moment after the palette is written (the usual reload is over by then): a short gap in
+        -- the bar, instead of a frame with no glass until the next restart. It is done the way the Bar page does it: a command left running on its own.
+        if changed and bar_fx.left then
+            local scene = d.conf .. "/vitreus.plm"
+            run("setsid", { "-f", "sh", "-c", "sleep 2\n" .. bar_fx.restart, "sh", scene, d.data .. "/vitreus.log" }, function() end)
+        end
+      end
+      local function trim(t) return ((t or ""):gsub("%s+$", "")) end
+      if first then
+          run("sed", { "-n", "p", d.conf .. "/palette.plm" }, function(out) go(trim(out) ~= trim(text_out)) end)
+      else
+          go(true)
+      end
+    end)
+end
+
+-- What Hyprland is told: the window borders from the palette, and, with the bar down the left (bar_fx.left), the room the strip and the frame
+-- take round the windows (gaps_out: the layer's own reserved zone is not moved when the surface changes edge). It is sent at once and kept in
+-- vitreus_colors.lua, which hyprland.lua loads last. Up on the top, the gaps go back to what they were (bar_fx.orig, read once).
+bar_fx = { left = false, orig = nil }
+bar_fx.restart = [[
+P="$1"; L="$2"
+export PATH="$HOME/.local/bin:$PATH"
+pleamar --say vitreus quit >/dev/null 2>&1
+i=0
+while pgrep -f "^pleamar --scene $P" >/dev/null && [ $i -lt 15 ]; do sleep 0.2; i=$((i+1)); done
+pkill -f "^pleamar --scene $P"
+sleep 0.3
+exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
+]]
+function iris_fx.gaps_code()
+    local t, r, b, l
+    if bar_fx.left then
+        local px = math.floor(1.35 * 8 + 0.5) + 13            -- the frame's thickness (8 * u) and a gap
+        t, r, b, l = px, px, px, math.floor(1.35 * 46 + 0.5) + 14
+    elseif bar_fx.orig then
+        t, r, b, l = bar_fx.orig[1], bar_fx.orig[2], bar_fx.orig[3], bar_fx.orig[4]
+    else
+        return nil
+    end
+    return string.format("hl.config({ general = { gaps_out = { top = %d, right = %d, bottom = %d, left = %d } } })", t, r, b, l)
+end
+function iris_fx.apply_hypr()
+    local pal = iris_fx.last_pal
+    local parts, keep = {}, {}
+    if pal then local c = iris_fx.border_code(pal); parts[#parts + 1] = c; keep[#keep + 1] = c end
+    local g = iris_fx.gaps_code()
+    if g then parts[#parts + 1] = g; if bar_fx.left then keep[#keep + 1] = g end end
+    if #parts == 0 then return end
+    run("hyprctl", { "eval", table.concat(parts, " ") }, function() end)
+    with_dirs(function(d)
         pcall(sys.call, "files.write", "vitreus_colors.lua",
-            "-- Written by Vitreus (the wallpaper's colours, Iris; or greys with Iris off); edits here are overwritten.\n" ..
-            "-- hyprland.lua loads it after hypr_style.lua, so it wins over the border set there.\n" .. code .. "\n")
+            "-- Written by Vitreus (the wallpaper's colours, Iris, or greys with Iris off; and the room round the windows with the bar on the left);\n" ..
+            "-- edits here are overwritten. hyprland.lua loads it after hypr_style.lua, so it wins over the values there.\n" ..
+            table.concat(keep, "\n") .. "\n")
         local hypr = d.conf:gsub("/pleamar/shells/vitreus$", "/hypr")
         run("cp", { "-f", d.data .. "/vitreus_colors.lua", hypr .. "/vitreus_colors.lua" }, function() end)
     end)
@@ -3938,6 +4011,36 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
     read_mons()
     every(5000, read_mons)
     after(8000, function() B.awake = true; settle() end)
+end)()
+
+-- The bar's position (Settings > Bar): along the top (the default), or down the left edge with a frame round the screen. The surface's
+-- anchor follows `bar_anchor`, so it moves without being recreated. The panels hang from the top edge in both, their left edge by the
+-- strip in the second; `lp_w` is how wide the one last opened is, so that they line up. Kept in bar-position.json.
+;(function()
+    local left = false
+    local function show() fact.bar_anchor = left and "left" or "top"; bar_fx.left = left end
+    local ok, saved = pcall(sys.ask, "files.read", "bar-position.json", "json")
+    if ok and type(saved) == "table" and saved.left == true then left = true end
+    show()
+    -- What the gaps round the windows were, to give back up on the top: read once, before anything of ours changes them (if it already
+    -- says what the left needs, it was us, and the usual 20 does).
+    run("hyprctl", { "getoption", "general:gaps_out", "-j" }, function(out, code)
+        local g = { 20, 20, 20, 20 }
+        if code == 0 and out then
+            local css = out:match('"css":%s*"([^"]*)"')
+            local n = {}
+            for v in (css or ""):gmatch("%d+") do n[#n + 1] = tonumber(v) end
+            if #n == 4 and n[4] < 60 then g = n end
+        end
+        bar_fx.orig = g
+        iris_fx.apply_hypr()
+    end)
+    on("bar_pick_pos", function(i)
+        left = math.floor(i + 0.5) == 1
+        pcall(sys.call, "files.write", "bar-position.json", { left = left })
+        show()
+        iris_fx.apply_hypr()
+    end)
 end)()
 
 -- The Bar page's layout: the order of the bar's pieces and which are hidden, edited by dragging chips on a small copy

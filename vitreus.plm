@@ -7,7 +7,7 @@ import "palette.plm"
 //  bar: it is the same silhouette, melted, so it hangs from it like a drop.
 
 scene Vitreus {
-    surface { size: full, 1440; anchor: top; margin: 0; reserve: 68; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open }
+    surface { size: full, 1440; anchor: bar_anchor; margin: 0; reserve: 68; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "pleamar", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play" }
 
@@ -26,6 +26,7 @@ scene Vitreus {
     text clock12 = "--:--"
     text clock_h = ""              // the bar clock in three parts: the hour (oversized), the minutes (in the accent), am/pm
     text clock_mm = ""
+    text clock_mn = ""             // the minutes alone, for the bar down the left
     text bar_ap = ""
     text bar_date = ""              // the short day stacked above the am/pm: MON
     text datelong = ""
@@ -215,6 +216,18 @@ scene Vitreus {
     //  The Bar page: which monitors the bar is on (see the Bar section of vitreus.luau). `bar_scr` is -1 for all
     //  of them, or which monitor tile is chosen.
     fact bar_scr = -1
+    //  The bar's position (Settings > Bar): along the top, or down the left edge with a frame round the screen (see the Bar section of
+    //  vitreus.luau). The surface's anchor follows it; `bar_lm` is how far over to the left it has got, and the panels still hang from the top
+    //  edge, `lp_w` wide (the one last opened), their left edge by the strip.
+    fact bar_anchor: top | left = top
+    //  Down the left a panel never turns into another: asking for one while another is open closes the open one first, and the new one
+    //  opens when it has gone (see the rule after `lp.top`). `pcur` is the panel as the rule last saw it, `pending` the one that is waiting.
+    fact pcur: none | calendar | controls | player | volume | notif | settings | launch | tray = none
+    fact pending: none | calendar | controls | player | volume | notif | settings | launch | tray = none
+    fact pq_sw = false
+    event bar_pick_pos ->
+    fact lp_w = 450
+    fact lp_k = 0                   // which panel was opened last: 1 settings, 2 launcher, 3 controls, 4 calendar, 5 tray, 6 player, 7 volume, 8 notification
     repeat i in 0..4 {
         fact bar_m.$i.on = false
         text bar_m.$i.name = ""
@@ -428,6 +441,7 @@ scene Vitreus {
     let veil  = 8%
 
     shader wave = file "wave.wgsl"
+    spring dripl = 60, 11         // the drip down the left: slow enough to see the neck stretch, thin and snap
     spring drip = 170, 18         // underdamped: it overshoots and settles back, like a real drop landing
     spring pop  = 300, 12         // snappier and much less damped: a toggle knob popping past where it lands
 
@@ -486,6 +500,7 @@ scene Vitreus {
     prop mshow = 0 ~calm          // the bar's player controls: there while a player exists, paused or not
 
     follow drop = if(panel != none, 1, 0)
+    follow dtrav = if(panel != none, 1, 0)
     follow hot  = if(panel != none, 1, 0)
     follow dc   = if(panel == calendar, 1, 0)
     follow dk   = if(panel == controls, 1, 0)
@@ -528,6 +543,11 @@ scene Vitreus {
     repeat i in 1..6 { follow ws.tall.$i = if(ws.$i.busy, 1, 0) }
 
     on change drop > 0.97 while drop > 0.97 { impulse sag 220; impulse wobble -260 }
+    //  The same moments as in Marea, for the left layout's drop: it lets go (the edge jumps and bounces, two ripples set off, a small drop stays
+    //  hanging and is swallowed), it is grabbed on its way back, and the edge closes over it once it has gone in.
+    on change dsl > 0.84 while dsl > 0.84 and lm > 0.5 { impulse pbounce -150; impulse wobble -340; prip: 0 ~16ms; prip: 1 ~900ms after 30ms; pstray: 1 ~16ms; pstray: 0 ~520ms after 60ms }
+    on change dsl < 0.84 while dsl < 0.84 and lm > 0.5 { impulse wobble 190; impulse pbounce 40 }
+    on change dsl < 0.06 while dsl < 0.06 and lm > 0.5 { impulse pbounce -110; impulse wobble -90; prip: 0 ~16ms; prip: 1 ~760ms after 30ms }
     //  A drawer that has gone back into the bar: the surface closes over it, and a ripple runs out from the
     //  middle of the bar (the same wave the music makes, from another place).
     on change drop < 0.08 while drop < 0.08 and panel == none {
@@ -588,6 +608,13 @@ scene Vitreus {
     prop pow_th = 1 ~pop                // where the power-profile thumb is: 0 saver, 1 balanced, 2 performance
     prop wp_show_pill = 0 ~pop
     prop iris_pill = 0 ~pop
+    prop bar_lm = 0 ~calm
+    prop pw_x = 450 ~90ms
+    prop dtrav = 0 ~dripl             // how far a panel has come out of the strip, 0 to 1 (the left layout's own, slow, drop)
+    prop pbounce = 0 ~splash          // the strip's edge bouncing when the thread breaks
+    prop prip = 1 ~900ms              // the ripple that runs along the strip's edge, 0 just born, 1 gone
+    prop pstray = 0 ~520ms            // the small drop that is left hanging from the edge
+    prop pw_y = 20 ~90ms
     prop rand_spin = 0 ~pop
     prop set_pg = 0 ~calm
     prop set_pgd = 0 ~calm
@@ -643,6 +670,8 @@ scene Vitreus {
     follow pow_th = if(pow_prof < 0, 1, pow_prof)
     follow wp_show_pill = if(wp_show, 1, 0)
     follow iris_pill = if(iris_on, 1, 0)
+    follow bar_lm = if(bar_anchor == left, 1, 0)
+    follow pw_x = lp_w
     follow rand_spin = rand_turn
     follow set_pg = if(set_page == pg_glass, 1, 0)
     follow set_pgd = if(set_page == pg_disp, 1, 0)
@@ -655,8 +684,8 @@ scene Vitreus {
     follow set_pgl = if(set_page == pg_lock, 1, 0)
     follow set_pgw = if(set_page == pg_wm, 1, 0)
     follow bs.ws = if(bv.ws, 1, 0)
-    follow bs.title = if(bv.title, 1, 0)
-    follow bs.media = if(bv.media, 1, 0)
+    follow bs.title = if(bv.title and bar_anchor == top, 1, 0)
+    follow bs.media = if(bv.media and bar_anchor == top, 1, 0)
     follow bs.sr = if(bv.sr, 1, 0)
     follow bs.ctl = if(bv.ctl, 1, 0)
     follow bs.clock = if(bv.clock, 1, 0)
@@ -1232,8 +1261,8 @@ scene Vitreus {
         box { from: 116 * u, 11 * u; size: 100 * u, 6 * u; corner: 3 * u; color: deep; opacity: 60% }
         box { from: 116 * u, 11 * u; size: max(0.1, 100 * u * clamp(m.pct / 100, 0, 1)), 6 * u; corner: 3 * u; color: if(m.muted, faint, mint); opacity: if(m.muted, 60%, 100%) }
         zone box track { at: 166 * u, 14 * u; size: 112 * u, 24 * u; cursor: pointer }
-        on press track { emit set(m.index * 4 + clamp((local.x - 116 * u) / (100 * u), 0, 1)) }
-        on drag track { emit set(m.index * 4 + clamp((local.x - 116 * u) / (100 * u), 0, 1)) }
+        on press track { emit set(m.index * 4 + clamp((local.x / psk - 116 * u) / (100 * u), 0, 1)) }
+        on drag track { emit set(m.index * 4 + clamp((local.x / psk - 116 * u) / (100 * u), 0, 1)) }
         text number(m.pct, 0, "%") { at: floor(252 * u + 0.5), floor(14 * u + 0.5); anchor: right center; align: right; size: 10.5 * u; width: 30 * u; lines: 1; color: faint; family: "Space Grotesk" }
         path { at: 264 * u, 14 * u; color: if(m.muted, faint, mint); opacity: 85% + 15% * mzone.hover; move 0, -2 * u; line 2.5 * u, -2 * u; line 5.5 * u, -5 * u; line 5.5 * u, 5 * u; line 2.5 * u, 2 * u; line 0, 2 * u; close }
         line { from: 255 * u, 8 * u; to: 271 * u, 20 * u; width: 1.5 * u; color: alert; opacity: if(m.muted, 100%, 0) }
@@ -1436,6 +1465,27 @@ scene Vitreus {
     }
 
     let cx = screen.width / 2
+    //  The bar down the left: a strip `lf.w` wide on the left and a frame `lf.t` thick round the other three edges, in the same glass. `lm` is how
+    //  far over it is (the panels follow: `pcx` is where they are centred, with their left edge `lf.w` and a little in from the strip).
+    let lm = clamp(bar_lm, 0, 1)
+    let lf.t = 8 * u
+    let lf.w = 46 * u
+    let lf.x = lf.w / 2                                    // the strip's middle line, where its pieces sit
+    //  Down the left a panel comes out of the strip like a drop and ends up in the middle of the screen, scaled up (`ps`: it is detached, so it
+    //  can be bigger; the groups of its contents scale by it round the middle of the screen, `vc`). The notification and volume panels are not
+    //  scaled (`psk`). `lp.gx0` is where its left edge leaves the strip and `lp.gxf` where it lands, both in the panel's own (unscaled) coordinates;
+    //  its left edge travels between them (`lp.xl`, as far as `dsl` of the way: a little after it starts to open), and its contents with it. The
+    //  glass melts shapes that are near each other, so as it leaves a neck stretches and breaks: the drawers' blend (below) is what makes the neck.
+    let vc = screen.height / 2
+    let ccx = mix(cx, (lf.w + screen.width - lf.t) / 2, lm)         // the middle of what can be seen: right of the strip, inside the frame
+    let ps = mix(1, 1.25, lm)
+    let att = if(lp_k == 3 or lp_k == 4 or lp_k > 6, 1, 0)           // the control center, the calendar, the volume and the notifications: they stay joined to the strip, and are not scaled
+    let psk = if(att > 0.5, 1, ps)
+    let dsl = max(0, dtrav * 1.3 - 0.3)
+    let lp.gx0 = ccx + (lf.x - ccx) / psk
+    let lp.gxf = ccx - (pw_x / 2 + 6.5) * u
+    let lp.xl = mix(lp.gx0 + (lp.gxf - lp.gx0) * dsl, lf.x, att)
+    let pcx = mix(cx, mix(ccx - (lp.gxf - lp.gx0) * (1 - dsl), lf.w + 6.5 * u + pw_x * u / 2, att), lm)
     //  The surface is a fixed 1440 tall (`size: full, full` would lose the bar's reserved strip), so on a monitor of another height
     //  `screen.height` is not the screen. The logic reports the monitor's real height (`mon_h`, 0 until it is known, and always 0
     //  where it cannot ask): `vh` is what to centre on (never more than the surface, which is all there is to draw on), `mh` the
@@ -1456,7 +1506,10 @@ scene Vitreus {
     let bw.tray = (fw.tray + bar.gap * min(1, trn)) * bs.tray
     let bar.w = 450 * u + bw.tray
     let bar.h = 40 * u
-    let bar.y = 8 + bar.h / 2
+    let bar.y0 = 8 + bar.h / 2
+    //  Down the left the panels come out of the strip at the height of their button: `pw_y` is where the open panel's top is (see `lp.top`), and
+    //  the bar's "middle line" is half a bar above it, so that the first plate keeps the 12 it has under a panel's top (`bar.y` + 32).
+    let bar.y = mix(bar.y0, pw_y - bar.h / 2, lm)
     let bar.rad = 14 * u                 // the bar's corner when shut: the same as the plates', not a full pill
     //  The bar's pieces sit in a row in the order Settings > Bar gives them (`bo.*`), 16 in from each end and
     //  `bar.gap` apart. Each one is as wide as what it draws (`fw.*`) and takes that and a gap (`bw.*`: less while
@@ -1466,8 +1519,8 @@ scene Vitreus {
     //  The clock's width is measured: the hour, the minutes and, at the edge, the day over the am/pm (both about
     //  the same width, so the column is as wide as the wider).
     let clock.col = max(caw.width, cdw.width)
-    let bar.l = cx - bar.w / 2 + 16 * u
-    let bar.r = cx + bar.w / 2 - 16 * u
+    let bar.l = pcx - bar.w / 2 + 16 * u
+    let bar.r = pcx + bar.w / 2 - 16 * u
     let fw.ws = 76 * u                   // five dots 15 apart, one of them the 20-wide pill
     let fw.media = 0                     // previous, play, next have no slot of their own: they sit inside the window title's button, top right
     let fw.set = 15 * u                  // the gear with its teeth
@@ -1517,10 +1570,18 @@ scene Vitreus {
     let win.x = bar.l + pre.title
     let win.w = max(0, bar.r - post.title - win.x)
     let room = 10 * u
+    //  Down the left, top to bottom: the workspaces (their middle one at `lv.ws`), the tray apps, and from the foot up the clock (its
+    //  hour at `lv.clk`, the minutes and am/pm under it), the controls, search and the gear, 32 apart. Whole pixels, for the texts.
+    let lv.ws = lf.t + 46 * u
+    let lv.tray = lv.ws + 30 * u + 22 * u
+    let lv.clk = screen.height - lf.t - 84 * u
+    let lv.ctl = lv.clk - 46 * u
+    let lv.sr = lv.ctl - 32 * u
+    let lv.set = lv.sr - 32 * u
 
     //  The music only moves the bar: it fades out as the panel opens (gone by a third of
     //  the way), so an open panel sits still.
-    let pv = pulse * (1 - min(1, drop * 3))
+    let pv = pulse * (1 - min(1, drop * 3)) * (1 - lm)
     let pop = pv * 6 * u           // how far the bar swells on the beat
     //  The bounce on `dc`/`dk` (below) is free to swing past 1 on the way open - that
     //  overshoot is the spring showing - but a size can't go negative, so anything
@@ -1647,7 +1708,7 @@ scene Vitreus {
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36
     let nt.h = 246 + 552 - nt.ds + 8 + if(nta_sel >= 0, 456, 0) + 12
-    let set.h = max(side.ab + 40, mix(mix(mix(mix(mix(mix(mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 330, set_pgb), 392, set_pgh), 262, set_pga), 312, set_pgn), 456, set_pgs), 456, set_pgt), 456, set_pgl), 456, set_pgw))
+    let set.h = max(side.ab + 40, mix(mix(mix(mix(mix(mix(mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 424, set_pgb), 392, set_pgh), 262, set_pga), 312, set_pgn), 456, set_pgs), 456, set_pgt), 456, set_pgl), 456, set_pgw))
     //  A held Power button counts its second on this clock, and a recording pulses on it, so they need it too.
     let need_clock = ((wifi_scanning or bt_scanning or bt_working or caf_on or rec_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or nt_urgent)) or (set_pgd > 0.01 and disp.h > 456)
     spin time by if(need_clock, 1, 0)
@@ -1675,17 +1736,144 @@ scene Vitreus {
     let tm.list = min(tm_h, 224)
     let tm_bot = 100 + if(tm_has_menu, tm.list, 30) + 8
     let dm.hh = bar.h / 2 + (if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * u * dm0 + max(0, sag)
-    let mdx = cx
+    let mdx = pcx
+    //  Down the left, where the open panel is (`lp_k`: which was opened last), in its own coordinates: it ends up in the middle of the screen,
+    //  except the volume, which is low, and the notification, which is high. It leaves the strip at the height of its button (`lp.btn`; the volume
+    //  and the notification leave at their own height) and its middle travels from there to its place with the drop (`lp.cy`). `pw_y` follows its top.
+    let lp.btn = if(lp_k == 1, lv.set, if(lp_k == 2, lv.sr, if(lp_k == 3, lv.ctl, if(lp_k == 4, lv.clk + 24 * u, if(lp_k == 5, lv.tray + 9 * u, if(lp_k == 6, lv.tray, 0))))))
+    //  Margins: the plates are 12 in from a drawer's top and bottom in their own layouts and 18.5 in from its sides, so a panel's content is moved by
+    //  `lp.dy` and the drawer made `lp.dd` taller to make them 18.5 all round (Settings included).
+    let lp.dy = if(lp_k == 1, 4.5, if(lp_k == 2 or lp_k == 3 or lp_k == 5 or lp_k == 6 or lp_k == 7 or lp_k == 8, 6.5, if(lp_k == 4, -0.5, 0))) * u * lm
+    let lp.dd = if(lp_k == 1, 11, if(lp_k == 2, 11, if(lp_k == 3 or lp_k == 5 or lp_k == 6 or lp_k == 7 or lp_k == 8, 13, if(lp_k == 4, 6, 0)))) * u * lm
+    let lp.hd = (if(lp_k == 1, (8 + 36 + 8 + set.h + 16) * u, if(lp_k == 2, (112 + lr * 44) * u, if(lp_k == 3, (content_bot + 16) * u, if(lp_k == 4, 373 * u, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * u, (8 + osd_h + 16) * u)))))) + lp.dd
+    let lp.yf = if(lp_k == 3 or lp_k == 4, clamp(lp.btn, lf.t + 24 * u + lp.hd / 2, screen.height - lf.t - 24 * u - lp.hd / 2), if(lp_k == 7, screen.height - lf.t - 24 * u - lp.hd / 2, if(lp_k == 8, lf.t + 24 * u + lp.hd / 2, vc)))
+    let lp.sy0 = if(lp_k > 6, lp.yf, lp.btn)
+    let lp.gy0 = if(att > 0.5, lp.yf, vc + (lp.btn - vc) / psk)
+    let lp.cy = lp.gy0 + (lp.yf - lp.gy0) * dsl
+    let lp.top = lp.cy - lp.hd / 2
+    follow pw_y = lp.top
+    on change panel {
+        pq_sw = lm > 0.5 and pcur != none and panel != none and panel != pcur
+        pending = if(pq_sw, panel, if(panel != none and panel != pending, none, pending))
+        panel = if(pq_sw, none, panel)
+        pcur = panel
+        //  Which panel was opened last, and how wide it is: where the panels sit down the left follows it (see `lp.top`, `pcx`). Here, in the
+        //  scene, not in the logic (its own popups, volume and notifications, set `panel` itself and nothing told it), and only once the panel
+        //  is really being opened: a switch from one to another leaves the open one in its own shape until it has gone.
+        lp_w = if(panel == settings, 620, if(panel == controls or panel == player or panel == tray, 312, if(panel == volume or panel == notif, 340, if(panel == calendar or panel == launch, 450, lp_w))))
+        lp_k = if(panel == settings, 1, if(panel == launch, 2, if(panel == controls, 3, if(panel == calendar, 4, if(panel == tray, 5, if(panel == player, 6, if(panel == volume, 7, if(panel == notif, 8, lp_k))))))))
+    }
+    //  ...and the waiting one opens once the drop of the one before has gone back in (its `dtrav` is back to nothing). It is the compound that is
+    //  watched, so that it also fires when the wait begins with the strip already at rest.
+    on change dtrav < 0.03 and pending != none while dtrav < 0.03 and pending != none { panel = pending; pending = none }
+    //  What a drop out of the strip is made of, as in Marea's (marea.plm, "the body"): the strip's edge bulges towards the drop while it holds it
+    //  (`dj.sag`, most halfway), the neck is a bell that ends at nothing so that the thread breaks by itself (`dj.neck`), when it breaks two crests
+    //  run along the edge (`dj.ripx`, `dj.riph`) and a small drop is left hanging from it for a moment (`dj.stray`), and the drop stretches with its
+    //  speed (`dj.stretch`) and shakes (`wobble`) when it lets go. `dj.y0` is where it comes out: the panel's own vertical middle.
+    let dj.out = clamp(dsl, 0, 1)
+    let dj.tension = 4 * dj.out * (1 - dj.out)
+    let dj.sag = max((16 * dj.tension + pbounce) * u * lm * (1 - att), 0.3)
+    let dj.neck = 30 * u * 4 * dj.out * (1 - dj.out)
+    let dj.ripx = (10 + 48 * prip) * u
+    let dj.riph = 12 * u * (1 - prip) * clamp(prip * 6, 0, 1) * lm * (1 - att)
+    let dj.stray = 5.5 * u * pstray * lm * (1 - att)
+    let dj.stretch = clamp(vel(dtrav) * 0.04, 0, 0.3) * lm
+    let dj.y0 = lp.sy0
+    let dj.px = if(lm > 0.5, 0, 30000)
+    //  Each drawer's shape as it is drawn (`*.ex`, `*.ey` its middle, `*.ew`, `*.eh` its size). From the top bar it is the drawer above: it falls,
+    //  widening on the way. Down the left it comes out sideways from the strip instead: it starts small and grows in both ways (`*.lf`, the same quick
+    //  rise the width has above) around the panel's own vertical middle, and to the right, from the strip's middle to where the panel ends (`*.rt`, 6.5 past the plates' side: with the 6.5 in `pcx` it makes the margin all round (strip side, right, top) the same, 18.5; the calendar's and the launcher's are 450 wide here, not the bar's width, which grows with the tray icons). Its contents stay where
+    //  they will end up, and the drawer's shape uncovers them (they are clipped to it).
+    let dk.gl = mix(min(dtrav, dk0), dk0, att)
+    let dk.lf = mix(min(1, dk0 * 1.6) + max(0, dk0 - 1) * 0.6, min(1, dk.gl * 1.6) + max(0, dk.gl - 1) * 0.6, lm)
+    let dk.rt = mix(2 * (156 + 6.5) * u, (lf.w - lf.x) + 325 * u, att)
+    let dk.gw = max(0.1, dk.rt * dk.lf)
+    let dk.gh = (((content_bot + 16) * u) + lp.dd + max(0, sag)) * dk.lf
+    let dk.gx = lp.xl + dk.gw / 2
+    let dk.ew = mix(dk.w, psk * dk.gw, lm)
+    let dk.eh = mix(dk.hh, psk * dk.gh, lm)
+    let dk.ex = mix(pcx, ccx + psk * (dk.gx - ccx), lm)
+    let dk.ey = mix(bar.y + dk.hh / 2, vc + psk * (lp.cy - vc), lm)
+    let dc.gl = mix(min(dtrav, dc0), dc0, att)
+    let dc.lf = mix(min(1, dc0 * 1.6) + max(0, dc0 - 1) * 0.6, min(1, dc.gl * 1.6) + max(0, dc.gl - 1) * 0.6, lm)
+    let dc.rt = mix(2 * (225 + 6.5) * u, (lf.w - lf.x) + 463 * u, att)
+    let dc.gw = max(0.1, dc.rt * dc.lf)
+    let dc.gh = ((373 * u) + lp.dd + max(0, sag)) * dc.lf
+    let dc.gx = lp.xl + dc.gw / 2
+    let dc.ew = mix(dc.w, psk * dc.gw, lm)
+    let dc.eh = mix((bar.y + dc.hh - dc.top), psk * dc.gh, lm)
+    let dc.ex = mix(pcx, ccx + psk * (dc.gx - ccx), lm)
+    let dc.ey = mix((dc.top + bar.y + dc.hh) / 2, vc + psk * (lp.cy - vc), lm)
+    let ds.gl = min(dtrav, ds0)
+    let ds.lf = mix(min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6, min(1, ds.gl * 1.6) + max(0, ds.gl - 1) * 0.6, lm)
+    let ds.rt = 2 * (310 + 6.5) * u
+    let ds.gw = max(0.1, ds.rt * ds.lf)
+    let ds.gh = (((8 + 36 + 8 + set.h + 16) * u) + lp.dd + max(0, sag)) * ds.lf
+    let ds.gx = lp.xl + ds.gw / 2
+    let ds.ew = mix(ss.w, psk * ds.gw, lm)
+    let ds.eh = mix(ss.hh, psk * ds.gh, lm)
+    let ds.ex = mix(pcx, ccx + psk * (ds.gx - ccx), lm)
+    let ds.ey = mix(bar.y + ss.hh / 2, vc + psk * (lp.cy - vc), lm)
+    let dl.gl = min(dtrav, dl0)
+    let dl.lf = mix(min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6, min(1, dl.gl * 1.6) + max(0, dl.gl - 1) * 0.6, lm)
+    let dl.rt = 2 * (225 + 6.5) * u
+    let dl.gw = max(0.1, dl.rt * dl.lf)
+    let dl.gh = (((112 + lr * 44) * u) + lp.dd + max(0, sag)) * dl.lf
+    let dl.gx = lp.xl + dl.gw / 2
+    let dl.ew = mix(dl.w, psk * dl.gw, lm)
+    let dl.eh = mix((bar.y + dl.hh - dl.top), psk * dl.gh, lm)
+    let dl.ex = mix(pcx, ccx + psk * (dl.gx - ccx), lm)
+    let dl.ey = mix((dl.top + bar.y + dl.hh) / 2, vc + psk * (lp.cy - vc), lm)
+    let do.gl = mix(min(dtrav, do0), do0, att)
+    let do.lf = mix(min(1, do0 * 1.6) + max(0, do0 - 1) * 0.6, min(1, do.gl * 1.6) + max(0, do.gl - 1) * 0.6, lm)
+    let do.rt = mix(2 * (170 + 6.5) * u, (lf.w - lf.x) + 353 * u, att)
+    let do.gw = max(0.1, do.rt * do.lf)
+    let do.gh = (((8 + osd_h + 16) * u) + lp.dd + max(0, sag)) * do.lf
+    let do.gx = lp.xl + do.gw / 2
+    let do.ew = mix(os.w, psk * do.gw, lm)
+    let do.eh = mix(os.hh, psk * do.gh, lm)
+    let do.ex = mix(pcx, ccx + psk * (do.gx - ccx), lm)
+    let do.ey = mix(bar.y + os.hh / 2, vc + psk * (lp.cy - vc), lm)
+    let dm.gl = min(dtrav, dm0)
+    let dm.lf = mix(min(1, dm0 * 1.6) + max(0, dm0 - 1) * 0.6, min(1, dm.gl * 1.6) + max(0, dm.gl - 1) * 0.6, lm)
+    let dm.rt = 2 * (156 + 6.5) * u
+    let dm.gw = max(0.1, dm.rt * dm.lf)
+    let dm.gh = (((if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * u) + lp.dd + max(0, sag)) * dm.lf
+    let dm.gx = lp.xl + dm.gw / 2
+    let dm.ew = mix(dm.w, psk * dm.gw, lm)
+    let dm.eh = mix(dm.hh, psk * dm.gh, lm)
+    let dm.ex = mix(pcx, ccx + psk * (dm.gx - ccx), lm)
+    let dm.ey = mix(bar.y + dm.hh / 2, vc + psk * (lp.cy - vc), lm)
+    //  The control center opens when the pointer rests on its button, and closes when it has left the button and the drawer (a moment's grace, so
+    //  that crossing the gap does not close it). It is quick launch, so it stays joined to the strip instead of dropping out of it.
+    //  `cursor` is the mouse wherever it is, in the scene's coordinates.
+    let ctl.onbtn = if(lm > 0.5 and cursor.x > 0 and cursor.x < lf.w and abs(cursor.y - lv.ctl) < 18 * u, 1, 0)
+    let ctl.ondraw = if(lm > 0.5 and panel == controls and cursor.x > dk.ex - dk.ew / 2 - 4 and cursor.x < dk.ex + dk.ew / 2 + 4 and cursor.y > dk.ey - dk.eh / 2 - 4 and cursor.y < dk.ey + dk.eh / 2 + 4, 1, 0)
+    prop ctl_arm = 0 ~120ms
+    follow ctl_arm = ctl.onbtn
+    prop ctl_hold = 0 ~280ms
+    follow ctl_hold = max(ctl.onbtn, ctl.ondraw)
+    on change ctl_arm > 0.9 while ctl_arm > 0.9 { panel = controls }
+    on change ctl_hold < 0.05 while ctl_hold < 0.05 and panel == controls and lm > 0.5 { panel = none }
+    //  The calendar the same way, from the clock.
+    let cal.onbtn = if(lm > 0.5 and cursor.x > 0 and cursor.x < lf.w and abs(cursor.y - (lv.clk + 24 * u)) < 42 * u, 1, 0)
+    let cal.ondraw = if(lm > 0.5 and panel == calendar and cursor.x > dc.ex - dc.ew / 2 - 4 and cursor.x < dc.ex + dc.ew / 2 + 4 and cursor.y > dc.ey - dc.eh / 2 - 4 and cursor.y < dc.ey + dc.eh / 2 + 4, 1, 0)
+    prop cal_arm = 0 ~120ms
+    follow cal_arm = cal.onbtn
+    prop cal_hold = 0 ~280ms
+    follow cal_hold = max(cal.onbtn, cal.ondraw)
+    on change cal_arm > 0.9 while cal_arm > 0.9 { panel = calendar }
+    on change cal_hold < 0.05 while cal_hold < 0.05 and panel == calendar and lm > 0.5 { panel = none }
     //  Where the contents hang from: the panel's old middle, so they keep their
     //  place when the panel grows to make room for the player.
-    let cy = bar.y + 26 * u + 125 * u * drop
+    let cy = bar.y + 26 * u + 125 * u * mix(drop, 1, lm) + lp.dy
     //  The controls' content hangs from here: 127 above `cy`, so the volume plate starts 12 under the
     //  bar and the drawer is only as tall as its two plates and their margins.
     let ck = cy - 127 * u
 
     //  The whole bar, glass and all, is one group so the wave can bend it as one thing.
     group {
-        shader: wave, pv, clamp(ring, 0, 1), mix((mc - (cx - bar.w / 2)) / bar.w, 0.5, clamp(ring_mid, 0, 1)), 0, 2.6 * u * (1 - min(1, drop * 2)), bar.w, 0, 0
+        shader: wave, pv, mix(clamp(ring, 0, 1), 1, lm), mix((mc - (pcx - bar.w / 2)) / bar.w, 0.5, clamp(ring_mid, 0, 1)), 0, 2.6 * u * (1 - min(1, drop * 2)) * (1 - lm), bar.w, 0, 0
         // ── the liquid ───────────────────────────────────────────────
         body {
             color: tint
@@ -1697,16 +1885,31 @@ scene Vitreus {
             shadow: 0, 1 + 6 * drop + 3 * pv, 6 + 14 * drop + 8 * pv, 8% + 16% * drop + 8% * pv, deep
             //  The bar is only the bar: it swells a little on the beat and nothing else. Every panel,
             //  the calendar included, is a drawer of its own that drops from it, below.
-            box shell { at: cx, bar.y - bar.h / 2 + (bar.h + pop) / 2; size: bar.w + pv * 10 * u, bar.h + pop; corner: bar.rad }
+            box shell { at: mix(pcx, cx, lm), mix(bar.y0 + pop / 2, lf.t / 2, lm); size: mix(bar.w + pv * 10 * u, screen.width, lm), mix(bar.h + pop, lf.t, lm); corner: mix(bar.rad, 0, lm) }
+            //  Down the left: the strip, and the frame's other two edges, plain rectangles. The inside corners are rounded by a ring: a rounded
+            //  rectangle drawn as an outline as thick as the frame, whose inner edge is the opening (its left side lies in the strip), so the corners
+            //  are exact curves and the glass's edge light runs round them unbroken. The ring has NO NAME on purpose: a named shape takes clicks across
+            //  its whole bounding box, and the ring's is the whole screen. When the left layout is not in it is moved 30000 px away
+            //  (`show:` does not take it off the glass, and a ring thinned to a hair counts as a filled box and frosts the whole screen).
+            //  The strip's side of the drip (see `dj.*`): all melted into the strip and the drawers, so that the neck and the bulge are not drawn, they are
+            //  what the distances between the shapes make. Moved off the screen outside the left layout (`show:` does not take a shape off the glass).
+            ellipse { at: lf.w + dj.px, dj.y0; radius: 30 * u; scale: dj.sag / (30 * u), 1; blend: 16 * u * clamp(dj.sag / (6 * u), 0, 1) }
+            ellipse { at: lf.w + dj.px, dj.y0 - dj.ripx; radius: 9 * u; scale: max(dj.riph, 0.3) / (9 * u), 1; blend: 8 * u * clamp(dj.riph / (3 * u), 0, 1) }
+            ellipse { at: lf.w + dj.px, dj.y0 + dj.ripx; radius: 9 * u; scale: max(dj.riph, 0.3) / (9 * u), 1; blend: 8 * u * clamp(dj.riph / (3 * u), 0, 1) }
+            ellipse { at: lf.w + dj.stray * 0.7 + dj.px, dj.y0; radius: max(dj.stray, 0.3); blend: 7 * u * clamp(dj.stray / (3 * u), 0, 1) }
+            box lf_left { at: lf.w * lm / 2, screen.height / 2; size: lf.w * lm, screen.height; show: lm > 0.004 }
+            box lf_right { at: screen.width - lf.t * lm / 2, screen.height / 2; size: lf.t * lm, screen.height; show: lm > 0.004 }
+            box lf_bottom { at: cx, screen.height - lf.t * lm / 2; size: screen.width, lf.t * lm; show: lm > 0.004 }
+            box { from: lf.w - lf.t / 2 + if(lm > 0.35, 0, 30000), lf.t / 2 + if(lm > 0.35, 0, 30000); size: screen.width - lf.w, screen.height - lf.t; corner: 12 * u + lf.t / 2; stroke: lf.t * max(lm, 0.35) }
             //  The drawer is a second shape in the same glass. `blend` melts it into the bar, so where the
             //  narrow drawer meets the wide bar there is a liquid neck, not a corner. It is only there
             //  while it has size: a zero-size shape would leave a stray shadow behind.
-            box drawer { at: cx, bar.y + dk.hh / 2; size: dk.w * (1 - 0.07 * dk.bell + 0.003 * wobble), dk.hh * (1 - 0.002 * wobble); corner: mix(min(dk.w, dk.hh) / 2, 26 * u, clamp(dk0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dk.bell) * u * min(1, dk0 * 4); show: dk0 > 0.004 }
-            box cdrawer { at: cx, (dc.top + bar.y + dc.hh) / 2; size: dc.w * (1 - 0.07 * dc.bell + 0.003 * wobble), (bar.y + dc.hh - dc.top) * (1 - 0.002 * wobble); corner: mix(min(dc.w, dc.hh) / 2, 26 * u, clamp(dc0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dc.bell) * u * min(1, dc0 * 4) * (1 - dc.f); show: dc0 > 0.004 }
-            box sdrawer { at: cx, bar.y + ss.hh / 2; size: ss.w * (1 - 0.07 * ds.bell + 0.003 * wobble), ss.hh * (1 - 0.002 * wobble); corner: mix(min(ss.w, ss.hh) / 2, 26 * u, clamp(ds0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * ds.bell) * u * min(1, ds0 * 4); show: ds0 > 0.004 }
-            box ldrawer { at: cx, (dl.top + bar.y + dl.hh) / 2; size: dl.w * (1 - 0.07 * dl.bell + 0.003 * wobble), (bar.y + dl.hh - dl.top) * (1 - 0.002 * wobble); corner: mix(min(dl.w, dl.hh) / 2, 26 * u, clamp(dl0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dl.bell) * u * min(1, dl0 * 4) * (1 - dl.f); show: dl0 > 0.004 }
-            box odrawer { at: cx, bar.y + os.hh / 2; size: os.w * (1 - 0.07 * do.bell + 0.003 * wobble), os.hh * (1 - 0.002 * wobble); corner: mix(min(os.w, os.hh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * do.bell) * u * min(1, do0 * 4); show: do0 > 0.004 }
-            box mdrawer { at: mdx, bar.y + dm.hh / 2; size: dm.w * (1 - 0.07 * dm.bell + 0.003 * wobble), dm.hh * (1 - 0.002 * wobble); corner: mix(min(dm.w, dm.hh) / 2, 26 * u, clamp(dm0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dm.bell) * u * min(1, dm0 * 4); show: dm0 > 0.004 }
+            box drawer { at: dk.ex, dk.ey; size: dk.ew * (1 + dj.stretch - 0.07 * dk.bell + 0.003 * wobble), dk.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dk.ew, dk.eh) / 2, 26 * u, clamp(dk0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * dk.bell) * u * min(1, dk0 * 4), mix(dj.neck, (16 + 20 * dk.bell) * u * min(1, dk0 * 4), att), lm); show: dk0 > 0.004 }
+            box cdrawer { at: dc.ex, dc.ey; size: dc.ew * (1 + dj.stretch - 0.07 * dc.bell + 0.003 * wobble), dc.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dc.ew, dc.eh) / 2, 26 * u, clamp(dc0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * dc.bell) * u * min(1, dc0 * 4) * (1 - dc.f * (1 - lm)), mix(dj.neck, (16 + 20 * dc.bell) * u * min(1, dc0 * 4) * (1 - dc.f * (1 - lm)), att), lm); show: dc0 > 0.004 }
+            box sdrawer { at: ds.ex, ds.ey; size: ds.ew * (1 + dj.stretch - 0.07 * ds.bell + 0.003 * wobble), ds.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(ds.ew, ds.eh) / 2, 26 * u, clamp(ds0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * ds.bell) * u * min(1, ds0 * 4), dj.neck, lm); show: ds0 > 0.004 }
+            box ldrawer { at: dl.ex, dl.ey; size: dl.ew * (1 + dj.stretch - 0.07 * dl.bell + 0.003 * wobble), dl.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dl.ew, dl.eh) / 2, 26 * u, clamp(dl0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * dl.bell) * u * min(1, dl0 * 4) * (1 - dl.f * (1 - lm)), dj.neck, lm); show: dl0 > 0.004 }
+            box odrawer { at: do.ex, do.ey; size: do.ew * (1 + dj.stretch - 0.07 * do.bell + 0.003 * wobble), do.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(do.ew, do.eh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * do.bell) * u * min(1, do0 * 4), mix(dj.neck, (16 + 20 * do.bell) * u * min(1, do0 * 4), att), lm); show: do0 > 0.004 }
+            box mdrawer { at: dm.ex, dm.ey; size: dm.ew * (1 + dj.stretch - 0.07 * dm.bell + 0.003 * wobble), dm.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dm.ew, dm.eh) / 2, 26 * u, clamp(dm0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * dm.bell) * u * min(1, dm0 * 4), dj.neck, lm); show: dm0 > 0.004 }
         }
         //  The battery gauge, inside the bar with a thick margin of empty glass round it (`bf.m`). It is only there
         //  while `batt_open` (the pointer is on the bar, or the charge is under 20 %): it fades in and grows a little
@@ -1716,11 +1919,11 @@ scene Vitreus {
         //  the battery is low.
         group {
             let bf.m = 7 * u                                        // the margin between the gauge and the bar's edge
-            let bf.x = cx - (bar.w + pv * 10 * u) / 2 + bf.m
+            let bf.x = pcx - (bar.w + pv * 10 * u) / 2 + bf.m
             let bf.mid = bar.y - bar.h / 2 + (bar.h + pop) / 2      // the pill's middle line
             let bf.full = bar.w + pv * 10 * u - 2 * bf.m           // the gauge's length at 100 %
             let bf.tall = bar.h + pop - 2 * bf.m                   // the pill's height
-            let bf.show = clamp(batt_open, 0, 1)
+            let bf.show = clamp(batt_open, 0, 1) * (1 - lm)
             let bf.hh = bf.tall * (0.7 + 0.3 * bf.show)
             let bf.len = max(0.1, bf.full * batt_fill)
             let bf.c = mix(mint, #e0655a, batt_low)
@@ -1732,14 +1935,32 @@ scene Vitreus {
             }
         }
 
+        //  Down the left the strip is the gauge: it fills from the foot up, with the same margin of empty glass round it, the same colours, and
+        //  the same rule for when it shows (the pointer on the strip, or a charge under 20 %).
+        group {
+            let bl.m = 7 * u
+            let bl.show = clamp(batt_open, 0, 1) * lm
+            let bl.w = lf.w - 2 * bl.m
+            let bl.bot = screen.height - lf.t - bl.m
+            let bl.full = screen.height - 2 * (lf.t + bl.m)
+            let bl.len = max(0.1, bl.full * batt_fill)
+            let bl.c = mix(mint, #e0655a, batt_low)
+            body {
+                gradient: lf.x, bl.bot to lf.x, bl.bot - max(1, bl.len), mix(tint, bl.c, 0.28), bl.c
+                rim: 18%
+                opacity: (19% + 9% * batt_low) * bl.show * batt_on
+                box { from: bl.m, bl.bot - bl.len; size: bl.w, bl.len; corner: min(bl.w / 2, max(0.5, bar.rad - bl.m)); show: lm > 0.004 }
+            }
+        }
+
         //  The charging glint: a soft band of the accent that crosses the bar from left to right, inside its shape. Built
         //  of thin slices whose strength follows a bell, so it has no hard edge; it is strongest in the middle of the
         //  crossing and gone (opacity 0) whenever `charge_sweep` rests at 1.
         group {
-            clip inset 0 box { at: cx, bar.y - bar.h / 2 + (bar.h + pop) / 2; size: bar.w + pv * 10 * u, bar.h + pop; corner: bar.rad }
+            clip inset 0 box { at: pcx, bar.y - bar.h / 2 + (bar.h + pop) / 2; size: bar.w + pv * 10 * u, bar.h + pop; corner: bar.rad }
             let cg.w = 130 * u                                                   // the band's width
-            let cg.x = mix(cx - bar.w / 2 - cg.w / 2, cx + bar.w / 2 + cg.w / 2, clamp(charge_sweep, 0, 1))
-            let cg.a = sin(clamp(charge_sweep, 0, 1) * 180) * batt_on           // fades in and out over the crossing
+            let cg.x = mix(pcx - bar.w / 2 - cg.w / 2, pcx + bar.w / 2 + cg.w / 2, clamp(charge_sweep, 0, 1))
+            let cg.a = sin(clamp(charge_sweep, 0, 1) * 180) * batt_on * (1 - lm)           // fades in and out over the crossing
             repeat k in 0..14 {
                 box { at: cg.x + (k - 6.5) * cg.w / 14, bar.y; size: cg.w / 14 + 1, bar.h + pop; color: mint; opacity: 15% * cg.a * sin((k + 0.5) / 14 * 180) }
             }
@@ -1748,14 +1969,16 @@ scene Vitreus {
         // ── the bar ──────────────────────────────────────────────────
         //  Under everything else on the bar (declared first, so the pieces win their presses): it only says that the
         //  pointer is over the bar, in the gaps between them.
-        zone box bar_hover { at: cx, bar.y; size: bar.w, bar.h }
+        zone box bar_hover { at: pcx, bar.y; size: bar.w, bar.h; active: lm < 0.5 }
+        zone box lf_hover { at: lf.x, screen.height / 2; size: lf.w, screen.height; active: lm > 0.5 }
         repeat i in 1..6 {
             //  The others sit 15 apart; the ones beside the active one slide away from it by `room / 2`
             //  each, so the widening one has space, and the row flows as the amounts change.
             let wx = at.ws + (i - 3) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
             //  One shape per workspace that morphs: a dot, a taller capsule if it has windows, and a
             //  wide mint pill while it is the active one.
-            zone box ws.hit.$i { at: wx, bar.y; size: 15 * u, bar.h; cursor: pointer; active: bs.ws > 0.5 }
+            let wy = lv.ws + (i - 3) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
+            zone box ws.hit.$i { at: mix(wx, lf.x, lm), mix(bar.y, wy, lm); size: mix(15 * u, 40 * u, lm), mix(bar.h, 15 * u, lm); cursor: pointer; active: bs.ws > 0.5 }
             on press ws.hit.$i { emit go(i) }
             on press right ws.hit.$i { emit ov_toggle }
             follow wsh.$i = ws.hit.$i.hover
@@ -1799,17 +2022,17 @@ scene Vitreus {
             on press bp.next { emit mcmd(2) }
         }
 
-        zone box set_hit { at: set.x, bar.y; size: 24 * u, bar.h; cursor: pointer }
+        zone box set_hit { at: mix(set.x, lf.x, lm), mix(bar.y, lv.set, lm); size: mix(24 * u, 36 * u, lm), mix(bar.h, 30 * u, lm); cursor: pointer }
         on press set_hit { panel = if(panel == settings, none, settings) }
 
-        zone box sr_hit { at: sr.x, bar.y; size: 24 * u, bar.h; cursor: pointer; active: bs.sr > 0.5 }
+        zone box sr_hit { at: mix(sr.x, lf.x, lm), mix(bar.y, lv.sr, lm); size: mix(24 * u, 36 * u, lm), mix(bar.h, 30 * u, lm); cursor: pointer; active: bs.sr > 0.5 }
         on press sr_hit { panel = if(panel == launch, none, launch) }
-        zone box ctl_hit { at: ctl.x, bar.y; size: 26 * u, bar.h; cursor: pointer; active: bs.ctl > 0.5 }
-        on press ctl_hit { panel = if(panel == controls, none, controls) }
+        zone box ctl_hit { at: mix(ctl.x, lf.x, lm), mix(bar.y, lv.ctl, lm); size: mix(26 * u, 36 * u, lm), mix(bar.h, 30 * u, lm); cursor: pointer; active: bs.ctl > 0.5 }
+        on press ctl_hit { panel = if(lm > 0.5, controls, if(panel == controls, none, controls)) }
 
         //  The calendar's button is the clock and a little around it: 4 more at each side.
-        zone box bar_hit { at: at.clock, bar.y; size: fw.clock + 8 * u, bar.h; cursor: pointer; active: bs.clock > 0.5 }
-        on press bar_hit { panel = if(panel == calendar, none, calendar) }
+        zone box bar_hit { at: mix(at.clock, lf.x, lm), mix(bar.y, lv.clk + 24 * u, lm); size: mix(fw.clock + 8 * u, lf.w - 4 * u, lm), mix(bar.h, 84 * u, lm); cursor: pointer; active: bs.clock > 0.5 }
+        on press bar_hit { panel = if(lm > 0.5, calendar, if(panel == calendar, none, calendar)) }
         //  Right-click closes whatever is open. It also matters for a reason that
         //  has nothing to do with the calendar: pleamar treats an unclaimed right
         //  click, anywhere in a scene that never uses the right button at all, as
@@ -1818,7 +2041,7 @@ scene Vitreus {
         //  the whole scene.
         on press right bar_hit { panel = none }
         //  How open the battery gauge is (see `batt_open`): it lives here, where the bar's zones are, to read their hover.
-        follow batt_open = if(max(max(max(max(max(max(max(max(max(max(max(max(max(bar_hover.hover, wsh.1), wsh.2), wsh.3), wsh.4), wsh.5), win_hit.hover), bp.prev.hover), bp.play.hover), bp.next.hover), set_hit.hover), sr_hit.hover), ctl_hit.hover), bar_hit.hover) > 0.15 or (pwr.percent < 20 and pwr.present), 1, 0)
+        follow batt_open = if(max(max(max(max(max(max(max(max(max(max(max(max(max(max(bar_hover.hover, wsh.1), wsh.2), wsh.3), wsh.4), wsh.5), win_hit.hover), bp.prev.hover), bp.play.hover), bp.next.hover), set_hit.hover), sr_hit.hover), ctl_hit.hover), bar_hit.hover), lf_hover.hover) > 0.15 or (pwr.percent < 20 and pwr.present), 1, 0)
     }
 
     //  The bar's icons are drawn here, on top of the bar and outside its wave-shader group, with a soft dark
@@ -1830,11 +2053,19 @@ scene Vitreus {
         row tray_bar_row {
             at: floor(tr.x - (bartrays.count * 24 - 6) * u / 2 + 0.5), floor(bar.y - 9 * u + 0.5)
             gap: floor(6 * u + 0.5)
+            show: lm < 0.5
+            for t in bartrays { BarTray(t, click: bar_tray_click, menu: bar_tray_menu) }
+        }
+        column tray_bar_col {
+            at: floor(lf.x - 9 * u + 0.5), floor(lv.tray + 0.5)
+            gap: floor(6 * u + 0.5)
+            show: lm >= 0.5
             for t in bartrays { BarTray(t, click: bar_tray_click, menu: bar_tray_menu) }
         }
         repeat i in 1..6 {
             let wxs = at.ws + (i - 3) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
-            box ws.dot.$i { at: wxs, bar.y; size: (6 + 14 * ws.act.$i) * u, (6 + 4 * ws.tall.$i * (1 - ws.act.$i)) * u; corner: 3 * u
+            let wys = lv.ws + (i - 3) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
+            box ws.dot.$i { at: mix(wxs, lf.x, lm), mix(bar.y, wys, lm); size: mix((6 + 14 * ws.act.$i) * u, (6 + 4 * ws.tall.$i * (1 - ws.act.$i)) * u, lm), mix((6 + 4 * ws.tall.$i * (1 - ws.act.$i)) * u, (6 + 14 * ws.act.$i) * u, lm); corner: 3 * u
                             color: mix(ink, mint, ws.act.$i); opacity: mix(28% + 62% * ws.tall.$i, 100%, ws.act.$i) * bs.ws }
         }
         //  The player's buttons.
@@ -1852,6 +2083,7 @@ scene Vitreus {
         //  The settings button: a gear, between the player's buttons and the controls button.
         group {
             opacity: 65% + 35% * max(set_hit.hover, clamp(ds, 0, 1))
+            move: (lf.x - set.x) * lm, (lv.set - bar.y) * lm
             ellipse { at: set.x, bar.y; radius: 3.6 * u; stroke: 1.7 * u; color: mix(ink, mint, clamp(ds, 0, 1)) }
             ellipse { at: set.x, bar.y; radius: 1.2 * u; color: mix(ink, mint, clamp(ds, 0, 1)) }
             repeat i in 0..8 {
@@ -1865,12 +2097,14 @@ scene Vitreus {
         //  The launcher's button, between the settings button and the controls button: a magnifying glass.
         group {
             opacity: (65% + 35% * max(sr_hit.hover, clamp(dl, 0, 1))) * bs.sr
+            move: (lf.x - sr.x) * lm, (lv.sr - bar.y) * lm
             ellipse { at: sr.x - 1.2 * u, bar.y - 1.2 * u; radius: 4 * u; stroke: 1.7 * u; color: mix(ink, mint, clamp(dl, 0, 1)) }
             line { from: sr.x + 1.8 * u, bar.y + 1.8 * u; to: sr.x + 5 * u, bar.y + 5 * u; width: 1.9 * u; color: mix(ink, mint, clamp(dl, 0, 1)) }
         }
         //  The controls button, between the settings button and the clock: two sliders.
         group {
             opacity: (65% + 35% * max(ctl_hit.hover, clamp(dk, 0, 1))) * bs.ctl
+            move: (lf.x - ctl.x) * lm, (lv.ctl - bar.y) * lm
             box { at: ctl.x, bar.y - 3.5 * u; size: 13 * u, 1.6 * u; corner: 0.8 * u; color: mix(ink, mint, clamp(dk, 0, 1)) }
             box { at: ctl.x, bar.y + 3.5 * u; size: 13 * u, 1.6 * u; corner: 0.8 * u; color: mix(ink, mint, clamp(dk, 0, 1)) }
             ellipse { at: ctl.x + 2.5 * u, bar.y - 3.5 * u; radius: 2.6 * u; color: mix(ink, mint, clamp(dk, 0, 1)) }
@@ -1885,17 +2119,23 @@ scene Vitreus {
     //  the hour, oversized; the minutes with their colon, in the accent, the two digits tucked 3 px over each
     //  other (the colon is left clear: overlapped it disappears); and, at the edge, a small column: the day
     //  stacked tight over a dim am/pm, centred on each other.
-    text bar_date { at: floor(clock.r - clock.col / 2 + 0.5), floor(bar.y - 8 + 0.5); anchor: center; size: 11; weight: 700; measure: cdw; color: faint; opacity: bs.clock; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text bar_ap { at: floor(clock.r - clock.col / 2 + 0.5), floor(bar.y + 7 + 0.5); anchor: center; size: 14; weight: 600; measure: caw; color: faint; opacity: bs.clock; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text clock_mm { at: floor(clock.r - clock.col - 3 + 0.5), floor(bar.y + 3 + 0.5); anchor: right center; size: 26; weight: 700; measure: cmw; letter_move: 3 * ((letters - 1 - letter) - if(letter == 0, 1, 0)), 0; color: mint; opacity: bs.clock; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text clock_h { at: floor(clock.r - clock.col - cmw.width + 0.5), floor(bar.y + 0.5); anchor: right center; size: 40; weight: 700; measure: chw; color: ink; opacity: bs.clock; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text bar_date { at: floor(clock.r - clock.col / 2 + 0.5), floor(bar.y - 8 + 0.5); anchor: center; size: 11; weight: 700; measure: cdw; color: faint; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text bar_ap { at: floor(clock.r - clock.col / 2 + 0.5), floor(bar.y + 7 + 0.5); anchor: center; size: 14; weight: 600; measure: caw; color: faint; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text clock_mm { at: floor(clock.r - clock.col - 3 + 0.5), floor(bar.y + 3 + 0.5); anchor: right center; size: 26; weight: 700; measure: cmw; letter_move: 3 * ((letters - 1 - letter) - if(letter == 0, 1, 0)), 0; color: mint; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text clock_h { at: floor(clock.r - clock.col - cmw.width + 0.5), floor(bar.y + 0.5); anchor: right center; size: 40; weight: 700; measure: chw; color: ink; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    //  Down the left the clock is stacked in the strip: the hour, the minutes under it in the accent, and the am/pm.
+    text clock_h { at: floor(lf.x + 0.5), floor(lv.clk + 0.5); anchor: center; align: center; size: 30; weight: 700; color: ink; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text clock_mn { at: floor(lf.x + 0.5), floor(lv.clk + 26 * u + 0.5); anchor: center; align: center; size: 22; weight: 700; color: mint; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text bar_ap { at: floor(lf.x + 0.5), floor(lv.clk + 46 * u + 0.5); anchor: center; align: center; size: 12; weight: 600; color: faint; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; width: max(0, win.hw - 12 * u - mctl); lines: 1; color: faint; opacity: 55% * bs.title; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     text win.title { at: floor(win.x + 0.5), floor(bar.y + 8.75 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 500; width: max(0, win.hw - 12 * u); lines: 1; color: ink; opacity: bs.title; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
 
     // ── the panel ────────────────────────────────────────────────
     group {
+        pivot: ccx, vc
+        scale: psk
         //  The calendar's content is clipped to the calendar's shape.
-        clip inset 2 box { at: cx, bar.y + dc.hh / 2; size: dc.w, dc.hh; corner: 26 * u }
+        clip inset 2 box { at: mix(pcx, dc.gx, lm), mix(bar.y + dc.hh / 2, lp.cy, lm); size: mix(dc.w, dc.gw, lm), mix(dc.hh, dc.gh, lm); corner: 26 * u }
         //  ── the calendar panel ──
         //  Three plates like the volume and media ones, each 8% white and 12 from the panel's
         //  edges: the time and date, the chosen day with its reminders, and the month. The two
@@ -1903,48 +2143,48 @@ scene Vitreus {
         group {
             opacity: f1
             move: 0, (1 - f1) * 12 * u + floor(68 * u + 0.5)
-            box { at: cx - 130 * u, cy - 76 * u; size: 166 * u, 72 * u; corner: 14 * u; color: ink; opacity: veil }
-            box { at: cx - 130 * u, cy + 43 * u; size: 166 * u, 154 * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: pcx - 130 * u, cy - 76 * u; size: 166 * u, 72 * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: pcx - 130 * u, cy + 43 * u; size: 166 * u, 154 * u; corner: 14 * u; color: ink; opacity: veil }
             //  The clock card: big numerals, the am/pm tucked small at their top-right in the accent, and under
             //  them, indented a little, the date as weekday | month day with the pipe in the accent.
-            text clock_hm { at: floor(cx - 201 * u + 0.5), floor(cy - 88 * u + 0.5); anchor: left center; size: 56; weight: 700; measure: hmw; color: ink; family: "Space Grotesk" }
+            text clock_hm { at: floor(pcx - 201 * u + 0.5), floor(cy - 88 * u + 0.5); anchor: left center; size: 56; weight: 700; measure: hmw; color: ink; family: "Space Grotesk" }
             //  The am/pm is a small pill in the accent, vertically centred on the numerals and set against their right side.
-            box { at: floor(cx - 201 * u + hmw.width + 8 * u + 17 + 0.5), floor(cy - 88 * u + 0.5); size: 34, 20; corner: 10; color: mint; opacity: 20% }
-            text clock_ap { at: floor(cx - 201 * u + hmw.width + 8 * u + 17 + 0.5), floor(cy - 88 * u + 0.5); anchor: center; align: center; size: 12; weight: 700; width: 34; lines: 1; color: mint; family: "Space Grotesk" }
-            //  The date is right-aligned to the card's inner edge (cx - 59): the month and day first, then the pipe
+            box { at: floor(pcx - 201 * u + hmw.width + 8 * u + 17 + 0.5), floor(cy - 88 * u + 0.5); size: 34, 20; corner: 10; color: mint; opacity: 20% }
+            text clock_ap { at: floor(pcx - 201 * u + hmw.width + 8 * u + 17 + 0.5), floor(cy - 88 * u + 0.5); anchor: center; align: center; size: 12; weight: 700; width: 34; lines: 1; color: mint; family: "Space Grotesk" }
+            //  The date is right-aligned to the card's inner edge (pcx - 59): the month and day first, then the pipe
             //  and the weekday laid out leftwards from it, each placed from the measured width of the one after.
-            text date_md { at: floor(cx - 59 * u + 0.5), floor(cy - 55 * u + 0.5); anchor: right center; size: 12; weight: 700; measure: mdw; color: ink; family: "Space Grotesk" }
-            text "|" { at: floor(cx - 59 * u - mdw.width - 8 * u + 0.5), floor(cy - 55 * u + 0.5); anchor: right center; size: 14; weight: 300; color: mint; family: "Space Grotesk" }
-            text date_wd { at: floor(cx - 59 * u - mdw.width - 20 * u + 0.5), floor(cy - 55 * u + 0.5); anchor: right center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
-            text cal.sel_title { at: floor(cx - 201 * u + 0.5), floor(cy - 14 * u + 0.5); anchor: left center; size: 13 * u; weight: 600; width: 142 * u; lines: 1; color: ink; family: "Space Grotesk" }
-            text cal.sel_sub { at: floor(cx - 201 * u + 0.5), floor(cy + 1 * u + 0.5); anchor: left center; size: 10.5 * u; width: 142 * u; lines: 1; color: faint; opacity: 75%; family: "Space Grotesk" }
+            text date_md { at: floor(pcx - 59 * u + 0.5), floor(cy - 55 * u + 0.5); anchor: right center; size: 12; weight: 700; measure: mdw; color: ink; family: "Space Grotesk" }
+            text "|" { at: floor(pcx - 59 * u - mdw.width - 8 * u + 0.5), floor(cy - 55 * u + 0.5); anchor: right center; size: 14; weight: 300; color: mint; family: "Space Grotesk" }
+            text date_wd { at: floor(pcx - 59 * u - mdw.width - 20 * u + 0.5), floor(cy - 55 * u + 0.5); anchor: right center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text cal.sel_title { at: floor(pcx - 201 * u + 0.5), floor(cy - 14 * u + 0.5); anchor: left center; size: 13 * u; weight: 600; width: 142 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            text cal.sel_sub { at: floor(pcx - 201 * u + 0.5), floor(cy + 1 * u + 0.5); anchor: left center; size: 10.5 * u; width: 142 * u; lines: 1; color: faint; opacity: 75%; family: "Space Grotesk" }
             column cal_list {
-                at: floor(cx - 207 * u + 0.5), floor(cy + 14 * u + 0.5)
+                at: floor(pcx - 207 * u + 0.5), floor(cy + 14 * u + 0.5)
                 view: 154 * u, 106 * u
                 gap: 4
                 for e in cal_events { CalRow(e, tick: cal_check, gone: cal_delete) }
             }
-            text "Add one below" { at: floor(cx - 201 * u + 0.5), floor(cy + 28 * u + 0.5); anchor: left center; size: 11.5 * u; color: faint; opacity: 55%; family: "Space Grotesk"; show: cal_events.count < 1 }
+            text "Add one below" { at: floor(pcx - 201 * u + 0.5), floor(cy + 28 * u + 0.5); anchor: left center; size: 11.5 * u; color: faint; opacity: 55%; family: "Space Grotesk"; show: cal_events.count < 1 }
         }
         group {
             opacity: f4
             move: 0, (1 - f4) * 12 * u
             let cal.cw = 33 * u
             let cal.ch = 27 * u
-            let cal.gx = cx - 13 * u                 // the middle of the first column
+            let cal.gx = pcx - 13 * u                 // the middle of the first column
             let cal.gy = cy - 42 * u                 // the middle of the first row
             group {
                 move: 0, floor(68 * u + 0.5)        // the month sits 68 lower, under the weather strip (a whole number of pixels)
-            box { at: cx + 86 * u, cy + 4 * u; size: 254 * u, 232 * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: pcx + 86 * u, cy + 4 * u; size: 254 * u, 232 * u; corner: 14 * u; color: ink; opacity: veil }
             //  Month, and the three buttons that move it.
-            text cal.month { at: floor(cx - 30 * u + 0.5), floor(cy - 92 * u + 0.5); anchor: left center; size: 15 * u; weight: 600; color: ink; family: "Space Grotesk" }
-            path { at: cx + 134 * u, cy - 92 * u; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * cal_prev_btn.hover; move 2.5 * u, -5 * u; line -2.5 * u, 0; line 2.5 * u, 5 * u }
-            box { at: cx + 163 * u, cy - 92 * u; size: 40 * u, 20 * u; corner: 10 * u; color: ink; opacity: 8% + 10% * cal_today_btn.hover }
-            text "Today" { at: floor(cx + 163 * u + 0.5), floor(cy - 92 * u + 0.5); anchor: center; size: 10 * u; weight: 600; color: ink; opacity: 80%; family: "Space Grotesk" }
-            path { at: cx + 192 * u, cy - 92 * u; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * cal_next_btn.hover; move -2.5 * u, -5 * u; line 2.5 * u, 0; line -2.5 * u, 5 * u }
-            zone box cal_prev_btn { at: cx + 134 * u, cy - 92 * u; size: 26 * u, 26 * u; corner: 13 * u; cursor: pointer }
-            zone box cal_today_btn { at: cx + 163 * u, cy - 92 * u; size: 42 * u, 24 * u; corner: 12 * u; cursor: pointer }
-            zone box cal_next_btn { at: cx + 192 * u, cy - 92 * u; size: 26 * u, 26 * u; corner: 13 * u; cursor: pointer }
+            text cal.month { at: floor(pcx - 30 * u + 0.5), floor(cy - 92 * u + 0.5); anchor: left center; size: 15 * u; weight: 600; color: ink; family: "Space Grotesk" }
+            path { at: pcx + 134 * u, cy - 92 * u; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * cal_prev_btn.hover; move 2.5 * u, -5 * u; line -2.5 * u, 0; line 2.5 * u, 5 * u }
+            box { at: pcx + 163 * u, cy - 92 * u; size: 40 * u, 20 * u; corner: 10 * u; color: ink; opacity: 8% + 10% * cal_today_btn.hover }
+            text "Today" { at: floor(pcx + 163 * u + 0.5), floor(cy - 92 * u + 0.5); anchor: center; size: 10 * u; weight: 600; color: ink; opacity: 80%; family: "Space Grotesk" }
+            path { at: pcx + 192 * u, cy - 92 * u; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * cal_next_btn.hover; move -2.5 * u, -5 * u; line 2.5 * u, 0; line -2.5 * u, 5 * u }
+            zone box cal_prev_btn { at: pcx + 134 * u, cy - 92 * u; size: 26 * u, 26 * u; corner: 13 * u; cursor: pointer }
+            zone box cal_today_btn { at: pcx + 163 * u, cy - 92 * u; size: 42 * u, 24 * u; corner: 12 * u; cursor: pointer }
+            zone box cal_next_btn { at: pcx + 192 * u, cy - 92 * u; size: 26 * u, 26 * u; corner: 13 * u; cursor: pointer }
             on press cal_prev_btn { emit cal_prev }
             on press cal_today_btn { emit cal_today }
             on press cal_next_btn { emit cal_next }
@@ -1979,34 +2219,34 @@ scene Vitreus {
             }
             }
             //  The weather, at the very top: what it is now, on the left, and the week, on the right.
-            box { at: cx, cy - 82 * u; size: 426 * u, 60 * u; corner: 14 * u; color: ink; opacity: veil }
-            text "Loading weather…" { at: floor(cx + 0.5), floor(cy - 82 * u + 0.5); anchor: center; align: center; size: 11.5 * u; width: 300 * u; lines: 1; color: faint; family: "Space Grotesk"; show: not wx_ok }
+            box { at: pcx, cy - 82 * u; size: 426 * u, 60 * u; corner: 14 * u; color: ink; opacity: veil }
+            text "Loading weather…" { at: floor(pcx + 0.5), floor(cy - 82 * u + 0.5); anchor: center; align: center; size: 11.5 * u; width: 300 * u; lines: 1; color: faint; family: "Space Grotesk"; show: not wx_ok }
             group {
                 show: wx_ok
                 group {
-                    pivot: cx - 190 * u, cy - 90 * u
+                    pivot: pcx - 190 * u, cy - 90 * u
                     scale: 1.5
-                    column wx_now { at: cx - 203 * u, cy - 100 * u; WxIcon(wx_kind) }
+                    column wx_now { at: pcx - 203 * u, cy - 100 * u; WxIcon(wx_kind) }
                 }
-                text wx_temp { at: floor(cx - 160 * u + 0.5), floor(cy - 92 * u + 0.5); anchor: left center; size: 19 * u; weight: 700; width: 70 * u; lines: 1; color: ink; family: "Space Grotesk" }
-                text wx_desc { at: floor(cx - 160 * u + 0.5), floor(cy - 73 * u + 0.5); anchor: left center; size: 10 * u; width: 100 * u; lines: 1; color: faint; family: "Space Grotesk" }
-                box { at: cx - 96 * u, cy - 82 * u; size: 1 * u, 40 * u; color: ink; opacity: 12% }
+                text wx_temp { at: floor(pcx - 160 * u + 0.5), floor(cy - 92 * u + 0.5); anchor: left center; size: 19 * u; weight: 700; width: 70 * u; lines: 1; color: ink; family: "Space Grotesk" }
+                text wx_desc { at: floor(pcx - 160 * u + 0.5), floor(cy - 73 * u + 0.5); anchor: left center; size: 10 * u; width: 100 * u; lines: 1; color: faint; family: "Space Grotesk" }
+                box { at: pcx - 96 * u, cy - 82 * u; size: 1 * u, 40 * u; color: ink; opacity: 12% }
                 row wx_row {
-                    at: floor(cx - 90 * u + 0.5), floor(cy - 107 * u + 0.5)
+                    at: floor(pcx - 90 * u + 0.5), floor(cy - 107 * u + 0.5)
                     gap: 1
                     for d in wx_days { WxDay(d) }
                 }
             }
 
             //  Writing one: the field, and a button. Enter saves it as well.
-            box { at: cx, cy + 213 * u; size: 426 * u, 34 * u; corner: 14 * u; color: ink; opacity: veil }
-            ellipse { at: cx - 201 * u, cy + 213 * u; radius: 4 * u; color: mint; opacity: 85% }
+            box { at: pcx, cy + 213 * u; size: 426 * u, 34 * u; corner: 14 * u; color: ink; opacity: veil }
+            ellipse { at: pcx - 201 * u, cy + 213 * u; radius: 4 * u; color: mint; opacity: 85% }
             //  An input's `at` is not its middle: it is lifted 6.3 so its text sits on the row's centre.
-            input cal_new { at: floor(cx - 189 * u + 0.5), floor(cy + 206.7 * u + 0.5); width: 330 * u; size: 13 * u; color: ink; family: "Space Grotesk"
+            input cal_new { at: floor(pcx - 189 * u + 0.5), floor(cy + 206.7 * u + 0.5); width: 330 * u; size: 13 * u; color: ink; family: "Space Grotesk"
                             placeholder: "New reminder: 3:30pm Call mom"; selection: mintlo }
-            box { at: cx + 178 * u, cy + 213 * u; size: 46 * u, 24 * u; corner: 12 * u; color: mint; opacity: 80% + 20% * cal_add_btn.hover }
-            text "Add" { at: floor(cx + 178 * u + 0.5), floor(cy + 213 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk" }
-            zone box cal_add_btn { at: cx + 178 * u, cy + 213 * u; size: 48 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            box { at: pcx + 178 * u, cy + 213 * u; size: 46 * u, 24 * u; corner: 12 * u; color: mint; opacity: 80% + 20% * cal_add_btn.hover }
+            text "Add" { at: floor(pcx + 178 * u + 0.5), floor(cy + 213 * u + 0.5); anchor: center; size: 11 * u; weight: 700; color: onmint; family: "Space Grotesk" }
+            zone box cal_add_btn { at: pcx + 178 * u, cy + 213 * u; size: 48 * u, 28 * u; corner: 14 * u; cursor: pointer }
             on press cal_add_btn { emit cal_add }
         }
         //  Opening the calendar puts the cursor in the field and the grid back on today.
@@ -2014,26 +2254,28 @@ scene Vitreus {
     }
     //  The controls' content is clipped to the drawer's shape.
     group {
-        clip inset 2 box { at: cx, bar.y + dk.hh / 2; size: dk.w, dk.hh; corner: 26 * u }
+        pivot: ccx, vc
+        scale: psk
+        clip inset 2 box { at: mix(pcx, dk.gx, lm), mix(bar.y + dk.hh / 2, lp.cy, lm); size: mix(dk.w, dk.gw, lm), mix(dk.hh, dk.gh, lm); corner: 26 * u }
         //  A plate is a veil, not more glass: glass does not go on glass.
         group {
             opacity: f5 * clamp(1 - expand0, 0, 1)
             move: 0, (1 - f5) * 12 * u
             let vol_cy = ck + (vol_top + 32) * u
-            box { at: cx, vol_cy + (vp.h - 64) / 2 * u; size: 288 * u, vp.h * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: pcx, vol_cy + (vp.h - 64) / 2 * u; size: 288 * u, vp.h * u; corner: 14 * u; color: ink; opacity: veil }
             //  ── the slider ──
             //  The track runs from `sl.x0` for `sl.w`; the pointer is turned into a volume
             //  against those two numbers, so they are written once.
-            let sl.x0 = cx - 96 * u
+            let sl.x0 = pcx - 96 * u
             let sl.w = 222 * u
             let sy = vol_cy + 11 * u
             let th = (16 + 3 * vol_hit.hover) * u          // the track thickens under the pointer
             //  A speaker on the left that says how loud it is: two waves that come and go
             //  with the level, or a slash when it is silenced.
-            path { at: cx - 124 * u, sy; color: ink; opacity: 70% + 30% * mute_hit.hover; move 0, -3 * u; line 3.5 * u, -3 * u; line 8 * u, -7 * u; line 8 * u, 7 * u; line 3.5 * u, 3 * u; line 0, 3 * u; close }
-            path { at: cx - 124 * u, sy; stroke: 1.5 * u; color: ink; opacity: if(audio.muted, 0, 25% + 75% * clamp(volume_level * 12, 0, 1)); move 11 * u, -3 * u; curve 11 * u, 3 * u via 14 * u, 0 }
-            path { at: cx - 124 * u, sy; stroke: 1.5 * u; color: ink; opacity: if(audio.muted, 0, 20% + 80% * clamp((volume_level - 0.35) * 4, 0, 1)); move 14 * u, -6.5 * u; curve 14 * u, 6.5 * u via 20 * u, 0 }
-            path { at: cx - 124 * u, sy; stroke: 1.6 * u; color: alert; opacity: if(audio.muted, 100%, 0); move 11 * u, -5 * u; line 20 * u, 5 * u }
+            path { at: pcx - 124 * u, sy; color: ink; opacity: 70% + 30% * mute_hit.hover; move 0, -3 * u; line 3.5 * u, -3 * u; line 8 * u, -7 * u; line 8 * u, 7 * u; line 3.5 * u, 3 * u; line 0, 3 * u; close }
+            path { at: pcx - 124 * u, sy; stroke: 1.5 * u; color: ink; opacity: if(audio.muted, 0, 25% + 75% * clamp(volume_level * 12, 0, 1)); move 11 * u, -3 * u; curve 11 * u, 3 * u via 14 * u, 0 }
+            path { at: pcx - 124 * u, sy; stroke: 1.5 * u; color: ink; opacity: if(audio.muted, 0, 20% + 80% * clamp((volume_level - 0.35) * 4, 0, 1)); move 14 * u, -6.5 * u; curve 14 * u, 6.5 * u via 20 * u, 0 }
+            path { at: pcx - 124 * u, sy; stroke: 1.6 * u; color: alert; opacity: if(audio.muted, 100%, 0); move 11 * u, -5 * u; line 20 * u, 5 * u }
             //  The track is a sunken pill with its own thin light on the inside.
             body {
                 color: deep
@@ -2060,43 +2302,43 @@ scene Vitreus {
             //  The zone that takes the click: the whole track and a little more each side
             //  and above and below, so it is easy to hit; on the press and all through a drag
             //  it turns where the pointer is into a volume.
-            zone box vol_plate { at: cx, vol_cy + (vp.h - 64) / 2 * u; size: 288 * u, vp.h * u; corner: 14 * u }
+            zone box vol_plate { at: pcx, vol_cy + (vp.h - 64) / 2 * u; size: 288 * u, vp.h * u; corner: 14 * u }
             on press right vol_plate { vm_open = not vm_open; dd_open = false }
             zone box vol_hit { at: sl.x0 + sl.w / 2, sy; size: sl.w + 16 * u, 24 * u; cursor: pointer }
-            on press vol_hit { emit setvol(clamp((pointer.x - sl.x0) / sl.w, 0, 1)) }
+            on press vol_hit { emit setvol(clamp(((ccx + (pointer.x - ccx) / ps) - sl.x0) / sl.w, 0, 1)) }
             on press right vol_hit { vm_open = not vm_open; dd_open = false }
-            on drag vol_hit { emit setvol(clamp((pointer.x - sl.x0) / sl.w, 0, 1)) }
+            on drag vol_hit { emit setvol(clamp(((ccx + (pointer.x - ccx) / ps) - sl.x0) / sl.w, 0, 1)) }
             //  Three small dots at the foot of the plate say there is more under it: the mixer. They are a button too
             //  (right-clicking the plate does the same).
             repeat i in 0..3 {
-                ellipse { at: cx + (i - 1) * 6.5 * u, vol_cy + (vp.h - 36.5) * u; radius: 1.6 * u; color: ink; opacity: (35% + 55% * mix_hit.hover) * (1 - clamp(vm * 1.6, 0, 1)) * clamp(mvis, 0, 1) }
+                ellipse { at: pcx + (i - 1) * 6.5 * u, vol_cy + (vp.h - 36.5) * u; radius: 1.6 * u; color: ink; opacity: (35% + 55% * mix_hit.hover) * (1 - clamp(vm * 1.6, 0, 1)) * clamp(mvis, 0, 1) }
             }
             //  While it is open the dots give way to an arrow pointing up: press it to fold the mixer away.
-            path { at: cx, vol_cy + (vp.h - 36.5) * u; stroke: 1.6 * u; color: mint; opacity: (55% + 40% * mix_hit.hover) * clamp(vm * 1.6 - 0.6, 0, 1) * clamp(mvis, 0, 1); move -4.5 * u, 1.8 * u; line 0, -1.8 * u; line 4.5 * u, 1.8 * u }
-            zone box mix_hit { at: cx, vol_cy + (vp.h - 36.5) * u; size: 40 * u, 9 * u; corner: 4.5 * u; cursor: pointer; active: mixer.count > 0 or vm_open }
+            path { at: pcx, vol_cy + (vp.h - 36.5) * u; stroke: 1.6 * u; color: mint; opacity: (55% + 40% * mix_hit.hover) * clamp(vm * 1.6 - 0.6, 0, 1) * clamp(mvis, 0, 1); move -4.5 * u, 1.8 * u; line 0, -1.8 * u; line 4.5 * u, 1.8 * u }
+            zone box mix_hit { at: pcx, vol_cy + (vp.h - 36.5) * u; size: 40 * u, 9 * u; corner: 4.5 * u; cursor: pointer; active: mixer.count > 0 or vm_open }
             on press mix_hit { vm_open = not vm_open; dd_open = false }
             on press right mix_hit { vm_open = not vm_open; dd_open = false }
             //  The speaker is a mute button. Declared after the track's zone, which reaches
             //  a little way under it, so the icon wins there.
-            zone box mute_hit { at: cx - 114 * u, sy; size: 26 * u, 32 * u; cursor: pointer }
+            zone box mute_hit { at: pcx - 114 * u, sy; size: 26 * u, 32 * u; cursor: pointer }
             on press mute_hit { emit mute }
             on press right mute_hit { vm_open = not vm_open; dd_open = false }
             //  The row above the track: which output, and how loud.
             //  Name and chevron are one button, right-aligned next to the percentage: the
             //  name ends where the chevron starts, and the zone is measured from the name.
             //  Unseen copy with no width limit, only to know how wide the name really is.
-            text outname { at: floor(cx + 66 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: right center; size: 14 * u; lines: 1; measure: outw; opacity: 0; family: "Space Grotesk" }
-            text outname { at: floor(cx + 66 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: right center; align: right; size: 14 * u; width: 130 * u; lines: 1; color: faint; opacity: 65% + 35% * out_hit.hover; family: "Space Grotesk" }
-            //  The percentage is centred between the end of the track (cx + 74) and the plate's edge (cx + 158).
-            text number(audio.volume * 100, 0, "%") { at: floor(cx + 128 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: right center; size: 16 * u; weight: 600; color: ink; family: "Space Grotesk"; show: not audio.muted }
-            text "Muted" { at: floor(cx + 128 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: right center; size: 16 * u; weight: 600; color: faint; family: "Space Grotesk"; show: audio.muted }
+            text outname { at: floor(pcx + 66 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: right center; size: 14 * u; lines: 1; measure: outw; opacity: 0; family: "Space Grotesk" }
+            text outname { at: floor(pcx + 66 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: right center; align: right; size: 14 * u; width: 130 * u; lines: 1; color: faint; opacity: 65% + 35% * out_hit.hover; family: "Space Grotesk" }
+            //  The percentage is centred between the end of the track (pcx + 74) and the plate's edge (pcx + 158).
+            text number(audio.volume * 100, 0, "%") { at: floor(pcx + 128 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: right center; size: 16 * u; weight: 600; color: ink; family: "Space Grotesk"; show: not audio.muted }
+            text "Muted" { at: floor(pcx + 128 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: right center; size: 16 * u; weight: 600; color: faint; family: "Space Grotesk"; show: audio.muted }
             //  The output name is a button: it opens the list of outputs.
-            path { at: cx + 76 * u, vol_cy - 14 * u; stroke: 1.4 * u; color: ink; opacity: 55% + 35% * out_hit.hover; move -3.5 * u, -2 * u; line 0, 2 * u; line 3.5 * u, -2 * u }
+            path { at: pcx + 76 * u, vol_cy - 14 * u; stroke: 1.4 * u; color: ink; opacity: 55% + 35% * out_hit.hover; move -3.5 * u, -2 * u; line 0, 2 * u; line 3.5 * u, -2 * u }
             let out.w = min(outw.width, 130 * u) + 30 * u
-            zone box out_hit { at: cx + 86 * u - out.w / 2, vol_cy - 14 * u; size: out.w, 30 * u; cursor: pointer }
+            zone box out_hit { at: pcx + 86 * u - out.w / 2, vol_cy - 14 * u; size: out.w, 30 * u; cursor: pointer }
             on press out_hit { toggle dd_open; vm_open = false }
             on press right out_hit { vm_open = not vm_open; dd_open = false }
-            text "Volume" { at: floor(cx - 128 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: left center; size: 14 * u; color: faint; family: "Space Grotesk" }
+            text "Volume" { at: floor(pcx - 128 * u + 0.5), floor(vol_cy - 14 * u + 0.5); anchor: left center; size: 14 * u; color: faint; family: "Space Grotesk" }
         }
 
         //  The mixer: every app that is playing, each with a slider of its own, inside the volume card (which grows to hold
@@ -2105,10 +2347,10 @@ scene Vitreus {
             show: vm > 0.01
             opacity: f5 * clamp(1 - expand0, 0, 1) * clamp(vm, 0, 1) * (1 - clamp(dd * 2, 0, 1))
             let mix_top = ck + (vol_top + 58) * u                   // under the slider, inside the card
-            clip inset 0 box { at: cx, mix_top + (mix.m - 12) * u * clamp(vm, 0, 1) / 2; size: 288 * u, (mix.m - 12) * u * clamp(vm, 0, 1) }
-            text "No app is playing sound" { at: floor(cx + 0.5), floor(mix_top + 12 * u + 0.5); anchor: center; align: center; size: 11 * u; color: faint; family: "Space Grotesk"; show: mixer.count < 1 }
+            clip inset 0 box { at: pcx, mix_top + (mix.m - 12) * u * clamp(vm, 0, 1) / 2; size: 288 * u, (mix.m - 12) * u * clamp(vm, 0, 1) }
+            text "No app is playing sound" { at: floor(pcx + 0.5), floor(mix_top + 12 * u + 0.5); anchor: center; align: center; size: 11 * u; color: faint; family: "Space Grotesk"; show: mixer.count < 1 }
             column mixcol {
-                at: floor(cx - 144 * u + 0.5), floor(mix_top + 0.5)
+                at: floor(pcx - 144 * u + 0.5), floor(mix_top + 0.5)
                 view: 288 * u, max(1, mixer.count * 32 - 4) * u
                 gap: floor(4 * u + 0.5)
                 for m in mixer { MixRow(m, set: mix_set, mute: mix_mute) }
@@ -2122,16 +2364,16 @@ scene Vitreus {
             opacity: f6 * mix(0.45, 1, brightness.present) * mix(0.45, 1, bright_avail) * clamp(1 - expand0, 0, 1)
             move: 0, (1 - f6) * 12 * u
             let bcy = ck + (bright_top + 32) * u
-            box { at: cx, bcy; size: 288 * u, 64 * u; corner: 14 * u; color: ink; opacity: veil }
-            let bsl.x0 = cx - 96 * u
+            box { at: pcx, bcy; size: 288 * u, 64 * u; corner: 14 * u; color: ink; opacity: veil }
+            let bsl.x0 = pcx - 96 * u
             let bsl.w = 222 * u
             let bsy = bcy + 14 * u
             let bth = (16 + 3 * bright_hit.hover) * u
-            ellipse { at: cx - 119 * u, bsy; radius: 3 * u; color: ink; opacity: 70% + 30% * bright_hit.hover }
-            path { at: cx - 119 * u, bsy; stroke: 1.3 * u; color: ink; opacity: 40% + 60% * bright_level; move -3.8 * u, -3.8 * u; line -(5.5 + 1.5 * bright_level) * u, -(5.5 + 1.5 * bright_level) * u }
-            path { at: cx - 119 * u, bsy; stroke: 1.3 * u; color: ink; opacity: 40% + 60% * bright_level; move 3.8 * u, -3.8 * u; line (5.5 + 1.5 * bright_level) * u, -(5.5 + 1.5 * bright_level) * u }
-            path { at: cx - 119 * u, bsy; stroke: 1.3 * u; color: ink; opacity: 40% + 60% * bright_level; move -3.8 * u, 3.8 * u; line -(5.5 + 1.5 * bright_level) * u, (5.5 + 1.5 * bright_level) * u }
-            path { at: cx - 119 * u, bsy; stroke: 1.3 * u; color: ink; opacity: 40% + 60% * bright_level; move 3.8 * u, 3.8 * u; line (5.5 + 1.5 * bright_level) * u, (5.5 + 1.5 * bright_level) * u }
+            ellipse { at: pcx - 119 * u, bsy; radius: 3 * u; color: ink; opacity: 70% + 30% * bright_hit.hover }
+            path { at: pcx - 119 * u, bsy; stroke: 1.3 * u; color: ink; opacity: 40% + 60% * bright_level; move -3.8 * u, -3.8 * u; line -(5.5 + 1.5 * bright_level) * u, -(5.5 + 1.5 * bright_level) * u }
+            path { at: pcx - 119 * u, bsy; stroke: 1.3 * u; color: ink; opacity: 40% + 60% * bright_level; move 3.8 * u, -3.8 * u; line (5.5 + 1.5 * bright_level) * u, -(5.5 + 1.5 * bright_level) * u }
+            path { at: pcx - 119 * u, bsy; stroke: 1.3 * u; color: ink; opacity: 40% + 60% * bright_level; move -3.8 * u, 3.8 * u; line -(5.5 + 1.5 * bright_level) * u, (5.5 + 1.5 * bright_level) * u }
+            path { at: pcx - 119 * u, bsy; stroke: 1.3 * u; color: ink; opacity: 40% + 60% * bright_level; move 3.8 * u, 3.8 * u; line (5.5 + 1.5 * bright_level) * u, (5.5 + 1.5 * bright_level) * u }
             body {
                 color: deep
                 rim: 9%
@@ -2146,12 +2388,12 @@ scene Vitreus {
                 }
             }
             zone box bright_hit { at: bsl.x0 + bsl.w / 2, bsy; size: bsl.w + 28 * u, 34 * u; cursor: pointer; active: brightness.present and bright_avail }
-            on press bright_hit { emit setbright(clamp((pointer.x - bsl.x0) / bsl.w, 0, 1)) }
-            on drag bright_hit { emit setbright(clamp((pointer.x - bsl.x0) / bsl.w, 0, 1)) }
-            text number(bright_level * 100, 0, "%") { at: floor(cx + 128 * u + 0.5), floor(bcy - 14 * u + 0.5); anchor: right center; size: 16 * u; weight: 600; color: ink; family: "Space Grotesk"; show: brightness.present and bright_avail }
-            text "No backlight" { at: floor(cx + 128 * u + 0.5), floor(bcy - 14 * u + 0.5); anchor: right center; size: 13 * u; color: faint; family: "Space Grotesk"; show: not brightness.present }
-            text "brightnessctl missing" { at: floor(cx + 128 * u + 0.5), floor(bcy - 14 * u + 0.5); anchor: right center; size: 12 * u; color: faint; family: "Space Grotesk"; show: brightness.present and not bright_avail }
-            text "Brightness" { at: floor(cx - 128 * u + 0.5), floor(bcy - 14 * u + 0.5); anchor: left center; size: 14 * u; color: faint; family: "Space Grotesk" }
+            on press bright_hit { emit setbright(clamp(((ccx + (pointer.x - ccx) / ps) - bsl.x0) / bsl.w, 0, 1)) }
+            on drag bright_hit { emit setbright(clamp(((ccx + (pointer.x - ccx) / ps) - bsl.x0) / bsl.w, 0, 1)) }
+            text number(bright_level * 100, 0, "%") { at: floor(pcx + 128 * u + 0.5), floor(bcy - 14 * u + 0.5); anchor: right center; size: 16 * u; weight: 600; color: ink; family: "Space Grotesk"; show: brightness.present and bright_avail }
+            text "No backlight" { at: floor(pcx + 128 * u + 0.5), floor(bcy - 14 * u + 0.5); anchor: right center; size: 13 * u; color: faint; family: "Space Grotesk"; show: not brightness.present }
+            text "brightnessctl missing" { at: floor(pcx + 128 * u + 0.5), floor(bcy - 14 * u + 0.5); anchor: right center; size: 12 * u; color: faint; family: "Space Grotesk"; show: brightness.present and not bright_avail }
+            text "Brightness" { at: floor(pcx - 128 * u + 0.5), floor(bcy - 14 * u + 0.5); anchor: left center; size: 14 * u; color: faint; family: "Space Grotesk" }
         }
 
         //  Wi-Fi and Bluetooth: two narrow tiles side by side, each just its
@@ -2165,9 +2407,9 @@ scene Vitreus {
             let tile2_cy = ck + (tiles2_top + tiles_h / 2) * u
             //  Six tiles, three across and two down. Each one hangs its content from a `base` 21 right of its middle: tile 1's middle
             //  is 97 left of the drawer's, tile 3's 97 right of it.
-            let tb1 = cx - 76 * u
-            let tb2 = cx + 21 * u
-            let tb3 = cx + 118 * u
+            let tb1 = pcx - 76 * u
+            let tb2 = pcx + 21 * u
+            let tb3 = pcx + 118 * u
 
             box { at: tb1 - 21 * u, tile_cy; size: 94 * u, tiles_h * u; corner: 14 * u; color: ink; opacity: veil }
             box { at: tb1 - 53 * u, tile_cy - 14 * u; size: 3 * u, 6 * u;  corner: 1.5 * u; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 0.3, 0, 1), 30%) }
@@ -2299,32 +2541,32 @@ scene Vitreus {
             opacity: expand0
             let ex_top = ck + tiles_top * u
             let ex_cy = ex_top + 22 * u
-            path { at: cx - 124 * u, ex_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * wifi_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
-            zone box wifi_back { at: cx - 124 * u, ex_cy; size: 30 * u, 30 * u; cursor: pointer }
+            path { at: pcx - 124 * u, ex_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * wifi_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
+            zone box wifi_back { at: pcx - 124 * u, ex_cy; size: 30 * u, 30 * u; cursor: pointer }
             on press wifi_back { panel_sub = none }
-            text "WI-FI" { at: floor(cx - 102 * u + 0.5), floor(ex_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
-            box { at: cx + 112 * u, ex_cy; size: 52 * u, 24 * u; corner: 12 * u; color: if(wifi_scanning, mint, ink); opacity: if(wifi_scanning, 22%, 8% + 10% * wifi_scan_hit.hover) }
-            text "Scan" { at: floor(cx + 112 * u + 0.5), floor(ex_cy + 0.5); anchor: center; size: 11 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not wifi_scanning }
+            text "WI-FI" { at: floor(pcx - 102 * u + 0.5), floor(ex_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: pcx + 112 * u, ex_cy; size: 52 * u, 24 * u; corner: 12 * u; color: if(wifi_scanning, mint, ink); opacity: if(wifi_scanning, 22%, 8% + 10% * wifi_scan_hit.hover) }
+            text "Scan" { at: floor(pcx + 112 * u + 0.5), floor(ex_cy + 0.5); anchor: center; size: 11 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not wifi_scanning }
             //  While it runs: a ring turning where the word was, and the list says so.
             group {
                 show: wifi_scanning
-                pivot: cx + 112 * u, ex_cy
+                pivot: pcx + 112 * u, ex_cy
                 rotate: time * 420deg
-                arc { at: cx + 112 * u, ex_cy; radius: 6 * u; span: 260deg; width: 1.8 * u; color: mint }
+                arc { at: pcx + 112 * u, ex_cy; radius: 6 * u; span: 260deg; width: 1.8 * u; color: mint }
             }
-            zone box wifi_scan_hit { at: cx + 112 * u, ex_cy; size: 54 * u, 26 * u; corner: 13 * u; cursor: pointer }
+            zone box wifi_scan_hit { at: pcx + 112 * u, ex_cy; size: 54 * u, 26 * u; corner: 13 * u; cursor: pointer }
             on press wifi_scan_hit { emit wifi_scan }
-            box { at: cx, ex_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
+            box { at: pcx, ex_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
             column wifi_list_col ~quick {
-                at: floor(cx - 138 * u + 0.5), floor(ex_top + 54 * u + 0.5)
+                at: floor(pcx - 138 * u + 0.5), floor(ex_top + 54 * u + 0.5)
                 view: 276 * u, list_view_h * u
                 gap: 5
                 for n in wifi_nets { WifiRow(n, pick: wifi_pick, forget: wifi_forget, joingo: wifi_join_go) }
             }
             //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
-            box { from: cx + 141 * u, ex_top + 54 * u + wifi_list_col.scroll / max(wifi_list_col.content, 1) * (list_view_h * u); size: 3 * u, (list_view_h * u) * (list_view_h * u) / max(wifi_list_col.content, list_view_h * u); corner: 1.5 * u; color: ink; opacity: if(wifi_list_col.content > (list_view_h * u) + 1, 35%, 0%) }
-            text "No networks in range" { at: floor(cx + 0.5), floor(ex_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: wifi_nets.count < 1 and not wifi_scanning }
-            text "Scanning…" { at: floor(cx + 0.5), floor(ex_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: mint; family: "Space Grotesk"; show: wifi_nets.count < 1 and wifi_scanning }
+            box { from: pcx + 141 * u, ex_top + 54 * u + wifi_list_col.scroll / max(wifi_list_col.content, 1) * (list_view_h * u); size: 3 * u, (list_view_h * u) * (list_view_h * u) / max(wifi_list_col.content, list_view_h * u); corner: 1.5 * u; color: ink; opacity: if(wifi_list_col.content > (list_view_h * u) + 1, 35%, 0%) }
+            text "No networks in range" { at: floor(pcx + 0.5), floor(ex_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: wifi_nets.count < 1 and not wifi_scanning }
+            text "Scanning…" { at: floor(pcx + 0.5), floor(ex_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: mint; family: "Space Grotesk"; show: wifi_nets.count < 1 and wifi_scanning }
         }
 
         //  The Bluetooth tile's own window: paired and nearby devices, connected first.
@@ -2333,32 +2575,32 @@ scene Vitreus {
             opacity: expand0
             let ex2_top = ck + tiles_top * u
             let ex2_cy = ex2_top + 22 * u
-            path { at: cx - 124 * u, ex2_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * bt_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
-            zone box bt_back { at: cx - 124 * u, ex2_cy; size: 30 * u, 30 * u; cursor: pointer }
+            path { at: pcx - 124 * u, ex2_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * bt_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
+            zone box bt_back { at: pcx - 124 * u, ex2_cy; size: 30 * u, 30 * u; cursor: pointer }
             on press bt_back { panel_sub = none }
-            text "BLUETOOTH" { at: floor(cx - 102 * u + 0.5), floor(ex2_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
-            box { at: cx + 112 * u, ex2_cy; size: 52 * u, 24 * u; corner: 12 * u; color: if(bt_scanning, mint, ink); opacity: if(bt_scanning, 22%, 8% + 10% * bt_scan_hit.hover) }
-            text "Scan" { at: floor(cx + 112 * u + 0.5), floor(ex2_cy + 0.5); anchor: center; size: 11 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not bt_scanning }
+            text "BLUETOOTH" { at: floor(pcx - 102 * u + 0.5), floor(ex2_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: pcx + 112 * u, ex2_cy; size: 52 * u, 24 * u; corner: 12 * u; color: if(bt_scanning, mint, ink); opacity: if(bt_scanning, 22%, 8% + 10% * bt_scan_hit.hover) }
+            text "Scan" { at: floor(pcx + 112 * u + 0.5), floor(ex2_cy + 0.5); anchor: center; size: 11 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not bt_scanning }
             //  While it runs: a ring turning where the word was, and the list says so.
             group {
                 show: bt_scanning
-                pivot: cx + 112 * u, ex2_cy
+                pivot: pcx + 112 * u, ex2_cy
                 rotate: time * 420deg
-                arc { at: cx + 112 * u, ex2_cy; radius: 6 * u; span: 260deg; width: 1.8 * u; color: mint }
+                arc { at: pcx + 112 * u, ex2_cy; radius: 6 * u; span: 260deg; width: 1.8 * u; color: mint }
             }
-            zone box bt_scan_hit { at: cx + 112 * u, ex2_cy; size: 54 * u, 26 * u; corner: 13 * u; cursor: pointer }
+            zone box bt_scan_hit { at: pcx + 112 * u, ex2_cy; size: 54 * u, 26 * u; corner: 13 * u; cursor: pointer }
             on press bt_scan_hit { emit bt_scan }
-            box { at: cx, ex2_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
+            box { at: pcx, ex2_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
             column bt_list_col ~quick {
-                at: floor(cx - 138 * u + 0.5), floor(ex2_top + 54 * u + 0.5)
+                at: floor(pcx - 138 * u + 0.5), floor(ex2_top + 54 * u + 0.5)
                 view: 276 * u, list_view_h * u
                 gap: 5
                 for d in bt_devices { BtRow(d, pick: bt_pick, forget: bt_forget) }
             }
             //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
-            box { from: cx + 141 * u, ex2_top + 54 * u + bt_list_col.scroll / max(bt_list_col.content, 1) * (list_view_h * u); size: 3 * u, (list_view_h * u) * (list_view_h * u) / max(bt_list_col.content, list_view_h * u); corner: 1.5 * u; color: ink; opacity: if(bt_list_col.content > (list_view_h * u) + 1, 35%, 0%) }
-            text "No devices found" { at: floor(cx + 0.5), floor(ex2_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: bt_devices.count < 1 and not bt_scanning }
-            text "Scanning…" { at: floor(cx + 0.5), floor(ex2_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: mint; family: "Space Grotesk"; show: bt_devices.count < 1 and bt_scanning }
+            box { from: pcx + 141 * u, ex2_top + 54 * u + bt_list_col.scroll / max(bt_list_col.content, 1) * (list_view_h * u); size: 3 * u, (list_view_h * u) * (list_view_h * u) / max(bt_list_col.content, list_view_h * u); corner: 1.5 * u; color: ink; opacity: if(bt_list_col.content > (list_view_h * u) + 1, 35%, 0%) }
+            text "No devices found" { at: floor(pcx + 0.5), floor(ex2_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: bt_devices.count < 1 and not bt_scanning }
+            text "Scanning…" { at: floor(pcx + 0.5), floor(ex2_top + 54 * u + 15 * u + 0.5); anchor: center; size: 12 * u; color: mint; family: "Space Grotesk"; show: bt_devices.count < 1 and bt_scanning }
         }
 
         //  The notifications window: Do Not Disturb (a toggle, and timer chips that count down), and under them
@@ -2368,31 +2610,31 @@ scene Vitreus {
             opacity: expand0
             let nx_top = ck + tiles_top * u
             let nx_cy = nx_top + 22 * u
-            path { at: cx - 124 * u, nx_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * nt_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
-            zone box nt_back { at: cx - 124 * u, nx_cy; size: 30 * u, 30 * u; cursor: pointer }
+            path { at: pcx - 124 * u, nx_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * nt_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
+            zone box nt_back { at: pcx - 124 * u, nx_cy; size: 30 * u, 30 * u; cursor: pointer }
             on press nt_back { panel_sub = none }
-            text "NOTIFICATIONS" { at: floor(cx - 102 * u + 0.5), floor(nx_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
-            box { at: cx + 112 * u, nx_cy; size: 52 * u, 24 * u; corner: 12 * u; color: ink; opacity: 8% + 10% * nt_clear_hit.hover }
-            text "Clear" { at: floor(cx + 112 * u + 0.5), floor(nx_cy + 0.5); anchor: center; size: 11 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
-            zone box nt_clear_hit { at: cx + 112 * u, nx_cy; size: 54 * u, 26 * u; corner: 13 * u; cursor: pointer }
+            text "NOTIFICATIONS" { at: floor(pcx - 102 * u + 0.5), floor(nx_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: pcx + 112 * u, nx_cy; size: 52 * u, 24 * u; corner: 12 * u; color: ink; opacity: 8% + 10% * nt_clear_hit.hover }
+            text "Clear" { at: floor(pcx + 112 * u + 0.5), floor(nx_cy + 0.5); anchor: center; size: 11 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
+            zone box nt_clear_hit { at: pcx + 112 * u, nx_cy; size: 54 * u, 26 * u; corner: 13 * u; cursor: pointer }
             on press nt_clear_hit { emit nt_clear }
-            box { at: cx, nx_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
+            box { at: pcx, nx_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
 
             //  Do Not Disturb: its toggle, and what state it is in.
-            box { at: cx, nx_top + 66 * u; size: 276 * u, 34 * u; corner: 12 * u; color: ink; opacity: veil }
-            text "Do Not Disturb" { at: floor(cx - 128 * u + 0.5), floor(nx_top + 60 * u + 0.5); anchor: left center; size: 12.5 * u; weight: 700; color: ink; family: "Space Grotesk" }
-            text dnd_left { at: floor(cx - 128 * u + 0.5), floor(nx_top + 74 * u + 0.5); anchor: left center; size: 10 * u; width: 200 * u; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
+            box { at: pcx, nx_top + 66 * u; size: 276 * u, 34 * u; corner: 12 * u; color: ink; opacity: veil }
+            text "Do Not Disturb" { at: floor(pcx - 128 * u + 0.5), floor(nx_top + 60 * u + 0.5); anchor: left center; size: 12.5 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            text dnd_left { at: floor(pcx - 128 * u + 0.5), floor(nx_top + 74 * u + 0.5); anchor: left center; size: 10 * u; width: 200 * u; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
             body {
                 color: mix(off, mint, clamp(dnd_pill, 0, 1))
-                box { at: cx + 118 * u, nx_top + 66 * u; size: 30 * u, 16 * u; corner: 8 * u }
+                box { at: pcx + 118 * u, nx_top + 66 * u; size: 30 * u, 16 * u; corner: 8 * u }
             }
-            ellipse { at: cx + 111 * u + dnd_pill * 14 * u, nx_top + 66 * u; radius: 6.2 * u; color: ink }
-            zone box nt_dnd_toggle { at: cx + 118 * u, nx_top + 66 * u; size: 40 * u, 26 * u; corner: 13 * u; cursor: pointer }
+            ellipse { at: pcx + 111 * u + dnd_pill * 14 * u, nx_top + 66 * u; radius: 6.2 * u; color: ink }
+            zone box nt_dnd_toggle { at: pcx + 118 * u, nx_top + 66 * u; size: 40 * u, 26 * u; corner: 13 * u; cursor: pointer }
             on press nt_dnd_toggle { emit togglednd }
 
             //  The timer: pressing a chip silences for that long; pressing the lit one again cancels it.
             repeat i in 0..4 {
-                let chx = cx - 107 * u + i * 70 * u
+                let chx = pcx - 107 * u + i * 70 * u
                 box { at: chx, nx_top + 100 * u; size: 62 * u, 26 * u; corner: 13 * u; color: if(dnd_len == pick(i, 15, 30, 60, 120), mint, ink); opacity: if(dnd_len == pick(i, 15, 30, 60, 120), 24%, 8% + 10% * dnd_chip.$i.hover) }
                 text pick(i, "15 min", "30 min", "1 hour", "2 hours") { at: floor(chx + 0.5), floor(nx_top + 100 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 600; width: 60 * u; lines: 1; color: if(dnd_len == pick(i, 15, 30, 60, 120), mint, ink); family: "Space Grotesk" }
                 zone box dnd_chip.$i { at: chx, nx_top + 100 * u; size: 64 * u, 28 * u; corner: 14 * u; cursor: pointer }
@@ -2400,16 +2642,16 @@ scene Vitreus {
             }
 
             //  The history.
-            text "HISTORY" { at: floor(cx - 134 * u + 0.5), floor(nx_top + 126 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 80%; family: "Space Grotesk" }
+            text "HISTORY" { at: floor(pcx - 134 * u + 0.5), floor(nx_top + 126 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 80%; family: "Space Grotesk" }
             column nt_hist_col {
-                at: floor(cx - 138 * u + 0.5), floor(nx_top + 138 * u + 0.5)
+                at: floor(pcx - 138 * u + 0.5), floor(nx_top + 138 * u + 0.5)
                 view: 276 * u, list_view_h * u
                 gap: 6
                 for h in nt_hist { NtHistRow(h, del: nt_hist_del) }
             }
             //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
-            box { from: cx + 141 * u, nx_top + 138 * u + nt_hist_col.scroll / max(nt_hist_col.content, 1) * (list_view_h * u); size: 3 * u, (list_view_h * u) * (list_view_h * u) / max(nt_hist_col.content, list_view_h * u); corner: 1.5 * u; color: ink; opacity: if(nt_hist_col.content > (list_view_h * u) + 1, 35%, 0%) }
-            text "No notifications yet" { at: floor(cx + 0.5), floor(nx_top + 138 * u + 20 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: nt_hist.count < 1 }
+            box { from: pcx + 141 * u, nx_top + 138 * u + nt_hist_col.scroll / max(nt_hist_col.content, 1) * (list_view_h * u); size: 3 * u, (list_view_h * u) * (list_view_h * u) / max(nt_hist_col.content, list_view_h * u); corner: 1.5 * u; color: ink; opacity: if(nt_hist_col.content > (list_view_h * u) + 1, 35%, 0%) }
+            text "No notifications yet" { at: floor(pcx + 0.5), floor(nx_top + 138 * u + 20 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: nt_hist.count < 1 }
         }
 
         //  The Caffeine window: the keep-awake switch and what state it is in, and timer chips. A chip keeps the
@@ -2419,28 +2661,28 @@ scene Vitreus {
             opacity: expand0
             let kx_top = ck + tiles_top * u
             let kx_cy = kx_top + 22 * u
-            path { at: cx - 124 * u, kx_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * caf_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
-            zone box caf_back { at: cx - 124 * u, kx_cy; size: 30 * u, 30 * u; cursor: pointer }
+            path { at: pcx - 124 * u, kx_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * caf_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
+            zone box caf_back { at: pcx - 124 * u, kx_cy; size: 30 * u, 30 * u; cursor: pointer }
             on press caf_back { panel_sub = none }
-            text "CAFFEINE" { at: floor(cx - 102 * u + 0.5), floor(kx_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
-            box { at: cx, kx_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
+            text "CAFFEINE" { at: floor(pcx - 102 * u + 0.5), floor(kx_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: pcx, kx_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
 
             group {
                 opacity: mix(0.45, 1, caf_avail)
-                box { at: cx, kx_top + 66 * u; size: 276 * u, 34 * u; corner: 12 * u; color: ink; opacity: veil }
-                text "Keep awake" { at: floor(cx - 128 * u + 0.5), floor(kx_top + 60 * u + 0.5); anchor: left center; size: 12.5 * u; weight: 700; color: ink; family: "Space Grotesk" }
-                text caf_left { at: floor(cx - 128 * u + 0.5), floor(kx_top + 74 * u + 0.5); anchor: left center; size: 10 * u; width: 200 * u; lines: 1; color: if(caf_on, mint, faint); family: "Space Grotesk" }
+                box { at: pcx, kx_top + 66 * u; size: 276 * u, 34 * u; corner: 12 * u; color: ink; opacity: veil }
+                text "Keep awake" { at: floor(pcx - 128 * u + 0.5), floor(kx_top + 60 * u + 0.5); anchor: left center; size: 12.5 * u; weight: 700; color: ink; family: "Space Grotesk" }
+                text caf_left { at: floor(pcx - 128 * u + 0.5), floor(kx_top + 74 * u + 0.5); anchor: left center; size: 10 * u; width: 200 * u; lines: 1; color: if(caf_on, mint, faint); family: "Space Grotesk" }
                 body {
                     color: mix(off, mint, clamp(caf_pill, 0, 1))
-                    box { at: cx + 118 * u, kx_top + 66 * u; size: 30 * u, 16 * u; corner: 8 * u }
+                    box { at: pcx + 118 * u, kx_top + 66 * u; size: 30 * u, 16 * u; corner: 8 * u }
                 }
-                ellipse { at: cx + 111 * u + caf_pill * 14 * u, kx_top + 66 * u; radius: 6.2 * u; color: ink }
-                zone box caf_toggle2 { at: cx + 118 * u, kx_top + 66 * u; size: 40 * u, 26 * u; corner: 13 * u; cursor: pointer; active: caf_avail }
+                ellipse { at: pcx + 111 * u + caf_pill * 14 * u, kx_top + 66 * u; radius: 6.2 * u; color: ink }
+                zone box caf_toggle2 { at: pcx + 118 * u, kx_top + 66 * u; size: 40 * u, 26 * u; corner: 13 * u; cursor: pointer; active: caf_avail }
                 on press caf_toggle2 { emit togglecaf }
 
                 //  Two lines of three chips.
                 repeat i in 0..6 {
-                    let chx = cx + (mod(i, 3) - 1) * 94 * u
+                    let chx = pcx + (mod(i, 3) - 1) * 94 * u
                     let chy = kx_top + 100 * u + floor(i / 3) * 32 * u
                     let lit = caf_on and caf_len == pick(i, 15, 30, 60, 120, 240, 0)
                     box { at: chx, chy; size: 88 * u, 26 * u; corner: 13 * u; color: if(lit, mint, ink); opacity: if(lit, 24%, 8% + 10% * caf_chip.$i.hover) }
@@ -2458,61 +2700,61 @@ scene Vitreus {
             opacity: expand0
             let qx_top = ck + tiles_top * u
             let qx_cy = qx_top + 22 * u
-            path { at: cx - 124 * u, qx_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * qx_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
-            zone box qx_back { at: cx - 124 * u, qx_cy; size: 30 * u, 30 * u; cursor: pointer }
+            path { at: pcx - 124 * u, qx_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * qx_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
+            zone box qx_back { at: pcx - 124 * u, qx_cy; size: 30 * u, 30 * u; cursor: pointer }
             on press qx_back { panel_sub = none }
-            text "CAPTURE" { at: floor(cx - 102 * u + 0.5), floor(qx_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
-            box { at: cx, qx_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
-            text "SCREENSHOT" { at: floor(cx - 138 * u + 0.5), floor(qx_top + 62 * u + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: faint; family: "Space Grotesk" }
-            box { at: cx - 70 * u, qx_top + 92 * u; size: 134 * u, 52 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * cap_s0.hover }
-            box { at: cx - 70 * u, qx_top + 92 * u; size: 134 * u, 52 * u; corner: 14 * u; color: mint; opacity: 16% * cap_s0.hover }
-            path { at: cx - 70 * u - 37.0 * u, qx_top + 92 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move -7 * u, -3 * u; line -7 * u, -7 * u; line -3 * u, -7 * u }
-            path { at: cx - 70 * u - 37.0 * u, qx_top + 92 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move -7 * u, 3 * u; line -7 * u, 7 * u; line -3 * u, 7 * u }
-            path { at: cx - 70 * u - 37.0 * u, qx_top + 92 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move 7 * u, -3 * u; line 7 * u, -7 * u; line 3 * u, -7 * u }
-            path { at: cx - 70 * u - 37.0 * u, qx_top + 92 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move 7 * u, 3 * u; line 7 * u, 7 * u; line 3 * u, 7 * u }
-            ellipse { at: cx - 70 * u - 37.0 * u, qx_top + 92 * u; radius: 1.5 * u; color: mix(ink, mint, cap_s0.hover); opacity: 100% }
-            text "Region" { at: floor(cx - 70 * u - 17.0 * u + 0.5), floor(qx_top + 92 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 72 * u; lines: 1; color: ink; family: "Space Grotesk" }
-            zone box cap_s0 { at: cx - 70 * u, qx_top + 92 * u; size: 136 * u, 54 * u; corner: 15 * u; cursor: pointer }
+            text "CAPTURE" { at: floor(pcx - 102 * u + 0.5), floor(qx_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: pcx, qx_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
+            text "SCREENSHOT" { at: floor(pcx - 138 * u + 0.5), floor(qx_top + 62 * u + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            box { at: pcx - 70 * u, qx_top + 92 * u; size: 134 * u, 52 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * cap_s0.hover }
+            box { at: pcx - 70 * u, qx_top + 92 * u; size: 134 * u, 52 * u; corner: 14 * u; color: mint; opacity: 16% * cap_s0.hover }
+            path { at: pcx - 70 * u - 37.0 * u, qx_top + 92 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move -7 * u, -3 * u; line -7 * u, -7 * u; line -3 * u, -7 * u }
+            path { at: pcx - 70 * u - 37.0 * u, qx_top + 92 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move -7 * u, 3 * u; line -7 * u, 7 * u; line -3 * u, 7 * u }
+            path { at: pcx - 70 * u - 37.0 * u, qx_top + 92 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move 7 * u, -3 * u; line 7 * u, -7 * u; line 3 * u, -7 * u }
+            path { at: pcx - 70 * u - 37.0 * u, qx_top + 92 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move 7 * u, 3 * u; line 7 * u, 7 * u; line 3 * u, 7 * u }
+            ellipse { at: pcx - 70 * u - 37.0 * u, qx_top + 92 * u; radius: 1.5 * u; color: mix(ink, mint, cap_s0.hover); opacity: 100% }
+            text "Region" { at: floor(pcx - 70 * u - 17.0 * u + 0.5), floor(qx_top + 92 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 72 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            zone box cap_s0 { at: pcx - 70 * u, qx_top + 92 * u; size: 136 * u, 54 * u; corner: 15 * u; cursor: pointer }
             on press cap_s0 { emit shot(0) }
-            box { at: cx + 70 * u, qx_top + 92 * u; size: 134 * u, 52 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * cap_s1.hover }
-            box { at: cx + 70 * u, qx_top + 92 * u; size: 134 * u, 52 * u; corner: 14 * u; color: mint; opacity: 16% * cap_s1.hover }
-            box { at: cx + 70 * u - 37.0 * u, qx_top + 92 * u - 1 * u; size: 17 * u, 11.5 * u; corner: 2.5 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s1.hover); opacity: 100% }
-            path { at: cx + 70 * u - 37.0 * u, qx_top + 92 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s1.hover); opacity: 100%; move -3 * u, 7.5 * u; line 3 * u, 7.5 * u }
-            text "Full screen" { at: floor(cx + 70 * u - 17.0 * u + 0.5), floor(qx_top + 92 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 72 * u; lines: 1; color: ink; family: "Space Grotesk" }
-            zone box cap_s1 { at: cx + 70 * u, qx_top + 92 * u; size: 136 * u, 54 * u; corner: 15 * u; cursor: pointer }
+            box { at: pcx + 70 * u, qx_top + 92 * u; size: 134 * u, 52 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * cap_s1.hover }
+            box { at: pcx + 70 * u, qx_top + 92 * u; size: 134 * u, 52 * u; corner: 14 * u; color: mint; opacity: 16% * cap_s1.hover }
+            box { at: pcx + 70 * u - 37.0 * u, qx_top + 92 * u - 1 * u; size: 17 * u, 11.5 * u; corner: 2.5 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s1.hover); opacity: 100% }
+            path { at: pcx + 70 * u - 37.0 * u, qx_top + 92 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_s1.hover); opacity: 100%; move -3 * u, 7.5 * u; line 3 * u, 7.5 * u }
+            text "Full screen" { at: floor(pcx + 70 * u - 17.0 * u + 0.5), floor(qx_top + 92 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 72 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            zone box cap_s1 { at: pcx + 70 * u, qx_top + 92 * u; size: 136 * u, 54 * u; corner: 15 * u; cursor: pointer }
             on press cap_s1 { emit shot(1) }
-            text "SCREEN RECORDING" { at: floor(cx - 138 * u + 0.5), floor(qx_top + 134 * u + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: faint; family: "Space Grotesk" }
-            text rec_time { at: floor(cx + 138 * u + 0.5), floor(qx_top + 134 * u + 0.5); anchor: right center; size: 10.5 * u; weight: 600; color: mint; family: "Space Grotesk"; show: rec_on }
+            text "SCREEN RECORDING" { at: floor(pcx - 138 * u + 0.5), floor(qx_top + 134 * u + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text rec_time { at: floor(pcx + 138 * u + 0.5), floor(qx_top + 134 * u + 0.5); anchor: right center; size: 10.5 * u; weight: 600; color: mint; family: "Space Grotesk"; show: rec_on }
             group {
                 show: not rec_on
-                box { at: cx - 70 * u, qx_top + 164 * u; size: 134 * u, 52 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * cap_r0.hover }
-                box { at: cx - 70 * u, qx_top + 164 * u; size: 134 * u, 52 * u; corner: 14 * u; color: mint; opacity: 14% * cap_r0.hover }
-                path { at: cx - 70 * u - 37 * u, qx_top + 164 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move -7 * u, -3 * u; line -7 * u, -7 * u; line -3 * u, -7 * u }
-                path { at: cx - 70 * u - 37 * u, qx_top + 164 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move -7 * u, 3 * u; line -7 * u, 7 * u; line -3 * u, 7 * u }
-                path { at: cx - 70 * u - 37 * u, qx_top + 164 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move 7 * u, -3 * u; line 7 * u, -7 * u; line 3 * u, -7 * u }
-                path { at: cx - 70 * u - 37 * u, qx_top + 164 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move 7 * u, 3 * u; line 7 * u, 7 * u; line 3 * u, 7 * u }
-                ellipse { at: cx - 70 * u - 37 * u, qx_top + 164 * u; radius: 1.5 * u; color: mix(ink, mint, cap_r0.hover); opacity: 100% }
-                ellipse { at: cx - 70 * u - 37 * u + 10 * u, qx_top + 164 * u - 10 * u; radius: 2.8 * u; color: mint }
-                text "Region" { at: floor(cx - 70 * u - 17 * u + 0.5), floor(qx_top + 164 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 72 * u; lines: 1; color: ink; family: "Space Grotesk" }
-                zone box cap_r0 { at: cx - 70 * u, qx_top + 164 * u; size: 136 * u, 54 * u; corner: 15 * u; cursor: pointer }
+                box { at: pcx - 70 * u, qx_top + 164 * u; size: 134 * u, 52 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * cap_r0.hover }
+                box { at: pcx - 70 * u, qx_top + 164 * u; size: 134 * u, 52 * u; corner: 14 * u; color: mint; opacity: 14% * cap_r0.hover }
+                path { at: pcx - 70 * u - 37 * u, qx_top + 164 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move -7 * u, -3 * u; line -7 * u, -7 * u; line -3 * u, -7 * u }
+                path { at: pcx - 70 * u - 37 * u, qx_top + 164 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move -7 * u, 3 * u; line -7 * u, 7 * u; line -3 * u, 7 * u }
+                path { at: pcx - 70 * u - 37 * u, qx_top + 164 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move 7 * u, -3 * u; line 7 * u, -7 * u; line 3 * u, -7 * u }
+                path { at: pcx - 70 * u - 37 * u, qx_top + 164 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move 7 * u, 3 * u; line 7 * u, 7 * u; line 3 * u, 7 * u }
+                ellipse { at: pcx - 70 * u - 37 * u, qx_top + 164 * u; radius: 1.5 * u; color: mix(ink, mint, cap_r0.hover); opacity: 100% }
+                ellipse { at: pcx - 70 * u - 37 * u + 10 * u, qx_top + 164 * u - 10 * u; radius: 2.8 * u; color: mint }
+                text "Region" { at: floor(pcx - 70 * u - 17 * u + 0.5), floor(qx_top + 164 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 72 * u; lines: 1; color: ink; family: "Space Grotesk" }
+                zone box cap_r0 { at: pcx - 70 * u, qx_top + 164 * u; size: 136 * u, 54 * u; corner: 15 * u; cursor: pointer }
                 on press cap_r0 { emit rec_start(0) }
-                box { at: cx + 70 * u, qx_top + 164 * u; size: 134 * u, 52 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * cap_r1.hover }
-                box { at: cx + 70 * u, qx_top + 164 * u; size: 134 * u, 52 * u; corner: 14 * u; color: mint; opacity: 14% * cap_r1.hover }
-                box { at: cx + 70 * u - 37 * u, qx_top + 164 * u - 1 * u; size: 17 * u, 11.5 * u; corner: 2.5 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r1.hover); opacity: 100% }
-                path { at: cx + 70 * u - 37 * u, qx_top + 164 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r1.hover); opacity: 100%; move -3 * u, 7.5 * u; line 3 * u, 7.5 * u }
-                ellipse { at: cx + 70 * u - 37 * u + 10 * u, qx_top + 164 * u - 10 * u; radius: 2.8 * u; color: mint }
-                text "Full screen" { at: floor(cx + 70 * u - 17 * u + 0.5), floor(qx_top + 164 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 72 * u; lines: 1; color: ink; family: "Space Grotesk" }
-                zone box cap_r1 { at: cx + 70 * u, qx_top + 164 * u; size: 136 * u, 54 * u; corner: 15 * u; cursor: pointer }
+                box { at: pcx + 70 * u, qx_top + 164 * u; size: 134 * u, 52 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * cap_r1.hover }
+                box { at: pcx + 70 * u, qx_top + 164 * u; size: 134 * u, 52 * u; corner: 14 * u; color: mint; opacity: 14% * cap_r1.hover }
+                box { at: pcx + 70 * u - 37 * u, qx_top + 164 * u - 1 * u; size: 17 * u, 11.5 * u; corner: 2.5 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r1.hover); opacity: 100% }
+                path { at: pcx + 70 * u - 37 * u, qx_top + 164 * u; stroke: 1.6 * u; color: mix(ink, mint, cap_r1.hover); opacity: 100%; move -3 * u, 7.5 * u; line 3 * u, 7.5 * u }
+                ellipse { at: pcx + 70 * u - 37 * u + 10 * u, qx_top + 164 * u - 10 * u; radius: 2.8 * u; color: mint }
+                text "Full screen" { at: floor(pcx + 70 * u - 17 * u + 0.5), floor(qx_top + 164 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: 72 * u; lines: 1; color: ink; family: "Space Grotesk" }
+                zone box cap_r1 { at: pcx + 70 * u, qx_top + 164 * u; size: 136 * u, 54 * u; corner: 15 * u; cursor: pointer }
                 on press cap_r1 { emit rec_start(1) }
             }
             group {
                 show: rec_on
-                box { at: cx, qx_top + 164 * u; size: 276 * u, 52 * u; corner: 14 * u; color: mint; opacity: 14% + 8% * cap_stop.hover }
-                ellipse { at: cx - 104 * u, qx_top + 164 * u; radius: (9 + 2 * sin(time * 300)) * u; color: mint; opacity: 30% }
-                box { at: cx - 104 * u, qx_top + 164 * u; size: 11 * u, 11 * u; corner: 2.5 * u; color: mint }
-                text "Stop recording" { at: floor(cx - 80 * u + 0.5), floor(qx_top + 164 * u + 0.5); anchor: left center; size: 12.5 * u; weight: 700; width: 150 * u; lines: 1; color: mint; family: "Space Grotesk" }
-                text rec_time { at: floor(cx + 128 * u + 0.5), floor(qx_top + 164 * u + 0.5); anchor: right center; size: 12 * u; weight: 600; color: mint; family: "Space Grotesk" }
-                zone box cap_stop { at: cx, qx_top + 164 * u; size: 278 * u, 54 * u; corner: 15 * u; cursor: pointer }
+                box { at: pcx, qx_top + 164 * u; size: 276 * u, 52 * u; corner: 14 * u; color: mint; opacity: 14% + 8% * cap_stop.hover }
+                ellipse { at: pcx - 104 * u, qx_top + 164 * u; radius: (9 + 2 * sin(time * 300)) * u; color: mint; opacity: 30% }
+                box { at: pcx - 104 * u, qx_top + 164 * u; size: 11 * u, 11 * u; corner: 2.5 * u; color: mint }
+                text "Stop recording" { at: floor(pcx - 80 * u + 0.5), floor(qx_top + 164 * u + 0.5); anchor: left center; size: 12.5 * u; weight: 700; width: 150 * u; lines: 1; color: mint; family: "Space Grotesk" }
+                text rec_time { at: floor(pcx + 128 * u + 0.5), floor(qx_top + 164 * u + 0.5); anchor: right center; size: 12 * u; weight: 600; color: mint; family: "Space Grotesk" }
+                zone box cap_stop { at: pcx, qx_top + 164 * u; size: 278 * u, 54 * u; corner: 15 * u; cursor: pointer }
                 on press cap_stop { emit rec_stop }
             }
         }
@@ -2525,110 +2767,110 @@ scene Vitreus {
             opacity: expand0
             let px_top = ck + tiles_top * u
             let px_cy = px_top + 22 * u
-            path { at: cx - 124 * u, px_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * px_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
-            zone box px_back { at: cx - 124 * u, px_cy; size: 30 * u, 30 * u; cursor: pointer }
+            path { at: pcx - 124 * u, px_cy; color: ink; stroke: 1.6 * u; opacity: 55% + 45% * px_back.hover; move 4 * u, -6 * u; line -4 * u, 0; line 4 * u, 6 * u }
+            zone box px_back { at: pcx - 124 * u, px_cy; size: 30 * u, 30 * u; cursor: pointer }
             on press px_back { panel_sub = none }
-            text "POWER" { at: floor(cx - 102 * u + 0.5), floor(px_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
-            box { at: cx, px_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
-            text "SESSION" { at: floor(cx - 138 * u + 0.5), floor(px_top + 62 * u + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: faint; family: "Space Grotesk" }
-            box { at: cx + -113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t0.hover }
-            box { at: cx + -113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t0.hover }
+            text "POWER" { at: floor(pcx - 102 * u + 0.5), floor(px_cy + 0.5); anchor: left center; size: 15 * u; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: pcx, px_top + 44 * u; size: 276 * u, 1 * u; color: ink; opacity: 8% }
+            text "SESSION" { at: floor(pcx - 138 * u + 0.5), floor(px_top + 62 * u + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            box { at: pcx + -113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t0.hover }
+            box { at: pcx + -113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t0.hover }
             group {
-                clip inset 0 box { at: cx + -113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u }
-                box { at: cx + -113.0 * u, px_top + 96 * u + 29 * u - 29 * u * clamp(pw_hp0, 0, 1); size: 52 * u, 58 * u * clamp(pw_hp0, 0, 1); color: mint; opacity: 34% }
-                box { at: cx + -113.0 * u, px_top + 96 * u + 29 * u - 58 * u * clamp(pw_hp0, 0, 1); size: 52 * u, 2 * u; color: mint; opacity: 70% * clamp(pw_hp0 * 8, 0, 1) }
+                clip inset 0 box { at: pcx + -113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u }
+                box { at: pcx + -113.0 * u, px_top + 96 * u + 29 * u - 29 * u * clamp(pw_hp0, 0, 1); size: 52 * u, 58 * u * clamp(pw_hp0, 0, 1); color: mint; opacity: 34% }
+                box { at: pcx + -113.0 * u, px_top + 96 * u + 29 * u - 58 * u * clamp(pw_hp0, 0, 1); size: 52 * u, 2 * u; color: mint; opacity: 70% * clamp(pw_hp0 * 8, 0, 1) }
             }
-            path { at: cx + -113.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t0.hover, clamp(pw_hp0 * 3, 0, 1))); opacity: 100%; move -3.5 * u, -1 * u; line -3.5 * u, -4 * u; curve 3.5 * u, -4 * u via 0 * u, -10.5 * u; line 3.5 * u, -1 * u }
-            box { at: cx + -113.0 * u, px_top + 96 * u - 8 * u + 3.5 * u; size: 13 * u, 9.5 * u; corner: 2.5 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t0.hover, clamp(pw_hp0 * 3, 0, 1))); opacity: 100% }
-            text "Lock" { at: floor(cx + -113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp0 < 0.03 }
-            text number(1 - clamp(pw_hp0, 0, 1), 1, "s") { at: floor(cx + -113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp0 >= 0.03 }
-            zone box pw_t0 { at: cx + -113.0 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
+            path { at: pcx + -113.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t0.hover, clamp(pw_hp0 * 3, 0, 1))); opacity: 100%; move -3.5 * u, -1 * u; line -3.5 * u, -4 * u; curve 3.5 * u, -4 * u via 0 * u, -10.5 * u; line 3.5 * u, -1 * u }
+            box { at: pcx + -113.0 * u, px_top + 96 * u - 8 * u + 3.5 * u; size: 13 * u, 9.5 * u; corner: 2.5 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t0.hover, clamp(pw_hp0 * 3, 0, 1))); opacity: 100% }
+            text "Lock" { at: floor(pcx + -113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp0 < 0.03 }
+            text number(1 - clamp(pw_hp0, 0, 1), 1, "s") { at: floor(pcx + -113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp0 >= 0.03 }
+            zone box pw_t0 { at: pcx + -113.0 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
             on press pw_t0 { pw_s0 = time; pw_d0 = true }
             on release pw_t0 { pw_d0 = false }
             on hold pw_t0 for 1000ms { pw_d0 = false; emit pow_press(0) }
-            box { at: cx + -56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t1.hover }
-            box { at: cx + -56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t1.hover }
+            box { at: pcx + -56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t1.hover }
+            box { at: pcx + -56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t1.hover }
             group {
-                clip inset 0 box { at: cx + -56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u }
-                box { at: cx + -56.5 * u, px_top + 96 * u + 29 * u - 29 * u * clamp(pw_hp1, 0, 1); size: 52 * u, 58 * u * clamp(pw_hp1, 0, 1); color: mint; opacity: 34% }
-                box { at: cx + -56.5 * u, px_top + 96 * u + 29 * u - 58 * u * clamp(pw_hp1, 0, 1); size: 52 * u, 2 * u; color: mint; opacity: 70% * clamp(pw_hp1 * 8, 0, 1) }
+                clip inset 0 box { at: pcx + -56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u }
+                box { at: pcx + -56.5 * u, px_top + 96 * u + 29 * u - 29 * u * clamp(pw_hp1, 0, 1); size: 52 * u, 58 * u * clamp(pw_hp1, 0, 1); color: mint; opacity: 34% }
+                box { at: pcx + -56.5 * u, px_top + 96 * u + 29 * u - 58 * u * clamp(pw_hp1, 0, 1); size: 52 * u, 2 * u; color: mint; opacity: 70% * clamp(pw_hp1 * 8, 0, 1) }
             }
-            path { at: cx + -56.5 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t1.hover, clamp(pw_hp1 * 3, 0, 1))); opacity: 100%; move 8.29 * u, 3.17 * u; line 7.76 * u, 4.27 * u; line 7.08 * u, 5.28 * u; line 6.26 * u, 6.18 * u; line 5.33 * u, 6.97 * u; line 4.29 * u, 7.61 * u; line 3.18 * u, 8.10 * u; line 2.00 * u, 8.42 * u; line 0.79 * u, 8.58 * u; line -0.42 * u, 8.56 * u; line -1.63 * u, 8.38 * u; line -2.79 * u, 8.02 * u; line -3.90 * u, 7.50 * u; line -4.92 * u, 6.84 * u; line -5.83 * u, 6.03 * u; line -6.62 * u, 5.11 * u; line -7.28 * u, 4.08 * u; line -7.78 * u, 2.97 * u; line -8.12 * u, 1.80 * u; line -8.29 * u, 0.59 * u; line -8.28 * u, -0.63 * u; line -8.11 * u, -1.83 * u; line -7.77 * u, -3.00 * u; line -7.26 * u, -4.11 * u; line -6.61 * u, -5.14 * u; line -5.81 * u, -6.06 * u; line -4.90 * u, -6.86 * u; line -3.87 * u, -7.53 * u; line -2.77 * u, -8.04 * u; line -1.60 * u, -8.39 * u; line -0.40 * u, -8.58 * u; line -0.97 * u, -7.92 * u; line -1.46 * u, -7.20 * u; line -1.86 * u, -6.43 * u; line -2.17 * u, -5.62 * u; line -2.38 * u, -4.78 * u; line -2.49 * u, -3.91 * u; line -2.50 * u, -3.05 * u; line -2.40 * u, -2.18 * u; line -2.21 * u, -1.33 * u; line -1.92 * u, -0.52 * u; line -1.53 * u, 0.26 * u; line -1.06 * u, 0.99 * u; line -0.50 * u, 1.66 * u; line 0.13 * u, 2.26 * u; line 0.83 * u, 2.78 * u; line 1.58 * u, 3.21 * u; line 2.38 * u, 3.55 * u; line 3.21 * u, 3.80 * u; line 4.07 * u, 3.95 * u; line 4.94 * u, 3.99 * u; line 5.81 * u, 3.94 * u; line 6.66 * u, 3.78 * u; line 7.49 * u, 3.52 * u; line 8.29 * u, 3.17 * u; line 8.29 * u, 3.17 * u }
-            text "Sleep" { at: floor(cx + -56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp1 < 0.03 }
-            text number(1 - clamp(pw_hp1, 0, 1), 1, "s") { at: floor(cx + -56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp1 >= 0.03 }
-            zone box pw_t1 { at: cx + -56.5 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
+            path { at: pcx + -56.5 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t1.hover, clamp(pw_hp1 * 3, 0, 1))); opacity: 100%; move 8.29 * u, 3.17 * u; line 7.76 * u, 4.27 * u; line 7.08 * u, 5.28 * u; line 6.26 * u, 6.18 * u; line 5.33 * u, 6.97 * u; line 4.29 * u, 7.61 * u; line 3.18 * u, 8.10 * u; line 2.00 * u, 8.42 * u; line 0.79 * u, 8.58 * u; line -0.42 * u, 8.56 * u; line -1.63 * u, 8.38 * u; line -2.79 * u, 8.02 * u; line -3.90 * u, 7.50 * u; line -4.92 * u, 6.84 * u; line -5.83 * u, 6.03 * u; line -6.62 * u, 5.11 * u; line -7.28 * u, 4.08 * u; line -7.78 * u, 2.97 * u; line -8.12 * u, 1.80 * u; line -8.29 * u, 0.59 * u; line -8.28 * u, -0.63 * u; line -8.11 * u, -1.83 * u; line -7.77 * u, -3.00 * u; line -7.26 * u, -4.11 * u; line -6.61 * u, -5.14 * u; line -5.81 * u, -6.06 * u; line -4.90 * u, -6.86 * u; line -3.87 * u, -7.53 * u; line -2.77 * u, -8.04 * u; line -1.60 * u, -8.39 * u; line -0.40 * u, -8.58 * u; line -0.97 * u, -7.92 * u; line -1.46 * u, -7.20 * u; line -1.86 * u, -6.43 * u; line -2.17 * u, -5.62 * u; line -2.38 * u, -4.78 * u; line -2.49 * u, -3.91 * u; line -2.50 * u, -3.05 * u; line -2.40 * u, -2.18 * u; line -2.21 * u, -1.33 * u; line -1.92 * u, -0.52 * u; line -1.53 * u, 0.26 * u; line -1.06 * u, 0.99 * u; line -0.50 * u, 1.66 * u; line 0.13 * u, 2.26 * u; line 0.83 * u, 2.78 * u; line 1.58 * u, 3.21 * u; line 2.38 * u, 3.55 * u; line 3.21 * u, 3.80 * u; line 4.07 * u, 3.95 * u; line 4.94 * u, 3.99 * u; line 5.81 * u, 3.94 * u; line 6.66 * u, 3.78 * u; line 7.49 * u, 3.52 * u; line 8.29 * u, 3.17 * u; line 8.29 * u, 3.17 * u }
+            text "Sleep" { at: floor(pcx + -56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp1 < 0.03 }
+            text number(1 - clamp(pw_hp1, 0, 1), 1, "s") { at: floor(pcx + -56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp1 >= 0.03 }
+            zone box pw_t1 { at: pcx + -56.5 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
             on press pw_t1 { pw_s1 = time; pw_d1 = true }
             on release pw_t1 { pw_d1 = false }
             on hold pw_t1 for 1000ms { pw_d1 = false; emit pow_press(1) }
-            box { at: cx + 0.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t2.hover }
-            box { at: cx + 0.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t2.hover }
+            box { at: pcx + 0.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t2.hover }
+            box { at: pcx + 0.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t2.hover }
             group {
-                clip inset 0 box { at: cx + 0.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u }
-                box { at: cx + 0.0 * u, px_top + 96 * u + 29 * u - 29 * u * clamp(pw_hp2, 0, 1); size: 52 * u, 58 * u * clamp(pw_hp2, 0, 1); color: mint; opacity: 34% }
-                box { at: cx + 0.0 * u, px_top + 96 * u + 29 * u - 58 * u * clamp(pw_hp2, 0, 1); size: 52 * u, 2 * u; color: mint; opacity: 70% * clamp(pw_hp2 * 8, 0, 1) }
+                clip inset 0 box { at: pcx + 0.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u }
+                box { at: pcx + 0.0 * u, px_top + 96 * u + 29 * u - 29 * u * clamp(pw_hp2, 0, 1); size: 52 * u, 58 * u * clamp(pw_hp2, 0, 1); color: mint; opacity: 34% }
+                box { at: pcx + 0.0 * u, px_top + 96 * u + 29 * u - 58 * u * clamp(pw_hp2, 0, 1); size: 52 * u, 2 * u; color: mint; opacity: 70% * clamp(pw_hp2 * 8, 0, 1) }
             }
-            path { at: cx + 0.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t2.hover, clamp(pw_hp2 * 3, 0, 1))); opacity: 100%; move 1 * u, -7.5 * u; line -5.5 * u, -7.5 * u; line -5.5 * u, 7.5 * u; line 1 * u, 7.5 * u }
-            path { at: cx + 0.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t2.hover, clamp(pw_hp2 * 3, 0, 1))); opacity: 100%; move -2 * u, 0 * u; line 7 * u, 0 * u }
-            path { at: cx + 0.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t2.hover, clamp(pw_hp2 * 3, 0, 1))); opacity: 100%; move 4 * u, -3.2 * u; line 7.2 * u, 0 * u; line 4 * u, 3.2 * u }
-            text "Log out" { at: floor(cx + 0.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp2 < 0.03 }
-            text number(1 - clamp(pw_hp2, 0, 1), 1, "s") { at: floor(cx + 0.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp2 >= 0.03 }
-            zone box pw_t2 { at: cx + 0.0 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
+            path { at: pcx + 0.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t2.hover, clamp(pw_hp2 * 3, 0, 1))); opacity: 100%; move 1 * u, -7.5 * u; line -5.5 * u, -7.5 * u; line -5.5 * u, 7.5 * u; line 1 * u, 7.5 * u }
+            path { at: pcx + 0.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t2.hover, clamp(pw_hp2 * 3, 0, 1))); opacity: 100%; move -2 * u, 0 * u; line 7 * u, 0 * u }
+            path { at: pcx + 0.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t2.hover, clamp(pw_hp2 * 3, 0, 1))); opacity: 100%; move 4 * u, -3.2 * u; line 7.2 * u, 0 * u; line 4 * u, 3.2 * u }
+            text "Log out" { at: floor(pcx + 0.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp2 < 0.03 }
+            text number(1 - clamp(pw_hp2, 0, 1), 1, "s") { at: floor(pcx + 0.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp2 >= 0.03 }
+            zone box pw_t2 { at: pcx + 0.0 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
             on press pw_t2 { pw_s2 = time; pw_d2 = true }
             on release pw_t2 { pw_d2 = false }
             on hold pw_t2 for 1000ms { pw_d2 = false; emit pow_press(2) }
-            box { at: cx + 56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t3.hover }
-            box { at: cx + 56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t3.hover }
+            box { at: pcx + 56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t3.hover }
+            box { at: pcx + 56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t3.hover }
             group {
-                clip inset 0 box { at: cx + 56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u }
-                box { at: cx + 56.5 * u, px_top + 96 * u + 29 * u - 29 * u * clamp(pw_hp3, 0, 1); size: 52 * u, 58 * u * clamp(pw_hp3, 0, 1); color: mint; opacity: 34% }
-                box { at: cx + 56.5 * u, px_top + 96 * u + 29 * u - 58 * u * clamp(pw_hp3, 0, 1); size: 52 * u, 2 * u; color: mint; opacity: 70% * clamp(pw_hp3 * 8, 0, 1) }
+                clip inset 0 box { at: pcx + 56.5 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u }
+                box { at: pcx + 56.5 * u, px_top + 96 * u + 29 * u - 29 * u * clamp(pw_hp3, 0, 1); size: 52 * u, 58 * u * clamp(pw_hp3, 0, 1); color: mint; opacity: 34% }
+                box { at: pcx + 56.5 * u, px_top + 96 * u + 29 * u - 58 * u * clamp(pw_hp3, 0, 1); size: 52 * u, 2 * u; color: mint; opacity: 70% * clamp(pw_hp3 * 8, 0, 1) }
             }
-            path { at: cx + 56.5 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t3.hover, clamp(pw_hp3 * 3, 0, 1))); opacity: 100%; move 5.3 * u, -5.3 * u; line 6.8 * u, -3.17 * u; line 7.47 * u, -0.65 * u; line 7.24 * u, 1.94 * u; line 6.14 * u, 4.3 * u; line 4.3 * u, 6.14 * u; line 1.94 * u, 7.24 * u; line -0.65 * u, 7.47 * u; line -3.17 * u, 6.8 * u; line -5.3 * u, 5.3 * u; line -6.8 * u, 3.17 * u; line -7.47 * u, 0.65 * u; line -7.24 * u, -1.94 * u; line -6.14 * u, -4.3 * u; line -4.3 * u, -6.14 * u }
-            path { at: cx + 56.5 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t3.hover, clamp(pw_hp3 * 3, 0, 1))); opacity: 100%; move -6.75 * u, -8.04 * u; line -2.17 * u, -7.63 * u; line -3.36 * u, -3.19 * u }
-            text "Restart" { at: floor(cx + 56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp3 < 0.03 }
-            text number(1 - clamp(pw_hp3, 0, 1), 1, "s") { at: floor(cx + 56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp3 >= 0.03 }
-            zone box pw_t3 { at: cx + 56.5 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
+            path { at: pcx + 56.5 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t3.hover, clamp(pw_hp3 * 3, 0, 1))); opacity: 100%; move 5.3 * u, -5.3 * u; line 6.8 * u, -3.17 * u; line 7.47 * u, -0.65 * u; line 7.24 * u, 1.94 * u; line 6.14 * u, 4.3 * u; line 4.3 * u, 6.14 * u; line 1.94 * u, 7.24 * u; line -0.65 * u, 7.47 * u; line -3.17 * u, 6.8 * u; line -5.3 * u, 5.3 * u; line -6.8 * u, 3.17 * u; line -7.47 * u, 0.65 * u; line -7.24 * u, -1.94 * u; line -6.14 * u, -4.3 * u; line -4.3 * u, -6.14 * u }
+            path { at: pcx + 56.5 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t3.hover, clamp(pw_hp3 * 3, 0, 1))); opacity: 100%; move -6.75 * u, -8.04 * u; line -2.17 * u, -7.63 * u; line -3.36 * u, -3.19 * u }
+            text "Restart" { at: floor(pcx + 56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp3 < 0.03 }
+            text number(1 - clamp(pw_hp3, 0, 1), 1, "s") { at: floor(pcx + 56.5 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp3 >= 0.03 }
+            zone box pw_t3 { at: pcx + 56.5 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
             on press pw_t3 { pw_s3 = time; pw_d3 = true }
             on release pw_t3 { pw_d3 = false }
             on hold pw_t3 for 1000ms { pw_d3 = false; emit pow_press(3) }
-            box { at: cx + 113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t4.hover }
-            box { at: cx + 113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t4.hover }
+            box { at: pcx + 113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: ink; opacity: 8% + 9% * pw_t4.hover }
+            box { at: pcx + 113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u; color: mint; opacity: 12% * pw_t4.hover }
             group {
-                clip inset 0 box { at: cx + 113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u }
-                box { at: cx + 113.0 * u, px_top + 96 * u + 29 * u - 29 * u * clamp(pw_hp4, 0, 1); size: 52 * u, 58 * u * clamp(pw_hp4, 0, 1); color: mint; opacity: 34% }
-                box { at: cx + 113.0 * u, px_top + 96 * u + 29 * u - 58 * u * clamp(pw_hp4, 0, 1); size: 52 * u, 2 * u; color: mint; opacity: 70% * clamp(pw_hp4 * 8, 0, 1) }
+                clip inset 0 box { at: pcx + 113.0 * u, px_top + 96 * u; size: 52 * u, 58 * u; corner: 14 * u }
+                box { at: pcx + 113.0 * u, px_top + 96 * u + 29 * u - 29 * u * clamp(pw_hp4, 0, 1); size: 52 * u, 58 * u * clamp(pw_hp4, 0, 1); color: mint; opacity: 34% }
+                box { at: pcx + 113.0 * u, px_top + 96 * u + 29 * u - 58 * u * clamp(pw_hp4, 0, 1); size: 52 * u, 2 * u; color: mint; opacity: 70% * clamp(pw_hp4 * 8, 0, 1) }
             }
-            path { at: cx + 113.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t4.hover, clamp(pw_hp4 * 3, 0, 1))); opacity: 100%; move 4.43 * u, -5.67 * u; line 6.11 * u, -3.82 * u; line 7.04 * u, -1.5 * u; line 7.13 * u, 1 * u; line 6.36 * u, 3.38 * u; line 4.82 * u, 5.35 * u; line 2.7 * u, 6.68 * u; line 0.25 * u, 7.2 * u; line -2.22 * u, 6.85 * u; line -4.43 * u, 5.67 * u; line -6.11 * u, 3.82 * u; line -7.04 * u, 1.5 * u; line -7.13 * u, -1 * u; line -6.36 * u, -3.38 * u; line -4.82 * u, -5.35 * u; line -4.43 * u, -5.67 * u }
-            box { at: cx + 113.0 * u, px_top + 96 * u - 8 * u - 5.5 * u; size: 1.6 * u, 9 * u; corner: 0.8 * u; color: mix(ink, mint, max(pw_t4.hover, clamp(pw_hp4 * 3, 0, 1))); opacity: 100% }
-            text "Power off" { at: floor(cx + 113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp4 < 0.03 }
-            text number(1 - clamp(pw_hp4, 0, 1), 1, "s") { at: floor(cx + 113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp4 >= 0.03 }
-            zone box pw_t4 { at: cx + 113.0 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
+            path { at: pcx + 113.0 * u, px_top + 96 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, max(pw_t4.hover, clamp(pw_hp4 * 3, 0, 1))); opacity: 100%; move 4.43 * u, -5.67 * u; line 6.11 * u, -3.82 * u; line 7.04 * u, -1.5 * u; line 7.13 * u, 1 * u; line 6.36 * u, 3.38 * u; line 4.82 * u, 5.35 * u; line 2.7 * u, 6.68 * u; line 0.25 * u, 7.2 * u; line -2.22 * u, 6.85 * u; line -4.43 * u, 5.67 * u; line -6.11 * u, 3.82 * u; line -7.04 * u, 1.5 * u; line -7.13 * u, -1 * u; line -6.36 * u, -3.38 * u; line -4.82 * u, -5.35 * u; line -4.43 * u, -5.67 * u }
+            box { at: pcx + 113.0 * u, px_top + 96 * u - 8 * u - 5.5 * u; size: 1.6 * u, 9 * u; corner: 0.8 * u; color: mix(ink, mint, max(pw_t4.hover, clamp(pw_hp4 * 3, 0, 1))); opacity: 100% }
+            text "Power off" { at: floor(pcx + 113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 600; width: 50 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp4 < 0.03 }
+            text number(1 - clamp(pw_hp4, 0, 1), 1, "s") { at: floor(pcx + 113.0 * u + 0.5), floor(px_top + 96 * u + 19 * u + 0.5); anchor: center; align: center; size: 9.5 * u; weight: 700; width: 50 * u; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp4 >= 0.03 }
+            zone box pw_t4 { at: pcx + 113.0 * u, px_top + 96 * u; size: 54 * u, 60 * u; corner: 15 * u; cursor: pointer }
             on press pw_t4 { pw_s4 = time; pw_d4 = true }
             on release pw_t4 { pw_d4 = false }
             on hold pw_t4 for 1000ms { pw_d4 = false; emit pow_press(4) }
-            text "POWER PROFILE" { at: floor(cx - 138 * u + 0.5), floor(px_top + 142 * u + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text "POWER PROFILE" { at: floor(pcx - 138 * u + 0.5), floor(px_top + 142 * u + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: faint; family: "Space Grotesk" }
             group { opacity: mix(0.45, 1, clamp(pow_prof + 1, 0, 1))
-                box { at: cx, px_top + 176 * u; size: 276 * u, 46 * u; corner: 16 * u; color: ink; opacity: 8% }
+                box { at: pcx, px_top + 176 * u; size: 276 * u, 46 * u; corner: 16 * u; color: ink; opacity: 8% }
                 body {
                     color: mint
                     opacity: 24%
                     rim: 40%
                     shadow: 0, 2 * u, 8 * u, 25%, #000000
-                    box { at: cx + (pow_th - 1) * 92 * u, px_top + 176 * u; size: (90 + 8 * abs(pow_th - if(pow_prof < 0, 1, pow_prof))) * u, 40 * u; corner: 14 * u }
+                    box { at: pcx + (pow_th - 1) * 92 * u, px_top + 176 * u; size: (90 + 8 * abs(pow_th - if(pow_prof < 0, 1, pow_prof))) * u, 40 * u; corner: 14 * u }
                 }
-                path { at: cx + -92 * u, px_top + 176 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); move -6.5 * u, 6.5 * u; curve 6.5 * u, -6.5 * u via -8 * u, -6 * u; curve -6.5 * u, 6.5 * u via 8 * u, 6 * u }
-                path { at: cx + -92 * u, px_top + 176 * u - 8 * u; stroke: 1.3 * u; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); move -6.5 * u, 6.5 * u; line 1 * u, -1 * u }
-                text "Saver" { at: floor(cx + -92 * u + 0.5), floor(px_top + 176 * u + 12 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 88 * u; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); family: "Space Grotesk" }
-                zone box pw_p0 { at: cx + -92 * u, px_top + 176 * u; size: 90 * u, 44 * u; corner: 15 * u; cursor: pointer; active: pow_prof >= 0 }
+                path { at: pcx + -92 * u, px_top + 176 * u - 8 * u; stroke: 1.6 * u; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); move -6.5 * u, 6.5 * u; curve 6.5 * u, -6.5 * u via -8 * u, -6 * u; curve -6.5 * u, 6.5 * u via 8 * u, 6 * u }
+                path { at: pcx + -92 * u, px_top + 176 * u - 8 * u; stroke: 1.3 * u; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); move -6.5 * u, 6.5 * u; line 1 * u, -1 * u }
+                text "Saver" { at: floor(pcx + -92 * u + 0.5), floor(px_top + 176 * u + 12 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 88 * u; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); family: "Space Grotesk" }
+                zone box pw_p0 { at: pcx + -92 * u, px_top + 176 * u; size: 90 * u, 44 * u; corner: 15 * u; cursor: pointer; active: pow_prof >= 0 }
                 on press pw_p0 { emit pow_prof_set(0) }
-                box { at: cx + 0 * u, px_top + 176 * u - 8 * u - 3 * u; size: 13 * u, 1.7 * u; corner: 0.85 * u; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover) }
-                box { at: cx + 0 * u, px_top + 176 * u - 8 * u + 3 * u; size: 13 * u, 1.7 * u; corner: 0.85 * u; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover) }
-                text "Balanced" { at: floor(cx + 0 * u + 0.5), floor(px_top + 176 * u + 12 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 88 * u; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover); family: "Space Grotesk" }
-                zone box pw_p1 { at: cx + 0 * u, px_top + 176 * u; size: 90 * u, 44 * u; corner: 15 * u; cursor: pointer; active: pow_prof >= 0 }
+                box { at: pcx + 0 * u, px_top + 176 * u - 8 * u - 3 * u; size: 13 * u, 1.7 * u; corner: 0.85 * u; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover) }
+                box { at: pcx + 0 * u, px_top + 176 * u - 8 * u + 3 * u; size: 13 * u, 1.7 * u; corner: 0.85 * u; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover) }
+                text "Balanced" { at: floor(pcx + 0 * u + 0.5), floor(px_top + 176 * u + 12 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 88 * u; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover); family: "Space Grotesk" }
+                zone box pw_p1 { at: pcx + 0 * u, px_top + 176 * u; size: 90 * u, 44 * u; corner: 15 * u; cursor: pointer; active: pow_prof >= 0 }
                 on press pw_p1 { emit pow_prof_set(1) }
-                path { at: cx + 92 * u, px_top + 176 * u - 8 * u; stroke: 1.5 * u; color: mix(ink, mint, clamp(1 - abs(pow_th - 2), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 2), 0, 1), pw_p2.hover); move 1.5 * u, -8.5 * u; line -5 * u, 1.5 * u; line -0.6 * u, 1.5 * u; line -1.6 * u, 8.5 * u; line 5 * u, -1.5 * u; line 0.6 * u, -1.5 * u; line 1.5 * u, -8.5 * u }
-                text "Performance" { at: floor(cx + 92 * u + 0.5), floor(px_top + 176 * u + 12 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 88 * u; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 2), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 2), 0, 1), pw_p2.hover); family: "Space Grotesk" }
-                zone box pw_p2 { at: cx + 92 * u, px_top + 176 * u; size: 90 * u, 44 * u; corner: 15 * u; cursor: pointer; active: pow_prof >= 0 }
+                path { at: pcx + 92 * u, px_top + 176 * u - 8 * u; stroke: 1.5 * u; color: mix(ink, mint, clamp(1 - abs(pow_th - 2), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 2), 0, 1), pw_p2.hover); move 1.5 * u, -8.5 * u; line -5 * u, 1.5 * u; line -0.6 * u, 1.5 * u; line -1.6 * u, 8.5 * u; line 5 * u, -1.5 * u; line 0.6 * u, -1.5 * u; line 1.5 * u, -8.5 * u }
+                text "Performance" { at: floor(pcx + 92 * u + 0.5), floor(px_top + 176 * u + 12 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 88 * u; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 2), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 2), 0, 1), pw_p2.hover); family: "Space Grotesk" }
+                zone box pw_p2 { at: pcx + 92 * u, px_top + 176 * u; size: 90 * u, 44 * u; corner: 15 * u; cursor: pointer; active: pow_prof >= 0 }
                 on press pw_p2 { emit pow_prof_set(2) }
             }
         }
@@ -2640,20 +2882,22 @@ scene Vitreus {
             move: 0, (1 - dd) * -8 * u
             let ddn = clamp(outlist.count, 1, 6)
             let ddh = ddn * 30 * u + 12 * u
-            box { at: cx, ck + (vol_top + 32) * u + ddh / 2; size: 288 * u, ddh; corner: 14 * u; color: panel }
-            zone box dd_block { at: cx, ck + (vol_top + 32) * u + ddh / 2; size: 288 * u, ddh; active: dd > 0.05 }
+            box { at: pcx, ck + (vol_top + 32) * u + ddh / 2; size: 288 * u, ddh; corner: 14 * u; color: panel }
+            zone box dd_block { at: pcx, ck + (vol_top + 32) * u + ddh / 2; size: 288 * u, ddh; active: dd > 0.05 }
             column dd_list {
-                at: floor(cx - 138 * u + 0.5), floor(ck + (vol_top + 32) * u + 6 * u + 0.5)
+                at: floor(pcx - 138 * u + 0.5), floor(ck + (vol_top + 32) * u + 6 * u + 0.5)
                 gap: 3
                 for o in outlist { OutRow(o, pick: pick_out) }
             }
-            text "No outputs" { at: floor(cx + 0.5), floor(ck + (vol_top + 32) * u + ddh / 2 + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: outlist.count < 1 }
+            text "No outputs" { at: floor(pcx + 0.5), floor(ck + (vol_top + 32) * u + ddh / 2 + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: outlist.count < 1 }
         }
     }
     //  The player's panel: it hangs from the window title, not from the middle of the bar, in
     //  the same glass as the bar. Its content is clipped to the drawer's shape.
     group {
-        clip inset 2 box { at: mdx, bar.y + dm.hh / 2; size: dm.w, dm.hh; corner: 26 * u }
+        pivot: ccx, vc
+        scale: ps
+        clip inset 2 box { at: mix(pcx, dm.gx, lm), mix(bar.y + dm.hh / 2, lp.cy, lm); size: mix(dm.w, dm.gw, lm), mix(dm.hh, dm.gh, lm); corner: 26 * u }
         //  The player. A sliver with nothing playing — a note and a word, the same
         //  shape as the Wi-Fi and Bluetooth rows below it — that grows into the full
         //  card (cover, song, transport, equalizer) the moment something does.
@@ -2832,15 +3076,15 @@ scene Vitreus {
     //  The volume and notification drawer's content, clipped to its shape. Both sit on one plate
     //  (the same 8% veil as the others), 12 in from the drawer's edge; `osd_kind` picks which is drawn.
     group {
-        clip inset 2 box { at: cx, bar.y + os.hh / 2; size: os.w, os.hh; corner: 26 * u }
+        clip inset 2 box { at: mix(pcx, do.gx, lm), mix(bar.y + os.hh / 2, lp.cy, lm); size: mix(os.w, do.gw, lm), mix(os.hh, do.gh, lm); corner: 26 * u }
         opacity: fo
         move: 0, (1 - fo) * 12 * u
         let oy = ck + (8 + osd_h / 2) * u                 // the plate's middle
         let ot = ck + 8 * u                               // and its top
-        box { at: cx, oy; size: 316 * u, osd_h * u; corner: 14 * u; color: ink; opacity: veil }
+        box { at: pcx, oy; size: 316 * u, osd_h * u; corner: 14 * u; color: ink; opacity: veil }
         //  A press on the plate takes the drawer down (a notification is dismissed with it). Declared
         //  first, so the cross and the buttons above it win where they overlap.
-        zone box os_hit { at: cx, oy; size: 316 * u, osd_h * u; corner: 14 * u; cursor: pointer }
+        zone box os_hit { at: pcx, oy; size: 316 * u, osd_h * u; corner: 14 * u; cursor: pointer }
         on press os_hit while osd_kind == vol { panel = none }
         on press os_hit while osd_kind == note { emit nt_close }
 
@@ -2849,7 +3093,7 @@ scene Vitreus {
             opacity: okv
             show: okv > 0.01
             let vy = oy
-            let vtx = cx - 128 * u                        // the face's tile
+            let vtx = pcx - 128 * u                        // the face's tile
             box { at: vtx, vy; size: 44 * u, 44 * u; corner: 12 * u; color: ink; opacity: 6% }
             //  A little face on the slider: two eyes, and a mouth that opens
             //  with the level and flattens when muted. It bobs a little.
@@ -2861,7 +3105,7 @@ scene Vitreus {
             }
             //  The level is a wave: it ripples as far as the volume goes, and the rest of the track is
             //  a flat, faint line. A tall white pill marks the end.
-            let tr0 = cx - 96 * u
+            let tr0 = pcx - 96 * u
             let trw = 170 * u
             let span = trw * volume_level
             //  All 48 pieces of the wave are spread over the level's own length, so a short one is drawn as
@@ -2887,8 +3131,8 @@ scene Vitreus {
             }
             line { from: tr0 + span, vy; to: tr0 + trw, vy; width: 5 * u; color: ink; opacity: 12% }
             box { at: clamp(tr0 + span, tr0 + 4 * u, tr0 + trw - 4 * u), vy; size: 6 * u, 26 * u; corner: 3 * u; color: ink }
-            text number(audio.volume * 100, 0, "%") { at: floor(cx + 116 * u + 0.5), floor(vy + 0.5); anchor: center; align: center; size: 21 * u; weight: 700; color: ink; family: "Space Grotesk"; show: not audio.muted }
-            text "Muted" { at: floor(cx + 116 * u + 0.5), floor(vy + 0.5); anchor: center; align: center; size: 21 * u; weight: 700; color: faint; family: "Space Grotesk"; show: audio.muted }
+            text number(audio.volume * 100, 0, "%") { at: floor(pcx + 116 * u + 0.5), floor(vy + 0.5); anchor: center; align: center; size: 21 * u; weight: 700; color: ink; family: "Space Grotesk"; show: not audio.muted }
+            text "Muted" { at: floor(pcx + 116 * u + 0.5), floor(vy + 0.5); anchor: center; align: center; size: 21 * u; weight: 700; color: faint; family: "Space Grotesk"; show: audio.muted }
         }
 
         // ── a notification ──
@@ -2896,8 +3140,8 @@ scene Vitreus {
             opacity: okn
             show: okn > 0.01
             let nty = oy                                  // the tile's middle: the plate's, so it sits vertically centred
-            let ntx = cx - 128 * u
-            let ntl = cx - 96 * u                         // where its words start
+            let ntx = pcx - 128 * u
+            let ntl = pcx - 96 * u                         // where its words start
             box { at: ntx, nty; size: 44 * u, 44 * u; corner: 12 * u; color: ink; opacity: 6% }
             //  No picture from the app: a bell, in the accent (or red, for something urgent).
             group {
@@ -2924,10 +3168,10 @@ scene Vitreus {
                 for a in nt_acts { NtAct(a, click: nt_act) }
             }
             //  Close.
-            ellipse { at: cx + 140 * u, ot + 12 * u + 8 * u; radius: 10 * u; color: ink; opacity: 22% * nt_x.hover }
-            line { from: cx + 136.5 * u, ot + 12 * u + 4.5 * u; to: cx + 143.5 * u, ot + 12 * u + 11.5 * u; width: 1.4 * u; color: ink; opacity: 55% + 45% * nt_x.hover }
-            line { from: cx + 143.5 * u, ot + 12 * u + 4.5 * u; to: cx + 136.5 * u, ot + 12 * u + 11.5 * u; width: 1.4 * u; color: ink; opacity: 55% + 45% * nt_x.hover }
-            zone box nt_x { at: cx + 140 * u, ot + 12 * u + 8 * u; size: 24 * u, 24 * u; corner: 12 * u; cursor: pointer }
+            ellipse { at: pcx + 140 * u, ot + 12 * u + 8 * u; radius: 10 * u; color: ink; opacity: 22% * nt_x.hover }
+            line { from: pcx + 136.5 * u, ot + 12 * u + 4.5 * u; to: pcx + 143.5 * u, ot + 12 * u + 11.5 * u; width: 1.4 * u; color: ink; opacity: 55% + 45% * nt_x.hover }
+            line { from: pcx + 143.5 * u, ot + 12 * u + 4.5 * u; to: pcx + 136.5 * u, ot + 12 * u + 11.5 * u; width: 1.4 * u; color: ink; opacity: 55% + 45% * nt_x.hover }
+            zone box nt_x { at: pcx + 140 * u, ot + 12 * u + 8 * u; size: 24 * u, 24 * u; corner: 12 * u; cursor: pointer }
             on press nt_x { emit nt_close }
         }
     }
@@ -2937,10 +3181,12 @@ scene Vitreus {
     //  logic (see the Launcher section of vitreus.luau) reads the field and fills `lres`. Files, the clipboard and
     //  wallpapers have a preview beside the rows: the picture, or the text, and the file's details.
     group {
-        clip inset 2 box { at: cx, bar.y + dl.hh / 2; size: dl.w, dl.hh; corner: 26 * u }
+        pivot: ccx, vc
+        scale: ps
+        clip inset 2 box { at: mix(pcx, dl.gx, lm), mix(bar.y + dl.hh / 2, lp.cy, lm); size: mix(dl.w, dl.gw, lm), mix(dl.hh, dl.gh, lm); corner: 26 * u }
         opacity: fl
         move: 0, (1 - fl) * 12 * u
-        let lx = cx - 215 * u
+        let lx = pcx - 215 * u
         let ly = ck + 8 * u
         let lry = ly + 68 * u                             // the rows start under the hints
         let lph = max(1, lr * 44 - 4) * u                 // the rows' height, and the preview's
@@ -3011,12 +3257,14 @@ scene Vitreus {
     //  it a sidebar of sections next to the page, which is a stack of cards. The wallpaper picker is the
     //  first (and, for now, only) page.
     group {
-        clip inset 2 box { at: cx, bar.y + ss.hh / 2; size: ss.w, ss.hh; corner: 26 * u }
+        pivot: ccx, vc
+        scale: ps
+        clip inset 2 box { at: mix(pcx, ds.gx, lm), mix(bar.y + ss.hh / 2, lp.cy, lm); size: mix(ss.w, ds.gw, lm), mix(ss.hh, ds.gh, lm); corner: 26 * u }
         opacity: fs
         move: 0, (1 - fs) * 12 * u
         let hy = ck + 26 * u                              // the header's middle
         let sby = ck + 52 * u                              // the top of the sidebar and the page
-        let sl = cx - 298 * u                             // their left edge
+        let sl = pcx - 298 * u                             // their left edge
         let spx = sl + 158 * u                             // the page's left edge
 
         //  Header: a badge with a gear, SETTINGS, the breadcrumb, and a cross.
@@ -3048,10 +3296,10 @@ scene Vitreus {
         text "System monitor" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgs; family: "Space Grotesk" }
         text "Notifications" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgt; family: "Space Grotesk" }
         text "Lock screen" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgl; family: "Space Grotesk" }
-        ellipse { at: cx + 282 * u, hy; radius: 13 * u; color: ink; opacity: 5% + 10% * set_x.hover }
-        line { from: cx + 277.5 * u, hy - 4.5 * u; to: cx + 286.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
-        line { from: cx + 286.5 * u, hy - 4.5 * u; to: cx + 277.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
-        zone box set_x { at: cx + 282 * u, hy; size: 28 * u, 28 * u; corner: 14 * u; cursor: pointer }
+        ellipse { at: pcx + 282 * u, hy; radius: 13 * u; color: ink; opacity: 5% + 10% * set_x.hover }
+        line { from: pcx + 277.5 * u, hy - 4.5 * u; to: pcx + 286.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
+        line { from: pcx + 286.5 * u, hy - 4.5 * u; to: pcx + 277.5 * u, hy + 4.5 * u; width: 1.5 * u; color: ink; opacity: 60% + 40% * set_x.hover }
+        zone box set_x { at: pcx + 282 * u, hy; size: 28 * u, 28 * u; corner: 14 * u; cursor: pointer }
         on press set_x { panel = none }
 
         //  Sidebar: the sections, grouped. One so far.
@@ -3300,8 +3548,8 @@ scene Vitreus {
             }
             text glass_frost_text { at: floor(spx + 424 * u + 0.5), floor(sby + 74 * u + 0.5); anchor: right center; size: 16 * u; weight: 600; color: ink; family: "Space Grotesk" }
             zone box glass_hit { at: gsl.x0 + gsl.w / 2, sby + 74 * u; size: gsl.w + 28 * u, 34 * u; cursor: pointer }
-            on press glass_hit { emit glass_frost_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
-            on drag glass_hit { emit glass_frost_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
+            on press glass_hit { emit glass_frost_set(clamp(((ccx + (pointer.x - ccx) / ps) - gsl.x0) / gsl.w, 0, 1)) }
+            on drag glass_hit { emit glass_frost_set(clamp(((ccx + (pointer.x - ccx) / ps) - gsl.x0) / gsl.w, 0, 1)) }
 
             //  Opacity: how solid the bar and the drawers are, from 30% (see-through) to 100%.
             box { at: spx + 219 * u, sby + 146 * u; size: 438 * u, 92 * u; corner: 14 * u; color: ink; opacity: veil }
@@ -3326,8 +3574,8 @@ scene Vitreus {
             box { at: gsl.x0 + gsl.w * 0.3, sby + 174 * u; size: 1.5 * u, gh + 6 * u; corner: 0.75 * u; color: ink; opacity: 45% }
             text glass_op_text { at: floor(spx + 424 * u + 0.5), floor(sby + 174 * u + 0.5); anchor: right center; size: 16 * u; weight: 600; color: ink; family: "Space Grotesk" }
             zone box glass_op_hit { at: gsl.x0 + gsl.w / 2, sby + 174 * u; size: gsl.w + 28 * u, 34 * u; cursor: pointer }
-            on press glass_op_hit { emit glass_op_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
-            on drag glass_op_hit { emit glass_op_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
+            on press glass_op_hit { emit glass_op_set(clamp(((ccx + (pointer.x - ccx) / ps) - gsl.x0) / gsl.w, 0, 1)) }
+            on drag glass_op_hit { emit glass_op_set(clamp(((ccx + (pointer.x - ccx) / ps) - gsl.x0) / gsl.w, 0, 1)) }
 
             //  Back to how it was.
             text "Changes apply right away." { at: floor(spx + 14 * u + 0.5), floor(sby + 222 * u + 0.5); anchor: left center; size: 10 * u; color: faint; opacity: 80%; family: "Space Grotesk" }
@@ -3379,6 +3627,27 @@ scene Vitreus {
             text "Changing this restarts the bar for a moment." { at: floor(spx + 14 * u + 0.5), floor(sby + 121 * u + 0.5); anchor: left center; size: 10 * u; width: 410 * u; lines: 1; color: faint; family: "Space Grotesk" }
             text bar_msg { at: floor(spx + 14 * u + 0.5), floor(sby + 136 * u + 0.5); anchor: left center; size: 10 * u; width: 410 * u; lines: 1; color: mint; family: "Space Grotesk" }
 
+            //  ── Where the bar is: along the top (the default), or down the left edge with a frame round the screen ──
+            box { at: spx + 219 * u, sby + 360 * u; size: 438 * u, 96 * u; corner: 14 * u; color: ink; opacity: veil }
+            text "BAR POSITION" { at: floor(spx + 14 * u + 0.5), floor(sby + 322 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            repeat k in 0..2 {
+                let bpx = spx + (52 + k * 83) * u
+                let bpy = sby + 369 * u
+                let bplit = if((k == 0 and bar_anchor == top) or (k == 1 and bar_anchor == left), 1, 0)
+                box { at: bpx, bpy; size: 76 * u, 64 * u; corner: 12 * u; color: if(bplit > 0, mint, ink); opacity: if(bplit > 0, 24%, 6% + 10% * bar_pos_hit.$k.hover) }
+                box { at: bpx, bpy; size: 76 * u, 64 * u; corner: 12 * u; stroke: 1.5 * u; color: mint; opacity: bplit * 100% }
+                //  A small screen. With the bar along the top: a bar across its top. Down the left: a strip, and the frame round the rest.
+                box { at: bpx, bpy - 12 * u; size: 36 * u, 24 * u; corner: 3 * u; stroke: 1.2 * u; color: mix(ink, mint, bplit) }
+                box { at: bpx, bpy - 21 * u; size: 28 * u, 3.2 * u; corner: 1.6 * u; color: mix(ink, mint, bplit); show: k == 0 }
+                box { at: bpx - 14 * u, bpy - 12 * u; size: 3.6 * u, 20 * u; corner: 1.8 * u; color: mix(ink, mint, bplit); show: k == 1 }
+                box { at: bpx + 2 * u, bpy - 12 * u; size: 28 * u, 17 * u; corner: 3 * u; stroke: 0.9 * u; color: mix(ink, mint, bplit); opacity: 60%; show: k == 1 }
+                text pick(k, "Top", "Left") { at: floor(bpx + 0.5), floor(bpy + 13 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 700; width: 70 * u; lines: 1; color: mix(ink, mint, bplit); family: "Space Grotesk" }
+                text pick(k, "along the top", "with a frame") { at: floor(bpx + 0.5), floor(bpy + 26 * u + 0.5); anchor: center; align: center; size: 9 * u; width: 70 * u; lines: 1; color: faint; family: "Space Grotesk" }
+                zone box bar_pos_hit.$k { at: bpx, bpy; size: 76 * u, 64 * u; corner: 12 * u; cursor: pointer }
+                on press bar_pos_hit.$k { emit bar_pick_pos(k) }
+            }
+            text "It moves at once; windows make room for the strip." { at: floor(spx + 14 * u + 0.5), floor(sby + 418 * u + 0.5); anchor: left center; size: 10 * u; width: 410 * u; lines: 1; color: faint; family: "Space Grotesk" }
+
             //  ── The layout: a small copy of the bar, and under it a tray for the pieces that are hidden ──
             //  Drag a piece along the bar to move it, or down into the tray to hide it (all but the settings gear,
             //  the way back here). The logic places the chips and makes room where the dragged one would land.
@@ -3401,13 +3670,13 @@ scene Vitreus {
             //  The drag is followed by a zone that stays still, under the chips: a drag reaches every zone that was
             //  under the press, and one that moves itself (a chip following the pointer) loses it at the first jump.
             zone box blay_area { from: mbx - 8 * u, mby - 8 * u; size: 426 * u, 104 * u }     // the small bar and the tray, not Reset
-            on drag blay_area { bdx = (pointer.x - mbx) / u; bdy = (pointer.y - mby) / u; emit bar_lay_drag }
+            on drag blay_area { bdx = ((ccx + (pointer.x - ccx) / ps) - mbx) / u; bdy = ((vc + (pointer.y - vc) / ps) - mby) / u; emit bar_lay_drag }
             //  The chips' zones, apart from their drawing: pressing one takes it.
             repeat i in 0..8 {
                 let zx = mbx + if(bdrag == i, bdx - bgx, bcx.$i) * u
                 let zy = mby + if(bdrag == i, bdy - bgy, bcy.$i) * u
                 zone box bchip.$i { from: zx, zy; size: bcw.$i * u, 28 * u; corner: 9 * u; cursor: grab }
-                on press bchip.$i { bgx = (pointer.x - zx) / u; bgy = (pointer.y - zy) / u; bdx = (pointer.x - mbx) / u; bdy = (pointer.y - mby) / u; bdrag = i; emit bar_lay_grab }
+                on press bchip.$i { bgx = ((ccx + (pointer.x - ccx) / ps) - zx) / u; bgy = ((vc + (pointer.y - vc) / ps) - zy) / u; bdx = ((ccx + (pointer.x - ccx) / ps) - mbx) / u; bdy = ((vc + (pointer.y - vc) / ps) - mby) / u; bdrag = i; emit bar_lay_grab }
                 on release bchip.$i { emit bar_lay_drop }
             }
             repeat pass in 0..2 {
@@ -3766,8 +4035,8 @@ scene Vitreus {
             zone box lk_cue_hit { at: spx + 224 * u, sby + (456 - 26) * u; size: 76 * u, 26 * u; corner: 13 * u; cursor: pointer; active: lk.cue > 0.5 }
             on press lk_cue_hit { lk_scroll_to = clamp(lk_scroll_to + 342, 0, max(0, lk.h - 456)) }
             zone box lk_bar_hit { at: spx + 442 * u, sby + 228 * u; size: 14 * u, 456 * u; cursor: pointer; active: lk.h > 456 }
-            on press lk_bar_hit { lk_scroll_to = clamp(((pointer.y - sby) / u - lk.thh / 2) / max(1, 456 - lk.thh) * (lk.h - 456), 0, max(0, lk.h - 456)) }
-            on drag lk_bar_hit { lk_scroll_to = clamp(((pointer.y - sby) / u - lk.thh / 2) / max(1, 456 - lk.thh) * (lk.h - 456), 0, max(0, lk.h - 456)) }
+            on press lk_bar_hit { lk_scroll_to = clamp((((vc + (pointer.y - vc) / ps) - sby) / u - lk.thh / 2) / max(1, 456 - lk.thh) * (lk.h - 456), 0, max(0, lk.h - 456)) }
+            on drag lk_bar_hit { lk_scroll_to = clamp((((vc + (pointer.y - vc) / ps) - sby) / u - lk.thh / 2) / max(1, 456 - lk.thh) * (lk.h - 456), 0, max(0, lk.h - 456)) }
         }
 
         //  The Night mode page (Visuals): the switch, how warm the tint is, and when it turns itself on and off.
@@ -3805,8 +4074,8 @@ scene Vitreus {
             text "6500 K" { at: floor(ntx0 + 0.5), floor(sby + 137 * u + 0.5); anchor: left center; size: 9 * u; color: faint; family: "Space Grotesk" }
             text "2500 K" { at: floor(ntx0 + ntw + 0.5), floor(sby + 137 * u + 0.5); anchor: right center; size: 9 * u; color: faint; family: "Space Grotesk" }
             zone box night_t_hit { at: ntx0 + ntw / 2, sby + 116 * u; size: ntw + 24 * u, 30 * u; cursor: pointer }
-            on press night_t_hit { emit night_temp_set(clamp((pointer.x - ntx0) / ntw, 0, 1)) }
-            on drag night_t_hit { emit night_temp_set(clamp((pointer.x - ntx0) / ntw, 0, 1)) }
+            on press night_t_hit { emit night_temp_set(clamp(((ccx + (pointer.x - ccx) / ps) - ntx0) / ntw, 0, 1)) }
+            on drag night_t_hit { emit night_temp_set(clamp(((ccx + (pointer.x - ccx) / ps) - ntx0) / ntw, 0, 1)) }
 
             //  Card three: the schedule. Automatic, and the two times, in half hours.
             box { at: spx + 219 * u, sby + 240 * u; size: 438 * u, 136 * u; corner: 14 * u; color: ink; opacity: veil }
@@ -3931,8 +4200,8 @@ scene Vitreus {
             }
             text hy_gaps_text { at: floor(spx + 424 * u + 0.5), floor(sby + 78 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
             zone box hy_gaps_hit { at: hsl.x0 + hsl.w / 2, sby + 78 * u; size: hsl.w + 24 * u, 30 * u; cursor: pointer }
-            on press hy_gaps_hit { emit hy_gaps_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
-            on drag hy_gaps_hit { emit hy_gaps_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
+            on press hy_gaps_hit { emit hy_gaps_set(clamp(((ccx + (pointer.x - ccx) / ps) - hsl.x0) / hsl.w, 0, 1)) }
+            on drag hy_gaps_hit { emit hy_gaps_set(clamp(((ccx + (pointer.x - ccx) / ps) - hsl.x0) / hsl.w, 0, 1)) }
 
             //  Sensitivity, -1 to 1.
             text "Sensitivity" { at: floor(spx + 14 * u + 0.5), floor(sby + 296 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
@@ -3948,8 +4217,8 @@ scene Vitreus {
             box { at: hsl.x0 + hsl.w / 2, sby + 296 * u; size: 1.5 * u, hh + 6 * u; corner: 0.75 * u; color: ink; opacity: 40% }
             text hy_sens_text { at: floor(spx + 424 * u + 0.5), floor(sby + 296 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
             zone box hy_sens_hit { at: hsl.x0 + hsl.w / 2, sby + 296 * u; size: hsl.w + 24 * u, 30 * u; cursor: pointer }
-            on press hy_sens_hit { emit hy_sens_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
-            on drag hy_sens_hit { emit hy_sens_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
+            on press hy_sens_hit { emit hy_sens_set(clamp(((ccx + (pointer.x - ccx) / ps) - hsl.x0) / hsl.w, 0, 1)) }
+            on drag hy_sens_hit { emit hy_sens_set(clamp(((ccx + (pointer.x - ccx) / ps) - hsl.x0) / hsl.w, 0, 1)) }
 
             //  Focus follows the mouse: off, on, loose, full.
             text "Follow mouse" { at: floor(spx + 14 * u + 0.5), floor(sby + 332 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
@@ -4020,8 +4289,8 @@ scene Vitreus {
             }
             text wm_share_text { at: floor(spx + 424 * u + 0.5), floor(sby + 104 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
             zone box wm_share_hit { at: wsl.x0 + wsl.w / 2, sby + 104 * u; size: wsl.w + 24 * u, 30 * u; cursor: pointer; active: (sby + 104 * u) - sby - wm.off > 0 and (sby + 104 * u) - sby - wm.off < 456 * u }
-            on press wm_share_hit { emit wm_share_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
-            on drag wm_share_hit { emit wm_share_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
+            on press wm_share_hit { emit wm_share_set(clamp(((ccx + (pointer.x - ccx) / ps) - wsl.x0) / wsl.w, 0, 1)) }
+            on drag wm_share_hit { emit wm_share_set(clamp(((ccx + (pointer.x - ccx) / ps) - wsl.x0) / wsl.w, 0, 1)) }
 
             //  Gaps between windows, 0 to 32 px.
             text "Gaps" { at: floor(spx + 14 * u + 0.5), floor(sby + 136 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
@@ -4036,8 +4305,8 @@ scene Vitreus {
             }
             text wm_gap_text { at: floor(spx + 424 * u + 0.5), floor(sby + 136 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
             zone box wm_gap_hit { at: wsl.x0 + wsl.w / 2, sby + 136 * u; size: wsl.w + 24 * u, 30 * u; cursor: pointer; active: (sby + 136 * u) - sby - wm.off > 0 and (sby + 136 * u) - sby - wm.off < 456 * u }
-            on press wm_gap_hit { emit wm_gap_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
-            on drag wm_gap_hit { emit wm_gap_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
+            on press wm_gap_hit { emit wm_gap_set(clamp(((ccx + (pointer.x - ccx) / ps) - wsl.x0) / wsl.w, 0, 1)) }
+            on drag wm_gap_hit { emit wm_gap_set(clamp(((ccx + (pointer.x - ccx) / ps) - wsl.x0) / wsl.w, 0, 1)) }
 
             //  Free-floating windows, as on Windows or KDE.
             text "Free-floating windows" { at: floor(spx + 14 * u + 0.5), floor(sby + 170 * u + 0.5); anchor: left center; size: 11.5 * u; weight: 600; color: ink; family: "Space Grotesk" }
@@ -4073,8 +4342,8 @@ scene Vitreus {
                 }
                 text pick(i, wm_ms_text, wm_ts_text, wm_idle_text) { at: floor(spx + 424 * u + 0.5), floor(sy + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
                 zone box wm_in_hit.$i { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w + 24 * u, 30 * u; cursor: pointer; active: (sy) - sby - wm.off > 0 and (sy) - sby - wm.off < 456 * u }
-                on press wm_in_hit.$i { emit wm_input_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
-                on drag wm_in_hit.$i { emit wm_input_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
+                on press wm_in_hit.$i { emit wm_input_set(i * 10 + clamp(((ccx + (pointer.x - ccx) / ps) - wsl.x0) / wsl.w, 0, 1)) }
+                on drag wm_in_hit.$i { emit wm_input_set(i * 10 + clamp(((ccx + (pointer.x - ccx) / ps) - wsl.x0) / wsl.w, 0, 1)) }
             }
             box { at: wsl.x0 + wsl.w / 2, sby + 320 * u; size: 1.5 * u, wh + 6 * u; corner: 0.75 * u; color: ink; opacity: 40% }
             box { at: wsl.x0 + wsl.w / 2, sby + 350 * u; size: 1.5 * u, wh + 6 * u; corner: 0.75 * u; color: ink; opacity: 40% }
@@ -4113,8 +4382,8 @@ scene Vitreus {
                 }
                 text pick(i, wm_bw_text, wm_ba_text, wm_rad_text, wm_shd_text, wm_tb_text, wm_tbo_text, wm_wa_text, wm_wi_text, wm_fr_text) { at: floor(spx + 424 * u + 0.5), floor(sy + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
                 zone box wm_st_hit.$i { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w + 24 * u, 30 * u; cursor: pointer; active: sy - sby - wm.off > 0 and sy - sby - wm.off < 456 * u }
-                on press wm_st_hit.$i { emit wm_style_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
-                on drag wm_st_hit.$i { emit wm_style_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
+                on press wm_st_hit.$i { emit wm_style_set(i * 10 + clamp(((ccx + (pointer.x - ccx) / ps) - wsl.x0) / wsl.w, 0, 1)) }
+                on drag wm_st_hit.$i { emit wm_style_set(i * 10 + clamp(((ccx + (pointer.x - ccx) / ps) - wsl.x0) / wsl.w, 0, 1)) }
             }
             }
 
@@ -4138,8 +4407,8 @@ scene Vitreus {
             zone box wm_cue_hit { at: spx + 224 * u, sby + (456 - 26) * u; size: 76 * u, 26 * u; corner: 13 * u; cursor: pointer; active: wm.cue > 0.5 }
             on press wm_cue_hit { wm_scroll_to = clamp(wm_scroll_to + 342, 0, max(0, wm.h - 456)) }
             zone box wm_bar_hit { at: spx + 442 * u, sby + 228 * u; size: 14 * u, 456 * u; cursor: pointer; active: wm.h > 456 }
-            on press wm_bar_hit { wm_scroll_to = clamp(((pointer.y - sby) / u - wm.thh / 2) / max(1, 456 - wm.thh) * (wm.h - 456), 0, max(0, wm.h - 456)) }
-            on drag wm_bar_hit { wm_scroll_to = clamp(((pointer.y - sby) / u - wm.thh / 2) / max(1, 456 - wm.thh) * (wm.h - 456), 0, max(0, wm.h - 456)) }
+            on press wm_bar_hit { wm_scroll_to = clamp((((vc + (pointer.y - vc) / ps) - sby) / u - wm.thh / 2) / max(1, 456 - wm.thh) * (wm.h - 456), 0, max(0, wm.h - 456)) }
+            on drag wm_bar_hit { wm_scroll_to = clamp((((vc + (pointer.y - vc) / ps) - sby) / u - wm.thh / 2) / max(1, 456 - wm.thh) * (wm.h - 456), 0, max(0, wm.h - 456)) }
         }
 
         //  ── Notifications page: BEGIN (generated) ──
@@ -4347,8 +4616,8 @@ scene Vitreus {
             zone box nt_cue_hit { at: spx + 224 * u, sby + (456 - 26) * u; size: 76 * u, 26 * u; corner: 13 * u; cursor: pointer; active: nt.cue > 0.5 }
             on press nt_cue_hit { nt_scroll_to = clamp(nt_scroll_to + 342, 0, max(0, nt.h - 456)) }
             zone box nt_bar_hit { at: spx + 442 * u, sby + 228 * u; size: 14 * u, 456 * u; cursor: pointer; active: nt.h > 456 }
-            on press nt_bar_hit { nt_scroll_to = clamp(((pointer.y - sby) / u - nt.thh / 2) / max(1, 456 - nt.thh) * (nt.h - 456), 0, max(0, nt.h - 456)) }
-            on drag nt_bar_hit { nt_scroll_to = clamp(((pointer.y - sby) / u - nt.thh / 2) / max(1, 456 - nt.thh) * (nt.h - 456), 0, max(0, nt.h - 456)) }
+            on press nt_bar_hit { nt_scroll_to = clamp((((vc + (pointer.y - vc) / ps) - sby) / u - nt.thh / 2) / max(1, 456 - nt.thh) * (nt.h - 456), 0, max(0, nt.h - 456)) }
+            on drag nt_bar_hit { nt_scroll_to = clamp((((vc + (pointer.y - vc) / ps) - sby) / u - nt.thh / 2) / max(1, 456 - nt.thh) * (nt.h - 456), 0, max(0, nt.h - 456)) }
         }
         //  ── Notifications page: END ──
 
@@ -4553,8 +4822,8 @@ scene Vitreus {
             zone box sm_cue_hit { at: spx + 224 * u, sby + (456 - 26) * u; size: 76 * u, 26 * u; corner: 13 * u; cursor: pointer; active: sm.cue > 0.5 }
             on press sm_cue_hit { sm_scroll_to = clamp(sm_scroll_to + 342, 0, max(0, sm.h - 456)) }
             zone box sm_bar_hit { at: spx + 442 * u, sby + 228 * u; size: 14 * u, 456 * u; cursor: pointer; active: sm.h > 456 }
-            on press sm_bar_hit { sm_scroll_to = clamp(((pointer.y - sby) / u - sm.thh / 2) / max(1, 456 - sm.thh) * (sm.h - 456), 0, max(0, sm.h - 456)) }
-            on drag sm_bar_hit { sm_scroll_to = clamp(((pointer.y - sby) / u - sm.thh / 2) / max(1, 456 - sm.thh) * (sm.h - 456), 0, max(0, sm.h - 456)) }
+            on press sm_bar_hit { sm_scroll_to = clamp((((vc + (pointer.y - vc) / ps) - sby) / u - sm.thh / 2) / max(1, 456 - sm.thh) * (sm.h - 456), 0, max(0, sm.h - 456)) }
+            on drag sm_bar_hit { sm_scroll_to = clamp((((vc + (pointer.y - vc) / ps) - sby) / u - sm.thh / 2) / max(1, 456 - sm.thh) * (sm.h - 456), 0, max(0, sm.h - 456)) }
         }
         //  ── System monitor page: END ──
 
@@ -4604,8 +4873,8 @@ scene Vitreus {
                 text disp_b.$i.name { at: floor(bx + bw / 2 + 0.5), floor(by + bh / 2 - 6 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 700; width: max(10 * u, bw - 8 * u); lines: 1; color: ink; show: disp_b.$i.on; family: "Space Grotesk" }
                 text disp_b.$i.mode { at: floor(bx + bw / 2 + 0.5), floor(by + bh / 2 + 7 * u + 0.5); anchor: center; align: center; size: 9 * u; width: max(10 * u, bw - 8 * u); lines: 1; color: faint; show: disp_b.$i.on and bh > 30 * u; family: "Space Grotesk" }
                 zone box disp_mz.$i { from: bx, by; size: bw, bh; cursor: grab; active: (disp_b.$i.on) and (by + (bh) / 2) - disp.off > sby and (by + (bh) / 2) - disp.off < sby + 456 * u }
-                on press disp_mz.$i { disp_grab_i = i; disp_px = (pointer.x - cvx) / u; disp_py = (pointer.y - (cvy - disp.off)) / u; emit disp_grab }
-                on drag disp_mz.$i { disp_px = (pointer.x - cvx) / u; disp_py = (pointer.y - (cvy - disp.off)) / u; emit disp_drag }
+                on press disp_mz.$i { disp_grab_i = i; disp_px = ((ccx + (pointer.x - ccx) / ps) - cvx) / u; disp_py = ((vc + (pointer.y - vc) / ps) - (cvy - disp.off)) / u; emit disp_grab }
+                on drag disp_mz.$i { disp_px = ((ccx + (pointer.x - ccx) / ps) - cvx) / u; disp_py = ((vc + (pointer.y - vc) / ps) - (cvy - disp.off)) / u; emit disp_drag }
                 on release disp_mz.$i { emit disp_drop }
             }
 
@@ -4676,8 +4945,8 @@ scene Vitreus {
             }
             text disp_sdrb_text { at: floor(spx + 424 * u + 0.5), floor(dtop + 226 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
             zone box disp_sdrb_hit { at: dsl.x0 + dsl.w / 2, dtop + 226 * u; size: dsl.w + 24 * u, 30 * u; cursor: pointer; active: (dtop + 226 * u) - disp.off > sby and (dtop + 226 * u) - disp.off < sby + 456 * u }
-            on press disp_sdrb_hit { emit disp_sdrb_set(clamp((pointer.x - dsl.x0) / dsl.w, 0, 1)) }
-            on drag disp_sdrb_hit { emit disp_sdrb_set(clamp((pointer.x - dsl.x0) / dsl.w, 0, 1)) }
+            on press disp_sdrb_hit { emit disp_sdrb_set(clamp(((ccx + (pointer.x - ccx) / ps) - dsl.x0) / dsl.w, 0, 1)) }
+            on drag disp_sdrb_hit { emit disp_sdrb_set(clamp(((ccx + (pointer.x - ccx) / ps) - dsl.x0) / dsl.w, 0, 1)) }
             text "SDR saturation" { at: floor(spx + 14 * u + 0.5), floor(dtop + 256 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
             body { color: deep; rim: 9%; box { at: dsl.x0 + dsl.w / 2, dtop + 256 * u; size: dsl.w, dh; corner: dh / 2 } }
             group {
@@ -4686,8 +4955,8 @@ scene Vitreus {
             }
             text disp_sdrs_text { at: floor(spx + 424 * u + 0.5), floor(dtop + 256 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
             zone box disp_sdrs_hit { at: dsl.x0 + dsl.w / 2, dtop + 256 * u; size: dsl.w + 24 * u, 30 * u; cursor: pointer; active: (dtop + 256 * u) - disp.off > sby and (dtop + 256 * u) - disp.off < sby + 456 * u }
-            on press disp_sdrs_hit { emit disp_sdrs_set(clamp((pointer.x - dsl.x0) / dsl.w, 0, 1)) }
-            on drag disp_sdrs_hit { emit disp_sdrs_set(clamp((pointer.x - dsl.x0) / dsl.w, 0, 1)) }
+            on press disp_sdrs_hit { emit disp_sdrs_set(clamp(((ccx + (pointer.x - ccx) / ps) - dsl.x0) / dsl.w, 0, 1)) }
+            on drag disp_sdrs_hit { emit disp_sdrs_set(clamp(((ccx + (pointer.x - ccx) / ps) - dsl.x0) / dsl.w, 0, 1)) }
 
             //  The bottom row: what it says while nothing is on trial (and Reset, Apply), and while something is
             //  (and Keep, Revert): the question is here, where the eyes are after pressing Apply.
@@ -4790,8 +5059,8 @@ scene Vitreus {
             zone box disp_cue_hit { at: spx + 224 * u, sby + (456 - 26) * u; size: 76 * u, 26 * u; corner: 13 * u; cursor: pointer; active: cue > 0.5 }
             on press disp_cue_hit { disp_scroll_to = clamp(disp_scroll_to + 342, 0, max(0, disp.h - 456)) }
             zone box disp_bar_hit { at: spx + 442 * u, sby + 228 * u; size: 14 * u, 456 * u; cursor: pointer; active: disp.h > 456 }
-            on press disp_bar_hit { disp_scroll_to = clamp(((pointer.y - sby) / u - thh / 2) / max(1, 456 - thh) * (disp.h - 456), 0, max(0, disp.h - 456)) }
-            on drag disp_bar_hit { disp_scroll_to = clamp(((pointer.y - sby) / u - thh / 2) / max(1, 456 - thh) * (disp.h - 456), 0, max(0, disp.h - 456)) }
+            on press disp_bar_hit { disp_scroll_to = clamp((((vc + (pointer.y - vc) / ps) - sby) / u - thh / 2) / max(1, 456 - thh) * (disp.h - 456), 0, max(0, disp.h - 456)) }
+            on drag disp_bar_hit { disp_scroll_to = clamp((((vc + (pointer.y - vc) / ps) - sby) / u - thh / 2) / max(1, 456 - thh) * (disp.h - 456), 0, max(0, disp.h - 456)) }
         }
     }
     prop volume_level = 0 ~calm
