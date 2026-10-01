@@ -1,17 +1,101 @@
 -- The lock screen's logic. It only reports facts: what the wallpaper's blur is called, who is logged
 -- in, what is playing, what the password looks like as shapes, and whether the password was right.
 
+-- ── Settings ─────────────────────────────────────────────────────────────────────────────────────────
+-- `lockscreen.json`, in this scene's own folder (~/.local/share/pleamar/lockscreen): what is missing from it, or wrong in it, is the
+-- default below, and a file that is not there is written so that there is one to edit. It is read when the scene starts.
+--   blur        how blurred the wallpaper is, in pixels at 1920 wide: 18 (light), 36 (medium), 60 (heavy), or anything between
+--   show_media  the player's pill under the password bar
+--   use_12_hour 12 or 24 hour clock;  show_am_pm: the AM/PM pill beside a 12 hour clock
+--   date_format "long" (Wednesday, September 30, 2026), "standard" (Wed, Sep 30, 2026), "dayFirst" (30 September 2026), "iso" (2026-09-30)
+--   mask_style  what a typed character becomes: "shapes", "dots", "asterisks" or "special" (a random symbol)
+--   shape_palette the colours of those: "vibrant", "accent" (the theme's), "neon", "pastel" or "monochrome"
+local cfg = { blur = 36, show_media = true, use_12_hour = true, show_am_pm = true, date_format = "long", mask_style = "shapes", shape_palette = "accent" }
+do
+    local ok, saved = pcall(sys.ask, "files.read", "lockscreen.json", "json")
+    if ok and type(saved) == "table" then
+        for k, v in pairs(cfg) do
+            if type(saved[k]) == type(v) then cfg[k] = saved[k] end
+        end
+        if type(cfg.blur) == "number" then cfg.blur = math.max(0, math.min(120, cfg.blur)) end
+    elseif ok and saved == nil then
+        pcall(sys.call, "files.write", "lockscreen.json", cfg)
+    end
+end
+fact.show_ampm = cfg.use_12_hour and cfg.show_am_pm
+-- The settings as facts, for the shell's Settings page: it reads them with `get` and changes them with `fact` / `text` from outside, which
+-- is what the handlers further down listen for (they do not fire for what is set here).
+fact.cfg_blur = cfg.blur
+fact.cfg_12h = cfg.use_12_hour
+fact.cfg_ampm = cfg.show_am_pm
+fact.cfg_media = cfg.show_media
+text.cfg_date = cfg.date_format
+local MASK_FACT = { shapes = "msk_shapes", dots = "msk_dots", asterisks = "msk_stars", special = "msk_special" }
+local PAL_FACT = { vibrant = "mp_vibrant", accent = "mp_accent", neon = "mp_neon", pastel = "mp_pastel", monochrome = "mp_mono" }
+local MASK_NAME, PAL_NAME = {}, {}
+for k, v in pairs(MASK_FACT) do MASK_NAME[v] = k end
+for k, v in pairs(PAL_FACT) do PAL_NAME[v] = k end
+if not MASK_FACT[cfg.mask_style] then cfg.mask_style = "shapes" end
+if not PAL_FACT[cfg.shape_palette] then cfg.shape_palette = "accent" end
+fact.mask_style = MASK_FACT[cfg.mask_style]
+fact.mask_pal = PAL_FACT[cfg.shape_palette]
+local function save_cfg() pcall(sys.call, "files.write", "lockscreen.json", cfg) end
+
 -- ── The clock ────────────────────────────────────────────────────────────────────────────────────────
 local weekdays = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }
 local months = { "January", "February", "March", "April", "May", "June", "July", "August", "September",
                  "October", "November", "December" }
 
-sys.watch("clock", function(c)
-    local h12 = c.hour % 12
-    if h12 == 0 then h12 = 12 end
-    text.clock_time = string.format("%d:%02d", h12, c.minute)
+local function date_text(c)
+    local wd, mo = weekdays[c.weekday + 1] or "", months[c.month] or ""
+    if cfg.date_format == "standard" then return string.format("%s, %s %d, %d", wd:sub(1, 3), mo:sub(1, 3), c.day, c.year) end
+    if cfg.date_format == "dayFirst" then return string.format("%d %s %d", c.day, mo, c.year) end
+    if cfg.date_format == "iso" then return string.format("%04d-%02d-%02d", c.year, c.month, c.day) end
+    return string.format("%s, %s %d, %d", wd, mo, c.day, c.year)
+end
+
+local last_clock = nil
+local function show_clock(c)
+    if cfg.use_12_hour then
+        local h12 = c.hour % 12
+        if h12 == 0 then h12 = 12 end
+        text.clock_time = string.format("%d:%02d", h12, c.minute)
+    else
+        text.clock_time = string.format("%02d:%02d", c.hour, c.minute)
+    end
     text.clock_ampm = c.hour >= 12 and "PM" or "AM"
-    text.clock_date = string.format("%s, %s %d, %d", weekdays[c.weekday + 1] or "", months[c.month] or "", c.day, c.year)
+    text.clock_date = date_text(c)
+end
+sys.watch("clock", function(c)
+    last_clock = c
+    show_clock(c)
+end)
+local function truthy(v) return v == true or v == 1 or v == "true" end
+on("fact:cfg_12h", function(v)
+    cfg.use_12_hour = truthy(v)
+    fact.show_ampm = cfg.use_12_hour and cfg.show_am_pm
+    save_cfg()
+    if last_clock then show_clock(last_clock) end
+end)
+on("fact:cfg_ampm", function(v)
+    cfg.show_am_pm = truthy(v)
+    fact.show_ampm = cfg.use_12_hour and cfg.show_am_pm
+    save_cfg()
+end)
+on("fact:mask_style", function(v)
+    local name = MASK_NAME[v]
+    if name then cfg.mask_style = name; save_cfg() end
+end)
+on("fact:mask_pal", function(v)
+    local name = PAL_NAME[v]
+    if name then cfg.shape_palette = name; save_cfg() end
+end)
+on("text:cfg_date", function(t)
+    if t == "long" or t == "standard" or t == "dayFirst" or t == "iso" then
+        cfg.date_format = t
+        save_cfg()
+        if last_clock then show_clock(last_clock) end
+    end
 end)
 
 -- ── Who is locked in ─────────────────────────────────────────────────────────────────────────────────
@@ -46,8 +130,19 @@ run("printenv", { "HOME" }, function(out)
 end)
 
 -- ── What is playing ──────────────────────────────────────────────────────────────────────────────────
+local last_media = nil
+local function show_media_pill()
+    local m = last_media
+    fact.has_media = cfg.show_media and m ~= nil and (m.player or "") ~= "" and ((m.title or "") ~= "" or m.playing == true)
+end
 sys.watch("media", function(m)
-    fact.has_media = (m.player or "") ~= "" and ((m.title or "") ~= "" or m.playing == true)
+    last_media = m
+    show_media_pill()
+end)
+on("fact:cfg_media", function(v)
+    cfg.show_media = truthy(v)
+    save_cfg()
+    show_media_pill()
 end)
 on("media_prev", function() sys.call("media.previous") end)
 on("media_play", function() sys.call("media.toggle") end)
@@ -109,7 +204,8 @@ local function prepare_wallpaper()
         local path = line:match("currently displaying: image: (.-)%s*$")
         local geo = line:match("%d+x%d+")
         if not path or not geo then return done() end
-        local key = hash("4 " .. path)
+        local sigma = cfg.blur / 4              -- the blurred picture is made at 480 wide, a quarter of the screen
+        local key = hash(string.format("5 %g ", sigma) .. path)
         if key == made_key then return done() end
         local s, b = dir .. "/sharp-" .. key .. ".jpg", dir .. "/blur-" .. key .. ".jpg"
         -- the pictures of every earlier wallpaper are of no use any more (the two the scene draws are not theirs)
@@ -131,7 +227,7 @@ local function prepare_wallpaper()
             run("mkdir", { "-p", dir }, function()
                 run("magick", { path, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "1280x720!", "-quality", "90", s }, function(_, c1)
                     if c1 ~= 0 then return done() end
-                    run("magick", { path, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "480x", "-blur", "0x9", "-resize", "960x540!", "-quality", "95", "-sampling-factor", "4:4:4", b }, function(_, c2)
+                    run("magick", { path, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "480x", "-blur", "0x" .. sigma, "-resize", "960x540!", "-quality", "95", "-sampling-factor", "4:4:4", b }, function(_, c2)
                         if c2 == 0 then
                             made_key = key
                             publish(s, b, function()
@@ -147,6 +243,14 @@ local function prepare_wallpaper()
         end)
     end)
 end
+on("fact:cfg_blur", function(v)
+    local n = tonumber(v)
+    if not n then return end
+    cfg.blur = math.max(0, math.min(120, n))
+    save_cfg()
+    made_key = nil                          -- the blurred picture is made again, at the new blur
+    prepare_wallpaper()
+end)
 every(5000, prepare_wallpaper)
 after(500, prepare_wallpaper)
 
@@ -154,6 +258,7 @@ after(500, prepare_wallpaper)
 -- Every character typed becomes a random shape (one of 16), turned a random quarter and, one time in
 -- five, only an outline. The password itself never leaves the input.
 local rotations = { 0, 45, 90, 135, 180, 225, 270, 315 }
+local symbols = { "!", "@", "#", "$", "%", "^", "&", "*", "~", "?", "§", "+", "=", "<", ">", "/" }
 local list = {}
 
 local function set_shapes(n)
@@ -165,6 +270,8 @@ local function set_shapes(n)
                 idx = math.random(0, 15),
                 rot = rotations[math.random(1, #rotations)],
                 outline = math.random() < 0.22,
+                ci = math.random(0, 59),                  -- the colour, from whatever palette is chosen (see the scene)
+                sym = symbols[math.random(1, #symbols)],  -- and the symbol, for the "special" style
             }
         end
     else

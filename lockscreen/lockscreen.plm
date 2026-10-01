@@ -13,7 +13,7 @@ scene Lockscreen {
     surface { size: 1, 1; anchor: top_left; level: background }
 
     permissions {
-        services: "clock", "battery", "media", "media.*", "auth"
+        services: "clock", "battery", "media", "media.*", "auth", "files", "files.write"
         run: "awww", "magick", "getent", "mkdir", "rm", "ls", "cp", "loginctl", "printenv"
     }
 
@@ -29,6 +29,14 @@ scene Lockscreen {
     fact wrong = false             // the last try failed
     fact right = false             // the last try worked
     fact has_media = false
+    fact cfg_blur = 36             // the settings (lockscreen.json), as the shell's Settings page reads and sets them: see lockscreen.luau
+    fact cfg_12h = true
+    fact cfg_ampm = true
+    fact cfg_media = true
+    text cfg_date = "long"
+    fact mask_style: msk_shapes | msk_dots | msk_stars | msk_special = msk_shapes   // what a typed character becomes (settings: mask_style)
+    fact mask_pal: mp_vibrant | mp_accent | mp_neon | mp_pastel | mp_mono = mp_accent   // the colours they are drawn in (settings: shape_palette)
+    fact show_ampm = true          // the AM/PM pill beside the clock (settings: a 12 hour clock, and show_am_pm)
     fact has_avatar = false
     fact has_wall = false
     fact pw_len = 0
@@ -49,7 +57,7 @@ scene Lockscreen {
     text clock_date = ""
     text clock_h = "12"
     text clock_m = "00"
-    model shapes max 40 { idx: number; rot: number; outline: bool }
+    model shapes max 40 { idx: number; rot: number; outline: bool; ci: number; sym: text }
     event tryauth ->
     event clear ->
     event media_prev ->
@@ -191,6 +199,8 @@ scene Lockscreen {
                 scale: 1 / st_c, st_c
 
                 //  The clock, with its glow, and the AM/PM pill beside it.
+                //  The clock sits 28 left of the middle to make room for the pill, and in the middle when there is no pill.
+                let ck_x = cx - if(show_ampm, 28, 0)
                 group {
                     glow: 18, 70%, acc
                     //  Bold beyond the font's heaviest weight: the same text again around it, 3 px out in twelve directions. (A text
@@ -198,14 +208,14 @@ scene Lockscreen {
                     //  (the entrance passes 85 % when its last spring ends): while it moves, twelve copies each snapped to the pixel
                     //  their own way show as lines between them.
                     repeat i in 0..12 {
-                        text clock_time { at: cx - 28 + 3 * cos(i * 30), ct + 122 + 3 * sin(i * 30); anchor: center; size: 200; weight: 700; color: ink; family: "Space Grotesk"; opacity: clamp((e - 0.85) / 0.1, 0, 1); show: e > 0.85 }
+                        text clock_time { at: ck_x + 3 * cos(i * 30), ct + 122 + 3 * sin(i * 30); anchor: center; size: 200; weight: 700; color: ink; family: "Space Grotesk"; opacity: clamp((e - 0.85) / 0.1, 0, 1); show: e > 0.85 }
                     }
-                    text clock_time { at: cx - 28, ct + 122; anchor: center; size: 200; weight: 700; color: ink; family: "Space Grotesk"; measure: ck_w }
+                    text clock_time { at: ck_x, ct + 122; anchor: center; size: 200; weight: 700; color: ink; family: "Space Grotesk"; measure: ck_w }
                 }
                 let ap_x = floor(cx + ck_w.width / 2 + 4 + 0.5)
-                box { at: ap_x, ct + 122; size: 48, 28; corner: 14; color: acc; opacity: 18% }
-                box { at: ap_x, ct + 122; size: 48, 28; corner: 14; color: acc; opacity: 0%; stroke: 1 }
-                text clock_ampm { at: ap_x, ct + 122; anchor: center; size: 11; weight: 700; color: acc; family: "Space Grotesk" }
+                box { at: ap_x, ct + 122; size: 48, 28; corner: 14; color: acc; opacity: 18%; show: show_ampm }
+                box { at: ap_x, ct + 122; size: 48, 28; corner: 14; color: acc; opacity: 0%; stroke: 1; show: show_ampm }
+                text clock_ampm { at: ap_x, ct + 122; anchor: center; size: 11; weight: 700; color: acc; family: "Space Grotesk"; show: show_ampm }
                 text clock_date { at: cx, ct + 263; anchor: center; size: 21; weight: 500; color: faint; family: "Space Grotesk" }
 
                 //  The avatar: a 200 px disc with a 3 px accent ring and its glow.
@@ -256,39 +266,60 @@ scene Lockscreen {
                                     size: 26, 26
                                     let newest = s.index == shapes.count - 1
                                     let grow_t = if(newest, clamp(pop, 0, 2), 1)
-                                    let tint = mix(mix(acc, #ef4444, err_t), #10b981, ok_t)
-                                    figure shp.s0 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 0 and not s.outline }
-                                    figure shp.s0 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 0 and s.outline }
-                                    figure shp.s1 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 1 and not s.outline }
-                                    figure shp.s1 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 1 and s.outline }
-                                    figure shp.s2 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 2 and not s.outline }
-                                    figure shp.s2 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 2 and s.outline }
-                                    figure shp.s3 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 3 and not s.outline }
-                                    figure shp.s3 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 3 and s.outline }
-                                    figure shp.s4 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 4 and not s.outline }
-                                    figure shp.s4 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 4 and s.outline }
-                                    figure shp.s5 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 5 and not s.outline }
-                                    figure shp.s5 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 5 and s.outline }
-                                    figure shp.s6 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 6 and not s.outline }
-                                    figure shp.s6 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 6 and s.outline }
-                                    figure shp.s7 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 7 and not s.outline }
-                                    figure shp.s7 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 7 and s.outline }
-                                    figure shp.s8 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 8 and not s.outline }
-                                    figure shp.s8 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 8 and s.outline }
-                                    figure shp.s9 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 9 and not s.outline }
-                                    figure shp.s9 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 9 and s.outline }
-                                    figure shp.s10 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 10 and not s.outline }
-                                    figure shp.s10 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 10 and s.outline }
-                                    figure shp.s11 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 11 and not s.outline }
-                                    figure shp.s11 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 11 and s.outline }
-                                    figure shp.s12 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 12 and not s.outline }
-                                    figure shp.s12 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 12 and s.outline }
-                                    figure shp.s13 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 13 and not s.outline }
-                                    figure shp.s13 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 13 and s.outline }
-                                    figure shp.s14 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 14 and not s.outline }
-                                    figure shp.s14 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 14 and s.outline }
-                                    figure shp.s15 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 15 and not s.outline }
-                                    figure shp.s15 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 15 and s.outline }
+                                    //  Each character has a colour of its own, picked at random from the palette (`s.ci`, 0 to 59, so that the palettes of
+                                    //  five and of four colours are both even): vibrant, neon and pastel are sets, accent is the accent, mono is white.
+                                    let gc5 = mod(s.ci, 5)
+                                    let gc4 = mod(s.ci, 4)
+                                    let gv = mix(mix(mix(mix(#00f0ff, #7000ff, if(gc5 == 1, 1, 0)), #ff0055, if(gc5 == 2, 1, 0)), #00ff66, if(gc5 == 3, 1, 0)), #ffcc00, if(gc5 == 4, 1, 0))
+                                    let gn = mix(mix(mix(#ff0055, #00ffff, if(gc4 == 1, 1, 0)), #ffff00, if(gc4 == 2, 1, 0)), #ff00ff, if(gc4 == 3, 1, 0))
+                                    let gp = mix(mix(mix(#c4b5fd, #93c5fd, if(gc4 == 1, 1, 0)), #fbcfe8, if(gc4 == 2, 1, 0)), #fed7aa, if(gc4 == 3, 1, 0))
+                                    let gcol = mix(mix(mix(mix(gv, acc, if(mask_pal == mp_accent, 1, 0)), gn, if(mask_pal == mp_neon, 1, 0)), gp, if(mask_pal == mp_pastel, 1, 0)), #ffffff, if(mask_pal == mp_mono, 1, 0))
+                                    let tint = mix(mix(gcol, #ef4444, err_t), #10b981, ok_t)
+                                    group {
+                                        show: mask_style == msk_shapes
+                                        figure shp.s0 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 0 and not s.outline }
+                                        figure shp.s0 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 0 and s.outline }
+                                        figure shp.s1 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 1 and not s.outline }
+                                        figure shp.s1 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 1 and s.outline }
+                                        figure shp.s2 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 2 and not s.outline }
+                                        figure shp.s2 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 2 and s.outline }
+                                        figure shp.s3 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 3 and not s.outline }
+                                        figure shp.s3 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 3 and s.outline }
+                                        figure shp.s4 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 4 and not s.outline }
+                                        figure shp.s4 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 4 and s.outline }
+                                        figure shp.s5 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 5 and not s.outline }
+                                        figure shp.s5 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 5 and s.outline }
+                                        figure shp.s6 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 6 and not s.outline }
+                                        figure shp.s6 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 6 and s.outline }
+                                        figure shp.s7 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 7 and not s.outline }
+                                        figure shp.s7 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 7 and s.outline }
+                                        figure shp.s8 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 8 and not s.outline }
+                                        figure shp.s8 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 8 and s.outline }
+                                        figure shp.s9 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 9 and not s.outline }
+                                        figure shp.s9 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 9 and s.outline }
+                                        figure shp.s10 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 10 and not s.outline }
+                                        figure shp.s10 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 10 and s.outline }
+                                        figure shp.s11 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 11 and not s.outline }
+                                        figure shp.s11 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 11 and s.outline }
+                                        figure shp.s12 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 12 and not s.outline }
+                                        figure shp.s12 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 12 and s.outline }
+                                        figure shp.s13 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 13 and not s.outline }
+                                        figure shp.s13 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 13 and s.outline }
+                                        figure shp.s14 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 14 and not s.outline }
+                                        figure shp.s14 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 14 and s.outline }
+                                        figure shp.s15 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; opacity: clamp(grow_t, 0, 1); show: s.idx == 15 and not s.outline }
+                                        figure shp.s15 { at: 13, 13; size: 20 * grow_t, 20 * grow_t; rotate: (s.rot - 60 * (1 - clamp(grow_t, 0, 1))) * 1deg; color: tint; stroke: 2.5; opacity: clamp(grow_t, 0, 1); show: s.idx == 15 and s.outline }
+                                    }
+                                    //  The other styles: a disc (or a ring), an asterisk, and a symbol.
+                                    ellipse { at: 13, 13; radius: 5.5 * grow_t; color: tint; opacity: clamp(grow_t, 0, 1); show: mask_style == msk_dots and not s.outline }
+                                    ellipse { at: 13, 13; radius: 5 * grow_t; stroke: 2; color: tint; opacity: clamp(grow_t, 0, 1); show: mask_style == msk_dots and s.outline }
+                                    group {
+                                        show: mask_style == msk_stars
+                                        line { from: 13 - 8 * grow_t, 13; to: 13 + 8 * grow_t, 13; width: 2.4; color: tint; opacity: clamp(grow_t, 0, 1) }
+                                        line { from: 13 - 4 * grow_t, 13 - 6.93 * grow_t; to: 13 + 4 * grow_t, 13 + 6.93 * grow_t; width: 2.4; color: tint; opacity: clamp(grow_t, 0, 1) }
+                                        line { from: 13 + 4 * grow_t, 13 - 6.93 * grow_t; to: 13 - 4 * grow_t, 13 + 6.93 * grow_t; width: 2.4; color: tint; opacity: clamp(grow_t, 0, 1) }
+                                    }
+                                    text s.sym { at: 13, 13; anchor: center; align: center; size: 20 * grow_t; weight: 700; color: tint; opacity: clamp(grow_t, 0, 1); family: "Space Grotesk"; show: mask_style == msk_special }
                                 }
                             }
                         }

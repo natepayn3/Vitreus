@@ -23,6 +23,22 @@ drawn on the lock only appeared on the first lock after the scene was read. Both
 Two things about the wallpaper: the pictures are cached 16:9 (an `image` is a fixed-shape cell, and the renderer will
 not hold a bigger one), and they are made once, in the background, each time the wallpaper changes.
 
+## Settings
+
+They are on Vitreus's **Settings > System > Lock screen** page, which changes them in the running lock screen at once (it has to be
+running). They live in a file, which can also be edited by hand:
+
+`~/.local/share/pleamar/lockscreen/lockscreen.json` (the scene's own folder; it is written with the defaults the first time
+the scene starts, and read each time it starts, so restart the lock screen after editing it). A missing or wrong key is the default.
+
+| Key | Default | |
+|---|---|---|
+| `blur` | `36` | How blurred the wallpaper is, in pixels at 1920 wide: `18` light, `36` medium, `60` heavy, or any number up to 120 |
+| `use_12_hour` | `true` | A 12 or a 24 hour clock |
+| `show_am_pm` | `true` | The AM/PM pill beside a 12 hour clock |
+| `date_format` | `"long"` | `"long"` Wednesday, September 30, 2026 · `"standard"` Wed, Sep 30, 2026 · `"dayFirst"` 30 September 2026 · `"iso"` 2026-09-30 |
+| `show_media` | `true` | The player's pill under the password bar |
+
 ## What it needs
 
 `awww` (to find the wallpaper), `magick` (it makes a sharp and a pre-blurred copy in `~/.cache/pleamar/lockscreen`),
