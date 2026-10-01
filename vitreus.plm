@@ -1834,7 +1834,11 @@ scene Vitreus {
     }
     //  ...and the waiting one opens once the drop of the one before has gone back in (its `dtrav` is back to nothing). It is the compound that is
     //  watched, so that it also fires when the wait begins with the strip already at rest.
-    on change dtrav < 0.03 and pending != none while dtrav < 0.03 and pending != none { panel = pending; pending = none }
+    //  `pq.at` is how far back in the closing drop has to be: 0 would wait until it is gone, 1 would not wait at all. Half way, the next panel
+    //  starts while the old one is still folding in, and the glass turns round smoothly from where it is (`dtrav` follows `panel`, so it reverses
+    //  instead of restarting). If the shape snaps where they meet, lower it; for a closer overlap, raise it.
+    let pq.at = 0.5
+    on change dtrav < pq.at and pending != none while dtrav < pq.at and pending != none { panel = pending; pending = none }
     //  What a drop out of the strip is made of, as in Marea's (marea.plm, "the body"): the strip's edge bulges towards the drop while it holds it
     //  (`dj.sag`, most halfway), the neck is a bell that ends at nothing so that the thread breaks by itself (`dj.neck`), when it breaks two crests
     //  run along the edge (`dj.ripx`, `dj.riph`) and a small drop is left hanging from it for a moment (`dj.stray`), and the drop stretches with its
@@ -1939,6 +1943,8 @@ scene Vitreus {
     prop ctl_hold = 0 ~280ms
     follow ctl_hold = if(max(ctl_btn_z.hover, ctl_band_z.hover) > 0.5, 1, 0)
     on change ctl_arm > 0.9 while ctl_arm > 0.9 { panel = controls }
+    //  Coming from the calendar's button, the pointer has already shown what it wants: answer half way through the arm instead of at the end.
+    on change ctl_arm > 0.5 while ctl_arm > 0.5 and panel == calendar { panel = controls }
     on change ctl_hold < 0.05 while ctl_hold < 0.05 and panel == controls and lm > 0.5 { panel = none }
     //  The calendar the same way, from the clock.
     zone box cal_btn_z { at: lf.w / 2, lv.clk + 30 * u; size: lf.w, 104 * u; active: lm > 0.5 }
@@ -1948,6 +1954,7 @@ scene Vitreus {
     prop cal_hold = 0 ~280ms
     follow cal_hold = if(max(cal_btn_z.hover, cal_band_z.hover) > 0.5, 1, 0)
     on change cal_arm > 0.9 while cal_arm > 0.9 { panel = calendar }
+    on change cal_arm > 0.5 while cal_arm > 0.5 and panel == controls { panel = calendar }
     on change cal_hold < 0.05 while cal_hold < 0.05 and panel == calendar and lm > 0.5 { panel = none }
     //  Where the contents hang from: the panel's old middle, so they keep their
     //  place when the panel grows to make room for the player.
