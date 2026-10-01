@@ -62,6 +62,9 @@ scene Session {
     fact rad = 12
     fact shd = 100
     fact tbo = 72
+    // How opaque a window is (%), with and without the keyboard: what it shows (and its backing) lets the desktop through.
+    fact wo_a = 100
+    fact wo_i = 100
     let W = screen.width
     let H = screen.height
     // Where each monitor starts on the desktop: left to right, each one after
@@ -503,8 +506,10 @@ scene Session {
             opacity: seen.$i
             pivot: x + w / 2, y + h / 2
             scale: (0.92 + 0.08 * seen.$i + 0.025 * choose.$i.hover * ov) * (1 + 0.05 * (lift.$i - F)) * (1 + 0.012 * sin(180 * wave.$i))
+            let wop = (wo_i + (wo_a - wo_i) * lit.$i) / 100
             body {
                 color: #0c0e10
+                opacity: wop
                 shadow: 0, 14 + 8 * lit.$i + 10 * lift.$i, 34 + 18 * lift.$i, (45% + 20% * lit.$i + 10% * lift.$i) * shd / 100
                 box { from: x, y; size: w, h; corner: rad }
             }
@@ -523,7 +528,7 @@ scene Session {
                 }
                 box { from: x, y + tb - 1; size: w, 1; color: #ffffff; opacity: 9% }
                 text win.$i.title { at: floor(x + 12 + 0.5), floor(y + tb / 2 + 0.5); anchor: left center; size: 11; weight: 600; width: max(w - 100, 10); lines: 1; color: ink; opacity: 55% + 45% * lit.$i; family: "Space Grotesk" }
-                window win.$i { at: x, y + tb; size: w, max(h - tb, 1); ask: goal.w, goal.h - tb; show: drawn and not win.$i.fullscreen and wet <= 0.001 and cold <= 0.001 }
+                window win.$i { at: x, y + tb; size: w, max(h - tb, 1); ask: goal.w, goal.h - tb; opacity: wop; show: drawn and not win.$i.fullscreen and wet <= 0.001 and cold <= 0.001 }
             }
             // The same, in the rain: the window seen through wet glass.
             group {
@@ -540,7 +545,7 @@ scene Session {
                 }
                 box { from: x, y + tb - 1; size: w, 1; color: #ffffff; opacity: 9% }
                 text win.$i.title { at: floor(x + 12 + 0.5), floor(y + tb / 2 + 0.5); anchor: left center; size: 11; weight: 600; width: max(w - 100, 10); lines: 1; color: ink; opacity: 55% + 45% * lit.$i; family: "Space Grotesk" }
-                window win.$i { at: x, y + tb; size: w, max(h - tb, 1); ask: goal.w, goal.h - tb; show: drawn and not win.$i.fullscreen and wet > 0.001 }
+                window win.$i { at: x, y + tb; size: w, max(h - tb, 1); ask: goal.w, goal.h - tb; opacity: wop; show: drawn and not win.$i.fullscreen and wet > 0.001 }
             }
             // And in the snow: frosted glass with snow on top.
             group {
@@ -557,7 +562,7 @@ scene Session {
                 }
                 box { from: x, y + tb - 1; size: w, 1; color: #ffffff; opacity: 9% }
                 text win.$i.title { at: floor(x + 12 + 0.5), floor(y + tb / 2 + 0.5); anchor: left center; size: 11; weight: 600; width: max(w - 100, 10); lines: 1; color: ink; opacity: 55% + 45% * lit.$i; family: "Space Grotesk" }
-                window win.$i { at: x, y + tb; size: w, max(h - tb, 1); ask: goal.w, goal.h - tb; show: drawn and not win.$i.fullscreen and cold > 0.001 and wet <= 0.001 }
+                window win.$i { at: x, y + tb; size: w, max(h - tb, 1); ask: goal.w, goal.h - tb; opacity: wop; show: drawn and not win.$i.fullscreen and cold > 0.001 and wet <= 0.001 }
             }
             // (The wave: two soft crests of light, the second behind the first.)
             group {
