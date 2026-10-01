@@ -397,6 +397,13 @@ scene Vitreus {
     fact on_wifi = false            // the connection in use is Wi-Fi (not wired): the logic reads network.kind
     fact wifi_open_row = -1
     fact bt_open_row = -1
+    //  The open Bluetooth row's audio profiles (High Fidelity, Headset, Off...), the way PipeWire offers them for that device: up to six, each a
+    //  label and whether it is the one in use (`bt_po`: there is one in this place). `bt_pf_h` is how tall the pills are, 0 when there is nothing to choose.
+    fact bt_pf_h = 0
+    event bt_prof_set ->
+    repeat i in 0..6 { text bt_pl.$i = "" }
+    repeat i in 0..6 { fact bt_pa.$i = false }
+    repeat i in 0..6 { fact bt_po.$i = false }
     event wifi_pick ->              // a network row's own button: connect, or leave it
     event wifi_forget ->            // a network row's Forget
     event wifi_scan ->              // the rescan button
@@ -473,6 +480,7 @@ scene Vitreus {
     prop wifi_extra = 0 ~calm     // 0..1: whether a Wi-Fi row is open
     prop wifi_sel = 0 ~calm       // which row, as a position: slides from one row to the next
     prop bt_extra = 0 ~calm       // 0..1: whether a Bluetooth row is open
+    prop bt_pf = 0 ~calm          // the room its audio profiles take, once open
     prop bt_sel  = 0 ~calm        // which row, as a position: slides from one row to the next
     prop bt_on   = 0 ~pop         // the bluetooth toggle pill, popping past where it lands
     prop media_open = 0 ~drip      // the media plate: a sliver with nothing playing, a full card with something to show
@@ -584,6 +592,7 @@ scene Vitreus {
     on change wifi_open_row while wifi_open_row >= 0 and wifi_extra < 0.05 { wifi_sel: wifi_open_row ~0ms }
     on change wifi_open_row while wifi_open_row >= 0 and wifi_extra >= 0.05 { wifi_sel: wifi_open_row }
     follow bt_extra = if(bt_open_row >= 0, 1, 0)
+    follow bt_pf = bt_pf_h
     on change bt_open_row while bt_open_row >= 0 and bt_extra < 0.05 { bt_sel: bt_open_row ~0ms }
     on change bt_open_row while bt_open_row >= 0 and bt_extra >= 0.05 { bt_sel: bt_open_row }
     follow bt_on   = if(bt.powered, 1, 0)
@@ -1188,7 +1197,7 @@ scene Vitreus {
         //  The row grows and its buttons fade in on a spring, instead of jumping. One spring says which
         //  row is open (bt_sel, sliding between rows) and one how open (bt_extra): a row's share is how
         //  close it is to the selection.
-        size: 276 * u, floor((30 + 44 * bt_extra * clamp(1 - abs(d.index - bt_sel), 0, 1)) * u + 0.5)
+        size: 276 * u, floor((30 + (44 + bt_pf) * bt_extra * clamp(1 - abs(d.index - bt_sel), 0, 1)) * u + 0.5)
         let isopen = bt_open_row == d.index
         let open_t = bt_extra * clamp(1 - abs(d.index - bt_sel), 0, 1)
         //  What a tap asked for and BlueZ has not answered yet: 1 connecting, 2 disconnecting, 3 it could not.
@@ -1196,8 +1205,8 @@ scene Vitreus {
         let pulse = if(working, 55% + 45% * sin(time * 260), 100%)
         //  One card: the device line on top, and what opens is the same plate carrying on below it,
         //  with a hairline between, not a separate strip of buttons.
-        box { from: 0, 0; size: 276 * u, (30 + 44 * open_t) * u; corner: 10 * u; color: ink; opacity: if(d.connected, 12%, 0%) + 5% * open_t + 9% * touch.hover }
-        box { from: 0, 0; size: 276 * u, (30 + 44 * open_t) * u; corner: 10 * u; color: mint; opacity: if(working, 4% + 6% * pulse, 0%) }
+        box { from: 0, 0; size: 276 * u, (30 + (44 + bt_pf) * open_t) * u; corner: 10 * u; color: ink; opacity: if(d.connected, 12%, 0%) + 5% * open_t + 9% * touch.hover }
+        box { from: 0, 0; size: 276 * u, (30 + (44 + bt_pf) * open_t) * u; corner: 10 * u; color: mint; opacity: if(working, 4% + 6% * pulse, 0%) }
         zone box touch { from: 0, 0; size: 276 * u, 30 * u; corner: 10 * u; cursor: pointer }
         ellipse { at: 14 * u, 15 * u; radius: 3 * u; color: mint; opacity: if(working, pulse, if(d.connected and d.busy == 0, 100%, 0%)) }
         ellipse { at: 14 * u, 15 * u; radius: 3 * u; color: #e0655a; opacity: if(d.busy == 3, 100%, 0%) }
@@ -1237,6 +1246,23 @@ scene Vitreus {
                 text "Forget" { at: floor(200 * u + 0.5), floor(52 * u + 0.5); anchor: center; size: 11 * u; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
                 zone box forgetbtn { at: 200 * u, 52 * u; size: 120 * u, 26 * u; corner: 8 * u; cursor: pointer }
                 on press forgetbtn { emit forget(d.index) }
+            }
+            //  What the connected device does with sound: a headset drops to the telephone profile (mono, mic on) on a call and nothing puts it back.
+            //  Not more buttons: its own heading under a hairline, and a choice of radio dots, two to a line, so it reads as a setting of the device.
+            group {
+                show: d.connected and isopen and bt_pf_h > 0
+                box { at: 138 * u, 74 * u; size: 240 * u, 1 * u; color: ink; opacity: 10% }
+                text "AUDIO PROFILE" { at: floor(14 * u + 0.5), floor(88 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+                repeat i in 0..6 {
+                    let px = (14 + mod(i, 2) * 128) * u
+                    let py = (108 + floor(i / 2) * 26) * u
+                    box { from: px, py - 12 * u; size: 124 * u, 24 * u; corner: 8 * u; color: ink; opacity: if(bt_po.$i, 7% * bt_pz.$i.hover, 0%) }
+                    ellipse { at: px + 11 * u, py; radius: 5 * u; stroke: 1.3 * u; color: if(bt_pa.$i, mint, ink); opacity: if(bt_po.$i, if(bt_pa.$i, 100%, 45%), 0%) }
+                    ellipse { at: px + 11 * u, py; radius: 2.6 * u; color: mint; opacity: if(bt_pa.$i, 100%, 0%) }
+                    text bt_pl.$i { at: floor(px + 23 * u + 0.5), floor(py + 0.5); anchor: left center; size: 10.5 * u; weight: 600; width: 98 * u; lines: 1; color: if(bt_pa.$i, mint, ink); opacity: if(bt_pa.$i, 100%, 80%); family: "Space Grotesk"; show: bt_po.$i }
+                    zone box bt_pz.$i { from: px, py - 12 * u; size: 124 * u, 24 * u; corner: 8 * u; cursor: pointer; active: bt_po.$i }
+                    on press bt_pz.$i { emit bt_prof_set(i) }
+                }
             }
         }
     }
@@ -1672,7 +1698,7 @@ scene Vitreus {
     //  where the list itself starts scrolling instead of the window still
     //  growing to fit it.
     let wifi_rows_h = max(1, wifi_nets.count) * 34 - 4 + 44 * wifi_extra
-    let bt_rows_h   = max(1, bt_devices.count) * 34 - 4 + 44 * bt_extra
+    let bt_rows_h   = max(1, bt_devices.count) * 34 - 4 + (44 + bt_pf) * bt_extra
     let list_max    = 220
     //  The notifications window has a Do Not Disturb row and its timer chips above its list (84 more), and a
     //  shorter list. Its rows are 54 px with 6 between, whole pixels.

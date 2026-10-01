@@ -540,6 +540,7 @@ local function bt_is_mac(n) return n:match("^%x%x[-:]%x%x[-:]%x%x[-:]%x%x[-:]%x%
 local bt_pending = {}                     -- address -> { kind = 1 connecting | 2 disconnecting | 3 failed, row = last row, gen = n }
 local bt_gen = 0
 local bt_open_addr = nil                  -- the address of the row that is open: its index moves when the list re-sorts
+local bt_prof_refresh = function() end   -- the open device's audio profiles (set below)
 
 local function bt_render()
     local b = bt_last
@@ -608,6 +609,7 @@ local function bt_render()
             end
             if at ~= fact.bt_open_row then fact.bt_open_row = at end
         end
+        bt_prof_refresh()
     end
 end
 
@@ -619,7 +621,104 @@ end)
 on("fact:bt_open_row", function(i)
     local d = i >= 0 and bt_list[i + 1] or nil
     bt_open_addr = d and d.address or nil
+    bt_prof_refresh()
 end)
+
+-- The audio profile of the open, connected device (High Fidelity, Headset, Off...). PipeWire keeps it on the device's card, so it is read with
+-- `pactl -f json list cards` and set with `pactl set-card-profile`, as the mixer does. A call flips a headset to the telephone profile (mono, mic on)
+-- and nothing flips it back, which is what this is for. A profile the device does not offer right now is left out: its pill would do nothing.
+-- It is read when a row opens, when the list changes (a connection) and every few seconds while one is open, since a call can change it.
+do
+local BTP = { card = nil, profs = {}, active = nil }
+
+local function bt_prof_label(name)
+    local n = name:lower()
+    if n == "off" then return "Off" end
+    local codec = (n:match("^a2dp%-sink[-_]?(.*)$"))
+    if codec then return codec == "" and "Hi-Fi" or ("Hi-Fi (" .. codec:upper():gsub("_", " ") .. ")") end
+    codec = (n:match("^headset%-head%-unit[-_]?(.*)$")) or (n:match("^handsfree%-head%-unit[-_]?(.*)$"))
+    if codec then return codec == "" and "Headset" or ("Headset (" .. codec:upper():gsub("_", " ") .. ")") end
+    if n:find("^a2dp%-source") then return "Audio source" end
+    return name
+end
+
+local function bt_prof_rank(name)
+    local n = name:lower()
+    if n:find("^a2dp%-sink") then return 0 end
+    if n:find("^headset") or n:find("^handsfree") then return 1 end
+    if n == "off" then return 9 end
+    return 5
+end
+
+local function bt_prof_show()
+    local n = #BTP.profs
+    for i = 0, 5 do
+        local pr = BTP.profs[i + 1]
+        fact["bt_po." .. i] = pr ~= nil
+        fact["bt_pa." .. i] = pr ~= nil and pr.name == BTP.active
+        text["bt_pl." .. i] = pr and pr.label or ""
+    end
+    -- the heading and its hairline (30), then two to a line, 26 apart; nothing to choose between with fewer than two
+    fact.bt_pf_h = n >= 2 and (math.ceil(n / 2) * 26 + 30) or 0
+end
+
+local function bt_prof_clear()
+    BTP.card, BTP.profs, BTP.active = nil, {}, nil
+    bt_prof_show()
+end
+
+bt_prof_refresh = function()
+    local addr = bt_open_addr
+    local dev
+    for _, r in ipairs(bt_list) do if r.address == addr then dev = r end end
+    if not addr or not dev or not dev.connected then
+        if BTP.card ~= nil or #BTP.profs > 0 then bt_prof_clear() end
+        return
+    end
+    local want = ("bluez_card." .. addr:gsub(":", "_")):upper()
+    run("pactl", { "-f", "json", "list", "cards" }, function(out, code)
+        if code ~= 0 or bt_open_addr ~= addr then return end
+        local ok, cards = pcall(json.decode, out or "")
+        if not ok or type(cards) ~= "table" then return end
+        local found
+        for _, c in ipairs(cards) do
+            if type(c) == "table" and type(c.name) == "string" and c.name:upper() == want then found = c end
+        end
+        if not found or type(found.profiles) ~= "table" then
+            -- the card is not there (yet): nothing to choose from
+            bt_prof_clear()
+            return
+        end
+        local profs = {}
+        for pn, p in pairs(found.profiles) do
+            local off = type(p) == "table" and (p.available == false or p.available == "no")
+            if not off then profs[#profs + 1] = { name = pn, label = bt_prof_label(pn) } end
+        end
+        table.sort(profs, function(x, y)
+            local rx, ry = bt_prof_rank(x.name), bt_prof_rank(y.name)
+            if rx ~= ry then return rx < ry end
+            return x.name < y.name
+        end)
+        while #profs > 6 do table.remove(profs) end
+        BTP.card, BTP.profs, BTP.active = found.name, profs, found.active_profile
+        bt_prof_show()
+    end)
+end
+
+on("bt_prof_set", function(i)
+    local pr = BTP.profs[math.floor(i + 0.5) + 1]
+    if not pr or not BTP.card then return end
+    BTP.active = pr.name                      -- the pill answers at once; the next read says what PipeWire did
+    bt_prof_show()
+    run("pactl", { "set-card-profile", BTP.card, pr.name }, function()
+        after(600, bt_prof_refresh)
+    end)
+end)
+
+every(3000, function()
+    if bt_open_addr then bt_prof_refresh() end
+end)
+end
 
 -- Asks BlueZ for something slow, and shows that it was asked. `kind` 1 connecting, 2 disconnecting. If BlueZ has
 -- not answered in twenty seconds the row says it could not, for three, and goes back to what it was.
