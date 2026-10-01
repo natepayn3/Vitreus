@@ -694,6 +694,8 @@ scene Vitreus {
     fact wm_tbo = 72
     fact wm_wa = 100
     fact wm_wi = 100
+    fact wm_fr = 80
+    text wm_fr_text = "80%"
     text wm_wa_text = "100%"
     text wm_wi_text = "100%"
     text wm_bw_text = "1.5 px"
@@ -1633,7 +1635,7 @@ scene Vitreus {
     let sm.ds = (4 - clamp(sm_mnt.count, 1, 4)) * 38
     let sm.dt = (8 - clamp(sm_tmp.count, 1, 8)) * 24
     let sm.h = 1536 - sm.ds - sm.dt
-    let wm.h = 782                     // the Pleamar-WM page: to the bottom of its last card
+    let wm.h = 812                     // the Pleamar-WM page: to the bottom of its last card
     let lk.h = 728                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36
@@ -4034,17 +4036,17 @@ scene Vitreus {
             }
 
             //  Window style: the border, the corners, the shadow and the title bar.
-            box { at: spx + 219 * u, sby + 629 * u; size: 438 * u, 274 * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: spx + 219 * u, sby + 644 * u; size: 438 * u, 304 * u; corner: 14 * u; color: ink; opacity: veil }
             text "WINDOW STYLE" { at: floor(spx + 14 * u + 0.5), floor(sby + 480 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
             text "Border from the wallpaper" { at: floor(spx + 14 * u + 0.5), floor(sby + 512 * u + 0.5); anchor: left center; size: 11.5 * u; weight: 600; color: ink; family: "Space Grotesk" }
             box { at: spx + 404 * u, sby + 512 * u; size: 40 * u, 22 * u; corner: 11 * u; color: mix(ink, mint, wm_k5); opacity: 14% + 34% * wm_k5 + 8% * wm_tg_hit.5.hover }
             ellipse { at: spx + (404 - 9 + 18 * wm_k5) * u, sby + 512 * u; radius: 8 * u; color: mix(ink, mint, wm_k5); opacity: 80% + 20% * wm_k5 }
             zone box wm_tg_hit.5 { at: spx + 219 * u, sby + 512 * u; size: 430 * u, 28 * u; corner: 10 * u; cursor: pointer; active: (sby + 512 * u) - sby - wm.off > 0 and (sby + 512 * u) - sby - wm.off < 456 * u }
             on press wm_tg_hit.5 { emit wm_toggle(5) }
-            repeat i in 0..8 {
+            repeat i in 0..9 {
                 let sy = sby + (542 + i * 30) * u
-                let sv = pick(i, wm_bw / 6, (wm_ba - 20) / 80, wm_rad / 24, wm_shd / 200, (wm_tb - 16) / 18, (wm_tbo - 40) / 60, (wm_wa - 40) / 60, (wm_wi - 40) / 60)
-                text pick(i, "Border width", "Border strength", "Corner radius", "Shadow", "Title bar height", "Title bar glass", "Window opacity", "Unfocused opacity") { at: floor(spx + 14 * u + 0.5), floor(sy + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+                let sv = pick(i, wm_bw / 6, (wm_ba - 20) / 80, wm_rad / 24, wm_shd / 200, (wm_tb - 16) / 18, (wm_tbo - 40) / 60, (wm_wa - 40) / 60, (wm_wi - 40) / 60, wm_fr / 100)
+                text pick(i, "Border width", "Border strength", "Corner radius", "Shadow", "Title bar height", "Title bar glass", "Window opacity", "Unfocused opacity", "Frosted backing") { at: floor(spx + 14 * u + 0.5), floor(sy + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
                 body { color: deep; rim: 9%; box { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w, wh; corner: wh / 2 } }
                 group {
                     glow: 6 * u, 50%, mint
@@ -4054,7 +4056,7 @@ scene Vitreus {
                         box { from: wsl.x0, sy - wh / 2; size: max(0.1, wsl.w * sv), wh; corner: wh / 2 }
                     }
                 }
-                text pick(i, wm_bw_text, wm_ba_text, wm_rad_text, wm_shd_text, wm_tb_text, wm_tbo_text, wm_wa_text, wm_wi_text) { at: floor(spx + 424 * u + 0.5), floor(sy + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
+                text pick(i, wm_bw_text, wm_ba_text, wm_rad_text, wm_shd_text, wm_tb_text, wm_tbo_text, wm_wa_text, wm_wi_text, wm_fr_text) { at: floor(spx + 424 * u + 0.5), floor(sy + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
                 zone box wm_st_hit.$i { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w + 24 * u, 30 * u; cursor: pointer; active: sy - sby - wm.off > 0 and sy - sby - wm.off < 456 * u }
                 on press wm_st_hit.$i { emit wm_style_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
                 on drag wm_st_hit.$i { emit wm_style_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }

@@ -2912,7 +2912,7 @@ end
 -- forgets them when it reloads; they are put back when this shell starts). The input lines (pointer, touchpad, idle) are session.conf's,
 -- which pleamar-wm reads when it starts: they are rewritten here and apply at the next login.
 do
-    local wm = { layout = 0, share = 0.56, gap = 12, free = false, rain = false, snow = false, bw = 1.5, ba = 70, iris = true, rad = 12, shd = 100, tb = 22, tbo = 72, wa = 100, wi = 100 }
+    local wm = { layout = 0, share = 0.56, gap = 12, free = false, rain = false, snow = false, bw = 1.5, ba = 70, iris = true, rad = 12, shd = 100, tb = 22, tbo = 72, wa = 100, wi = 100, fr = 80 }
     local inp = { ms = 0, ts = 0, nat = false, tap = false, idle = 7, maccel = "adaptive", taccel = "adaptive", dwt = nil }
     local wm_waiting, in_waiting = false, false
 
@@ -2942,6 +2942,8 @@ do
         fact.wm_wa, fact.wm_wi = wm.wa, wm.wi
         text.wm_wa_text = string.format("%d%%", wm.wa)
         text.wm_wi_text = string.format("%d%%", wm.wi)
+        fact.wm_fr = wm.fr
+        text.wm_fr_text = string.format("%d%%", wm.fr)
         text.wm_share_text = string.format("%d%%", math.floor(wm.share * 100 + 0.5))
         text.wm_gap_text = string.format("%d px", wm.gap)
         text.wm_ms_text = string.format("%.2f", inp.ms)
@@ -2967,10 +2969,11 @@ do
         say("fact tbo " .. wm.tbo)
         say("fact wo_a " .. wm.wa)
         say("fact wo_i " .. wm.wi)
+        say("fact fr " .. wm.fr)
     end
 
     local function wm_save()
-        pcall(sys.call, "files.write", "wm.json", { layout = wm.layout, share = wm.share, gap = wm.gap, free = wm.free, rain = wm.rain, snow = wm.snow, bw = wm.bw, ba = wm.ba, iris = wm.iris, rad = wm.rad, shd = wm.shd, tb = wm.tb, tbo = wm.tbo, wa = wm.wa, wi = wm.wi })
+        pcall(sys.call, "files.write", "wm.json", { layout = wm.layout, share = wm.share, gap = wm.gap, free = wm.free, rain = wm.rain, snow = wm.snow, bw = wm.bw, ba = wm.ba, iris = wm.iris, rad = wm.rad, shd = wm.shd, tb = wm.tb, tbo = wm.tbo, wa = wm.wa, wi = wm.wi, fr = wm.fr })
     end
 
     local function wm_changed()
@@ -3022,6 +3025,7 @@ do
         num("tbo", function(v) wm.tbo = v end)
         num("wo_a", function(v) wm.wa = v end)
         num("wo_i", function(v) wm.wi = v end)
+        num("fr", function(v) wm.fr = v end)
         conf_path(function(path)
             run("grep", { "-E", "^(pointer|touchpad|idle) ", path }, function(out)
                 for line in (out or ""):gmatch("[^\n]+") do
@@ -3061,6 +3065,7 @@ do
             wm.bw, wm.ba, wm.rad = tonumber(saved.bw) or wm.bw, tonumber(saved.ba) or wm.ba, tonumber(saved.rad) or wm.rad
             wm.shd, wm.tb, wm.tbo = tonumber(saved.shd) or wm.shd, tonumber(saved.tb) or wm.tb, tonumber(saved.tbo) or wm.tbo
             wm.wa, wm.wi = tonumber(saved.wa) or wm.wa, tonumber(saved.wi) or wm.wi
+            wm.fr = tonumber(saved.fr) or wm.fr
             if saved.iris ~= nil then wm.iris = saved.iris == true end
             wm_show()
             wm_send()
@@ -3098,7 +3103,8 @@ do
         elseif i == 4 then wm.tb = math.floor(16 + t * 18 + 0.5)
         elseif i == 5 then wm.tbo = math.floor(40 + t * 60 + 0.5)
         elseif i == 6 then wm.wa = math.floor(40 + t * 60 + 0.5)
-        else wm.wi = math.floor(40 + t * 60 + 0.5) end
+        elseif i == 7 then wm.wi = math.floor(40 + t * 60 + 0.5)
+        else wm.fr = math.floor(t * 100 + 0.5) end
         wm_changed()
     end)
     on("wm_input_set", function(v)

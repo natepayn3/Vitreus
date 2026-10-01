@@ -65,6 +65,8 @@ scene Session {
     // How opaque a window is (%), with and without the keyboard: what it shows (and its backing) lets the desktop through.
     fact wo_a = 100
     fact wo_i = 100
+    // How frosted the backing of a translucent window is (%, 0 none): it blurs what is behind it.
+    fact fr = 80
     let W = screen.width
     let H = screen.height
     // Where each monitor starts on the desktop: left to right, each one after
@@ -507,9 +509,22 @@ scene Session {
             pivot: x + w / 2, y + h / 2
             scale: (0.92 + 0.08 * seen.$i + 0.025 * choose.$i.hover * ov) * (1 + 0.05 * (lift.$i - F)) * (1 + 0.012 * sin(180 * wave.$i))
             let wop = (wo_i + (wo_a - wo_i) * lit.$i) / 100
+            let frost = if(fr > 0 and wop < 0.995, 1, 0)
             body {
+                show: frost < 0.5
                 color: #0c0e10
                 opacity: wop
+                shadow: 0, 14 + 8 * lit.$i + 10 * lift.$i, 34 + 18 * lift.$i, (45% + 20% * lit.$i + 10% * lift.$i) * shd / 100
+                box { from: x, y; size: w, h; corner: rad }
+            }
+            // Translucent: the backing is frosted glass (it only goes solid as the window does).
+            body {
+                show: frost > 0.5
+                glass: fr * 1%
+                lens: false
+                rim: 10%
+                color: #0c0e10
+                opacity: 60% + 40% * wop * wop * wop * wop * wop * wop
                 shadow: 0, 14 + 8 * lit.$i + 10 * lift.$i, 34 + 18 * lift.$i, (45% + 20% * lit.$i + 10% * lift.$i) * shd / 100
                 box { from: x, y; size: w, h; corner: rad }
             }
