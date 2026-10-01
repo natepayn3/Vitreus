@@ -4062,6 +4062,29 @@ scene Vitreus {
                 on drag wm_st_hit.$i { emit wm_style_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
             }
             }
+
+            //  The scrollbar and the "More" cue, as on the Display page: a thumb as tall as the viewport is of the page, and a pill
+            //  at the foot of the view while there is more below (pressing it scrolls a screenful down).
+            let wm.thh = 456 * 456 / max(456, wm.h)
+            let wm.thy = wm.thh / 2 + wm.sc / max(1, wm.h - 456) * (456 - wm.thh)
+            box { at: spx + 442 * u, sby + 228 * u; size: 3 * u, 456 * u; corner: 1.5 * u; color: ink; opacity: if(wm.h > 456, 6%, 0%) }
+            box { at: spx + 442 * u, sby + wm.thy * u; size: 3 * u, wm.thh * u; corner: 1.5 * u; color: mint; opacity: if(wm.h > 456, 55%, 0%) }
+            let wm.cue = clamp((wm.h - 456 - wm.sc) / 24, 0, 1)
+            let wm.cuey = sby + (456 - 26) * u + 2.5 * u * sin(time * 270)
+            repeat i in 0..16 {
+                let fk = (i + 1) / 16
+                box { from: spx - 4 * u, sby + (400 + i * 3.5) * u; size: 448 * u, 3.5 * u + 0.5; color: deep; opacity: 45% * fk * fk * wm.cue }
+            }
+            box { at: spx + 224 * u, wm.cuey; size: 76 * u, 26 * u; corner: 13 * u; color: deep; opacity: 80% * wm.cue }
+            box { at: spx + 224 * u, wm.cuey; size: 76 * u, 26 * u; corner: 13 * u; color: mint; opacity: (10% + 14% * wm_cue_hit.hover) * wm.cue }
+            path { at: spx + 204 * u, wm.cuey - 1 * u; stroke: 1.6 * u; color: mint; opacity: wm.cue; move -4 * u, -3 * u; line 0, 1 * u; line 4 * u, -3 * u }
+            path { at: spx + 204 * u, wm.cuey + 4 * u; stroke: 1.6 * u; color: mint; opacity: wm.cue; move -4 * u, -3 * u; line 0, 1 * u; line 4 * u, -3 * u }
+            text "More" { at: floor(spx + 232 * u + 0.5), floor(wm.cuey + 0.5); anchor: center; size: 11 * u; weight: 700; color: ink; opacity: wm.cue; family: "Space Grotesk" }
+            zone box wm_cue_hit { at: spx + 224 * u, sby + (456 - 26) * u; size: 76 * u, 26 * u; corner: 13 * u; cursor: pointer; active: wm.cue > 0.5 }
+            on press wm_cue_hit { wm_scroll_to = clamp(wm_scroll_to + 342, 0, max(0, wm.h - 456)) }
+            zone box wm_bar_hit { at: spx + 442 * u, sby + 228 * u; size: 14 * u, 456 * u; cursor: pointer; active: wm.h > 456 }
+            on press wm_bar_hit { wm_scroll_to = clamp(((pointer.y - sby) / u - wm.thh / 2) / max(1, 456 - wm.thh) * (wm.h - 456), 0, max(0, wm.h - 456)) }
+            on drag wm_bar_hit { wm_scroll_to = clamp(((pointer.y - sby) / u - wm.thh / 2) / max(1, 456 - wm.thh) * (wm.h - 456), 0, max(0, wm.h - 456)) }
         }
 
         //  ── Notifications page: BEGIN (generated) ──
