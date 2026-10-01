@@ -1641,7 +1641,7 @@ end
 -- What Hyprland is told: the window borders from the palette, and, with the bar down the left (bar_fx.left), the room the strip and the frame
 -- take round the windows (gaps_out: the layer's own reserved zone is not moved when the surface changes edge). It is sent at once and kept in
 -- vitreus_colors.lua, which hyprland.lua loads last. Up on the top, the gaps go back to what they were (bar_fx.orig, read once).
-bar_fx = { left = false, orig = nil }
+bar_fx = { left = false, orig = nil, on = "all", mons = {} }
 bar_fx.restart = [[
 P="$1"; L="$2"
 export PATH="$HOME/.local/bin:$PATH"
@@ -1652,17 +1652,31 @@ pkill -f "^pleamar --scene $P"
 sleep 0.3
 exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
 ]]
+-- The room round the windows is per monitor: only a monitor the bar is on gets the strip's and the frame's room. `bar_fx.mons` is what is plugged in
+-- and `bar_fx.on` where the bar is ("all", or a monitor's name); the Bar page below keeps both. A rule for each monitor (`m[NAME]`) says what its
+-- own gaps are, and the global gaps are what a monitor without a rule gets, so a monitor plugged in later does not borrow the bar's room.
 function iris_fx.gaps_code()
-    local t, r, b, l
-    if bar_fx.left then
-        local px = math.floor(1.35 * 8 + 0.5) + 13            -- the frame's thickness (8 * u) and a gap
-        t, r, b, l = px, px, px, math.floor(1.35 * 46 + 0.5) + 14
-    elseif bar_fx.orig then
-        t, r, b, l = bar_fx.orig[1], bar_fx.orig[2], bar_fx.orig[3], bar_fx.orig[4]
-    else
-        return nil
+    local o = bar_fx.orig
+    if not bar_fx.left and not o then return nil end
+    o = o or { 20, 20, 20, 20 }
+    local px = math.floor(1.35 * 8 + 0.5) + 13            -- the frame's thickness (8 * u) and a gap
+    local lp = math.floor(1.35 * 46 + 0.5) + 14
+    local function cfg(g)
+        return string.format("hl.config({ general = { gaps_out = { top = %d, right = %d, bottom = %d, left = %d } } })", g[1], g[2], g[3], g[4])
     end
-    return string.format("hl.config({ general = { gaps_out = { top = %d, right = %d, bottom = %d, left = %d } } })", t, r, b, l)
+    local function rule(name, g)
+        return string.format('hl.workspace_rule({ workspace = "m[%s]", gaps_out = { top = %d, right = %d, bottom = %d, left = %d } })', name, g[1], g[2], g[3], g[4])
+    end
+    local bar_gaps = { px, px, px, lp }
+    local everywhere = (bar_fx.on or "all") == "all"
+    local parts = { cfg((bar_fx.left and everywhere) and bar_gaps or o) }
+    for _, name in ipairs(bar_fx.mons or {}) do
+        if name:match("^[%w%._%-]+$") then
+            local has_bar = bar_fx.left and (everywhere or bar_fx.on == name)
+            parts[#parts + 1] = rule(name, has_bar and bar_gaps or o)
+        end
+    end
+    return table.concat(parts, " ")
 end
 function iris_fx.apply_hypr()
     local pal = iris_fx.last_pal
@@ -3907,6 +3921,20 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         return pref
     end
 
+    -- Tell the window gaps where the bar is (it is where the scene was started, not where it is about to go) and what is plugged in.
+    local told = nil
+    local function publish()
+        if B.file == nil or #B.mons == 0 then return end
+        local names = {}
+        for _, m in ipairs(B.mons) do names[#names + 1] = m.name end
+        local on = (B.file ~= "all" and connected(B.file)) and B.file or "all"
+        local sig = on .. "|" .. table.concat(names, ",")
+        if sig == told then return end
+        told = sig
+        bar_fx.on, bar_fx.mons = on, names
+        iris_fx.apply_hypr()
+    end
+
     local function show()
         local pref = B.pref or "all"
         local at = pref ~= "all" and connected(pref) or nil
@@ -3936,7 +3964,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         with_dirs(function(d)
             local plm = d.conf .. "/vitreus.plm"
             local value = to == "all" and "all" or ('"' .. to .. '"')
-            run("sed", { "-i", "-E", "/^    surface \\{ size: 900, 800;/s/screens: [^;]*;/screens: " .. value .. ";/", plm }, function(_, code)
+            run("sed", { "-i", "-E", "/^    surface \\{/s/screens: [^;]*;/screens: " .. value .. ";/", plm }, function(_, code)
                 if code ~= 0 then
                     B.busy = false
                     show()
@@ -3976,6 +4004,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
             end
             B.mons = mons
             show()
+            publish()
             settle()
         end)
     end
@@ -4005,6 +4034,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
             B.file = v:match('^"([^"]+)"') or "all"
             if B.pref == nil then B.pref = B.file end
             show()
+            publish()
             settle()
         end)
     end)
