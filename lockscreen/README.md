@@ -38,6 +38,13 @@ the scene starts, and read each time it starts, so restart the lock screen after
 | `show_am_pm` | `true` | The AM/PM pill beside a 12 hour clock |
 | `date_format` | `"long"` | `"long"` Wednesday, September 30, 2026 · `"standard"` Wed, Sep 30, 2026 · `"dayFirst"` 30 September 2026 · `"iso"` 2026-09-30 |
 | `show_media` | `true` | The player's pill under the password bar |
+| `show_seconds` | `false` | Seconds on the clock (`6:40:02`) |
+| `clock_size` | `200` | The clock's size in pixels: `100`, `150` or `200` (80 to 240 works); the card under it follows |
+| `show_power` | `true` | Sleep, restart and power off, on a pill at the bottom of the screen. Each is **held for a second**, since none of them can be undone |
+| `mask_style` | `"shapes"` | What a typed character becomes: `"shapes"`, `"dots"`, `"asterisks"` or `"special"` (a random symbol) |
+| `shape_palette` | `"accent"` | The colours of those: `"vibrant"`, `"accent"` (the theme's), `"neon"`, `"pastel"` or `"monochrome"` |
+
+**Test lock** (on the Settings page) locks now in the safe mode below: Esc on an empty bar, or a minute without a key, opens it, and the next lock is a normal one again.
 
 ## What it needs
 

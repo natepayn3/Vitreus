@@ -13,7 +13,7 @@ scene Lockscreen {
     surface { size: 1, 1; anchor: top_left; level: background }
 
     permissions {
-        services: "clock", "battery", "media", "media.*", "auth", "files", "files.write"
+        services: "clock", "clock.seconds", "battery", "media", "media.*", "auth", "files", "files.write", "session.*"
         run: "awww", "magick", "getent", "mkdir", "rm", "ls", "cp", "loginctl", "printenv"
     }
 
@@ -33,9 +33,26 @@ scene Lockscreen {
     fact cfg_12h = true
     fact cfg_ampm = true
     fact cfg_media = true
+    fact cfg_secs = false
     text cfg_date = "long"
     fact mask_style: msk_shapes | msk_dots | msk_stars | msk_special = msk_shapes   // what a typed character becomes (settings: mask_style)
     fact mask_pal: mp_vibrant | mp_accent | mp_neon | mp_pastel | mp_mono = mp_accent   // the colours they are drawn in (settings: shape_palette)
+    fact clock_px = 200            // the clock's size: 100, 150 or 200 (settings: clock_size); the card below it follows. A text's `size` can only be a plain number, so there is
+                                   // one clock for each size, and the one that is chosen is shown
+    fact show_power = true         // the sleep, restart and power off buttons (settings: show_power)
+    fact ph_s0 = 0                 // when a power button was pressed (`time`), and whether it is being held
+    fact ph_d0 = false
+    prop ph_p0 = 0 ~80ms
+    follow ph_p0 = if(ph_d0, clamp((time - ph_s0) / 1, 0, 1), 0)
+    fact ph_s1 = 0
+    fact ph_d1 = false
+    prop ph_p1 = 0 ~80ms
+    follow ph_p1 = if(ph_d1, clamp((time - ph_s1) / 1, 0, 1), 0)
+    fact ph_s2 = 0
+    fact ph_d2 = false
+    prop ph_p2 = 0 ~80ms
+    follow ph_p2 = if(ph_d2, clamp((time - ph_s2) / 1, 0, 1), 0)
+    event lock_power ->            // 0 sleep, 1 restart, 2 power off: after a second's hold
     fact show_ampm = true          // the AM/PM pill beside the clock (settings: a 12 hour clock, and show_am_pm)
     fact has_avatar = false
     fact has_wall = false
@@ -147,9 +164,12 @@ scene Lockscreen {
         let st_c = 1 + min(abs(34 * vel_c) * 0.000119, 0.07)
 
         //  The centre card, laid out from its top: clock, avatar, name and status, the bar, the media pill.
-        let card_h = 651 + 76 * media_in
+        let dsh = 200 - clock_px                      // how much shorter the card is with a smaller clock
+        let card_h = 651 - dsh + 76 * media_in
         let ct = floor(cy - card_h / 2 + 0.5)       // whole pixels: 651 / 2 would put every line of the card half a pixel down, and soft
-        let bar_y = ct + 622
+        let cb = ct - dsh                             // the lines below the clock: `cb + 263` is where `cb + 263` was with the full clock
+        let ckc = ct + 122 - dsh / 2                  // the clock's middle, and its pill's
+        let bar_y = cb + 622
         let acc = mint
 
         //  What gives way to the exit fade: everything but the compositor's own black.
@@ -208,15 +228,25 @@ scene Lockscreen {
                     //  (the entrance passes 85 % when its last spring ends): while it moves, twelve copies each snapped to the pixel
                     //  their own way show as lines between them.
                     repeat i in 0..12 {
-                        text clock_time { at: ck_x + 3 * cos(i * 30), ct + 122 + 3 * sin(i * 30); anchor: center; size: 200; weight: 700; color: ink; family: "Space Grotesk"; opacity: clamp((e - 0.85) / 0.1, 0, 1); show: e > 0.85 }
+                        text clock_time { at: ck_x + 3 * cos(i * 30), ckc + 3 * sin(i * 30); anchor: center; size: 200; weight: 700; color: ink; family: "Space Grotesk"; opacity: clamp((e - 0.85) / 0.1, 0, 1); show: e > 0.85 and clock_px >= 175 }
                     }
-                    text clock_time { at: ck_x, ct + 122; anchor: center; size: 200; weight: 700; color: ink; family: "Space Grotesk"; measure: ck_w }
+                    text clock_time { at: ck_x, ckc; anchor: center; size: 200; weight: 700; color: ink; family: "Space Grotesk"; show: clock_px >= 175 }
+                    repeat i in 0..12 {
+                        text clock_time { at: ck_x + 2.2 * cos(i * 30), ckc + 2.2 * sin(i * 30); anchor: center; size: 150; weight: 700; color: ink; family: "Space Grotesk"; opacity: clamp((e - 0.85) / 0.1, 0, 1); show: e > 0.85 and clock_px >= 125 and clock_px < 175 }
+                    }
+                    text clock_time { at: ck_x, ckc; anchor: center; size: 150; weight: 700; color: ink; family: "Space Grotesk"; show: clock_px >= 125 and clock_px < 175 }
+                    repeat i in 0..12 {
+                        text clock_time { at: ck_x + 1.5 * cos(i * 30), ckc + 1.5 * sin(i * 30); anchor: center; size: 100; weight: 700; color: ink; family: "Space Grotesk"; opacity: clamp((e - 0.85) / 0.1, 0, 1); show: e > 0.85 and clock_px < 125 }
+                    }
+                    text clock_time { at: ck_x, ckc; anchor: center; size: 100; weight: 700; color: ink; family: "Space Grotesk"; show: clock_px < 125 }
+                    //  Its width, measured at 200 and not seen: the pill goes where the clock ends, whichever size is shown.
+                    text clock_time { at: ck_x, ckc; anchor: center; size: 200; weight: 700; color: ink; family: "Space Grotesk"; measure: ck_w; opacity: 0 }
                 }
-                let ap_x = floor(cx + ck_w.width / 2 + 4 + 0.5)
-                box { at: ap_x, ct + 122; size: 48, 28; corner: 14; color: acc; opacity: 18%; show: show_ampm }
-                box { at: ap_x, ct + 122; size: 48, 28; corner: 14; color: acc; opacity: 0%; stroke: 1; show: show_ampm }
-                text clock_ampm { at: ap_x, ct + 122; anchor: center; size: 11; weight: 700; color: acc; family: "Space Grotesk"; show: show_ampm }
-                text clock_date { at: cx, ct + 263; anchor: center; size: 21; weight: 500; color: faint; family: "Space Grotesk" }
+                let ap_x = floor(cx + ck_w.width * clock_px / 400 + 4 + 0.5)
+                box { at: ap_x, ckc; size: 48, 28; corner: 14; color: acc; opacity: 18%; show: show_ampm }
+                box { at: ap_x, ckc; size: 48, 28; corner: 14; color: acc; opacity: 0%; stroke: 1; show: show_ampm }
+                text clock_ampm { at: ap_x, ckc; anchor: center; size: 11; weight: 700; color: acc; family: "Space Grotesk"; show: show_ampm }
+                text clock_date { at: cx, cb + 263; anchor: center; size: 21; weight: 500; color: faint; family: "Space Grotesk" }
 
                 //  The avatar: a 200 px disc with a 3 px accent ring and its glow.
                 body {
@@ -224,16 +254,16 @@ scene Lockscreen {
                     opacity: 80%
                     border: 3, mint
                     shadow: 0, 0, 16, 50%, mint
-                    ellipse { at: cx, ct + 400; radius: 100 }
+                    ellipse { at: cx, cb + 400; radius: 100 }
                 }
                 group {
-                    clip inset 5 ellipse { at: cx, ct + 400; radius: 100 }
-                    image avatar { at: cx - 95, ct + 305; size: 190, 190; show: has_avatar }
+                    clip inset 5 ellipse { at: cx, cb + 400; radius: 100 }
+                    image avatar { at: cx - 95, cb + 305; size: 190, 190; show: has_avatar }
                 }
-                text "person" { at: cx, ct + 400; anchor: center; size: 104; color: acc; family: "Material Symbols Outlined"; show: not has_avatar }
-                text realname { at: cx, ct + 527; anchor: center; size: 21; weight: 700; color: ink; family: "Space Grotesk" }
-                text "Esc to exit · test lock" { at: cx, ct + 583; anchor: center; size: 11; color: acc; opacity: 80%; family: "Space Grotesk"; show: safe and pw_len == 0 }
-                text status { at: cx, ct + 562; anchor: center; size: 12; color: mix(mix(faint, #ef4444, err_t), #10b981, ok_t); family: "Space Grotesk" }
+                text "person" { at: cx, cb + 400; anchor: center; size: 104; color: acc; family: "Material Symbols Outlined"; show: not has_avatar }
+                text realname { at: cx, cb + 527; anchor: center; size: 21; weight: 700; color: ink; family: "Space Grotesk" }
+                text "Esc to exit · test lock" { at: cx, cb + 583; anchor: center; size: 11; color: acc; opacity: 80%; family: "Space Grotesk"; show: safe and pw_len == 0 }
+                text status { at: cx, cb + 562; anchor: center; size: 12; color: mix(mix(faint, #ef4444, err_t), #10b981, ok_t); family: "Space Grotesk" }
 
                 //  4. THE PASSWORD BAR
                 group {
@@ -319,7 +349,7 @@ scene Lockscreen {
                                         line { from: 13 - 4 * grow_t, 13 - 6.93 * grow_t; to: 13 + 4 * grow_t, 13 + 6.93 * grow_t; width: 2.4; color: tint; opacity: clamp(grow_t, 0, 1) }
                                         line { from: 13 + 4 * grow_t, 13 - 6.93 * grow_t; to: 13 - 4 * grow_t, 13 + 6.93 * grow_t; width: 2.4; color: tint; opacity: clamp(grow_t, 0, 1) }
                                     }
-                                    text s.sym { at: 13, 13; anchor: center; align: center; size: 20 * grow_t; weight: 700; color: tint; opacity: clamp(grow_t, 0, 1); family: "Space Grotesk"; show: mask_style == msk_special }
+                                    text s.sym { at: 13, 13; anchor: center; align: center; size: 20; weight: 700; color: tint; opacity: clamp(grow_t, 0, 1); family: "Space Grotesk"; show: mask_style == msk_special }
                                 }
                             }
                         }
@@ -348,28 +378,62 @@ scene Lockscreen {
                 group {
                     opacity: media_in
                     show: media_in > 0.01
-                    box { at: cx, ct + 701; size: 380, 52; corner: 26; color: panel; opacity: 60% }
-                    box { at: cx, ct + 701; size: 380, 52; corner: 26; color: #ffffff; opacity: 0%; stroke: 1 }
-                    ellipse { at: cx - 190 + 14 + 16, ct + 701; radius: 16; color: acc; opacity: 20% }
-                    text "music_note" { at: cx - 190 + 14 + 16, ct + 701; anchor: center; size: 18; color: acc; family: "Material Symbols Outlined" }
-                    text med.title { at: cx - 190 + 62, ct + 693; anchor: left center; size: 12; weight: 700; width: 190; lines: 1; color: ink; family: "Space Grotesk" }
-                    text med.artist { at: cx - 190 + 62, ct + 710; anchor: left center; size: 11; width: 190; lines: 1; color: faint; family: "Space Grotesk" }
-                    ellipse { at: cx + 190 - 14 - 28 - 4 - 32 - 4 - 14, ct + 701; radius: 14; color: #ffffff; opacity: 15% * prev_hot }
-                    text "skip_previous" { at: cx + 190 - 14 - 28 - 4 - 32 - 4 - 14, ct + 701; anchor: center; size: 18; color: ink; family: "Material Symbols Outlined" }
-                    ellipse { at: cx + 190 - 14 - 28 - 4 - 16, ct + 701; radius: 16; color: mix(#ffffff, acc, play_hot); opacity: 12% + 88% * play_hot }
-                    text "pause" { at: cx + 190 - 14 - 28 - 4 - 16, ct + 701; anchor: center; size: 20; color: mix(ink, deep, play_hot); family: "Material Symbols Outlined"; show: med.playing }
-                    text "play_arrow" { at: cx + 190 - 14 - 28 - 4 - 16, ct + 701; anchor: center; size: 20; color: mix(ink, deep, play_hot); family: "Material Symbols Outlined"; show: not med.playing }
-                    ellipse { at: cx + 190 - 14 - 14, ct + 701; radius: 14; color: #ffffff; opacity: 15% * next_hot }
-                    text "skip_next" { at: cx + 190 - 14 - 14, ct + 701; anchor: center; size: 18; color: ink; family: "Material Symbols Outlined" }
-                    zone box prev_z { at: cx + 190 - 14 - 28 - 4 - 32 - 4 - 14, ct + 701; size: 28, 28; corner: 14; cursor: pointer; active: media_in > 0.9 }
-                    zone box play_z { at: cx + 190 - 14 - 28 - 4 - 16, ct + 701; size: 32, 32; corner: 16; cursor: pointer; active: media_in > 0.9 }
-                    zone box next_z { at: cx + 190 - 14 - 14, ct + 701; size: 28, 28; corner: 14; cursor: pointer; active: media_in > 0.9 }
+                    box { at: cx, cb + 701; size: 380, 52; corner: 26; color: panel; opacity: 60% }
+                    box { at: cx, cb + 701; size: 380, 52; corner: 26; color: #ffffff; opacity: 0%; stroke: 1 }
+                    ellipse { at: cx - 190 + 14 + 16, cb + 701; radius: 16; color: acc; opacity: 20% }
+                    text "music_note" { at: cx - 190 + 14 + 16, cb + 701; anchor: center; size: 18; color: acc; family: "Material Symbols Outlined" }
+                    text med.title { at: cx - 190 + 62, cb + 693; anchor: left center; size: 12; weight: 700; width: 190; lines: 1; color: ink; family: "Space Grotesk" }
+                    text med.artist { at: cx - 190 + 62, cb + 710; anchor: left center; size: 11; width: 190; lines: 1; color: faint; family: "Space Grotesk" }
+                    ellipse { at: cx + 190 - 14 - 28 - 4 - 32 - 4 - 14, cb + 701; radius: 14; color: #ffffff; opacity: 15% * prev_hot }
+                    text "skip_previous" { at: cx + 190 - 14 - 28 - 4 - 32 - 4 - 14, cb + 701; anchor: center; size: 18; color: ink; family: "Material Symbols Outlined" }
+                    ellipse { at: cx + 190 - 14 - 28 - 4 - 16, cb + 701; radius: 16; color: mix(#ffffff, acc, play_hot); opacity: 12% + 88% * play_hot }
+                    text "pause" { at: cx + 190 - 14 - 28 - 4 - 16, cb + 701; anchor: center; size: 20; color: mix(ink, deep, play_hot); family: "Material Symbols Outlined"; show: med.playing }
+                    text "play_arrow" { at: cx + 190 - 14 - 28 - 4 - 16, cb + 701; anchor: center; size: 20; color: mix(ink, deep, play_hot); family: "Material Symbols Outlined"; show: not med.playing }
+                    ellipse { at: cx + 190 - 14 - 14, cb + 701; radius: 14; color: #ffffff; opacity: 15% * next_hot }
+                    text "skip_next" { at: cx + 190 - 14 - 14, cb + 701; anchor: center; size: 18; color: ink; family: "Material Symbols Outlined" }
+                    zone box prev_z { at: cx + 190 - 14 - 28 - 4 - 32 - 4 - 14, cb + 701; size: 28, 28; corner: 14; cursor: pointer; active: media_in > 0.9 }
+                    zone box play_z { at: cx + 190 - 14 - 28 - 4 - 16, cb + 701; size: 32, 32; corner: 16; cursor: pointer; active: media_in > 0.9 }
+                    zone box next_z { at: cx + 190 - 14 - 14, cb + 701; size: 28, 28; corner: 14; cursor: pointer; active: media_in > 0.9 }
                     follow prev_hot = if(prev_z.hover > 0.5, 1, 0)
                     follow play_hot = if(play_z.hover > 0.5, 1, 0)
                     follow next_hot = if(next_z.hover > 0.5, 1, 0)
                 }
 
                 //  The bar is the one big target: a click anywhere else asks for the keyboard again.
+            }
+
+            //  6. THE POWER BUTTONS: sleep, restart and power off, on a pill at the bottom of the screen. Each is held for a second, and fills
+            //  while it is held and lets go if you do: none of them can be undone.
+            group {
+                show: show_power
+                opacity: ease_c
+                let py = oy + h - 64
+                box { at: cx, py; size: 164, 48; corner: 24; color: panel; opacity: 60% }
+                box { at: cx, py; size: 164, 48; corner: 24; color: #ffffff; opacity: 0%; stroke: 1 }
+                ellipse { at: cx - 48, py; radius: 18 * clamp(ph_p0 * 1.2, 0, 1); color: acc; opacity: 30% }
+                ellipse { at: cx - 48, py; radius: 18; color: #ffffff; opacity: 14% * pz0.hover }
+                text "bedtime" { at: cx - 48, py; anchor: center; size: 20; color: mix(faint, acc, max(pz0.hover, clamp(ph_p0 * 3, 0, 1))); family: "Material Symbols Outlined" }
+                text "Hold to sleep" { at: cx, py - 40; anchor: center; size: 12; weight: 700; color: ink; family: "Space Grotesk"; show: ph_d0 }
+                zone box pz0 { at: cx - 48, py; size: 36, 36; corner: 18; cursor: pointer; active: show_power }
+                on press pz0 { ph_s0 = time; ph_d0 = true }
+                on release pz0 { ph_d0 = false }
+                on hold pz0 for 1000ms { ph_d0 = false; emit lock_power(0) }
+                ellipse { at: cx + 0, py; radius: 18 * clamp(ph_p1 * 1.2, 0, 1); color: acc; opacity: 30% }
+                ellipse { at: cx + 0, py; radius: 18; color: #ffffff; opacity: 14% * pz1.hover }
+                text "restart_alt" { at: cx + 0, py; anchor: center; size: 20; color: mix(faint, acc, max(pz1.hover, clamp(ph_p1 * 3, 0, 1))); family: "Material Symbols Outlined" }
+                text "Hold to restart" { at: cx, py - 40; anchor: center; size: 12; weight: 700; color: ink; family: "Space Grotesk"; show: ph_d1 }
+                zone box pz1 { at: cx + 0, py; size: 36, 36; corner: 18; cursor: pointer; active: show_power }
+                on press pz1 { ph_s1 = time; ph_d1 = true }
+                on release pz1 { ph_d1 = false }
+                on hold pz1 for 1000ms { ph_d1 = false; emit lock_power(1) }
+                ellipse { at: cx + 48, py; radius: 18 * clamp(ph_p2 * 1.2, 0, 1); color: acc; opacity: 30% }
+                ellipse { at: cx + 48, py; radius: 18; color: #ffffff; opacity: 14% * pz2.hover }
+                text "power_settings_new" { at: cx + 48, py; anchor: center; size: 20; color: mix(faint, acc, max(pz2.hover, clamp(ph_p2 * 3, 0, 1))); family: "Material Symbols Outlined" }
+                text "Hold to power off" { at: cx, py - 40; anchor: center; size: 12; weight: 700; color: ink; family: "Space Grotesk"; show: ph_d2 }
+                zone box pz2 { at: cx + 48, py; size: 36, 36; corner: 18; cursor: pointer; active: show_power }
+                on press pz2 { ph_s2 = time; ph_d2 = true }
+                on release pz2 { ph_d2 = false }
+                on hold pz2 for 1000ms { ph_d2 = false; emit lock_power(2) }
             }
         }
 

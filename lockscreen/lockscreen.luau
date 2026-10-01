@@ -9,8 +9,11 @@
 --   use_12_hour 12 or 24 hour clock;  show_am_pm: the AM/PM pill beside a 12 hour clock
 --   date_format "long" (Wednesday, September 30, 2026), "standard" (Wed, Sep 30, 2026), "dayFirst" (30 September 2026), "iso" (2026-09-30)
 --   mask_style  what a typed character becomes: "shapes", "dots", "asterisks" or "special" (a random symbol)
+--   clock_size  the clock's size in pixels: 100, 150 or 200 (anything from 80 to 240 works; the card below follows)
+--   show_seconds H:MM:SS on the clock
+--   show_power  the sleep, restart and power off buttons at the bottom (each is held for a second)
 --   shape_palette the colours of those: "vibrant", "accent" (the theme's), "neon", "pastel" or "monochrome"
-local cfg = { blur = 36, show_media = true, use_12_hour = true, show_am_pm = true, date_format = "long", mask_style = "shapes", shape_palette = "accent" }
+local cfg = { blur = 36, show_media = true, use_12_hour = true, show_am_pm = true, date_format = "long", mask_style = "shapes", shape_palette = "accent", clock_size = 200, show_seconds = false, show_power = true }
 do
     local ok, saved = pcall(sys.ask, "files.read", "lockscreen.json", "json")
     if ok and type(saved) == "table" then
@@ -18,6 +21,7 @@ do
             if type(saved[k]) == type(v) then cfg[k] = saved[k] end
         end
         if type(cfg.blur) == "number" then cfg.blur = math.max(0, math.min(120, cfg.blur)) end
+        if type(cfg.clock_size) == "number" then cfg.clock_size = math.max(80, math.min(240, cfg.clock_size)) end
     elseif ok and saved == nil then
         pcall(sys.call, "files.write", "lockscreen.json", cfg)
     end
@@ -38,6 +42,9 @@ for k, v in pairs(PAL_FACT) do PAL_NAME[v] = k end
 if not MASK_FACT[cfg.mask_style] then cfg.mask_style = "shapes" end
 if not PAL_FACT[cfg.shape_palette] then cfg.shape_palette = "accent" end
 fact.mask_style = MASK_FACT[cfg.mask_style]
+fact.clock_px = cfg.clock_size
+fact.show_power = cfg.show_power
+fact.cfg_secs = cfg.show_seconds
 fact.mask_pal = PAL_FACT[cfg.shape_palette]
 local function save_cfg() pcall(sys.call, "files.write", "lockscreen.json", cfg) end
 
@@ -56,12 +63,13 @@ end
 
 local last_clock = nil
 local function show_clock(c)
+    local sec = cfg.show_seconds and string.format(":%02d", c.second or 0) or ""
     if cfg.use_12_hour then
         local h12 = c.hour % 12
         if h12 == 0 then h12 = 12 end
-        text.clock_time = string.format("%d:%02d", h12, c.minute)
+        text.clock_time = string.format("%d:%02d", h12, c.minute) .. sec
     else
-        text.clock_time = string.format("%02d:%02d", c.hour, c.minute)
+        text.clock_time = string.format("%02d:%02d", c.hour, c.minute) .. sec
     end
     text.clock_ampm = c.hour >= 12 and "PM" or "AM"
     text.clock_date = date_text(c)
@@ -70,7 +78,37 @@ sys.watch("clock", function(c)
     last_clock = c
     show_clock(c)
 end)
+-- Every second, but only while there is something to draw: a clock with seconds, on a locked screen.
+sys.watch("clock.seconds", function(c)
+    if cfg.show_seconds and fact.locked then
+        last_clock = c
+        show_clock(c)
+    end
+end)
 local function truthy(v) return v == true or v == 1 or v == "true" end
+on("fact:cfg_secs", function(v)
+    cfg.show_seconds = truthy(v)
+    save_cfg()
+    if last_clock then show_clock(last_clock) end
+end)
+on("fact:show_power", function(v)
+    cfg.show_power = truthy(v)
+    save_cfg()
+end)
+on("fact:clock_px", function(v)
+    local n = tonumber(v)
+    if not n then return end
+    cfg.clock_size = math.max(80, math.min(240, n))
+    save_cfg()
+end)
+-- The power buttons: held for a second in the scene, so when this is called it was meant. They do not undo.
+on("lock_power", function(i)
+    if not fact.locked then return end
+    i = math.floor(i + 0.5)
+    if i == 0 then sys.call("session.suspend")
+    elseif i == 1 then sys.call("session.reboot")
+    elseif i == 2 then sys.call("session.poweroff") end
+end)
 on("fact:cfg_12h", function(v)
     cfg.use_12_hour = truthy(v)
     fact.show_ampm = cfg.use_12_hour and cfg.show_am_pm
@@ -317,6 +355,7 @@ end)
 local function after_unlock()
     reset()
     fact.settled = false
+    fact.safe = false                        -- a test lock (safe: Esc or a minute opens it) is a test of one lock only
 end
 
 on("fact:locked", function(v)
