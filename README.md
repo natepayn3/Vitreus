@@ -122,6 +122,11 @@ tile you clicked (`wptrans/`). It is a scene of its own on the bottom layer, abo
 picture at the screen's size, shows it through a shader, and has awww switch to it the moment it covers the screen. The installer starts it with
 the desktop; when it is not running a pick uses awww's own transition.
 
+**Other compositors** — the shell is a pleamar shell, so it is not tied to Hyprland. [`pleamar-wm/`](pleamar-wm/README.md) has what makes it
+run on pleamar-wm, which can be chosen at a login screen: its keys, an idle config, a `hyprctl` shim, the window manager's own scene with slim glass
+title bars, and a script that puts it in the list of sessions. Some pages that talk to Hyprland (Hyprland, Display, the overview's window list,
+Night mode) do not work there yet.
+
 **Lock screen** — a lock screen, in [`lockscreen/`](lockscreen/README.md). It is a scene of its own
 (a session lock has to be its own program), and the installer starts it with the desktop: the lock buttons and `SUPER + L` need it running.
 

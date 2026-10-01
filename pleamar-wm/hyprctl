@@ -1,0 +1,9 @@
+#!/bin/sh
+# `hyprctl` for a desktop that is not Hyprland. Vitreus asks hyprctl about the monitors and the windows; on Hyprland this is the real
+# one (Hyprland's variable is set there), and under pleamar-wm it is pleamar-wm's own answer in Hyprland's words, which it has for
+# `monitors` and `activewindow`. The rest fails, which is what the program asking has to be ready for on any other desktop.
+# Put it in ~/.local/bin, ahead of /usr/bin.
+if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ] || ! command -v pleamar-wm > /dev/null 2>&1; then
+    exec /usr/bin/hyprctl "$@"
+fi
+exec pleamar-wm hyprctl "$@"
