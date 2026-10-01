@@ -798,7 +798,7 @@ scene Vitreus {
     //  The wallpaper picker (SUPER + B): glass hexagons centred on the screen, drawn at the end of this scene. Every wallpaper is one
     //  hexagon (its picture already cut to the hexagon by the logic); how many there are sets how big they are, so that they always fill
     //  the tray. The logic makes the pictures (`wp_picker`), orders them by colour and does the awww side of a pick.
-    model wp_picker max 200 { img: image 124, 143; hue: number; cur: bool; dim: bool; name: text }       // 120 x 139 and two transparent pixels all round
+    model wp_picker max 200 { img: image 186, 215; hue: number; cur: bool; dim: bool; name: text }       // the picture is 124 x 143 (120 x 139 and two transparent pixels all round), but the cell is declared at the size the resting tiles are drawn at: declared much smaller, a faint line shows along the edge of every tile
     fact wp_picker_open = false
     text wp_picker_status = ""                // "Reading your wallpapers… 42 of 137" while the first analysis runs
     text wp_picker_hero_name = ""             // the name of the hexagon under the pointer
@@ -4758,12 +4758,9 @@ scene Vitreus {
                 //  sixty-four of those a frame, so the lower tiles lost their opacity and the hovered one its tilt. The pictures are already cut to the hexagon.
                 let to = ent * if(wp_picker.$i.dim, 25%, 1) * (0.75 + 0.25 * max(hv, cu))
                 //  No blurred shadow under the resting tiles: a hundred and forty blur passes a frame were most of what this page cost. The hovered tile has its own.
-                body {
-                    color: #05070d
-                    opacity: 30% * to
-                    path { at: bxl, byl; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
-                }
-                image wp_picker.$i.img { at: bxl - 0.866 * rr * 124 / 120, byl - rr * 143 / 139; size: 1.732 * rr * 124 / 120, 2 * rr * 143 / 139; opacity: to }
+                // (a plain path, not a `body`: a body is a layer of its own, and its rectangle's edge showed as a faint line across the small tiles)
+                path { at: bxl, byl; color: #05070d; opacity: 30% * to; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
+                image wp_picker.$i.img { at: floor(bxl - 0.866 * rr * 124 / 120 + 0.5), floor(byl - rr * 143 / 139 + 0.5); size: floor(1.732 * rr * 124 / 120 + 0.5), floor(2 * rr * 143 / 139 + 0.5); opacity: to }
                 path { at: bxl, byl; stroke: 2.6 + 1.6 * cu; color: mix(#ffffff, mint, cu); opacity: (55% + 45% * max(hv, cu)) * to; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
             }
             //  The hovered one: the same tile as liquid glass. Its group's shader adds the light (a soft spot under the pointer, and a band
