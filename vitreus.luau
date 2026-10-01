@@ -4955,6 +4955,9 @@ end)()
             say("get cfg_ampm", function(o) fact.lk_ampm = trim(o):match("true") ~= nil end)
             say("get cfg_media", function(o) fact.lk_media = trim(o):match("true") ~= nil end)
             say("get cfg_date", function(o) fact.lk_date = DATE_FACT[trim(o)] or "lkd_long" end)
+            say("get clock_px", function(o) local n = tonumber(trim(o)); if n then fact.lk_px = n end end)
+            say("get cfg_secs", function(o) fact.lk_secs = trim(o):match("true") ~= nil end)
+            say("get show_power", function(o) fact.lk_power = trim(o):match("true") ~= nil end)
             say("get mask_style", function(o) fact.lk_mask = MASK_BACK[trim(o)] or "lkm_shapes" end)
             say("get mask_pal", function(o) fact.lk_pal = PAL_BACK[trim(o)] or "lkc_accent" end)
         end)
@@ -4979,6 +4982,29 @@ end)()
         local b = not fact.lk_media
         fact.lk_media = b
         say("fact cfg_media " .. tostring(b))
+    end)
+    local SIZES = { 100, 150, 200 }
+    on("lk_size_set", function(i)
+        local v = SIZES[math.floor(i + 0.5) + 1]
+        if v then fact.lk_px = v; say("fact clock_px " .. v) end
+    end)
+    on("lk_secs_toggle", function()
+        local b = not fact.lk_secs
+        fact.lk_secs = b
+        say("fact cfg_secs " .. tostring(b))
+    end)
+    on("lk_power_toggle", function()
+        local b = not fact.lk_power
+        fact.lk_power = b
+        say("fact show_power " .. tostring(b))
+    end)
+    -- Test lock: the lock screen in its safe mode (Esc on an empty bar, or a minute without a key, opens it), which it leaves again once
+    -- it is open. The window goes first, so it is not what the lock looks at.
+    on("lk_test", function()
+        fact.panel = "none"
+        after(350, function()
+            say("fact safe true", function() say("fact locked true") end)
+        end)
     end)
     on("lk_mask_set", function(i)
         local k = math.floor(i + 0.5) + 1
