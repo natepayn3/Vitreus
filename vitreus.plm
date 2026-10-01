@@ -1849,10 +1849,12 @@ scene Vitreus {
                         glow: 5 * u, 60%, mint
                         ellipse { at: dx, dy; radius: 13 * u; stroke: 1.5 * u; color: mint; show: cal.today.$k }
                     }
-                    text number(cal.day.$k, 0) { at: floor(dx + 0.5), floor(dy - 0.5 * u + 0.5); anchor: center; size: 11.5 * u; weight: 500 + 200 * if(cal.today.$k, 1, 0)
-                                                 color: mix(ink, onmint, cal.pick.$k); family: "Space Grotesk" }
                     ellipse { at: dx, dy + 8.5 * u; radius: 1.5 * u; color: mix(mint, onmint, cal.pick.$k); opacity: if(cal.n.$k > 0, 100%, 0) }
                 }
+                //  The day's number is not inside the group that grows when it is picked: a scaled text is resampled and comes out soft, so it
+                //  grows by its size instead, and is drawn on whole pixels like the rest.
+                text number(cal.day.$k, 0) { at: floor(dx + 0.5), floor(dy - 0.5 * u + 0.5); anchor: center; size: 11.5 * u * (1 + 0.08 * cal.pick.$k); weight: 500 + 200 * if(cal.today.$k, 1, 0)
+                                             color: mix(ink, onmint, cal.pick.$k); opacity: 38% + 62% * if(cal.in.$k, 1, 0); family: "Space Grotesk" }
                 zone box cal_cell.$k { at: dx, dy; size: 30 * u, 26 * u; corner: 13 * u; cursor: pointer }
                 on press cal_cell.$k { emit cal_pick(k) }
             }
@@ -4076,7 +4078,7 @@ scene Vitreus {
                 on press disp_pd_hit.$i { emit disp_profile_delete(i) }
             }
             box { at: spx + 130 * u, ptop + (62 + disp.prows + 21) * u; size: 232 * u, 26 * u; corner: 13 * u; color: ink; opacity: 8% }
-            input disp_profile_name { at: spx + 26 * u, ptop + (62 + disp.prows + 15.5) * u; width: 210 * u; size: 11 * u; color: ink; family: "Space Grotesk"; placeholder: "Name for the current arrangement" }
+            input disp_profile_name { at: floor(spx + 26 * u + 0.5), floor(ptop + (62 + disp.prows + 15.5) * u + 0.5); width: 210 * u; size: 11 * u; color: ink; family: "Space Grotesk"; placeholder: "Name for the current arrangement" }
             box { at: spx + 350 * u, ptop + (62 + disp.prows + 21) * u; size: 106 * u, 26 * u; corner: 13 * u; color: mint; opacity: 85% + 15% * disp_save_hit.hover }
             text "Save current" { at: floor(spx + 350 * u + 0.5), floor(ptop + (62 + disp.prows + 21) * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 700; color: onmint; family: "Space Grotesk" }
             zone box disp_save_hit { at: spx + 350 * u, ptop + (62 + disp.prows + 21) * u; size: 108 * u, 28 * u; corner: 14 * u; cursor: pointer; active: (ptop + (62 + disp.prows + 21) * u) - disp.off > sby and (ptop + (62 + disp.prows + 21) * u) - disp.off < sby + 456 * u }
@@ -4124,7 +4126,7 @@ scene Vitreus {
             box { at: spx + 224 * u, cuey; size: 76 * u, 26 * u; corner: 13 * u; color: mint; opacity: (10% + 14% * disp_cue_hit.hover) * cue }
             path { at: spx + 204 * u, cuey - 1 * u; stroke: 1.6 * u; color: mint; opacity: cue; move -4 * u, -3 * u; line 0, 1 * u; line 4 * u, -3 * u }
             path { at: spx + 204 * u, cuey + 4 * u; stroke: 1.6 * u; color: mint; opacity: cue; move -4 * u, -3 * u; line 0, 1 * u; line 4 * u, -3 * u }
-            text "More" { at: spx + 232 * u, cuey; anchor: center; size: 11 * u; weight: 700; color: ink; opacity: cue; family: "Space Grotesk" }
+            text "More" { at: floor(spx + 232 * u + 0.5), floor(cuey + 0.5); anchor: center; size: 11 * u; weight: 700; color: ink; opacity: cue; family: "Space Grotesk" }
             zone box disp_cue_hit { at: spx + 224 * u, sby + (456 - 26) * u; size: 76 * u, 26 * u; corner: 13 * u; cursor: pointer; active: cue > 0.5 }
             on press disp_cue_hit { disp_scroll_to = clamp(disp_scroll_to + 342, 0, max(0, disp.h - 456)) }
             zone box disp_bar_hit { at: spx + 442 * u, sby + 228 * u; size: 14 * u, 456 * u; cursor: pointer; active: disp.h > 456 }
