@@ -3713,6 +3713,27 @@ scene Vitreus {
 
             text "The lock screen is not running: start it to change these" { at: floor(spx + 14 * u + 0.5), floor(sby + 714 * u + 0.5); anchor: left center; size: 10 * u; width: 400 * u; lines: 1; color: #ef4444; family: "Space Grotesk"; show: not lk_ok }
             }
+
+            let lk.thh = 456 * 456 / max(456, lk.h)
+            let lk.thy = lk.thh / 2 + lk.sc / max(1, lk.h - 456) * (456 - lk.thh)
+            box { at: spx + 442 * u, sby + 228 * u; size: 3 * u, 456 * u; corner: 1.5 * u; color: ink; opacity: if(lk.h > 456, 6%, 0%) }
+            box { at: spx + 442 * u, sby + lk.thy * u; size: 3 * u, lk.thh * u; corner: 1.5 * u; color: mint; opacity: if(lk.h > 456, 55%, 0%) }
+            let lk.cue = clamp((lk.h - 456 - lk.sc) / 24, 0, 1)
+            let lk.cuey = sby + (456 - 26) * u + 2.5 * u * sin(time * 270)
+            repeat i in 0..16 {
+                let fk = (i + 1) / 16
+                box { from: spx - 4 * u, sby + (400 + i * 3.5) * u; size: 448 * u, 3.5 * u + 0.5; color: deep; opacity: 45% * fk * fk * lk.cue }
+            }
+            box { at: spx + 224 * u, lk.cuey; size: 76 * u, 26 * u; corner: 13 * u; color: deep; opacity: 80% * lk.cue }
+            box { at: spx + 224 * u, lk.cuey; size: 76 * u, 26 * u; corner: 13 * u; color: mint; opacity: (10% + 14% * lk_cue_hit.hover) * lk.cue }
+            path { at: spx + 204 * u, lk.cuey - 1 * u; stroke: 1.6 * u; color: mint; opacity: lk.cue; move -4 * u, -3 * u; line 0, 1 * u; line 4 * u, -3 * u }
+            path { at: spx + 204 * u, lk.cuey + 4 * u; stroke: 1.6 * u; color: mint; opacity: lk.cue; move -4 * u, -3 * u; line 0, 1 * u; line 4 * u, -3 * u }
+            text "More" { at: floor(spx + 232 * u + 0.5), floor(lk.cuey + 0.5); anchor: center; size: 11 * u; weight: 700; color: ink; opacity: lk.cue; family: "Space Grotesk" }
+            zone box lk_cue_hit { at: spx + 224 * u, sby + (456 - 26) * u; size: 76 * u, 26 * u; corner: 13 * u; cursor: pointer; active: lk.cue > 0.5 }
+            on press lk_cue_hit { lk_scroll_to = clamp(lk_scroll_to + 342, 0, max(0, lk.h - 456)) }
+            zone box lk_bar_hit { at: spx + 442 * u, sby + 228 * u; size: 14 * u, 456 * u; cursor: pointer; active: lk.h > 456 }
+            on press lk_bar_hit { lk_scroll_to = clamp(((pointer.y - sby) / u - lk.thh / 2) / max(1, 456 - lk.thh) * (lk.h - 456), 0, max(0, lk.h - 456)) }
+            on drag lk_bar_hit { lk_scroll_to = clamp(((pointer.y - sby) / u - lk.thh / 2) / max(1, 456 - lk.thh) * (lk.h - 456), 0, max(0, lk.h - 456)) }
         }
 
         //  The Night mode page (Visuals): the switch, how warm the tint is, and when it turns itself on and off.
@@ -4278,6 +4299,22 @@ scene Vitreus {
             let nt.thy = nt.thh / 2 + nt.sc / max(1, nt.h - 456) * (456 - nt.thh)
             box { at: spx + 442 * u, sby + 228 * u; size: 3 * u, 456 * u; corner: 1.5 * u; color: ink; opacity: 6% }
             box { at: spx + 442 * u, sby + nt.thy * u; size: 3 * u, nt.thh * u; corner: 1.5 * u; color: mint; opacity: 55% }
+            let nt.cue = clamp((nt.h - 456 - nt.sc) / 24, 0, 1)
+            let nt.cuey = sby + (456 - 26) * u + 2.5 * u * sin(time * 270)
+            repeat i in 0..16 {
+                let fk = (i + 1) / 16
+                box { from: spx - 4 * u, sby + (400 + i * 3.5) * u; size: 448 * u, 3.5 * u + 0.5; color: deep; opacity: 45% * fk * fk * nt.cue }
+            }
+            box { at: spx + 224 * u, nt.cuey; size: 76 * u, 26 * u; corner: 13 * u; color: deep; opacity: 80% * nt.cue }
+            box { at: spx + 224 * u, nt.cuey; size: 76 * u, 26 * u; corner: 13 * u; color: mint; opacity: (10% + 14% * nt_cue_hit.hover) * nt.cue }
+            path { at: spx + 204 * u, nt.cuey - 1 * u; stroke: 1.6 * u; color: mint; opacity: nt.cue; move -4 * u, -3 * u; line 0, 1 * u; line 4 * u, -3 * u }
+            path { at: spx + 204 * u, nt.cuey + 4 * u; stroke: 1.6 * u; color: mint; opacity: nt.cue; move -4 * u, -3 * u; line 0, 1 * u; line 4 * u, -3 * u }
+            text "More" { at: floor(spx + 232 * u + 0.5), floor(nt.cuey + 0.5); anchor: center; size: 11 * u; weight: 700; color: ink; opacity: nt.cue; family: "Space Grotesk" }
+            zone box nt_cue_hit { at: spx + 224 * u, sby + (456 - 26) * u; size: 76 * u, 26 * u; corner: 13 * u; cursor: pointer; active: nt.cue > 0.5 }
+            on press nt_cue_hit { nt_scroll_to = clamp(nt_scroll_to + 342, 0, max(0, nt.h - 456)) }
+            zone box nt_bar_hit { at: spx + 442 * u, sby + 228 * u; size: 14 * u, 456 * u; cursor: pointer; active: nt.h > 456 }
+            on press nt_bar_hit { nt_scroll_to = clamp(((pointer.y - sby) / u - nt.thh / 2) / max(1, 456 - nt.thh) * (nt.h - 456), 0, max(0, nt.h - 456)) }
+            on drag nt_bar_hit { nt_scroll_to = clamp(((pointer.y - sby) / u - nt.thh / 2) / max(1, 456 - nt.thh) * (nt.h - 456), 0, max(0, nt.h - 456)) }
         }
         //  ── Notifications page: END ──
 
@@ -4468,6 +4505,22 @@ scene Vitreus {
             let sm.thy = sm.thh / 2 + sm.sc / max(1, sm.h - 456) * (456 - sm.thh)
             box { at: spx + 442 * u, sby + 228 * u; size: 3 * u, 456 * u; corner: 1.5 * u; color: ink; opacity: 6% }
             box { at: spx + 442 * u, sby + sm.thy * u; size: 3 * u, sm.thh * u; corner: 1.5 * u; color: mint; opacity: 55% }
+            let sm.cue = clamp((sm.h - 456 - sm.sc) / 24, 0, 1)
+            let sm.cuey = sby + (456 - 26) * u + 2.5 * u * sin(time * 270)
+            repeat i in 0..16 {
+                let fk = (i + 1) / 16
+                box { from: spx - 4 * u, sby + (400 + i * 3.5) * u; size: 448 * u, 3.5 * u + 0.5; color: deep; opacity: 45% * fk * fk * sm.cue }
+            }
+            box { at: spx + 224 * u, sm.cuey; size: 76 * u, 26 * u; corner: 13 * u; color: deep; opacity: 80% * sm.cue }
+            box { at: spx + 224 * u, sm.cuey; size: 76 * u, 26 * u; corner: 13 * u; color: mint; opacity: (10% + 14% * sm_cue_hit.hover) * sm.cue }
+            path { at: spx + 204 * u, sm.cuey - 1 * u; stroke: 1.6 * u; color: mint; opacity: sm.cue; move -4 * u, -3 * u; line 0, 1 * u; line 4 * u, -3 * u }
+            path { at: spx + 204 * u, sm.cuey + 4 * u; stroke: 1.6 * u; color: mint; opacity: sm.cue; move -4 * u, -3 * u; line 0, 1 * u; line 4 * u, -3 * u }
+            text "More" { at: floor(spx + 232 * u + 0.5), floor(sm.cuey + 0.5); anchor: center; size: 11 * u; weight: 700; color: ink; opacity: sm.cue; family: "Space Grotesk" }
+            zone box sm_cue_hit { at: spx + 224 * u, sby + (456 - 26) * u; size: 76 * u, 26 * u; corner: 13 * u; cursor: pointer; active: sm.cue > 0.5 }
+            on press sm_cue_hit { sm_scroll_to = clamp(sm_scroll_to + 342, 0, max(0, sm.h - 456)) }
+            zone box sm_bar_hit { at: spx + 442 * u, sby + 228 * u; size: 14 * u, 456 * u; cursor: pointer; active: sm.h > 456 }
+            on press sm_bar_hit { sm_scroll_to = clamp(((pointer.y - sby) / u - sm.thh / 2) / max(1, 456 - sm.thh) * (sm.h - 456), 0, max(0, sm.h - 456)) }
+            on drag sm_bar_hit { sm_scroll_to = clamp(((pointer.y - sby) / u - sm.thh / 2) / max(1, 456 - sm.thh) * (sm.h - 456), 0, max(0, sm.h - 456)) }
         }
         //  ── System monitor page: END ──
 
