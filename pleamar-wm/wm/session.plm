@@ -1,0 +1,1295 @@
+// Based on pleamar-wm's examples/session.plm, Copyright (c) 2026, Abel (BSD 3-Clause: see LICENSE-pleamar-wm, next to this file).
+// Changed here: slimmer title bars (22 px) of frosted glass, and a small glass pill of line icons in place of the three coloured dots.
+// (The original's own header, as a session of its own:)
+// The same window manager as examples/windows.plm, as a session of its own:
+// the whole monitor, with no compositor underneath. From a TTY of its own
+// (Ctrl+Alt+F3, logged in there):
+//
+//   ./session.sh              ./session.sh --seconds 45   (leaves by itself)
+//
+//   Ctrl+Alt+Backspace  leave        Ctrl+Alt+F1…F12  another TTY
+//
+//   The keys below are keys.conf's (pleamar-wm's own, or yours in
+//   ~/.config/pleamar/keys.conf): this scene only declares the actions.
+//   Super+T / Super+Return  a terminal     Super+Q  close the one with the keyboard
+//   Super+arrows        the keyboard to the next / previous window
+//   Super+Shift+Left    make it lead (if it already leads, to the left monitor)
+//   Super+Shift+Right   to the right monitor
+//   Super+Shift+Up/Down change places with the one before / after it
+//   Super+Tab  everything at a glance       Super+-/+  the leader narrower / wider
+//   Super+F    fullscreen, and back
+//   Super+W    tiled or free windows on this monitor (also from Marea's menu):
+//              free, each window stays where it is left and as big as it is
+//              made —edges and corner—, the green button maximizes it, and
+//              the one clicked comes over the rest. Back to tiled, each goes
+//              to its place; free again, each to where it was.
+//   Super+Space  Marea's search (the wallpaper and Marea start with it: autostart)
+//   Touchpad: three fingers down close, up fullscreen; four
+//   sideways, the keyboard to the next / previous window
+//   The keyboard goes to the window the mouse is over, without a click.
+//   With the mouse: carry a window by its title bar; let it go on another one
+//   and they change places (on the other monitor too: each takes the other's),
+//   or on an empty spot of the other monitor and it goes there. While
+//   carried, a strip at the top offers five layouts —a leader on the left,
+//   columns, rows, a grid, a leader on the right—: over one, the windows show
+//   how they would be; let go there, and that monitor keeps it.
+//
+// What Hyprland does not do: its animations are curves of a fixed length that
+// start again when interrupted, and its layout is code of its own. Here every
+// window rides a spring —change your mind halfway and it turns without a jolt—,
+// and the layout is twelve lines anyone can rewrite.
+language 0.1
+scene Session {
+    // One copy per monitor: each lays out its own windows (`win.$i.screen`).
+    surface { size: full, full; screens: each max 4 }
+    windows win max 16
+
+    let ink = #f5f7f5
+    let mint = #9ed6bd
+    let coral = #ef7a66
+    let amber = #e8c26a
+    let marea = #151616                  // Marea's skin (her palette's coal)
+    // Windows start this far from the top (under what other programs' bars keep).
+    let bar = 12
+    let gap = 12
+    let tb = 22                          // each window's title bar (30 in the original)
+    let W = screen.width
+    let H = screen.height
+    // Where each monitor starts on the desktop: left to right, each one after
+    // the one before it.
+    let mx.0 = 0
+    let mx.1 = screen.0.width
+    let mx.2 = screen.0.width + screen.1.width
+    let mx.3 = screen.0.width + screen.1.width + screen.2.width
+    // Where a window comes from and goes back to: the launcher on the left of the bar.
+    let home.x = 24
+    let home.y = 12
+    spring glide = 210, 23
+    spring pop = 320, 12
+
+    fact ratio = 0.56                    // the leader's share of the width
+    fact overview = false
+    fact dragging = -1                   // the window being carried by its title bar
+    fact grab.x = 0                      // where it was taken from, from its corner
+    fact grab.y = 0
+    fact over = -1                       // the window under the one carried
+    fact landing = -1                    // let go on the other monitor, and which
+    fact landing.to = 0
+    // The mouse on the whole desktop: which monitor, and where on it. Each
+    // copy only knows its own; the one the mouse is over says it.
+    fact mon = 0
+    fact mouse.x = 0
+    fact mouse.y = 0
+    // (Over another program's surface —Marea— the scene has no mouse, and
+    // then it reads 0, 0: the first monitor's corner. Taken for a real
+    // place, Marea on the second monitor was told the mouse had gone to the
+    // first the moment it came onto her, and left.)
+    on change pointer.x + pointer.y * 8192 while pointer.x >= 0 and pointer.x < W and pointer.y >= 0 and pointer.y < H and pointer.x + pointer.y > 0 {
+        mon = screen.index
+        mouse.x = pointer.x
+        mouse.y = pointer.y
+    }
+    prop ov = 0 ~calm
+    follow ov = if(overview, 1, 0)
+
+    // ── rain: on the windows, as if they were glass, and falling in front of
+    // everything. Marea turns it on and off (`emit toggle_rain`); it comes
+    // and goes slowly ──
+    shader rain = file "shaders/rain.wgsl"
+    fact rain = false
+    event toggle_rain
+    on toggle_rain {
+        snow = false
+        toggle rain
+    }
+    prop wet = 0 ~2500ms
+    follow wet = if(rain, 1, 0)
+    // ── or snow: frost creeping in from the edges, snow piling up on top of
+    // each window, flakes stuck to the glass and falling (`emit toggle_snow`).
+    // One weather at a time ──
+    shader snow = file "shaders/snow.wgsl"
+    fact snow = false
+    event toggle_snow
+    on toggle_snow {
+        rain = false
+        toggle snow
+    }
+    prop cold = 0 ~3000ms
+    follow cold = if(snow, 1, 0)
+    // How far the window being carried is behind the mouse: its water lags
+    // behind, as water on a pane that is moved does.
+    prop lag.x = 0 ~140ms
+    prop lag.y = 0 ~140ms
+    follow lag.x = mouse.x
+    follow lag.y = mouse.y
+
+    // ── the desk ──
+    // Nothing: the wallpaper is a program's (swaybg, below everything). Only
+    // a light that follows the keyboard: where you are typing is a little warmer.
+    prop lx = 750 ~slow
+    prop ly = 470 ~slow
+    // The monitor of the one with the keyboard: only there the light shows.
+    let fscreen = pick(win.focus, win.0.screen, win.1.screen, win.2.screen, win.3.screen, win.4.screen, win.5.screen, win.6.screen, win.7.screen, win.8.screen, win.9.screen, win.10.screen, win.11.screen, win.12.screen, win.13.screen, win.14.screen, win.15.screen)
+    group {
+        blur: 160
+        opacity: 12% * min(win.count, 1) * (fscreen == screen.index) * (win.focus >= 0)
+        mode: screen
+        ellipse { at: lx, ly; radius: 420; color: #9ed6bd }
+    }
+
+    // Where the one with the keyboard is in the order of all of them, and how many there are.
+    let focus_at = max(pick(max(win.focus, 0), win.0.rank, win.1.rank, win.2.rank, win.3.rank, win.4.rank, win.5.rank, win.6.rank, win.7.rank, win.8.rank, win.9.rank, win.10.rank, win.11.rank, win.12.rank, win.13.rank, win.14.rank, win.15.rank), 0)
+    let all = max(win.count, 1)
+
+    // ── the layouts, one for each monitor: 0 a leader on the left and the
+    // rest stacked on the right, 1 columns, 2 rows, 3 a grid, 4 the leader
+    // on the right. Carrying a window, a strip of them appears at the top of
+    // the monitor under the mouse: over one, everything shows how it would
+    // be; let go there, and it is so (with a leader, the one carried leads).
+    fact lay.0 = 0
+    fact lay.1 = 0
+    fact lay.2 = 0
+    fact lay.3 = 0
+    // ── or free, as on Windows or KDE: each window where it is left and as big
+    // as it is made, the one touched on top. Per monitor; Super+W or the
+    // Marea's menu. Each window remembers where it was free.
+    fact free.0 = 0
+    fact free.1 = 0
+    fact free.2 = 0
+    fact free.3 = 0
+    // The last one put away: Super+Shift+M brings it back.
+    fact last_min = -1
+    fact stamp.top = 0
+    // Where a window being resized was when it was taken.
+    fact g.x = 0
+    fact g.y = 0
+    fact g.w = 0
+    fact g.h = 0
+    fact sizing = -1
+    let lay.here = pick(mon, lay.0, lay.1, lay.2, lay.3)
+    let strip.x = pick(mon, screen.0.width, screen.1.width, screen.2.width, screen.3.width) / 2 - 5 * 60 / 2
+    let strip.y = pick(mon, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + 6
+    // (Only over a tiled monitor: a free one has no layout to pick.)
+    let on.strip = dragging >= 0 and pick(mon, free.0, free.1, free.2, free.3) < 0.5 and mouse.y >= strip.y and mouse.y < strip.y + 44 and mouse.x >= strip.x and mouse.x < strip.x + 5 * 60
+    let picked = if(on.strip, floor((mouse.x - strip.x) / 60), -1)
+    let leads = picked == 0 or picked == 4
+    // What it is over, kept: let go, `picked` is already gone (it needs the
+    // window carried) by the time the rules that apply it read it.
+    fact choice = -1
+    on change picked {
+        choice = picked
+    }
+
+    // ── carrying a window: how the others would be if it were let go here ──
+    // Its monitor and place; each window's turn in the order of all of them.
+    let dsc = pick(max(dragging, 0), win.0.screen, win.1.screen, win.2.screen, win.3.screen, win.4.screen, win.5.screen, win.6.screen, win.7.screen, win.8.screen, win.9.screen, win.10.screen, win.11.screen, win.12.screen, win.13.screen, win.14.screen, win.15.screen)
+    let dplace = max(pick(max(dragging, 0), win.0.place, win.1.place, win.2.place, win.3.place, win.4.place, win.5.place, win.6.place, win.7.place, win.8.place, win.9.place, win.10.place, win.11.place, win.12.place, win.13.place, win.14.place, win.15.place), 0)
+    let ordD = pick(max(dragging, 0), win.0.rank, win.1.rank, win.2.rank, win.3.rank, win.4.rank, win.5.rank, win.6.rank, win.7.rank, win.8.rank, win.9.rank, win.10.rank, win.11.rank, win.12.rank, win.13.rank, win.14.rank, win.15.rank)
+    // Over the other monitor it would go there: there they make room for it,
+    // and on its own the rest close up. Its turn there is its turn in the
+    // order; first, if it is let go on a layout with a leader.
+    let crossing = dragging >= 0 and mon != dsc
+    // Over a window of the other monitor: they change places —and
+    // monitors—; there nothing makes room, and here nothing closes up.
+    let xswap = crossing and over >= 0
+    let landing.place = if(leads, 0, (win.0.open and win.0.screen == mon and win.0.rank >= 0 and win.0.rank < ordD) + (win.1.open and win.1.screen == mon and win.1.rank >= 0 and win.1.rank < ordD) + (win.2.open and win.2.screen == mon and win.2.rank >= 0 and win.2.rank < ordD) + (win.3.open and win.3.screen == mon and win.3.rank >= 0 and win.3.rank < ordD) + (win.4.open and win.4.screen == mon and win.4.rank >= 0 and win.4.rank < ordD) + (win.5.open and win.5.screen == mon and win.5.rank >= 0 and win.5.rank < ordD) + (win.6.open and win.6.screen == mon and win.6.rank >= 0 and win.6.rank < ordD) + (win.7.open and win.7.screen == mon and win.7.rank >= 0 and win.7.rank < ordD) + (win.8.open and win.8.screen == mon and win.8.rank >= 0 and win.8.rank < ordD) + (win.9.open and win.9.screen == mon and win.9.rank >= 0 and win.9.rank < ordD) + (win.10.open and win.10.screen == mon and win.10.rank >= 0 and win.10.rank < ordD) + (win.11.open and win.11.screen == mon and win.11.rank >= 0 and win.11.rank < ordD) + (win.12.open and win.12.screen == mon and win.12.rank >= 0 and win.12.rank < ordD) + (win.13.open and win.13.screen == mon and win.13.rank >= 0 and win.13.rank < ordD) + (win.14.open and win.14.screen == mon and win.14.rank >= 0 and win.14.rank < ordD) + (win.15.open and win.15.screen == mon and win.15.rank >= 0 and win.15.rank < ordD))
+    let landing.n = pick(mon, win.on.0, win.on.1, win.on.2, win.on.3) + 1
+    let landing.lay = if(picked >= 0, picked, lay.here)
+    // A window fullscreen on the monitor under the mouse: the ones below it keep off the keyboard.
+    let fs.on = (win.0.fullscreen and win.0.screen == mon and win.0.rank >= 0) + (win.1.fullscreen and win.1.screen == mon and win.1.rank >= 0) + (win.2.fullscreen and win.2.screen == mon and win.2.rank >= 0) + (win.3.fullscreen and win.3.screen == mon and win.3.rank >= 0) + (win.4.fullscreen and win.4.screen == mon and win.4.rank >= 0) + (win.5.fullscreen and win.5.screen == mon and win.5.rank >= 0) + (win.6.fullscreen and win.6.screen == mon and win.6.rank >= 0) + (win.7.fullscreen and win.7.screen == mon and win.7.rank >= 0) + (win.8.fullscreen and win.8.screen == mon and win.8.rank >= 0) + (win.9.fullscreen and win.9.screen == mon and win.9.rank >= 0) + (win.10.fullscreen and win.10.screen == mon and win.10.rank >= 0) + (win.11.fullscreen and win.11.screen == mon and win.11.rank >= 0) + (win.12.fullscreen and win.12.screen == mon and win.12.rank >= 0) + (win.13.fullscreen and win.13.screen == mon and win.13.rank >= 0) + (win.14.fullscreen and win.14.screen == mon and win.14.rank >= 0) + (win.15.fullscreen and win.15.screen == mon and win.15.rank >= 0)
+
+    // ── workspaces: each monitor shows one (1 to 9), and each window is on
+    // one. Super+1…9 shows that one on the monitor under the mouse,
+    // Super+Shift+1…9 sends the window with the keyboard there, and
+    // Super+Ctrl+Left/Right goes to the one beside. Changing, the windows
+    // slide: the old ones out to one side, the new ones in from the other ──
+    event workspace
+    event move_to_workspace
+    event workspace_next
+    event workspace_previous
+    on workspace(v) { workspace v }
+    on move_to_workspace(v) while win.focus >= 0 { send win(win.focus) to workspace v }
+    let ws.mon = pick(mon, win.shown.0, win.shown.1, win.shown.2, win.shown.3)
+    on workspace_next { workspace min(ws.mon + 1, 9) }
+    on workspace_previous { workspace max(ws.mon - 1, 1) }
+    repeat s in 0..4 {
+        // Where each monitor's windows slide to: its workspace, on a spring.
+        prop desk.$s = 1 ~glide
+        follow desk.$s = win.shown.$s
+        // And its number, for a moment, at the top of the monitor.
+        prop wsflash.$s = 0 ~160ms
+        on change win.shown.$s {
+            wsflash.$s: 1 ~120ms
+            wsflash.$s: 0 ~400ms after 900ms
+        }
+        group {
+            z: 99990
+            show: wsflash.$s > 0.01 and screen.index == s
+            opacity: wsflash.$s
+            move: 0, -8 * (1 - wsflash.$s)
+            body {
+                color: #0c0e10
+                rim: 8%
+                shadow: 0, 8, 24, 45%
+                box { at: W / 2, pick(s, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + 58; size: 64, 44; corner: 22 }
+            }
+            text number(win.shown.$s, 0) { at: W / 2, pick(s, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + 58; anchor: center; size: 20; weight: 700; color: mint }
+        }
+    }
+
+    repeat i in 0..16 {
+        // A window is laid out on its own monitor: how big that one is and how
+        // many windows share it. Each copy of the scene draws only its own.
+        let sc = win.$i.screen
+        // (Asked to close: see `seen`.)
+        prop bye.$i = 0 ~0ms
+        // On the workspace its monitor shows; or how far from it, while they slide.
+        let ws.here = win.$i.workspace == pick(sc, win.shown.0, win.shown.1, win.shown.2, win.shown.3)
+        let ws.away = win.$i.workspace - pick(sc, desk.0, desk.1, desk.2, desk.3)
+        let here = win.$i.open and sc == screen.index and not win.$i.minimized and bye.$i < 0.5 and ws.here
+        // (Drawn while it goes away into the island, too.)
+        let drawn = win.$i.open and sc == screen.index and abs(ws.away) < 0.999
+        let n = max(win.$i.among, 1)
+        let p = max(win.$i.place, 0)
+        let L = pick(sc, lay.0, lay.1, lay.2, lay.3)
+        // ── where it goes, in its monitor's layout ──
+        let Ws = pick(sc, screen.0.width, screen.1.width, screen.2.width, screen.3.width) - pick(sc, win.reserved.0.left, win.reserved.1.left, win.reserved.2.left, win.reserved.3.left) - pick(sc, win.reserved.0.right, win.reserved.1.right, win.reserved.2.right, win.reserved.3.right)
+        let Hs = pick(sc, screen.0.height, screen.1.height, screen.2.height, screen.3.height) - pick(sc, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) - pick(sc, win.reserved.0.bottom, win.reserved.1.bottom, win.reserved.2.bottom, win.reserved.3.bottom)
+        let x0 = pick(sc, win.reserved.0.left, win.reserved.1.left, win.reserved.2.left, win.reserved.3.left)
+        let y0 = pick(sc, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + bar
+        let ah = Hs - bar - gap
+        let lw = if(n < 1.5, Ws - 2 * gap, (Ws - 3 * gap) * ratio)
+        let sw = Ws - 3 * gap - lw
+        let sh = (ah - (n - 2) * gap) / max(n - 1, 1)
+        let cw = (Ws - (n + 1) * gap) / max(n, 1)
+        let rh = (ah - (n - 1) * gap) / max(n, 1)
+        let gc = ceil(sqrt(n))
+        let gw = (Ws - (gc + 1) * gap) / gc
+        let gh = (ah - (ceil(n / gc) - 1) * gap) / ceil(n / gc)
+        let tx = x0 + pick(L, if(p < 0.5, gap, 2 * gap + lw), gap + p * (cw + gap), gap, gap + mod(p, gc) * (gw + gap), if(p < 0.5, 2 * gap + sw, gap))
+        let ty = y0 + pick(L, if(p < 0.5, 0, (p - 1) * (sh + gap)), 0, p * (rh + gap), floor(p / gc) * (gh + gap), if(p < 0.5, 0, (p - 1) * (sh + gap)))
+        let tw = pick(L, if(p < 0.5, lw, sw), cw, Ws - 2 * gap, gw, if(p < 0.5, lw, sw))
+        let th = pick(L, if(p < 0.5, ah, sh), ah, rh, gh, if(p < 0.5, ah, sh))
+        // Under the mouse while another is carried —measured on where it is,
+        // not where it is shown moving aside—: it would change places with it.
+        let under = dragging >= 0 and dragging != i and win.$i.open and sc == mon and not on.strip and pick(sc, free.0, free.1, free.2, free.3) < 0.5 and mouse.x >= tx and mouse.x < tx + tw and mouse.y >= ty and mouse.y < ty + th
+        on change under {
+            over = if(under, i, if(over == i, -1, over))
+        }
+        // ── where it is shown going, while one is carried ── (the program is
+        // asked for that size too: it changes only when the mouse goes onto
+        // another window, monitor or layout, so it draws itself as it would
+        // be instead of being stretched)
+        let ord.me = win.$i.rank
+        let swaps = over == i and sc == mon
+        let promoted = leads and not crossing and sc == dsc and dragging >= 0
+        let n.shown = max(if(crossing and not xswap and sc == mon, n + 1, if(crossing and not xswap and sc == dsc, n - 1, n)), 1)
+        let p.shown = if(dragging == i and promoted, 0, if(promoted, p + (p < dplace), if(swaps and not crossing, dplace, if(xswap, p, if(crossing and sc == mon, p + if(leads, 1, ordD < ord.me), if(crossing and sc == dsc, p - (ord.me > ordD), p))))))
+        let L.shown = if(dragging >= 0 and picked >= 0 and sc == mon, picked, L)
+        let Wsv = pick(sc, screen.0.width, screen.1.width, screen.2.width, screen.3.width) - pick(sc, win.reserved.0.left, win.reserved.1.left, win.reserved.2.left, win.reserved.3.left) - pick(sc, win.reserved.0.right, win.reserved.1.right, win.reserved.2.right, win.reserved.3.right)
+        let Hsv = pick(sc, screen.0.height, screen.1.height, screen.2.height, screen.3.height) - pick(sc, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) - pick(sc, win.reserved.0.bottom, win.reserved.1.bottom, win.reserved.2.bottom, win.reserved.3.bottom)
+        let x0v = pick(sc, win.reserved.0.left, win.reserved.1.left, win.reserved.2.left, win.reserved.3.left)
+        let y0v = pick(sc, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + bar
+        let ahv = Hsv - bar - gap
+        let lwv = if(n.shown < 1.5, Wsv - 2 * gap, (Wsv - 3 * gap) * ratio)
+        let swv = Wsv - 3 * gap - lwv
+        let shv = (ahv - (n.shown - 2) * gap) / max(n.shown - 1, 1)
+        let cwv = (Wsv - (n.shown + 1) * gap) / max(n.shown, 1)
+        let rhv = (ahv - (n.shown - 1) * gap) / max(n.shown, 1)
+        let gcv = ceil(sqrt(n.shown))
+        let gwv = (Wsv - (gcv + 1) * gap) / gcv
+        let ghv = (ahv - (ceil(n.shown / gcv) - 1) * gap) / ceil(n.shown / gcv)
+        let txv = x0v + pick(L.shown, if(p.shown < 0.5, gap, 2 * gap + lwv), gap + p.shown * (cwv + gap), gap, gap + mod(p.shown, gcv) * (gwv + gap), if(p.shown < 0.5, 2 * gap + swv, gap))
+        let tyv = y0v + pick(L.shown, if(p.shown < 0.5, 0, (p.shown - 1) * (shv + gap)), 0, p.shown * (rhv + gap), floor(p.shown / gcv) * (ghv + gap), if(p.shown < 0.5, 0, (p.shown - 1) * (shv + gap)))
+        let twv = pick(L.shown, if(p.shown < 0.5, lwv, swv), cwv, Wsv - 2 * gap, gwv, if(p.shown < 0.5, lwv, swv))
+        let thv = pick(L.shown, if(p.shown < 0.5, ahv, shv), ahv, rhv, ghv, if(p.shown < 0.5, ahv, shv))
+        // Where the carried one would land on the other monitor.
+        let Wsg = pick(mon, screen.0.width, screen.1.width, screen.2.width, screen.3.width) - pick(mon, win.reserved.0.left, win.reserved.1.left, win.reserved.2.left, win.reserved.3.left) - pick(mon, win.reserved.0.right, win.reserved.1.right, win.reserved.2.right, win.reserved.3.right)
+        let Hsg = pick(mon, screen.0.height, screen.1.height, screen.2.height, screen.3.height) - pick(mon, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) - pick(mon, win.reserved.0.bottom, win.reserved.1.bottom, win.reserved.2.bottom, win.reserved.3.bottom)
+        let x0g = pick(mon, win.reserved.0.left, win.reserved.1.left, win.reserved.2.left, win.reserved.3.left)
+        let y0g = pick(mon, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + bar
+        let ahg = Hsg - bar - gap
+        let lwg = if(landing.n < 1.5, Wsg - 2 * gap, (Wsg - 3 * gap) * ratio)
+        let swg = Wsg - 3 * gap - lwg
+        let shg = (ahg - (landing.n - 2) * gap) / max(landing.n - 1, 1)
+        let cwg = (Wsg - (landing.n + 1) * gap) / max(landing.n, 1)
+        let rhg = (ahg - (landing.n - 1) * gap) / max(landing.n, 1)
+        let gcg = ceil(sqrt(landing.n))
+        let gwg = (Wsg - (gcg + 1) * gap) / gcg
+        let ghg = (ahg - (ceil(landing.n / gcg) - 1) * gap) / ceil(landing.n / gcg)
+        let txg = x0g + pick(landing.lay, if(landing.place < 0.5, gap, 2 * gap + lwg), gap + landing.place * (cwg + gap), gap, gap + mod(landing.place, gcg) * (gwg + gap), if(landing.place < 0.5, 2 * gap + swg, gap))
+        let tyg = y0g + pick(landing.lay, if(landing.place < 0.5, 0, (landing.place - 1) * (shg + gap)), 0, landing.place * (rhg + gap), floor(landing.place / gcg) * (ghg + gap), if(landing.place < 0.5, 0, (landing.place - 1) * (shg + gap)))
+        let twg = pick(landing.lay, if(landing.place < 0.5, lwg, swg), cwg, Wsg - 2 * gap, gwg, if(landing.place < 0.5, lwg, swg))
+        let thg = pick(landing.lay, if(landing.place < 0.5, ahg, shg), ahg, rhg, ghg, if(landing.place < 0.5, ahg, shg))
+        // (the grid at a glance)
+        let cols = ceil(sqrt(n))
+        let rows = ceil(n / cols)
+        let cell.w = (Ws - 80 - (cols - 1) * 30) / cols
+        let cell.h = (ah - 40 - (rows - 1) * 30) / rows
+        // ── and at a glance: in a grid, each one keeping its shape ──
+        let s = min(cell.w / tw, cell.h / th)
+        let ox = pick(sc, win.reserved.0.left, win.reserved.1.left, win.reserved.2.left, win.reserved.3.left) + 40 + mod(p, cols) * (cell.w + 30) + (cell.w - tw * s) / 2
+        let oy = pick(sc, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + bar + 20 + floor(p / cols) * (cell.h + 30) + (cell.h - th * s) / 2
+
+        // ── free: where it was left, as big as it was made (all of the
+        // monitor, maximized) ──
+        fact fx.$i = 0
+        fact fy.$i = 0
+        fact fw.$i = 0
+        fact fh.$i = 0
+        fact maxed.$i = 0
+        fact stamp.$i = 0
+        // Which monitor its free place was made on: monitors differ in size,
+        // so a place from the other one is not a place here.
+        fact fsc.$i = -1
+        let F = pick(sc, free.0, free.1, free.2, free.3)
+        // (Only once it has a place of its own on this monitor: the frame free
+        // is taken, it has none yet, and it headed for the corner.)
+        let fr = F > 0.5 and fw.$i > 0.5 and fsc.$i == sc and not win.$i.fullscreen and not win.$i.dialog
+        // Never lost: no bigger than its monitor, and always with a good
+        // piece of it —and all of its title bar— inside, to take it by.
+        let fgw = if(maxed.$i, Ws - 2 * gap, min(fw.$i, Ws - 2 * gap))
+        let fgh = if(maxed.$i, ah, min(fh.$i, ah))
+        let fgx = if(maxed.$i, x0 + gap, clamp(fx.$i, x0 + 160 - fgw, x0 + Ws - 160))
+        let fgy = if(maxed.$i, y0, clamp(fy.$i, pick(sc, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top), y0 + ah - tb - 40))
+        // Put away, it stays where it was (the others close up without it),
+        // and flies from there into Marea's island.
+        fact mx.$i = 0
+        fact my.$i = 0
+        fact mw.$i = 0
+        fact mh.$i = 0
+        on change win.$i.minimized while win.$i.minimized {
+            mx.$i = x.$i
+            my.$i = y.$i
+            mw.$i = w.$i
+            mh.$i = h.$i
+            last_min = i
+        }
+        // Back to tiled, what was put away comes out of the island to its
+        // place: tiled, every window has one.
+        on change F while F < 0.5 and win.$i.minimized { restore win.$i }
+        let goal.x = if(win.$i.minimized, mx.$i, if(fr, fgx, txv))
+        let goal.y = if(win.$i.minimized, my.$i, if(fr, fgy, tyv))
+        let goal.w = if(win.$i.minimized, mw.$i, if(fr, fgw, twv))
+        let goal.h = if(win.$i.minimized, mh.$i, if(fr, fgh, thv))
+        // How far into the island: 0 here, 1 put away.
+        prop mini.$i = 0 ~720ms
+        follow mini.$i = if(win.$i.minimized, 1, 0)
+        // Free for the first time: where it is now. Opened free: in the middle, a step down per slot.
+        // (A little smaller than its tile, in the middle of it: it is seen
+        // coming off.)
+        // From where its tile is on this monitor —not from where it is shown
+        // going, which may be mid-glide or on the other monitor—. The same
+        // when it arrives free on a monitor its place was not made on
+        // (unless it was let go there: then that is its place).
+        let unplaced = F > 0.5 and win.$i.open and (fw.$i < 1 or fsc.$i != sc) and dragging != i and not (landing == i and sc != landing.to)
+        on change unplaced while unplaced {
+            fx.$i = tx + tw * 0.07
+            fy.$i = ty + th * 0.06
+            fw.$i = tw * 0.86
+            fh.$i = th * 0.88
+            fsc.$i = sc
+            maxed.$i = 0
+        }
+        // Tiled to free and back, each one gives a little jump, and free it
+        // floats: a deeper shadow.
+        prop lift.$i = 0 ~pop
+        follow lift.$i = F
+        // (What comes from the compositor is already new when the rules look.)
+        on change win.$i.open while win.$i.open and F > 0.5 {
+            fw.$i = Ws * 0.6
+            fh.$i = ah * 0.7
+            fx.$i = x0 + Ws * 0.2 + 28 * i
+            fy.$i = y0 + ah * 0.1 + 28 * i
+            fsc.$i = sc
+            maxed.$i = 0
+        }
+        on change win.$i.open while not win.$i.open {
+            fw.$i = 0
+            maxed.$i = 0
+        }
+        // The one that gets the keyboard comes over the rest.
+        on change win.$i.focused while win.$i.focused {
+            stamp.$i = stamp.top + 1
+            stamp.top = stamp.top + 1
+        }
+
+        prop x.$i = 24 ~glide
+        prop y.$i = 12 ~glide
+        prop w.$i = 60 ~glide
+        prop h.$i = 34 ~glide
+        follow x.$i = if(win.$i.open, if(overview, ox, goal.x), home.x)
+        follow y.$i = if(win.$i.open, if(overview, oy, goal.y), home.y)
+        follow w.$i = if(win.$i.open, if(overview, tw * s, goal.w), 60)
+        follow h.$i = if(win.$i.open, if(overview, th * s, goal.h), 34)
+        // Carried with the mouse: how far from its place.
+        prop dx.$i = 0 ~glide
+        prop dy.$i = 0 ~glide
+        // Asked to close, it goes at once: the program may take its time to
+        // leave (a browser, a second), and nobody should wait for it. If it
+        // is still there a while later —it asked whether to save—, it is back.
+        on change win.$i.open while win.$i.open { bye.$i: 0 }
+        prop seen.$i = 0 ~260ms
+        follow seen.$i = if(win.$i.open and bye.$i < 0.5, 1, 0)
+        prop lit.$i = 0 ~220ms
+        // Maximized or back: a wave runs through it from the button, and
+        // it swells a little as it passes, like water filling a basin.
+        prop wave.$i = 1 ~720ms
+        follow lit.$i = if(win.$i.focused and not overview, 1, if(overview, 1, 0))
+
+        let x = x.$i + dx.$i + ws.away * (pick(sc, screen.0.width, screen.1.width, screen.2.width, screen.3.width) + gap)
+        let y = y.$i + dy.$i
+        let w = w.$i
+        let h = h.$i
+        // A hollow where the carried one would land: where this one is, if it
+        // is under it; its own place, if it is under nothing; its place on the
+        // other monitor, if it is over that one.
+        // (A prop is one for every monitor's copy: what it follows cannot
+        // depend on which copy it is. Which monitor shows it goes in `show`.)
+        let hollow.there = dragging == i and crossing and not xswap
+        prop hollow.$i = 0 ~140ms
+        follow hollow.$i = if(not fr and (swaps or (dragging == i and over < 0 and not crossing) or hollow.there), 1, 0)
+        // (Its own place as it would be: in the layout picked, if one is.)
+        let hx = if(hollow.there, txg, if(dragging == i, txv, tx))
+        let hy = if(hollow.there, tyg, if(dragging == i, tyv, ty))
+        let hw = if(hollow.there, twg, if(dragging == i, twv, tw))
+        let hh = if(hollow.there, thg, if(dragging == i, thv, th))
+        group {
+            show: hollow.$i > 0.01 and if(hollow.there, mon, sc) == screen.index
+            opacity: hollow.$i
+            box { from: hx + 4, hy + 4; size: hw - 8, hh - 8; corner: 12; color: mint; opacity: 7% }
+            box { from: hx + 4, hy + 4; size: hw - 8, hh - 8; corner: 12; stroke: 1.5; color: mint; opacity: 55% }
+        }
+        // Where it is laid out, not where it is carried: a drag goes on while
+        // its zone still holds the point it was pressed on.
+        // (In a group of their own, just over the window's `z:`: where
+        // windows overlap, the one on top takes the mouse, and on its own
+        // window its edges and buttons go before what the program shows.)
+        group {
+            z: stamp.$i + 0.5
+            zone box title.$i { from: x.$i, y.$i; size: w - 76, tb; cursor: pointer; active: here and not overview and not win.$i.dialog }
+            zone ellipse lead_zone.$i { at: x + w - 38, y + tb / 2; radius: 9; cursor: pointer; active: here and not overview and not win.$i.dialog }
+            zone ellipse mini_zone.$i { at: x + w - 56, y + tb / 2; radius: 9; cursor: pointer; active: here and not overview and not win.$i.dialog }
+            zone ellipse close_zone.$i { at: x + w - 20, y + tb / 2; radius: 9; cursor: pointer; active: here and not overview and not win.$i.dialog }
+            // At a glance, the whole window is a button: pressing it chooses it.
+            zone box choose.$i { from: x, y; size: w, h; cursor: pointer; active: here and overview and not win.$i.dialog }
+            // Free: its edges and its corner make it bigger or smaller.
+            // (While it is being resized, where they were when taken: a drag
+            // goes on while its zone holds the point it was pressed on.)
+            let ex = if(sizing == i, g.x, x)
+            let ey = if(sizing == i, g.y, y)
+            let ew = if(sizing == i, g.w, w)
+            let eh = if(sizing == i, g.h, h)
+            zone box left_edge.$i { from: ex - 5, ey + tb; size: 10, eh - tb - 12; cursor: grab; active: here and fr and not maxed.$i and not overview }
+            zone box right_edge.$i { from: ex + ew - 5, ey + tb; size: 10, eh - tb - 12; cursor: grab; active: here and fr and not maxed.$i and not overview }
+            zone box bottom_edge.$i { from: ex + 12, ey + eh - 5; size: ew - 24, 10; cursor: grab; active: here and fr and not maxed.$i and not overview }
+            zone box corner.$i { from: ex + ew - 14, ey + eh - 14; size: 20, 20; cursor: grab; active: here and fr and not maxed.$i and not overview }
+        }
+        group {
+            // Over the others as it was last touched (free, they overlap).
+            z: stamp.$i
+            // Carried, it is drawn over the others, further down; flying into
+            // the island or out of it, too.
+            show: seen.$i > 0.01 and sc == screen.index and dragging != i and not (landing == i and sc != landing.to) and not win.$i.dialog and mini.$i <= 0.02
+            opacity: seen.$i
+            pivot: x + w / 2, y + h / 2
+            scale: (0.92 + 0.08 * seen.$i + 0.025 * choose.$i.hover * ov) * (1 + 0.05 * (lift.$i - F)) * (1 + 0.012 * sin(180 * wave.$i))
+            body {
+                color: #0c0e10
+                shadow: 0, 14 + 8 * lit.$i + 10 * lift.$i, 34 + 18 * lift.$i, 45% + 20% * lit.$i + 10% * lift.$i
+                box { from: x, y; size: w, h; corner: 12 }
+            }
+            // Without the keyboard, only its title bar steps back: what it shows
+            // stays as it is (a video left playing on another monitor, full colour).
+            group {
+                show: wet <= 0.001 and cold <= 0.001
+                clip box { from: x, y; size: w, h; corner: 12 }
+                body {
+                    color: mix(#0b1015, #0f1d1a, lit.$i)
+                    glass: 85%
+                    lens: false
+                    rim: 14%
+                    opacity: 72% + 20% * lit.$i
+                    box { from: x, y; size: w, tb }
+                }
+                box { from: x, y + tb - 1; size: w, 1; color: #ffffff; opacity: 9% }
+                text win.$i.title { at: floor(x + 12 + 0.5), floor(y + tb / 2 + 0.5); anchor: left center; size: 11; weight: 600; width: max(w - 100, 10); lines: 1; color: ink; opacity: 55% + 45% * lit.$i; family: "Space Grotesk" }
+                window win.$i { at: x, y + tb; size: w, max(h - tb, 1); ask: goal.w, goal.h - tb; show: drawn and not win.$i.fullscreen and wet <= 0.001 and cold <= 0.001 }
+            }
+            // The same, in the rain: the window seen through wet glass.
+            group {
+                show: wet > 0.001
+                shader: rain, wet
+                clip box { from: x, y; size: w, h; corner: 12 }
+                body {
+                    color: mix(#0b1015, #0f1d1a, lit.$i)
+                    glass: 85%
+                    lens: false
+                    rim: 14%
+                    opacity: 72% + 20% * lit.$i
+                    box { from: x, y; size: w, tb }
+                }
+                box { from: x, y + tb - 1; size: w, 1; color: #ffffff; opacity: 9% }
+                text win.$i.title { at: floor(x + 12 + 0.5), floor(y + tb / 2 + 0.5); anchor: left center; size: 11; weight: 600; width: max(w - 100, 10); lines: 1; color: ink; opacity: 55% + 45% * lit.$i; family: "Space Grotesk" }
+                window win.$i { at: x, y + tb; size: w, max(h - tb, 1); ask: goal.w, goal.h - tb; show: drawn and not win.$i.fullscreen and wet > 0.001 }
+            }
+            // And in the snow: frosted glass with snow on top.
+            group {
+                show: cold > 0.001 and wet <= 0.001
+                shader: snow, cold
+                clip box { from: x, y; size: w, h; corner: 12 }
+                body {
+                    color: mix(#0b1015, #0f1d1a, lit.$i)
+                    glass: 85%
+                    lens: false
+                    rim: 14%
+                    opacity: 72% + 20% * lit.$i
+                    box { from: x, y; size: w, tb }
+                }
+                box { from: x, y + tb - 1; size: w, 1; color: #ffffff; opacity: 9% }
+                text win.$i.title { at: floor(x + 12 + 0.5), floor(y + tb / 2 + 0.5); anchor: left center; size: 11; weight: 600; width: max(w - 100, 10); lines: 1; color: ink; opacity: 55% + 45% * lit.$i; family: "Space Grotesk" }
+                window win.$i { at: x, y + tb; size: w, max(h - tb, 1); ask: goal.w, goal.h - tb; show: drawn and not win.$i.fullscreen and cold > 0.001 and wet <= 0.001 }
+            }
+            // (The wave: two soft crests of light, the second behind the first.)
+            group {
+                show: wave.$i > 0.001 and wave.$i < 0.999
+                blur: 6
+                mode: screen
+                clip box { from: x, y; size: w, h; corner: 12 }
+                ellipse { at: x + w - 38, y + tb / 2; radius: 20 + wave.$i * (w + h); stroke: 44 * (1 - wave.$i) + 4; color: mint; opacity: 55% * (1 - wave.$i) }
+                ellipse { at: x + w - 38, y + tb / 2; radius: 10 + max(wave.$i - 0.2, 0) * (w + h); stroke: 20 * (1 - wave.$i) + 2; color: #dffaf0; opacity: 40% * (1 - wave.$i) }
+            }
+            // Its three buttons, in a small pill of glass: put away (into Marea), to the front (free, the whole monitor), and away for
+            // good. Thin line icons in the ink; the mouse over one, a soft light comes up behind it (the cross, coral).
+            let by = y + tb / 2
+            let b.any = max(max(mini_zone.$i.hover, lead_zone.$i.hover), close_zone.$i.hover)
+            group {
+                opacity: 55% + 45% * max(lit.$i, b.any)
+                body {
+                    color: #ffffff
+                    opacity: 9%
+                    rim: 30%
+                    box { at: x + w - 38, by; size: 60, 16; corner: 8 }
+                }
+                ellipse { at: x + w - 56, by; radius: 8; color: amber; opacity: 28% * mini_zone.$i.hover }
+                ellipse { at: x + w - 38, by; radius: 8; color: mint; opacity: 28% * lead_zone.$i.hover }
+                ellipse { at: x + w - 20, by; radius: 8; color: coral; opacity: 34% * close_zone.$i.hover }
+                box { at: x + w - 56, by + 2; size: 7, 1.4; corner: 0.7; color: ink; opacity: 70% + 30% * mini_zone.$i.hover }
+                box { at: x + w - 38, by; size: 7, 7; corner: 1.6; stroke: 1.3; color: ink; opacity: (70% + 30% * lead_zone.$i.hover) * (1 - maxed.$i) }
+                box { at: x + w - 39.5, by + 1.2; size: 5.5, 5.5; corner: 1.3; stroke: 1.2; color: ink; opacity: (70% + 30% * lead_zone.$i.hover) * maxed.$i }
+                box { at: x + w - 36.5, by - 1.2; size: 5.5, 5.5; corner: 1.3; stroke: 1.2; color: ink; opacity: (70% + 30% * lead_zone.$i.hover) * maxed.$i * 0.7 }
+                box { at: x + w - 20, by; size: 8, 1.4; corner: 0.7; rotate: 45deg; color: ink; opacity: 70% + 30% * close_zone.$i.hover }
+                box { at: x + w - 20, by; size: 8, 1.4; corner: 0.7; rotate: -45deg; color: ink; opacity: 70% + 30% * close_zone.$i.hover }
+            }
+            box { from: x, y; size: w, h; corner: 12; stroke: 1.5; color: mint; opacity: lit.$i * 70% * (1 - ov) }
+            // Choosing what to share: the one under the pointer lights up and says so.
+            group {
+                show: share.windows and share.in > 0.01
+                opacity: share.in
+                box { from: x - 3, y - 3; size: w + 6, h + 6; corner: 15; stroke: 2.5; color: mint; opacity: choose.$i.hover }
+                group {
+                    opacity: choose.$i.hover
+                    scale: 0.9 + 0.1 * choose.$i.hover
+                    pivot: x + w / 2, y + h / 2
+                    body {
+                        color: #0c0e10
+                        rim: 10%
+                        shadow: 0, 6, 18, 45%
+                        box { at: x + w / 2, y + h / 2; size: 176, 40; corner: 20 }
+                    }
+                    ellipse { at: x + w / 2 - 66, y + h / 2; radius: 5; color: #ef7a66 }
+                    text "Share this window" { at: x + w / 2 + 8, y + h / 2; anchor: center; size: 13; weight: 600; color: ink }
+                }
+            }
+        }
+        // Taken by an edge or the corner: where it was and how big.
+        on press left_edge.$i {
+            sizing = i
+            g.x = fx.$i
+            g.y = fy.$i
+            g.w = fw.$i
+            g.h = fh.$i
+        }
+        on press right_edge.$i {
+            sizing = i
+            g.x = fx.$i
+            g.y = fy.$i
+            g.w = fw.$i
+            g.h = fh.$i
+        }
+        on press bottom_edge.$i {
+            sizing = i
+            g.x = fx.$i
+            g.y = fy.$i
+            g.w = fw.$i
+            g.h = fh.$i
+        }
+        on press corner.$i {
+            sizing = i
+            g.x = fx.$i
+            g.y = fy.$i
+            g.w = fw.$i
+            g.h = fh.$i
+        }
+        on release left_edge.$i { sizing = -1 }
+        on release right_edge.$i { sizing = -1 }
+        on release bottom_edge.$i { sizing = -1 }
+        on release corner.$i { sizing = -1 }
+        on drag left_edge.$i {
+            fx.$i = min(g.x + drag.dx, g.x + g.w - 240)
+            fw.$i = max(g.w - drag.dx, 240)
+        }
+        on drag right_edge.$i { fw.$i = max(g.w + drag.dx, 240) }
+        on drag bottom_edge.$i { fh.$i = max(g.h + drag.dy, 140) }
+        on drag corner.$i {
+            fw.$i = max(g.w + drag.dx, 240)
+            fh.$i = max(g.h + drag.dy, 140)
+        }
+        on press lead_zone.$i while fr {
+            focus win.$i
+            toggle maxed.$i
+            wave.$i: 0 ~0ms
+            wave.$i: 1 after 16ms
+        }
+        on press title.$i {
+            focus win.$i
+            grab.x = pointer.x - x.$i
+            grab.y = pointer.y - y.$i
+        }
+        // Carried by its title bar. Let go on another window, they change
+        // places; at the edge towards the other monitor, it goes there.
+        // (While carried it is drawn at the mouse, further down; its place
+        // here waits.)
+        // Only the one that started it: another shown moving aside may come
+        // to hold the point pressed.
+        on drag title.$i while dragging < 0 or dragging == i {
+            dragging = i
+        }
+        // Let go, it starts from where it was left —on the monitor it was left
+        // on— and glides to its place from there.
+        on release title.$i {
+            dragging = -1
+            dx.$i: mouse.x - grab.x - x.$i ~0ms
+            dy.$i: mouse.y - grab.y - y.$i ~0ms
+            dx.$i: 0 after 30ms
+            dy.$i: 0 after 30ms
+        }
+        // Free: it stays where it was let go (on the monitor it was let go on).
+        // (Right there, at once: nothing to glide to.)
+        on release title.$i while pick(mon, free.0, free.1, free.2, free.3) > 0.5 and picked < 0 {
+            fx.$i = mouse.x - grab.x
+            fy.$i = max(mouse.y - grab.y, pick(mon, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top))
+            fsc.$i = mon
+            maxed.$i = 0
+            x.$i: mouse.x - grab.x ~0ms
+            y.$i: max(mouse.y - grab.y, pick(mon, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top)) ~0ms
+            dx.$i: 0 ~0ms
+            dy.$i: 0 ~0ms
+        }
+        // Let go on another one (the one under it, as the others showed).
+        on release title.$i while over >= 0 and not crossing { swap win.$i with win(over) }
+        // …and on one of the other monitor: each takes the other's place and
+        // monitor (the compositor sends both across).
+        on release title.$i while xswap {
+            swap win.$i with win(over)
+            landing = i
+            landing.to = mon
+        }
+        // Let go on the other monitor (the mouse is off this one), or at the
+        // edge that leads to it.
+        // Until the compositor says it is there, it stays with the mouse
+        // (`landing`): not a frame back on the monitor it left.
+        on release title.$i while (pointer.y < 0 or pointer.y > H) and over < 0 {
+            send win.$i to 1 - screen.index
+            landing = i
+            landing.to = 1 - screen.index
+        }
+        on release title.$i while screen.index == 0 and pointer.x > W - 40 and pointer.y >= 0 and pointer.y <= H and over < 0 {
+            send win.$i to 1
+            landing = i
+            landing.to = 1
+        }
+        on release title.$i while screen.index == 1 and pointer.x < 40 and pointer.y >= 0 and pointer.y <= H and over < 0 {
+            send win.$i to 0
+            landing = i
+            landing.to = 0
+        }
+        // Let go on a layout of the strip: that monitor takes it, and with a
+        // leader, the one carried leads.
+        on release title.$i while picked >= 0 and mon == 0 {
+            lay.0 = choice
+            free.0 = 0
+        }
+        on release title.$i while picked >= 0 and mon == 1 {
+            lay.1 = choice
+            free.1 = 0
+        }
+        on release title.$i while picked >= 0 and mon == 2 {
+            lay.2 = choice
+            free.2 = 0
+        }
+        on release title.$i while picked >= 0 and mon == 3 {
+            lay.3 = choice
+            free.3 = 0
+        }
+        on release title.$i while leads { promote win.$i }
+        on release title.$i {
+            over = -1
+        }
+        // The keyboard goes to the window the mouse is over, as it enters it:
+        // no click needed first (Super+Q closes the one under the mouse).
+        let pointed = win.$i.open and sc == mon and not win.$i.dialog and not win.$i.minimized and mouse.x >= x.$i and mouse.x < x.$i + w.$i and mouse.y >= y.$i and mouse.y < y.$i + h.$i
+        // (Free, they overlap: the keyboard goes with a click, as on Windows.)
+        on change pointed while dragging < 0 and not overview and fs.on < 0.5 and pick(mon, free.0, free.1, free.2, free.3) < 0.5 {
+            focus win(if(pointed, i, -1))
+        }
+        on press lead_zone.$i while not fr { promote win.$i }
+        on press close_zone.$i {
+            close win.$i
+            bye.$i: 1
+            bye.$i: 0 after 2500ms
+        }
+        on close while win.focus == i {
+            bye.$i: 1
+            bye.$i: 0 after 2500ms
+        }
+        on press mini_zone.$i { minimize win.$i }
+        on press choose.$i while not sharing {
+            focus win.$i
+            overview = false
+        }
+        // Sharing the screen: the window pressed is the one shared.
+        on press choose.$i while share.windows { pick win.$i }
+        // The light goes where the keyboard is.
+        on change win.$i.focused while win.$i.focused {
+            lx: tx + tw / 2
+            ly: ty + th / 2
+        }
+    }
+
+
+    // The window being carried, over all the others: lifted, a little smaller
+    // and see-through, so that where it will land shows below it. It goes with
+    // the mouse on the whole desktop: each monitor draws its part of it, so
+    // crossing from one to the other it is seen half on each.
+    repeat i in 0..16 {
+        // Monitor 1 starts where monitor 0 ends.
+        let x = mouse.x + pick(mon, mx.0, mx.1, mx.2, mx.3) - pick(screen.index, mx.0, mx.1, mx.2, mx.3) - grab.x
+        let y = mouse.y - grab.y
+        let w = w.$i
+        let h = h.$i
+        group {
+            show: dragging == i or (landing == i and win.$i.screen != landing.to)
+            opacity: 88%
+            pivot: x + w / 2, y + h / 2
+            scale: 1
+            body {
+                color: #0c0e10
+                shadow: 0, 26, 50, 60%
+                box { from: x, y; size: w, h; corner: 12 }
+            }
+            let carried = dragging == i or (landing == i and win.$i.screen != landing.to)
+            group {
+                show: wet <= 0.001 and cold <= 0.001
+                clip box { from: x, y; size: w, h; corner: 12 }
+                box { from: x, y; size: w, tb; color: #1d2b27 }
+                text win.$i.title { at: x + 14, y + tb / 2; anchor: left center; size: 12; weight: 500; width: max(w - 90, 10); lines: 1; color: ink }
+                window win.$i { at: x, y + tb; size: w, max(h - tb, 1); ask: win.$i.width, win.$i.height; show: carried and wet <= 0.001 and cold <= 0.001 }
+            }
+            // Carried in the rain, its water goes with it, lagging behind.
+            group {
+                show: wet > 0.001
+                shader: rain, wet, mouse.x - lag.x, mouse.y - lag.y
+                clip box { from: x, y; size: w, h; corner: 12 }
+                box { from: x, y; size: w, tb; color: #1d2b27 }
+                text win.$i.title { at: x + 14, y + tb / 2; anchor: left center; size: 12; weight: 500; width: max(w - 90, 10); lines: 1; color: ink }
+                window win.$i { at: x, y + tb; size: w, max(h - tb, 1); ask: win.$i.width, win.$i.height; show: carried and wet > 0.001 }
+            }
+            // And in the snow, its snow and its frost.
+            group {
+                show: cold > 0.001 and wet <= 0.001
+                shader: snow, cold, mouse.x - lag.x, mouse.y - lag.y
+                clip box { from: x, y; size: w, h; corner: 12 }
+                box { from: x, y; size: w, tb; color: #1d2b27 }
+                text win.$i.title { at: x + 14, y + tb / 2; anchor: left center; size: 12; weight: 500; width: max(w - 90, 10); lines: 1; color: ink }
+                window win.$i { at: x, y + tb; size: w, max(h - tb, 1); ask: win.$i.width, win.$i.height; show: carried and cold > 0.001 and wet <= 0.001 }
+            }
+            box { from: x, y; size: w, h; corner: 12; stroke: 1.5; color: mint; opacity: 80% }
+        }
+    }
+
+    // ── the layouts strip: while a window is carried, at the top of the
+    // monitor under the mouse, if that one is tiled. Over one, everything
+    // shows how it would be ──
+    prop strip = 0 ~160ms
+    follow strip = if(dragging >= 0 and pick(mon, free.0, free.1, free.2, free.3) < 0.5, 1, 0)
+    let ico = #f5f7f5
+    group {
+        show: strip > 0.01 and screen.index == mon
+        opacity: strip
+        body {
+            color: #0d1013
+            shadow: 0, 10, 28, 45%
+            box { from: strip.x - 6, strip.y - 4; size: 5 * 60 + 12, 52; corner: 14; opacity: 90% }
+        }
+        box { from: strip.x - 6, strip.y - 4; size: 5 * 60 + 12, 52; corner: 14; stroke: 1; color: mint; opacity: 35% }
+        repeat k in 0..5 {
+            box { from: strip.x + k * 60 + 3, strip.y + 1; size: 54, 42; corner: 10; color: mint; opacity: 22% * (picked == k) }
+        }
+        // A leader on the left, and the rest on the right.
+        group {
+            opacity: 50% + 50% * (picked == 0)
+            box { from: strip.x + 10, strip.y + 9; size: 22, 26; corner: 3; color: ico }
+            box { from: strip.x + 34, strip.y + 9; size: 16, 12; corner: 3; color: ico }
+            box { from: strip.x + 34, strip.y + 23; size: 16, 12; corner: 3; color: ico }
+        }
+        // Columns.
+        group {
+            opacity: 50% + 50% * (picked == 1)
+            box { from: strip.x + 70, strip.y + 9; size: 12, 26; corner: 3; color: ico }
+            box { from: strip.x + 84, strip.y + 9; size: 12, 26; corner: 3; color: ico }
+            box { from: strip.x + 98, strip.y + 9; size: 12, 26; corner: 3; color: ico }
+        }
+        // Rows.
+        group {
+            opacity: 50% + 50% * (picked == 2)
+            box { from: strip.x + 130, strip.y + 9; size: 40, 8; corner: 2; color: ico }
+            box { from: strip.x + 130, strip.y + 18; size: 40, 8; corner: 2; color: ico }
+            box { from: strip.x + 130, strip.y + 27; size: 40, 8; corner: 2; color: ico }
+        }
+        // A grid.
+        group {
+            opacity: 50% + 50% * (picked == 3)
+            box { from: strip.x + 190, strip.y + 9; size: 19, 12; corner: 3; color: ico }
+            box { from: strip.x + 211, strip.y + 9; size: 19, 12; corner: 3; color: ico }
+            box { from: strip.x + 190, strip.y + 23; size: 19, 12; corner: 3; color: ico }
+            box { from: strip.x + 211, strip.y + 23; size: 19, 12; corner: 3; color: ico }
+        }
+        // A leader on the right.
+        group {
+            opacity: 50% + 50% * (picked == 4)
+            box { from: strip.x + 250, strip.y + 9; size: 16, 12; corner: 3; color: ico }
+            box { from: strip.x + 250, strip.y + 23; size: 16, 12; corner: 3; color: ico }
+            box { from: strip.x + 268, strip.y + 9; size: 22, 26; corner: 3; color: ico }
+        }
+    }
+
+    // ── what it can be asked to do: its actions ──
+    // Keys and gestures are not here: `keys.conf` binds them to these —the one
+    // that comes with pleamar-wm, or yours in ~/.config/pleamar/keys.conf—.
+    // Each is an event, so Marea or anyone can ask too
+    // (`pleamar-wm --say wm "emit overview"`).
+    let fplace = pick(win.focus, win.0.place, win.1.place, win.2.place, win.3.place, win.4.place, win.5.place, win.6.place, win.7.place, win.8.place, win.9.place, win.10.place, win.11.place, win.12.place, win.13.place, win.14.place, win.15.place)
+    let next = pick(mod(focus_at + 1, all), win.order.0, win.order.1, win.order.2, win.order.3, win.order.4, win.order.5)
+    let previous = pick(mod(focus_at + all - 1, all), win.order.0, win.order.1, win.order.2, win.order.3, win.order.4, win.order.5)
+    event close
+    event minimize
+    event restore_last
+    event fullscreen
+    event overview
+    event focus_next
+    event focus_previous
+    event move_left
+    event move_right
+    event move_up
+    event move_down
+    event narrower
+    event wider
+    on close { close win(win.focus) }
+    // Put away into Marea, and the last one back.
+    on minimize { minimize win(win.focus) }
+    on restore_last { restore win(last_min) }
+    on fullscreen { fullscreen win(win.focus) }
+    on overview { toggle overview }
+    on key Escape while overview { overview = false }
+
+    // ── sharing the screen: what a program in a call wants to show ──
+    // The compositor asks (`win.picking`: 1 a monitor, 2 a window, 3 either):
+    // the overview opens, a window is chosen by pressing it, a whole monitor
+    // by the band on top of it, and nothing with Escape or «Cancel».
+    let sharing = win.picking > 0
+    let share.windows = win.picking >= 2
+    let share.screens = win.picking == 1 or win.picking == 3
+    on change win.picking while win.picking > 0 { overview = true }
+    on change win.picking while win.picking < 1 { overview = false }
+    on key Escape while sharing { pick none }
+    prop share.in = 0 ~160ms
+    follow share.in = if(sharing, 1, 0)
+    repeat s in 0..4 {
+        let band.y = pick(s, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + 52
+        let band.w = if(share.screens, 560, 420)
+        prop screen_glow.$s = 0 ~140ms
+        prop cancel_glow.$s = 0 ~140ms
+        group {
+            z: 99995
+            show: share.in > 0.01 and screen.index == s
+            opacity: share.in
+            move: 0, -14 * (1 - share.in)
+            body {
+                color: #0c0e10
+                rim: 8%
+                shadow: 0, 10, 30, 50%
+                box { at: W / 2, band.y; size: band.w, 56; corner: 28 }
+            }
+            // A red dot, as a camera that is about to see.
+            ellipse { at: W / 2 - band.w / 2 + 28, band.y; radius: 6; color: #ef7a66 }
+            ellipse { at: W / 2 - band.w / 2 + 28, band.y; radius: 10; stroke: 1.5; color: #ef7a66; opacity: 40% }
+            text pick(win.picking - 1, "Share a screen", "Choose a window", "Choose what to share") { at: W / 2 - band.w / 2 + 48, band.y - 8; anchor: left center; size: 13.5; weight: 600; color: ink }
+            text pick(win.picking - 1, "This one, or another", "Press the one to share", "Press a window, or share a whole screen") { at: W / 2 - band.w / 2 + 48, band.y + 10; anchor: left center; size: 11; color: #8b8f95 }
+            group {
+                show: share.screens
+                box { at: W / 2 + band.w / 2 - 190, band.y; size: 150, 36; corner: 18; color: mix(#1a2a25, #24524a, screen_glow.$s) }
+                box { at: W / 2 + band.w / 2 - 190, band.y; size: 150, 36; corner: 18; stroke: 1.2; color: mint; opacity: 50% + 50% * screen_glow.$s }
+                text "This whole screen" { at: W / 2 + band.w / 2 - 190, band.y; anchor: center; size: 12; weight: 600; color: ink }
+                zone box share_screen.$s { at: W / 2 + band.w / 2 - 190, band.y; size: 150, 36; corner: 18; cursor: pointer }
+            }
+            box { at: W / 2 + band.w / 2 - 62, band.y; size: 88, 36; corner: 18; color: mix(#1c1d1f, #3a2424, cancel_glow.$s) }
+            text "Cancel" { at: W / 2 + band.w / 2 - 62, band.y; anchor: center; size: 12; weight: 500; color: ink }
+            zone box share_cancel.$s { at: W / 2 + band.w / 2 - 62, band.y; size: 88, 36; corner: 18; cursor: pointer }
+        }
+        on enter share_screen.$s { screen_glow.$s: 1 }
+        on leave share_screen.$s { screen_glow.$s: 0 }
+        on enter share_cancel.$s { cancel_glow.$s: 1 }
+        on leave share_cancel.$s { cancel_glow.$s: 0 }
+        on press share_screen.$s { pick screen s }
+        on press share_cancel.$s { pick none }
+    }
+    // The keyboard to the next one, or the one before.
+    on focus_next { focus win(next) }
+    on focus_previous { focus win(previous) }
+    // Moving it: left, to lead (and if it already leads, to the monitor on the
+    // left); right, to the monitor on the right; up and down, in the order.
+    on move_left while fplace > 0.5 { promote win(win.focus) }
+    on move_left while fplace < 0.5 and fscreen > 0.5 { send win(win.focus) to 0 }
+    on move_right while fscreen < 0.5 { send win(win.focus) to 1 }
+    on move_up { swap win(win.focus) with win(previous) }
+    on move_down { swap win(win.focus) with win(next) }
+    // The leader narrower or wider.
+    on narrower { ratio = clamp(ratio - 0.05, 0.25, 0.8) }
+    on wider { ratio = clamp(ratio + 0.05, 0.25, 0.8) }
+    // ── into Marea's island, and out of it ──
+    // A window put away is sucked into the island where Marea lives —on its
+    // monitor, or on the other one: Marea says which (`island.screen`)—, up
+    // first, shrinking and fading as it goes, over everything; brought back,
+    // it comes out of it the same way. Drawn on every monitor it crosses, as
+    // a carried one is: monitor 1 starts where monitor 0 ends.
+    fact island.screen = -1
+    repeat i in 0..16 {
+        let sc = win.$i.screen
+        let isl = if(island.screen >= 0, island.screen, sc)
+        // (Eased in: the spring is quick at first, and the melting is to be seen.)
+        let m = pow(mini.$i, 1.8)
+        let off = pick(sc, mx.0, mx.1, mx.2, mx.3) - pick(screen.index, mx.0, mx.1, mx.2, mx.3)
+        let x = x.$i + off
+        let y = y.$i
+        let w = w.$i
+        let h = h.$i
+        // Where it goes, from this monitor's corner: at Marea's left, at her height.
+        let tx = pick(isl, mx.0, mx.1, mx.2, mx.3) - pick(screen.index, mx.0, mx.1, mx.2, mx.3) + pick(isl, screen.0.width, screen.1.width, screen.2.width, screen.3.width) / 2 - 97
+        // (Her height tucked in, as she usually is while a window is being used.)
+        let ty = 30
+        // On its way it melts into water: its corners round off, it turns
+        // Marea's colour and draws out along its path like a falling
+        // drop; halfway a real drop takes over, with two droplets behind it,
+        // and where it lands the island ripples. Brought back, the same
+        // backwards: the drop leaves the ripple and swells into the window.
+        let q = smooth(0.05, 0.5, m)
+        // (It shrinks to the size of the drop by the time the drop takes over.)
+        let s0 = 1 - smooth(0, 0.62, m) * (1 - 22 / max(max(w, h), 22))
+        let cx = x + w / 2 + (tx - x - w / 2) * m
+        let cy = y + h / 2 + (ty - y - h / 2) * (2 * m - m * m)
+        let round = 12 + q * min(w, h) * 0.5
+        group {
+            // (Hands over to the window at the same point it takes over: never
+            // a frame with neither, which a spring's long tail made a second.)
+            show: mini.$i > 0.02 and m < 0.75 and win.$i.open and (screen.index == sc or screen.index == isl)
+            opacity: 1 - smooth(0.5, 0.68, m)
+            pivot: x + w / 2, y + h / 2
+            move: (tx - x - w / 2) * m, (ty - y - h / 2) * (2 * m - m * m)
+            scale: s0 * (1 - 0.2 * sin(180 * m)), s0 * (1 + 0.25 * sin(180 * m))
+            body {
+                color: #0c0e10
+                shadow: 0, 18 * (1 - q), 44, 55%
+                box { from: x, y; size: w, h; corner: round }
+            }
+            group {
+                clip box { from: x, y; size: w, h; corner: round }
+                box { from: x, y; size: w, tb; color: #0f1d1a; opacity: 85% }
+                box { from: x, y + tb - 1; size: w, 1; color: #ffffff; opacity: 9% }
+                text win.$i.title { at: floor(x + 12 + 0.5), floor(y + tb / 2 + 0.5); anchor: left center; size: 11; weight: 600; width: max(w - 100, 10); lines: 1; color: ink; family: "Space Grotesk" }
+                // Its program keeps the size it has while it shrinks into the drop: the
+                // picture is scaled, not the program asked (a browser asked for
+                // 60 × 4 froze).
+                window win.$i { at: x, y + tb; size: w, max(h - tb, 1); ask: win.$i.width, win.$i.height }
+                body {
+                    gradient: x, y to x, y + h, #2b3030, marea 55%, #0e0f0f
+                    opacity: 96% * q
+                    box { from: x, y; size: w, h }
+                }
+            }
+            box { from: x, y; size: w, h; corner: round; stroke: 1.5 + 2 * q; color: ink; opacity: 18% + 10% * q }
+        }
+        let drop = smooth(0.45, 0.62, m) * (1 - smooth(0.9, 0.995, m))
+        let c1 = max(m - 0.07, 0)
+        let c2 = max(m - 0.14, 0)
+        group {
+            show: drop > 0.01 and win.$i.open and (screen.index == sc or screen.index == isl)
+            opacity: drop
+            // Marea's own skin, and its tail melted into it.
+            body {
+                color: marea
+                rim: 22%
+                shadow: 0, 4, 12, 40%
+                ellipse { at: cx, cy; radius: 11; scale: 1 - 0.2 * sin(180 * m), 1 + 0.3 * sin(180 * m) }
+                ellipse { at: x + w / 2 + (tx - x - w / 2) * c1, y + h / 2 + (ty - y - h / 2) * (2 * c1 - c1 * c1); radius: 5.5; blend: 9 }
+                ellipse { at: x + w / 2 + (tx - x - w / 2) * c2, y + h / 2 + (ty - y - h / 2) * (2 * c2 - c2 * c2); radius: 3.2; blend: 7 }
+            }
+            ellipse { at: cx - 3.5, cy - 4.5; radius: 2.4; scale: 1.3, 0.8; color: ink; opacity: 35% }
+        }
+        // The ripple where it lands (or leaves from).
+        prop splash.$i = 1 ~900ms
+        on change win.$i.minimized while win.$i.minimized {
+            splash.$i: 0 ~0ms
+            splash.$i: 1 after 430ms
+        }
+        on change win.$i.minimized while not win.$i.minimized and win.$i.open {
+            splash.$i: 0 ~0ms
+            splash.$i: 1 after 16ms
+        }
+        group {
+            show: splash.$i > 0.001 and splash.$i < 0.995 and screen.index == isl and win.$i.open
+            ellipse { at: tx, ty; radius: 4 + 30 * splash.$i; scale: 1, 0.45; stroke: 2.5 * (1 - splash.$i) + 0.6; color: ink; opacity: 45% * (1 - splash.$i) }
+            ellipse { at: tx, ty; radius: 2 + 20 * max(splash.$i - 0.15, 0); scale: 1, 0.45; stroke: 2 * (1 - splash.$i) + 0.5; color: ink; opacity: 28% * (1 - splash.$i) }
+            ellipse { at: tx, ty - 10 * sin(180 * splash.$i); radius: 2.4 * (1 - splash.$i); color: ink; opacity: 50% * (1 - splash.$i) }
+        }
+    }
+
+    // ── dialogs: a message, a file chooser, a window of another's: over the
+    // rest, at the size it chooses, in the middle of its monitor ──
+    repeat i in 0..16 {
+        let dw = max(win.$i.width, 120)
+        let dh = max(win.$i.height, 40) + tb
+        let dx = (W - dw) / 2
+        let dy = (H - dh) / 2
+        prop dlg.$i = 0 ~220ms
+        let dlg.ws = win.$i.workspace == pick(win.$i.screen, win.shown.0, win.shown.1, win.shown.2, win.shown.3)
+        follow dlg.$i = if(win.$i.dialog and win.$i.open and dlg.ws, 1, 0)
+        group {
+            show: dlg.$i > 0.01 and win.$i.screen == screen.index
+            opacity: dlg.$i
+            pivot: dx + dw / 2, dy + dh / 2
+            scale: 0.94 + 0.06 * dlg.$i
+            body {
+                color: #0c0e10
+                shadow: 0, 18, 44, 55%
+                box { from: dx, dy; size: dw, dh; corner: 12 }
+            }
+            group {
+                clip box { from: dx, dy; size: dw, dh; corner: 12 }
+                box { from: dx, dy; size: dw, tb; color: #1d2b27 }
+                text win.$i.title { at: dx + 14, dy + tb / 2; anchor: left center; size: 12; weight: 500; width: max(dw - 40, 10); lines: 1; color: ink }
+                window win.$i { at: dx, dy + tb; size: win.$i.width, win.$i.height; ask: 0, 0; show: win.$i.dialog and win.$i.open and win.$i.screen == screen.index and dlg.ws }
+            }
+            box { from: dx, dy; size: dw, dh; corner: 12; stroke: 1.5; color: mint; opacity: 70% * win.$i.focused }
+        }
+    }
+
+    // ── fullscreen: one that asked (F11, a video, a game) or Super+F covers
+    // its monitor, over the bar and the other programs' bars ──
+    repeat i in 0..16 {
+        let fs.ws = win.$i.workspace == pick(win.$i.screen, win.shown.0, win.shown.1, win.shown.2, win.shown.3)
+        let fs.here = win.$i.fullscreen and win.$i.open and win.$i.screen == screen.index and fs.ws
+        prop fs.$i = 0 ~160ms
+        follow fs.$i = if(win.$i.fullscreen and win.$i.open and fs.ws, 1, 0)
+        group {
+            show: fs.$i > 0.01 and win.$i.screen == screen.index
+            opacity: fs.$i
+            box { from: 0, 0; size: W, H; color: #000 }
+            window win.$i { at: 0, 0; size: W, H; ask: W, H; show: fs.here }
+        }
+    }
+    // The rain itself, in front of everything: streaks, slanted a little.
+    group {
+        z: 100000
+        show: wet > 0.001
+        opacity: wet
+        particles {
+            at: W / 2, -40; area: W + 300, 1; count: 380
+            life: 0.55s .. 0.9s; speed: 1600 .. 2100
+            direction: 100deg; spread: 3deg; gravity: 0, 0
+            size: 1.2, 0.9; colors: #e4f0ff, #c8dcf0; opacity: 24%, 12%
+            shape: spark; emit: rain
+        }
+    }
+    // And the snow, drifting down in front of everything: big slow flakes and
+    // small quick ones.
+    group {
+        z: 100001
+        show: cold > 0.001
+        opacity: cold
+        particles {
+            at: W / 2, -20; area: W + 200, 1; count: 500
+            life: 9s .. 12s; speed: 120 .. 170
+            direction: 95deg; spread: 30deg; gravity: 0, 4
+            size: 3.2, 2.6; colors: #ffffff, #e8f2ff; opacity: 85%, 60%
+            shape: dot; emit: snow
+        }
+        particles {
+            at: W / 2, -20; area: W + 200, 1; count: 700
+            life: 7s .. 10s; speed: 150 .. 220
+            direction: 100deg; spread: 20deg; gravity: 0, 6
+            size: 1.8, 1.4; colors: #ffffff, #dfeaf7; opacity: 70%, 45%
+            shape: dot; emit: snow
+        }
+    }
+    // Marea follows the mouse from monitor to monitor: she is told which.
+    on change mon while mon == 0 { launch "pleamar-wm --say marea 'emit pointer_monitor 0'" }
+    on change mon while mon == 1 { launch "pleamar-wm --say marea 'emit pointer_monitor 1'" }
+    on change mon while mon == 2 { launch "pleamar-wm --say marea 'emit pointer_monitor 2'" }
+    on change mon while mon == 3 { launch "pleamar-wm --say marea 'emit pointer_monitor 3'" }
+    // Tiled or free, on the monitor under the mouse (Super+W; Marea's menu too).
+    event toggle_free
+    on toggle_free while mon == 0 { free.0 = 1 - free.0 }
+    on toggle_free while mon == 1 { free.1 = 1 - free.1 }
+    on toggle_free while mon == 2 { free.2 = 1 - free.2 }
+    on toggle_free while mon == 3 { free.3 = 1 - free.3 }
+
+    // ── Marea rides a window ──
+    // Marea asks (`emit ride`): she leaves her island by the top edge, and here
+    // she drops onto the title bar of the window with the keyboard. She rides
+    // it: carried, she leans against the move and sways when it stops; shaken
+    // hard, she falls off. She hops to the window you settle on, jumps home
+    // when hers closes or is put away, and a press on her sends her home too.
+    // Back home, Marea is told (`ride_back`) and comes out of her island.
+    // Everything here is in the desktop's coordinates —monitor 1 starts where
+    // monitor 0 ends—, so she can ride a window from one monitor to the other.
+    event ride
+    event unride
+    fact riding = false
+    fact rider = -1
+    fact homing = false
+    fact falling = false
+    fact from.x = 0
+    fact from.y = 0
+    fact fall.dir = 1
+    prop hop = 1 ~650ms                  // from `from` to where she goes: 0 → 1
+    prop drop = 0 ~1300ms                // falling off: 0 → 1
+    // Leaning against the move, and swaying back when it stops.
+    prop sway = 0 ~pop
+    follow sway = clamp(-(mouse.x - lag.x) * 0.007, -0.55, 0.55) * (dragging == rider and rider >= 0)
+    // Her real size, the one she has in her island: a 46 px body, eyes of
+    // 5 × 13, 13 apart and 2.5 below the centre.
+    let r.r = 23
+    // Where Marea lives, as seen from the desktop: the island, just above the top edge.
+    let r.isl = if(island.screen >= 0, island.screen, max(pick(max(rider, 0), win.0.screen, win.1.screen, win.2.screen, win.3.screen, win.4.screen, win.5.screen, win.6.screen, win.7.screen, win.8.screen, win.9.screen, win.10.screen, win.11.screen, win.12.screen, win.13.screen, win.14.screen, win.15.screen), 0))
+    let home.rx = pick(r.isl, mx.0, mx.1, mx.2, mx.3) + pick(r.isl, screen.0.width, screen.1.width, screen.2.width, screen.3.width) / 2 - 50
+    let home.ry = -40
+    on ride while win.focus >= 0 and not riding {
+        riding = true
+        homing = false
+        falling = false
+        rider = win.focus
+        from.x = pick(max(if(island.screen >= 0, island.screen, pick(win.focus, win.0.screen, win.1.screen, win.2.screen, win.3.screen, win.4.screen, win.5.screen, win.6.screen, win.7.screen, win.8.screen, win.9.screen, win.10.screen, win.11.screen, win.12.screen, win.13.screen, win.14.screen, win.15.screen)), 0), mx.0, mx.1, mx.2, mx.3) + pick(max(if(island.screen >= 0, island.screen, pick(win.focus, win.0.screen, win.1.screen, win.2.screen, win.3.screen, win.4.screen, win.5.screen, win.6.screen, win.7.screen, win.8.screen, win.9.screen, win.10.screen, win.11.screen, win.12.screen, win.13.screen, win.14.screen, win.15.screen)), 0), screen.0.width, screen.1.width, screen.2.width, screen.3.width) / 2 - 50
+        from.y = -40
+        hop: 0 ~0ms
+        hop: 1 ~800ms after 16ms
+    }
+    // Nothing to ride: she stays at home.
+    on ride while win.focus < 0 and not riding and screen.index == 0 { launch "pleamar-wm --say marea 'emit ride_back'" }
+    // Home: Marea takes over.
+    on still hop for 60ms while riding and homing and hop > 0.97 {
+        riding = false
+        homing = false
+        rider = -1
+    }
+    on still hop for 60ms while riding and homing and hop > 0.97 and screen.index == 0 { launch "pleamar-wm --say marea 'emit ride_back'" }
+    on still drop for 60ms while falling and drop > 0.97 {
+        falling = false
+        riding = false
+        rider = -1
+    }
+    on still drop for 60ms while falling and drop > 0.97 and screen.index == 0 { launch "pleamar-wm --say marea 'emit ride_back'" }
+    repeat i in 0..16 {
+        let sc = win.$i.screen
+        let carried = dragging == i or (landing == i and win.$i.screen != landing.to)
+        // (On a workspace sliding away, she slides away with it.)
+        let ride.slide = (win.$i.workspace - pick(sc, desk.0, desk.1, desk.2, desk.3)) * (pick(sc, screen.0.width, screen.1.width, screen.2.width, screen.3.width) + gap)
+        // The window's corner on the desktop: where it is laid out, or where
+        // the hand carries it.
+        let wx = if(carried, mouse.x + pick(mon, mx.0, mx.1, mx.2, mx.3) - grab.x, x.$i + dx.$i + ride.slide + pick(sc, mx.0, mx.1, mx.2, mx.3))
+        let wy = if(carried, mouse.y - grab.y, y.$i + dy.$i)
+        // Her seat: on the top edge, left of the buttons; with no room above
+        // it (tiled, against the top of the monitor), in the title bar itself.
+        let seat.x = wx + max(w.$i * 0.5, w.$i - 140)
+        let seat.y = if(wy - r.r + 2 > 8, wy - r.r + 2, wy + tb / 2 - 1)
+        let to.x = if(homing, home.rx, seat.x)
+        let to.y = if(homing, home.ry, seat.y)
+        // On her way she goes up and comes down, like something with weight.
+        let at.x = from.x + (to.x - from.x) * hop
+        let at.y = from.y + (to.y - from.y) * hop - 130 * 4 * hop * (1 - hop)
+        let off = pick(screen.index, mx.0, mx.1, mx.2, mx.3)
+        // Settling on another window: she hops over to it.
+        on still win.focus for 350ms while riding and not homing and not falling and rider == i and win.focus >= 0 and win.focus != i and not win.$i.minimized {
+            from.x = at.x
+            from.y = at.y
+            rider = win.focus
+            hop: 0 ~0ms
+            hop: 1 ~650ms after 16ms
+        }
+        // Hers goes away —closed, put away— or she is asked: home.
+        on change bye.$i while riding and rider == i and not homing and bye.$i > 0.5 {
+            from.x = at.x
+            from.y = at.y
+            homing = true
+            hop: 0 ~0ms
+            hop: 1 ~700ms after 16ms
+        }
+        on change win.$i.minimized while riding and rider == i and not homing and win.$i.minimized {
+            from.x = at.x
+            from.y = at.y
+            homing = true
+            hop: 0 ~0ms
+            hop: 1 ~700ms after 16ms
+        }
+        on unride while riding and rider == i and not homing and not falling {
+            from.x = at.x
+            from.y = at.y
+            homing = true
+            hop: 0 ~0ms
+            hop: 1 ~700ms after 16ms
+        }
+        // Shaken hard while carried: she lets go.
+        on change mouse.x while riding and rider == i and carried and not homing and not falling and hop > 0.97 and abs(mouse.x - lag.x) > 120 {
+            from.x = at.x
+            from.y = at.y
+            fall.dir = -sign(mouse.x - lag.x)
+            falling = true
+            drop: 0 ~0ms
+            drop: 1 ~1300ms after 16ms
+        }
+        // Her, as Marea looks: a drop of coal with two eyes that follow the mouse.
+        // Stretched while in the air, leaning while carried.
+        let st = clamp(abs(vel(hop)) * 0.06, 0, 0.3) * (1 - falling)
+        let px = if(falling, from.x + fall.dir * 90 * drop, at.x) - off
+        let py = if(falling, from.y - 40 * drop + 1500 * drop * drop, at.y)
+        let look = clamp((pointer.x - px) / 160, -1, 1) * 3
+        group {
+            z: 99999
+            show: riding and rider == i
+            opacity: if(falling, 1 - drop * drop, 1)
+            pivot: px, py + r.r
+            rotate: sway + if(falling, fall.dir * drop * 3, 0)
+            scale: 1 - st * 0.4, 1 + st
+            body {
+                color: marea
+                rim: 10%
+                shadow: 0, 4, 10, 35%
+                ellipse { at: px, py; radius: r.r }
+            }
+            box { at: px - 6.5 + look, py + 2.5; size: 5, 13 * (1 - 0.6 * st); corner: 2.5; color: #f5f7f5 }
+            box { at: px + 6.5 + look, py + 2.5; size: 5, 13 * (1 - 0.6 * st); corner: 2.5; color: #f5f7f5 }
+            zone ellipse rider_zone.$i { at: px, py; radius: r.r + 4; cursor: pointer; active: riding and rider == i and not homing and not falling }
+        }
+        on press rider_zone.$i { emit unride }
+    }
+}
