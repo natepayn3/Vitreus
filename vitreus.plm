@@ -343,6 +343,7 @@ scene Vitreus {
     text wp_show_sub = ""           // Next change in 4:31
     text wp_mins_text = ""          // 5 min
     event wp_show_toggle ->
+    fact rand_turn = 0              // how many times Random has been pressed: the die turns once for each
     fact iris_on = true             // Iris, the palette from the wallpaper, is on; off, the shell is monochrome
     event iris_toggle ->
     event wp_mins_step ->           // the stepper: -1 or 1 along a short list of intervals
@@ -586,7 +587,8 @@ scene Vitreus {
     follow pw_hp4 = if(pw_d4, clamp((time - pw_s4) / 1, 0, 1), 0)
     prop pow_th = 1 ~pop                // where the power-profile thumb is: 0 saver, 1 balanced, 2 performance
     prop wp_show_pill = 0 ~pop
-    prop iris_pill = 0 ~calm
+    prop iris_pill = 0 ~pop
+    prop rand_spin = 0 ~pop
     prop set_pg = 0 ~calm
     prop set_pgd = 0 ~calm
     prop set_pgh = 0 ~calm
@@ -641,6 +643,7 @@ scene Vitreus {
     follow pow_th = if(pow_prof < 0, 1, pow_prof)
     follow wp_show_pill = if(wp_show, 1, 0)
     follow iris_pill = if(iris_on, 1, 0)
+    follow rand_spin = rand_turn
     follow set_pg = if(set_page == pg_glass, 1, 0)
     follow set_pgd = if(set_page == pg_disp, 1, 0)
     follow set_pgh = if(set_page == pg_hypr, 1, 0)
@@ -3175,14 +3178,25 @@ scene Vitreus {
             let rhx = spx + 331 * u
             let rhy = sby + 46 * u
             let rhr = 18 * u
-            path { at: rhx, rhy; color: mint; opacity: 16% + 16% * wp_rand_hit.hover; move -0.260 * rhr, -0.850 * rhr; curve 0.260 * rhr, -0.850 * rhr via 0.000 * rhr, -1.000 * rhr; line 0.606 * rhr, -0.650 * rhr; curve 0.866 * rhr, -0.200 * rhr via 0.866 * rhr, -0.500 * rhr; line 0.866 * rhr, 0.200 * rhr; curve 0.606 * rhr, 0.650 * rhr via 0.866 * rhr, 0.500 * rhr; line 0.260 * rhr, 0.850 * rhr; curve -0.260 * rhr, 0.850 * rhr via 0.000 * rhr, 1.000 * rhr; line -0.606 * rhr, 0.650 * rhr; curve -0.866 * rhr, 0.200 * rhr via -0.866 * rhr, 0.500 * rhr; line -0.866 * rhr, -0.200 * rhr; curve -0.606 * rhr, -0.650 * rhr via -0.866 * rhr, -0.500 * rhr; close }
-            path { at: rhx, rhy; stroke: 1.2 * u; color: mint; opacity: 45% + 35% * wp_rand_hit.hover; move -0.260 * rhr, -0.850 * rhr; curve 0.260 * rhr, -0.850 * rhr via 0.000 * rhr, -1.000 * rhr; line 0.606 * rhr, -0.650 * rhr; curve 0.866 * rhr, -0.200 * rhr via 0.866 * rhr, -0.500 * rhr; line 0.866 * rhr, 0.200 * rhr; curve 0.606 * rhr, 0.650 * rhr via 0.866 * rhr, 0.500 * rhr; line 0.260 * rhr, 0.850 * rhr; curve -0.260 * rhr, 0.850 * rhr via 0.000 * rhr, 1.000 * rhr; line -0.606 * rhr, 0.650 * rhr; curve -0.866 * rhr, 0.200 * rhr via -0.866 * rhr, 0.500 * rhr; line -0.866 * rhr, -0.200 * rhr; curve -0.606 * rhr, -0.650 * rhr via -0.866 * rhr, -0.500 * rhr; close }
-            box { at: rhx, rhy; size: 12 * u, 12 * u; corner: 3 * u; stroke: 1.3 * u; color: mint }
-            ellipse { at: rhx - 2.6 * u, rhy - 2.6 * u; radius: 1.05 * u; color: mint }
-            ellipse { at: rhx, rhy; radius: 1.05 * u; color: mint }
-            ellipse { at: rhx + 2.6 * u, rhy + 2.6 * u; radius: 1.05 * u; color: mint }
+            //  On a press it grows as the die turns and throbs back as it settles: `rth` is 0 at rest, 1 half way through the turn
+            //  (how far `rand_spin` has come of the way to `rand_turn`), and dips under 0 where the spring overshoots.
+            let rth = sin(clamp(1 - (rand_turn - rand_spin), 0, 1.3) * 180)
+            group {
+                pivot: rhx, rhy
+                scale: 1 + 0.22 * rth
+                path { at: rhx, rhy; color: mint; opacity: 16% + 16% * wp_rand_hit.hover + 22% * rth; move -0.260 * rhr, -0.850 * rhr; curve 0.260 * rhr, -0.850 * rhr via 0.000 * rhr, -1.000 * rhr; line 0.606 * rhr, -0.650 * rhr; curve 0.866 * rhr, -0.200 * rhr via 0.866 * rhr, -0.500 * rhr; line 0.866 * rhr, 0.200 * rhr; curve 0.606 * rhr, 0.650 * rhr via 0.866 * rhr, 0.500 * rhr; line 0.260 * rhr, 0.850 * rhr; curve -0.260 * rhr, 0.850 * rhr via 0.000 * rhr, 1.000 * rhr; line -0.606 * rhr, 0.650 * rhr; curve -0.866 * rhr, 0.200 * rhr via -0.866 * rhr, 0.500 * rhr; line -0.866 * rhr, -0.200 * rhr; curve -0.606 * rhr, -0.650 * rhr via -0.866 * rhr, -0.500 * rhr; close }
+                path { at: rhx, rhy; stroke: 1.2 * u; color: mint; opacity: 45% + 35% * wp_rand_hit.hover + 20% * rth; move -0.260 * rhr, -0.850 * rhr; curve 0.260 * rhr, -0.850 * rhr via 0.000 * rhr, -1.000 * rhr; line 0.606 * rhr, -0.650 * rhr; curve 0.866 * rhr, -0.200 * rhr via 0.866 * rhr, -0.500 * rhr; line 0.866 * rhr, 0.200 * rhr; curve 0.606 * rhr, 0.650 * rhr via 0.866 * rhr, 0.500 * rhr; line 0.260 * rhr, 0.850 * rhr; curve -0.260 * rhr, 0.850 * rhr via 0.000 * rhr, 1.000 * rhr; line -0.606 * rhr, 0.650 * rhr; curve -0.866 * rhr, 0.200 * rhr via -0.866 * rhr, 0.500 * rhr; line -0.866 * rhr, -0.200 * rhr; curve -0.606 * rhr, -0.650 * rhr via -0.866 * rhr, -0.500 * rhr; close }
+                group {
+                    pivot: rhx, rhy
+                    rotate: rand_spin * 360deg
+                    box { at: rhx, rhy; size: 12 * u, 12 * u; corner: 3 * u; stroke: 1.3 * u; color: mint }
+                    ellipse { at: rhx - 2.6 * u, rhy - 2.6 * u; radius: 1.05 * u; color: mint }
+                    ellipse { at: rhx, rhy; radius: 1.05 * u; color: mint }
+                    ellipse { at: rhx + 2.6 * u, rhy + 2.6 * u; radius: 1.05 * u; color: mint }
+                }
+            }
             zone box wp_rand_hit { at: rhx, rhy; size: 38 * u, 38 * u; corner: 14 * u; cursor: pointer }
-            on press wp_rand_hit { emit wp_random }
+            on press wp_rand_hit { emit wp_random; rand_turn = rand_turn + 1 }
 
             //  Iris, the palette from the wallpaper: a switch, as for the slideshow below. Off, the shell is monochrome. The window borders in
             //  Hyprland follow it too.
