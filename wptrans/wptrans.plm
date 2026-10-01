@@ -23,6 +23,7 @@ scene Wptrans {
     fact oy = 540
     fact hex_r = 56                     // the hexagon's radius, in pixels (the picker's tiles are bigger; this is a finer honeycomb)
     fact dur = 1.5                      // seconds
+    fact wp_dec = 1                     // 1 where the screen encodes a shader's output again (Hyprland), 0 where it does not (pleamar-wm): see the shader
     fact t0 = 0                         // `time` when it began
     prop time = 0
     spin time by if(active, 1, 0)       // the clock runs only while it is on, so that the scene idles at nothing the rest of the time
@@ -32,7 +33,7 @@ scene Wptrans {
 
     group {
         show: active
-        shader: hexr, prog, hex_r, ox, oy, 0.8, 0.45, 0
+        shader: hexr, prog, hex_r, ox, oy, 0.8, 0.45, wp_dec
         image nimg { at: 0, 0; size: screen.width, screen.height }
     }
 }

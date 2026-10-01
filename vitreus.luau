@@ -26,10 +26,37 @@ function exec_on_desktop(cmd)
         run("setsid", { "-f", "sh", "-c", line }, function() end)
     end
 end
-on("go", function(i) sys.call("workspaces.focus", i) end)
+-- Under pleamar-wm there is no `workspaces` service (it comes from Hyprland); the window manager is a scene, so its workspaces are asked of
+-- it over its socket: which one is shown, and which one each window is on.
+function wm_get(name, done) run("pleamar", { "--say", "wm", "get " .. name }, function(out) done(tonumber((out or ""):match("%-?[%d.]+")) or ((out or ""):match("true") and 1) or ((out or ""):match("false") and 0) or nil) end) end
+function wm_workspaces()
+    wm_get("win.shown.0", function(shown)
+        if shown then fact["ws.active"] = shown end
+        -- Windows take slots 0 to 5 (`win.count` is only the ones on the shown workspace).
+        local busy, left = {}, 6
+        for i = 0, 5 do
+            wm_get("win." .. i .. ".open", function(open)
+                local function done(w)
+                    if w then busy[w] = true end
+                    left = left - 1
+                    if left == 0 then for k = 1, 5 do fact["ws." .. k .. ".busy"] = busy[k] or false end end
+                end
+                if open == 1 then wm_get("win." .. i .. ".workspace", done) else done(nil) end
+            end)
+        end
+    end)
+end
+after(1500, function()
+    if not on_hyprland then every(500, wm_workspaces) end
+end)
+function goto_workspace(i)
+    if on_hyprland then sys.call("workspaces.focus", i)
+    else run("pleamar", { "--say", "wm", "emit workspace " .. tonumber(i) }, function() wm_workspaces() end) end
+end
+on("go", goto_workspace)
 -- From the overview: the overview holds the keyboard while it is open, and when it lets go Hyprland gives the focus back to the window
 -- you came from, which would take you straight back. So it closes first and the switch comes once it has let go.
-on("ov_go", function(i) after(250, function() sys.call("workspaces.focus", i) end) end)
+on("ov_go", function(i) after(250, function() goto_workspace(i) end) end)
 
 -- The clock, written the way it is read here: 12 hours with am/pm, and the long date.
 local days = { [0] = "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }
@@ -2814,6 +2841,155 @@ do
     on("hy_refresh", function() hy_read() end)
 end
 
+-- ── Settings > Pleamar-WM ─────────────────────────────────────────────────────────────────────────────────────
+-- The window manager is a scene, so its layout, gaps and effects are facts of it, set over its socket at once and kept in wm.json (the scene
+-- forgets them when it reloads; they are put back when this shell starts). The input lines (pointer, touchpad, idle) are session.conf's,
+-- which pleamar-wm reads when it starts: they are rewritten here and apply at the next login.
+do
+    local wm = { layout = 0, share = 0.56, gap = 12, free = false, rain = false, snow = false }
+    local inp = { ms = 0, ts = 0, nat = false, tap = false, idle = 7, maccel = "adaptive", taccel = "adaptive", dwt = nil }
+    local wm_waiting, in_waiting = false, false
+
+    local function say(line) run("pleamar", { "--say", "wm", line }, function() end) end
+    local function b(v) return v and "true" or "false" end
+
+    local function wm_show()
+        fact.wm_layout = wm.layout
+        fact.wm_share = wm.share
+        fact.wm_gap = wm.gap
+        fact.wm_free = wm.free
+        fact.wm_rain = wm.rain
+        fact.wm_snow = wm.snow
+        fact.wm_ms = inp.ms
+        fact.wm_ts = inp.ts
+        fact.wm_nat = inp.nat
+        fact.wm_tap = inp.tap
+        fact.wm_idle = inp.idle
+        text.wm_share_text = string.format("%d%%", math.floor(wm.share * 100 + 0.5))
+        text.wm_gap_text = string.format("%d px", wm.gap)
+        text.wm_ms_text = string.format("%.2f", inp.ms)
+        text.wm_ts_text = string.format("%.2f", inp.ts)
+        text.wm_idle_text = string.format("%d min", inp.idle)
+    end
+
+    local function wm_send()
+        say("fact gap " .. wm.gap)
+        say("fact ratio " .. wm.share)
+        for m = 0, 3 do
+            say("fact lay." .. m .. " " .. wm.layout)
+            say("fact free." .. m .. " " .. (wm.free and 1 or 0))
+        end
+        say("fact rain " .. b(wm.rain))
+        say("fact snow " .. b(wm.snow))
+    end
+
+    local function wm_save()
+        pcall(sys.call, "files.write", "wm.json", { layout = wm.layout, share = wm.share, gap = wm.gap, free = wm.free, rain = wm.rain, snow = wm.snow })
+    end
+
+    local function wm_changed()
+        wm_show()
+        wm_send()
+        if wm_waiting then return end
+        wm_waiting = true
+        after(800, function() wm_waiting = false; wm_save() end)
+    end
+
+    local function conf_path(fn)
+        with_dirs(function(d) fn((d.conf:gsub("/shells/vitreus$", "")) .. "/session.conf") end)
+    end
+
+    local function onoff(v) return v and "on" or "off" end
+    local function in_write()
+        conf_path(function(path)
+            local pt = string.format("pointer accel %s speed %.2f", inp.maccel, inp.ms)
+            local tp = string.format("touchpad accel %s speed %.2f natural %s tap %s", inp.taccel, inp.ts, onoff(inp.nat), onoff(inp.tap))
+            if inp.dwt ~= nil then tp = tp .. " dwt " .. inp.dwt end
+            -- (two passes: `$a` never fires when the last line is one of those just deleted)
+            run("sed", { "-i", "-E", "-e", "/^(pointer|touchpad|idle) /d", path }, function()
+                run("sed", { "-i", "-e", "$a\\" .. pt, "-e", "$a\\" .. tp, "-e", "$a\\idle off-after " .. inp.idle * 60, path }, function() end)
+            end)
+        end)
+    end
+
+    local function in_changed()
+        wm_show()
+        if in_waiting then return end
+        in_waiting = true
+        after(700, function() in_waiting = false; in_write() end)
+    end
+
+    local function wm_read()
+        local function num(name, cb) wm_get(name, function(v) if v ~= nil then cb(v) end end) end
+        num("gap", function(v) wm.gap = v end)
+        num("ratio", function(v) wm.share = v end)
+        num("lay.0", function(v) wm.layout = v end)
+        num("free.0", function(v) wm.free = v == 1 end)
+        num("rain", function(v) wm.rain = v == 1 end)
+        num("snow", function(v) wm.snow = v == 1 end)
+        conf_path(function(path)
+            run("grep", { "-E", "^(pointer|touchpad|idle) ", path }, function(out)
+                for line in (out or ""):gmatch("[^\n]+") do
+                    local kind = line:match("^(%S+)")
+                    local v = {}
+                    for k, val in line:gsub("^%S+%s+", ""):gmatch("(%S+)%s+(%S+)") do v[k] = val end
+                    if kind == "pointer" then
+                        inp.ms = tonumber(v.speed) or inp.ms
+                        inp.maccel = v.accel or inp.maccel
+                    elseif kind == "touchpad" then
+                        inp.ts = tonumber(v.speed) or inp.ts
+                        inp.taccel = v.accel or inp.taccel
+                        if v.natural then inp.nat = v.natural == "on" end
+                        if v.tap then inp.tap = v.tap == "on" end
+                        inp.dwt = v.dwt or inp.dwt
+                    elseif kind == "idle" then
+                        local secs = tonumber(v["off-after"])
+                        if secs then inp.idle = math.max(1, math.min(30, math.floor(secs / 60 + 0.5))) end
+                    end
+                end
+                wm_show()
+            end)
+        end)
+        after(400, wm_show)
+    end
+
+    wm_show()
+    -- The saved choices go back into the window manager when this shell starts (it forgets them when it reloads).
+    after(3000, function()
+        if on_hyprland then return end
+        local ok, saved = pcall(sys.ask, "files.read", "wm.json", "json")
+        if ok and type(saved) == "table" then
+            wm.layout = math.max(0, math.min(4, tonumber(saved.layout) or 0))
+            wm.share = tonumber(saved.share) or wm.share
+            wm.gap = tonumber(saved.gap) or wm.gap
+            wm.free, wm.rain, wm.snow = saved.free == true, saved.rain == true, saved.snow == true
+            wm_show()
+            wm_send()
+        end
+    end)
+
+    on("wm_layout_set", function(i) wm.layout = math.max(0, math.min(4, math.floor(i + 0.5))); wm_changed() end)
+    on("wm_share_set", function(t) wm.share = math.floor((0.3 + math.max(0, math.min(1, t)) * 0.5) * 100 + 0.5) / 100; wm_changed() end)
+    on("wm_gap_set", function(t) wm.gap = math.floor(math.max(0, math.min(1, t)) * 32 + 0.5); wm_changed() end)
+    on("wm_toggle", function(k)
+        k = math.floor(k + 0.5)
+        if k == 0 then wm.free = not wm.free; wm_changed()
+        elseif k == 1 then wm.rain = not wm.rain; wm_changed()
+        elseif k == 2 then wm.snow = not wm.snow; wm_changed()
+        elseif k == 3 then inp.nat = not inp.nat; in_changed()
+        else inp.tap = not inp.tap; in_changed() end
+    end)
+    on("wm_input_set", function(v)
+        local i = math.floor(v / 10)
+        local t = math.max(0, math.min(1, v - i * 10))
+        if i == 0 then inp.ms = math.floor((t * 2 - 1) * 20 + 0.5) / 20
+        elseif i == 1 then inp.ts = math.floor((t * 2 - 1) * 20 + 0.5) / 20
+        else inp.idle = math.floor(1 + t * 29 + 0.5) end
+        in_changed()
+    end)
+    on("wm_refresh", function() wm_read() end)
+end
+
 -- ── The launcher (SUPER + Space) ──────────────────────────────────────────────────────────────────────────────
 -- The launcher. The scene has a field (`text.lq`) and a list (`model.lres`, six rows at most, with
 -- the chosen one in the middle of the window; the wheel scrolls the window, and the chosen one stays inside it). What is typed picks the search: apps by default (and a sum, if the text
@@ -3152,6 +3328,7 @@ end
         { "Settings: Night mode", "open", open_settings("pg_night"), "nightlight blue light warm tint redshift filter schedule eyes" },
         { "Night mode: toggle", "action", function() spawn('pleamar --say vitreus "emit night_toggle"') end, "nightlight blue light warm tint redshift filter on off" },
         { "Settings: Hyprland", "open", open_settings("pg_hypr"), "window manager gaps border layout animations tearing input keyboard mouse touchpad" },
+        { "Settings: Pleamar-WM", "open", open_settings("pg_wm"), "pleamar wm window manager gaps layout columns rows grid leader floating free rain snow weather pointer mouse touchpad speed natural scroll tap idle screen off keybinds session" },
         { "Settings: About", "open", open_settings("pg_about"), "version info credits vitreus pleamar" },
         { "Settings: System monitor", "open", open_settings("pg_sys"), "cpu gpu ram memory disk network temperature fan processes task manager performance usage" },
         { "Settings: Notifications", "open", open_settings("pg_nt"), "alerts do not disturb dnd sounds rules apps banner mute" },
@@ -4685,7 +4862,16 @@ end)()
         run("hyprctl", { "monitors", "-j" }, function(out, code)
             if code ~= 0 or not out then return end
             local ok, list = pcall(json.decode, out)
-            if not ok or type(list) ~= "table" then return end
+            if not ok or type(list) ~= "table" then
+                -- pleamar-wm's `hyprctl monitors` is text: "1920x1080@60 at 0x0" and "scale: 1.00" under each monitor (the first one).
+                local h = tonumber(out:match("%d+x(%d+)@"))
+                local scale = tonumber(out:match("scale:%s*([%d.]+)")) or 1
+                if h and scale > 0 then
+                    local v = math.floor(h / scale + 0.5)
+                    if v ~= fact.mon_h then fact.mon_h = v end
+                end
+                return
+            end
             local pick = nil
             for _, m in ipairs(list) do
                 if m.focused then pick = m end

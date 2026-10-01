@@ -5,6 +5,7 @@
 local busy = false
 local home = ""
 local counter = 0
+run("printenv", { "HYPRLAND_INSTANCE_SIGNATURE" }, function(out, code) fact.wp_dec = (code == 0 and (out or "") ~= "") and 1 or 0 end)
 run("printenv", { "HOME" }, function(out) home = (out or ""):gsub("%s+$", "") end)
 
 local function finish()

@@ -168,6 +168,12 @@ scene Vitreus {
     event hy_follow_set ->
     event hy_toggle ->
     event hy_refresh ->
+    event wm_layout_set ->
+    event wm_share_set ->
+    event wm_gap_set ->
+    event wm_toggle ->
+    event wm_input_set ->
+    event wm_refresh ->
     //  The launcher (SUPER + Space): what is typed, the results, and which one is chosen.
     event launch_toggle ->          // from a key bind (hypr_vitreus.lua)
     event launch_open ->
@@ -204,7 +210,7 @@ scene Vitreus {
     event glass_reset ->
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
     //  panel's height, which follows the page).
-    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_night | pg_hypr | pg_about | pg_sys | pg_nt | pg_lock = pg_wall
+    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_night | pg_hypr | pg_about | pg_sys | pg_nt | pg_lock | pg_wm = pg_wall
     //  The Bar page: which monitors the bar is on (see the Bar section of vitreus.luau). `bar_scr` is -1 for all
     //  of them, or which monitor tile is chosen.
     fact bar_scr = -1
@@ -585,6 +591,7 @@ scene Vitreus {
     prop set_pgs = 0 ~calm
     prop set_pgt = 0 ~calm
     prop set_pgl = 0 ~calm
+    prop set_pgw = 0 ~calm
     prop set_pgb = 0 ~calm
     prop bs.ws = 1 ~calm              // each piece of the bar, 1 shown .. 0 hidden: its room and its opacity
     prop bs.title = 1 ~calm
@@ -638,6 +645,7 @@ scene Vitreus {
     follow set_pgs = if(set_page == pg_sys, 1, 0)
     follow set_pgt = if(set_page == pg_nt, 1, 0)
     follow set_pgl = if(set_page == pg_lock, 1, 0)
+    follow set_pgw = if(set_page == pg_wm, 1, 0)
     follow bs.ws = if(bv.ws, 1, 0)
     follow bs.title = if(bv.title, 1, 0)
     follow bs.media = if(bv.media, 1, 0)
@@ -663,6 +671,34 @@ scene Vitreus {
     fact hy_tear = false
     fact hy_anim = true
     fact hy_nat = false
+    //  Settings > Pleamar-WM: what the window manager has now (see the logic). The window manager's own facts are set live; the
+    //  input lines go to session.conf and apply at the next login.
+    fact wm_layout = 0
+    fact wm_share = 0.56
+    fact wm_gap = 12
+    fact wm_free = false
+    fact wm_rain = false
+    fact wm_snow = false
+    fact wm_ms = 0
+    fact wm_ts = 0
+    fact wm_nat = false
+    fact wm_tap = false
+    fact wm_idle = 7
+    text wm_share_text = "56%"
+    text wm_gap_text = "12 px"
+    text wm_ms_text = "0.00"
+    text wm_ts_text = "0.00"
+    text wm_idle_text = "7 min"
+    prop wm_k0 = 0 ~quick
+    prop wm_k1 = 0 ~quick
+    prop wm_k2 = 0 ~quick
+    prop wm_k3 = 0 ~quick
+    follow wm_k0 = if(wm_free, 1, 0)
+    follow wm_k1 = if(wm_rain, 1, 0)
+    follow wm_k2 = if(wm_snow, 1, 0)
+    follow wm_k3 = if(wm_nat, 1, 0)
+    prop wm_k4 = 0 ~quick
+    follow wm_k4 = if(wm_tap, 1, 0)
     //  The About page (Settings > System): what this shell is built from, and how to update it.
     text about_commit = "…"
     text about_date = ""
@@ -958,7 +994,7 @@ scene Vitreus {
     on launch_toggle { panel = if(panel == launch, none, launch) }
     on settings_toggle { panel = if(panel == settings, none, settings) }
     on change panel { dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0 }
-    on change set_page { disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; emit hy_refresh }
+    on change set_page { disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; emit hy_refresh; emit wm_refresh }
     on change panel { tasks_watch = panel == player }
     on pick_out { dd_open = false }
     follow pulse = bass
@@ -1565,7 +1601,8 @@ scene Vitreus {
     //  like the others, and move `side.last` to its row: About is always the row after `side.last`, so it stays the final one, and
     //  Settings' minimum height follows it (see `set.h`).
     let side.hy = 226
-    let side.mon = side.hy + 32
+    let side.wm = side.hy + 32
+    let side.mon = side.wm + 32
     let side.nt = side.mon + 32
     let side.lk = side.nt + 32
     let side.last = side.lk
@@ -1577,7 +1614,7 @@ scene Vitreus {
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36
     let nt.h = 246 + 552 - nt.ds + 8 + if(nta_sel >= 0, 456, 0) + 12
-    let set.h = max(side.ab + 40, mix(mix(mix(mix(mix(mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 330, set_pgb), 392, set_pgh), 262, set_pga), 312, set_pgn), 456, set_pgs), 456, set_pgt), 456, set_pgl))
+    let set.h = max(side.ab + 40, mix(mix(mix(mix(mix(mix(mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 330, set_pgb), 392, set_pgh), 262, set_pga), 312, set_pgn), 456, set_pgs), 456, set_pgt), 456, set_pgl), 468, set_pgw))
     //  A held Power button counts its second on this clock, and a recording pulses on it, so they need it too.
     let need_clock = ((wifi_scanning or bt_scanning or bt_working or caf_on or rec_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or nt_urgent)) or (set_pgd > 0.01 and disp.h > 456)
     spin time by if(need_clock, 1, 0)
@@ -2963,13 +3000,14 @@ scene Vitreus {
         }
         text "SETTINGS" { at: floor(sl + 40 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 14 * u; weight: 700; color: ink; family: "Space Grotesk" }
         box { at: sl + 178 * u, hy; size: 132 * u, 22 * u; corner: 11 * u; color: ink; opacity: 6% }
-        text "VISUALS" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 1 - set_pgh - set_pga - set_pgs - set_pgt - set_pgl; family: "Space Grotesk" }
-        text "SYSTEM" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: set_pgh + set_pga + set_pgs + set_pgt + set_pgl; family: "Space Grotesk" }
+        text "VISUALS" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 1 - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw; family: "Space Grotesk" }
+        text "SYSTEM" { at: floor(sl + 122 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw; family: "Space Grotesk" }
         path { at: sl + 168 * u, hy; stroke: 1.3 * u; color: faint; move -2 * u, -3.5 * u; line 2 * u, 0; line -2 * u, 3.5 * u }
-        text "Wallpaper" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs - set_pgt - set_pgl; family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw; family: "Space Grotesk" }
         text "Display" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgd; family: "Space Grotesk" }
         text "Glass" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pg; family: "Space Grotesk" }
         text "Hyprland" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgh; family: "Space Grotesk" }
+        text "Pleamar-WM" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgw; family: "Space Grotesk" }
         text "Bar" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgb; family: "Space Grotesk" }
         text "About" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pga; family: "Space Grotesk" }
         text "Night mode" { at: floor(sl + 176 * u + 0.5), floor(hy + 0.5); anchor: left center; size: 9.5 * u; weight: 700; color: mint; opacity: set_pgn; family: "Space Grotesk" }
@@ -2987,14 +3025,14 @@ scene Vitreus {
         text "VISUALS" { at: floor(sl + 14 * u + 0.5), floor(sby + 18 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
         //  The highlight's place is each page's own selection (a spring, 0 or 1) times its row, summed: a straight line from one row to the next.
         //  (Nested `mix`es bent it: the old row's value falling while the new one rises dragged it back towards the top row and down again.)
-        box { at: sl + 75 * u, sby + (42 + 32 * (set_pg + 2 * set_pgd + 3 * set_pgb + 4 * set_pgn) + (side.hy - 42) * set_pgh + (side.mon - 42) * set_pgs + (side.nt - 42) * set_pgt + (side.lk - 42) * set_pgl + (side.ab - 42) * set_pga) * u; size: 134 * u, 28 * u; corner: 10 * u; color: mint; opacity: 16% }
+        box { at: sl + 75 * u, sby + (42 + 32 * (set_pg + 2 * set_pgd + 3 * set_pgb + 4 * set_pgn) + (side.hy - 42) * set_pgh + (side.wm - 42) * set_pgw + (side.mon - 42) * set_pgs + (side.nt - 42) * set_pgt + (side.lk - 42) * set_pgl + (side.ab - 42) * set_pga) * u; size: 134 * u, 28 * u; corner: 10 * u; color: mint; opacity: 16% }
         group {
-            opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl, 0, 1))
-            box { at: sl + 24 * u, sby + 42 * u; size: 13 * u, 10 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl, 0, 1)) }
-            path { at: sl + 24 * u, sby + 42 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl, 0, 1)); move -5 * u, 3 * u; line -1.5 * u, -1 * u; line 1 * u, 1.5 * u; line 2.5 * u, -1.5 * u; line 5 * u, 3 * u; close }
-            ellipse { at: sl + 27 * u, sby + 39 * u; radius: 1.2 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl, 0, 1)) }
+            opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw, 0, 1))
+            box { at: sl + 24 * u, sby + 42 * u; size: 13 * u, 10 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw, 0, 1)) }
+            path { at: sl + 24 * u, sby + 42 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw, 0, 1)); move -5 * u, 3 * u; line -1.5 * u, -1 * u; line 1 * u, 1.5 * u; line 2.5 * u, -1.5 * u; line 5 * u, 3 * u; close }
+            ellipse { at: sl + 27 * u, sby + 39 * u; radius: 1.2 * u; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw, 0, 1)) }
         }
-        text "Wallpaper" { at: floor(sl + 40 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl, 0, 1); family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 40 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw, 0, 1); family: "Space Grotesk" }
         //  Glass: a pane with a highlight across its corner.
         group {
             opacity: 65% + 35% * set_pg
@@ -3033,6 +3071,15 @@ scene Vitreus {
             line { from: sl + 17 * u, sby + (side.hy - 2) * u; to: sl + 31 * u, sby + (side.hy - 2) * u; width: 1.3 * u; color: mix(ink, mint, set_pgh) }
         }
         text "Hyprland" { at: floor(sl + 40 * u + 0.5), floor(sby + side.hy * u + 0.5); anchor: left center; size: 12 * u; weight: 700; color: mix(ink, mint, set_pgh); opacity: 85% + 15% * set_pgh; family: "Space Grotesk" }
+        //  Pleamar-WM: two tiles side by side.
+        group {
+            opacity: 65% + 35% * set_pgw
+            box { at: sl + 24 * u, sby + side.wm * u; size: 14 * u, 11 * u; corner: 2 * u; stroke: 1.3 * u; color: mix(ink, mint, set_pgw) }
+            line { from: sl + 26 * u, sby + (side.wm - 5.5) * u; to: sl + 26 * u, sby + (side.wm + 5.5) * u; width: 1.3 * u; color: mix(ink, mint, set_pgw) }
+        }
+        text "Pleamar-WM" { at: floor(sl + 40 * u + 0.5), floor(sby + side.wm * u + 0.5); anchor: left center; size: 12 * u; weight: 700; width: 108 * u; lines: 1; color: mix(ink, mint, set_pgw); opacity: 85% + 15% * set_pgw; family: "Space Grotesk" }
+        zone box side_wm { at: sl + 75 * u, sby + side.wm * u; size: 134 * u, 28 * u; corner: 10 * u; cursor: pointer }
+        on press side_wm { set_page = pg_wm }
         //  About: an i in a circle.
         group {
             opacity: 65% + 35% * set_pga
@@ -3081,8 +3128,8 @@ scene Vitreus {
         on press side_gl { set_page = pg_glass }
 
         group {
-            show: set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl < 0.99
-            opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs - set_pgt - set_pgl
+            show: set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw < 0.99
+            opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw
             //  The wallpaper page. Card one: the wallpaper in use, and Random.
             box { at: spx + 219 * u, sby + 46 * u; size: 438 * u, 92 * u; corner: 14 * u; color: ink; opacity: veil }
             group {
@@ -3843,6 +3890,116 @@ scene Vitreus {
                 ellipse { at: spx + (404 - 9 + 18 * tk) * u, ty; radius: 8 * u; color: mix(ink, mint, tk); opacity: 80% + 20% * tk }
                 zone box hy_tg_hit.$i { at: spx + 219 * u, ty; size: 430 * u, 32 * u; corner: 10 * u; cursor: pointer }
                 on press hy_tg_hit.$i { emit hy_toggle(i) }
+            }
+        }
+
+        //  The Pleamar-WM page: layout, gaps and effects (live, kept in wm.json) and the input lines of session.conf (next login).
+        group {
+            show: set_pgw > 0.01
+            opacity: set_pgw
+            let wsl.x0 = spx + 122 * u
+            let wsl.w = 250 * u
+            let wh = 12 * u
+
+            box { at: spx + 219 * u, sby + 94 * u; size: 438 * u, 188 * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: spx + 219 * u, sby + 247 * u; size: 438 * u, 62 * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: spx + 219 * u, sby + 378 * u; size: 438 * u, 156 * u; corner: 14 * u; color: ink; opacity: veil }
+            text "LAYOUT & WINDOWS" { at: floor(spx + 14 * u + 0.5), floor(sby + 13 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text "EFFECTS" { at: floor(spx + 14 * u + 0.5), floor(sby + 204 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text "INPUT  ·  NEXT LOGIN" { at: floor(spx + 14 * u + 0.5), floor(sby + 290 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+
+            //  Layout: where the windows of a monitor go.
+            text "Layout" { at: floor(spx + 14 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+            repeat i in 0..5 {
+                let lx = spx + 164 * u + mod(i, 3) * 90 * u
+                let ly = sby + (42 + floor(i / 3) * 28) * u
+                box { at: lx, ly; size: 84 * u, 24 * u; corner: 12 * u; color: if(wm_layout == i, mint, ink); opacity: if(wm_layout == i, 24%, 8% + 10% * wm_lay_hit.$i.hover) }
+                text pick(i, "Lead left", "Columns", "Rows", "Grid", "Lead right") { at: floor(lx + 0.5), floor(ly + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 80 * u; lines: 1; color: if(wm_layout == i, mint, ink); family: "Space Grotesk" }
+                zone box wm_lay_hit.$i { at: lx, ly; size: 86 * u, 26 * u; corner: 13 * u; cursor: pointer }
+                on press wm_lay_hit.$i { emit wm_layout_set(i) }
+            }
+
+            //  The leader's share of the width, 30 to 80 %.
+            text "Leader width" { at: floor(spx + 14 * u + 0.5), floor(sby + 104 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+            body { color: deep; rim: 9%; box { at: wsl.x0 + wsl.w / 2, sby + 104 * u; size: wsl.w, wh; corner: wh / 2 } }
+            group {
+                glow: 6 * u, 50%, mint
+                body {
+                    gradient: wsl.x0, 0 to wsl.x0 + wsl.w, 0, mintlo, mint 55%, minthi
+                    rim: 22%
+                    box { from: wsl.x0, sby + 104 * u - wh / 2; size: max(0.1, wsl.w * (wm_share - 0.3) / 0.5), wh; corner: wh / 2 }
+                }
+            }
+            text wm_share_text { at: floor(spx + 424 * u + 0.5), floor(sby + 104 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
+            zone box wm_share_hit { at: wsl.x0 + wsl.w / 2, sby + 104 * u; size: wsl.w + 24 * u, 30 * u; cursor: pointer }
+            on press wm_share_hit { emit wm_share_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
+            on drag wm_share_hit { emit wm_share_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
+
+            //  Gaps between windows, 0 to 32 px.
+            text "Gaps" { at: floor(spx + 14 * u + 0.5), floor(sby + 136 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+            body { color: deep; rim: 9%; box { at: wsl.x0 + wsl.w / 2, sby + 136 * u; size: wsl.w, wh; corner: wh / 2 } }
+            group {
+                glow: 6 * u, 50%, mint
+                body {
+                    gradient: wsl.x0, 0 to wsl.x0 + wsl.w, 0, mintlo, mint 55%, minthi
+                    rim: 22%
+                    box { from: wsl.x0, sby + 136 * u - wh / 2; size: max(0.1, wsl.w * wm_gap / 32), wh; corner: wh / 2 }
+                }
+            }
+            text wm_gap_text { at: floor(spx + 424 * u + 0.5), floor(sby + 136 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
+            zone box wm_gap_hit { at: wsl.x0 + wsl.w / 2, sby + 136 * u; size: wsl.w + 24 * u, 30 * u; cursor: pointer }
+            on press wm_gap_hit { emit wm_gap_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
+            on drag wm_gap_hit { emit wm_gap_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
+
+            //  Free-floating windows, as on Windows or KDE.
+            text "Free-floating windows" { at: floor(spx + 14 * u + 0.5), floor(sby + 170 * u + 0.5); anchor: left center; size: 11.5 * u; weight: 600; color: ink; family: "Space Grotesk" }
+            box { at: spx + 404 * u, sby + 170 * u; size: 40 * u, 22 * u; corner: 11 * u; color: mix(ink, mint, wm_k0); opacity: 14% + 34% * wm_k0 + 8% * wm_tg_hit.0.hover }
+            ellipse { at: spx + (404 - 9 + 18 * wm_k0) * u, sby + 170 * u; radius: 8 * u; color: mix(ink, mint, wm_k0); opacity: 80% + 20% * wm_k0 }
+            zone box wm_tg_hit.0 { at: spx + 219 * u, sby + 170 * u; size: 430 * u, 28 * u; corner: 10 * u; cursor: pointer }
+            on press wm_tg_hit.0 { emit wm_toggle(0) }
+
+            //  Effects.
+            repeat i in 1..3 {
+                let ty = sby + (234 + (i - 1) * 30) * u
+                let tk = pick(i - 1, wm_k1, wm_k2)
+                text pick(i - 1, "Rain on the glass", "Snow") { at: floor(spx + 14 * u + 0.5), floor(ty + 0.5); anchor: left center; size: 11.5 * u; weight: 600; color: ink; family: "Space Grotesk" }
+                box { at: spx + 404 * u, ty; size: 40 * u, 22 * u; corner: 11 * u; color: mix(ink, mint, tk); opacity: 14% + 34% * tk + 8% * wm_tg_hit.$i.hover }
+                ellipse { at: spx + (404 - 9 + 18 * tk) * u, ty; radius: 8 * u; color: mix(ink, mint, tk); opacity: 80% + 20% * tk }
+                zone box wm_tg_hit.$i { at: spx + 219 * u, ty; size: 430 * u, 28 * u; corner: 10 * u; cursor: pointer }
+                on press wm_tg_hit.$i { emit wm_toggle(i) }
+            }
+
+            //  Pointer speeds, -1 to 1, and the screen's idle time, 1 to 30 minutes.
+            repeat i in 0..3 {
+                let sy = sby + (320 + i * 30) * u
+                let sv = pick(i, (wm_ms + 1) / 2, (wm_ts + 1) / 2, (wm_idle - 1) / 29)
+                text pick(i, "Mouse speed", "Touchpad speed", "Screen off after") { at: floor(spx + 14 * u + 0.5), floor(sy + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+                body { color: deep; rim: 9%; box { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w, wh; corner: wh / 2 } }
+                group {
+                    glow: 6 * u, 50%, mint
+                    body {
+                        gradient: wsl.x0, 0 to wsl.x0 + wsl.w, 0, mintlo, mint 55%, minthi
+                        rim: 22%
+                        box { from: wsl.x0, sy - wh / 2; size: max(0.1, wsl.w * sv), wh; corner: wh / 2 }
+                    }
+                }
+                text pick(i, wm_ms_text, wm_ts_text, wm_idle_text) { at: floor(spx + 424 * u + 0.5), floor(sy + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
+                zone box wm_in_hit.$i { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w + 24 * u, 30 * u; cursor: pointer }
+                on press wm_in_hit.$i { emit wm_input_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
+                on drag wm_in_hit.$i { emit wm_input_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
+            }
+            box { at: wsl.x0 + wsl.w / 2, sby + 320 * u; size: 1.5 * u, wh + 6 * u; corner: 0.75 * u; color: ink; opacity: 40% }
+            box { at: wsl.x0 + wsl.w / 2, sby + 350 * u; size: 1.5 * u, wh + 6 * u; corner: 0.75 * u; color: ink; opacity: 40% }
+
+            //  Natural scroll and tap to click, for the touchpad.
+            repeat i in 3..5 {
+                let ty = sby + (320 + i * 30) * u
+                let tk = pick(i - 3, wm_k3, wm_k4)
+                text pick(i - 3, "Natural scroll (touchpad)", "Tap to click (touchpad)") { at: floor(spx + 14 * u + 0.5), floor(ty + 0.5); anchor: left center; size: 11.5 * u; weight: 600; color: ink; family: "Space Grotesk" }
+                box { at: spx + 404 * u, ty; size: 40 * u, 22 * u; corner: 11 * u; color: mix(ink, mint, tk); opacity: 14% + 34% * tk + 8% * wm_tg_hit.$i.hover }
+                ellipse { at: spx + (404 - 9 + 18 * tk) * u, ty; radius: 8 * u; color: mix(ink, mint, tk); opacity: 80% + 20% * tk }
+                zone box wm_tg_hit.$i { at: spx + 219 * u, ty; size: 430 * u, 28 * u; corner: 10 * u; cursor: pointer }
+                on press wm_tg_hit.$i { emit wm_toggle(i) }
             }
         }
 

@@ -13,6 +13,12 @@ fn to_light(c: vec3<f32>) -> vec3<f32> {
     return select(pow((v + vec3<f32>(0.055)) / 1.055, vec3<f32>(2.4)), v / 12.92, v <= vec3<f32>(0.04045));
 }
 
+// s.b.z is 1 where the screen encodes what a shader returns (a float surface, as on Hyprland) and 0 where it does not (an 8-bit one, as under
+// pleamar-wm): there the picture is already as it should be, and decoding it would only darken it.
+fn wp_decode(s: Shader, c: vec3<f32>) -> vec3<f32> {
+    return select(c, to_light(c), s.b.z > 0.5);
+}
+
 fn hash(p: vec2<f32>) -> f32 {
     return fract(sin(dot(p, vec2<f32>(12.9898, 78.233))) * 43758.5453);
 }
@@ -22,7 +28,7 @@ fn shade(s: Shader) -> vec4<f32> {
     // Once it is over, the picture itself: no seams where hexagons meet.
     if (s.a.x >= 0.999) {
         let f = inside(s, p);
-        return vec4<f32>(to_light(f.rgb), f.a);
+        return vec4<f32>(wp_decode(s, f.rgb), f.a);
     }
 
     let r = s.a.y;
@@ -71,7 +77,7 @@ fn shade(s: Shader) -> vec4<f32> {
     let cover = 1.0 - smoothstep(-soft, soft, sd) ;
 
     let c0 = inside(s, p);
-    let c = vec4<f32>(to_light(c0.rgb), c0.a);
+    let c = vec4<f32>(wp_decode(s, c0.rgb), c0.a);
     // The edge catches the light while the hexagon is still growing.
     let rim = (1.0 - smoothstep(0.0, 5.0, -sd)) * (1.0 - ease);
     let rgb = mix(c.rgb, vec3<f32>(1.0, 1.0, 1.0), 0.28 * rim);
