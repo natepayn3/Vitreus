@@ -1592,6 +1592,15 @@ local function apply_iris(json)
         -- Written into the data folder, then copied over the scene's palette.
         pcall(sys.call, "files.write", "palette.plm", text_out)
         run("cp", { d.data .. "/palette.plm", d.conf .. "/palette.plm" }, function() end)
+        -- And what pleamar-wm's scene takes from it (the focused window's border: the accent's lighter shade, which shows on glass).
+        local wm_text = "//  Written by Vitreus's logic from the wallpaper (Iris); edits here are overwritten.\n" ..
+            "//  What pleamar-wm's scene takes from it: the colour of the focused window's border.\n\nlibrary WmPalette {\n    let wm_border = " ..
+            pal.minthi .. "\n}\n"
+        if wm_text ~= iris_cfg.last_wm then
+            iris_cfg.last_wm = wm_text
+            pcall(sys.call, "files.write", "wm-palette.plm", wm_text)
+            run("cp", { d.data .. "/wm-palette.plm", d.conf .. "/wm-palette.plm" }, function() end)
+        end
     end)
 end
 
@@ -2903,7 +2912,7 @@ end
 -- forgets them when it reloads; they are put back when this shell starts). The input lines (pointer, touchpad, idle) are session.conf's,
 -- which pleamar-wm reads when it starts: they are rewritten here and apply at the next login.
 do
-    local wm = { layout = 0, share = 0.56, gap = 12, free = false, rain = false, snow = false }
+    local wm = { layout = 0, share = 0.56, gap = 12, free = false, rain = false, snow = false, bw = 1.5, ba = 70, iris = true, rad = 12, shd = 100, tb = 22, tbo = 72 }
     local inp = { ms = 0, ts = 0, nat = false, tap = false, idle = 7, maccel = "adaptive", taccel = "adaptive", dwt = nil }
     local wm_waiting, in_waiting = false, false
 
@@ -2922,6 +2931,14 @@ do
         fact.wm_nat = inp.nat
         fact.wm_tap = inp.tap
         fact.wm_idle = inp.idle
+        fact.wm_bw, fact.wm_ba, fact.wm_iris, fact.wm_rad = wm.bw, wm.ba, wm.iris, wm.rad
+        fact.wm_shd, fact.wm_tb, fact.wm_tbo = wm.shd, wm.tb, wm.tbo
+        text.wm_bw_text = string.format("%.1f px", wm.bw)
+        text.wm_ba_text = string.format("%d%%", wm.ba)
+        text.wm_rad_text = string.format("%d px", wm.rad)
+        text.wm_shd_text = string.format("%d%%", wm.shd)
+        text.wm_tb_text = string.format("%d px", wm.tb)
+        text.wm_tbo_text = string.format("%d%%", wm.tbo)
         text.wm_share_text = string.format("%d%%", math.floor(wm.share * 100 + 0.5))
         text.wm_gap_text = string.format("%d px", wm.gap)
         text.wm_ms_text = string.format("%.2f", inp.ms)
@@ -2938,10 +2955,17 @@ do
         end
         say("fact rain " .. b(wm.rain))
         say("fact snow " .. b(wm.snow))
+        say("fact bw " .. wm.bw)
+        say("fact ba " .. wm.ba)
+        say("fact wb_iris " .. (wm.iris and 1 or 0))
+        say("fact rad " .. wm.rad)
+        say("fact shd " .. wm.shd)
+        say("fact tb " .. wm.tb)
+        say("fact tbo " .. wm.tbo)
     end
 
     local function wm_save()
-        pcall(sys.call, "files.write", "wm.json", { layout = wm.layout, share = wm.share, gap = wm.gap, free = wm.free, rain = wm.rain, snow = wm.snow })
+        pcall(sys.call, "files.write", "wm.json", { layout = wm.layout, share = wm.share, gap = wm.gap, free = wm.free, rain = wm.rain, snow = wm.snow, bw = wm.bw, ba = wm.ba, iris = wm.iris, rad = wm.rad, shd = wm.shd, tb = wm.tb, tbo = wm.tbo })
     end
 
     local function wm_changed()
@@ -2984,6 +3008,13 @@ do
         num("free.0", function(v) wm.free = v == 1 end)
         num("rain", function(v) wm.rain = v == 1 end)
         num("snow", function(v) wm.snow = v == 1 end)
+        num("bw", function(v) wm.bw = v end)
+        num("ba", function(v) wm.ba = v end)
+        num("wb_iris", function(v) wm.iris = v == 1 end)
+        num("rad", function(v) wm.rad = v end)
+        num("shd", function(v) wm.shd = v end)
+        num("tb", function(v) wm.tb = v end)
+        num("tbo", function(v) wm.tbo = v end)
         conf_path(function(path)
             run("grep", { "-E", "^(pointer|touchpad|idle) ", path }, function(out)
                 for line in (out or ""):gmatch("[^\n]+") do
@@ -3020,9 +3051,21 @@ do
             wm.share = tonumber(saved.share) or wm.share
             wm.gap = tonumber(saved.gap) or wm.gap
             wm.free, wm.rain, wm.snow = saved.free == true, saved.rain == true, saved.snow == true
+            wm.bw, wm.ba, wm.rad = tonumber(saved.bw) or wm.bw, tonumber(saved.ba) or wm.ba, tonumber(saved.rad) or wm.rad
+            wm.shd, wm.tb, wm.tbo = tonumber(saved.shd) or wm.shd, tonumber(saved.tb) or wm.tb, tonumber(saved.tbo) or wm.tbo
+            if saved.iris ~= nil then wm.iris = saved.iris == true end
             wm_show()
             wm_send()
         end
+    end)
+
+    -- The scene is read in again when the wallpaper changes the palette (its border takes a colour from it), and that puts every fact back to its
+    -- first value: when the gap is not what was chosen, everything chosen is sent again.
+    every(5000, function()
+        if on_hyprland then return end
+        wm_get("gap", function(v)
+            if v ~= nil and v ~= wm.gap then wm_send() end
+        end)
     end)
 
     on("wm_layout_set", function(i) wm.layout = math.max(0, math.min(4, math.floor(i + 0.5))); wm_changed() end)
@@ -3033,8 +3076,20 @@ do
         if k == 0 then wm.free = not wm.free; wm_changed()
         elseif k == 1 then wm.rain = not wm.rain; wm_changed()
         elseif k == 2 then wm.snow = not wm.snow; wm_changed()
+        elseif k == 5 then wm.iris = not wm.iris; wm_changed()
         elseif k == 3 then inp.nat = not inp.nat; in_changed()
         else inp.tap = not inp.tap; in_changed() end
+    end)
+    on("wm_style_set", function(v)
+        local i = math.floor(v / 10)
+        local t = math.max(0, math.min(1, v - i * 10))
+        if i == 0 then wm.bw = math.floor(t * 12 + 0.5) / 2
+        elseif i == 1 then wm.ba = math.floor(20 + t * 80 + 0.5)
+        elseif i == 2 then wm.rad = math.floor(t * 24 + 0.5)
+        elseif i == 3 then wm.shd = math.floor(t * 200 + 0.5)
+        elseif i == 4 then wm.tb = math.floor(16 + t * 18 + 0.5)
+        else wm.tbo = math.floor(40 + t * 60 + 0.5) end
+        wm_changed()
     end)
     on("wm_input_set", function(v)
         local i = math.floor(v / 10)

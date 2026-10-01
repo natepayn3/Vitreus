@@ -173,6 +173,7 @@ scene Vitreus {
     event wm_gap_set ->
     event wm_toggle ->
     event wm_input_set ->
+    event wm_style_set ->
     event wm_refresh ->
     //  The launcher (SUPER + Space): what is typed, the results, and which one is chosen.
     event launch_toggle ->          // from a key bind (hypr_vitreus.lua)
@@ -684,6 +685,24 @@ scene Vitreus {
     fact wm_nat = false
     fact wm_tap = false
     fact wm_idle = 7
+    fact wm_bw = 1.5
+    fact wm_ba = 70
+    fact wm_iris = true
+    fact wm_rad = 12
+    fact wm_shd = 100
+    fact wm_tb = 22
+    fact wm_tbo = 72
+    text wm_bw_text = "1.5 px"
+    text wm_ba_text = "70%"
+    text wm_rad_text = "12 px"
+    text wm_shd_text = "100%"
+    text wm_tb_text = "22 px"
+    text wm_tbo_text = "72%"
+    prop wm_k5 = 0 ~quick
+    follow wm_k5 = if(wm_iris, 1, 0)
+    fact wm_scroll_to = 0
+    prop wm_scroll = 0 ~quick
+    follow wm_scroll = wm_scroll_to
     text wm_share_text = "56%"
     text wm_gap_text = "12 px"
     text wm_ms_text = "0.00"
@@ -993,8 +1012,8 @@ scene Vitreus {
     follow mvis = if(mixer.count > 0 or vm_open, 1, 0)
     on launch_toggle { panel = if(panel == launch, none, launch) }
     on settings_toggle { panel = if(panel == settings, none, settings) }
-    on change panel { dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0 }
-    on change set_page { disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; emit hy_refresh; emit wm_refresh }
+    on change panel { dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; wm_scroll_to = 0 }
+    on change set_page { disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; wm_scroll_to = 0; emit hy_refresh; emit wm_refresh }
     on change panel { tasks_watch = panel == player }
     on pick_out { dd_open = false }
     follow pulse = bass
@@ -1610,11 +1629,12 @@ scene Vitreus {
     let sm.ds = (4 - clamp(sm_mnt.count, 1, 4)) * 38
     let sm.dt = (8 - clamp(sm_tmp.count, 1, 8)) * 24
     let sm.h = 1536 - sm.ds - sm.dt
+    let wm.h = 722                     // the Pleamar-WM page: to the bottom of its last card
     let lk.h = 728                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36
     let nt.h = 246 + 552 - nt.ds + 8 + if(nta_sel >= 0, 456, 0) + 12
-    let set.h = max(side.ab + 40, mix(mix(mix(mix(mix(mix(mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 330, set_pgb), 392, set_pgh), 262, set_pga), 312, set_pgn), 456, set_pgs), 456, set_pgt), 456, set_pgl), 468, set_pgw))
+    let set.h = max(side.ab + 40, mix(mix(mix(mix(mix(mix(mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 330, set_pgb), 392, set_pgh), 262, set_pga), 312, set_pgn), 456, set_pgs), 456, set_pgt), 456, set_pgl), 456, set_pgw))
     //  A held Power button counts its second on this clock, and a recording pulses on it, so they need it too.
     let need_clock = ((wifi_scanning or bt_scanning or bt_working or caf_on or rec_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or nt_urgent)) or (set_pgd > 0.01 and disp.h > 456)
     spin time by if(need_clock, 1, 0)
@@ -3897,6 +3917,13 @@ scene Vitreus {
         group {
             show: set_pgw > 0.01
             opacity: set_pgw
+            let wm.sc = clamp(wm_scroll, 0, max(0, wm.h - 456))
+            let wm.off = floor(wm.sc * u + 0.5)        // whole pixels: text shifted by a fraction of one is resampled, and looks soft
+            clip box { at: spx + 224 * u, sby + 228 * u; size: 456 * u, 456 * u }
+            zone box wm_wheel { at: spx + 219 * u, sby + 228 * u; size: 446 * u, 456 * u }
+            on scroll wm_wheel { wm_scroll_to = clamp(wm_scroll_to + wheel * 44, 0, max(0, wm.h - 456)) }
+            group {
+            move: 0, -wm.off
             let wsl.x0 = spx + 122 * u
             let wsl.w = 250 * u
             let wh = 12 * u
@@ -3915,7 +3942,7 @@ scene Vitreus {
                 let ly = sby + (42 + floor(i / 3) * 28) * u
                 box { at: lx, ly; size: 84 * u, 24 * u; corner: 12 * u; color: if(wm_layout == i, mint, ink); opacity: if(wm_layout == i, 24%, 8% + 10% * wm_lay_hit.$i.hover) }
                 text pick(i, "Lead left", "Columns", "Rows", "Grid", "Lead right") { at: floor(lx + 0.5), floor(ly + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 80 * u; lines: 1; color: if(wm_layout == i, mint, ink); family: "Space Grotesk" }
-                zone box wm_lay_hit.$i { at: lx, ly; size: 86 * u, 26 * u; corner: 13 * u; cursor: pointer }
+                zone box wm_lay_hit.$i { at: lx, ly; size: 86 * u, 26 * u; corner: 13 * u; cursor: pointer; active: (ly) - sby - wm.off > 0 and (ly) - sby - wm.off < 456 * u }
                 on press wm_lay_hit.$i { emit wm_layout_set(i) }
             }
 
@@ -3931,7 +3958,7 @@ scene Vitreus {
                 }
             }
             text wm_share_text { at: floor(spx + 424 * u + 0.5), floor(sby + 104 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
-            zone box wm_share_hit { at: wsl.x0 + wsl.w / 2, sby + 104 * u; size: wsl.w + 24 * u, 30 * u; cursor: pointer }
+            zone box wm_share_hit { at: wsl.x0 + wsl.w / 2, sby + 104 * u; size: wsl.w + 24 * u, 30 * u; cursor: pointer; active: (sby + 104 * u) - sby - wm.off > 0 and (sby + 104 * u) - sby - wm.off < 456 * u }
             on press wm_share_hit { emit wm_share_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
             on drag wm_share_hit { emit wm_share_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
 
@@ -3947,7 +3974,7 @@ scene Vitreus {
                 }
             }
             text wm_gap_text { at: floor(spx + 424 * u + 0.5), floor(sby + 136 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
-            zone box wm_gap_hit { at: wsl.x0 + wsl.w / 2, sby + 136 * u; size: wsl.w + 24 * u, 30 * u; cursor: pointer }
+            zone box wm_gap_hit { at: wsl.x0 + wsl.w / 2, sby + 136 * u; size: wsl.w + 24 * u, 30 * u; cursor: pointer; active: (sby + 136 * u) - sby - wm.off > 0 and (sby + 136 * u) - sby - wm.off < 456 * u }
             on press wm_gap_hit { emit wm_gap_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
             on drag wm_gap_hit { emit wm_gap_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
 
@@ -3955,7 +3982,7 @@ scene Vitreus {
             text "Free-floating windows" { at: floor(spx + 14 * u + 0.5), floor(sby + 170 * u + 0.5); anchor: left center; size: 11.5 * u; weight: 600; color: ink; family: "Space Grotesk" }
             box { at: spx + 404 * u, sby + 170 * u; size: 40 * u, 22 * u; corner: 11 * u; color: mix(ink, mint, wm_k0); opacity: 14% + 34% * wm_k0 + 8% * wm_tg_hit.0.hover }
             ellipse { at: spx + (404 - 9 + 18 * wm_k0) * u, sby + 170 * u; radius: 8 * u; color: mix(ink, mint, wm_k0); opacity: 80% + 20% * wm_k0 }
-            zone box wm_tg_hit.0 { at: spx + 219 * u, sby + 170 * u; size: 430 * u, 28 * u; corner: 10 * u; cursor: pointer }
+            zone box wm_tg_hit.0 { at: spx + 219 * u, sby + 170 * u; size: 430 * u, 28 * u; corner: 10 * u; cursor: pointer; active: (sby + 170 * u) - sby - wm.off > 0 and (sby + 170 * u) - sby - wm.off < 456 * u }
             on press wm_tg_hit.0 { emit wm_toggle(0) }
 
             //  Effects.
@@ -3965,7 +3992,7 @@ scene Vitreus {
                 text pick(i - 1, "Rain on the glass", "Snow") { at: floor(spx + 14 * u + 0.5), floor(ty + 0.5); anchor: left center; size: 11.5 * u; weight: 600; color: ink; family: "Space Grotesk" }
                 box { at: spx + 404 * u, ty; size: 40 * u, 22 * u; corner: 11 * u; color: mix(ink, mint, tk); opacity: 14% + 34% * tk + 8% * wm_tg_hit.$i.hover }
                 ellipse { at: spx + (404 - 9 + 18 * tk) * u, ty; radius: 8 * u; color: mix(ink, mint, tk); opacity: 80% + 20% * tk }
-                zone box wm_tg_hit.$i { at: spx + 219 * u, ty; size: 430 * u, 28 * u; corner: 10 * u; cursor: pointer }
+                zone box wm_tg_hit.$i { at: spx + 219 * u, ty; size: 430 * u, 28 * u; corner: 10 * u; cursor: pointer; active: (ty) - sby - wm.off > 0 and (ty) - sby - wm.off < 456 * u }
                 on press wm_tg_hit.$i { emit wm_toggle(i) }
             }
 
@@ -3984,7 +4011,7 @@ scene Vitreus {
                     }
                 }
                 text pick(i, wm_ms_text, wm_ts_text, wm_idle_text) { at: floor(spx + 424 * u + 0.5), floor(sy + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
-                zone box wm_in_hit.$i { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w + 24 * u, 30 * u; cursor: pointer }
+                zone box wm_in_hit.$i { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w + 24 * u, 30 * u; cursor: pointer; active: (sy) - sby - wm.off > 0 and (sy) - sby - wm.off < 456 * u }
                 on press wm_in_hit.$i { emit wm_input_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
                 on drag wm_in_hit.$i { emit wm_input_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
             }
@@ -3998,8 +4025,36 @@ scene Vitreus {
                 text pick(i - 3, "Natural scroll (touchpad)", "Tap to click (touchpad)") { at: floor(spx + 14 * u + 0.5), floor(ty + 0.5); anchor: left center; size: 11.5 * u; weight: 600; color: ink; family: "Space Grotesk" }
                 box { at: spx + 404 * u, ty; size: 40 * u, 22 * u; corner: 11 * u; color: mix(ink, mint, tk); opacity: 14% + 34% * tk + 8% * wm_tg_hit.$i.hover }
                 ellipse { at: spx + (404 - 9 + 18 * tk) * u, ty; radius: 8 * u; color: mix(ink, mint, tk); opacity: 80% + 20% * tk }
-                zone box wm_tg_hit.$i { at: spx + 219 * u, ty; size: 430 * u, 28 * u; corner: 10 * u; cursor: pointer }
+                zone box wm_tg_hit.$i { at: spx + 219 * u, ty; size: 430 * u, 28 * u; corner: 10 * u; cursor: pointer; active: (ty) - sby - wm.off > 0 and (ty) - sby - wm.off < 456 * u }
                 on press wm_tg_hit.$i { emit wm_toggle(i) }
+            }
+
+            //  Window style: the border, the corners, the shadow and the title bar.
+            box { at: spx + 219 * u, sby + 599 * u; size: 438 * u, 214 * u; corner: 14 * u; color: ink; opacity: veil }
+            text "WINDOW STYLE" { at: floor(spx + 14 * u + 0.5), floor(sby + 480 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text "Border from the wallpaper" { at: floor(spx + 14 * u + 0.5), floor(sby + 512 * u + 0.5); anchor: left center; size: 11.5 * u; weight: 600; color: ink; family: "Space Grotesk" }
+            box { at: spx + 404 * u, sby + 512 * u; size: 40 * u, 22 * u; corner: 11 * u; color: mix(ink, mint, wm_k5); opacity: 14% + 34% * wm_k5 + 8% * wm_tg_hit.5.hover }
+            ellipse { at: spx + (404 - 9 + 18 * wm_k5) * u, sby + 512 * u; radius: 8 * u; color: mix(ink, mint, wm_k5); opacity: 80% + 20% * wm_k5 }
+            zone box wm_tg_hit.5 { at: spx + 219 * u, sby + 512 * u; size: 430 * u, 28 * u; corner: 10 * u; cursor: pointer; active: (sby + 512 * u) - sby - wm.off > 0 and (sby + 512 * u) - sby - wm.off < 456 * u }
+            on press wm_tg_hit.5 { emit wm_toggle(5) }
+            repeat i in 0..6 {
+                let sy = sby + (542 + i * 30) * u
+                let sv = pick(i, wm_bw / 6, (wm_ba - 20) / 80, wm_rad / 24, wm_shd / 200, (wm_tb - 16) / 18, (wm_tbo - 40) / 60)
+                text pick(i, "Border width", "Border strength", "Corner radius", "Shadow", "Title bar height", "Title bar glass") { at: floor(spx + 14 * u + 0.5), floor(sy + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+                body { color: deep; rim: 9%; box { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w, wh; corner: wh / 2 } }
+                group {
+                    glow: 6 * u, 50%, mint
+                    body {
+                        gradient: wsl.x0, 0 to wsl.x0 + wsl.w, 0, mintlo, mint 55%, minthi
+                        rim: 22%
+                        box { from: wsl.x0, sy - wh / 2; size: max(0.1, wsl.w * sv), wh; corner: wh / 2 }
+                    }
+                }
+                text pick(i, wm_bw_text, wm_ba_text, wm_rad_text, wm_shd_text, wm_tb_text, wm_tbo_text) { at: floor(spx + 424 * u + 0.5), floor(sy + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
+                zone box wm_st_hit.$i { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w + 24 * u, 30 * u; cursor: pointer; active: sy - sby - wm.off > 0 and sy - sby - wm.off < 456 * u }
+                on press wm_st_hit.$i { emit wm_style_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
+                on drag wm_st_hit.$i { emit wm_style_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
+            }
             }
         }
 
