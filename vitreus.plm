@@ -73,6 +73,8 @@ scene Vitreus {
     measure lhw3
     measure lhw4
     measure titw                   // and its window title
+    measure vclw                   // the same two, at the size they are drawn down the left bar
+    measure vtiw
     measure chw                    // the bar clock's hour, minutes and am/pm: how wide each really is; the bar's
     measure cmw                    // buttons and the calendar's click area are placed from them
     measure caw
@@ -628,6 +630,8 @@ scene Vitreus {
     prop set_pgb = 0 ~calm
     prop bs.ws = 1 ~calm              // each piece of the bar, 1 shown .. 0 hidden: its room and its opacity
     prop bs.title = 1 ~calm
+    prop bs.media0 = 1 ~calm
+    prop bs.title0 = 1 ~calm
     prop bs.media = 1 ~calm
     prop bs.sr = 1 ~calm
     prop bs.ctl = 1 ~calm
@@ -686,6 +690,8 @@ scene Vitreus {
     follow bs.ws = if(bv.ws, 1, 0)
     follow bs.title = if(bv.title and bar_anchor == top, 1, 0)
     follow bs.media = if(bv.media and bar_anchor == top, 1, 0)
+    follow bs.media0 = if(bv.media, 1, 0)
+    follow bs.title0 = if(bv.title, 1, 0)
     follow bs.sr = if(bv.sr, 1, 0)
     follow bs.ctl = if(bv.ctl, 1, 0)
     follow bs.clock = if(bv.clock, 1, 0)
@@ -1479,13 +1485,15 @@ scene Vitreus {
     let vc = screen.height / 2
     let ccx = mix(cx, (lf.w + screen.width - lf.t) / 2, lm)         // the middle of what can be seen: right of the strip, inside the frame
     let ps = mix(1, 1.25, lm)
-    let att = if(lp_k == 3 or lp_k == 4 or lp_k > 6, 1, 0)           // the control center, the calendar, the volume and the notifications: they stay joined to the strip, and are not scaled
+    let att = if(lp_k == 3 or lp_k == 4 or lp_k == 6 or lp_k > 6, 1, 0)           // the control center, the calendar, the volume and the notifications: they stay joined to the strip, and are not scaled
     let psk = if(att > 0.5, 1, ps)
+    let rgt = if(lp_k > 6, 1, 0)                                    // the volume and the notifications come out of the right frame, not the strip, and grow leftwards
+    let edg = if(lp_k == 1 or lp_k == 2, 1, 0)                      // Settings rises out of the bottom frame's middle, the launcher lowers out of the top frame's: not from the strip
     let dsl = max(0, dtrav * 1.3 - 0.3)
     let lp.gx0 = ccx + (lf.x - ccx) / psk
     let lp.gxf = ccx - (pw_x / 2 + 6.5) * u
     let lp.xl = mix(lp.gx0 + (lp.gxf - lp.gx0) * dsl, lf.x, att)
-    let pcx = mix(cx, mix(ccx - (lp.gxf - lp.gx0) * (1 - dsl), lf.w + 6.5 * u + pw_x * u / 2, att), lm)
+    let pcx = mix(cx, mix(mix(ccx - (lp.gxf - lp.gx0) * (1 - dsl), ccx, edg), mix(lf.w + 6.5 * u + pw_x * u / 2, screen.width - lf.t - 6.5 * u - pw_x * u / 2, rgt), att), lm)
     //  The surface is a fixed 1440 tall (`size: full, full` would lose the bar's reserved strip), so on a monitor of another height
     //  `screen.height` is not the screen. The logic reports the monitor's real height (`mon_h`, 0 until it is known, and always 0
     //  where it cannot ask): `vh` is what to centre on (never more than the surface, which is all there is to draw on), `mh` the
@@ -1578,6 +1586,15 @@ scene Vitreus {
     let lv.ctl = lv.clk - 46 * u
     let lv.sr = lv.ctl - 32 * u
     let lv.set = lv.sr - 32 * u
+    //  The window title down the left, as in Synoptik's ActiveWindowCard: the app and its title turned a quarter anticlockwise (read from the foot
+    //  up), centred in what the other pieces leave (`lv.tt` to `lv.bot`), with the player's buttons stacked at its top end while there is a player.
+    let lv.tt = lv.tray + max(0, trn * 24 - 6) * u + 14 * u
+    let lv.bot = lv.set - 22 * u
+    let lv.mc = 62 * u * mshow * bs.media0            // what the player's buttons take, along the title
+    let lv.span = clamp(max(vclw.width, vtiw.width), 0, max(1, lv.bot - lv.tt - lv.mc))     // how long the text is (cut where the stretch ends)
+    let lv.y0 = (lv.tt + lv.bot) / 2 - (lv.span + lv.mc) / 2     // the top of buttons and text together, which are centred as one
+    let lv.mid = lv.y0 + 31 * u                       // the buttons' middle (previous nearest the text, 17 apart)
+    let lv.tm = lv.y0 + lv.mc + lv.span / 2           // the text's middle
 
     //  The music only moves the bar: it fades out as the panel opens (gone by a third of
     //  the way), so an open panel sits still.
@@ -1740,13 +1757,16 @@ scene Vitreus {
     //  Down the left, where the open panel is (`lp_k`: which was opened last), in its own coordinates: it ends up in the middle of the screen,
     //  except the volume, which is low, and the notification, which is high. It leaves the strip at the height of its button (`lp.btn`; the volume
     //  and the notification leave at their own height) and its middle travels from there to its place with the drop (`lp.cy`). `pw_y` follows its top.
-    let lp.btn = if(lp_k == 1, lv.set, if(lp_k == 2, lv.sr, if(lp_k == 3, lv.ctl, if(lp_k == 4, lv.clk + 24 * u, if(lp_k == 5, lv.tray + 9 * u, if(lp_k == 6, lv.tray, 0))))))
+    let lp.btn = if(lp_k == 1, screen.height - lf.t / 2, if(lp_k == 2, lf.t / 2, if(lp_k == 3, lv.ctl, if(lp_k == 4, lv.clk + 24 * u, if(lp_k == 5, lv.tray + 9 * u, if(lp_k == 6, lv.tm, 0))))))
     //  Margins: the plates are 12 in from a drawer's top and bottom in their own layouts and 18.5 in from its sides, so a panel's content is moved by
     //  `lp.dy` and the drawer made `lp.dd` taller to make them 18.5 all round (Settings included).
     let lp.dy = if(lp_k == 1, 4.5, if(lp_k == 2 or lp_k == 3 or lp_k == 5 or lp_k == 6 or lp_k == 7 or lp_k == 8, 6.5, if(lp_k == 4, -0.5, 0))) * u * lm
     let lp.dd = if(lp_k == 1, 11, if(lp_k == 2, 11, if(lp_k == 3 or lp_k == 5 or lp_k == 6 or lp_k == 7 or lp_k == 8, 13, if(lp_k == 4, 6, 0)))) * u * lm
     let lp.hd = (if(lp_k == 1, (8 + 36 + 8 + set.h + 16) * u, if(lp_k == 2, (112 + lr * 44) * u, if(lp_k == 3, (content_bot + 16) * u, if(lp_k == 4, 373 * u, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * u, (8 + osd_h + 16) * u)))))) + lp.dd
-    let lp.yf = if(lp_k == 3 or lp_k == 4, clamp(lp.btn, lf.t + 24 * u + lp.hd / 2, screen.height - lf.t - 24 * u - lp.hd / 2), if(lp_k == 7, screen.height - lf.t - 24 * u - lp.hd / 2, if(lp_k == 8, lf.t + 24 * u + lp.hd / 2, vc)))
+    //  Where it settles, as drawn (`ty`): Settings low, the launcher high, a good way from the middle, and clear of the frame; then back to the panel's
+    //  own coordinates (the contents are scaled about the middle of the screen).
+    let lp.ty = if(lp_k == 1, min(vc + 190 * u, screen.height - lf.t - 24 * u - lp.hd * psk / 2), max(vc - 210 * u, lf.t + 24 * u + lp.hd * psk / 2))
+    let lp.yf = if(lp_k == 1 or lp_k == 2, vc + (lp.ty - vc) / psk, if(lp_k == 3 or lp_k == 4 or lp_k == 6, clamp(lp.btn, lf.t + 24 * u + lp.hd / 2, screen.height - lf.t - 24 * u - lp.hd / 2), if(lp_k == 7, screen.height - lf.t - 24 * u - lp.hd / 2, if(lp_k == 8, lf.t + 24 * u + lp.hd / 2, vc))))
     let lp.sy0 = if(lp_k > 6, lp.yf, lp.btn)
     let lp.gy0 = if(att > 0.5, lp.yf, vc + (lp.btn - vc) / psk)
     let lp.cy = lp.gy0 + (lp.yf - lp.gy0) * dsl
@@ -1779,7 +1799,13 @@ scene Vitreus {
     let dj.stray = 5.5 * u * pstray * lm * (1 - att)
     let dj.stretch = clamp(vel(dtrav) * 0.04, 0, 0.3) * lm
     let dj.y0 = lp.sy0
-    let dj.px = if(lm > 0.5, 0, 30000)
+    let dj.ey = if(lp_k == 1, screen.height - lf.t / 2, lf.t / 2)     // the frame edge a drop comes out of (bottom for Settings, top for the launcher)
+    let dj.es = if(lp_k == 1, -1, 1)                                  // and which way the small stray drop hangs from it: up, or down
+    //  Those four shapes are never zero-size (a floor of 0.3 keeps them valid), so left in place they are a sliver on the strip's edge at the height of
+    //  the panel last opened. They are only in play while a panel that drips is on its way or just after it (its ripples and stray drop), and
+    //  off the screen the rest of the time (`show:` does not take a shape off the glass).
+    let dj.act = if(lm > 0.5 and att < 0.5 and (dtrav > 0.02 or prip < 0.98 or pstray > 0.01 or abs(pbounce) > 0.2), 1, 0)
+    let dj.px = if(dj.act > 0.5, 0, 30000)
     //  Each drawer's shape as it is drawn (`*.ex`, `*.ey` its middle, `*.ew`, `*.eh` its size). From the top bar it is the drawer above: it falls,
     //  widening on the way. Down the left it comes out sideways from the strip instead: it starts small and grows in both ways (`*.lf`, the same quick
     //  rise the width has above) around the panel's own vertical middle, and to the right, from the strip's middle to where the panel ends (`*.rt`, 6.5 past the plates' side: with the 6.5 in `pcx` it makes the margin all round (strip side, right, top) the same, 18.5; the calendar's and the launcher's are 450 wide here, not the bar's width, which grows with the tray icons). Its contents stay where
@@ -1789,7 +1815,7 @@ scene Vitreus {
     let dk.rt = mix(2 * (156 + 6.5) * u, (lf.w - lf.x) + 325 * u, att)
     let dk.gw = max(0.1, dk.rt * dk.lf)
     let dk.gh = (((content_bot + 16) * u) + lp.dd + max(0, sag)) * dk.lf
-    let dk.gx = lp.xl + dk.gw / 2
+    let dk.gx = mix(lp.xl + dk.gw / 2, ccx, edg)
     let dk.ew = mix(dk.w, psk * dk.gw, lm)
     let dk.eh = mix(dk.hh, psk * dk.gh, lm)
     let dk.ex = mix(pcx, ccx + psk * (dk.gx - ccx), lm)
@@ -1799,7 +1825,7 @@ scene Vitreus {
     let dc.rt = mix(2 * (225 + 6.5) * u, (lf.w - lf.x) + 463 * u, att)
     let dc.gw = max(0.1, dc.rt * dc.lf)
     let dc.gh = ((373 * u) + lp.dd + max(0, sag)) * dc.lf
-    let dc.gx = lp.xl + dc.gw / 2
+    let dc.gx = mix(lp.xl + dc.gw / 2, ccx, edg)
     let dc.ew = mix(dc.w, psk * dc.gw, lm)
     let dc.eh = mix((bar.y + dc.hh - dc.top), psk * dc.gh, lm)
     let dc.ex = mix(pcx, ccx + psk * (dc.gx - ccx), lm)
@@ -1809,7 +1835,7 @@ scene Vitreus {
     let ds.rt = 2 * (310 + 6.5) * u
     let ds.gw = max(0.1, ds.rt * ds.lf)
     let ds.gh = (((8 + 36 + 8 + set.h + 16) * u) + lp.dd + max(0, sag)) * ds.lf
-    let ds.gx = lp.xl + ds.gw / 2
+    let ds.gx = mix(lp.xl + ds.gw / 2, ccx, edg)
     let ds.ew = mix(ss.w, psk * ds.gw, lm)
     let ds.eh = mix(ss.hh, psk * ds.gh, lm)
     let ds.ex = mix(pcx, ccx + psk * (ds.gx - ccx), lm)
@@ -1819,27 +1845,27 @@ scene Vitreus {
     let dl.rt = 2 * (225 + 6.5) * u
     let dl.gw = max(0.1, dl.rt * dl.lf)
     let dl.gh = (((112 + lr * 44) * u) + lp.dd + max(0, sag)) * dl.lf
-    let dl.gx = lp.xl + dl.gw / 2
+    let dl.gx = mix(lp.xl + dl.gw / 2, ccx, edg)
     let dl.ew = mix(dl.w, psk * dl.gw, lm)
     let dl.eh = mix((bar.y + dl.hh - dl.top), psk * dl.gh, lm)
     let dl.ex = mix(pcx, ccx + psk * (dl.gx - ccx), lm)
     let dl.ey = mix((dl.top + bar.y + dl.hh) / 2, vc + psk * (lp.cy - vc), lm)
     let do.gl = mix(min(dtrav, do0), do0, att)
     let do.lf = mix(min(1, do0 * 1.6) + max(0, do0 - 1) * 0.6, min(1, do.gl * 1.6) + max(0, do.gl - 1) * 0.6, lm)
-    let do.rt = mix(2 * (170 + 6.5) * u, (lf.w - lf.x) + 353 * u, att)
+    let do.rt = mix(2 * (170 + 6.5) * u, mix((lf.w - lf.x) + 353 * u, lf.t + 353 * u, rgt), att)
     let do.gw = max(0.1, do.rt * do.lf)
     let do.gh = (((8 + osd_h + 16) * u) + lp.dd + max(0, sag)) * do.lf
-    let do.gx = lp.xl + do.gw / 2
+    let do.gx = mix(mix(lp.xl + do.gw / 2, ccx, edg), screen.width - do.gw / 2, rgt)
     let do.ew = mix(os.w, psk * do.gw, lm)
     let do.eh = mix(os.hh, psk * do.gh, lm)
     let do.ex = mix(pcx, ccx + psk * (do.gx - ccx), lm)
     let do.ey = mix(bar.y + os.hh / 2, vc + psk * (lp.cy - vc), lm)
-    let dm.gl = min(dtrav, dm0)
+    let dm.gl = mix(min(dtrav, dm0), dm0, att)
     let dm.lf = mix(min(1, dm0 * 1.6) + max(0, dm0 - 1) * 0.6, min(1, dm.gl * 1.6) + max(0, dm.gl - 1) * 0.6, lm)
-    let dm.rt = 2 * (156 + 6.5) * u
+    let dm.rt = mix(2 * (156 + 6.5) * u, (lf.w - lf.x) + 325 * u, att)
     let dm.gw = max(0.1, dm.rt * dm.lf)
     let dm.gh = (((if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * u) + lp.dd + max(0, sag)) * dm.lf
-    let dm.gx = lp.xl + dm.gw / 2
+    let dm.gx = mix(lp.xl + dm.gw / 2, ccx, edg)
     let dm.ew = mix(dm.w, psk * dm.gw, lm)
     let dm.eh = mix(dm.hh, psk * dm.gh, lm)
     let dm.ex = mix(pcx, ccx + psk * (dm.gx - ccx), lm)
@@ -1889,18 +1915,19 @@ scene Vitreus {
             //  Down the left: the strip, and the frame's other two edges, plain rectangles. The inside corners are rounded by a ring: a rounded
             //  rectangle drawn as an outline as thick as the frame, whose inner edge is the opening (its left side lies in the strip), so the corners
             //  are exact curves and the glass's edge light runs round them unbroken. The ring has NO NAME on purpose: a named shape takes clicks across
-            //  its whole bounding box, and the ring's is the whole screen. When the left layout is not in it is moved 30000 px away
+            //  its whole bounding box, and the ring's is the whole screen. The ring is 50 * u thicker than the frame, outwards, so that its outer curve is off
+            //  the screen: inside the screen it made a one-pixel speck of edge light at the corners. When the left layout is not in it is moved 30000 px away
             //  (`show:` does not take it off the glass, and a ring thinned to a hair counts as a filled box and frosts the whole screen).
             //  The strip's side of the drip (see `dj.*`): all melted into the strip and the drawers, so that the neck and the bulge are not drawn, they are
             //  what the distances between the shapes make. Moved off the screen outside the left layout (`show:` does not take a shape off the glass).
-            ellipse { at: lf.w + dj.px, dj.y0; radius: 30 * u; scale: dj.sag / (30 * u), 1; blend: 16 * u * clamp(dj.sag / (6 * u), 0, 1) }
-            ellipse { at: lf.w + dj.px, dj.y0 - dj.ripx; radius: 9 * u; scale: max(dj.riph, 0.3) / (9 * u), 1; blend: 8 * u * clamp(dj.riph / (3 * u), 0, 1) }
-            ellipse { at: lf.w + dj.px, dj.y0 + dj.ripx; radius: 9 * u; scale: max(dj.riph, 0.3) / (9 * u), 1; blend: 8 * u * clamp(dj.riph / (3 * u), 0, 1) }
-            ellipse { at: lf.w + dj.stray * 0.7 + dj.px, dj.y0; radius: max(dj.stray, 0.3); blend: 7 * u * clamp(dj.stray / (3 * u), 0, 1) }
+            ellipse { at: mix(lf.w, ccx, edg) + dj.px, mix(dj.y0, dj.ey, edg); radius: 30 * u; scale: mix(dj.sag / (30 * u), 1, edg), mix(1, dj.sag / (30 * u), edg); blend: 16 * u * clamp(dj.sag / (6 * u), 0, 1) }
+            ellipse { at: mix(lf.w, ccx - dj.ripx, edg) + dj.px, mix(dj.y0 - dj.ripx, dj.ey, edg); radius: 9 * u; scale: mix(max(dj.riph, 0.3) / (9 * u), 1, edg), mix(1, max(dj.riph, 0.3) / (9 * u), edg); blend: 8 * u * clamp(dj.riph / (3 * u), 0, 1) }
+            ellipse { at: mix(lf.w, ccx + dj.ripx, edg) + dj.px, mix(dj.y0 + dj.ripx, dj.ey, edg); radius: 9 * u; scale: mix(max(dj.riph, 0.3) / (9 * u), 1, edg), mix(1, max(dj.riph, 0.3) / (9 * u), edg); blend: 8 * u * clamp(dj.riph / (3 * u), 0, 1) }
+            ellipse { at: mix(lf.w + dj.stray * 0.7, ccx, edg) + dj.px, mix(dj.y0, dj.ey + dj.es * dj.stray * 0.7, edg); radius: max(dj.stray, 0.3); blend: 7 * u * clamp(dj.stray / (3 * u), 0, 1) }
             box lf_left { at: lf.w * lm / 2, screen.height / 2; size: lf.w * lm, screen.height; show: lm > 0.004 }
             box lf_right { at: screen.width - lf.t * lm / 2, screen.height / 2; size: lf.t * lm, screen.height; show: lm > 0.004 }
             box lf_bottom { at: cx, screen.height - lf.t * lm / 2; size: screen.width, lf.t * lm; show: lm > 0.004 }
-            box { from: lf.w - lf.t / 2 + if(lm > 0.35, 0, 30000), lf.t / 2 + if(lm > 0.35, 0, 30000); size: screen.width - lf.w, screen.height - lf.t; corner: 12 * u + lf.t / 2; stroke: lf.t * max(lm, 0.35) }
+            box { from: lf.w - (lf.t + 50 * u) / 2 + if(lm > 0.35, 0, 30000), lf.t - (lf.t + 50 * u) / 2 + if(lm > 0.35, 0, 30000); size: screen.width - lf.t - lf.w + lf.t + 50 * u, screen.height - 2 * lf.t + lf.t + 50 * u; corner: 12 * u + (lf.t + 50 * u) / 2; stroke: lf.t * max(lm, 0.35) + 50 * u * lm }
             //  The drawer is a second shape in the same glass. `blend` melts it into the bar, so where the
             //  narrow drawer meets the wide bar there is a liquid neck, not a corner. It is only there
             //  while it has size: a zero-size shape would leave a stray shadow behind.
@@ -1909,7 +1936,7 @@ scene Vitreus {
             box sdrawer { at: ds.ex, ds.ey; size: ds.ew * (1 + dj.stretch - 0.07 * ds.bell + 0.003 * wobble), ds.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(ds.ew, ds.eh) / 2, 26 * u, clamp(ds0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * ds.bell) * u * min(1, ds0 * 4), dj.neck, lm); show: ds0 > 0.004 }
             box ldrawer { at: dl.ex, dl.ey; size: dl.ew * (1 + dj.stretch - 0.07 * dl.bell + 0.003 * wobble), dl.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dl.ew, dl.eh) / 2, 26 * u, clamp(dl0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * dl.bell) * u * min(1, dl0 * 4) * (1 - dl.f * (1 - lm)), dj.neck, lm); show: dl0 > 0.004 }
             box odrawer { at: do.ex, do.ey; size: do.ew * (1 + dj.stretch - 0.07 * do.bell + 0.003 * wobble), do.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(do.ew, do.eh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * do.bell) * u * min(1, do0 * 4), mix(dj.neck, (16 + 20 * do.bell) * u * min(1, do0 * 4), att), lm); show: do0 > 0.004 }
-            box mdrawer { at: dm.ex, dm.ey; size: dm.ew * (1 + dj.stretch - 0.07 * dm.bell + 0.003 * wobble), dm.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dm.ew, dm.eh) / 2, 26 * u, clamp(dm0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * dm.bell) * u * min(1, dm0 * 4), dj.neck, lm); show: dm0 > 0.004 }
+            box mdrawer { at: dm.ex, dm.ey; size: dm.ew * (1 + dj.stretch - 0.07 * dm.bell + 0.003 * wobble), dm.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dm.ew, dm.eh) / 2, 26 * u, clamp(dm0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * dm.bell) * u * min(1, dm0 * 4), mix(dj.neck, (16 + 20 * dm.bell) * u * min(1, dm0 * 4), att), lm); show: dm0 > 0.004 }
         }
         //  The battery gauge, inside the bar with a thick margin of empty glass round it (`bf.m`). It is only there
         //  while `batt_open` (the pointer is on the bar, or the charge is under 20 %): it fades in and grows a little
@@ -1993,7 +2020,9 @@ scene Vitreus {
         //  It is only as wide as the text it holds (never past `win.w`, never thinner than a
         //  fingertip), not the whole gap up to the clock. Unseen copies, with no width limit,
         //  only to know how wide the app name and the title really are.
-        text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; lines: 1; measure: clsw; opacity: 0; family: "Space Grotesk" }
+        text win.class { at: 0, 0; anchor: left center; size: 12.5 * u; weight: 600; lines: 1; measure: vclw; opacity: 0; family: "Space Grotesk" }
+    text win.title { at: 0, 0; anchor: left center; size: 11.5 * u; weight: 500; lines: 1; measure: vtiw; opacity: 0; family: "Space Grotesk" }
+    text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; lines: 1; measure: clsw; opacity: 0; family: "Space Grotesk" }
         text win.title { at: floor(win.x + 0.5), floor(bar.y + 8.75 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 500; lines: 1; measure: titw; opacity: 0; family: "Space Grotesk" }
         //  While a player exists its buttons (previous, play, next: 48 wide) sit in this button's top right, beside the app name.
         let mctl = 54 * u * mshow * bs.media * bs.title
@@ -2022,6 +2051,14 @@ scene Vitreus {
             on press bp.next { emit mcmd(2) }
         }
 
+        zone box vt_hit { at: lf.x, lv.tm; size: lf.w - 6 * u, max(1, lv.span); cursor: pointer; active: lm > 0.5 and bv.title and lv.span > 20 * u }
+        on press vt_hit { panel = if(panel == player, none, player) }
+        zone box vm_prev { at: lf.x, lv.mid + 17 * u; size: 30 * u, 17 * u; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
+        zone box vm_play { at: lf.x, lv.mid; size: 30 * u, 17 * u; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
+        zone box vm_next { at: lf.x, lv.mid - 17 * u; size: 30 * u, 17 * u; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
+        on press vm_prev { emit mcmd(0) }
+        on press vm_play { emit mcmd(1) }
+        on press vm_next { emit mcmd(2) }
         zone box set_hit { at: mix(set.x, lf.x, lm), mix(bar.y, lv.set, lm); size: mix(24 * u, 36 * u, lm), mix(bar.h, 30 * u, lm); cursor: pointer }
         on press set_hit { panel = if(panel == settings, none, settings) }
 
@@ -2080,6 +2117,20 @@ scene Vitreus {
             path { at: mcx + 17 * u, mcy; color: ink; opacity: 65% + 35% * bp.next.hover; move -3 * u, -3.5 * u; line 2.5 * u, 0; line -3 * u, 3.5 * u; close }
             box { at: mcx + 20.5 * u, mcy; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * bp.next.hover }
         }
+        //  Down the left the player's buttons are the top bar's own, turned with the title (a quarter anticlockwise, so they read from the foot up:
+        //  previous nearest the text, next at the far end), at the top end of it.
+        group {
+            opacity: mshow * bs.media0 * lm
+            pivot: lf.x, lv.mid
+            rotate: -90deg
+            box { at: lf.x - 20.5 * u, lv.mid; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * vm_prev.hover }
+            path { at: lf.x - 17 * u, lv.mid; color: ink; opacity: 65% + 35% * vm_prev.hover; move 3 * u, -3.5 * u; line -2.5 * u, 0; line 3 * u, 3.5 * u; close }
+            box { at: lf.x - 3 * u, lv.mid; size: 2.6 * u, 9 * u; corner: 1 * u; color: ink; opacity: 85% + 15% * vm_play.hover; show: media.playing }
+            box { at: lf.x + 3 * u, lv.mid; size: 2.6 * u, 9 * u; corner: 1 * u; color: ink; opacity: 85% + 15% * vm_play.hover; show: media.playing }
+            path { at: lf.x, lv.mid; color: ink; opacity: 85% + 15% * vm_play.hover; show: not media.playing; move -3 * u, -4.5 * u; line 7 * u, 0; line -3 * u, 4.5 * u; close }
+            path { at: lf.x + 17 * u, lv.mid; color: ink; opacity: 65% + 35% * vm_next.hover; move -3 * u, -3.5 * u; line 2.5 * u, 0; line -3 * u, 3.5 * u; close }
+            box { at: lf.x + 20.5 * u, lv.mid; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * vm_next.hover }
+        }
         //  The settings button: a gear, between the player's buttons and the controls button.
         group {
             opacity: 65% + 35% * max(set_hit.hover, clamp(ds, 0, 1))
@@ -2127,6 +2178,20 @@ scene Vitreus {
     text clock_h { at: floor(lf.x + 0.5), floor(lv.clk + 0.5); anchor: center; align: center; size: 30; weight: 700; color: ink; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     text clock_mn { at: floor(lf.x + 0.5), floor(lv.clk + 26 * u + 0.5); anchor: center; align: center; size: 22; weight: 700; color: mint; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     text bar_ap { at: floor(lf.x + 0.5), floor(lv.clk + 46 * u + 0.5); anchor: center; align: center; size: 12; weight: 600; color: faint; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    //  The window title down the left: the app, and under it (to its right once turned) the title, turned a quarter anticlockwise so that it reads
+    //  from the foot up, each centred on the strip's middle line and on the stretch `lv.tm` and cut with an ellipsis where that ends.
+    group {
+        pivot: lf.x - 8 * u, lv.tm
+        rotate: -90deg
+        opacity: lm * bs.title0
+        text win.class { at: floor(lf.x - 8 * u + 0.5), floor(lv.tm + 0.5); anchor: center; align: center; size: 12.5 * u; weight: 600; width: max(1, lv.span); lines: 1; color: faint; opacity: 70%; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    }
+    group {
+        pivot: lf.x + 8 * u, lv.tm
+        rotate: -90deg
+        opacity: lm * bs.title0
+        text win.title { at: floor(lf.x + 8 * u + 0.5), floor(lv.tm + 0.5); anchor: center; align: center; size: 11.5 * u; weight: 500; width: max(1, lv.span); lines: 1; color: ink; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    }
     text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; width: max(0, win.hw - 12 * u - mctl); lines: 1; color: faint; opacity: 55% * bs.title; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     text win.title { at: floor(win.x + 0.5), floor(bar.y + 8.75 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 500; width: max(0, win.hw - 12 * u); lines: 1; color: ink; opacity: bs.title; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
 
@@ -2305,9 +2370,9 @@ scene Vitreus {
             zone box vol_plate { at: pcx, vol_cy + (vp.h - 64) / 2 * u; size: 288 * u, vp.h * u; corner: 14 * u }
             on press right vol_plate { vm_open = not vm_open; dd_open = false }
             zone box vol_hit { at: sl.x0 + sl.w / 2, sy; size: sl.w + 16 * u, 24 * u; cursor: pointer }
-            on press vol_hit { emit setvol(clamp(((ccx + (pointer.x - ccx) / ps) - sl.x0) / sl.w, 0, 1)) }
+            on press vol_hit { emit setvol(clamp(((ccx + (pointer.x - ccx) / psk) - sl.x0) / sl.w, 0, 1)) }
             on press right vol_hit { vm_open = not vm_open; dd_open = false }
-            on drag vol_hit { emit setvol(clamp(((ccx + (pointer.x - ccx) / ps) - sl.x0) / sl.w, 0, 1)) }
+            on drag vol_hit { emit setvol(clamp(((ccx + (pointer.x - ccx) / psk) - sl.x0) / sl.w, 0, 1)) }
             //  Three small dots at the foot of the plate say there is more under it: the mixer. They are a button too
             //  (right-clicking the plate does the same).
             repeat i in 0..3 {
@@ -2388,8 +2453,8 @@ scene Vitreus {
                 }
             }
             zone box bright_hit { at: bsl.x0 + bsl.w / 2, bsy; size: bsl.w + 28 * u, 34 * u; cursor: pointer; active: brightness.present and bright_avail }
-            on press bright_hit { emit setbright(clamp(((ccx + (pointer.x - ccx) / ps) - bsl.x0) / bsl.w, 0, 1)) }
-            on drag bright_hit { emit setbright(clamp(((ccx + (pointer.x - ccx) / ps) - bsl.x0) / bsl.w, 0, 1)) }
+            on press bright_hit { emit setbright(clamp(((ccx + (pointer.x - ccx) / psk) - bsl.x0) / bsl.w, 0, 1)) }
+            on drag bright_hit { emit setbright(clamp(((ccx + (pointer.x - ccx) / psk) - bsl.x0) / bsl.w, 0, 1)) }
             text number(bright_level * 100, 0, "%") { at: floor(pcx + 128 * u + 0.5), floor(bcy - 14 * u + 0.5); anchor: right center; size: 16 * u; weight: 600; color: ink; family: "Space Grotesk"; show: brightness.present and bright_avail }
             text "No backlight" { at: floor(pcx + 128 * u + 0.5), floor(bcy - 14 * u + 0.5); anchor: right center; size: 13 * u; color: faint; family: "Space Grotesk"; show: not brightness.present }
             text "brightnessctl missing" { at: floor(pcx + 128 * u + 0.5), floor(bcy - 14 * u + 0.5); anchor: right center; size: 12 * u; color: faint; family: "Space Grotesk"; show: brightness.present and not bright_avail }
@@ -2896,7 +2961,7 @@ scene Vitreus {
     //  the same glass as the bar. Its content is clipped to the drawer's shape.
     group {
         pivot: ccx, vc
-        scale: ps
+        scale: psk
         clip inset 2 box { at: mix(pcx, dm.gx, lm), mix(bar.y + dm.hh / 2, lp.cy, lm); size: mix(dm.w, dm.gw, lm), mix(dm.hh, dm.gh, lm); corner: 26 * u }
         //  The player. A sliver with nothing playing — a note and a word, the same
         //  shape as the Wi-Fi and Bluetooth rows below it — that grows into the full
