@@ -251,6 +251,109 @@ scene Session {
         }
     }
 
+    // ── the workspaces at a glance (Super+Tab): beside the windows of the one shown, a column of cards at the right of each monitor, one for
+    // each workspace in use and an empty one last, with a +. A card pressed shows its workspace; dragged to another monitor, the whole
+    // workspace goes there. Each card has the programs' icons of its windows. (Ported from pleamar-wm's own overview.) ──
+    fact pdrag.s = -1                    // the card being carried: its monitor, and its workspace (from 0)
+    fact pdrag.k = 0
+    // Each window's turn among the ones in its card: how many before it are open, on its monitor and workspace.
+    let ic.slot.0 = 0
+    let ic.slot.1 = (win.0.open and win.0.screen == win.1.screen and win.0.workspace == win.1.workspace)
+    let ic.slot.2 = (win.0.open and win.0.screen == win.2.screen and win.0.workspace == win.2.workspace) + (win.1.open and win.1.screen == win.2.screen and win.1.workspace == win.2.workspace)
+    let ic.slot.3 = (win.0.open and win.0.screen == win.3.screen and win.0.workspace == win.3.workspace) + (win.1.open and win.1.screen == win.3.screen and win.1.workspace == win.3.workspace) + (win.2.open and win.2.screen == win.3.screen and win.2.workspace == win.3.workspace)
+    let ic.slot.4 = (win.0.open and win.0.screen == win.4.screen and win.0.workspace == win.4.workspace) + (win.1.open and win.1.screen == win.4.screen and win.1.workspace == win.4.workspace) + (win.2.open and win.2.screen == win.4.screen and win.2.workspace == win.4.workspace) + (win.3.open and win.3.screen == win.4.screen and win.3.workspace == win.4.workspace)
+    let ic.slot.5 = (win.0.open and win.0.screen == win.5.screen and win.0.workspace == win.5.workspace) + (win.1.open and win.1.screen == win.5.screen and win.1.workspace == win.5.workspace) + (win.2.open and win.2.screen == win.5.screen and win.2.workspace == win.5.workspace) + (win.3.open and win.3.screen == win.5.screen and win.3.workspace == win.5.workspace) + (win.4.open and win.4.screen == win.5.screen and win.4.workspace == win.5.workspace)
+    let ic.slot.6 = (win.0.open and win.0.screen == win.6.screen and win.0.workspace == win.6.workspace) + (win.1.open and win.1.screen == win.6.screen and win.1.workspace == win.6.workspace) + (win.2.open and win.2.screen == win.6.screen and win.2.workspace == win.6.workspace) + (win.3.open and win.3.screen == win.6.screen and win.3.workspace == win.6.workspace) + (win.4.open and win.4.screen == win.6.screen and win.4.workspace == win.6.workspace) + (win.5.open and win.5.screen == win.6.screen and win.5.workspace == win.6.workspace)
+    let ic.slot.7 = (win.0.open and win.0.screen == win.7.screen and win.0.workspace == win.7.workspace) + (win.1.open and win.1.screen == win.7.screen and win.1.workspace == win.7.workspace) + (win.2.open and win.2.screen == win.7.screen and win.2.workspace == win.7.workspace) + (win.3.open and win.3.screen == win.7.screen and win.3.workspace == win.7.workspace) + (win.4.open and win.4.screen == win.7.screen and win.4.workspace == win.7.workspace) + (win.5.open and win.5.screen == win.7.screen and win.5.workspace == win.7.workspace) + (win.6.open and win.6.screen == win.7.screen and win.6.workspace == win.7.workspace)
+    let ic.slot.8 = (win.0.open and win.0.screen == win.8.screen and win.0.workspace == win.8.workspace) + (win.1.open and win.1.screen == win.8.screen and win.1.workspace == win.8.workspace) + (win.2.open and win.2.screen == win.8.screen and win.2.workspace == win.8.workspace) + (win.3.open and win.3.screen == win.8.screen and win.3.workspace == win.8.workspace) + (win.4.open and win.4.screen == win.8.screen and win.4.workspace == win.8.workspace) + (win.5.open and win.5.screen == win.8.screen and win.5.workspace == win.8.workspace) + (win.6.open and win.6.screen == win.8.screen and win.6.workspace == win.8.workspace) + (win.7.open and win.7.screen == win.8.screen and win.7.workspace == win.8.workspace)
+    let ic.slot.9 = (win.0.open and win.0.screen == win.9.screen and win.0.workspace == win.9.workspace) + (win.1.open and win.1.screen == win.9.screen and win.1.workspace == win.9.workspace) + (win.2.open and win.2.screen == win.9.screen and win.2.workspace == win.9.workspace) + (win.3.open and win.3.screen == win.9.screen and win.3.workspace == win.9.workspace) + (win.4.open and win.4.screen == win.9.screen and win.4.workspace == win.9.workspace) + (win.5.open and win.5.screen == win.9.screen and win.5.workspace == win.9.workspace) + (win.6.open and win.6.screen == win.9.screen and win.6.workspace == win.9.workspace) + (win.7.open and win.7.screen == win.9.screen and win.7.workspace == win.9.workspace) + (win.8.open and win.8.screen == win.9.screen and win.8.workspace == win.9.workspace)
+    let ic.slot.10 = (win.0.open and win.0.screen == win.10.screen and win.0.workspace == win.10.workspace) + (win.1.open and win.1.screen == win.10.screen and win.1.workspace == win.10.workspace) + (win.2.open and win.2.screen == win.10.screen and win.2.workspace == win.10.workspace) + (win.3.open and win.3.screen == win.10.screen and win.3.workspace == win.10.workspace) + (win.4.open and win.4.screen == win.10.screen and win.4.workspace == win.10.workspace) + (win.5.open and win.5.screen == win.10.screen and win.5.workspace == win.10.workspace) + (win.6.open and win.6.screen == win.10.screen and win.6.workspace == win.10.workspace) + (win.7.open and win.7.screen == win.10.screen and win.7.workspace == win.10.workspace) + (win.8.open and win.8.screen == win.10.screen and win.8.workspace == win.10.workspace) + (win.9.open and win.9.screen == win.10.screen and win.9.workspace == win.10.workspace)
+    let ic.slot.11 = (win.0.open and win.0.screen == win.11.screen and win.0.workspace == win.11.workspace) + (win.1.open and win.1.screen == win.11.screen and win.1.workspace == win.11.workspace) + (win.2.open and win.2.screen == win.11.screen and win.2.workspace == win.11.workspace) + (win.3.open and win.3.screen == win.11.screen and win.3.workspace == win.11.workspace) + (win.4.open and win.4.screen == win.11.screen and win.4.workspace == win.11.workspace) + (win.5.open and win.5.screen == win.11.screen and win.5.workspace == win.11.workspace) + (win.6.open and win.6.screen == win.11.screen and win.6.workspace == win.11.workspace) + (win.7.open and win.7.screen == win.11.screen and win.7.workspace == win.11.workspace) + (win.8.open and win.8.screen == win.11.screen and win.8.workspace == win.11.workspace) + (win.9.open and win.9.screen == win.11.screen and win.9.workspace == win.11.workspace) + (win.10.open and win.10.screen == win.11.screen and win.10.workspace == win.11.workspace)
+    let ic.slot.12 = (win.0.open and win.0.screen == win.12.screen and win.0.workspace == win.12.workspace) + (win.1.open and win.1.screen == win.12.screen and win.1.workspace == win.12.workspace) + (win.2.open and win.2.screen == win.12.screen and win.2.workspace == win.12.workspace) + (win.3.open and win.3.screen == win.12.screen and win.3.workspace == win.12.workspace) + (win.4.open and win.4.screen == win.12.screen and win.4.workspace == win.12.workspace) + (win.5.open and win.5.screen == win.12.screen and win.5.workspace == win.12.workspace) + (win.6.open and win.6.screen == win.12.screen and win.6.workspace == win.12.workspace) + (win.7.open and win.7.screen == win.12.screen and win.7.workspace == win.12.workspace) + (win.8.open and win.8.screen == win.12.screen and win.8.workspace == win.12.workspace) + (win.9.open and win.9.screen == win.12.screen and win.9.workspace == win.12.workspace) + (win.10.open and win.10.screen == win.12.screen and win.10.workspace == win.12.workspace) + (win.11.open and win.11.screen == win.12.screen and win.11.workspace == win.12.workspace)
+    let ic.slot.13 = (win.0.open and win.0.screen == win.13.screen and win.0.workspace == win.13.workspace) + (win.1.open and win.1.screen == win.13.screen and win.1.workspace == win.13.workspace) + (win.2.open and win.2.screen == win.13.screen and win.2.workspace == win.13.workspace) + (win.3.open and win.3.screen == win.13.screen and win.3.workspace == win.13.workspace) + (win.4.open and win.4.screen == win.13.screen and win.4.workspace == win.13.workspace) + (win.5.open and win.5.screen == win.13.screen and win.5.workspace == win.13.workspace) + (win.6.open and win.6.screen == win.13.screen and win.6.workspace == win.13.workspace) + (win.7.open and win.7.screen == win.13.screen and win.7.workspace == win.13.workspace) + (win.8.open and win.8.screen == win.13.screen and win.8.workspace == win.13.workspace) + (win.9.open and win.9.screen == win.13.screen and win.9.workspace == win.13.workspace) + (win.10.open and win.10.screen == win.13.screen and win.10.workspace == win.13.workspace) + (win.11.open and win.11.screen == win.13.screen and win.11.workspace == win.13.workspace) + (win.12.open and win.12.screen == win.13.screen and win.12.workspace == win.13.workspace)
+    let ic.slot.14 = (win.0.open and win.0.screen == win.14.screen and win.0.workspace == win.14.workspace) + (win.1.open and win.1.screen == win.14.screen and win.1.workspace == win.14.workspace) + (win.2.open and win.2.screen == win.14.screen and win.2.workspace == win.14.workspace) + (win.3.open and win.3.screen == win.14.screen and win.3.workspace == win.14.workspace) + (win.4.open and win.4.screen == win.14.screen and win.4.workspace == win.14.workspace) + (win.5.open and win.5.screen == win.14.screen and win.5.workspace == win.14.workspace) + (win.6.open and win.6.screen == win.14.screen and win.6.workspace == win.14.workspace) + (win.7.open and win.7.screen == win.14.screen and win.7.workspace == win.14.workspace) + (win.8.open and win.8.screen == win.14.screen and win.8.workspace == win.14.workspace) + (win.9.open and win.9.screen == win.14.screen and win.9.workspace == win.14.workspace) + (win.10.open and win.10.screen == win.14.screen and win.10.workspace == win.14.workspace) + (win.11.open and win.11.screen == win.14.screen and win.11.workspace == win.14.workspace) + (win.12.open and win.12.screen == win.14.screen and win.12.workspace == win.14.workspace) + (win.13.open and win.13.screen == win.14.screen and win.13.workspace == win.14.workspace)
+    let ic.slot.15 = (win.0.open and win.0.screen == win.15.screen and win.0.workspace == win.15.workspace) + (win.1.open and win.1.screen == win.15.screen and win.1.workspace == win.15.workspace) + (win.2.open and win.2.screen == win.15.screen and win.2.workspace == win.15.workspace) + (win.3.open and win.3.screen == win.15.screen and win.3.workspace == win.15.workspace) + (win.4.open and win.4.screen == win.15.screen and win.4.workspace == win.15.workspace) + (win.5.open and win.5.screen == win.15.screen and win.5.workspace == win.15.workspace) + (win.6.open and win.6.screen == win.15.screen and win.6.workspace == win.15.workspace) + (win.7.open and win.7.screen == win.15.screen and win.7.workspace == win.15.workspace) + (win.8.open and win.8.screen == win.15.screen and win.8.workspace == win.15.workspace) + (win.9.open and win.9.screen == win.15.screen and win.9.workspace == win.15.workspace) + (win.10.open and win.10.screen == win.15.screen and win.10.workspace == win.15.workspace) + (win.11.open and win.11.screen == win.15.screen and win.11.workspace == win.15.workspace) + (win.12.open and win.12.screen == win.15.screen and win.12.workspace == win.15.workspace) + (win.13.open and win.13.screen == win.15.screen and win.13.workspace == win.15.workspace) + (win.14.open and win.14.screen == win.15.screen and win.14.workspace == win.15.workspace)
+    repeat i in 0..16 {
+        image appicon.$i = from win.$i.icon, 64, 64
+    }
+    // How many cards, how big, and where, on each monitor (a `let` in a repeat is only seen inside it).
+    let pc.n.0 = min(max(win.pools.0, win.used.0 + 1), 10)
+    let pc.w.0 = min(screen.0.width * 0.12, (screen.0.height - 160 - (pc.n.0 - 1) * 20) / pc.n.0 * screen.0.width / max(screen.0.height, 1))
+    let pc.h.0 = pc.w.0 * screen.0.height / max(screen.0.width, 1)
+    let pc.x.0 = screen.0.width - pc.w.0 - 40
+    let pc.y.0 = screen.0.height / 2 - (pc.n.0 * pc.h.0 + (pc.n.0 - 1) * 20) / 2
+    let pc.n.1 = min(max(win.pools.1, win.used.1 + 1), 10)
+    let pc.w.1 = min(screen.1.width * 0.12, (screen.1.height - 160 - (pc.n.1 - 1) * 20) / pc.n.1 * screen.1.width / max(screen.1.height, 1))
+    let pc.h.1 = pc.w.1 * screen.1.height / max(screen.1.width, 1)
+    let pc.x.1 = screen.1.width - pc.w.1 - 40
+    let pc.y.1 = screen.1.height / 2 - (pc.n.1 * pc.h.1 + (pc.n.1 - 1) * 20) / 2
+    let pc.n.2 = min(max(win.pools.2, win.used.2 + 1), 10)
+    let pc.w.2 = min(screen.2.width * 0.12, (screen.2.height - 160 - (pc.n.2 - 1) * 20) / pc.n.2 * screen.2.width / max(screen.2.height, 1))
+    let pc.h.2 = pc.w.2 * screen.2.height / max(screen.2.width, 1)
+    let pc.x.2 = screen.2.width - pc.w.2 - 40
+    let pc.y.2 = screen.2.height / 2 - (pc.n.2 * pc.h.2 + (pc.n.2 - 1) * 20) / 2
+    let pc.n.3 = min(max(win.pools.3, win.used.3 + 1), 10)
+    let pc.w.3 = min(screen.3.width * 0.12, (screen.3.height - 160 - (pc.n.3 - 1) * 20) / pc.n.3 * screen.3.width / max(screen.3.height, 1))
+    let pc.h.3 = pc.w.3 * screen.3.height / max(screen.3.width, 1)
+    let pc.x.3 = screen.3.width - pc.w.3 - 40
+    let pc.y.3 = screen.3.height / 2 - (pc.n.3 * pc.h.3 + (pc.n.3 - 1) * 20) / 2
+    repeat s in 0..4 {
+        group {
+            z: 99985
+            show: ov > 0.01 and screen.index == s
+            repeat k in 1..11 {
+                group {
+                    show: k <= pc.n.$s
+                    opacity: smooth(0.0, 0.6, ov) * if(pdrag.s == s and pdrag.k == k - 1, 40%, 100%)
+                    move: 70 * (1 - smooth(0.0, 0.6, ov)), 0
+                    body {
+                        color: #0c0e10
+                        rim: 10% + 12% * pcard.$k.$s.hover
+                        shadow: 0, 10 + 6 * pcard.$k.$s.hover, 28, 45%
+                        box { from: pc.x.$s, pc.y.$s + (k - 1) * (pc.h.$s + 20); size: pc.w.$s, pc.h.$s; corner: 10 }
+                    }
+                    // The one shown on this monitor has a ring.
+                    box { from: pc.x.$s - 3, pc.y.$s + (k - 1) * (pc.h.$s + 20) - 3; size: pc.w.$s + 6, pc.h.$s + 6; corner: 13; stroke: 1.6; color: mint; opacity: if(k == win.shown.$s, 85%, 0%) }
+                    // The empty one, last: a +.
+                    box { at: pc.x.$s + pc.w.$s / 2, pc.y.$s + (k - 1) * (pc.h.$s + 20) + pc.h.$s / 2; size: 16, 1.6; corner: 0.8; color: ink; opacity: 45%; show: k == pc.n.$s and win.used.$s < k }
+                    box { at: pc.x.$s + pc.w.$s / 2, pc.y.$s + (k - 1) * (pc.h.$s + 20) + pc.h.$s / 2; size: 1.6, 16; corner: 0.8; color: ink; opacity: 45%; show: k == pc.n.$s and win.used.$s < k }
+                    text number(k, 0) { at: pc.x.$s - 12, pc.y.$s + (k - 1) * (pc.h.$s + 20) + pc.h.$s / 2; anchor: right center; size: 11; weight: 600; color: ink; opacity: if(k == win.shown.$s, 85%, 40%) }
+                    // Its windows, as the programs' icons.
+                    repeat i in 0..16 {
+                        image appicon.$i { at: pc.x.$s + pc.w.$s * 0.1 + mod(ic.slot.$i, 4) * pc.h.$s * 0.23, pc.y.$s + (k - 1) * (pc.h.$s + 20) + pc.h.$s * 0.1 + floor(ic.slot.$i / 4) * pc.h.$s * 0.23; size: pc.h.$s * 0.2, pc.h.$s * 0.2; show: win.$i.open and win.$i.screen == s and win.$i.workspace == k }
+                    }
+                    zone box pcard.$k.$s { from: pc.x.$s, pc.y.$s + (k - 1) * (pc.h.$s + 20); size: pc.w.$s, pc.h.$s; corner: 10; cursor: pointer; active: overview and k <= pc.n.$s }
+                }
+            }
+        }
+        repeat k in 1..11 {
+            on drag pcard.$k.$s while pdrag.s < 0 {
+                pdrag.s = s
+                pdrag.k = k - 1
+            }
+            on release pcard.$k.$s while pdrag.s < 0 {
+                workspace k on s
+                overview = false
+            }
+            on release pcard.$k.$s while pdrag.s == s and mon != s and k <= win.used.$s { send workspace k on s to mon }
+            on release pcard.$k.$s { pdrag.s = -1 }
+        }
+    }
+    // The card being carried, under the mouse, on whichever monitor it is.
+    group {
+        z: 99987
+        show: pdrag.s >= 0 and screen.index == mon
+        opacity: 90%
+        body {
+            color: #0c0e10
+            rim: 18%
+            shadow: 0, 18, 40, 55%
+            box { at: mouse.x, mouse.y; size: pick(pdrag.s, pc.w.0, pc.w.1, pc.w.2, pc.w.3), pick(pdrag.s, pc.h.0, pc.h.1, pc.h.2, pc.h.3); corner: 10 }
+        }
+        box { at: mouse.x, mouse.y; size: pick(pdrag.s, pc.w.0, pc.w.1, pc.w.2, pc.w.3) + 6, pick(pdrag.s, pc.h.0, pc.h.1, pc.h.2, pc.h.3) + 6; corner: 13; stroke: 1.6; color: mint; opacity: 70% }
+        text "{pdrag.k + 1, 0}" { at: mouse.x, mouse.y; anchor: center; size: 15; weight: 700; color: mint }
+    }
+
     repeat i in 0..16 {
         // A window is laid out on its own monitor: how big that one is and how
         // many windows share it. Each copy of the scene draws only its own.
@@ -338,7 +441,8 @@ scene Session {
         // (the grid at a glance)
         let cols = ceil(sqrt(n))
         let rows = ceil(n / cols)
-        let cell.w = (Ws - 80 - (cols - 1) * 30) / cols
+        // (Leaving room at the right for the workspace cards.)
+        let cell.w = (Ws - 80 - pick(sc, pc.w.0, pc.w.1, pc.w.2, pc.w.3) - 60 - (cols - 1) * 30) / cols
         let cell.h = (ah - 40 - (rows - 1) * 30) / rows
         // ── and at a glance: in a grid, each one keeping its shape ──
         let s = min(cell.w / tw, cell.h / th)

@@ -8,6 +8,7 @@
 #   ./install.sh --no-deps         only the shell itself: no packages, no font, no pleamar
 #   ./install.sh --no-autostart    don't touch ~/.config/pleamar/autostart
 #   ./install.sh --no-binds        don't touch ~/.config/hypr (the key binds, and what Settings saves there)
+#   ./install.sh --no-wm           don't set up pleamar-wm (its login-screen entry, keys, window scene and autostart lines)
 #   ./install.sh --uninstall       take the shell away (your data in ~/.local/share stays)
 #
 # What it does, in order:
@@ -20,6 +21,8 @@
 #   5. your palette, autostart entry  (made once and never written over)
 #   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent and vitreus-sysmon, linked into ~/.local/bin)
 #   6. its Hyprland key binds         (hypr_vitreus.lua linked into ~/.config/hypr, and loaded from hyprland.lua)
+#   7. pleamar-wm, as a session       (pleamar-wm/: its keys, window scene, hyprctl shim, the wallpaper and clipboard lines, and, with sudo,
+#                                      its entry in the login screen; only if pleamar-wm is installed)
 #
 # It never installs a compositor: Vitreus is developed on Hyprland, and needs one that has layer-shell.
 set -eu
@@ -43,6 +46,7 @@ dry=false
 deps=true
 do_autostart=true
 do_binds=true
+do_wm=true
 action=install
 for a in "$@"; do
     case "$a" in
@@ -51,8 +55,9 @@ for a in "$@"; do
         --no-deps) deps=false ;;
         --no-autostart) do_autostart=false ;;
         --no-binds) do_binds=false ;;
+        --no-wm) do_wm=false ;;
         --uninstall) action=uninstall ;;
-        --help|-h) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --help|-h) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) printf 'vitreus · I do not know "%s" (try --help)\n' "$a" >&2; exit 1 ;;
     esac
 done
@@ -98,6 +103,16 @@ if [ "$action" = uninstall ]; then
     if [ -f "$hyprlua" ] && grep -q '^-- >>> vitreus' "$hyprlua"; then
         run sed -i '/^-- >>> vitreus/,/^-- <<< vitreus/d' "$hyprlua"
         say "removed Vitreus's lines from $hyprlua (SUPER + L and SUPER + Space go back to what hypr_style.lua binds)"
+    fi
+    if [ -f "$autostart" ] && grep -q '^# >>> vitreus (pleamar-wm)' "$autostart"; then
+        run sed -i '/^# >>> vitreus (pleamar-wm)/,/^# <<< vitreus/d' "$autostart"
+        say "removed its pleamar-wm lines from $autostart"
+    fi
+    for l in "$conf/pleamar/keys.conf" "$conf/pleamar/wm" "$HOME/.local/bin/hyprctl"; do
+        case "$(readlink -f "$l" 2> /dev/null)" in "$(readlink -f "$dest")"/*) run rm -f "$l"; say "removed the link $l" ;; esac
+    done
+    if [ -f /usr/share/wayland-sessions/pleamar-wm.desktop ]; then
+        say "pleamar-wm's login-screen entry is left in place; to take it away: sudo sh $dest/pleamar-wm/install-session.sh --remove"
     fi
     if [ -L "$HOME/.local/bin/vitreus-clipimg" ]; then run rm -f "$HOME/.local/bin/vitreus-clipimg"; fi
     if [ -L "$HOME/.local/bin/vitreus-polkit-agent" ]; then run rm -f "$HOME/.local/bin/vitreus-polkit-agent"; fi
@@ -323,6 +338,74 @@ if $do_autostart; then
     fi
 fi
 
+# ── 7. pleamar-wm ──────────────────────────────────────────────────────────
+# Vitreus runs on pleamar-wm (a session chosen at the login screen) as well as on Hyprland. Everything below is skipped when
+# pleamar-wm is not installed, and each file of yours is only replaced when it is still the stock one.
+wmdir="$dest/pleamar-wm"
+if $do_wm && [ -d "$wmdir" ] && { have pleamar-wm || [ -x "$HOME/.local/bin/pleamar-wm" ]; }; then
+    # the lines pleamar-wm's session needs: the wallpaper daemon (Vitreus's picker drives awww), the last wallpaper, the clipboard history.
+    # `wm:` lines are read by pleamar-wm's session only (Hyprland's config starts these itself). Marea is the shell pleamar-wm comes with:
+    # with Vitreus as the bar, she and swaybg (which needs a wallpaper file that is not there) are turned off, not deleted.
+    if $do_autostart; then
+        if [ -f "$autostart" ] && grep -q '^# >>> vitreus (pleamar-wm)' "$autostart"; then
+            say "the pleamar-wm lines are already in $autostart"
+        else
+            if $dry; then echo "    would add to $autostart: wm: awww-daemon, wm: awww restore, wm: hypridle, wm: wl-paste --watch cliphist store"; else
+                mkdir -p "$(dirname "$autostart")"
+                if [ -f "$autostart" ]; then
+                    sed -i -e 's/^marea start\([[:space:]].*\)\{0,1\}$/# \0  (turned off by Vitreus: it is the bar now)/' \
+                           -e 's/^wm: swaybg/# wm: swaybg/' "$autostart"
+                fi
+                {
+                    echo "# >>> vitreus (pleamar-wm) (added by its installer; ./install.sh --uninstall takes it out)"
+                    # a line you already have is not written twice
+                    for l in "wm: awww-daemon" "wm: sh -c 'sleep 1; awww restore'" "wm: hypridle" "wm: wl-paste --watch cliphist store"; do
+                        [ -f "$autostart" ] && grep -qxF "$l" "$autostart" || echo "$l"
+                    done
+                    echo "# <<< vitreus"
+                } >> "$autostart"
+                say "added the pleamar-wm lines (wallpaper, idle lock, clipboard history) to $autostart"
+            fi
+        fi
+    fi
+    # keys: Vitreus's launcher, Settings, lock, wallpaper picker, capture, volume. Only over the stock file (just `defaults` and comments).
+    keys="$conf/pleamar/keys.conf"
+    if [ -L "$keys" ] && [ "$(readlink -f "$keys")" = "$(readlink -f "$wmdir/keys.conf")" ]; then
+        say "pleamar-wm's keys are already Vitreus's"
+    elif [ ! -e "$keys" ] || ! grep -qvE '^[[:space:]]*(#|$|defaults[[:space:]]*$)' "$keys"; then
+        run mkdir -p "$conf/pleamar"
+        run ln -sf "$wmdir/keys.conf" "$keys"
+        say "pleamar-wm's keys are Vitreus's now ($keys)"
+    else
+        warn "$keys has bindings of yours: left alone (Vitreus's are in $wmdir/keys.conf)"
+    fi
+    # the window manager's scene (slim glass title bars): only where there is none of yours.
+    wmscene="$conf/pleamar/wm"
+    if [ -L "$wmscene" ] && [ "$(readlink -f "$wmscene")" = "$(readlink -f "$wmdir/wm")" ]; then
+        say "pleamar-wm's window scene is Vitreus's"
+    elif [ ! -e "$wmscene" ] || { [ -d "$wmscene" ] && [ -z "$(ls -A "$wmscene" 2> /dev/null)" ]; }; then
+        run rm -rf "$wmscene"
+        run ln -sfn "$wmdir/wm" "$wmscene"
+        say "pleamar-wm's window scene is Vitreus's now ($wmscene)"
+    else
+        warn "$wmscene has a scene of yours: left alone (Vitreus's is in $wmdir/wm)"
+    fi
+    # hyprctl for a desktop that is not Hyprland (ahead of /usr/bin; on Hyprland it hands over to the real one).
+    if [ ! -e "$HOME/.local/bin/hyprctl" ] || [ -L "$HOME/.local/bin/hyprctl" ]; then
+        run mkdir -p "$HOME/.local/bin"
+        run ln -sf "$wmdir/hyprctl" "$HOME/.local/bin/hyprctl"
+    fi
+    # the login-screen entry: needs root, so it is asked for. It installs the session wrapper (/usr/local/bin/pleamar-wm-session), the
+    # entry in /usr/share/wayland-sessions and pleamar-wm's portals. The wrapper starts `pleamar-wm session` with the desktop's names and PATH.
+    if [ -x /usr/local/bin/pleamar-wm-session ] && grep -q '^Exec=pleamar-wm-session' /usr/share/wayland-sessions/pleamar-wm.desktop 2> /dev/null; then
+        say "pleamar-wm is in the login screen's list of sessions"
+    elif ask "put pleamar-wm in the login screen's list of sessions (needs sudo)?"; then
+        run sudo sh "$wmdir/install-session.sh" || warn "could not: run  sudo sh $wmdir/install-session.sh  yourself"
+    fi
+elif $do_wm && [ -d "$wmdir" ]; then
+    say "pleamar-wm is not installed, so no session for it (pleamar's installer has it: https://github.com/k4ditano/pleamar)"
+fi
+
 # ── services it talks to ───────────────────────────────────────────────────
 if have systemctl; then
     systemctl is-active --quiet bluetooth 2> /dev/null || say "Bluetooth is off: sudo systemctl enable --now bluetooth"
@@ -340,6 +423,7 @@ echo "                         hyprland.lua:   hl.on(\"hyprland.start\", functio
 echo "                         hyprland.conf:  exec-once = ~/.local/bin/pleamar --autostart   (Hyprland's PATH may lack ~/.local/bin)"
 echo "  Keys (with the binds): SUPER + Space launcher, SUPER + SHIFT + Space settings, SUPER + B wallpaper picker, SUPER + L lock (see lockscreen/README.md)"
 echo "  Clipboard search:      needs  wl-paste --watch cliphist store  running at startup, or ^ has nothing to show"
+echo "  pleamar-wm:            log out and choose «pleamar-wm» in the login screen (SDDM: click the session name at the bottom right)"
 echo "  Update later:          run this script again"
 echo "  Its settings:          $data/pleamar/vitreus  (iris.json, weather-config.json, ...)"
 echo

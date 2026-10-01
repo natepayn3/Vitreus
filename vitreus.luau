@@ -4594,8 +4594,9 @@ end)()
 -- once. How big the hexagons are, and where each one goes, is worked out by the scene from how many there are (see
 -- the end of vitreus.plm).
 ;(function()
-    local RULE = 5                                       -- which version made the file: an older one is made again
+    local RULE = 8                                      -- which version made the file: an older one is made again
     local TW, TH = 120, 139                              -- the hexagon picture, in pixels (a pointy-top hexagon is 0.866 as wide as tall)
+    local PAD = 2                                        -- the transparent margin round it (the file is TW + 2 PAD by TH + 2 PAD: see vitreus.plm)
     local HERO = 260                                     -- the square picture the hexagon is cut from
     local MAX = 200                                      -- what the model holds
     local G = { data = {}, dir = nil, busy = 0, queue = {}, started = false, laid = false, total = 0, have = {} }
@@ -4636,7 +4637,11 @@ end)()
                         "-thumbnail", HERO .. "x" .. HERO .. "^", "-gravity", "center", "-extent", HERO .. "x" .. HERO,
                         "(", "+clone", "-resize", TW .. "x" .. TH .. "^", "-extent", TW .. "x" .. TH, "-alpha", "set",
                              "(", "-size", TW .. "x" .. TH, "xc:none", "-fill", "white", "-draw", poly, ")",
-                             "-compose", "DstIn", "-composite", "-write", "PNG32:" .. hex_of(f), "+delete", ")",
+                             "-compose", "DstIn", "-composite",
+                             -- two transparent pixels all round: the picture's own edge is never a hexagon's, so it never shows as a hairline
+                             -- (back to Over first: `-extent` and `-border` composite with the DstIn still set above, and erase the picture)
+                             "-compose", "Over", "-background", "none", "-gravity", "center", "-extent", (TW + 2 * PAD) .. "x" .. (TH + 2 * PAD),
+                             "-write", "PNG32:" .. hex_of(f), "+delete", ")",
                         "-thumbnail", "100x100", "-colors", "32", "-format", "%c", "histogram:info:" },
             function(res, code)
                 if code == 0 and res then
