@@ -3099,32 +3099,48 @@ end
     local function open_settings(page)
         return function() fact.set_page = page; set_panel("settings"); return true end
     end
+    -- Each command: title, what it is, what it does, and words that find it besides its title (all searched, spaces ignored).
     local COMMANDS = {
-        { "Settings: Wallpaper", "open", open_settings("pg_wall") },
-        { "Settings: Glass", "open", open_settings("pg_glass") },
-        { "Settings: Display", "open", open_settings("pg_disp") },
-        { "Settings: Night mode", "open", open_settings("pg_night") },
-        { "Night mode: toggle", "action", function() spawn('pleamar --say vitreus "emit night_toggle"') end },
-        { "Settings: Hyprland", "open", open_settings("pg_hypr") },
-        { "Settings: About", "open", open_settings("pg_about") },
-        { "Settings: System monitor", "open", open_settings("pg_sys") },
-        { "Settings: Notifications", "open", open_settings("pg_nt") },
-        { "Settings: Bar", "open", open_settings("pg_bar") },
-        { "Calendar", "panel", function() set_panel("calendar"); return true end },
-        { "Controls", "panel", function() set_panel("controls"); return true end },
-        { "Player", "panel", function() set_panel("player"); return true end },
-        { "Wallpaper picker", "action", function() spawn('pleamar --say vitreus "emit wp_picker_toggle"') end },
-        { "Workspace overview", "action", function() spawn('pleamar --say vitreus "emit ov_toggle"') end },
-        { "Random wallpaper", "action", function() local f = wp_random_pick(); if f then wp_apply(f) end end },
-        { "Lock session", "action", function() spawn('pleamar --say lockscreen "fact locked true"') end },
-        { "Suspend", "action", function() run("systemctl", { "suspend" }, function() end) end },
-        { "Reload Hyprland", "action", function() run("hyprctl", { "reload" }, function() end) end },
+        { "Settings: Wallpaper", "open", open_settings("pg_wall"), "background picture image folder slideshow desktop" },
+        { "Settings: Glass", "open", open_settings("pg_glass"), "blur transparency frosted liquid look appearance theme" },
+        { "Settings: Display", "open", open_settings("pg_disp"), "monitor screen resolution refresh rate scale arrangement vrr position" },
+        { "Settings: Night mode", "open", open_settings("pg_night"), "nightlight blue light warm tint redshift filter schedule eyes" },
+        { "Night mode: toggle", "action", function() spawn('pleamar --say vitreus "emit night_toggle"') end, "nightlight blue light warm tint redshift filter on off" },
+        { "Settings: Hyprland", "open", open_settings("pg_hypr"), "window manager gaps border layout animations tearing input keyboard mouse touchpad" },
+        { "Settings: About", "open", open_settings("pg_about"), "version info credits vitreus pleamar" },
+        { "Settings: System monitor", "open", open_settings("pg_sys"), "cpu gpu ram memory disk network temperature fan processes task manager performance usage" },
+        { "Settings: Notifications", "open", open_settings("pg_nt"), "alerts do not disturb dnd sounds rules apps banner mute" },
+        { "Settings: Bar", "open", open_settings("pg_bar"), "panel widgets order clock tray media title items" },
+        { "Settings: Lock screen", "open", open_settings("pg_lock"), "lockscreen lock password mask blur clock date format media player shapes dots asterisks symbols special palette colours colors example live test glyphs vibrant neon pastel monochrome security idle" },
+        { "Calendar", "panel", function() set_panel("calendar"); return true end, "date month day reminders schedule" },
+        { "Controls", "panel", function() set_panel("controls"); return true end, "quick settings wifi bluetooth volume brightness power profile capture screenshot record" },
+        { "Player", "panel", function() set_panel("player"); return true end, "music media playback spotify song pause play next" },
+        { "Wallpaper picker", "action", function() spawn('pleamar --say vitreus "emit wp_picker_toggle"') end, "backgrounds wallpapers hexagons colour choose change" },
+        { "Workspace overview", "action", function() spawn('pleamar --say vitreus "emit ov_toggle"') end, "workspaces windows switch expose desktops" },
+        { "Random wallpaper", "action", function() local f = wp_random_pick(); if f then wp_apply(f) end end, "shuffle background change surprise" },
+        { "Lock session", "action", function() spawn('pleamar --say lockscreen "fact locked true"') end, "lockscreen lock screen secure away password" },
+        { "Suspend", "action", function() run("systemctl", { "suspend" }, function() end) end, "sleep standby" },
+        { "Reload Hyprland", "action", function() run("hyprctl", { "reload" }, function() end) end, "restart config refresh compositor" },
     }
     local function search_commands(q)
         q = q:lower()
+        local qn = q:gsub("%s+", "")
         local out = {}
         for _, c in ipairs(COMMANDS) do
-            if q == "" or c[1]:lower():find(q, 1, true) then
+            -- found by the title or by its words; every word typed has to be in them, or what was typed (spaces and all) is in them with
+            -- the spaces left out, so "lockscreen" finds "Lock screen" and "settings: lockscreen" finds its page
+            local hay = (c[1] .. " " .. (c[4] or "")):lower()
+            local match = q == ""
+            if not match then
+                match = hay:gsub("%s+", ""):find(qn, 1, true) ~= nil
+                if not match then
+                    match = true
+                    for word in q:gmatch("%S+") do
+                        if not hay:find(word, 1, true) then match = false break end
+                    end
+                end
+            end
+            if match then
                 out[#out + 1] = { title = c[1], sub = c[2], glyph = ">", run = c[3] }
             end
         end
@@ -4908,4 +4924,115 @@ end)()
     on("fact:panel", refresh)
     on("fact:set_page", refresh)
     refresh()
+end)()
+
+-- Settings > Lock screen. The lock screen is a scene of its own and keeps its settings in its own lockscreen.json: this page asks it for
+-- them when it opens (`pleamar --say lockscreen "get ..."`) and tells it each change (`fact` / `text`), and it saves them. `lk_ok` is false
+-- when it does not answer, which is when it is not running.
+;(function()
+    local BLUR = { 18, 36, 60 }
+    local DATES = { "long", "standard", "dayFirst", "iso" }
+    local DATE_FACT = { long = "lkd_long", standard = "lkd_std", dayFirst = "lkd_day", iso = "lkd_iso" }
+    local DATE_NAME = { "lkd_long", "lkd_std", "lkd_day", "lkd_iso" }
+    -- the lock screen's names for the mask style and the palette, and this scene's
+    local MASK_LOCK = { "msk_shapes", "msk_dots", "msk_stars", "msk_special" }
+    local MASK_HERE = { "lkm_shapes", "lkm_dots", "lkm_stars", "lkm_special" }
+    local PAL_LOCK = { "mp_vibrant", "mp_accent", "mp_neon", "mp_pastel", "mp_mono" }
+    local PAL_HERE = { "lkc_vibrant", "lkc_accent", "lkc_neon", "lkc_pastel", "lkc_mono" }
+    local MASK_BACK, PAL_BACK = {}, {}
+    for i, n in ipairs(MASK_LOCK) do MASK_BACK[n] = MASK_HERE[i] end
+    for i, n in ipairs(PAL_LOCK) do PAL_BACK[n] = PAL_HERE[i] end
+    local function say(cmd, fn) run("pleamar", { "--say", "lockscreen", cmd }, fn or function() end) end
+    local function trim(s) return ((s or ""):gsub("%s+$", "")) end
+
+    local function refresh()
+        say("get cfg_blur", function(out, code)
+            if code ~= 0 then fact.lk_ok = false return end
+            fact.lk_ok = true
+            local n = tonumber(trim(out))
+            if n then fact.lk_blur = n end
+            say("get cfg_12h", function(o) fact.lk_12h = trim(o):match("true") ~= nil end)
+            say("get cfg_ampm", function(o) fact.lk_ampm = trim(o):match("true") ~= nil end)
+            say("get cfg_media", function(o) fact.lk_media = trim(o):match("true") ~= nil end)
+            say("get cfg_date", function(o) fact.lk_date = DATE_FACT[trim(o)] or "lkd_long" end)
+            say("get mask_style", function(o) fact.lk_mask = MASK_BACK[trim(o)] or "lkm_shapes" end)
+            say("get mask_pal", function(o) fact.lk_pal = PAL_BACK[trim(o)] or "lkc_accent" end)
+        end)
+    end
+    on("fact:set_page", function(v) if v == "pg_lock" then refresh() end end)
+
+    on("lk_blur_set", function(i)
+        local v = BLUR[math.floor(i + 0.5) + 1]
+        if v then fact.lk_blur = v; say("fact cfg_blur " .. v) end
+    end)
+    on("lk_12h_set", function(i)
+        local b = i >= 0.5
+        fact.lk_12h = b
+        say("fact cfg_12h " .. tostring(b))
+    end)
+    on("lk_ampm_toggle", function()
+        local b = not fact.lk_ampm
+        fact.lk_ampm = b
+        say("fact cfg_ampm " .. tostring(b))
+    end)
+    on("lk_media_toggle", function()
+        local b = not fact.lk_media
+        fact.lk_media = b
+        say("fact cfg_media " .. tostring(b))
+    end)
+    on("lk_mask_set", function(i)
+        local k = math.floor(i + 0.5) + 1
+        if MASK_LOCK[k] then fact.lk_mask = MASK_HERE[k]; say("fact mask_style " .. MASK_LOCK[k]) end
+    end)
+    on("lk_pal_set", function(i)
+        local k = math.floor(i + 0.5) + 1
+        if PAL_LOCK[k] then fact.lk_pal = PAL_HERE[k]; say("fact mask_pal " .. PAL_LOCK[k]) end
+    end)
+    on("lk_date_set", function(i)
+        local k = math.floor(i + 0.5) + 1
+        if DATES[k] then fact.lk_date = DATE_NAME[k]; say("text cfg_date " .. DATES[k]) end
+    end)
+
+    -- ── The example bar (Settings > Lock screen). What is typed becomes glyphs, as it does on the lock screen: a random shape, a colour
+    -- index and a symbol for each character, kept only here and only while the page is up. Enter pretends the password was right (the
+    -- glyphs turn green), then it clears.
+    local ROT = { 0, 45, 90, 135, 180, 225, 270, 315 }
+    local SYMBOLS = { "!", "@", "#", "$", "%", "^", "&", "*", "~", "?", "§", "+", "=", "<", ">", "/" }
+    local list = {}
+    local function show_list()
+        local shown = list
+        if #list > 16 then
+            shown = {}
+            for i = #list - 15, #list do shown[#shown + 1] = list[i] end
+        end
+        model.lb = shown
+    end
+    local function clear_bar()
+        list = {}
+        model.lb = {}
+        fact.lb_ok = false
+        text.lb_pw = ""
+    end
+    on("text:lb_pw", function(t)
+        if fact.lb_ok then return end
+        local n = utf8.len(t) or #t
+        if n == #list then return end
+        if n == 0 then list = {}
+        elseif n > #list then
+            for _ = #list + 1, n do
+                list[#list + 1] = { idx = math.random(0, 15), rot = ROT[math.random(1, #ROT)], outline = math.random() < 0.22,
+                                    ci = math.random(0, 59), sym = SYMBOLS[math.random(1, #SYMBOLS)] }
+            end
+        else
+            while #list > n do list[#list] = nil end
+        end
+        show_list()
+    end)
+    on("lb_submit", function()
+        if #list == 0 or fact.lb_ok then return end
+        fact.lb_ok = true
+        after(900, clear_bar)
+    end)
+    on("fact:set_page", function(v) if v ~= "pg_lock" then clear_bar() end end)
+    on("fact:panel", function(v) if v ~= "settings" then clear_bar() end end)
 end)()
