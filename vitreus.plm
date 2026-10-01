@@ -1880,7 +1880,15 @@ scene Vitreus {
     //  that crossing the gap does not close it). It is quick launch, so it stays joined to the strip instead of dropping out of it.
     //  `cursor` is the mouse wherever it is, in the scene's coordinates.
     let ctl.onbtn = if(lm > 0.5 and cursor.x > 0 and cursor.x < lf.w and abs(cursor.y - lv.ctl) < 18 * u, 1, 0)
-    let ctl.ondraw = if(lm > 0.5 and panel == controls and cursor.x > dk.ex - dk.ew / 2 - 4 and cursor.x < dk.ex + dk.ew / 2 + 4 and cursor.y > dk.ey - dk.eh / 2 - 4 and cursor.y < dk.ey + dk.eh / 2 + 4, 1, 0)
+    //  What keeps it open is a fixed band, not the drawer as it is drawn: the drawer is as tall as what it holds (a sub-view, the mixer or the
+    //  output list opening or closing) and sits where its height lets the frame clamp it, so what the pointer was on can end up outside the drawn
+    //  one, and it closed under the pointer. The band is the drawer at its tallest (`ctl.cmax`: the main view with the larger of the output list and the
+    //  mixer under the volume card, or the tallest sub-view, 312). It is placed the way the drawer is, and the drawer at its tallest covers it at any
+    //  shorter height: its top only goes up and its foot only down as it grows. So it depends on how many outputs and apps there are, never on what is open.
+    let ctl.cmax = max(vol_bot + max(dd.rows * 30 - 28, mix.m), 312)
+    let ctl.zh = (ctl.cmax + 16) * u + 13 * u
+    let ctl.zc = clamp(lv.ctl, lf.t + 24 * u + ctl.zh / 2, screen.height - lf.t - 24 * u - ctl.zh / 2)
+    let ctl.ondraw = if(lm > 0.5 and panel == controls and cursor.x > dk.ex - dk.ew / 2 - 4 and cursor.x < dk.ex + dk.ew / 2 + 4 and cursor.y > ctl.zc - ctl.zh / 2 - 4 and cursor.y < ctl.zc + ctl.zh / 2 + 4, 1, 0)
     prop ctl_arm = 0 ~120ms
     follow ctl_arm = ctl.onbtn
     prop ctl_hold = 0 ~280ms
