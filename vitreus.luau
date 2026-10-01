@@ -976,7 +976,59 @@ local function parse_clients(out)
     return list
 end
 
+-- Under pleamar-wm the list comes from its scene: every slot (0 to 15) that is open, with its title, program, workspace and focus.
+function refresh_tasks_wm()
+    local slots, left = {}, 16
+    local function finish()
+        local list = {}
+        for i = 0, 15 do if slots[i] then list[#list + 1] = slots[i] end end
+        table.sort(list, function(a, b)
+            if a.active ~= b.active then return a.active end
+            if a.wsn ~= b.wsn then return a.wsn < b.wsn end
+            return a.title:lower() < b.title:lower()
+        end)
+        local rows = {}
+        task_addrs = {}
+        for i, w in ipairs(list) do
+            if i > 12 then break end
+            rows[i] = { title = w.title, ws = tostring(w.wsn), active = w.active, icon = apps_by_class[w.app:lower()] or w.app:lower() }
+            task_addrs[i] = w
+        end
+        local sig = {}
+        for i, r in ipairs(rows) do sig[i] = r.title .. "|" .. r.ws .. "|" .. tostring(r.active) .. "|" .. tostring(r.icon) end
+        local joined = table.concat(sig, "\n")
+        if joined ~= last_task_sig then
+            last_task_sig = joined
+            model.tasks = rows
+        end
+    end
+    local function raw(name, cb) run("pleamar", { "--say", "wm", "get " .. name }, function(out) cb((out or ""):gsub("%s+$", "")) end) end
+    for i = 0, 15 do
+        raw("win." .. i .. ".open", function(open)
+            if open ~= "true" then left = left - 1; if left == 0 then finish() end; return end
+            local w = { slot = i }
+            raw("win." .. i .. ".title", function(t)
+                w.title = t
+                raw("win." .. i .. ".app", function(a)
+                    w.app = a
+                    raw("win." .. i .. ".workspace", function(ws)
+                        w.wsn = tonumber(ws) or 0
+                        raw("win." .. i .. ".focused", function(f)
+                            w.active = f == "true"
+                            if w.title == "" then w.title = w.app ~= "" and w.app or "Window" end
+                            slots[i] = w
+                            left = left - 1
+                            if left == 0 then finish() end
+                        end)
+                    end)
+                end)
+            end)
+        end)
+    end
+end
+
 local function refresh_tasks()
+    if not on_hyprland then return refresh_tasks_wm() end
     run("hyprctl", { "clients" }, function(out, code)
         if code ~= 0 then return end
         local list = {}
@@ -1039,12 +1091,17 @@ every(1000, function() if watching then refresh_tasks() end end)
 local function focus_window(addr, then_fn)
     run("hyprctl", { "dispatch", 'hl.dsp.focus({ window = "address:0x' .. addr .. '" })' }, then_fn or function() end)
 end
+function wm_say(line, fn) run("pleamar", { "--say", "wm", line }, fn or function() end) end
 on("task_focus", function(i)
     local addr = task_addrs[i + 1]
-    if addr then focus_window(addr) end
+    if type(addr) == "table" then
+        wm_say("emit workspace " .. addr.wsn)
+        after(150, function() wm_say("emit focus_slot " .. addr.slot, function() after(300, refresh_tasks) end) end)
+    elseif addr then focus_window(addr) end
 end)
 on("task_close", function(i)
     local addr = task_addrs[i + 1]
+    if type(addr) == "table" then wm_say("emit close_slot " .. addr.slot, function() after(400, refresh_tasks) end) return end
     if not addr then return end
     focus_window(addr, function()
         after(250, function()
@@ -4967,7 +5024,11 @@ end)()
     local function do_it(i)
         if i == 0 then spawn('pleamar --say lockscreen "fact locked true"')
         elseif i == 1 then run("systemctl", { "suspend" }, function() end)
-        elseif i == 2 then run("loginctl", { "terminate-user", user or "" }, function() end)
+        elseif i == 2 then
+            -- Leave through the compositor, so the session ends by itself and SDDM gets its helper back and shows the login screen again.
+            -- (`loginctl terminate-user` kills SDDM's own helper along with the session: SDDM calls that a crash and shows nothing.)
+            if on_hyprland then run("hyprctl", { "dispatch", "hl.dsp.exit()" }, function() end)
+            else run("pkill", { "-TERM", "-x", "pleamar-wm" }, function() end) end
         elseif i == 3 then run("systemctl", { "reboot" }, function() end)
         elseif i == 4 then run("systemctl", { "poweroff" }, function() end) end
     end
