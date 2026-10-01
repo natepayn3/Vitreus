@@ -186,6 +186,8 @@ scene Vitreus {
     event launch_pick ->            // a row, by place
     event launch_scroll ->          // the wheel over the rows: notches, positive is down
     event launch_run ->             // Enter
+    event launch_del ->             // a row's remove button, by place (the clipboard's)
+    event launch_delsel ->          // Shift + Delete: remove the chosen row
     event launch_hint ->            // a hint under the field: type its first character
     text lq = ""                    // the search field
     text lmode = "Apps"             // which kind of search the text asks for
@@ -210,7 +212,7 @@ scene Vitreus {
     text lp_imgpath = ""             // a small copy of the picture, at a fixed path with a version on the end
     fact lp_img_on = false
     image lp_img = from lp_imgpath, 480, 320
-    model lres max 6 { title: text; sub: text; desc: text; hasdesc: bool; glyph: text; sel: bool; hasicon: bool; icon: image 35, 35 }
+    model lres max 6 { title: text; sub: text; desc: text; hasdesc: bool; glyph: text; sel: bool; hasicon: bool; deletable: bool; icon: image 35, 35 }
     event settings_toggle ->        // from a key bind (hypr_vitreus.lua): open or close Settings
     event glass_reset ->
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
@@ -1282,17 +1284,26 @@ scene Vitreus {
     //  A result of the launcher: an icon (or a letter where there is none), its name, and a line of detail.
     //  Its width is the rows' width (`lw`): narrower where a preview sits beside the rows, and then it has no detail line.
     let lw = mix(430, 238, lpv) * u
-    component LRow(t: record, pick: event) {
+    component LRow(t: record, pick: event, del: event) {
         size: lw, 40 * u
+        //  How much the remove button shows (see the end of the row).
+        let rm = if(t.deletable, max(max(touch.hover, rm_z.hover), if(t.sel, 0.45, 0)), 0)
         zone box touch { from: 0, 0; size: lw, 40 * u; corner: 14 * u; cursor: pointer }
         box { from: 0, 0; size: lw, 40 * u; corner: 14 * u; color: if(t.sel, mint, ink); opacity: if(t.sel, 20%, 4%) + 8% * touch.hover }
         image t.icon { at: floor(10 * u + 0.5), floor(7 * u + 0.5); size: floor(26 * u + 0.5), floor(26 * u + 0.5); show: t.hasicon }
         ellipse { at: 23 * u, 20 * u; radius: 13 * u; color: mint; opacity: 16%; show: not t.hasicon }
         text t.glyph { at: floor(23 * u + 0.5), floor(20 * u + 0.5); anchor: center; align: center; size: 13 * u; weight: 700; width: 26 * u; lines: 1; color: mint; family: "Space Grotesk"; show: not t.hasicon }
-        text t.title { at: floor(48 * u + 0.5), floor(if(t.hasdesc, 14, 20) * u + 0.5); anchor: left center; size: 13.5 * u; weight: 600; width: lw - (58 + 96 * (1 - lpv)) * u; lines: 1; color: if(t.sel, mint, ink); family: "Space Grotesk" }
+        text t.title { at: floor(48 * u + 0.5), floor(if(t.hasdesc, 14, 20) * u + 0.5); anchor: left center; size: 13.5 * u; weight: 600; width: lw - (58 + 96 * (1 - lpv) + if(t.deletable, 24, 0)) * u; lines: 1; color: if(t.sel, mint, ink); family: "Space Grotesk" }
         text t.desc { at: floor(48 * u + 0.5), floor(29 * u + 0.5); anchor: left center; size: 10 * u; width: lw - 62 * u; lines: 1; color: faint; family: "Space Grotesk"; show: t.hasdesc }
-        text t.sub { at: floor(lw - 10 * u + 0.5), floor(20 * u + 0.5); anchor: right center; align: right; size: 10.5 * u; width: 90 * u; lines: 1; color: faint; opacity: 1 - lpv; family: "Space Grotesk" }
+        text t.sub { at: floor(lw - 10 * u + 0.5), floor(20 * u + 0.5); anchor: right center; align: right; size: 10.5 * u; width: 90 * u; lines: 1; color: faint; opacity: (1 - lpv) * (1 - rm); family: "Space Grotesk" }
         on press touch { emit pick(t.index) }
+        //  The clipboard's rows can be removed: a small cross where the kind ("text", "image") is, while the row is under the pointer or chosen
+        //  (Shift + Delete does the same for the chosen one). Declared last, so a press on it is its own and does not paste the row.
+        ellipse { at: lw - 20 * u, 20 * u; radius: 11 * u; color: if(rm_z.hover, alert, ink); opacity: (if(rm_z.hover, 90%, 10%)) * rm }
+        line { from: lw - 24 * u, 16 * u; to: lw - 16 * u, 24 * u; width: 1.5 * u; color: ink; opacity: 75% * rm }
+        line { from: lw - 16 * u, 16 * u; to: lw - 24 * u, 24 * u; width: 1.5 * u; color: ink; opacity: 75% * rm }
+        zone box rm_z { at: lw - 20 * u, 20 * u; size: 26 * u, 26 * u; corner: 13 * u; cursor: pointer; active: t.deletable }
+        on press rm_z { emit del(t.index) }
     }
 
     //  One app that lives in the tray, with no window of its own: its icon and name. A press is what clicking its
@@ -3301,7 +3312,7 @@ scene Vitreus {
             at: floor(lx + 0.5), floor(lry + 0.5)     // on whole pixels, as each row's height and the gap are: an icon
             view: lw, lph                             // between two pixels picks up a sliver of its neighbour in the atlas
             gap: floor(4 * u + 0.5)
-            for r in lres { LRow(r, pick: launch_pick) }
+            for r in lres { LRow(r, pick: launch_pick, del: launch_del) }
         }
         text lmsg { at: floor(lx + lw / 2 + 0.5), floor(lry + 20 * u + 0.5); anchor: center; align: center; size: 12 * u; color: faint; width: lw - 16 * u; lines: 2; family: "Space Grotesk"; show: lcount < 1 }
 
@@ -5170,6 +5181,7 @@ scene Vitreus {
     on key Tab while panel == launch { emit launch_move(1) }
     on key Ctrl+n while panel == launch { emit launch_move(1) }
     on key Ctrl+p while panel == launch { emit launch_move(-1) }
+    on key Shift+Delete while panel == launch { emit launch_delsel }
     on submit lq { emit launch_run }
     on key Escape while dd_open { dd_open = false }
     on key Escape while panel != none and not dd_open { panel = none }

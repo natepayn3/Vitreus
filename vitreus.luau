@@ -3289,7 +3289,7 @@ end
             if not r then break end
             rows[#rows + 1] = {
                 title = r.title, sub = r.sub or "", desc = r.desc or "", hasdesc = (r.desc or "") ~= "", glyph = r.glyph or (r.title or "?"):sub(1, 1):upper(),
-                sel = (S.start + i) == S.sel, hasicon = (r.icon or "") ~= "", icon = r.icon or "",
+                sel = (S.start + i) == S.sel, hasicon = (r.icon or "") ~= "", icon = r.icon or "", deletable = r.del ~= nil,
             }
         end
         model.lres = rows
@@ -3431,6 +3431,15 @@ end
         with_dirs(function(d)
             pcall(sys.call, "files.write", "lp-line.txt", c.id .. "\t")
             run("cliphist", { "decode" }, cb, { stdin = d.data .. "/lp-line.txt" })
+        end)
+    end
+
+    -- Taking an entry out of the history: cliphist reads the entry's line (its id first) on its input, as `decode` does. It has its own
+    -- file, so a preview being decoded at the same moment does not read a half-written one.
+    local function clip_delete(c)
+        with_dirs(function(d)
+            pcall(sys.call, "files.write", "lp-del.txt", c.id .. "\t")
+            run("cliphist", { "delete" }, function() end, { stdin = d.data .. "/lp-del.txt" })
         end)
     end
 
@@ -3701,6 +3710,7 @@ end
                 if q == "" or c.text:lower():find(q, 1, true) then
                     out[#out + 1] = { title = c.text, sub = c.image and "image" or "text", glyph = c.image and "▣" or "T",
                         pv = function(seq) preview_clip(c, seq) end,
+                        del = function() clip_delete(c) end,
                         run = function()
                             if c.image then return run("vitreus-clipimg", { "copy", c.id }, function() end) end
                             clip_decode(c, function(o) run("wl-copy", { "--", o or "" }, function() end) end)
@@ -3812,6 +3822,20 @@ end
         if not r or not r.run then return end
         if not r.run() then close() end
     end
+    -- Remove a row that can be removed (the clipboard's): it goes from the list at once, and the chosen place stays where it was, so
+    -- that Shift + Delete can be pressed again for the next one.
+    local function remove_result(r)
+        if not r or not r.del then return end
+        r.del()
+        for i, x in ipairs(S.res) do
+            if x == r then table.remove(S.res, i) break end
+        end
+        if #S.res == 0 then text.lmsg = "Nothing in the clipboard history" end
+        S.prev = nil
+        render(true)
+    end
+    on("launch_del", function(i) remove_result(S.res[S.start + math.floor(i + 0.5)]) end)
+    on("launch_delsel", function() remove_result(S.res[S.sel]) end)
     on("launch_pick", function(i) run_result(S.res[S.start + math.floor(i + 0.5)]) end)
     on("launch_run", function() run_result(S.res[S.sel]) end)
     on("launch_hint", function(i)
