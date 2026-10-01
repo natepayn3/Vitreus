@@ -343,6 +343,8 @@ scene Vitreus {
     text wp_show_sub = ""           // Next change in 4:31
     text wp_mins_text = ""          // 5 min
     event wp_show_toggle ->
+    fact iris_on = true             // Iris, the palette from the wallpaper, is on; off, the shell is monochrome
+    event iris_toggle ->
     event wp_mins_step ->           // the stepper: -1 or 1 along a short list of intervals
     //  Weather, for the calendar panel: what it is now, and the week ahead. The logic fetches it (Open-Meteo)
     //  and gives each day a `kind`: 0 clear, 1 partly cloudy, 2 cloud, 3 fog, 4 rain, 5 snow, 6 storm.
@@ -584,6 +586,7 @@ scene Vitreus {
     follow pw_hp4 = if(pw_d4, clamp((time - pw_s4) / 1, 0, 1), 0)
     prop pow_th = 1 ~pop                // where the power-profile thumb is: 0 saver, 1 balanced, 2 performance
     prop wp_show_pill = 0 ~pop
+    prop iris_pill = 0 ~calm
     prop set_pg = 0 ~calm
     prop set_pgd = 0 ~calm
     prop set_pgh = 0 ~calm
@@ -637,6 +640,7 @@ scene Vitreus {
     follow rec_pill = if(rec_on, 1, 0)
     follow pow_th = if(pow_prof < 0, 1, pow_prof)
     follow wp_show_pill = if(wp_show, 1, 0)
+    follow iris_pill = if(iris_on, 1, 0)
     follow set_pg = if(set_page == pg_glass, 1, 0)
     follow set_pgd = if(set_page == pg_disp, 1, 0)
     follow set_pgh = if(set_page == pg_hypr, 1, 0)
@@ -3163,18 +3167,33 @@ scene Vitreus {
                 clip inset 0 box { at: spx + 77 * u, sby + 46 * u; size: 130 * u, 73 * u; corner: 10 * u }
                 image wp_cur { at: spx + 12 * u, sby + 9.5 * u; size: 130 * u, 73 * u }
             }
-            text "ACTIVE WALLPAPER" { at: floor(spx + 154 * u + 0.5), floor(sby + 16 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
-            text wp_name { at: floor(spx + 154 * u + 0.5), floor(sby + 36 * u + 0.5); anchor: left center; size: 13 * u; weight: 700; width: 268 * u; lines: 1; color: ink; family: "Space Grotesk" }
-            text wp_dirtext { at: floor(spx + 154 * u + 0.5), floor(sby + 53 * u + 0.5); anchor: left center; size: 10 * u; width: 268 * u; lines: 1; color: faint; family: "Space Grotesk" }
-            box { at: spx + 195 * u, sby + 74 * u; size: 78 * u, 24 * u; corner: 12 * u; color: ink; opacity: 8% + 10% * wp_rand_hit.hover }
-            text "Random" { at: floor(spx + 195 * u + 0.5), floor(sby + 74 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 74 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
-            zone box wp_rand_hit { at: spx + 195 * u, sby + 74 * u; size: 80 * u, 26 * u; corner: 13 * u; cursor: pointer }
+            text "ACTIVE WALLPAPER" { at: floor(spx + 154 * u + 0.5), floor(sby + 27 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text wp_name { at: floor(spx + 154 * u + 0.5), floor(sby + 46 * u + 0.5); anchor: left center; size: 13 * u; weight: 700; width: 150 * u; lines: 1; color: ink; family: "Space Grotesk" }
+            text wp_dirtext { at: floor(spx + 154 * u + 0.5), floor(sby + 63 * u + 0.5); anchor: left center; size: 10 * u; width: 150 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            //  One row, centred on the card: the wallpaper's name, Random, and Iris. Random is a hexagon with softened corners, like the
+            //  picker's tiles, with a die in it.
+            let rhx = spx + 331 * u
+            let rhy = sby + 46 * u
+            let rhr = 18 * u
+            path { at: rhx, rhy; color: mint; opacity: 16% + 16% * wp_rand_hit.hover; move -0.260 * rhr, -0.850 * rhr; curve 0.260 * rhr, -0.850 * rhr via 0.000 * rhr, -1.000 * rhr; line 0.606 * rhr, -0.650 * rhr; curve 0.866 * rhr, -0.200 * rhr via 0.866 * rhr, -0.500 * rhr; line 0.866 * rhr, 0.200 * rhr; curve 0.606 * rhr, 0.650 * rhr via 0.866 * rhr, 0.500 * rhr; line 0.260 * rhr, 0.850 * rhr; curve -0.260 * rhr, 0.850 * rhr via 0.000 * rhr, 1.000 * rhr; line -0.606 * rhr, 0.650 * rhr; curve -0.866 * rhr, 0.200 * rhr via -0.866 * rhr, 0.500 * rhr; line -0.866 * rhr, -0.200 * rhr; curve -0.606 * rhr, -0.650 * rhr via -0.866 * rhr, -0.500 * rhr; close }
+            path { at: rhx, rhy; stroke: 1.2 * u; color: mint; opacity: 45% + 35% * wp_rand_hit.hover; move -0.260 * rhr, -0.850 * rhr; curve 0.260 * rhr, -0.850 * rhr via 0.000 * rhr, -1.000 * rhr; line 0.606 * rhr, -0.650 * rhr; curve 0.866 * rhr, -0.200 * rhr via 0.866 * rhr, -0.500 * rhr; line 0.866 * rhr, 0.200 * rhr; curve 0.606 * rhr, 0.650 * rhr via 0.866 * rhr, 0.500 * rhr; line 0.260 * rhr, 0.850 * rhr; curve -0.260 * rhr, 0.850 * rhr via 0.000 * rhr, 1.000 * rhr; line -0.606 * rhr, 0.650 * rhr; curve -0.866 * rhr, 0.200 * rhr via -0.866 * rhr, 0.500 * rhr; line -0.866 * rhr, -0.200 * rhr; curve -0.606 * rhr, -0.650 * rhr via -0.866 * rhr, -0.500 * rhr; close }
+            box { at: rhx, rhy; size: 12 * u, 12 * u; corner: 3 * u; stroke: 1.3 * u; color: mint }
+            ellipse { at: rhx - 2.6 * u, rhy - 2.6 * u; radius: 1.05 * u; color: mint }
+            ellipse { at: rhx, rhy; radius: 1.05 * u; color: mint }
+            ellipse { at: rhx + 2.6 * u, rhy + 2.6 * u; radius: 1.05 * u; color: mint }
+            zone box wp_rand_hit { at: rhx, rhy; size: 38 * u, 38 * u; corner: 14 * u; cursor: pointer }
             on press wp_rand_hit { emit wp_random }
-            //  The wallpaper picker: every wallpaper as a hexagon (SUPER + B).
-            box { at: spx + 285 * u, sby + 74 * u; size: 92 * u, 24 * u; corner: 12 * u; color: mint; opacity: 16% + 14% * wp_gal_hit.hover }
-            text "Picker" { at: floor(spx + 285 * u + 0.5), floor(sby + 74 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 700; width: 88 * u; lines: 1; color: mint; family: "Space Grotesk" }
-            zone box wp_gal_hit { at: spx + 285 * u, sby + 74 * u; size: 94 * u, 26 * u; corner: 13 * u; cursor: pointer }
-            on press wp_gal_hit { emit wp_picker_toggle }
+
+            //  Iris, the palette from the wallpaper: a switch, as for the slideshow below. Off, the shell is monochrome. The window borders in
+            //  Hyprland follow it too.
+            text "Iris" { at: floor(spx + 378 * u + 0.5), floor(sby + 46 * u + 0.5); anchor: right center; size: 11.5 * u; weight: 600; color: ink; family: "Space Grotesk" }
+            body {
+                color: mix(off, mint, clamp(iris_pill, 0, 1))
+                box { at: spx + 405 * u, sby + 46 * u; size: 38 * u, 22 * u; corner: 11 * u }
+            }
+            box { at: spx + 397 * u + iris_pill * 16 * u, sby + 46 * u; size: (17 + 9 * clamp(4 * iris_pill * (1 - iris_pill), 0, 1)) * u, (17 - 3 * clamp(4 * iris_pill * (1 - iris_pill), 0, 1)) * u; corner: (8.5 - 1.5 * clamp(4 * iris_pill * (1 - iris_pill), 0, 1)) * u; color: ink }
+            zone box wp_iris_hit { at: spx + 405 * u, sby + 46 * u; size: 46 * u, 30 * u; cursor: pointer }
+            on press wp_iris_hit { emit iris_toggle }
 
             //  Card two: the slideshow. A switch, and how often: a stepper along a short list of intervals.
             box { at: spx + 219 * u, sby + 122 * u; size: 438 * u, 44 * u; corner: 14 * u; color: ink; opacity: veil }

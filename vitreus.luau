@@ -1561,21 +1561,18 @@ local function json_hex(json, key)
     return json:match('"' .. key .. '"%s*:%s*"(#%x%x%x%x%x%x)"')
 end
 
-local function apply_iris(json)
-    local surface = json_hex(json, "surface") or "#1e202b"
-    local bg = json_hex(json, "bg") or "#12131a"
-    local accent = intensity_accent(json_hex(json, "accent") or "#94a3b8", iris_cfg.intensity)
-    local fg = ensure_contrast(json_hex(json, "fg") or "#e6e6e6", surface, 4.5)
-    local dim = ensure_contrast(json_hex(json, "dim") or "#a0a4ab", surface, 3.0)
-    local red = ensure_contrast(json_hex(json, "red") or "#ef4444", bg, 3.0)
-    -- Text on the accent: whichever of a near-black and a near-white reads better on it.
-    local onmint = contrast("#10161a", accent) >= contrast("#f5f7f5", accent) and "#10161a" or "#f5f7f5"
-    local pal = {
-        ink = fg, faint = dim, mint = accent,
-        mintlo = shade(accent, -0.10), minthi = shade(accent, 0.16),
-        onmint = onmint, tint = bg, panel = surface,
-        deep = blend(bg, "#000000", 0.45), off = blend(bg, fg, 0.22), alert = red,
-    }
+-- Hyprland's window border follows the palette: the active border is the accent running to its lighter shade (as it did
+-- under Synoptik), the inactive one a quiet shade of the background. It is sent to Hyprland at once (`hyprctl eval`) and kept in
+-- vitreus_colors.lua, which hyprland.lua loads after hypr_style.lua so it wins on the next start.
+iris_fx = {}
+function iris_fx.rgba(hex, alpha) return string.format('"rgba(%s%s)"', hex:sub(2), alpha) end
+function iris_fx.border_code(pal)
+    return string.format(
+        "hl.config({ general = { col = { active_border = { colors = { %s, %s }, angle = 45 }, inactive_border = %s } } })",
+        iris_fx.rgba(pal.mint, "ff"), iris_fx.rgba(pal.minthi, "ff"), iris_fx.rgba(pal.off, "aa"))
+end
+
+function iris_fx.apply_palette(pal)
     local order = { "ink", "faint", "mint", "mintlo", "minthi", "onmint", "tint", "panel", "deep", "off", "alert" }
     local lines = {
         "//  Written by Vitreus's logic from the wallpaper (Iris); edits here are overwritten.",
@@ -1601,7 +1598,42 @@ local function apply_iris(json)
             pcall(sys.call, "files.write", "wm-palette.plm", wm_text)
             run("cp", { d.data .. "/wm-palette.plm", d.conf .. "/wm-palette.plm" }, function() end)
         end
+        -- And Hyprland's window borders.
+        local code = iris_fx.border_code(pal)
+        run("hyprctl", { "eval", code }, function() end)
+        pcall(sys.call, "files.write", "vitreus_colors.lua",
+            "-- Written by Vitreus (the wallpaper's colours, Iris; or greys with Iris off); edits here are overwritten.\n" ..
+            "-- hyprland.lua loads it after hypr_style.lua, so it wins over the border set there.\n" .. code .. "\n")
+        local hypr = d.conf:gsub("/pleamar/shells/vitreus$", "/hypr")
+        run("cp", { "-f", d.data .. "/vitreus_colors.lua", hypr .. "/vitreus_colors.lua" }, function() end)
     end)
+end
+
+function iris_fx.build_palette(bg, surface, fg, dim, accent, red)
+    -- Text on the accent: whichever of a near-black and a near-white reads better on it.
+    local onmint = contrast("#10161a", accent) >= contrast("#f5f7f5", accent) and "#10161a" or "#f5f7f5"
+    return {
+        ink = fg, faint = dim, mint = accent,
+        mintlo = shade(accent, -0.10), minthi = shade(accent, 0.16),
+        onmint = onmint, tint = bg, panel = surface,
+        deep = blend(bg, "#000000", 0.45), off = blend(bg, fg, 0.22), alert = red,
+    }
+end
+
+local function apply_iris(json)
+    local surface = json_hex(json, "surface") or "#1e202b"
+    local bg = json_hex(json, "bg") or "#12131a"
+    local accent = intensity_accent(json_hex(json, "accent") or "#94a3b8", iris_cfg.intensity)
+    local fg = ensure_contrast(json_hex(json, "fg") or "#e6e6e6", surface, 4.5)
+    local dim = ensure_contrast(json_hex(json, "dim") or "#a0a4ab", surface, 3.0)
+    local red = ensure_contrast(json_hex(json, "red") or "#ef4444", bg, 3.0)
+    iris_fx.apply_palette(iris_fx.build_palette(bg, surface, fg, dim, accent, red))
+end
+
+-- With Iris off the shell is monochrome: neutral greys, and no hue anywhere but the red of an alert (a low battery, a failed
+-- action), which has to stay something you notice.
+function iris_fx.apply_mono()
+    iris_fx.apply_palette(iris_fx.build_palette("#161616", "#232323", "#ececec", "#9c9c9c", "#d6d6d6", "#ef4444"))
 end
 
 local function run_iris(path)
@@ -1645,6 +1677,23 @@ do
     else
         pcall(sys.call, "files.write", "iris.json", iris_cfg)     -- so there is a file to edit
     end
+end
+do
+    local function show() fact.iris_on = iris_cfg.enabled end
+    local function save() pcall(sys.call, "files.write", "iris.json", { enabled = iris_cfg.enabled, intensity = iris_cfg.intensity }) end
+    show()
+    if not iris_cfg.enabled then iris_fx.apply_mono() end
+    -- The switch on the Wallpaper page. Off: greys at once. On: Iris is run on the wallpaper in use, and the colours come back.
+    on("iris_toggle", function()
+        iris_cfg.enabled = not iris_cfg.enabled
+        save()
+        show()
+        if iris_cfg.enabled then
+            if iris_last_wp then run_iris(iris_last_wp) else check_wallpaper() end
+        else
+            iris_fx.apply_mono()
+        end
+    end)
 end
 -- A wallpaper that Vitreus sets is known at once (see `wp_apply`); this is only for one changed from elsewhere, so it
 -- does not need to look often. Every look starts a program (`awww query`): twice a second was most of what the shell
@@ -1993,11 +2042,13 @@ on("wp_next", function()
     if wp_page >= wp_pages() then wp_page = 0 end
     wp_refresh()
 end)
+-- Seeded once, here, from the time: seeding on every pick from the clock service's time (which only changes now and then) gave the same
+-- number to every press in between, so Random flipped between two wallpapers.
+math.randomseed(os.time())
 -- A random one from what the colour filter leaves, never the one already in use.
 local function wp_random_pick()
     local pool = wp_view
     if #pool == 0 or (#pool == 1 and pool[1] == wp_cur) then return nil end
-    math.randomseed(clock_seed)
     local f
     repeat f = pool[math.random(1, #pool)] until f ~= wp_cur
     return f

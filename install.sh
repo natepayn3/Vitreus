@@ -118,7 +118,7 @@ if [ "$action" = uninstall ]; then
     if [ -L "$HOME/.local/bin/vitreus-polkit-agent" ]; then run rm -f "$HOME/.local/bin/vitreus-polkit-agent"; fi
     if [ -L "$HOME/.local/bin/vitreus-sysmon" ]; then run rm -f "$HOME/.local/bin/vitreus-sysmon"; fi
     if [ -L "$conf/hypr/hypr_vitreus.lua" ]; then run rm -f "$conf/hypr/hypr_vitreus.lua"; fi
-    run rm -f "$conf/hypr/vitreus_monitors.lua" "$conf/hypr/vitreus_hypr.lua"
+    run rm -f "$conf/hypr/vitreus_monitors.lua" "$conf/hypr/vitreus_hypr.lua" "$conf/hypr/vitreus_colors.lua"
     if [ -d "$dest" ] && ask "delete $dest?"; then run rm -rf "$dest"; fi
     say "left as they were: your data in $data/pleamar/vitreus, the caches in ${XDG_CACHE_HOME:-$HOME/.cache}/pleamar/vitreus"
     say "and .../pleamar/lockscreen, and pleamar and the packages. To remove the data too: rm -rf $data/pleamar/vitreus"
@@ -281,7 +281,8 @@ fi
 # ── 6. Hyprland key binds ──────────────────────────────────────────────────
 # hypr_vitreus.lua (SUPER + L lock, SUPER + Space Settings) is linked into ~/.config/hypr and loaded from hyprland.lua
 # after hypr_style.lua. Settings > Display and > Hyprland keep what you choose in vitreus_monitors.lua and
-# vitreus_hypr.lua, loaded the same way (they do not exist until something is kept, hence pcall).
+# vitreus_hypr.lua, loaded the same way (they do not exist until something is kept, hence pcall); so does vitreus_colors.lua, the
+# window border colours Iris sets.
 hyprdir="$conf/hypr"
 hyprlua="$hyprdir/hyprland.lua"
 if $do_binds; then
@@ -293,7 +294,7 @@ if $do_binds; then
     elif ask "load Vitreus's key binds (SUPER + L, SUPER + Space) from $hyprlua?"; then
         run ln -sf "$dest/hypr_vitreus.lua" "$hyprdir/hypr_vitreus.lua"
         if $dry; then
-            echo "    would back up $hyprlua and add three pcall(require, ...) lines to its end"
+            echo "    would back up $hyprlua and add four pcall(require, ...) lines to its end"
         else
             cp "$hyprlua" "$hyprlua.before-vitreus"
             {
@@ -302,6 +303,7 @@ if $do_binds; then
                 echo 'pcall(require, "hypr_vitreus")'
                 grep -q 'vitreus_monitors' "$hyprlua" || echo 'pcall(require, "vitreus_monitors")'
                 grep -q 'vitreus_hypr' "$hyprlua" || echo 'pcall(require, "vitreus_hypr")'
+                grep -q 'vitreus_colors' "$hyprlua" || echo 'pcall(require, "vitreus_colors")'
                 echo "-- <<< vitreus"
             } >> "$hyprlua"
             say "added to $hyprlua (the old one is $hyprlua.before-vitreus); Hyprland reloads it by itself"
