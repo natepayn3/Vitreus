@@ -2954,12 +2954,13 @@ every(1800000, wx_refresh_now)           -- every half hour
 -- written to vitreus_hypr.lua, which hyprland.lua loads after hypr_style.lua so it wins on the next start.
 do
     local LAYOUTS = { "dwindle", "master", "scrolling" }
-    local hy = { layout = 3, gaps = 5, resize = false, tear = false, anim = true, sens = 0, follow = 1, nat = false }
+    local hy = { layout = 3, gaps = 5, round = 10, resize = false, tear = false, anim = true, sens = 0, follow = 1, nat = false }
     local hy_dirty, hy_waiting = false, false
 
     local function hy_show()
         fact.hy_layout = hy.layout
         fact.hy_gaps = hy.gaps
+        fact.hy_round = hy.round
         fact.hy_resize = hy.resize
         fact.hy_tear = hy.tear
         fact.hy_anim = hy.anim
@@ -2967,6 +2968,7 @@ do
         fact.hy_follow = hy.follow
         fact.hy_nat = hy.nat
         text.hy_gaps_text = string.format("%d px", hy.gaps)
+        text.hy_round_text = string.format("%d px", hy.round)
         text.hy_sens_text = string.format("%.2f", hy.sens)
     end
 
@@ -2974,8 +2976,8 @@ do
     local function hy_code()
         return string.format(
             "hl.config({ general = { gaps_in = %d, layout = \"%s\", resize_on_border = %s, allow_tearing = %s }, " ..
-            "animations = { enabled = %s }, input = { sensitivity = %.2f, follow_mouse = %d, touchpad = { natural_scroll = %s } } })",
-            hy.gaps, LAYOUTS[hy.layout], b(hy.resize), b(hy.tear), b(hy.anim), hy.sens, hy.follow, b(hy.nat))
+            "decoration = { rounding = %d }, animations = { enabled = %s }, input = { sensitivity = %.2f, follow_mouse = %d, touchpad = { natural_scroll = %s } } })",
+            hy.gaps, LAYOUTS[hy.layout], b(hy.resize), b(hy.tear), hy.round, b(hy.anim), hy.sens, hy.follow, b(hy.nat))
     end
 
     local function hy_write_file()
@@ -3016,6 +3018,7 @@ do
             local n = tonumber(tostring(j.css or ""):match("^(%d+)"))
             if n then hy.gaps = n; hy_show() end
         end)
+        opt("decoration:rounding", function(j) local n = tonumber(j.int); if n then hy.round = n; hy_show() end end)
         opt("general:resize_on_border", function(j) hy.resize = j.bool == true; hy_show() end)
         opt("general:allow_tearing", function(j) hy.tear = j.bool == true; hy_show() end)
         opt("animations:enabled", function(j) hy.anim = j.bool == true; hy_show() end)
@@ -3029,6 +3032,7 @@ do
 
     on("hy_layout_set", function(i) hy.layout = math.max(1, math.min(3, math.floor(i + 0.5))); hy_changed() end)
     on("hy_gaps_set", function(t) hy.gaps = math.floor(math.max(0, math.min(1, t)) * 30 + 0.5); hy_changed() end)
+    on("hy_round_set", function(t) hy.round = math.floor(math.max(0, math.min(1, t)) * 30 + 0.5); hy_changed() end)
     on("hy_sens_set", function(t)
         hy.sens = math.floor((math.max(0, math.min(1, t)) * 2 - 1) * 20 + 0.5) / 20
         hy_changed()

@@ -167,6 +167,7 @@ scene Vitreus {
     event glass_op_set ->           // the Opacity slider: 0..1 along its track
     event hy_layout_set ->
     event hy_gaps_set ->
+    event hy_round_set ->
     event hy_sens_set ->
     event hy_follow_set ->
     event hy_toggle ->
@@ -708,6 +709,7 @@ scene Vitreus {
     //  Settings > Hyprland: what Hyprland has now (see the logic), and the toggles' knobs.
     fact hy_layout = 3
     fact hy_gaps = 5
+    fact hy_round = 10
     fact hy_sens = 0
     fact hy_follow = 1
     fact hy_resize = false
@@ -1031,6 +1033,7 @@ scene Vitreus {
     event about_update ->
     event about_restart ->
     text hy_gaps_text = "5 px"
+    text hy_round_text = "10 px"
     text hy_sens_text = "0.00"
     prop hy_k0 = 0 ~quick
     prop hy_k1 = 0 ~quick
@@ -4238,12 +4241,12 @@ scene Vitreus {
             let hsl.w = 250 * u
             let hh = 12 * u
 
-            box { at: spx + 219 * u, sby + 86 * u; size: 438 * u, 172 * u; corner: 14 * u; color: ink; opacity: veil }
-            box { at: spx + 219 * u, sby + 213 * u; size: 438 * u, 58 * u; corner: 14 * u; color: ink; opacity: veil }
-            box { at: spx + 219 * u, sby + 323 * u; size: 438 * u, 138 * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: spx + 219 * u, sby + 104 * u; size: 438 * u, 208 * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: spx + 219 * u, sby + 249 * u; size: 438 * u, 58 * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: spx + 219 * u, sby + 359 * u; size: 438 * u, 138 * u; corner: 14 * u; color: ink; opacity: veil }
             text "GENERAL & LAYOUT" { at: floor(spx + 14 * u + 0.5), floor(sby + 13 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
-            text "ANIMATIONS" { at: floor(spx + 14 * u + 0.5), floor(sby + 197 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
-            text "INPUT" { at: floor(spx + 14 * u + 0.5), floor(sby + 267 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text "ANIMATIONS" { at: floor(spx + 14 * u + 0.5), floor(sby + 233 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
+            text "INPUT" { at: floor(spx + 14 * u + 0.5), floor(sby + 303 * u + 0.5); anchor: left center; size: 9 * u; weight: 700; color: faint; family: "Space Grotesk" }
 
             //  Layout.
             text "Layout" { at: floor(spx + 14 * u + 0.5), floor(sby + 42 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
@@ -4271,36 +4274,52 @@ scene Vitreus {
             on press hy_gaps_hit { emit hy_gaps_set(clamp(((ccx + (pointer.x - ccx) / ps) - hsl.x0) / hsl.w, 0, 1)) }
             on drag hy_gaps_hit { emit hy_gaps_set(clamp(((ccx + (pointer.x - ccx) / ps) - hsl.x0) / hsl.w, 0, 1)) }
 
-            //  Sensitivity, -1 to 1.
-            text "Sensitivity" { at: floor(spx + 14 * u + 0.5), floor(sby + 296 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
-            body { color: deep; rim: 9%; box { at: hsl.x0 + hsl.w / 2, sby + 296 * u; size: hsl.w, hh; corner: hh / 2 } }
+            //  Corner rounding, 0 to 30 px.
+            text "Corner rounding" { at: floor(spx + 14 * u + 0.5), floor(sby + 114 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+            body { color: deep; rim: 9%; box { at: hsl.x0 + hsl.w / 2, sby + 114 * u; size: hsl.w, hh; corner: hh / 2 } }
             group {
                 glow: 6 * u, 50%, mint
                 body {
                     gradient: hsl.x0, 0 to hsl.x0 + hsl.w, 0, mintlo, mint 55%, minthi
                     rim: 22%
-                    box { from: hsl.x0, sby + 296 * u - hh / 2; size: max(0.1, hsl.w * (hy_sens + 1) / 2), hh; corner: hh / 2 }
+                    box { from: hsl.x0, sby + 114 * u - hh / 2; size: max(0.1, hsl.w * hy_round / 30), hh; corner: hh / 2 }
                 }
             }
-            box { at: hsl.x0 + hsl.w / 2, sby + 296 * u; size: 1.5 * u, hh + 6 * u; corner: 0.75 * u; color: ink; opacity: 40% }
-            text hy_sens_text { at: floor(spx + 424 * u + 0.5), floor(sby + 296 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
-            zone box hy_sens_hit { at: hsl.x0 + hsl.w / 2, sby + 296 * u; size: hsl.w + 24 * u, 30 * u; cursor: pointer }
+            text hy_round_text { at: floor(spx + 424 * u + 0.5), floor(sby + 114 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
+            zone box hy_round_hit { at: hsl.x0 + hsl.w / 2, sby + 114 * u; size: hsl.w + 24 * u, 30 * u; cursor: pointer }
+            on press hy_round_hit { emit hy_round_set(clamp(((ccx + (pointer.x - ccx) / ps) - hsl.x0) / hsl.w, 0, 1)) }
+            on drag hy_round_hit { emit hy_round_set(clamp(((ccx + (pointer.x - ccx) / ps) - hsl.x0) / hsl.w, 0, 1)) }
+
+            //  Sensitivity, -1 to 1.
+            text "Sensitivity" { at: floor(spx + 14 * u + 0.5), floor(sby + 332 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+            body { color: deep; rim: 9%; box { at: hsl.x0 + hsl.w / 2, sby + 332 * u; size: hsl.w, hh; corner: hh / 2 } }
+            group {
+                glow: 6 * u, 50%, mint
+                body {
+                    gradient: hsl.x0, 0 to hsl.x0 + hsl.w, 0, mintlo, mint 55%, minthi
+                    rim: 22%
+                    box { from: hsl.x0, sby + 332 * u - hh / 2; size: max(0.1, hsl.w * (hy_sens + 1) / 2), hh; corner: hh / 2 }
+                }
+            }
+            box { at: hsl.x0 + hsl.w / 2, sby + 332 * u; size: 1.5 * u, hh + 6 * u; corner: 0.75 * u; color: ink; opacity: 40% }
+            text hy_sens_text { at: floor(spx + 424 * u + 0.5), floor(sby + 332 * u + 0.5); anchor: right center; size: 13 * u; weight: 600; color: ink; family: "Space Grotesk" }
+            zone box hy_sens_hit { at: hsl.x0 + hsl.w / 2, sby + 332 * u; size: hsl.w + 24 * u, 30 * u; cursor: pointer }
             on press hy_sens_hit { emit hy_sens_set(clamp(((ccx + (pointer.x - ccx) / ps) - hsl.x0) / hsl.w, 0, 1)) }
             on drag hy_sens_hit { emit hy_sens_set(clamp(((ccx + (pointer.x - ccx) / ps) - hsl.x0) / hsl.w, 0, 1)) }
 
             //  Focus follows the mouse: off, on, loose, full.
-            text "Follow mouse" { at: floor(spx + 14 * u + 0.5), floor(sby + 332 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
+            text "Follow mouse" { at: floor(spx + 14 * u + 0.5), floor(sby + 368 * u + 0.5); anchor: left center; size: 11 * u; color: faint; family: "Space Grotesk" }
             repeat i in 0..4 {
                 let fx = spx + 152 * u + i * 66 * u
-                box { at: fx, sby + 332 * u; size: 60 * u, 24 * u; corner: 12 * u; color: if(hy_follow == i, mint, ink); opacity: if(hy_follow == i, 24%, 8% + 10% * hy_fol_hit.$i.hover) }
-                text pick(i, "Off", "On", "Loose", "Full") { at: floor(fx + 0.5), floor(sby + 332 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 56 * u; lines: 1; color: if(hy_follow == i, mint, ink); family: "Space Grotesk" }
-                zone box hy_fol_hit.$i { at: fx, sby + 332 * u; size: 62 * u, 26 * u; corner: 13 * u; cursor: pointer }
+                box { at: fx, sby + 368 * u; size: 60 * u, 24 * u; corner: 12 * u; color: if(hy_follow == i, mint, ink); opacity: if(hy_follow == i, 24%, 8% + 10% * hy_fol_hit.$i.hover) }
+                text pick(i, "Off", "On", "Loose", "Full") { at: floor(fx + 0.5), floor(sby + 368 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 600; width: 56 * u; lines: 1; color: if(hy_follow == i, mint, ink); family: "Space Grotesk" }
+                zone box hy_fol_hit.$i { at: fx, sby + 368 * u; size: 62 * u, 26 * u; corner: 13 * u; cursor: pointer }
                 on press hy_fol_hit.$i { emit hy_follow_set(i) }
             }
 
             //  The switches: resize from the border, tearing, animations, natural scroll.
             repeat i in 0..4 {
-                let ty = sby + pick(i, 114, 148, 222, 368) * u
+                let ty = sby + pick(i, 150, 184, 258, 404) * u
                 let tk = pick(i, hy_k0, hy_k1, hy_k2, hy_k3)
                 text pick(i, "Resize from border", "Allow screen tearing", "Window manager animations", "Natural scroll (touchpad)") { at: floor(spx + 14 * u + 0.5), floor(ty - 6 * u + 0.5); anchor: left center; size: 11.5 * u; weight: 600; color: ink; family: "Space Grotesk" }
                 text pick(i, "Grab a window's edge anywhere to resize it", "Lets opted-in fullscreen apps skip vsync", "Hyprland's own window and workspace motion", "Reverses the touchpad's scroll direction") { at: floor(spx + 14 * u + 0.5), floor(ty + 8 * u + 0.5); anchor: left center; size: 9.5 * u; color: faint; family: "Space Grotesk" }
