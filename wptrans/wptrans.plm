@@ -1,0 +1,38 @@
+language 0.1
+
+//  The wallpaper transition: a hexagon dissolve. This scene sits on the bottom layer, above awww's wallpaper and under every window,
+//  and draws nothing until it is asked. Asked (see wptrans.luau), it makes the new wallpaper's picture at the screen's size, lets it
+//  appear through a honeycomb that opens in a wave from where it was picked, and, when the picture covers the screen, has awww switch to
+//  it at once and takes itself away. Nothing here takes a click: it has no zones.
+
+scene Wptrans {
+    surface { size: full, full; anchor: top_left; level: bottom; screens: all; reserve: -1 }
+
+    permissions {
+        run: "awww", "magick", "mkdir", "ls", "printenv"
+    }
+
+    shader hexr = file "hexreveal.wgsl"
+
+    text src = ""                       // the picture, made by the logic: a path, with a version on the end (it is made again each time)
+    text target = ""                    // the wallpaper that was picked
+    image nimg = from src, 1920, 1080
+
+    fact active = false                 // the dissolve is on
+    fact ox = 960                       // where the wave starts, in pixels from the top left
+    fact oy = 540
+    fact hex_r = 56                     // the hexagon's radius, in pixels (the picker's tiles are bigger; this is a finer honeycomb)
+    fact dur = 1.5                      // seconds
+    fact t0 = 0                         // `time` when it began
+    prop time = 0
+    spin time by if(active, 1, 0)       // the clock runs only while it is on, so that the scene idles at nothing the rest of the time
+    let prog = clamp((time - t0) / dur, 0, 1)
+    event go ->                         // everything is ready (src, target, ox, oy): begin
+    on change active while active { t0 = time }
+
+    group {
+        show: active
+        shader: hexr, prog, hex_r, ox, oy, 0.8, 0.45, 0
+        image nimg { at: 0, 0; size: screen.width, screen.height }
+    }
+}

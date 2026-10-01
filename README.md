@@ -117,6 +117,11 @@ with its content fading in after the glass has settled
 * **Notifications** — Vitreus is the notification server. Banners grow to fit their title, body and buttons; critical
   ones stay until dismissed; everything lands in the history, including what Do Not Disturb held back.
 
+**Wallpaper transition** — picking a wallpaper in the picker dissolves it in through a honeycomb of hexagons that opens in a wave from the
+tile you clicked (`wptrans/`). It is a scene of its own on the bottom layer, above your wallpaper and under every window: it makes the
+picture at the screen's size, shows it through a shader, and has awww switch to it the moment it covers the screen. The installer starts it with
+the desktop; when it is not running a pick uses awww's own transition.
+
 **Lock screen** — a lock screen, in [`lockscreen/`](lockscreen/README.md). It is a scene of its own
 (a session lock has to be its own program), and the installer starts it with the desktop: the lock buttons and `SUPER + L` need it running.
 
