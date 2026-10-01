@@ -1507,10 +1507,19 @@ end
 
 -- The wallpaper is asked of awww every half second; when it changes, Iris is run on the new one.
 local wp_on_change = function(path) end       -- the wallpaper page, further down, takes this over
+-- A wallpaper that the hexagon dissolve is bringing in: awww is told about it only when the dissolve is over, a couple of seconds on, and
+-- until then it still says the old one. Taking that for a change made from outside would run Iris on the old wallpaper again (the colours
+-- went back, and then, when awww caught up, forward again). So what awww says is not believed until it says this, or the time is up.
+local wp_pending, wp_pending_until = nil, 0
 local function check_wallpaper()
     run("awww", { "query" }, function(out, code)
         if code ~= 0 or not out then return end
         local path = out:match("currently displaying: image: ([^\n]+)")
+        if wp_pending then
+            if path == wp_pending then wp_pending = nil
+            elseif os.time() < wp_pending_until then return
+            else wp_pending = nil end
+        end
         if path and path ~= iris_last_wp then
             iris_last_wp = path
             wp_on_change(path)
@@ -1708,11 +1717,34 @@ wp_on_change = function(path)
     wp_refresh()
 end
 
-local function wp_apply(path, how, started)
-    -- `how`: awww's transition flags. The wallpaper picker asks for a bloom from the tile that was pressed.
-    local args = { "img", path }
-    for _, a in ipairs(how or { "--transition-type", "fade", "--transition-duration", "0.8" }) do args[#args + 1] = a end
-    run("awww", args, function() if started then started() end end)     -- `started`: awww has the picture, the change is under way
+-- The hexagon dissolve is a scene of its own (wptrans). It is told what was picked, and where on the screen (pixels from the top left),
+-- and it has awww switch to the picture itself once it covers the screen. When it is not running there is no answer, and `fail_fn` has
+-- awww do the change with a transition of its own.
+local function wp_hex(path, x, y, ok_fn, fail_fn)
+    local function say(cmd, fn) run("pleamar", { "--say", "wptrans", cmd }, fn) end
+    say("text target " .. path, function(_, code)
+        if code ~= 0 then fail_fn() return end
+        wp_pending, wp_pending_until = path, os.time() + 8
+        say("fact ox " .. x, function()
+            say("fact oy " .. y, function()
+                say("emit go", function() ok_fn() end)
+            end)
+        end)
+    end)
+end
+
+-- `how`: awww's transition flags. `hex`, `{ x =, y = }`: the dissolve from that point instead (the wallpaper picker's).
+local function wp_apply(path, how, started, hex)
+    local function by_awww()
+        local args = { "img", path }
+        for _, a in ipairs(how or { "--transition-type", "fade", "--transition-duration", "0.8" }) do args[#args + 1] = a end
+        run("awww", args, function() if started then started() end end)     -- `started`: awww has the picture, the change is under way
+    end
+    if hex then
+        wp_hex(path, hex.x, hex.y, function() if started then started() end end, by_awww)
+    else
+        by_awww()
+    end
     wp_on_change(path)
     -- The path is known: Iris starts now, while the fade plays, not when the watcher next notices the
     -- change. Marking it seen stops the watcher running it a second time.
@@ -4422,7 +4454,7 @@ end)()
 
     on("wp_picker_toggle", function()
         local opening = not fact.wp_picker_open
-        if opening then set_panel("none"); if G.laid then build() end end
+        if opening then fact.wp_picker_leaving = false; set_panel("none"); if G.laid then build() end end
         fact.wp_picker_open = opening
     end)
 
@@ -4432,22 +4464,30 @@ end)()
         local f = G.files and G.files[i + 1]
         if not f then return end
         local px, py = math.floor((fact.wp_picker_px or 0) + 0.5), math.floor((fact.wp_picker_py or 0) + 0.5)
+        local mh = tonumber(fact.mon_h) or 1080
         wp_apply(f, { "--transition-type", "grow", "--transition-pos", px .. "," .. py, "--transition-duration", "1.6",
                       "--transition-fps", "60", "--transition-step", "60" }, function()
-            -- Only now does the tray leave: before, the desktop would show the old wallpaper while awww is still decoding the new one.
+            -- Only now does the tray leave: before, the desktop would show the old wallpaper while it is being made ready.
             fact.wp_picker_leaving = true
-            after(350, function() fact.wp_picker_open = false; fact.wp_picker_leaving = false end)
-        end)
+            after(350, function() fact.wp_picker_open = false end)
+            -- `leaving` stays up until the tray has shut: its opacity is `show` times `veil`, so letting `veil` go back to 1 while `show` is still
+            -- on its way to 0 brings the tray back for a moment. Opening it again puts it back (see wp_picker_toggle).
+            after(1800, function() fact.wp_picker_leaving = false end)
+        end, { x = px, y = mh - py })           -- the dissolve counts from the top left; awww's position counts from the bottom
     end)
     -- Random: any wallpaper, from the middle of the screen.
     on("wp_picker_random", function()
         local f = wp_random_pick()
         if not f then return end
+        local mh = tonumber(fact.mon_h) or 1080
         wp_apply(f, { "--transition-type", "grow", "--transition-pos", "center", "--transition-duration", "1.6",
                       "--transition-fps", "60", "--transition-step", "60" }, function()
             fact.wp_picker_leaving = true
-            after(350, function() fact.wp_picker_open = false; fact.wp_picker_leaving = false end)
-        end)
+            after(350, function() fact.wp_picker_open = false end)
+            -- `leaving` stays up until the tray has shut: its opacity is `show` times `veil`, so letting `veil` go back to 1 while `show` is still
+            -- on its way to 0 brings the tray back for a moment. Opening it again puts it back (see wp_picker_toggle).
+            after(1800, function() fact.wp_picker_leaving = false end)
+        end, { x = math.floor(mh * 16 / 9 / 2), y = math.floor(mh / 2) })
     end)
 end)()
 
