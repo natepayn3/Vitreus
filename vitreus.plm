@@ -1725,7 +1725,10 @@ scene Vitreus {
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36
     let nt.h = 246 + 552 - nt.ds + 8 + if(nta_sel >= 0, 456, 0) + 12
-    let set.h = max(side.ab + 40, mix(mix(mix(mix(mix(mix(mix(mix(mix(mix(456, 262, set_pg), min(disp.h, 456), set_pgd), 424, set_pgb), 392, set_pgh), 262, set_pga), 312, set_pgn), 456, set_pgs), 456, set_pgt), 456, set_pgl), 456, set_pgw))
+    //  A fixed height, whatever the page: the panel used to follow the page in view (262 to 456), so it resized, and moved what hangs from it, with
+    //  every click in the sidebar. A page taller than this scrolls inside it (they have their scroll thumb and "More" cue); a shorter one has
+    //  empty glass at its foot. It never goes below the sidebar's last row.
+    let set.h = max(side.ab + 40, 456)
     //  A held Power button counts its second on this clock, and a recording pulses on it, so they need it too.
     let need_clock = ((wifi_scanning or bt_scanning or bt_working or caf_on or rec_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or nt_urgent)) or (set_pgd > 0.01 and disp.h > 456)
     spin time by if(need_clock, 1, 0)
