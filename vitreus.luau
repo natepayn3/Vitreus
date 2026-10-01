@@ -12,6 +12,20 @@ sys.watch("workspaces", function(w)
     for i = 1, 5 do fact["ws." .. i .. ".busy"] = busy[i] or false end
     fact["ws.active"] = w.active
 end)
+-- Starting a program "on the desktop" (not as this shell's child). On Hyprland that is its own `exec_cmd`, so the program comes from the
+-- compositor; Hyprland's environment says whether this is Hyprland. On any other desktop (pleamar-wm) there is no such command, and the
+-- program is started directly, in a session of its own. Either way it has ~/.local/bin on its PATH, which Hyprland's has not.
+on_hyprland = false                       -- (globals, not locals: this chunk is at Luau's limit of 200 locals)
+run("printenv", { "HYPRLAND_INSTANCE_SIGNATURE" }, function(out, code) on_hyprland = code == 0 and (out or "") ~= "" end)
+function exec_on_desktop(cmd)
+    local line = 'export PATH="$HOME/.local/bin:$PATH"; ' .. cmd
+    if on_hyprland then
+        local quoted = (string.format("%q", line):gsub("\\\n", "\\n"))
+        run("hyprctl", { "dispatch", "hl.dsp.exec_cmd(" .. quoted .. ")" }, function() end)
+    else
+        run("setsid", { "-f", "sh", "-c", line }, function() end)
+    end
+end
 on("go", function(i) sys.call("workspaces.focus", i) end)
 -- From the overview: the overview holds the keyboard while it is open, and when it lets go Hyprland gives the focus back to the window
 -- you came from, which would take you straight back. So it closes first and the switch comes once it has let go.
@@ -2848,8 +2862,7 @@ end
 
     local function lua_quote(s) return string.format("%q", s):gsub("\\\n", "\\n") end
     local function spawn(cmd)              -- start it on the desktop, detached from this shell
-        -- Hyprland starts it with its own PATH, which has no ~/.local/bin (where pleamar is): without this, `pleamar --say ...` is not found.
-        run("hyprctl", { "dispatch", "hl.dsp.exec_cmd(" .. lua_quote('export PATH="$HOME/.local/bin:$PATH"; ' .. cmd) .. ")" }, function() end)
+        exec_on_desktop(cmd)
     end
     local function set_panel(name) cur_panel = name; fact.panel = name end
     local function close() set_panel("none") end
@@ -4697,8 +4710,7 @@ end)()
 ;(function()
     local function lua_quote(s) return (string.format("%q", s):gsub("\\\n", "\\n")) end
     local function spawn(cmd)                      -- start it on the desktop, detached from this shell
-        -- Hyprland starts it with its own PATH, which has no ~/.local/bin (where pleamar is): without this, `pleamar --say ...` is not found.
-        run("hyprctl", { "dispatch", "hl.dsp.exec_cmd(" .. lua_quote('export PATH="$HOME/.local/bin:$PATH"; ' .. cmd) .. ")" }, function() end)
+        exec_on_desktop(cmd)
     end
     local function sh(script) return "sh -c '" .. script .. "'" end   -- the scripts below hold no single quote
 
