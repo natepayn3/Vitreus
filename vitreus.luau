@@ -2347,7 +2347,11 @@ wp_load()
 -- they are solid); `opacity` is how solid they are, from 30 % to 100 % (its track is 0 to 100 %, the first 30 %
 -- of it shaded). Both are numbers from 0 to 1 that the
 -- scene reads, kept in `glass.json` a moment after the last change so a drag does not write a file per pixel.
-local glass = { frost = 1, opacity = 1 }
+-- Four more, all of them multipliers or switches the scene reads: `rim` (how bright the light along the edge is, 0 to 2, 1 as it
+-- was), `refr` (how thick the glass is, 0 to 2) and `disp` (the rainbow at the edge, 0 to 2.5) only show when `bend` is on,
+-- which swaps the compositor's blur for glass that really bends what is behind it. The blur's own strength is Hyprland's, and
+-- lives in the Hyprland section below (it puts its setter in `glass.set_blur`).
+local glass = { frost = 1, opacity = 1, rim = 1, refr = 1, disp = 1, bend = false }
 local GLASS_OP_MIN = 0.3
 local glass_save_waiting = false
 
@@ -2356,13 +2360,20 @@ local function glass_refresh()
     fact.glass_op = glass.opacity
     text.glass_frost_text = string.format("%d%%", math.floor(glass.frost * 100 + 0.5))
     text.glass_op_text = string.format("%d%%", math.floor(glass.opacity * 100 + 0.5))
+    fact.glass_rim = glass.rim
+    fact.glass_refr = glass.refr
+    fact.glass_disp = glass.disp
+    fact.glass_bend = glass.bend
+    text.glass_rim_text = string.format("%d%%", math.floor(glass.rim * 100 + 0.5))
+    text.glass_refr_text = string.format("%d%%", math.floor(glass.refr * 100 + 0.5))
+    text.glass_disp_text = string.format("%d%%", math.floor(glass.disp * 100 + 0.5))
 end
 local function glass_save_soon()
     if glass_save_waiting then return end
     glass_save_waiting = true
     after(500, function()
         glass_save_waiting = false
-        pcall(sys.call, "files.write", "glass.json", { frost = glass.frost, opacity = glass.opacity })
+        pcall(sys.call, "files.write", "glass.json", { frost = glass.frost, opacity = glass.opacity, rim = glass.rim, refr = glass.refr, disp = glass.disp, bend = glass.bend })
     end)
 end
 
@@ -2371,6 +2382,10 @@ do
     if ok and type(saved) == "table" then
         if type(saved.frost) == "number" then glass.frost = math.max(0, math.min(1, saved.frost)) end
         if type(saved.opacity) == "number" then glass.opacity = math.max(GLASS_OP_MIN, math.min(1, saved.opacity)) end
+        if type(saved.rim) == "number" then glass.rim = math.max(0, math.min(2, saved.rim)) end
+        if type(saved.refr) == "number" then glass.refr = math.max(0, math.min(2, saved.refr)) end
+        if type(saved.disp) == "number" then glass.disp = math.max(0, math.min(2.5, saved.disp)) end
+        if type(saved.bend) == "boolean" then glass.bend = saved.bend end
     end
     glass_refresh()
 end
@@ -2387,8 +2402,15 @@ on("glass_op_set", function(t)
     glass_refresh()
     glass_save_soon()
 end)
+-- A slider's track is 0 to 1; these turn it into the value, in steps of 5 %.
+function glass.step(t, top) return math.floor(math.max(0, math.min(1, t)) * top * 20 + 0.5) / 20 end
+on("glass_rim_set", function(t) glass.rim = glass.step(t, 2); glass_refresh(); glass_save_soon() end)
+on("glass_refr_set", function(t) glass.refr = glass.step(t, 2); glass_refresh(); glass_save_soon() end)
+on("glass_disp_set", function(t) glass.disp = glass.step(t, 2.5); glass_refresh(); glass_save_soon() end)
+on("glass_bend_toggle", function() glass.bend = not glass.bend; glass_refresh(); glass_save_soon() end)
 on("glass_reset", function()
-    glass.frost, glass.opacity = 1, 1
+    glass.frost, glass.opacity, glass.rim, glass.refr, glass.disp, glass.bend = 1, 1, 1, 1, 1, false
+    if glass.set_blur then glass.set_blur(3, 1) end
     glass_refresh()
     glass_save_soon()
 end)
@@ -3077,13 +3099,15 @@ every(1800000, wx_refresh_now)           -- every half hour
 -- written to vitreus_hypr.lua, which hyprland.lua loads after hypr_style.lua so it wins on the next start.
 do
     local LAYOUTS = { "dwindle", "master", "scrolling" }
-    local hy = { layout = 3, gaps = 5, round = 10, resize = false, tear = false, anim = true, sens = 0, follow = 1, nat = false }
+    local hy = { layout = 3, gaps = 5, round = 10, blur = 3, passes = 1, resize = false, tear = false, anim = true, sens = 0, follow = 1, nat = false }
     local hy_dirty, hy_waiting = false, false
 
     local function hy_show()
         fact.hy_layout = hy.layout
         fact.hy_gaps = hy.gaps
         fact.hy_round = hy.round
+        fact.hy_blur = hy.blur
+        text.hy_blur_text = string.format("%d", hy.blur)
         fact.hy_resize = hy.resize
         fact.hy_tear = hy.tear
         fact.hy_anim = hy.anim
@@ -3099,8 +3123,8 @@ do
     local function hy_code()
         return string.format(
             "hl.config({ general = { gaps_in = %d, layout = \"%s\", resize_on_border = %s, allow_tearing = %s }, " ..
-            "decoration = { rounding = %d }, animations = { enabled = %s }, input = { sensitivity = %.2f, follow_mouse = %d, touchpad = { natural_scroll = %s } } })",
-            hy.gaps, LAYOUTS[hy.layout], b(hy.resize), b(hy.tear), hy.round, b(hy.anim), hy.sens, hy.follow, b(hy.nat))
+            "decoration = { rounding = %d, blur = { size = %d, passes = %d } }, animations = { enabled = %s }, input = { sensitivity = %.2f, follow_mouse = %d, touchpad = { natural_scroll = %s } } })",
+            hy.gaps, LAYOUTS[hy.layout], b(hy.resize), b(hy.tear), hy.round, hy.blur, hy.passes, b(hy.anim), hy.sens, hy.follow, b(hy.nat))
     end
 
     local function hy_write_file()
@@ -3142,6 +3166,8 @@ do
             if n then hy.gaps = n; hy_show() end
         end)
         opt("decoration:rounding", function(j) local n = tonumber(j.int); if n then hy.round = n; hy_show() end end)
+        opt("decoration:blur:size", function(j) local n = tonumber(j.int); if n then hy.blur = n; hy_show() end end)
+        opt("decoration:blur:passes", function(j) local n = tonumber(j.int); if n then hy.passes = n; hy_show() end end)
         opt("general:resize_on_border", function(j) hy.resize = j.bool == true; hy_show() end)
         opt("general:allow_tearing", function(j) hy.tear = j.bool == true; hy_show() end)
         opt("animations:enabled", function(j) hy.anim = j.bool == true; hy_show() end)
@@ -3160,6 +3186,14 @@ do
         hy.sens = math.floor((math.max(0, math.min(1, t)) * 2 - 1) * 20 + 0.5) / 20
         hy_changed()
     end)
+    -- The blur behind the glass, from the Glass page: its size, 1 to 20, and more passes as it grows so a big blur stays smooth.
+    local function set_blur(size, passes)
+        hy.blur = math.max(1, math.min(20, math.floor(size + 0.5)))
+        hy.passes = passes or (1 + math.floor((hy.blur - 1) / 6))
+        hy_changed()
+    end
+    glass.set_blur = set_blur
+    on("glass_blur_set", function(t) set_blur(1 + math.max(0, math.min(1, t)) * 19) end)
     on("hy_follow_set", function(i) hy.follow = math.max(0, math.min(3, math.floor(i + 0.5))); hy_changed() end)
     on("hy_toggle", function(k)
         k = math.floor(k + 0.5)
@@ -4408,7 +4442,8 @@ end)()
 -- the way the Bar page does it: a command left running on its own (`setsid`) that asks this one to quit and opens the
 -- scene afresh. ssh is told not to ask for anything, so a fetch that needs a passphrase fails instead of hanging.
 ;(function()
-    local A = { busy = false, dir = nil }
+    local A = { busy = false, dir = nil, src = nil, shell_behind = 0, pl_behind = 0 }
+    local PL_REPOS = { "pleamar", "pleamar-wm", "marea-plm" }
     local RESTART = [[
 P="$1"; L="$2"
 export PATH="$HOME/.local/bin:$PATH"
@@ -4421,7 +4456,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
 ]]
     local SSH = "core.sshCommand=ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=5 -o ServerAliveCountMax=3"
 
-    local function busy(b, msg)
+    local function busy(b, msg, patience)
         A.busy = b
         fact.about_busy = b
         if msg then text.about_msg = msg end
@@ -4430,7 +4465,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         A.gen = (A.gen or 0) + 1
         if b then
             local mine = A.gen
-            after(45000, function()
+            after(patience or 45000, function()
                 if A.gen == mine and A.busy then
                     A.busy = false
                     fact.about_busy = false
@@ -4442,6 +4477,13 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
 
     local function git(args, cb)
         local full = { "-C", A.dir, "-c", SSH }
+        for _, a in ipairs(args) do full[#full + 1] = a end
+        run("git", full, cb)
+    end
+
+    -- The same, in one of pleamar's source folders (the ones `pleamar-update` keeps).
+    local function git_in(repo, args, cb)
+        local full = { "-C", A.src .. "/" .. repo, "-c", SSH }
         for _, a in ipairs(args) do full[#full + 1] = a end
         run("git", full, cb)
     end
@@ -4493,13 +4535,35 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
                         fact.about_behind = -1
                         return busy(false, "This branch doesn't follow a remote one, so there is nothing to check.")
                     end
-                    fact.about_behind = n
+                    A.shell_behind = n
                     local msg
-                    if n == 0 then msg = "Up to date."
-                    elseif m > 0 then msg = n .. " new upstream, but you have " .. m .. " commit(s) of your own: update by hand."; fact.about_behind = 0
-                    else msg = n == 1 and "1 update available." or (n .. " updates available.") end
-                    busy(false, msg)
-                    if after then after() end
+                    if n == 0 then msg = nil
+                    elseif m > 0 then msg = n .. " new upstream, but you have " .. m .. " commit(s) of your own: update by hand."; A.shell_behind = 0
+                    else msg = n == 1 and "1 shell update available." or (n .. " shell updates available.") end
+                    -- Then pleamar itself: its source folders, fetched and counted the same way.
+                    A.pl_behind = 0
+                    local function repo(i)
+                        local r = PL_REPOS[i]
+                        if not r then
+                            local total = A.shell_behind + A.pl_behind
+                            fact.about_behind = total
+                            local parts = {}
+                            if msg then parts[#parts + 1] = msg end
+                            if A.pl_behind > 0 then parts[#parts + 1] = "pleamar has " .. A.pl_behind .. " update" .. (A.pl_behind == 1 and "" or "s") .. "." end
+                            busy(false, #parts > 0 and table.concat(parts, " ") or "Up to date.")
+                            if after then after() end
+                            return
+                        end
+                        git_in(r, { "fetch", "--quiet" }, function(_, fc)
+                            if fc ~= 0 then return repo(i + 1) end
+                            git_in(r, { "rev-list", "--count", "HEAD..@{u}" }, function(o, rc)
+                                local k = tonumber(lines(o)[1] or "")
+                                if rc == 0 and k then A.pl_behind = A.pl_behind + k end
+                                repo(i + 1)
+                            end)
+                        end)
+                    end
+                    repo(1)
                 end)
             end)
         end)
@@ -4524,17 +4588,32 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
     end)
     on("about_update", function()
         if A.busy or (fact.about_behind or 0) <= 0 then return end
+        -- Vitreus first, then pleamar (`pleamar-update` pulls its source and builds it, which takes minutes): the shell
+        -- is only started again once both are in place.
+        local function pleamar_then_restart()
+            if A.pl_behind <= 0 then return restart() end
+            busy(true, "Updating pleamar: building it, this takes a few minutes…", 1800000)
+            run("pleamar-update", {}, function(_, code)
+                if code ~= 0 then
+                    return busy(false, "Couldn't update pleamar. Try `pleamar-update` in a terminal to see why.")
+                end
+                A.pl_behind = 0
+                restart()
+            end)
+        end
         busy(true, "Updating…")
+        if A.shell_behind <= 0 then return pleamar_then_restart() end
         git({ "pull", "--ff-only", "--quiet" }, function(_, code)
             if code ~= 0 then
                 return busy(false, "Couldn't update: something of yours is in the way. Try `git pull` in the shell's folder.")
             end
-            restart()
+            pleamar_then_restart()
         end)
     end)
 
     with_dirs(function(d)
         A.dir = d.conf
+        A.src = (d.data:gsub("/vitreus$", "/src"))
         read_build()
     end)
 end)()
