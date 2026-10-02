@@ -1623,10 +1623,10 @@ scene Vitreus {
     let room = 10 * u
     let roomv = 10 * cu                    // and down the left, where the dots are larger
     //  Down the left, top to bottom: the workspaces (their middle one at `lv.ws`), the tray apps, and from the foot up the clock (its
-    //  hour at `lv.clk`, the minutes and am/pm under it), the controls, search and the gear, 32 apart. Whole pixels, for the texts.
+    //  hour at `lv.clk`, the minutes, am/pm, the weekday and the date under it), the controls, search and the gear, 32 apart. Whole pixels, for the texts.
     let lv.ws = yo + lf.t + 50 * cu
     let lv.tray = lv.ws + 30 * cu + 22 * cu
-    let lv.clk = vb - lf.t - 84 * u
+    let lv.clk = vb - lf.t - 91 * u
     let lv.ctl = lv.clk - 46 * u
     let lv.set = lv.ctl - 32 * u
     let lv.sr = lv.set - 32 * u
@@ -1804,7 +1804,7 @@ scene Vitreus {
     //  Down the left, where the open panel is (`lp_k`: which was opened last), in its own coordinates: it ends up in the middle of the screen,
     //  except the volume, which is low, and the notification, which is high. It leaves the strip at the height of its button (`lp.btn`; the volume
     //  and the notification leave at their own height) and its middle travels from there to its place with the drop (`lp.cy`). `pw_y` follows its top.
-    let lp.btn = if(lp_k == 1, vb - lf.t / 2, if(lp_k == 2, yo + lf.t / 2, if(lp_k == 3, lv.ctl, if(lp_k == 4, lv.clk + 24 * u, if(lp_k == 5, lv.tray + 9 * u, if(lp_k == 6, lv.tm, 0))))))
+    let lp.btn = if(lp_k == 1, vb - lf.t / 2, if(lp_k == 2, yo + lf.t / 2, if(lp_k == 3, lv.ctl, if(lp_k == 4, lv.clk + 30 * u, if(lp_k == 5, lv.tray + 9 * u, if(lp_k == 6, lv.tm, 0))))))
     //  Margins: the plates are 12 in from a drawer's top and bottom in their own layouts and 18.5 in from its sides, so a panel's content is moved by
     //  `lp.dy` and the drawer made `lp.dd` taller to make them 18.5 all round (Settings included).
     let lp.dy = if(lp_k == 1, 4.5, if(lp_k == 2 or lp_k == 3 or lp_k == 5 or lp_k == 6 or lp_k == 7 or lp_k == 8, 6.5, if(lp_k == 4, -0.5, 0))) * ku * lm
@@ -1937,7 +1937,7 @@ scene Vitreus {
     on change ctl_arm > 0.9 while ctl_arm > 0.9 { panel = controls }
     on change ctl_hold < 0.05 while ctl_hold < 0.05 and panel == controls and lm > 0.5 { panel = none }
     //  The calendar the same way, from the clock.
-    let cal.onbtn = if(lm > 0.5 and cursor.x > 0 and cursor.x < lf.w and abs(cursor.y - (lv.clk + 24 * u)) < 42 * u, 1, 0)
+    let cal.onbtn = if(lm > 0.5 and cursor.x > 0 and cursor.x < lf.w and abs(cursor.y - (lv.clk + 30 * u)) < 52 * u, 1, 0)
     let cal.ondraw = if(lm > 0.5 and panel == calendar and cursor.x > dc.ex - dc.ew / 2 - 4 and cursor.x < dc.ex + dc.ew / 2 + 4 and cursor.y > dc.ey - dc.eh / 2 - 4 and cursor.y < dc.ey + dc.eh / 2 + 4, 1, 0)
     prop cal_arm = 0 ~120ms
     follow cal_arm = cal.onbtn
@@ -2123,7 +2123,7 @@ scene Vitreus {
         on press ctl_hit { panel = if(lm > 0.5, controls, if(panel == controls, none, controls)) }
 
         //  The calendar's button is the clock and a little around it: 4 more at each side.
-        zone box bar_hit { at: mix(at.clock, lf.x, lm), mix(bar.y, lv.clk + 24 * u, lm); size: mix(fw.clock + 8 * u, lf.w - 4 * u, lm), mix(bar.h, 84 * u, lm); cursor: pointer; active: bs.clock > 0.5 }
+        zone box bar_hit { at: mix(at.clock, lf.x, lm), mix(bar.y, lv.clk + 30 * u, lm); size: mix(fw.clock + 8 * u, lf.w - 4 * u, lm), mix(bar.h, 100 * u, lm); cursor: pointer; active: bs.clock > 0.5 }
         on press bar_hit { panel = if(lm > 0.5, calendar, if(panel == calendar, none, calendar)) }
         //  Right-click closes whatever is open. It also matters for a reason that
         //  has nothing to do with the calendar: pleamar treats an unclaimed right
@@ -2231,8 +2231,12 @@ scene Vitreus {
     text clock_h { at: floor(clock.r - clock.col - cmw.width + 0.5), floor(bar.y + 0.5); anchor: right center; size: 40; weight: 700; measure: chw; color: ink; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     //  Down the left the clock is stacked in the strip: the hour, the minutes under it in the accent, and the am/pm.
     text clock_h { at: floor(lf.x + 0.5), floor(lv.clk + 0.5); anchor: center; align: center; size: 30; weight: 700; color: ink; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text clock_mn { at: floor(lf.x + 0.5), floor(lv.clk + 26 * u + 0.5); anchor: center; align: center; size: 22; weight: 700; color: mint; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text bar_ap { at: floor(lf.x + 0.5), floor(lv.clk + 46 * u + 0.5); anchor: center; align: center; size: 12; weight: 600; color: faint; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text clock_mn { at: floor(lf.x + 0.5), floor(lv.clk + 24 * u + 0.5); anchor: center; align: center; size: 22; weight: 700; color: mint; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text bar_ap { at: floor(lf.x + 0.5), floor(lv.clk + 41 * u + 0.5); anchor: center; align: center; size: 12; weight: 600; color: faint; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    //  Under them, past a short rule, the day of the week and the date.
+    box { at: lf.x, lv.clk + 51 * u; size: 22 * u, 1.2 * u; corner: 0.6 * u; color: ink; opacity: 18% * bs.clock * lm }
+    text bar_date { at: floor(lf.x + 0.5), floor(lv.clk + 59 * u + 0.5); anchor: center; align: center; size: 11; weight: 700; color: faint; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    text date_md { at: floor(lf.x + 0.5), floor(lv.clk + 73 * u + 0.5); anchor: center; align: center; size: 14; weight: 700; color: ink; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     //  The window title down the left: the app, and under it (to its right once turned) the title, turned a quarter anticlockwise so that it reads
     //  from the foot up, each centred on the strip's middle line and on the stretch `lv.tm` and cut with an ellipsis where that ends.
     group {
