@@ -864,6 +864,13 @@ scene Vitreus {
     event lk_size_set ->               // 0 → 100, 1 → 150, 2 → 200
     event lk_secs_toggle ->
     event lk_power_toggle ->
+    //  Where the clock, the password bar and the buttons are: on every monitor, or on one. `lk_mon` is 0 for all, or 1 and up for a monitor's slot.
+    fact lk_mon = 0
+    repeat i in 0..4 {
+        fact lk_m.$i.on = false
+        text lk_m.$i.name = ""
+    }
+    event lk_mon_set ->
     event lk_test ->                   // lock now, as a test: Esc or a minute opens it
     fact lk_scroll_to = 0              // the page scrolls like System monitor's
     prop lk_scroll = 0 ~quick
@@ -1790,7 +1797,7 @@ scene Vitreus {
     let sm.dt = (8 - clamp(sm_tmp.count, 1, 8)) * 24
     let sm.h = 1536 - sm.ds - sm.dt
     let wm.h = 812                     // the Pleamar-WM page: to the bottom of its last card
-    let lk.h = 728                     // the Lock screen page: its cards, to the bottom of the last
+    let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36
     let nt.h = 246 + 552 - nt.ds + 8 + if(nta_sel >= 0, 456, 0) + 12
@@ -4299,7 +4306,23 @@ scene Vitreus {
             zone box lk_pw_hit { at: spx + 405 * pu, sby + 674 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 674 * pu) - lk.off > sby and (sby + 674 * pu) - lk.off < sby + 456 * pu }
             on press lk_pw_hit { emit lk_power_toggle }
 
-            text "The lock screen is not running: start it to change these" { at: floor(spx + 14 * pu + 0.5), floor(sby + 714 * pu + 0.5); anchor: left center; size: 13.5; width: 400 * pu; lines: 1; color: #ef4444; family: "Space Grotesk"; show: not lk_ok }
+            //  Card nine: which monitor has the clock and the password bar. The others keep the wallpaper.
+            box { at: spx + 219 * pu, sby + 748 * pu; size: 438 * pu, 74 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "Show on" { at: floor(spx + 14 * pu + 0.5), floor(sby + 722 * pu + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
+            text "The clock and password bar go on one monitor; the rest show the wallpaper" { at: floor(spx + 14 * pu + 0.5), floor(sby + 741 * pu + 0.5); anchor: left center; size: 13.5; width: 410 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            let lkya = sby + 768 * pu
+            box { at: spx + 14 * pu + 38 * pu, lkya; size: 76 * pu, 24 * pu; corner: 8 * pu; color: if(lk_mon == 0, mint, ink); opacity: 8% + 20% * if(lk_mon == 0, 1, 0) + 6% * lk_mn_all.hover }
+            text "All" { at: floor(spx + 14 * pu + 38 * pu + 0.5), floor(lkya + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 70 * pu; lines: 1; color: if(lk_mon == 0, mint, ink); family: "Space Grotesk" }
+            zone box lk_mn_all { at: spx + 14 * pu + 38 * pu, lkya; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: lkya - lk.off > sby and lkya - lk.off < sby + 456 * pu }
+            on press lk_mn_all { emit lk_mon_set(0) }
+            repeat k in 0..4 {
+                let lkx = spx + 14 * pu + 38 * pu + (k + 1) * 82 * pu
+                box { at: lkx, lkya; size: 76 * pu, 24 * pu; corner: 8 * pu; color: if(lk_mon == k + 1, mint, ink); opacity: if(lk_m.$k.on, 8% + 20% * if(lk_mon == k + 1, 1, 0) + 6% * lk_mn.$k.hover, 0%) }
+                text lk_m.$k.name { at: floor(lkx + 0.5), floor(lkya + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 70 * pu; lines: 1; color: if(lk_mon == k + 1, mint, ink); show: lk_m.$k.on; family: "Space Grotesk" }
+                zone box lk_mn.$k { at: lkx, lkya; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (lk_m.$k.on) and lkya - lk.off > sby and lkya - lk.off < sby + 456 * pu }
+                on press lk_mn.$k { emit lk_mon_set(k + 1) }
+            }
+            text "The lock screen is not running: start it to change these" { at: floor(spx + 14 * pu + 0.5), floor(sby + 796 * pu + 0.5); anchor: left center; size: 13.5; width: 400 * pu; lines: 1; color: #ef4444; family: "Space Grotesk"; show: not lk_ok }
             }
 
             let lk.thh = 456 * 456 / max(456, lk.h)

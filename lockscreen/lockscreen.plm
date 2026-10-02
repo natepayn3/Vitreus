@@ -14,7 +14,7 @@ scene Lockscreen {
 
     permissions {
         services: "clock", "clock.seconds", "battery", "media", "media.*", "auth", "files", "files.write", "session.*"
-        run: "awww", "magick", "getent", "mkdir", "rm", "ls", "cp", "loginctl", "printenv"
+        run: "awww", "magick", "getent", "mkdir", "rm", "ls", "cp", "loginctl", "printenv", "hyprctl"
     }
 
     service clock as now { hour: number }
@@ -31,6 +31,9 @@ scene Lockscreen {
     fact has_media = false
     fact cfg_blur = 36             // the settings (lockscreen.json), as the shell's Settings page reads and sets them: see lockscreen.luau
     fact cfg_12h = true
+    text cfg_monitor = "all"       // which monitor holds the clock, the password bar and the buttons: "all", or a monitor's name (settings: monitor)
+    fact main_w = 0                // that monitor's size as the lock surface measures it (0 for all of them): the surface cannot ask its monitor's name,
+    fact main_h = 0                // so each copy compares its own size with these
     fact cfg_ampm = true
     fact cfg_media = true
     fact cfg_secs = false
@@ -141,6 +144,10 @@ scene Lockscreen {
         let ox = floor(cx - w / 2 + 0.5)
         let oy = floor(cy - h / 2 + 0.5)
 
+        //  Where the clock, the password bar and the buttons are: every monitor, or only the one chosen in the settings (the others
+        //  keep the wallpaper, so they are not left bare).
+        let here = (main_w < 1) or (abs(screen.width - main_w) < 3 and abs(screen.height - main_h) < 3)
+
         //  The entrance, 0..1 over 2.2 s, in a straight line: the easing lives in each element, because an
         //  eased driver would bunch every stagger window up near the start.
         let e = if(settled, 1, clamp((time - t0) / 2.2, 0, 1))
@@ -195,6 +202,7 @@ scene Lockscreen {
 
             //  2. THE TOP STATUS BAR: chrome, so it arrives first and from above.
             group {
+                show: here
                 pivot: cx, oy + 24
                 opacity: ease_t
                 move: 0, -22 * (1 - spr_t)
@@ -213,6 +221,7 @@ scene Lockscreen {
 
             //  3. THE CENTRE CARD: last and slowest, rising into place.
             group {
+                show: here
                 pivot: cx, cy
                 opacity: ease_c
                 move: 0, 34 * (1 - spr_c)
@@ -405,7 +414,7 @@ scene Lockscreen {
             //  6. THE POWER BUTTONS: sleep, restart and power off, on a pill at the bottom of the screen. Each is held for a second, and fills
             //  while it is held and lets go if you do: none of them can be undone.
             group {
-                show: show_power
+                show: show_power and here
                 opacity: ease_c
                 let py = oy + h - 64
                 box { at: cx, py; size: 164, 48; corner: 24; color: panel; opacity: 60% }

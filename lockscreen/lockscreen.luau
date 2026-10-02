@@ -12,8 +12,9 @@
 --   clock_size  the clock's size in pixels: 100, 150 or 200 (anything from 80 to 240 works; the card below follows)
 --   show_seconds H:MM:SS on the clock
 --   show_power  the sleep, restart and power off buttons at the bottom (each is held for a second)
+--   monitor     where the clock, the password bar and the buttons are: "all", or the name of one monitor ("DP-2"); the others show the wallpaper
 --   shape_palette the colours of those: "vibrant", "accent" (the theme's), "neon", "pastel" or "monochrome"
-local cfg = { blur = 36, show_media = true, use_12_hour = true, show_am_pm = true, date_format = "long", mask_style = "shapes", shape_palette = "accent", clock_size = 200, show_seconds = false, show_power = true }
+local cfg = { blur = 36, show_media = true, use_12_hour = true, show_am_pm = true, date_format = "long", mask_style = "shapes", shape_palette = "accent", clock_size = 200, show_seconds = false, show_power = true, monitor = "all" }
 do
     local ok, saved = pcall(sys.ask, "files.read", "lockscreen.json", "json")
     if ok and type(saved) == "table" then
@@ -47,6 +48,46 @@ fact.show_power = cfg.show_power
 fact.cfg_secs = cfg.show_seconds
 fact.mask_pal = PAL_FACT[cfg.shape_palette]
 local function save_cfg() pcall(sys.call, "files.write", "lockscreen.json", cfg) end
+
+-- ── Which monitor ────────────────────────────────────────────────────────────────────────────────────
+-- The lock surface cannot ask for its monitor's name, only its size, so the chosen monitor's size is worked out here (what Hyprland lays out:
+-- the mode over the scale, turned if the monitor is on its side) and every copy of the surface compares its own with it. The size is looked
+-- at again every so often and as the lock closes, so a monitor plugged in or turned in between is followed. A chosen monitor that is not
+-- there puts everything on all of them, so a lock is never left without a password bar.
+text.cfg_monitor = cfg.monitor
+local function resolve_monitor(then_focus)
+    if cfg.monitor == "all" or cfg.monitor == "" then
+        fact.main_w, fact.main_h = 0, 0
+        return
+    end
+    run("hyprctl", { "monitors", "-j" }, function(out, code)
+        if code ~= 0 or not out then return end
+        local ok, list = pcall(json.decode, out)
+        if not ok or type(list) ~= "table" then return end
+        local w, h = 0, 0
+        for _, m in ipairs(list) do
+            if m.name == cfg.monitor then
+                local mw, mh = m.width or 0, m.height or 0
+                if (m.transform or 0) % 2 == 1 then mw, mh = mh, mw end
+                local sc = (m.scale and m.scale > 0) and m.scale or 1
+                w, h = math.floor(mw / sc + 0.5), math.floor(mh / sc + 0.5)
+            end
+        end
+        fact.main_w, fact.main_h = w, h
+        -- the keyboard goes to the monitor the pointer is on, so the pointer is brought to the one that has the bar
+        if then_focus and w > 0 then
+            run("hyprctl", { "dispatch", 'hl.dsp.focus({ monitor = "' .. cfg.monitor .. '" })' }, function() end)
+        end
+    end)
+end
+resolve_monitor()
+every(15000, function() if not fact.locked then resolve_monitor() end end)
+on("text:cfg_monitor", function(t)
+    t = (t or ""):match("^[%w%._%-]+$") and t or "all"
+    cfg.monitor = t
+    save_cfg()
+    resolve_monitor()
+end)
 
 -- ── The clock ────────────────────────────────────────────────────────────────────────────────────────
 local weekdays = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }
@@ -360,6 +401,7 @@ end
 
 on("fact:locked", function(v)
     if v then
+        resolve_monitor(true)
         reset()
         fact.settled = false
         -- the entrance is 2.2 s; after that nothing on the screen needs the clock any more

@@ -5775,7 +5775,39 @@ end)()
     local function say(cmd, fn) run("pleamar", { "--say", "lockscreen", cmd }, fn or function() end) end
     local function trim(s) return ((s or ""):gsub("%s+$", "")) end
 
+    -- Which monitor has the clock and the password bar: its name is the lock screen's `cfg_monitor` ("all" for every one), and the chips are
+    -- the monitors Hyprland has plugged in now. A name that is not plugged in shows as "All", which is what the lock screen does then too.
+    local lk_names, lk_pref = {}, "all"
+    local function show_mons()
+        local at = 0
+        for i = 0, 3 do
+            local n = lk_names[i + 1]
+            fact["lk_m." .. i .. ".on"] = n ~= nil
+            text["lk_m." .. i .. ".name"] = n or ""
+            if n and n == lk_pref then at = i + 1 end
+        end
+        fact.lk_mon = at
+    end
+    local function read_mons()
+        hypr_monitors(2, function(out, code)
+            if code ~= 0 or not out then return end
+            local ok, list = pcall(json.decode, out)
+            if not ok or type(list) ~= "table" then return end
+            lk_names = {}
+            for _, m in ipairs(list) do lk_names[#lk_names + 1] = m.name end
+            show_mons()
+        end)
+    end
+    on("lk_mon_set", function(i)
+        local k = math.floor(i + 0.5)
+        lk_pref = (k >= 1 and lk_names[k]) or "all"
+        show_mons()
+        say("text cfg_monitor " .. lk_pref)
+    end)
+
     local function refresh()
+        read_mons()
+        say("get cfg_monitor", function(o) lk_pref = trim(o):match("^[%w%._%-]+$") and trim(o) or "all"; show_mons() end)
         say("get cfg_blur", function(out, code)
             if code ~= 0 then fact.lk_ok = false return end
             fact.lk_ok = true
