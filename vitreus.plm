@@ -7,7 +7,7 @@ import "palette.plm"
 //  bar: it is the same silhouette, melted, so it hangs from it like a drop.
 
 scene Vitreus {
-    surface { size: full, 1440; anchor: bar_anchor; margin: 0; reserve: 68; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open }
+    surface { size: full, 1440; anchor: bar_anchor; margin: 0; reserve: 68; screens: "DP-2"; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play" }
 
@@ -1555,7 +1555,7 @@ scene Vitreus {
     let vb = yo + vh                                         // the monitor's bottom edge, on the surface
     let vc = yo + vh / 2
     let ccx = mix(cx, (lf.w + screen.width - lf.t) / 2, lm)         // the middle of what can be seen: right of the strip, inside the frame
-    let att = if(lp_k == 3 or lp_k == 4 or lp_k == 6 or lp_k > 6, 1, 0)           // the control center, the calendar, the volume and the notifications: they stay joined to the strip, and are not scaled
+    let att = if(lp_k == 3 or lp_k == 4 or lp_k == 5 or lp_k == 6 or lp_k > 6, 1, 0)           // the control center, the calendar, the player and tray, the volume and the notifications: they stay joined to the strip, and are not scaled
     let rgt = if(lp_k > 6, 1, 0)                                    // the volume and the notifications come out of the right frame, not the strip, and grow leftwards
     let edg = if(lp_k == 1 or lp_k == 2, 1, 0)                      // Settings rises out of the bottom frame's middle, the launcher lowers out of the top frame's: not from the strip
     let dsl = max(0, dtrav * 1.3 - 0.3)
@@ -1833,7 +1833,7 @@ scene Vitreus {
     //  Where it settles, as drawn (`ty`): Settings low, the launcher high, a good way from the middle, and clear of the frame; then back to the panel's
     //  own coordinates (the contents are scaled about the middle of the screen).
     let lp.ty = if(lp_k == 1, min(vc + 190 * u, vb - lf.t - 24 * u - lp.hd / 2), max(vc - 210 * u, yo + lf.t + 24 * u + lp.hd / 2))
-    let lp.yf = if(lp_k == 1 or lp_k == 2, lp.ty, if(lp_k == 3 or lp_k == 4 or lp_k == 6, clamp(lp.btn, yo + lf.t + 24 * u + lp.hd / 2, vb - lf.t - 24 * u - lp.hd / 2), if(lp_k == 7, vb - lf.t - 24 * u - lp.hd / 2, if(lp_k == 8, yo + lf.t + 24 * u + lp.hd / 2, vc))))
+    let lp.yf = if(lp_k == 1 or lp_k == 2, lp.ty, if(lp_k == 3 or lp_k == 4 or lp_k == 5 or lp_k == 6, clamp(lp.btn, yo + lf.t + 24 * u + lp.hd / 2, vb - lf.t - 24 * u - lp.hd / 2), if(lp_k == 7, vb - lf.t - 24 * u - lp.hd / 2, if(lp_k == 8, yo + lf.t + 24 * u + lp.hd / 2, vc))))
     let lp.sy0 = if(lp_k > 6, lp.yf, lp.btn)
     let lp.gy0 = if(att > 0.5, lp.yf, lp.btn)
     let lp.cy = lp.gy0 + (lp.yf - lp.gy0) * dsl
@@ -3057,6 +3057,10 @@ scene Vitreus {
     //  the same glass as the bar. Its content is clipped to the drawer's shape.
     group {
         clip inset 2 box { at: mix(pcx, dm.gx, lm), mix(bar.y + dm.hh / 2, lp.cy, lm); size: mix(dm.w, dm.gw, lm), mix(dm.hh, dm.gh, lm); corner: 26 * cu }
+        //  Down the left it comes out of the strip: what is inside grows with the drawer's shape (`dm.lf`), from the strip's edge at the panel's middle, as the calendar's and the controls' do.
+        group {
+            pivot: lp.xl, lp.cy
+            scale: mix(1, max(dm.lf, 0.05), lm * att)
         //  The player. A sliver with nothing playing — a note and a word, the same
         //  shape as the Wi-Fi and Bluetooth rows below it — that grows into the full
         //  card (cover, song, transport, equalizer) the moment something does.
@@ -3231,6 +3235,7 @@ scene Vitreus {
             box { from: mdx + 147 * cu, ck + 100 * cu + tm_col.scroll / max(tm_col.content, 1) * (tm.list * cu); size: 3 * cu, (tm.list * cu) * (tm.list * cu) / max(tm_col.content, tm.list * cu); corner: 1.5 * cu; color: ink; opacity: if(tm_col.content > (tm.list * cu) + 1, 35%, 0%) }
         }
 
+        }
     }
     //  The volume and notification drawer's content, clipped to its shape. Both sit on one plate
     //  (the same 8% veil as the others), 12 in from the drawer's edge; `osd_kind` picks which is drawn.
