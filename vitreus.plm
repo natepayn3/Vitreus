@@ -5391,8 +5391,10 @@ scene Vitreus {
             //  The cell this window has in its workspace's grid (the logic says how big the grid is, and which cell), and the
             //  16:9 picture that fits it, in the middle of the cell.
             let ovr.pad = if(ovw.$n.gc == 1, 0, 5 * ovu)
-            let ovr.cw = (270 * ovu - 2 * ovr.pad - (ovw.$n.gc - 1) * 5 * ovu) / ovw.$n.gc
-            let ovr.ch = (152 * ovu - 2 * ovr.pad - (ovw.$n.gr - 1) * 5 * ovu) / ovw.$n.gr
+            //  `max(1, …)`: an empty slot has a grid of 0 by 0, and dividing by it made the size NaN; a NaN is never equal to itself, so the
+            //  scene thought it was always changing and worked itself out sixty times a second for nothing, with the overview shut.
+            let ovr.cw = (270 * ovu - 2 * ovr.pad - (ovw.$n.gc - 1) * 5 * ovu) / max(1, ovw.$n.gc)
+            let ovr.ch = (152 * ovu - 2 * ovr.pad - (ovw.$n.gr - 1) * 5 * ovu) / max(1, ovw.$n.gr)
             let ovr.tw = floor(min(ovr.cw, ovr.ch * 16 / 9) + 0.5)
             let ovr.th = floor(ovr.tw * 9 / 16 + 0.5)
             let ovr.x = floor(ovl.l + (10 + ovr.col * 304) * ovu + ovr.pad + ovw.$n.gx * (ovr.cw + 5 * ovu) + ovr.cw / 2 + 0.5)

@@ -17,6 +17,22 @@ end)
 -- program is started directly, in a session of its own. Either way it has ~/.local/bin on its PATH, which Hyprland's has not.
 on_hyprland = false                       -- (globals, not locals: this chunk is at Luau's limit of 200 locals)
 run("printenv", { "HYPRLAND_INSTANCE_SIGNATURE" }, function(out, code) on_hyprland = code == 0 and (out or "") ~= "" end)
+-- `hyprctl monitors -j`, shared. The bar's monitors, the scene's monitor height and the Display page's watch each started it on their own
+-- timer, every four or five seconds. A caller that can use an answer up to `max_age` seconds old gets the last one, and one already on
+-- its way is waited for instead of starting another; with 0 it is always asked again.
+mon_cache = { out = nil, code = nil, at = -1, waiting = nil }
+function hypr_monitors(max_age, cb)
+    local c = mon_cache
+    if c.out and max_age > 0 and os.time() - c.at <= max_age then return cb(c.out, c.code) end
+    if c.waiting then table.insert(c.waiting, cb); return end
+    c.waiting = { cb }
+    run("hyprctl", { "monitors", "-j" }, function(out, code)
+        c.out, c.code, c.at = out, code, os.time()
+        local w = c.waiting
+        c.waiting = nil
+        for _, f in ipairs(w) do f(out, code) end
+    end)
+end
 function exec_on_desktop(cmd)
     local line = 'export PATH="$HOME/.local/bin:$PATH"; ' .. cmd
     if on_hyprland then
@@ -477,7 +493,12 @@ run("which", { "hypridle" }, function(_, code)
                 end
             end
         end)
-        every(5000, function() caf_poll() end)
+        -- Whether hypridle is running: every five seconds while the Controls panel (where the Caffeine tile is) is open, every thirty otherwise.
+        caf_ticks = 0
+        every(5000, function()
+            caf_ticks = caf_ticks + 1
+            if fact.panel == "controls" or caf_ticks % 6 == 0 then caf_poll() end
+        end)
     end
 end)
 
@@ -1706,6 +1727,9 @@ function iris_fx.apply_palette(pal)
     iris_last_text = text_out
     with_dirs(function(d)
       local function go(changed)
+        -- Nothing new (the first palette after a start, the same as the file): write nothing. Writing the same text again still touches the
+        -- files, and that made pleamar read the whole scene in again, a second's work, right after every start.
+        if not changed then iris_fx.apply_hypr(); return end
         -- Written into the data folder, then copied over the scene's palette.
         pcall(sys.call, "files.write", "palette.plm", text_out)
         run("cp", { d.data .. "/palette.plm", d.conf .. "/palette.plm" }, function() end)
@@ -1883,8 +1907,8 @@ do
 end
 -- A wallpaper that Vitreus sets is known at once (see `wp_apply`); this is only for one changed from elsewhere, so it
 -- does not need to look often. Every look starts a program (`awww query`): twice a second was most of what the shell
--- launched while doing nothing.
-every(2000, check_wallpaper)
+-- launched while doing nothing, and every two seconds was still a third of it: every six.
+every(6000, check_wallpaper)
 check_wallpaper()
 
 -- ── Settings: the wallpaper picker ───────────────────────────────────────────────────────
@@ -2599,8 +2623,8 @@ local function disp_profiles_save()
 end
 
 -- Read what Hyprland says, and keep the draft of every monitor that is there.
-local function disp_read(done)
-    run("hyprctl", { "monitors", "-j" }, function(out, code)
+local function disp_read(done, max_age)
+    hypr_monitors(max_age or 0, function(out, code)
         if code ~= 0 or not out then return done and done() end
         local ok, list = pcall(json.decode, out)
         if not ok or type(list) ~= "table" then return done and done() end
@@ -2909,7 +2933,7 @@ local function disp_watch()
             end
         end
         disp_key_seen = key
-    end)
+    end, 4)
 end
 
 do
@@ -4114,7 +4138,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
     end
 
     local function read_mons()
-        run("hyprctl", { "monitors", "-j" }, function(out, code)
+        hypr_monitors(4, function(out, code)
             if code ~= 0 or not out then return end
             local ok, list = pcall(json.decode, out)
             if not ok or type(list) ~= "table" then return end
@@ -5303,7 +5327,7 @@ end)()
 -- where there is no hyprctl it stays 0 and the scene uses its surface.
 ;(function()
     local function sync()
-        run("hyprctl", { "monitors", "-j" }, function(out, code)
+        hypr_monitors(4, function(out, code)
             if code ~= 0 or not out then return end
             local ok, list = pcall(json.decode, out)
             if not ok or type(list) ~= "table" then
@@ -5441,7 +5465,12 @@ end)()
         if not name then return end
         run("powerprofilesctl", { "set", name }, function() prof_poll() end)
     end)
-    every(30000, prof_poll)
+    -- Only while the Controls panel (where its tile is) is open, at most every ten seconds: `powerprofilesctl` is a Python program,
+    -- a seventh of a second each time it starts.
+    local prof_at = 0
+    every(2000, function()
+        if fact.panel == "controls" and os.time() - prof_at >= 10 then prof_at = os.time(); prof_poll() end
+    end)
     prof_poll()
 end)()
 
