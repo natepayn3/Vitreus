@@ -882,14 +882,14 @@ scene Vitreus {
     prop wp_picker_lx = 0 ~quick
     prop wp_picker_ly = 0 ~quick
     prop wp_picker_sw = 0 ~calm               // the light sweep's progress, 0 to 1
-    prop wp_picker_tx = 0 ~quick              // where the pointer is on the hovered tile, -0.5 to 0.5 across and down: the tilt follows it
-    prop wp_picker_ty = 0 ~quick
     //  Every tile has its own spring for how hovered it is, so each one morphs from small to large (and back) with a bounce.
     repeat i in 0..200 {
         prop gt.$i = 0 ~wp_picker_pop
         follow gt.$i = if(wp_picker_hot == i and wp_picker_open, 1, 0)
     }
     follow wp_picker_hs = if(wp_picker_hot >= 0 and wp_picker_open, 1, 0)
+    prop wp_picker_tx = 0 ~quick              // where the pointer is on the hovered tile, about -0.5 to 0.5 across and down: the tilt follows it
+    prop wp_picker_ty = 0 ~quick
     follow wp_picker_lx = wp_picker_hx
     follow wp_picker_ly = wp_picker_hy
     on change wp_picker_hot while wp_picker_hot >= 0 { wp_picker_sw: 0 ~40ms }
@@ -908,6 +908,8 @@ scene Vitreus {
     fact ov_drag = -1                         // the tile being held
     fact ov_col = 0                           // the column it was dropped on
     fact ov_dx = 0                            // how far it has been dragged
+    fact ov_px = 0                            // where it was pressed: the card carried is there plus the drag
+    fact ov_py = 0
     fact ov_dy = 0
     fact ov_hot = -1                          // the tile under the pointer
     event ov_focus ->
@@ -1919,8 +1921,8 @@ scene Vitreus {
     let dm.ey = mix(bar.y + dm.hh / 2, lp.cy, lm)
     //  The control center opens when the pointer rests on its button, and closes when it has left the button and the drawer (a moment's grace, so
     //  that crossing the gap does not close it). It is quick launch, so it stays joined to the strip instead of dropping out of it.
-    //  `cursor` is the mouse wherever it is, in the scene's coordinates.
-    let ctl.onbtn = if(lm > 0.5 and cursor.x > 0 and cursor.x < lf.w and abs(cursor.y - lv.ctl) < 18 * u, 1, 0)
+    //  Both are invisible zones (`ctl_btn_z`, `ctl_band_z`, below), not the mouse's position: naming `cursor` made pleamar ask Hyprland where the
+    //  mouse was thirty times a second, and every move of it, anywhere on the desktop, made the scene work itself out again (3% of a core).
     //  What keeps it open is a fixed band, not the drawer as it is drawn: the drawer is as tall as what it holds (a sub-view, the mixer or the
     //  output list opening or closing) and sits where its height lets the frame clamp it, so what the pointer was on can end up outside the drawn
     //  one, and it closed under the pointer. The band is the drawer at its tallest (`ctl.cmax`: the main view with the larger of the output list and the
@@ -1929,20 +1931,22 @@ scene Vitreus {
     let ctl.cmax = max(vol_bot + max(dd.rows * 30 - 28, mix.m), 312)
     let ctl.zh = (ctl.cmax + 16) * cu + 13 * cu
     let ctl.zc = clamp(lv.ctl, yo + lf.t + 24 * u + ctl.zh / 2, vb - lf.t - 24 * u - ctl.zh / 2)
-    let ctl.ondraw = if(lm > 0.5 and panel == controls and cursor.x > dk.ex - dk.ew / 2 - 4 and cursor.x < dk.ex + dk.ew / 2 + 4 and cursor.y > ctl.zc - ctl.zh / 2 - 4 and cursor.y < ctl.zc + ctl.zh / 2 + 4, 1, 0)
+    //  Declared here, before the bar and the panels, so that every zone of theirs drawn over them still takes its own presses.
+    zone box ctl_btn_z { at: lf.w / 2, lv.ctl; size: lf.w, 36 * u; active: lm > 0.5 }
+    zone box ctl_band_z { at: dk.ex, ctl.zc; size: dk.ew + 8, ctl.zh + 8; active: lm > 0.5 and panel == controls }
     prop ctl_arm = 0 ~120ms
-    follow ctl_arm = ctl.onbtn
+    follow ctl_arm = if(ctl_btn_z.hover > 0.5, 1, 0)
     prop ctl_hold = 0 ~280ms
-    follow ctl_hold = max(ctl.onbtn, ctl.ondraw)
+    follow ctl_hold = if(max(ctl_btn_z.hover, ctl_band_z.hover) > 0.5, 1, 0)
     on change ctl_arm > 0.9 while ctl_arm > 0.9 { panel = controls }
     on change ctl_hold < 0.05 while ctl_hold < 0.05 and panel == controls and lm > 0.5 { panel = none }
     //  The calendar the same way, from the clock.
-    let cal.onbtn = if(lm > 0.5 and cursor.x > 0 and cursor.x < lf.w and abs(cursor.y - (lv.clk + 30 * u)) < 52 * u, 1, 0)
-    let cal.ondraw = if(lm > 0.5 and panel == calendar and cursor.x > dc.ex - dc.ew / 2 - 4 and cursor.x < dc.ex + dc.ew / 2 + 4 and cursor.y > dc.ey - dc.eh / 2 - 4 and cursor.y < dc.ey + dc.eh / 2 + 4, 1, 0)
+    zone box cal_btn_z { at: lf.w / 2, lv.clk + 30 * u; size: lf.w, 104 * u; active: lm > 0.5 }
+    zone box cal_band_z { at: dc.ex, dc.ey; size: dc.ew + 8, dc.eh + 8; active: lm > 0.5 and panel == calendar }
     prop cal_arm = 0 ~120ms
-    follow cal_arm = cal.onbtn
+    follow cal_arm = if(cal_btn_z.hover > 0.5, 1, 0)
     prop cal_hold = 0 ~280ms
-    follow cal_hold = max(cal.onbtn, cal.ondraw)
+    follow cal_hold = if(max(cal_btn_z.hover, cal_band_z.hover) > 0.5, 1, 0)
     on change cal_arm > 0.9 while cal_arm > 0.9 { panel = calendar }
     on change cal_hold < 0.05 while cal_hold < 0.05 and panel == calendar and lm > 0.5 { panel = none }
     //  Where the contents hang from: the panel's old middle, so they keep their
@@ -5254,8 +5258,6 @@ scene Vitreus {
     //  off) and the ring next to it shrinks a little. The hovered one grows on its own spring (`gt`). `sg` is how far this reaches.
     let g.K = 0.55 * clamp(wp_picker_hs, 0, 1.1)
     let g.sg = 1.5 * g.w
-    follow wp_picker_tx = clamp((cursor.x - wp_picker_lx) / (1.732 * g.R * 0.93 * (1 + 0.8 * wp_picker_hs)), -0.6, 0.6)
-    follow wp_picker_ty = clamp((cursor.y - wp_picker_ly) / (2 * g.R * 0.93 * (1 + 0.8 * wp_picker_hs)), -0.6, 0.6)
     let g.y0 = yo + (vh - g.gh - 60) / 2             // centred on the screen (the foot line takes 60 below the hexagons)
 
     group {
@@ -5264,6 +5266,15 @@ scene Vitreus {
         //  Behind the tiles, a plain dark sheet over the whole surface (a shape, not a glass body: those were what made the picker slow), so that
         //  nothing of what is under shows through.
         box { at: screen.width / 2, screen.height / 2; size: screen.width, screen.height; color: #05070d; opacity: 88% }
+        //  Where the pointer is on the hovered tile, for its tilt: a grid of invisible zones laid over it, 7 across and 8 down, each of which
+        //  notes the pointer as it comes in. The tile's shader cannot be told (a group's shader is not given the pointer), and reading `cursor`
+        //  instead made pleamar poll the mouse all the time. Declared before the tiles, so a press still goes to the tile under it.
+        let tl.w = 1.732 * g.R * 0.93 * (1 + 0.8 * wp_picker_hs)
+        let tl.h = 2 * g.R * 0.93 * (1 + 0.8 * wp_picker_hs)
+        repeat k in 0..56 {
+            zone box wp_tilt.$k { at: wp_picker_lx + (mod(k, 7) - 3) * tl.w / 7, wp_picker_ly + (floor(k / 7) - 3.5) * tl.h / 8; size: tl.w / 7 + 1, tl.h / 8 + 1; active: wp_picker_hot >= 0 and wp_picker_open and wp_picker_leaving == 0 }
+            on enter wp_tilt.$k { wp_picker_tx: clamp((pointer.x - wp_picker_lx) / tl.w, -0.6, 0.6); wp_picker_ty: clamp((pointer.y - wp_picker_ly) / tl.h, -0.6, 0.6) }
+        }
         repeat i in 0..200 {
             let grow = floor(i / g.cols)
             let bx = g.x0 + g.w * (i - grow * g.cols + 0.5 + 0.5 * mod(grow, 2))
@@ -5356,8 +5367,10 @@ scene Vitreus {
         let ovl.t = floor(ovl.cy - ovl.h / 2 + 0.5)
         let ovl.moving = if(ov_drag >= 0 and length(ov_dx, ov_dy) > 8, 1, 0)
         //  The card under the pointer (-1 when it is off them all), for a drop.
-        let ovl.inside = if(cursor.x > ovl.l and cursor.x < ovl.l + ovl.w and cursor.y > ovl.t and cursor.y < ovl.t + ovl.h, 1, 0)
-        let ovl.col = if(ovl.inside > 0, clamp(floor((cursor.y - ovl.t) / (224 * ovu)), 0, ovl.rows - 1) * ovl.nc + clamp(floor((cursor.x - ovl.l) / (304 * ovu)), 0, ovl.nc - 1), -1)
+        let ovm.x = ov_px + ov_dx                    // where the mouse is while a window is carried (no `cursor`: see `ctl_btn_z`)
+        let ovm.y = ov_py + ov_dy
+        let ovl.inside = if(ovm.x > ovl.l and ovm.x < ovl.l + ovl.w and ovm.y > ovl.t and ovm.y < ovl.t + ovl.h, 1, 0)
+        let ovl.col = if(ovl.inside > 0, clamp(floor((ovm.y - ovl.t) / (224 * ovu)), 0, ovl.rows - 1) * ovl.nc + clamp(floor((ovm.x - ovl.l) / (304 * ovu)), 0, ovl.nc - 1), -1)
         repeat c in 0..5 {
             let ovc.row = floor(c / ovl.nc)
             let ovc.x = floor(ovl.l + (145 + (c - ovc.row * ovl.nc) * 304) * ovu + 0.5)
@@ -5422,7 +5435,7 @@ scene Vitreus {
             zone box ov_rz.$n { at: ovr.x, ovr.y; size: ovr.tw, ovr.th; corner: 6 * ovu; cursor: pointer; active: ovr.on and ov_show > 0.5 }
             on enter ov_rz.$n { ov_hot = n }
             on away ov_rz.$n for 80ms while ov_hot == n { ov_hot = -1 }
-            on press ov_rz.$n { ov_drag = n; ov_dx = 0; ov_dy = 0 }
+            on press ov_rz.$n { ov_drag = n; ov_dx = 0; ov_dy = 0; ov_px = pointer.x; ov_py = pointer.y }
             on drag ov_rz.$n { ov_dx = drag.dx; ov_dy = drag.dy }
             //  Let go hardly moved: it was a click. Let go far away: it was dropped, on the column under the pointer.
             on release ov_rz.$n while length(ov_dx, ov_dy) < 8 { emit ov_focus(n); ov_open = false }
@@ -5450,16 +5463,16 @@ scene Vitreus {
                     color: #05070d
                     opacity: 40%
                     shadow: 0, 12 * ovu, 26 * ovu, 70%, #000000
-                    box { at: cursor.x, cursor.y; size: ovg.tw, ovg.th; corner: 9 * ovu }
+                    box { at: ovm.x, ovm.y; size: ovg.tw, ovg.th; corner: 9 * ovu }
                 }
                 group {
-                    clip box { at: cursor.x, cursor.y; size: ovg.tw, ovg.th; corner: 9 * ovu }
-                    image ovw.$n.thumb { at: cursor.x - ovg.tw / 2, cursor.y - ovg.th / 2; size: ovg.tw, ovg.th; show: ovw.$n.snap }
-                    image ovw.$n.icon { at: floor(cursor.x - 11 * ovu + 0.5), floor(cursor.y - 11 * ovu + 0.5); size: floor(22 * ovu + 0.5), floor(22 * ovu + 0.5); show: not ovw.$n.snap }
-                    box { at: cursor.x, cursor.y + ovg.th / 2 - 12 * ovu; size: ovg.tw, 24 * ovu; color: #05070d; opacity: 70% }
-                    text ovw.$n.title { at: floor(cursor.x - ovg.tw / 2 + 10 * ovu + 0.5), floor(cursor.y + ovg.th / 2 - 12 * ovu + 0.5); anchor: left center; size: 10.5 * ovu; width: ovg.tw - 20 * ovu; lines: 1; color: #f2f4f2; family: "Space Grotesk" }
+                    clip box { at: ovm.x, ovm.y; size: ovg.tw, ovg.th; corner: 9 * ovu }
+                    image ovw.$n.thumb { at: ovm.x - ovg.tw / 2, ovm.y - ovg.th / 2; size: ovg.tw, ovg.th; show: ovw.$n.snap }
+                    image ovw.$n.icon { at: floor(ovm.x - 11 * ovu + 0.5), floor(ovm.y - 11 * ovu + 0.5); size: floor(22 * ovu + 0.5), floor(22 * ovu + 0.5); show: not ovw.$n.snap }
+                    box { at: ovm.x, ovm.y + ovg.th / 2 - 12 * ovu; size: ovg.tw, 24 * ovu; color: #05070d; opacity: 70% }
+                    text ovw.$n.title { at: floor(ovm.x - ovg.tw / 2 + 10 * ovu + 0.5), floor(ovm.y + ovg.th / 2 - 12 * ovu + 0.5); anchor: left center; size: 10.5 * ovu; width: ovg.tw - 20 * ovu; lines: 1; color: #f2f4f2; family: "Space Grotesk" }
                 }
-                box { at: cursor.x, cursor.y; size: ovg.tw, ovg.th; corner: 9 * ovu; stroke: 2 * ovu; color: mint }
+                box { at: ovm.x, ovm.y; size: ovg.tw, ovg.th; corner: 9 * ovu; stroke: 2 * ovu; color: mint }
             }
         }
     }

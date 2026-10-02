@@ -6,7 +6,8 @@
 // s.a.x how hovered it is (0..1): how much of the tilt and the light there is
 // s.a.y the most it tilts, in degrees, when the pointer is at the very edge
 // s.a.z the light sweep's progress: 0 not started, 1 gone
-// s.a.w, s.b.x where the pointer is on the hexagon, across and down, -0.5 to 0.5 (worked out by the scene: `s.pointer` is not used)
+// s.a.w, s.b.x where the pointer is on the hexagon, across and down, about -0.5 to 0.5 (worked out by the scene from a grid of zones:
+// a group's shader is not given `s.pointer`)
 
 fn shade(s: Shader) -> vec4<f32> {
     let hot = s.a.x;
