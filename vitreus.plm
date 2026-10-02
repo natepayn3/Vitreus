@@ -1,12 +1,46 @@
 language 0.1
 
-import "palette.plm"
+import "palette-live.plm"
 
 //  Vitreus: a bar of liquid glass. The glass only blurs what is behind it (the
 //  compositor does it; `lens: false`, unless the Glass page turns bending on), and the panel is not stuck under the
 //  bar: it is the same silhouette, melted, so it hangs from it like a drop.
 
 scene Vitreus {
+    //  The palette (palette-live.plm). The logic sets these from the wallpaper (Iris); what is here is the stock look it starts from.
+    fact pal_ink_r = 0.9608   // #f5f7f5
+    fact pal_ink_g = 0.9686
+    fact pal_ink_b = 0.9608
+    fact pal_faint_r = 0.7608   // #c2c7cc
+    fact pal_faint_g = 0.7804
+    fact pal_faint_b = 0.8000
+    fact pal_mint_r = 0.6196   // #9ed6bd
+    fact pal_mint_g = 0.8392
+    fact pal_mint_b = 0.7412
+    fact pal_mintlo_r = 0.4235   // #6cbc9c
+    fact pal_mintlo_g = 0.7373
+    fact pal_mintlo_b = 0.6118
+    fact pal_minthi_r = 0.8627   // #dcf8ec
+    fact pal_minthi_g = 0.9725
+    fact pal_minthi_b = 0.9255
+    fact pal_onmint_r = 0.0627   // #10161a
+    fact pal_onmint_g = 0.0863
+    fact pal_onmint_b = 0.1020
+    fact pal_tint_r = 0.1059   // #1b2127
+    fact pal_tint_g = 0.1294
+    fact pal_tint_b = 0.1529
+    fact pal_panel_r = 0.0863   // #161a1f
+    fact pal_panel_g = 0.1020
+    fact pal_panel_b = 0.1216
+    fact pal_deep_r = 0.0431   // #0b0e11
+    fact pal_deep_g = 0.0549
+    fact pal_deep_b = 0.0667
+    fact pal_off_r = 0.2275   // #3a4048
+    fact pal_off_g = 0.2510
+    fact pal_off_b = 0.2824
+    fact pal_alert_r = 0.9373   // #ef4444
+    fact pal_alert_g = 0.2667
+    fact pal_alert_b = 0.2667
     surface { size: full, 1440; anchor: bar_anchor; margin: 0; reserve: 68; screens: "DP-2"; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play" }
@@ -474,7 +508,7 @@ scene Vitreus {
     event go ->
     event ov_go ->                     // a click on a workspace in the overview: it closes, then the switch
 
-    //  The colours live in palette.plm (ink, faint, mint, tint…); only the veil is the scene's.
+    //  The colours live in palette-live.plm (ink, faint, mint, tint…); only the veil is the scene's.
     let veil  = 8%
 
     shader wave = file "wave.wgsl"

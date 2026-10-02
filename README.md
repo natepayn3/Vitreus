@@ -193,7 +193,7 @@ it keeps are found from there.
 ```sh
 git clone https://github.com/natepayn3/Vitreus.git ~/.config/pleamar/shells/vitreus
 cd ~/.config/pleamar/shells/vitreus
-cp palette.default.plm palette.plm          # the colours; Vitreus rewrites this file from your wallpaper
+cp palette.default.plm palette.plm          # the lock screen's colours; Vitreus rewrites this file from your wallpaper
 pleamar --scene ~/.config/pleamar/shells/vitreus/vitreus.plm --no-hud
 ```
 
@@ -243,10 +243,12 @@ Two files Settings writes are Lua, for Hyprland to load at start: `~/.config/hyp
 
 ### 🎨 Theming with Iris
 
-pleamar cannot take a colour from its logic at runtime, so the palette lives in `palette.plm`, a small library of
-named colours the scene imports. When the wallpaper changes, Vitreus runs `iris --json-only`, applies a contrast
-floor and your chosen intensity, rewrites `palette.plm`, and the scene reloads in the new colours. `palette.plm` is
-git-ignored; the stock colours are tracked as `palette.default.plm`.
+The scene's colours are `let`s in `palette-live.plm`, each one `rgb(pal_ink_r, pal_ink_g, pal_ink_b)`: three facts. When the
+wallpaper changes, Vitreus runs `iris --json-only`, applies a contrast floor and your chosen intensity, and sets those facts: the
+colours change on the spot, with no file written and no reload. (This needs a pleamar with `rgb()`.) The lock screen is another
+program and cannot see the shell's facts, so it still imports `palette.plm`, which the logic rewrites; that file is git-ignored,
+and the stock colours are tracked as `palette.default.plm`. The last palette is kept in `palette.json` in the data folder, so a
+start paints it from the first frame.
 
 ---
 
@@ -260,7 +262,8 @@ git-ignored; the stock colours are tracked as `palette.default.plm`.
 | `bin/vitreus-clipimg` | a helper for the launcher's clipboard pictures (thumbnail, copy back) |
 | `assets/emoji.json` | the emoji the launcher searches |
 | `install.sh` | installs, updates and removes Vitreus |
-| `palette.default.plm` | the stock palette (copy to `palette.plm`) |
+| `palette-live.plm` | the shell's colours, as `rgb()` of the `pal_*` facts the logic sets |
+| `palette.default.plm` | the stock palette (copy to `palette.plm`, for the lock screen) |
 | `wave.wgsl` | the shader that bends the bar's glass on the beat |
 | `lockscreen/` | a lock screen, **off** until you start it (pleamar 0.2.2 or newer); see its README |
 

@@ -1614,9 +1614,9 @@ end)
 
 -- ── Iris: the palette from the wallpaper ─────────────────────────────────────────────────
 -- Iris is run as `iris --json-only <wallpaper>` and its bg / surface / fg / dim / accent / red are used,
--- with a legibility floor on the text and a subtle / medium / bold push on the accent. The scene
--- cannot be handed a colour at runtime, so the result is written into `palette.plm`, the library of
--- `let` colours the scene imports, and the scene reloads in them. `iris.json` in Vitreus's data folder
+-- with a legibility floor on the text and a subtle / medium / bold push on the accent. The result
+-- goes to the scene as facts (`pal_*`, three per colour), which `palette-live.plm` turns into its `let` colours with
+-- `rgb(...)`; the lock screen, another program, still gets `palette.plm`. `iris.json` in Vitreus's data folder
 -- holds the two settings: { enabled = true, intensity = "medium" | "subtle" | "bold" }.
 local iris_cfg = { enabled = true, intensity = "medium" }
 local iris_last_wp = nil
@@ -1744,12 +1744,37 @@ function iris_fx.border_code(pal)
         iris_fx.rgba(pal.mint, "ff"), iris_fx.rgba(pal.minthi, "ff"), iris_fx.rgba(pal.off, "aa"))
 end
 
+-- The palette's names, in the order `palette.plm` lists them. The scene's colours are three facts each (`pal_ink_r`, `_g`, `_b`…, read by
+-- `palette-live.plm` as `rgb(...)`), so a new palette is a change of facts: nothing is written for the scene and it does not reload.
+iris_fx.order = { "ink", "faint", "mint", "mintlo", "minthi", "onmint", "tint", "panel", "deep", "off", "alert" }
+function iris_fx.set_facts(pal)
+    for _, k in ipairs(iris_fx.order) do
+        local r, g, b = hex_to_rgb(pal[k])
+        fact["pal_" .. k .. "_r"], fact["pal_" .. k .. "_g"], fact["pal_" .. k .. "_b"] = r, g, b
+    end
+end
+-- The last palette is kept in `palette.json` (the scene does not import it), so a start paints the colours it ended with from its first frame,
+-- not the stock ones until Iris has answered.
+do
+    local ok, saved = pcall(sys.ask, "files.read", "palette.json", "json")
+    if ok and type(saved) == "table" then
+        local whole = true
+        for _, k in ipairs(iris_fx.order) do
+            if type(saved[k]) ~= "string" or not saved[k]:match("^#%x%x%x%x%x%x$") then whole = false end
+        end
+        if whole then
+            iris_fx.set_facts(saved)
+            iris_fx.saved = saved
+        end
+    end
+end
+
 function iris_fx.apply_palette(pal)
     iris_fx.last_pal = pal
-    local order = { "ink", "faint", "mint", "mintlo", "minthi", "onmint", "tint", "panel", "deep", "off", "alert" }
+    local order = iris_fx.order
     local lines = {
         "//  Written by Vitreus's logic from the wallpaper (Iris); edits here are overwritten.",
-        "//  `let`s only: the scene imports this and uses these names everywhere.",
+        "//  `let`s only: the lock screen imports this. (The shell's own scene takes its colours as facts: palette-live.plm.)",
         "",
         "library Palette {",
     }
@@ -1757,17 +1782,22 @@ function iris_fx.apply_palette(pal)
     lines[#lines + 1] = "}"
     local text_out = table.concat(lines, "\n") .. "\n"
     if text_out == iris_last_text then return end
-    local first = iris_last_text == nil          -- the first palette since the shell started: it only changes anything if the file says otherwise
     iris_last_text = text_out
+    iris_fx.set_facts(pal)
+    local same_as_saved = iris_fx.saved ~= nil
+    if same_as_saved then
+        for _, k in ipairs(order) do if iris_fx.saved[k] ~= pal[k] then same_as_saved = false end end
+    end
+    if same_as_saved then iris_fx.apply_hypr(); return end
+    local keep = {}
+    for _, k in ipairs(order) do keep[k] = pal[k] end
+    iris_fx.saved = keep
+    pcall(sys.call, "files.write", "palette.json", keep)
     with_dirs(function(d)
-      local function go(changed)
-        -- Nothing new (the first palette after a start, the same as the file): write nothing. Writing the same text again still touches the
-        -- files, and that made pleamar read the whole scene in again, a second's work, right after every start.
-        if not changed then iris_fx.apply_hypr(); return end
-        -- Written into the data folder, then copied over the scene's palette.
+        -- The lock screen's file, and what pleamar-wm's scene takes from the palette (the focused window's border: the accent's lighter
+        -- shade, which shows on glass). Each of those is another program, and reloads itself on a change.
         pcall(sys.call, "files.write", "palette.plm", text_out)
         run("cp", { d.data .. "/palette.plm", d.conf .. "/palette.plm" }, function() end)
-        -- And what pleamar-wm's scene takes from it (the focused window's border: the accent's lighter shade, which shows on glass).
         local wm_text = "//  Written by Vitreus's logic from the wallpaper (Iris); edits here are overwritten.\n" ..
             "//  What pleamar-wm's scene takes from it: the colour of the focused window's border.\n\nlibrary WmPalette {\n    let wm_border = " ..
             pal.minthi .. "\n}\n"
@@ -1777,21 +1807,6 @@ function iris_fx.apply_palette(pal)
             run("cp", { d.data .. "/wm-palette.plm", d.conf .. "/wm-palette.plm" }, function() end)
         end
         iris_fx.apply_hypr()
-        -- A new palette makes the running scene reload itself, and a reloaded scene loses the glass of the frame down the left (the edge light and
-        -- the tint go; the blur stays), however it is built: the strip alone does it, and the top bar does not. Only starting again brings it back. So
-        -- with the bar on the left, the shell starts again a moment after the palette is written (the usual reload is over by then): a short gap in
-        -- the bar, instead of a frame with no glass until the next restart. It is done the way the Bar page does it: a command left running on its own.
-        if changed and bar_fx.left then
-            local scene = d.conf .. "/vitreus.plm"
-            run("setsid", { "-f", "sh", "-c", "sleep 2\n" .. bar_fx.restart, "sh", scene, d.data .. "/vitreus.log" }, function() end)
-        end
-      end
-      local function trim(t) return ((t or ""):gsub("%s+$", "")) end
-      if first then
-          run("sed", { "-n", "p", d.conf .. "/palette.plm" }, function(out) go(trim(out) ~= trim(text_out)) end)
-      else
-          go(true)
-      end
     end)
 end
 
