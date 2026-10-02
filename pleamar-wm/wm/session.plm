@@ -58,7 +58,6 @@ scene Session {
     // shadow's strength (%) and how opaque the title bar's glass is (%).
     fact bw = 1.5
     fact ba = 70
-    fact wb_iris = 1
     fact rad = 12
     fact shd = 100
     fact tbo = 72
@@ -714,7 +713,7 @@ scene Session {
                 box { at: x + w - 20, by; size: 8, 1.4; corner: 0.7; rotate: 45deg; color: ink; opacity: 70% + 30% * close_zone.$i.hover }
                 box { at: x + w - 20, by; size: 8, 1.4; corner: 0.7; rotate: -45deg; color: ink; opacity: 70% + 30% * close_zone.$i.hover }
             }
-            box { from: x, y; size: w, h; corner: rad; stroke: bw; color: mix(mint, wm_border, wb_iris); opacity: lit.$i * ba / 100 * (1 - ov) }
+            box { from: x, y; size: w, h; corner: rad; stroke: bw; color: wm_border; opacity: lit.$i * ba / 100 * (1 - ov) }
             // Choosing what to share: the one under the pointer lights up and says so.
             group {
                 show: share.windows and share.in > 0.01
@@ -947,7 +946,7 @@ scene Session {
                 text win.$i.title { at: x + 14, y + tb / 2; anchor: left center; size: 12; weight: 500; width: max(w - 90, 10); lines: 1; color: ink }
                 window win.$i { at: x, y + tb; size: w, max(h - tb, 1); ask: win.$i.width, win.$i.height; show: carried and cold > 0.001 and wet <= 0.001 }
             }
-            box { from: x, y; size: w, h; corner: rad; stroke: bw; color: mix(mint, wm_border, wb_iris); opacity: 80% }
+            box { from: x, y; size: w, h; corner: rad; stroke: bw; color: wm_border; opacity: 80% }
         }
     }
 
@@ -1228,7 +1227,7 @@ scene Session {
                 text win.$i.title { at: dx + 14, dy + tb / 2; anchor: left center; size: 12; weight: 500; width: max(dw - 40, 10); lines: 1; color: ink }
                 window win.$i { at: dx, dy + tb; size: win.$i.width, win.$i.height; ask: 0, 0; show: win.$i.dialog and win.$i.open and win.$i.screen == screen.index and dlg.ws }
             }
-            box { from: dx, dy; size: dw, dh; corner: rad; stroke: bw; color: mix(mint, wm_border, wb_iris); opacity: ba / 100 * win.$i.focused }
+            box { from: dx, dy; size: dw, dh; corner: rad; stroke: bw; color: wm_border; opacity: ba / 100 * win.$i.focused }
         }
     }
 

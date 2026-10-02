@@ -6,11 +6,14 @@ run("which", { "brightnessctl" }, function(_, code)
 end)
 
 -- Workspaces only: what moves is moved by the renderer.
+ws_urgent = {}
 sys.watch("workspaces", function(w)
     local busy = {}
     for _, d in ipairs(w.list) do busy[d.id] = d.windows > 0 end
     for i = 1, 5 do fact["ws." .. i .. ".busy"] = busy[i] or false end
     fact["ws.active"] = w.active
+    -- Going to a workspace answers whatever was asking for attention on it. (Globals: this chunk is at Luau's limit of locals.)
+    if ws_urgent[w.active] then ws_urgent[w.active] = nil; fact["ws." .. w.active .. ".urgent"] = false end
 end)
 -- Starting a program "on the desktop" (not as this shell's child). On Hyprland that is its own `exec_cmd`, so the program comes from the
 -- compositor; Hyprland's environment says whether this is Hyprland. On any other desktop (pleamar-wm) there is no such command, and the
@@ -1192,6 +1195,37 @@ local function refresh_tasks()
         end
     end)
 end
+
+-- Hyprland says `urgent>>ADDRESS` on its event socket when a window asks for attention. If it is on a workspace that is out of view, that
+-- workspace's dot warms until it is visited (see the workspaces watch at the top).
+function window_urgent(addr)
+    run("hyprctl", { "clients" }, function(out, code)
+        if code ~= 0 then return end
+        for _, w in ipairs(parse_clients(out)) do
+            if w.addr == addr then
+                local n = tonumber((w.workspace or ""):match("^(-?%d+)"))
+                if n and n >= 1 and n <= 5 and n ~= tonumber(fact["ws.active"]) then
+                    ws_urgent[n] = true
+                    fact["ws." .. n .. ".urgent"] = true
+                end
+                return
+            end
+        end
+    end)
+end
+function watch_urgent()
+    run("printenv", { "XDG_RUNTIME_DIR" }, function(rt)
+        run("printenv", { "HYPRLAND_INSTANCE_SIGNATURE" }, function(sig)
+            rt, sig = (rt or ""):gsub("%s+$", ""), (sig or ""):gsub("%s+$", "")
+            if rt == "" or sig == "" then return end
+            spawn("socat", { "-u", "UNIX-CONNECT:" .. rt .. "/hypr/" .. sig .. "/.socket2.sock", "-" }, function(line)
+                local addr = line:match("^urgent>>(%x+)")
+                if addr then window_urgent(addr) end
+            end, function() after(3000, watch_urgent) end)
+        end)
+    end)
+end
+after(2000, function() if on_hyprland then watch_urgent() end end)
 
 sys.watch("apps", function(list)
     apps_by_class = {}
@@ -3135,13 +3169,14 @@ every(1800000, wx_refresh_now)           -- every half hour
 -- written to vitreus_hypr.lua, which hyprland.lua loads after hypr_style.lua so it wins on the next start.
 do
     local LAYOUTS = { "dwindle", "master", "scrolling" }
-    local hy = { layout = 3, gaps = 5, round = 10, blur = 3, passes = 1, resize = false, tear = false, anim = true, sens = 0, follow = 1, nat = false }
+    local hy = { layout = 3, gaps = 5, round = 10, border = 3, blur = 3, passes = 1, resize = false, tear = false, anim = true, sens = 0, follow = 1, nat = false }
     local hy_dirty, hy_waiting = false, false
 
     local function hy_show()
         fact.hy_layout = hy.layout
         fact.hy_gaps = hy.gaps
         fact.hy_round = hy.round
+        fact.hy_border = hy.border
         fact.hy_blur = hy.blur
         text.hy_blur_text = string.format("%d", hy.blur)
         fact.hy_resize = hy.resize
@@ -3152,15 +3187,16 @@ do
         fact.hy_nat = hy.nat
         text.hy_gaps_text = string.format("%d px", hy.gaps)
         text.hy_round_text = string.format("%d px", hy.round)
+        text.hy_border_text = string.format("%d px", hy.border)
         text.hy_sens_text = string.format("%.2f", hy.sens)
     end
 
     local function b(v) return v and "true" or "false" end
     local function hy_code()
         return string.format(
-            "hl.config({ general = { gaps_in = %d, layout = \"%s\", resize_on_border = %s, allow_tearing = %s }, " ..
+            "hl.config({ general = { gaps_in = %d, border_size = %d, layout = \"%s\", resize_on_border = %s, allow_tearing = %s }, " ..
             "decoration = { rounding = %d, blur = { size = %d, passes = %d } }, animations = { enabled = %s }, input = { sensitivity = %.2f, follow_mouse = %d, touchpad = { natural_scroll = %s } } })",
-            hy.gaps, LAYOUTS[hy.layout], b(hy.resize), b(hy.tear), hy.round, hy.blur, hy.passes, b(hy.anim), hy.sens, hy.follow, b(hy.nat))
+            hy.gaps, hy.border, LAYOUTS[hy.layout], b(hy.resize), b(hy.tear), hy.round, hy.blur, hy.passes, b(hy.anim), hy.sens, hy.follow, b(hy.nat))
     end
 
     local function hy_write_file()
@@ -3201,6 +3237,7 @@ do
             local n = tonumber(tostring(j.css or ""):match("^(%d+)"))
             if n then hy.gaps = n; hy_show() end
         end)
+        opt("general:border_size", function(j) local n = tonumber(j.int); if n then hy.border = n; hy_show() end end)
         opt("decoration:rounding", function(j) local n = tonumber(j.int); if n then hy.round = n; hy_show() end end)
         opt("decoration:blur:size", function(j) local n = tonumber(j.int); if n then hy.blur = n; hy_show() end end)
         opt("decoration:blur:passes", function(j) local n = tonumber(j.int); if n then hy.passes = n; hy_show() end end)
@@ -3217,6 +3254,7 @@ do
 
     on("hy_layout_set", function(i) hy.layout = math.max(1, math.min(3, math.floor(i + 0.5))); hy_changed() end)
     on("hy_gaps_set", function(t) hy.gaps = math.floor(math.max(0, math.min(1, t)) * 30 + 0.5); hy_changed() end)
+    on("hy_border_set", function(t) hy.border = math.floor(math.max(0, math.min(1, t)) * 10 + 0.5); hy_changed() end)
     on("hy_round_set", function(t) hy.round = math.floor(math.max(0, math.min(1, t)) * 30 + 0.5); hy_changed() end)
     on("hy_sens_set", function(t)
         hy.sens = math.floor((math.max(0, math.min(1, t)) * 2 - 1) * 20 + 0.5) / 20
@@ -3247,7 +3285,7 @@ end
 -- forgets them when it reloads; they are put back when this shell starts). The input lines (pointer, touchpad, idle) are session.conf's,
 -- which pleamar-wm reads when it starts: they are rewritten here and apply at the next login.
 do
-    local wm = { layout = 0, share = 0.56, gap = 12, free = false, rain = false, snow = false, bw = 1.5, ba = 70, iris = true, rad = 12, shd = 100, tb = 22, tbo = 72, wa = 100, wi = 100, fr = 80 }
+    local wm = { layout = 0, share = 0.56, gap = 12, free = false, rain = false, snow = false, bw = 1.5, ba = 70, rad = 12, shd = 100, tb = 22, tbo = 72, wa = 100, wi = 100, fr = 80 }
     local inp = { ms = 0, ts = 0, nat = false, tap = false, idle = 7, maccel = "adaptive", taccel = "adaptive", dwt = nil }
     local wm_waiting, in_waiting = false, false
 
@@ -3266,7 +3304,7 @@ do
         fact.wm_nat = inp.nat
         fact.wm_tap = inp.tap
         fact.wm_idle = inp.idle
-        fact.wm_bw, fact.wm_ba, fact.wm_iris, fact.wm_rad = wm.bw, wm.ba, wm.iris, wm.rad
+        fact.wm_bw, fact.wm_ba, fact.wm_rad = wm.bw, wm.ba, wm.rad
         fact.wm_shd, fact.wm_tb, fact.wm_tbo = wm.shd, wm.tb, wm.tbo
         text.wm_bw_text = string.format("%.1f px", wm.bw)
         text.wm_ba_text = string.format("%d%%", wm.ba)
@@ -3297,7 +3335,6 @@ do
         say("fact snow " .. b(wm.snow))
         say("fact bw " .. wm.bw)
         say("fact ba " .. wm.ba)
-        say("fact wb_iris " .. (wm.iris and 1 or 0))
         say("fact rad " .. wm.rad)
         say("fact shd " .. wm.shd)
         say("fact tb " .. wm.tb)
@@ -3308,7 +3345,7 @@ do
     end
 
     local function wm_save()
-        pcall(sys.call, "files.write", "wm.json", { layout = wm.layout, share = wm.share, gap = wm.gap, free = wm.free, rain = wm.rain, snow = wm.snow, bw = wm.bw, ba = wm.ba, iris = wm.iris, rad = wm.rad, shd = wm.shd, tb = wm.tb, tbo = wm.tbo, wa = wm.wa, wi = wm.wi, fr = wm.fr })
+        pcall(sys.call, "files.write", "wm.json", { layout = wm.layout, share = wm.share, gap = wm.gap, free = wm.free, rain = wm.rain, snow = wm.snow, bw = wm.bw, ba = wm.ba, rad = wm.rad, shd = wm.shd, tb = wm.tb, tbo = wm.tbo, wa = wm.wa, wi = wm.wi, fr = wm.fr })
     end
 
     local function wm_changed()
@@ -3353,7 +3390,6 @@ do
         num("snow", function(v) wm.snow = v == 1 end)
         num("bw", function(v) wm.bw = v end)
         num("ba", function(v) wm.ba = v end)
-        num("wb_iris", function(v) wm.iris = v == 1 end)
         num("rad", function(v) wm.rad = v end)
         num("shd", function(v) wm.shd = v end)
         num("tb", function(v) wm.tb = v end)
@@ -3401,7 +3437,6 @@ do
             wm.shd, wm.tb, wm.tbo = tonumber(saved.shd) or wm.shd, tonumber(saved.tb) or wm.tb, tonumber(saved.tbo) or wm.tbo
             wm.wa, wm.wi = tonumber(saved.wa) or wm.wa, tonumber(saved.wi) or wm.wi
             wm.fr = tonumber(saved.fr) or wm.fr
-            if saved.iris ~= nil then wm.iris = saved.iris == true end
             wm_show()
             wm_send()
         end
@@ -3424,7 +3459,6 @@ do
         if k == 0 then wm.free = not wm.free; wm_changed()
         elseif k == 1 then wm.rain = not wm.rain; wm_changed()
         elseif k == 2 then wm.snow = not wm.snow; wm_changed()
-        elseif k == 5 then wm.iris = not wm.iris; wm_changed()
         elseif k == 3 then inp.nat = not inp.nat; in_changed()
         else inp.tap = not inp.tap; in_changed() end
     end)
@@ -5923,4 +5957,355 @@ end)()
     end)
     on("fact:set_page", function(v) if v ~= "pg_lock" then clear_bar() end end)
     on("fact:panel", function(v) if v ~= "settings" then clear_bar() end end)
+end)()
+
+-- Settings > VPN. NetworkManager owns the profiles (WireGuard ones, and the ones a VPN plugin such as OpenVPN makes), and this page
+-- drives it through nmcli: the list, connect / disconnect, delete, and three ways to add one (a WireGuard form, an OpenVPN form, or a
+-- .conf / .ovpn file). nmcli's `-t` output escapes ":" and "\"; its error text goes to stderr, which `run` does not give back, so a
+-- failure is explained from nmcli's exit code. Profiles are named by UUID: two can share a name.
+;(function()
+    local MAX = 8
+    local profs, kinds, ips = {}, {}, {}
+    local home = ""
+    local working = false
+    local arm = nil
+    local want_ip = nil
+
+    run("printenv", { "HOME" }, function(out) home = ((out or ""):gsub("%s+$", "")) end)
+
+    local function terse(line)
+        local f, cur, i = {}, {}, 1
+        while i <= #line do
+            local c = line:sub(i, i)
+            if c == "\\" then cur[#cur + 1] = line:sub(i + 1, i + 1); i = i + 2
+            elseif c == ":" then f[#f + 1] = table.concat(cur); cur = {}; i = i + 1
+            else cur[#cur + 1] = c; i = i + 1 end
+        end
+        f[#f + 1] = table.concat(cur)
+        return f
+    end
+
+    local function nm(args, done) run("nmcli", args, done) end
+    local NM_CODE = {
+        [2] = "NetworkManager did not accept those settings (for OpenVPN, is the networkmanager-openvpn plugin installed?)",
+        [3] = "it took too long",
+        [4] = "the connection could not be started: check the keys, the endpoint and the password",
+        [5] = "it could not be disconnected",
+        [7] = "it could not be deleted",
+        [8] = "NetworkManager is not running",
+        [10] = "NetworkManager has no such profile",
+    }
+
+    local function trim(s) return ((s or ""):gsub("^%s+", ""):gsub("%s+$", "")) end
+    local function say(msg) text.vpn_msg = msg or "" end
+    local function why(_, code) return NM_CODE[code] or ("nmcli failed with code " .. tostring(code)) end
+    local function set_working(v) working = v; fact.vpn_busy = v end
+
+    local function kind_label(p)
+        if p.type == "wireguard" then return "WireGuard" end
+        local k = kinds[p.uuid]
+        if k == nil then return "VPN" end
+        return k
+    end
+
+    local function render()
+        local active
+        for _, p in ipairs(profs) do if p.active and not active then active = p end end
+        fact.vpn_count = #profs
+        fact.vpn_on = active ~= nil
+        if active then
+            text.vpn_title = active.name
+            local sub = kind_label(active)
+            if ips[active.uuid] and ips[active.uuid] ~= "" then sub = sub .. " · " .. ips[active.uuid] end
+            text.vpn_sub = sub
+        else
+            text.vpn_title = "Not connected"
+            text.vpn_sub = #profs == 0 and "No profiles yet: add one below" or "Pick a profile to connect"
+        end
+        for i = 0, MAX - 1 do
+            local p = profs[i + 1]
+            fact["vpn_r." .. i .. ".on"] = p ~= nil
+            if p then
+                text["vpn_r." .. i .. ".name"] = p.name
+                text["vpn_r." .. i .. ".sub"] = kind_label(p)
+                fact["vpn_r." .. i .. ".active"] = p.active
+            else
+                fact["vpn_r." .. i .. ".active"] = false
+            end
+        end
+    end
+
+    local function learn_kinds()
+        for _, p in ipairs(profs) do
+            if p.type ~= "wireguard" and kinds[p.uuid] == nil then
+                kinds[p.uuid] = "VPN"
+                nm({ "-g", "vpn.service-type", "connection", "show", "uuid", p.uuid }, function(out, code)
+                    local s = trim(out)
+                    if code == 0 and s ~= "" then
+                        local last = s:match("([^.]+)$") or s
+                        kinds[p.uuid] = last == "openvpn" and "OpenVPN" or last
+                        render()
+                    end
+                end)
+            end
+        end
+    end
+
+    local function learn_ip(p)
+        if not p or want_ip == p.uuid then return end
+        want_ip = p.uuid
+        nm({ "-g", "IP4.ADDRESS", "connection", "show", "uuid", p.uuid }, function(out, code)
+            ips[p.uuid] = code == 0 and (trim(out):match("[^\n]+") or "") or ""
+            render()
+        end)
+    end
+
+    local function refresh()
+        nm({ "-t", "-f", "NAME,UUID,TYPE,ACTIVE", "connection", "show" }, function(out, code)
+            if code ~= 0 then
+                profs = {}
+                render()
+                text.vpn_sub = "NetworkManager did not answer"
+                return
+            end
+            local list = {}
+            for line in (out or ""):gmatch("[^\n]+") do
+                local f = terse(line)
+                if #f >= 4 and (f[3] == "wireguard" or f[3] == "vpn") then
+                    list[#list + 1] = { name = f[1], uuid = f[2], type = f[3], active = f[4] == "yes" }
+                end
+            end
+            -- connected first, then by name
+            table.sort(list, function(a, b)
+                if a.active ~= b.active then return a.active end
+                return a.name:lower() < b.name:lower()
+            end)
+            profs = list
+            local active
+            for _, p in ipairs(profs) do if p.active and not active then active = p end end
+            if not active then want_ip = nil end
+            render()
+            learn_kinds()
+            learn_ip(active)
+        end)
+    end
+
+    local function arm_clear() arm = nil; fact.vpn_arm = -1 end
+
+    on("vpn_refresh", refresh)
+
+    local function toggle(i)
+        local p = profs[i + 1]
+        if not p or working then return end
+        arm_clear()
+        set_working(true)
+        say((p.active and "Disconnecting " or "Connecting ") .. p.name .. "…")
+        nm({ "connection", p.active and "down" or "up", "uuid", p.uuid }, function(out, code)
+            set_working(false)
+            say(code == 0 and "" or ((p.active and "Could not disconnect: " or "Could not connect: ") .. why(out, code)))
+            refresh()
+        end)
+    end
+    on("vpn_toggle", toggle)
+    on("vpn_down", function()
+        for i, p in ipairs(profs) do if p.active then return toggle(i - 1) end end
+    end)
+
+    on("vpn_arm_ask", function(i)
+        local p = profs[i + 1]
+        if not p then return end
+        if arm == p.uuid then arm_clear() else arm = p.uuid; fact.vpn_arm = i end
+    end)
+
+    on("vpn_delete", function(i)
+        local p = profs[i + 1]
+        arm_clear()
+        if not p or working then return end
+        set_working(true)
+        nm({ "connection", "delete", "uuid", p.uuid }, function(out, code)
+            set_working(false)
+            say(code == 0 and ("Deleted " .. p.name .. ".") or ("Could not delete: " .. why(out, code)))
+            refresh()
+        end)
+    end)
+
+    -- After an import or add: give the new profile the name the user typed, then say how it went.
+    local function added(out, code, label, rename)
+        set_working(false)
+        if code ~= 0 then say("Could not add it: " .. why(out, code)) return end
+        local uuid = (out or ""):match("%(([%x%-]+)%)")
+        local function done()
+            say("Added " .. label .. ".")
+            refresh()
+        end
+        if rename and uuid and rename ~= "" then
+            nm({ "connection", "modify", "uuid", uuid, "connection.id", rename }, function() done() end)
+        else
+            done()
+        end
+    end
+
+    local function ifname_of(name)
+        local s = name:gsub("[^%w_%-]", "-"):gsub("%-+", "-"):gsub("^%-", ""):gsub("%-$", "")
+        if s == "" then s = "vpn" end
+        return s:sub(1, 15)
+    end
+
+    local function data_dir()
+        return cava_conf and cava_conf:match("^(.*)/cava%.conf$") or nil
+    end
+
+    -- Both WireGuard paths end here: a wg-quick file in the shell's folder (only the user may read it), imported and removed.
+    local function import_conf(path, label, rename, temp, kind, file)
+        set_working(true)
+        say("Adding " .. label .. "…")
+        local function finish(out, code)
+            if temp then pcall(sys.call, "files.remove", file) end
+            added(out, code, label, rename)
+        end
+        local function go() nm({ "connection", "import", "type", kind, "file", path }, finish) end
+        if temp then run("chmod", { "600", path }, function() go() end) else go() end
+    end
+
+    local function clean_path(p)
+        p = trim(p)
+        if p:sub(1, 2) == "~/" then p = home .. p:sub(2) end
+        return p
+    end
+
+    on("vpn_import", function()
+        if working then return end
+        local path = clean_path(text.vpn_file)
+        if path == "" then say("Type the path of a .conf or .ovpn file.") return end
+        local kind = path:lower():match("%.conf$") and "wireguard" or (path:lower():match("%.ovpn$") and "openvpn" or nil)
+        if not kind then say("That is not a .conf (WireGuard) or .ovpn (OpenVPN) file.") return end
+        run("stat", { path }, function(_, code)
+            if code ~= 0 then say("No file there: " .. path) return end
+            import_conf(path, path:match("([^/]+)$"), nil, false, kind, nil)
+            text.vpn_file = ""
+        end)
+    end)
+
+    local function b64(s) return s:match("^[A-Za-z0-9+/]+=?$") ~= nil and #s == 44 end
+
+    on("vpn_add_wg", function()
+        if working then return end
+        local name, addr = trim(text.vpnw_name), trim(text.vpnw_addr)
+        local key, peer = trim(text.vpnw_key), trim(text.vpnw_peer)
+        local endpoint, dns = trim(text.vpnw_end), trim(text.vpnw_dns)
+        local allowed, psk = trim(text.vpnw_ips), trim(text.vpnw_psk)
+        if name == "" then say("Give the profile a name.") return end
+        if not b64(key) then say("The private key should be 44 characters of base64.") return end
+        if addr == "" or not addr:match("%d") then say("Add the address this device gets, e.g. 10.2.0.2/32.") return end
+        if not b64(peer) then say("The peer's public key should be 44 characters of base64.") return end
+        if not endpoint:match("^[%w%.%-%[%]:]+:%d+$") then say("The endpoint should look like host:51820.") return end
+        if psk ~= "" and not b64(psk) then say("The preshared key should be 44 characters of base64.") return end
+        if allowed == "" then allowed = "0.0.0.0/0, ::/0" end
+        local dir = data_dir()
+        if not dir then say("Not ready yet, try again in a moment.") return end
+        local ifn = ifname_of(name)
+        local conf = { "[Interface]", "PrivateKey = " .. key, "Address = " .. addr }
+        if dns ~= "" then conf[#conf + 1] = "DNS = " .. dns end
+        conf[#conf + 1] = ""
+        conf[#conf + 1] = "[Peer]"
+        conf[#conf + 1] = "PublicKey = " .. peer
+        if psk ~= "" then conf[#conf + 1] = "PresharedKey = " .. psk end
+        conf[#conf + 1] = "AllowedIPs = " .. allowed
+        conf[#conf + 1] = "Endpoint = " .. endpoint
+        conf[#conf + 1] = "PersistentKeepalive = 25"
+        local file = ifn .. ".conf"
+        if not pcall(sys.call, "files.write", file, table.concat(conf, "\n") .. "\n") then say("Could not write the temporary file.") return end
+        for _, k in ipairs({ "vpnw_name", "vpnw_addr", "vpnw_key", "vpnw_peer", "vpnw_end", "vpnw_dns", "vpnw_ips", "vpnw_psk" }) do text[k] = "" end
+        import_conf(dir .. "/" .. file, name, name ~= ifn and name or nil, true, "wireguard", file)
+    end)
+
+    on("vpn_add_ovpn", function()
+        if working then return end
+        local name, server = trim(text.vpno_name), trim(text.vpno_server)
+        local port, user = trim(text.vpno_port), trim(text.vpno_user)
+        local pw, ca = text.vpno_pw or "", clean_path(text.vpno_ca)
+        if name == "" then say("Give the profile a name.") return end
+        if server == "" then say("Type the server's host name or address.") return end
+        if port == "" then port = "1194" end
+        if not port:match("^%d+$") then say("The port should be a number.") return end
+        if user == "" then say("Type the user name.") return end
+        local data = { "remote=" .. server .. ":" .. port, "connection-type=password", "username=" .. user, "password-flags=" .. (pw ~= "" and "0" or "2") }
+        if fact.vpn_tcp then data[#data + 1] = "proto-tcp=yes" end
+        if ca ~= "" then data[#data + 1] = "ca=" .. ca end
+        local args = { "connection", "add", "type", "vpn", "vpn-type", "openvpn", "con-name", name, "ifname", "--", "vpn.data", table.concat(data, ", ") }
+        if pw ~= "" then args[#args + 1] = "vpn.secrets"; args[#args + 1] = "password=" .. pw end
+        set_working(true)
+        say("Adding " .. name .. "…")
+        nm(args, function(out, code)
+            if code == 0 then for _, k in ipairs({ "vpno_name", "vpno_server", "vpno_port", "vpno_user", "vpno_pw", "vpno_ca" }) do text[k] = "" end end
+            added(out, code, name, nil)
+        end)
+    end)
+
+    -- The file browser of the Import tab: one folder at a time, folders first, only .conf and .ovpn files. It starts in Downloads.
+    local ROWS = 8
+    local dir, entries, first = nil, {}, 0
+    local function brender()
+        text.vpn_dir = dir or ""
+        for i = 0, ROWS - 1 do
+            local e = entries[first + i + 1]
+            fact["vpn_f." .. i .. ".on"] = e ~= nil
+            if e then
+                text["vpn_f." .. i .. ".name"] = e.name
+                fact["vpn_f." .. i .. ".dir"] = e.dir
+            end
+        end
+        fact.vpn_fmore = #entries > ROWS
+    end
+    local function browse(path, fallback)
+        run("find", { "-L", path, "-maxdepth", "1", "-mindepth", "1", "-printf", "%y\t%f\n" }, function(out, code)
+            if code ~= 0 and fallback then return browse(fallback) end
+            if code ~= 0 then return end
+            dir, first = path, 0
+            local ds, fs = {}, {}
+            for line in (out or ""):gmatch("[^\n]+") do
+                local ty, name = line:match("^(%a)\t(.+)$")
+                if name and name:sub(1, 1) ~= "." then
+                    if ty == "d" then ds[#ds + 1] = { name = name, dir = true }
+                    else
+                        local l = name:lower()
+                        if l:match("%.conf$") or l:match("%.ovpn$") then fs[#fs + 1] = { name = name, dir = false } end
+                    end
+                end
+            end
+            local function by(a, b) return a.name:lower() < b.name:lower() end
+            table.sort(ds, by); table.sort(fs, by)
+            entries = {}
+            if path ~= "/" then entries[1] = { name = "..", dir = true } end
+            for _, e in ipairs(ds) do entries[#entries + 1] = e end
+            for _, e in ipairs(fs) do entries[#entries + 1] = e end
+            brender()
+        end)
+    end
+    local function start_browser()
+        if dir then return end
+        browse(home .. "/Downloads", home)
+    end
+    on("vpn_fpick", function(i)
+        local e = entries[first + i + 1]
+        if not e or not dir then return end
+        if e.dir then
+            if e.name == ".." then browse(dir:match("^(.*)/[^/]*$") ~= "" and dir:match("^(.*)/[^/]*$") or "/")
+            else browse((dir == "/" and "" or dir) .. "/" .. e.name) end
+        else
+            text.vpn_file = (dir == "/" and "" or dir) .. "/" .. e.name
+        end
+    end)
+    on("vpn_fscroll", function(w)
+        local max = math.max(0, #entries - ROWS)
+        first = math.max(0, math.min(max, first - (w > 0 and 1 or -1) * 2))
+        brender()
+    end)
+
+    -- Only while the page is in view.
+    local function open() return fact.panel == "settings" and fact.set_page == "pg_vpn" end
+    on("fact:set_page", function(v) arm_clear(); if v == "pg_vpn" and fact.panel == "settings" then refresh(); start_browser() end end)
+    on("fact:panel", function(v) arm_clear(); if v == "settings" and fact.set_page == "pg_vpn" then refresh(); start_browser() end end)
+    every(4000, function() if open() and not working then refresh() end end)
+    render()
 end)()

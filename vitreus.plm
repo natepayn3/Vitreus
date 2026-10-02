@@ -9,7 +9,7 @@ import "palette.plm"
 scene Vitreus {
     surface { size: full, 1440; anchor: bar_anchor; margin: 0; reserve: 68; screens: "DP-2"; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play" }
+                  run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
     model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number }
@@ -186,6 +186,7 @@ scene Vitreus {
     event hy_layout_set ->
     event hy_gaps_set ->
     event hy_round_set ->
+    event hy_border_set ->
     event hy_sens_set ->
     event hy_follow_set ->
     event hy_toggle ->
@@ -235,7 +236,7 @@ scene Vitreus {
     event glass_reset ->
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
     //  panel's height, which follows the page).
-    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_night | pg_hypr | pg_about | pg_sys | pg_nt | pg_lock | pg_wm = pg_wall
+    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_night | pg_hypr | pg_about | pg_sys | pg_nt | pg_lock | pg_wm | pg_vpn = pg_wall
     //  The Bar page: which monitors the bar is on (see the Bar section of vitreus.luau). `bar_scr` is -1 for all
     //  of them, or which monitor tile is chosen.
     fact bar_scr = -1
@@ -468,6 +469,7 @@ scene Vitreus {
     event pow_press ->             // a session button held for one second: 0 lock, 1 sleep, 2 log out, 3 restart, 4 power off
     event pow_prof_set ->          // 0, 1 or 2
     fact ws.active = 1
+    repeat i in 1..6 { fact ws.$i.urgent = false }   // a window on that workspace asked for attention while it was out of view
     repeat i in 1..6 { fact ws.$i.busy = false }
     event go ->
     event ov_go ->                     // a click on a workspace in the overview: it closes, then the switch
@@ -499,6 +501,8 @@ scene Vitreus {
     prop f5    = 0 ~620ms          // the controls drawer, third in: brightness
     prop f6    = 0 ~700ms          // fourth: wifi
     prop f7    = 0 ~780ms          // fifth: bluetooth
+    prop glass_bend_pill = 0 ~pop    // the Glass page's lens switch, popping past where it lands
+    follow glass_bend_pill = if(glass_bend, 1, 0)
     prop wifi_on = 0 ~pop         // the wifi toggle pill, popping past where it lands
     prop wifi_extra = 0 ~calm     // 0..1: whether a Wi-Fi row is open
     prop wifi_sel = 0 ~calm       // which row, as a position: slides from one row to the next
@@ -577,6 +581,24 @@ scene Vitreus {
     //  Occupied but not active: the dot stretches up into a capsule.
     repeat i in 1..6 { prop ws.tall.$i = 0 ~lively }
     repeat i in 1..6 { follow ws.tall.$i = if(ws.$i.busy, 1, 0) }
+    //  The mark of the workspace in view is one piece that travels: its head runs ahead to the new place and its tail follows, so it
+    //  stretches across what lies between and gathers again.
+    prop pl.head = 1 ~150ms
+    prop pl.tail = 1 ~400ms
+    follow pl.head = ws.active
+    follow pl.tail = ws.active
+    //  A workspace that is out of view and has a window asking for attention: its dot warms and breathes until you go there.
+    let warm = #ff7a59
+    prop ws.urg.1 = 0 ~calm
+    prop ws.urg.2 = 0 ~calm
+    prop ws.urg.3 = 0 ~calm
+    prop ws.urg.4 = 0 ~calm
+    prop ws.urg.5 = 0 ~calm
+    follow ws.urg.1 = if(ws.1.urgent, 1, 0)
+    follow ws.urg.2 = if(ws.2.urgent, 1, 0)
+    follow ws.urg.3 = if(ws.3.urgent, 1, 0)
+    follow ws.urg.4 = if(ws.4.urgent, 1, 0)
+    follow ws.urg.5 = if(ws.5.urgent, 1, 0)
 
     on change drop > 0.97 while drop > 0.97 { impulse sag 220; impulse wobble -260 }
     //  The same moments as in Marea, for the left layout's drop: it lets go (the edge jumps and bounces, two ripples set off, a small drop stays
@@ -662,6 +684,7 @@ scene Vitreus {
     prop set_pgt = 0 ~calm
     prop set_pgl = 0 ~calm
     prop set_pgw = 0 ~calm
+    prop set_pgv = 0 ~calm
     prop set_pgb = 0 ~calm
     prop bs.ws = 1 ~calm              // each piece of the bar, 1 shown .. 0 hidden: its room and its opacity
     prop bs.title = 1 ~calm
@@ -722,6 +745,7 @@ scene Vitreus {
     follow set_pgt = if(set_page == pg_nt, 1, 0)
     follow set_pgl = if(set_page == pg_lock, 1, 0)
     follow set_pgw = if(set_page == pg_wm, 1, 0)
+    follow set_pgv = if(set_page == pg_vpn, 1, 0)
     follow bs.ws = if(bv.ws, 1, 0)
     follow bs.title = if(bv.title and bar_anchor == top, 1, 0)
     follow bs.media = if(bv.media and bar_anchor == top, 1, 0)
@@ -744,6 +768,7 @@ scene Vitreus {
     fact hy_layout = 3
     fact hy_gaps = 5
     fact hy_round = 10
+    fact hy_border = 3
     fact hy_sens = 0
     fact hy_follow = 1
     fact hy_resize = false
@@ -765,7 +790,6 @@ scene Vitreus {
     fact wm_idle = 7
     fact wm_bw = 1.5
     fact wm_ba = 70
-    fact wm_iris = true
     fact wm_rad = 12
     fact wm_shd = 100
     fact wm_tb = 22
@@ -782,8 +806,6 @@ scene Vitreus {
     text wm_shd_text = "100%"
     text wm_tb_text = "22 px"
     text wm_tbo_text = "72%"
-    prop wm_k5 = 0 ~quick
-    follow wm_k5 = if(wm_iris, 1, 0)
     fact wm_scroll_to = 0
     prop wm_scroll = 0 ~quick
     follow wm_scroll = wm_scroll_to
@@ -792,15 +814,15 @@ scene Vitreus {
     text wm_ms_text = "0.00"
     text wm_ts_text = "0.00"
     text wm_idle_text = "7 min"
-    prop wm_k0 = 0 ~quick
-    prop wm_k1 = 0 ~quick
-    prop wm_k2 = 0 ~quick
-    prop wm_k3 = 0 ~quick
+    prop wm_k0 = 0 ~pop
+    prop wm_k1 = 0 ~pop
+    prop wm_k2 = 0 ~pop
+    prop wm_k3 = 0 ~pop
     follow wm_k0 = if(wm_free, 1, 0)
     follow wm_k1 = if(wm_rain, 1, 0)
     follow wm_k2 = if(wm_snow, 1, 0)
     follow wm_k3 = if(wm_nat, 1, 0)
-    prop wm_k4 = 0 ~quick
+    prop wm_k4 = 0 ~pop
     follow wm_k4 = if(wm_tap, 1, 0)
     //  The About page (Settings > System): what this shell is built from, and how to update it.
     text about_commit = "…"
@@ -1030,6 +1052,57 @@ scene Vitreus {
     model sm_mnt max 6 { name: text; info: text; pct: number }
     model sm_tmp max 8 { label: text; txt: text; f: number; heat: number }
     model sm_proc max 8 { name: text; cpu_txt: text; mem_txt: text; cpu: number }
+    //  Settings > VPN (see "Settings > VPN" in vitreus.luau): the profiles NetworkManager holds, and a form to add one.
+    fact vpn_scroll_to = 0
+    prop vpn_scroll = 0 ~quick
+    follow vpn_scroll = vpn_scroll_to
+    fact vpn_mode: vpm_wg | vpm_ovpn | vpm_imp = vpm_wg
+    fact vpn_tcp = false              // the OpenVPN form: TCP instead of UDP
+    fact vpn_busy = false             // something is being connected, deleted or added
+    fact vpn_on = false               // a profile is connected
+    fact vpn_count = 0
+    fact vpn_arm = -1                 // the row whose delete button has been pressed once
+    text vpn_title = "Not connected"
+    text vpn_sub = ""
+    text vpn_msg = ""
+    text vpn_file = ""
+    text vpnw_name = ""
+    text vpnw_addr = ""
+    text vpnw_key = ""
+    text vpnw_peer = ""
+    text vpnw_end = ""
+    text vpnw_dns = ""
+    text vpnw_ips = ""
+    text vpnw_psk = ""
+    text vpno_name = ""
+    text vpno_server = ""
+    text vpno_port = ""
+    text vpno_user = ""
+    text vpno_pw = ""
+    text vpno_ca = ""
+    event vpn_refresh ->
+    event vpn_toggle ->
+    event vpn_down ->
+    event vpn_arm_ask ->
+    event vpn_delete ->
+    event vpn_import ->
+    event vpn_add_wg ->
+    event vpn_add_ovpn ->
+    event vpn_fpick ->                // a row of the file browser on the Import tab
+    event vpn_fscroll ->
+    fact vpn_fmore = false            // the folder has more rows than the browser shows
+    text vpn_dir = ""
+    repeat i in 0..8 {
+        fact vpn_f.$i.on = false
+        fact vpn_f.$i.dir = false
+        text vpn_f.$i.name = ""
+    }
+    repeat i in 0..8 {
+        fact vpn_r.$i.on = false
+        fact vpn_r.$i.active = false
+        text vpn_r.$i.name = ""
+        text vpn_r.$i.sub = ""
+    }
     //  Settings > Notifications (see "Notification rules and sounds" in vitreus.luau): the global switches and default sound, the apps that
     //  have sent something, and the rules of the one that is open.
     fact nt_scroll_to = 0
@@ -1060,12 +1133,12 @@ scene Vitreus {
     event ntg_flag ->
     event ntg_sound ->
     event nt_test ->
-    prop ntk0 = 0 ~quick
-    prop ntk1 = 0 ~quick
-    prop ntk2 = 0 ~quick
-    prop ntk3 = 0 ~quick
-    prop ntk4 = 0 ~quick
-    prop ntk5 = 0 ~quick
+    prop ntk0 = 0 ~pop
+    prop ntk1 = 0 ~pop
+    prop ntk2 = 0 ~pop
+    prop ntk3 = 0 ~pop
+    prop ntk4 = 0 ~pop
+    prop ntk5 = 0 ~pop
     follow ntk0 = if(ntg_sounds, 1, 0)
     follow ntk1 = if(ntg_crit, 1, 0)
     follow ntk2 = if(nta_mute, 1, 0)
@@ -1077,11 +1150,12 @@ scene Vitreus {
     event about_restart ->
     text hy_gaps_text = "5 px"
     text hy_round_text = "10 px"
+    text hy_border_text = "3 px"
     text hy_sens_text = "0.00"
-    prop hy_k0 = 0 ~quick
-    prop hy_k1 = 0 ~quick
-    prop hy_k2 = 1 ~quick
-    prop hy_k3 = 0 ~quick
+    prop hy_k0 = 0 ~pop
+    prop hy_k1 = 0 ~pop
+    prop hy_k2 = 1 ~pop
+    prop hy_k3 = 0 ~pop
     follow hy_k0 = if(hy_resize, 1, 0)
     follow hy_k1 = if(hy_tear, 1, 0)
     follow hy_k2 = if(hy_anim, 1, 0)
@@ -1106,8 +1180,8 @@ scene Vitreus {
     follow mvis = if(mixer.count > 0 or vm_open, 1, 0)
     on launch_toggle { panel = if(panel == launch, none, launch) }
     on settings_toggle { panel = if(panel == settings, none, settings) }
-    on change panel { dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; wm_scroll_to = 0 }
-    on change set_page { disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; wm_scroll_to = 0; emit hy_refresh; emit wm_refresh }
+    on change panel { dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0 }
+    on change set_page { disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0; vpn_arm = -1; emit hy_refresh; emit wm_refresh }
     on change panel { tasks_watch = panel == player }
     on pick_out { dd_open = false }
     follow pulse = bass
@@ -1604,7 +1678,7 @@ scene Vitreus {
     let clock.col = max(caw.width, cdw.width)
     let bar.l = pcx - bar.w / 2 + 16 * u
     let bar.r = pcx + bar.w / 2 - 16 * u
-    let fw.ws = 76 * u                   // five dots 15 apart, one of them the 20-wide pill
+    let fw.ws = 108 * u                  // five squares 18 apart, one of them stretched out
     let fw.media = 0                     // previous, play, next have no slot of their own: they sit inside the window title's button, top right
     let fw.set = 15 * u                  // the gear with its teeth
     let fw.sr = 12 * u                   // the magnifier, glass and handle
@@ -1652,8 +1726,8 @@ scene Vitreus {
     //  Where the window title starts, and how far it may reach: the stretch (the gaps are its neighbours').
     let win.x = bar.l + pre.title
     let win.w = max(0, bar.r - post.title - win.x)
-    let room = 10 * u
-    let roomv = 10 * cu                    // and down the left, where the dots are larger
+    let room = 14 * u
+    let roomv = 14 * cu                    // and down the left, where the dots are larger
     //  Down the left, top to bottom: the workspaces (their middle one at `lv.ws`), the tray apps, and from the foot up the clock (its
     //  hour at `lv.clk`, the minutes, am/pm, the weekday and the date under it), the controls, search and the gear, 32 apart. Whole pixels, for the texts.
     let lv.ws = yo + lf.t + 50 * cu
@@ -1791,12 +1865,18 @@ scene Vitreus {
     let side.mon = side.wm + 32
     let side.nt = side.mon + 32
     let side.lk = side.nt + 32
-    let side.last = side.lk
+    let side.vpn = side.lk + 32
+    let side.last = side.vpn
     let side.ab = side.last + 32
     let sm.ds = (4 - clamp(sm_mnt.count, 1, 4)) * 38
     let sm.dt = (8 - clamp(sm_tmp.count, 1, 8)) * 24
     let sm.h = 1536 - sm.ds - sm.dt
-    let wm.h = 812                     // the Pleamar-WM page: to the bottom of its last card
+    //  The VPN page: the profiles card is as tall as its rows, and the add card as its form (WireGuard 5 rows, OpenVPN 4, a file 1 and a line).
+    let vpn.pb = 84
+    let vpn.pbh = 34 + max(1, vpn_count) * 32 + 6
+    let vpn.ab = vpn.pb + vpn.pbh + 12
+    let vpn.fh = if(vpn_mode == vpm_wg, 180, if(vpn_mode == vpm_ovpn, 144, 276))
+    let wm.h = 782                     // the Pleamar-WM page: to the bottom of its last card
     let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36
@@ -2099,11 +2179,11 @@ scene Vitreus {
         repeat i in 1..6 {
             //  The others sit 15 apart; the ones beside the active one slide away from it by `room / 2`
             //  each, so the widening one has space, and the row flows as the amounts change.
-            let wx = at.ws + (i - 3) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
+            let wx = at.ws + (i - 3) * 18 * u + room * 0.5 * clamp(i - pill, -1, 1)
             //  One shape per workspace that morphs: a dot, a taller capsule if it has windows, and a
             //  wide mint pill while it is the active one.
-            let wy = lv.ws + (i - 3) * 15 * cu + roomv * 0.5 * clamp(i - pill, -1, 1)
-            zone box ws.hit.$i { at: mix(wx, lf.x, lm), mix(bar.y, wy, lm); size: mix(15 * u, 40 * u, lm), mix(bar.h, 15 * cu, lm); cursor: pointer; active: bs.ws > 0.5 }
+            let wy = lv.ws + (i - 3) * 18 * cu + roomv * 0.5 * clamp(i - pill, -1, 1)
+            zone box ws.hit.$i { at: mix(wx, lf.x, lm), mix(bar.y, wy, lm); size: mix(18 * u, 40 * u, lm), mix(bar.h, 18 * cu, lm); cursor: pointer; active: bs.ws > 0.5 }
             on press ws.hit.$i { emit go(i) }
             on press right ws.hit.$i { emit ov_toggle }
             follow wsh.$i = ws.hit.$i.hover
@@ -2197,12 +2277,59 @@ scene Vitreus {
             show: lm >= 0.5
             for t in bartrays { BarTray(t, click: bar_tray_click, menu: bar_tray_menu) }
         }
-        repeat i in 1..6 {
-            let wxs = at.ws + (i - 3) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
-            let wys = lv.ws + (i - 3) * 15 * cu + roomv * 0.5 * clamp(i - pill, -1, 1)
-            box ws.dot.$i { at: mix(wxs, lf.x, lm), mix(bar.y, wys, lm); size: mix((6 + 14 * ws.act.$i) * u, (6 + 4 * ws.tall.$i * (1 - ws.act.$i)) * cu, lm), mix((6 + 4 * ws.tall.$i * (1 - ws.act.$i)) * u, (6 + 14 * ws.act.$i) * cu, lm); corner: mix(3 * u, 3 * cu, lm)
-                            color: mix(ink, mint, ws.act.$i); opacity: mix(28% + 62% * ws.tall.$i, 100%, ws.act.$i) * bs.ws }
-        }
+        //  Every workspace is a soft square. The one in view stretches into a rectangle (along the bar; down the strip, down) and turns
+        //  to the accent, one square becoming the other with nothing travelling; one with a window in it is a little more solid; one calling for
+        //  attention is coral, still, until you go there.
+        let wx1 = at.ws + (1 - 3) * 18 * u + room * 0.5 * clamp(1 - pill, -1, 1)
+        let wy1 = lv.ws + (1 - 3) * 18 * cu + roomv * 0.5 * clamp(1 - pill, -1, 1)
+        let cx1 = mix(wx1, lf.x, lm)
+        let cy1 = mix(bar.y, wy1, lm)
+        let wg1 = ws.urg.1 * (1 - ws.act.1)
+        let bw1 = (8 + 4.5 * ws.tall.1) * mix(u, cu, lm)
+        let bh1 = (8 + 4.5 * ws.tall.1) * mix(u, cu, lm)
+        let wx2 = at.ws + (2 - 3) * 18 * u + room * 0.5 * clamp(2 - pill, -1, 1)
+        let wy2 = lv.ws + (2 - 3) * 18 * cu + roomv * 0.5 * clamp(2 - pill, -1, 1)
+        let cx2 = mix(wx2, lf.x, lm)
+        let cy2 = mix(bar.y, wy2, lm)
+        let wg2 = ws.urg.2 * (1 - ws.act.2)
+        let bw2 = (8 + 4.5 * ws.tall.2) * mix(u, cu, lm)
+        let bh2 = (8 + 4.5 * ws.tall.2) * mix(u, cu, lm)
+        let wx3 = at.ws + (3 - 3) * 18 * u + room * 0.5 * clamp(3 - pill, -1, 1)
+        let wy3 = lv.ws + (3 - 3) * 18 * cu + roomv * 0.5 * clamp(3 - pill, -1, 1)
+        let cx3 = mix(wx3, lf.x, lm)
+        let cy3 = mix(bar.y, wy3, lm)
+        let wg3 = ws.urg.3 * (1 - ws.act.3)
+        let bw3 = (8 + 4.5 * ws.tall.3) * mix(u, cu, lm)
+        let bh3 = (8 + 4.5 * ws.tall.3) * mix(u, cu, lm)
+        let wx4 = at.ws + (4 - 3) * 18 * u + room * 0.5 * clamp(4 - pill, -1, 1)
+        let wy4 = lv.ws + (4 - 3) * 18 * cu + roomv * 0.5 * clamp(4 - pill, -1, 1)
+        let cx4 = mix(wx4, lf.x, lm)
+        let cy4 = mix(bar.y, wy4, lm)
+        let wg4 = ws.urg.4 * (1 - ws.act.4)
+        let bw4 = (8 + 4.5 * ws.tall.4) * mix(u, cu, lm)
+        let bh4 = (8 + 4.5 * ws.tall.4) * mix(u, cu, lm)
+        let wx5 = at.ws + (5 - 3) * 18 * u + room * 0.5 * clamp(5 - pill, -1, 1)
+        let wy5 = lv.ws + (5 - 3) * 18 * cu + roomv * 0.5 * clamp(5 - pill, -1, 1)
+        let cx5 = mix(wx5, lf.x, lm)
+        let cy5 = mix(bar.y, wy5, lm)
+        let wg5 = ws.urg.5 * (1 - ws.act.5)
+        let bw5 = (8 + 4.5 * ws.tall.5) * mix(u, cu, lm)
+        let bh5 = (8 + 4.5 * ws.tall.5) * mix(u, cu, lm)
+        box ws.sq1 { at: cx1, cy1; size: bw1, bh1; corner: 0.3 * min(bw1, bh1); color: mix(ink, warm, wg1); opacity: mix(30% + 55% * ws.tall.1, 100%, wg1) * (1 - ws.act.1) * bs.ws }
+        box ws.sq2 { at: cx2, cy2; size: bw2, bh2; corner: 0.3 * min(bw2, bh2); color: mix(ink, warm, wg2); opacity: mix(30% + 55% * ws.tall.2, 100%, wg2) * (1 - ws.act.2) * bs.ws }
+        box ws.sq3 { at: cx3, cy3; size: bw3, bh3; corner: 0.3 * min(bw3, bh3); color: mix(ink, warm, wg3); opacity: mix(30% + 55% * ws.tall.3, 100%, wg3) * (1 - ws.act.3) * bs.ws }
+        box ws.sq4 { at: cx4, cy4; size: bw4, bh4; corner: 0.3 * min(bw4, bh4); color: mix(ink, warm, wg4); opacity: mix(30% + 55% * ws.tall.4, 100%, wg4) * (1 - ws.act.4) * bs.ws }
+        box ws.sq5 { at: cx5, cy5; size: bw5, bh5; corner: 0.3 * min(bw5, bh5); color: mix(ink, warm, wg5); opacity: mix(30% + 55% * ws.tall.5, 100%, wg5) * (1 - ws.act.5) * bs.ws }
+        let pl.b = (8 + 4.5 * (ws.act.1 * ws.tall.1 + ws.act.2 * ws.tall.2 + ws.act.3 * ws.tall.3 + ws.act.4 * ws.tall.4 + ws.act.5 * ws.tall.5)) * mix(u, cu, lm)
+        let pl.x1 = at.ws + (pl.head - 3) * 18 * u + room * 0.5 * clamp(pl.head - pill, -1, 1)
+        let pl.x2 = at.ws + (pl.tail - 3) * 18 * u + room * 0.5 * clamp(pl.tail - pill, -1, 1)
+        let pl.y1 = lv.ws + (pl.head - 3) * 18 * cu + roomv * 0.5 * clamp(pl.head - pill, -1, 1)
+        let pl.y2 = lv.ws + (pl.tail - 3) * 18 * cu + roomv * 0.5 * clamp(pl.tail - pill, -1, 1)
+        let pl.s = min(1, abs(pl.head - pl.tail))
+        let pl.t = pl.b * (1 - 0.18 * pl.s)
+        let pl.w = mix(abs(pl.x1 - pl.x2) + pl.b + 18 * u, pl.t, lm)
+        let pl.h = mix(pl.t, abs(pl.y1 - pl.y2) + pl.b + 18 * cu, lm)
+        box ws.pill { at: mix((pl.x1 + pl.x2) / 2, lf.x, lm), mix(bar.y, (pl.y1 + pl.y2) / 2, lm); size: pl.w, pl.h; corner: 0.3 * min(pl.w, pl.h); color: mint; opacity: bs.ws }
         //  The player's buttons.
         group {
             opacity: mshow * bs.media * bs.title
@@ -2260,6 +2387,7 @@ scene Vitreus {
             ellipse { at: ctl.x - 2.5 * u, bar.y + 3.5 * u; radius: 2.6 * u; color: mix(ink, mint, clamp(dk, 0, 1)) }
         }
     }
+
 
     //  The bar's text is drawn on top of the bar, outside its wave-shader group: inside it the letters are
     //  resampled by the shader, which blurs them and smears them whenever the music makes the wave move.
@@ -3459,10 +3587,10 @@ scene Vitreus {
         }
         text "SETTINGS" { at: floor(sl + 40 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" }
         box { at: sl + 178 * pu, hy; size: 132 * pu, 22 * pu; corner: 11 * pu; color: ink; opacity: 6% }
-        text "VISUALS" { at: floor(sl + 122 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 12; weight: 700; color: faint; opacity: 1 - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw; family: "Space Grotesk" }
-        text "SYSTEM" { at: floor(sl + 122 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 12; weight: 700; color: faint; opacity: set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw; family: "Space Grotesk" }
+        text "VISUALS" { at: floor(sl + 122 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 12; weight: 700; color: faint; opacity: 1 - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw - set_pgv; family: "Space Grotesk" }
+        text "SYSTEM" { at: floor(sl + 122 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 12; weight: 700; color: faint; opacity: set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv; family: "Space Grotesk" }
         path { at: sl + 168 * pu, hy; stroke: 1.3 * pu; color: faint; move -2 * pu, -3.5 * pu; line 2 * pu, 0; line -2 * pu, 3.5 * pu }
-        text "Wallpaper" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw; family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw - set_pgv; family: "Space Grotesk" }
         text "Display" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: set_pgd; family: "Space Grotesk" }
         text "Glass" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: set_pg; family: "Space Grotesk" }
         text "Hyprland" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: set_pgh; family: "Space Grotesk" }
@@ -3472,6 +3600,7 @@ scene Vitreus {
         text "Night mode" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: set_pgn; family: "Space Grotesk" }
         text "System monitor" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: set_pgs; family: "Space Grotesk" }
         text "Notifications" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: set_pgt; family: "Space Grotesk" }
+        text "VPN" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: set_pgv; family: "Space Grotesk" }
         text "Lock screen" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: set_pgl; family: "Space Grotesk" }
         ellipse { at: pcx + 282 * pu, hy; radius: 13 * pu; color: ink; opacity: 5% + 10% * set_x.hover }
         line { from: pcx + 277.5 * pu, hy - 4.5 * pu; to: pcx + 286.5 * pu, hy + 4.5 * pu; width: 1.5 * pu; color: ink; opacity: 60% + 40% * set_x.hover }
@@ -3484,14 +3613,14 @@ scene Vitreus {
         text "VISUALS" { at: floor(sl + 14 * pu + 0.5), floor(sby + 18 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
         //  The highlight's place is each page's own selection (a spring, 0 or 1) times its row, summed: a straight line from one row to the next.
         //  (Nested `mix`es bent it: the old row's value falling while the new one rises dragged it back towards the top row and down again.)
-        box { at: sl + 75 * pu, sby + (42 + 32 * (set_pg + 2 * set_pgd + 3 * set_pgb + 4 * set_pgn) + (side.hy - 42) * set_pgh + (side.wm - 42) * set_pgw + (side.mon - 42) * set_pgs + (side.nt - 42) * set_pgt + (side.lk - 42) * set_pgl + (side.ab - 42) * set_pga) * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; color: mint; opacity: 16% }
+        box { at: sl + 75 * pu, sby + (42 + 32 * (set_pg + 2 * set_pgd + 3 * set_pgb + 4 * set_pgn) + (side.hy - 42) * set_pgh + (side.wm - 42) * set_pgw + (side.mon - 42) * set_pgs + (side.nt - 42) * set_pgt + (side.lk - 42) * set_pgl + (side.vpn - 42) * set_pgv + (side.ab - 42) * set_pga) * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; color: mint; opacity: 16% }
         group {
-            opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw, 0, 1))
-            box { at: sl + 24 * pu, sby + 42 * pu; size: 13 * pu, 10 * pu; corner: 2 * pu; stroke: 1.3 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw, 0, 1)) }
-            path { at: sl + 24 * pu, sby + 42 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw, 0, 1)); move -5 * pu, 3 * pu; line -1.5 * pu, -1 * pu; line 1 * pu, 1.5 * pu; line 2.5 * pu, -1.5 * pu; line 5 * pu, 3 * pu; close }
-            ellipse { at: sl + 27 * pu, sby + 39 * pu; radius: 1.2 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw, 0, 1)) }
+            opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv, 0, 1))
+            box { at: sl + 24 * pu, sby + 42 * pu; size: 13 * pu, 10 * pu; corner: 2 * pu; stroke: 1.3 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv, 0, 1)) }
+            path { at: sl + 24 * pu, sby + 42 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv, 0, 1)); move -5 * pu, 3 * pu; line -1.5 * pu, -1 * pu; line 1 * pu, 1.5 * pu; line 2.5 * pu, -1.5 * pu; line 5 * pu, 3 * pu; close }
+            ellipse { at: sl + 27 * pu, sby + 39 * pu; radius: 1.2 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv, 0, 1)) }
         }
-        text "Wallpaper" { at: floor(sl + 40 * pu + 0.5), floor(sby + 42 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw, 0, 1); family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 40 * pu + 0.5), floor(sby + 42 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv, 0, 1); family: "Space Grotesk" }
         //  Glass: a pane with a highlight across its corner.
         group {
             opacity: 65% + 35% * set_pg
@@ -3567,6 +3696,14 @@ scene Vitreus {
             box { at: sl + 24 * pu, sby + side.lk * pu + 2 * pu; size: 12 * pu, 8.5 * pu; corner: 2.2 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgl) }
         }
         text "Lock screen" { at: floor(sl + 40 * pu + 0.5), floor(sby + side.lk * pu + 0.5); anchor: left center; size: 16; weight: 700; width: 108 * pu; lines: 1; color: mix(ink, mint, set_pgl); opacity: 85% + 15% * set_pgl; family: "Space Grotesk" }
+        //  VPN: a shield.
+        group {
+            opacity: 65% + 35% * set_pgv
+            path { at: sl + 24 * pu, sby + side.vpn * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgv); move 0, -7 * pu; line 6 * pu, -4.5 * pu; line 6 * pu, 1 * pu; line 0, 7.5 * pu; line -6 * pu, 1 * pu; line -6 * pu, -4.5 * pu; close }
+        }
+        text "VPN" { at: floor(sl + 40 * pu + 0.5), floor(sby + side.vpn * pu + 0.5); anchor: left center; size: 16; weight: 700; width: 108 * pu; lines: 1; color: mix(ink, mint, set_pgv); opacity: 85% + 15% * set_pgv; family: "Space Grotesk" }
+        zone box side_vpn { at: sl + 75 * pu, sby + side.vpn * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; cursor: pointer }
+        on press side_vpn { set_page = pg_vpn }
         zone box side_lk { at: sl + 75 * pu, sby + side.lk * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; cursor: pointer }
         on press side_lk { set_page = pg_lock }
         zone box side_nt2 { at: sl + 75 * pu, sby + side.nt * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; cursor: pointer }
@@ -3587,8 +3724,8 @@ scene Vitreus {
         on press side_gl { set_page = pg_glass }
 
         group {
-            show: set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw < 0.99
-            opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw
+            show: set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv < 0.99
+            opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw - set_pgv
             //  The wallpaper page. Card one: the wallpaper in use, and Random.
             box { at: spx + 219 * pu, sby + 46 * pu; size: 438 * pu, 92 * pu; corner: 14 * pu; color: ink; opacity: veil }
             group {
@@ -3865,8 +4002,11 @@ scene Vitreus {
             box { at: spx + 219 * pu, sby + 410 * pu; size: 438 * pu, 44 * pu; corner: 14 * pu; color: ink; opacity: veil }
             text "Bend what's behind the glass" { at: floor(spx + 14 * pu + 0.5), floor(sby + 402 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
             text "Real lens glass instead of blur. Uses more power." { at: floor(spx + 14 * pu + 0.5), floor(sby + 418 * pu + 0.5); anchor: left center; size: 12.5; color: faint; family: "Space Grotesk" }
-            box { at: spx + 404 * pu, sby + 410 * pu; size: 40 * pu, 22 * pu; corner: 11 * pu; color: mix(ink, mint, glass_bend_k); opacity: 14% + 34% * glass_bend_k + 8% * glass_bend_hit.hover }
-            ellipse { at: spx + (404 - 9 + 18 * glass_bend_k) * pu, sby + 410 * pu; radius: 8 * pu; color: mix(ink, mint, glass_bend_k); opacity: 80% + 20% * glass_bend_k }
+            body {
+                color: mix(off, mint, clamp(glass_bend_pill, 0, 1))
+                box { at: spx + 405 * pu, sby + 410 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+            }
+            box { at: spx + 397 * pu + glass_bend_pill * 16 * pu, sby + 410 * pu; size: (17 + 9 * clamp(4 * glass_bend_pill * (1 - glass_bend_pill), 0, 1)) * pu, (17 - 3 * clamp(4 * glass_bend_pill * (1 - glass_bend_pill), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * glass_bend_pill * (1 - glass_bend_pill), 0, 1)) * pu; color: ink }
             zone box glass_bend_hit { at: spx + 219 * pu, sby + 410 * pu; size: 430 * pu, 40 * pu; corner: 12 * pu; cursor: pointer }
             on press glass_bend_hit { emit glass_bend_toggle }
 
@@ -4047,7 +4187,7 @@ scene Vitreus {
             let lk.off = floor(lk.sc * pu + 0.5)        // whole pixels: text that is shifted by a fraction of one is resampled, and looks soft
             clip box { at: spx + 224 * pu, sby + 228 * pu; size: 456 * pu, 456 * pu }
             zone box lk_wheel { at: spx + 219 * pu, sby + 228 * pu; size: 446 * pu, 456 * pu }
-            on scroll lk_wheel { lk_scroll_to = clamp(lk_scroll_to + wheel * 44, 0, max(0, lk.h - 456)) }
+            on scroll lk_wheel { lk_scroll_to = clamp(lk_scroll_to - wheel * 44, 0, max(0, lk.h - 456)) }
             group {
             move: 0, -lk.off
             let lkb0 = if(lk_blur < 27, 1, 0)
@@ -4478,12 +4618,12 @@ scene Vitreus {
             let hsl.w = 250 * pu
             let hh = 12 * pu
 
-            box { at: spx + 219 * pu, sby + 104 * pu; size: 438 * pu, 208 * pu; corner: 14 * pu; color: ink; opacity: veil }
-            box { at: spx + 219 * pu, sby + 249 * pu; size: 438 * pu, 58 * pu; corner: 14 * pu; color: ink; opacity: veil }
-            box { at: spx + 219 * pu, sby + 359 * pu; size: 438 * pu, 138 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            box { at: spx + 219 * pu, sby + 115 * pu; size: 438 * pu, 230 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            box { at: spx + 219 * pu, sby + 293 * pu; size: 438 * pu, 58 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            box { at: spx + 219 * pu, sby + 403 * pu; size: 438 * pu, 138 * pu; corner: 14 * pu; color: ink; opacity: veil }
             text "GENERAL & LAYOUT" { at: floor(spx + 14 * pu + 0.5), floor(sby + 13 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
-            text "ANIMATIONS" { at: floor(spx + 14 * pu + 0.5), floor(sby + 233 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
-            text "INPUT" { at: floor(spx + 14 * pu + 0.5), floor(sby + 303 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text "ANIMATIONS" { at: floor(spx + 14 * pu + 0.5), floor(sby + 255 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text "INPUT" { at: floor(spx + 14 * pu + 0.5), floor(sby + 325 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
 
             //  Layout.
             text "Layout" { at: floor(spx + 14 * pu + 0.5), floor(sby + 42 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
@@ -4496,72 +4636,91 @@ scene Vitreus {
             }
 
             //  Gaps, 0 to 30 px.
-            text "Gaps" { at: floor(spx + 14 * pu + 0.5), floor(sby + 78 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
-            body { color: deep; rim: 9%; box { at: hsl.x0 + hsl.w / 2, sby + 78 * pu; size: hsl.w, hh; corner: hh / 2 } }
+            text "Gaps" { at: floor(spx + 14 * pu + 0.5), floor(sby + 74 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
+            body { color: deep; rim: 9%; box { at: hsl.x0 + hsl.w / 2, sby + 74 * pu; size: hsl.w, hh; corner: hh / 2 } }
             group {
                 glow: 6 * pu, 50%, mint
                 body {
                     gradient: hsl.x0, 0 to hsl.x0 + hsl.w, 0, mintlo, mint 55%, minthi
                     rim: 22%
-                    box { from: hsl.x0, sby + 78 * pu - hh / 2; size: max(0.1, hsl.w * hy_gaps / 30), hh; corner: hh / 2 }
+                    box { from: hsl.x0, sby + 74 * pu - hh / 2; size: max(0.1, hsl.w * hy_gaps / 30), hh; corner: hh / 2 }
                 }
             }
-            text hy_gaps_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 78 * pu + 0.5); anchor: right center; size: 17.5; weight: 600; color: ink; family: "Space Grotesk" }
-            zone box hy_gaps_hit { at: hsl.x0 + hsl.w / 2, sby + 78 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
+            text hy_gaps_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 74 * pu + 0.5); anchor: right center; size: 17.5; weight: 600; color: ink; family: "Space Grotesk" }
+            zone box hy_gaps_hit { at: hsl.x0 + hsl.w / 2, sby + 74 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
             on press hy_gaps_hit { emit hy_gaps_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
             on drag hy_gaps_hit { emit hy_gaps_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
 
             //  Corner rounding, 0 to 30 px.
-            text "Corner rounding" { at: floor(spx + 14 * pu + 0.5), floor(sby + 114 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
-            body { color: deep; rim: 9%; box { at: hsl.x0 + hsl.w / 2, sby + 114 * pu; size: hsl.w, hh; corner: hh / 2 } }
+            text "Corner rounding" { at: floor(spx + 14 * pu + 0.5), floor(sby + 106 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
+            body { color: deep; rim: 9%; box { at: hsl.x0 + hsl.w / 2, sby + 106 * pu; size: hsl.w, hh; corner: hh / 2 } }
             group {
                 glow: 6 * pu, 50%, mint
                 body {
                     gradient: hsl.x0, 0 to hsl.x0 + hsl.w, 0, mintlo, mint 55%, minthi
                     rim: 22%
-                    box { from: hsl.x0, sby + 114 * pu - hh / 2; size: max(0.1, hsl.w * hy_round / 30), hh; corner: hh / 2 }
+                    box { from: hsl.x0, sby + 106 * pu - hh / 2; size: max(0.1, hsl.w * hy_round / 30), hh; corner: hh / 2 }
                 }
             }
-            text hy_round_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 114 * pu + 0.5); anchor: right center; size: 17.5; weight: 600; color: ink; family: "Space Grotesk" }
-            zone box hy_round_hit { at: hsl.x0 + hsl.w / 2, sby + 114 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
+            text hy_round_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 106 * pu + 0.5); anchor: right center; size: 17.5; weight: 600; color: ink; family: "Space Grotesk" }
+            zone box hy_round_hit { at: hsl.x0 + hsl.w / 2, sby + 106 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
             on press hy_round_hit { emit hy_round_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
             on drag hy_round_hit { emit hy_round_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
 
-            //  Sensitivity, -1 to 1.
-            text "Sensitivity" { at: floor(spx + 14 * pu + 0.5), floor(sby + 332 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
-            body { color: deep; rim: 9%; box { at: hsl.x0 + hsl.w / 2, sby + 332 * pu; size: hsl.w, hh; corner: hh / 2 } }
+            //  Border thickness, 0 to 10 px.
+            text "Border thickness" { at: floor(spx + 14 * pu + 0.5), floor(sby + 138 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
+            body { color: deep; rim: 9%; box { at: hsl.x0 + hsl.w / 2, sby + 138 * pu; size: hsl.w, hh; corner: hh / 2 } }
             group {
                 glow: 6 * pu, 50%, mint
                 body {
                     gradient: hsl.x0, 0 to hsl.x0 + hsl.w, 0, mintlo, mint 55%, minthi
                     rim: 22%
-                    box { from: hsl.x0, sby + 332 * pu - hh / 2; size: max(0.1, hsl.w * (hy_sens + 1) / 2), hh; corner: hh / 2 }
+                    box { from: hsl.x0, sby + 138 * pu - hh / 2; size: max(0.1, hsl.w * hy_border / 10), hh; corner: hh / 2 }
                 }
             }
-            box { at: hsl.x0 + hsl.w / 2, sby + 332 * pu; size: 1.5 * pu, hh + 6 * pu; corner: 0.75 * pu; color: ink; opacity: 40% }
-            text hy_sens_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 332 * pu + 0.5); anchor: right center; size: 17.5; weight: 600; color: ink; family: "Space Grotesk" }
-            zone box hy_sens_hit { at: hsl.x0 + hsl.w / 2, sby + 332 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
+            text hy_border_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 138 * pu + 0.5); anchor: right center; size: 17.5; weight: 600; color: ink; family: "Space Grotesk" }
+            zone box hy_border_hit { at: hsl.x0 + hsl.w / 2, sby + 138 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
+            on press hy_border_hit { emit hy_border_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
+            on drag hy_border_hit { emit hy_border_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
+
+            //  Sensitivity, -1 to 1.
+            text "Sensitivity" { at: floor(spx + 14 * pu + 0.5), floor(sby + 354 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
+            body { color: deep; rim: 9%; box { at: hsl.x0 + hsl.w / 2, sby + 354 * pu; size: hsl.w, hh; corner: hh / 2 } }
+            group {
+                glow: 6 * pu, 50%, mint
+                body {
+                    gradient: hsl.x0, 0 to hsl.x0 + hsl.w, 0, mintlo, mint 55%, minthi
+                    rim: 22%
+                    box { from: hsl.x0, sby + 354 * pu - hh / 2; size: max(0.1, hsl.w * (hy_sens + 1) / 2), hh; corner: hh / 2 }
+                }
+            }
+            box { at: hsl.x0 + hsl.w / 2, sby + 354 * pu; size: 1.5 * pu, hh + 6 * pu; corner: 0.75 * pu; color: ink; opacity: 40% }
+            text hy_sens_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 354 * pu + 0.5); anchor: right center; size: 17.5; weight: 600; color: ink; family: "Space Grotesk" }
+            zone box hy_sens_hit { at: hsl.x0 + hsl.w / 2, sby + 354 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
             on press hy_sens_hit { emit hy_sens_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
             on drag hy_sens_hit { emit hy_sens_set(clamp((pointer.x - hsl.x0) / hsl.w, 0, 1)) }
 
             //  Focus follows the mouse: off, on, loose, full.
-            text "Follow mouse" { at: floor(spx + 14 * pu + 0.5), floor(sby + 368 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
+            text "Follow mouse" { at: floor(spx + 14 * pu + 0.5), floor(sby + 390 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
             repeat i in 0..4 {
                 let fx = spx + 152 * pu + i * 66 * pu
-                box { at: fx, sby + 368 * pu; size: 60 * pu, 24 * pu; corner: 12 * pu; color: if(hy_follow == i, mint, ink); opacity: if(hy_follow == i, 24%, 8% + 10% * hy_fol_hit.$i.hover) }
-                text pick(i, "Off", "On", "Loose", "Full") { at: floor(fx + 0.5), floor(sby + 368 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 56 * pu; lines: 1; color: if(hy_follow == i, mint, ink); family: "Space Grotesk" }
-                zone box hy_fol_hit.$i { at: fx, sby + 368 * pu; size: 62 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
+                box { at: fx, sby + 390 * pu; size: 60 * pu, 24 * pu; corner: 12 * pu; color: if(hy_follow == i, mint, ink); opacity: if(hy_follow == i, 24%, 8% + 10% * hy_fol_hit.$i.hover) }
+                text pick(i, "Off", "On", "Loose", "Full") { at: floor(fx + 0.5), floor(sby + 390 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 56 * pu; lines: 1; color: if(hy_follow == i, mint, ink); family: "Space Grotesk" }
+                zone box hy_fol_hit.$i { at: fx, sby + 390 * pu; size: 62 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
                 on press hy_fol_hit.$i { emit hy_follow_set(i) }
             }
 
             //  The switches: resize from the border, tearing, animations, natural scroll.
             repeat i in 0..4 {
-                let ty = sby + pick(i, 150, 184, 258, 404) * pu
+                let ty = sby + pick(i, 172, 206, 280, 426) * pu
                 let tk = pick(i, hy_k0, hy_k1, hy_k2, hy_k3)
                 text pick(i, "Resize from border", "Allow screen tearing", "Window manager animations", "Natural scroll (touchpad)") { at: floor(spx + 14 * pu + 0.5), floor(ty - 6 * pu + 0.5); anchor: left center; size: 15.5; weight: 600; color: ink; family: "Space Grotesk" }
                 text pick(i, "Grab a window's edge anywhere to resize it", "Lets opted-in fullscreen apps skip vsync", "Hyprland's own window and workspace motion", "Reverses the touchpad's scroll direction") { at: floor(spx + 14 * pu + 0.5), floor(ty + 8 * pu + 0.5); anchor: left center; size: 13; color: faint; family: "Space Grotesk" }
-                box { at: spx + 404 * pu, ty; size: 40 * pu, 22 * pu; corner: 11 * pu; color: mix(ink, mint, tk); opacity: 14% + 34% * tk + 8% * hy_tg_hit.$i.hover }
-                ellipse { at: spx + (404 - 9 + 18 * tk) * pu, ty; radius: 8 * pu; color: mix(ink, mint, tk); opacity: 80% + 20% * tk }
+                body {
+                    color: mix(off, mint, clamp(tk, 0, 1))
+                    box { at: spx + 405 * pu, ty; size: 38 * pu, 22 * pu; corner: 11 * pu }
+                }
+                box { at: spx + 397 * pu + tk * 16 * pu, ty; size: (17 + 9 * clamp(4 * tk * (1 - tk), 0, 1)) * pu, (17 - 3 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; color: ink }
                 zone box hy_tg_hit.$i { at: spx + 219 * pu, ty; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
                 on press hy_tg_hit.$i { emit hy_toggle(i) }
             }
@@ -4575,7 +4734,7 @@ scene Vitreus {
             let wm.off = floor(wm.sc * pu + 0.5)        // whole pixels: text shifted by a fraction of one is resampled, and looks soft
             clip box { at: spx + 224 * pu, sby + 228 * pu; size: 456 * pu, 456 * pu }
             zone box wm_wheel { at: spx + 219 * pu, sby + 228 * pu; size: 446 * pu, 456 * pu }
-            on scroll wm_wheel { wm_scroll_to = clamp(wm_scroll_to + wheel * 44, 0, max(0, wm.h - 456)) }
+            on scroll wm_wheel { wm_scroll_to = clamp(wm_scroll_to - wheel * 44, 0, max(0, wm.h - 456)) }
             group {
             move: 0, -wm.off
             let wsl.x0 = spx + 122 * pu
@@ -4634,8 +4793,11 @@ scene Vitreus {
 
             //  Free-floating windows, as on Windows or KDE.
             text "Free-floating windows" { at: floor(spx + 14 * pu + 0.5), floor(sby + 170 * pu + 0.5); anchor: left center; size: 15.5; weight: 600; color: ink; family: "Space Grotesk" }
-            box { at: spx + 404 * pu, sby + 170 * pu; size: 40 * pu, 22 * pu; corner: 11 * pu; color: mix(ink, mint, wm_k0); opacity: 14% + 34% * wm_k0 + 8% * wm_tg_hit.0.hover }
-            ellipse { at: spx + (404 - 9 + 18 * wm_k0) * pu, sby + 170 * pu; radius: 8 * pu; color: mix(ink, mint, wm_k0); opacity: 80% + 20% * wm_k0 }
+            body {
+                color: mix(off, mint, clamp(wm_k0, 0, 1))
+                box { at: spx + 405 * pu, sby + 170 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+            }
+            box { at: spx + 397 * pu + wm_k0 * 16 * pu, sby + 170 * pu; size: (17 + 9 * clamp(4 * wm_k0 * (1 - wm_k0), 0, 1)) * pu, (17 - 3 * clamp(4 * wm_k0 * (1 - wm_k0), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * wm_k0 * (1 - wm_k0), 0, 1)) * pu; color: ink }
             zone box wm_tg_hit.0 { at: spx + 219 * pu, sby + 170 * pu; size: 430 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: (sby + 170 * pu) - sby - wm.off > 0 and (sby + 170 * pu) - sby - wm.off < 456 * pu }
             on press wm_tg_hit.0 { emit wm_toggle(0) }
 
@@ -4644,8 +4806,11 @@ scene Vitreus {
                 let ty = sby + (234 + (i - 1) * 30) * pu
                 let tk = pick(i - 1, wm_k1, wm_k2)
                 text pick(i - 1, "Rain on the glass", "Snow") { at: floor(spx + 14 * pu + 0.5), floor(ty + 0.5); anchor: left center; size: 15.5; weight: 600; color: ink; family: "Space Grotesk" }
-                box { at: spx + 404 * pu, ty; size: 40 * pu, 22 * pu; corner: 11 * pu; color: mix(ink, mint, tk); opacity: 14% + 34% * tk + 8% * wm_tg_hit.$i.hover }
-                ellipse { at: spx + (404 - 9 + 18 * tk) * pu, ty; radius: 8 * pu; color: mix(ink, mint, tk); opacity: 80% + 20% * tk }
+                body {
+                    color: mix(off, mint, clamp(tk, 0, 1))
+                    box { at: spx + 405 * pu, ty; size: 38 * pu, 22 * pu; corner: 11 * pu }
+                }
+                box { at: spx + 397 * pu + tk * 16 * pu, ty; size: (17 + 9 * clamp(4 * tk * (1 - tk), 0, 1)) * pu, (17 - 3 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; color: ink }
                 zone box wm_tg_hit.$i { at: spx + 219 * pu, ty; size: 430 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: (ty) - sby - wm.off > 0 and (ty) - sby - wm.off < 456 * pu }
                 on press wm_tg_hit.$i { emit wm_toggle(i) }
             }
@@ -4677,22 +4842,20 @@ scene Vitreus {
                 let ty = sby + (320 + i * 30) * pu
                 let tk = pick(i - 3, wm_k3, wm_k4)
                 text pick(i - 3, "Natural scroll (touchpad)", "Tap to click (touchpad)") { at: floor(spx + 14 * pu + 0.5), floor(ty + 0.5); anchor: left center; size: 15.5; weight: 600; color: ink; family: "Space Grotesk" }
-                box { at: spx + 404 * pu, ty; size: 40 * pu, 22 * pu; corner: 11 * pu; color: mix(ink, mint, tk); opacity: 14% + 34% * tk + 8% * wm_tg_hit.$i.hover }
-                ellipse { at: spx + (404 - 9 + 18 * tk) * pu, ty; radius: 8 * pu; color: mix(ink, mint, tk); opacity: 80% + 20% * tk }
+                body {
+                    color: mix(off, mint, clamp(tk, 0, 1))
+                    box { at: spx + 405 * pu, ty; size: 38 * pu, 22 * pu; corner: 11 * pu }
+                }
+                box { at: spx + 397 * pu + tk * 16 * pu, ty; size: (17 + 9 * clamp(4 * tk * (1 - tk), 0, 1)) * pu, (17 - 3 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; color: ink }
                 zone box wm_tg_hit.$i { at: spx + 219 * pu, ty; size: 430 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: (ty) - sby - wm.off > 0 and (ty) - sby - wm.off < 456 * pu }
                 on press wm_tg_hit.$i { emit wm_toggle(i) }
             }
 
             //  Window style: the border, the corners, the shadow and the title bar.
-            box { at: spx + 219 * pu, sby + 644 * pu; size: 438 * pu, 304 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            box { at: spx + 219 * pu, sby + 629 * pu; size: 438 * pu, 274 * pu; corner: 14 * pu; color: ink; opacity: veil }
             text "WINDOW STYLE" { at: floor(spx + 14 * pu + 0.5), floor(sby + 480 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
-            text "Border from the wallpaper" { at: floor(spx + 14 * pu + 0.5), floor(sby + 512 * pu + 0.5); anchor: left center; size: 15.5; weight: 600; color: ink; family: "Space Grotesk" }
-            box { at: spx + 404 * pu, sby + 512 * pu; size: 40 * pu, 22 * pu; corner: 11 * pu; color: mix(ink, mint, wm_k5); opacity: 14% + 34% * wm_k5 + 8% * wm_tg_hit.5.hover }
-            ellipse { at: spx + (404 - 9 + 18 * wm_k5) * pu, sby + 512 * pu; radius: 8 * pu; color: mix(ink, mint, wm_k5); opacity: 80% + 20% * wm_k5 }
-            zone box wm_tg_hit.5 { at: spx + 219 * pu, sby + 512 * pu; size: 430 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: (sby + 512 * pu) - sby - wm.off > 0 and (sby + 512 * pu) - sby - wm.off < 456 * pu }
-            on press wm_tg_hit.5 { emit wm_toggle(5) }
             repeat i in 0..9 {
-                let sy = sby + (542 + i * 30) * pu
+                let sy = sby + (512 + i * 30) * pu
                 let sv = pick(i, wm_bw / 6, (wm_ba - 20) / 80, wm_rad / 24, wm_shd / 200, (wm_tb - 16) / 18, (wm_tbo - 40) / 60, (wm_wa - 40) / 60, (wm_wi - 40) / 60, wm_fr / 100)
                 text pick(i, "Border width", "Border strength", "Corner radius", "Shadow", "Title bar height", "Title bar glass", "Window opacity", "Unfocused opacity", "Frosted backing") { at: floor(spx + 14 * pu + 0.5), floor(sy + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
                 body { color: deep; rim: 9%; box { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w, wh; corner: wh / 2 } }
@@ -4744,21 +4907,27 @@ scene Vitreus {
             let nt.off = floor(nt.sc * pu + 0.5)
             clip box { at: spx + 224 * pu, sby + 228 * pu; size: 456 * pu, 456 * pu }
             zone box nt_wheel { at: spx + 219 * pu, sby + 228 * pu; size: 446 * pu, 456 * pu }
-            on scroll nt_wheel { nt_scroll_to = clamp(nt_scroll_to + wheel * 44, 0, max(0, nt.h - 456)) }
+            on scroll nt_wheel { nt_scroll_to = clamp(nt_scroll_to - wheel * 44, 0, max(0, nt.h - 456)) }
             group {
                 move: 0, -nt.off
             box { at: spx + 219 * pu, sby + 122 * pu; size: 438 * pu, 232 * pu; corner: 14 * pu; color: ink; opacity: veil }
             text "DELIVERY" { at: floor(spx + 14 * pu + 0.5), floor(sby + 22 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
             text "Play a sound" { at: floor(spx + 14 * pu + 0.5), floor(sby + 43 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
             text "When a notification is shown" { at: floor(spx + 14 * pu + 0.5), floor(sby + 59 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
-            box { at: spx + 404 * pu, sby + 50 * pu; size: 40 * pu, 22 * pu; corner: 11 * pu; color: mix(ink, mint, ntk0); opacity: 14% + 34% * ntk0 + 8% * ntg_snd_hit.hover }
-            ellipse { at: spx + (404 - 9 + 18 * ntk0) * pu, sby + 50 * pu; radius: 8 * pu; color: mix(ink, mint, ntk0); opacity: 80% + 20% * ntk0 }
+            body {
+                color: mix(off, mint, clamp(ntk0, 0, 1))
+                box { at: spx + 405 * pu, sby + 50 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+            }
+            box { at: spx + 397 * pu + ntk0 * 16 * pu, sby + 50 * pu; size: (17 + 9 * clamp(4 * ntk0 * (1 - ntk0), 0, 1)) * pu, (17 - 3 * clamp(4 * ntk0 * (1 - ntk0), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * ntk0 * (1 - ntk0), 0, 1)) * pu; color: ink }
             zone box ntg_snd_hit { at: spx + 219 * pu, sby + 50 * pu; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
             on press ntg_snd_hit { emit ntg_flag(0) }
             text "Let critical ones through Do Not Disturb" { at: floor(spx + 14 * pu + 0.5), floor(sby + 81 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
             text "A low battery, a build that broke: the ones you would want" { at: floor(spx + 14 * pu + 0.5), floor(sby + 97 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
-            box { at: spx + 404 * pu, sby + 88 * pu; size: 40 * pu, 22 * pu; corner: 11 * pu; color: mix(ink, mint, ntk1); opacity: 14% + 34% * ntk1 + 8% * ntg_crit_hit.hover }
-            ellipse { at: spx + (404 - 9 + 18 * ntk1) * pu, sby + 88 * pu; radius: 8 * pu; color: mix(ink, mint, ntk1); opacity: 80% + 20% * ntk1 }
+            body {
+                color: mix(off, mint, clamp(ntk1, 0, 1))
+                box { at: spx + 405 * pu, sby + 88 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+            }
+            box { at: spx + 397 * pu + ntk1 * 16 * pu, sby + 88 * pu; size: (17 + 9 * clamp(4 * ntk1 * (1 - ntk1), 0, 1)) * pu, (17 - 3 * clamp(4 * ntk1 * (1 - ntk1), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * ntk1 * (1 - ntk1), 0, 1)) * pu; color: ink }
             zone box ntg_crit_hit { at: spx + 219 * pu, sby + 88 * pu; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
             on press ntg_crit_hit { emit ntg_flag(1) }
             text "DEFAULT SOUND" { at: floor(spx + 14 * pu + 0.5), floor(sby + 122 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
@@ -4818,26 +4987,38 @@ scene Vitreus {
             text nta_name { at: floor(spx + 82 * pu + 0.5), floor(sby + (822 - nt.ds) * pu + 0.5); anchor: left center; size: 17.5; weight: 700; width: 330 * pu; lines: 1; color: mint; family: "Space Grotesk" }
             text "Mute popups" { at: floor(spx + 14 * pu + 0.5), floor(sby + (847 - nt.ds) * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
             text "Still kept in the history" { at: floor(spx + 14 * pu + 0.5), floor(sby + (863 - nt.ds) * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
-            box { at: spx + 404 * pu, sby + (854 - nt.ds) * pu; size: 40 * pu, 22 * pu; corner: 11 * pu; color: mix(ink, mint, ntk2); opacity: 14% + 34% * ntk2 + 8% * nta_mute_hit.hover }
-            ellipse { at: spx + (404 - 9 + 18 * ntk2) * pu, sby + (854 - nt.ds) * pu; radius: 8 * pu; color: mix(ink, mint, ntk2); opacity: 80% + 20% * ntk2 }
+            body {
+                color: mix(off, mint, clamp(ntk2, 0, 1))
+                box { at: spx + 405 * pu, sby + (854 - nt.ds) * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+            }
+            box { at: spx + 397 * pu + ntk2 * 16 * pu, sby + (854 - nt.ds) * pu; size: (17 + 9 * clamp(4 * ntk2 * (1 - ntk2), 0, 1)) * pu, (17 - 3 * clamp(4 * ntk2 * (1 - ntk2), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * ntk2 * (1 - ntk2), 0, 1)) * pu; color: ink }
             zone box nta_mute_hit { at: spx + 219 * pu, sby + (854 - nt.ds) * pu; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
             on press nta_mute_hit { emit nta_flag(0) }
             text "Silent" { at: floor(spx + 14 * pu + 0.5), floor(sby + (881 - nt.ds) * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
             text "Shown, but with no sound" { at: floor(spx + 14 * pu + 0.5), floor(sby + (897 - nt.ds) * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
-            box { at: spx + 404 * pu, sby + (888 - nt.ds) * pu; size: 40 * pu, 22 * pu; corner: 11 * pu; color: mix(ink, mint, ntk3); opacity: 14% + 34% * ntk3 + 8% * nta_silent_hit.hover }
-            ellipse { at: spx + (404 - 9 + 18 * ntk3) * pu, sby + (888 - nt.ds) * pu; radius: 8 * pu; color: mix(ink, mint, ntk3); opacity: 80% + 20% * ntk3 }
+            body {
+                color: mix(off, mint, clamp(ntk3, 0, 1))
+                box { at: spx + 405 * pu, sby + (888 - nt.ds) * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+            }
+            box { at: spx + 397 * pu + ntk3 * 16 * pu, sby + (888 - nt.ds) * pu; size: (17 + 9 * clamp(4 * ntk3 * (1 - ntk3), 0, 1)) * pu, (17 - 3 * clamp(4 * ntk3 * (1 - ntk3), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * ntk3 * (1 - ntk3), 0, 1)) * pu; color: ink }
             zone box nta_silent_hit { at: spx + 219 * pu, sby + (888 - nt.ds) * pu; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
             on press nta_silent_hit { emit nta_flag(1) }
             text "Ignore Do Not Disturb" { at: floor(spx + 14 * pu + 0.5), floor(sby + (915 - nt.ds) * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
             text "Shows, and sounds, even while it is on" { at: floor(spx + 14 * pu + 0.5), floor(sby + (931 - nt.ds) * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
-            box { at: spx + 404 * pu, sby + (922 - nt.ds) * pu; size: 40 * pu, 22 * pu; corner: 11 * pu; color: mix(ink, mint, ntk4); opacity: 14% + 34% * ntk4 + 8% * nta_bypass_hit.hover }
-            ellipse { at: spx + (404 - 9 + 18 * ntk4) * pu, sby + (922 - nt.ds) * pu; radius: 8 * pu; color: mix(ink, mint, ntk4); opacity: 80% + 20% * ntk4 }
+            body {
+                color: mix(off, mint, clamp(ntk4, 0, 1))
+                box { at: spx + 405 * pu, sby + (922 - nt.ds) * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+            }
+            box { at: spx + 397 * pu + ntk4 * 16 * pu, sby + (922 - nt.ds) * pu; size: (17 + 9 * clamp(4 * ntk4 * (1 - ntk4), 0, 1)) * pu, (17 - 3 * clamp(4 * ntk4 * (1 - ntk4), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * ntk4 * (1 - ntk4), 0, 1)) * pu; color: ink }
             zone box nta_bypass_hit { at: spx + 219 * pu, sby + (922 - nt.ds) * pu; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
             on press nta_bypass_hit { emit nta_flag(2) }
             text "Keep out of the history" { at: floor(spx + 14 * pu + 0.5), floor(sby + (949 - nt.ds) * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
             text "No popup, no sound, no record" { at: floor(spx + 14 * pu + 0.5), floor(sby + (965 - nt.ds) * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
-            box { at: spx + 404 * pu, sby + (956 - nt.ds) * pu; size: 40 * pu, 22 * pu; corner: 11 * pu; color: mix(ink, mint, ntk5); opacity: 14% + 34% * ntk5 + 8% * nta_hide_hit.hover }
-            ellipse { at: spx + (404 - 9 + 18 * ntk5) * pu, sby + (956 - nt.ds) * pu; radius: 8 * pu; color: mix(ink, mint, ntk5); opacity: 80% + 20% * ntk5 }
+            body {
+                color: mix(off, mint, clamp(ntk5, 0, 1))
+                box { at: spx + 405 * pu, sby + (956 - nt.ds) * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+            }
+            box { at: spx + 397 * pu + ntk5 * 16 * pu, sby + (956 - nt.ds) * pu; size: (17 + 9 * clamp(4 * ntk5 * (1 - ntk5), 0, 1)) * pu, (17 - 3 * clamp(4 * ntk5 * (1 - ntk5), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * ntk5 * (1 - ntk5), 0, 1)) * pu; color: ink }
             zone box nta_hide_hit { at: spx + 219 * pu, sby + (956 - nt.ds) * pu; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
             on press nta_hide_hit { emit nta_flag(3) }
             text "URGENCY" { at: floor(spx + 14 * pu + 0.5), floor(sby + (992 - nt.ds) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
@@ -4945,6 +5126,268 @@ scene Vitreus {
         }
         //  ── Notifications page: END ──
 
+        //  ── VPN page: BEGIN ──
+        //  Settings > VPN. Scrolls like Notifications: a clipped viewport, the content moved by a whole-pixel `vpn.off`. Three cards: what is
+        //  connected, the profiles NetworkManager holds, and the form to add one (WireGuard, OpenVPN, or a file). See "Settings > VPN" in the logic.
+        group {
+            show: set_pgv > 0.01
+            opacity: set_pgv
+            let vpn.h = vpn.ab + 84 + vpn.fh + 44 + 12
+            let vpn.sc = clamp(vpn_scroll, 0, max(0, vpn.h - 456))
+            let vpn.off = floor(vpn.sc * pu + 0.5)
+            clip box { at: spx + 224 * pu, sby + 228 * pu; size: 456 * pu, 456 * pu }
+            zone box vpn_wheel { at: spx + 219 * pu, sby + 228 * pu; size: 446 * pu, 456 * pu }
+            on scroll vpn_wheel while not (vpn_mode == vpm_imp and vpn_fmore and vpn_fwheel.hover) { vpn_scroll_to = clamp(vpn_scroll_to - wheel * 44, 0, max(0, vpn.h - 456)) }
+            group {
+                move: 0, -vpn.off
+            box { at: spx + 219 * pu, sby + 42 * pu; size: 438 * pu, 68 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            box { at: spx + 36 * pu, sby + 42 * pu; size: 40 * pu, 40 * pu; corner: 12 * pu; color: if(vpn_on, mint, ink); opacity: if(vpn_on, 22%, 8%) }
+            path { at: spx + 36 * pu, sby + 42 * pu; stroke: 1.8 * pu; color: if(vpn_on, mint, faint); move 0, -9 * pu; line 8 * pu, -6 * pu; line 8 * pu, 1 * pu; line 0, 10 * pu; line -8 * pu, 1 * pu; line -8 * pu, -6 * pu; close }
+            path { at: spx + 36 * pu, sby + 43 * pu; stroke: 1.8 * pu; color: if(vpn_on, mint, faint); opacity: if(vpn_on, 100%, 0%); move -3.5 * pu, 0; line -1 * pu, 2.5 * pu; line 4 * pu, -3 * pu }
+            text "STATUS" { at: floor(spx + 70 * pu + 0.5), floor(sby + (24) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text vpn_title { at: floor(spx + 70 * pu + 0.5), floor(sby + 43 * pu + 0.5); anchor: left center; size: 17.5; weight: 700; width: 230 * pu; lines: 1; color: if(vpn_on, mint, ink); family: "Space Grotesk" }
+            text vpn_sub { at: floor(spx + 70 * pu + 0.5), floor(sby + 60 * pu + 0.5); anchor: left center; size: 13.5; width: 230 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            group {
+                show: vpn_on
+                box { at: spx + 380 * pu, sby + 42 * pu; size: 96 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 10% + 10% * vpn_dn_hit.hover }
+                text "Disconnect" { at: floor(spx + 380 * pu + 0.5), floor(sby + 42 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; color: ink; family: "Space Grotesk" }
+            }
+            zone box vpn_dn_hit { at: spx + 380 * pu, sby + 42 * pu; size: 98 * pu, 30 * pu; corner: 15 * pu; cursor: pointer; active: vpn_on and not vpn_busy }
+            on press vpn_dn_hit { emit vpn_down }
+            box { at: spx + 219 * pu, sby + (vpn.pb + vpn.pbh / 2) * pu; size: 438 * pu, vpn.pbh * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "PROFILES" { at: floor(spx + 14 * pu + 0.5), floor(sby + (vpn.pb + 18) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            box { at: spx + 424 * pu - 11 * pu, sby + (vpn.pb + 18) * pu; size: 22 * pu, 16 * pu; corner: 8 * pu; color: ink; opacity: 10% }
+            text number(vpn_count, 0) { at: floor(spx + 413 * pu + 0.5), floor(sby + (vpn.pb + 18) * pu + 0.5); anchor: center; align: center; size: 12; weight: 700; color: ink; family: "Space Grotesk" }
+            text "No VPN profiles yet: add one below" { at: floor(spx + 219 * pu + 0.5), floor(sby + (vpn.pb + 50) * pu + 0.5); anchor: center; align: center; size: 14.5; color: faint; show: vpn_count < 1; family: "Space Grotesk" }
+            repeat i in 0..8 {
+                let ry = vpn.pb + 34 + i * 32 + 16
+                ellipse { at: spx + 24 * pu, sby + ry * pu; radius: 3.5 * pu; color: if(vpn_r.$i.active, mint, faint); opacity: if(vpn_r.$i.on, if(vpn_r.$i.active, 100%, 45%), 0%) }
+                text vpn_r.$i.name { at: floor(spx + 38 * pu + 0.5), floor(sby + ry * pu + 0.5); anchor: left center; size: 15.5; weight: 700; width: 150 * pu; lines: 1; color: if(vpn_r.$i.active, mint, ink); show: vpn_r.$i.on; family: "Space Grotesk" }
+                box { at: spx + 232 * pu, sby + ry * pu; size: 72 * pu, 20 * pu; corner: 10 * pu; color: ink; opacity: if(vpn_r.$i.on, 8%, 0%) }
+                text vpn_r.$i.sub { at: floor(spx + 232 * pu + 0.5), floor(sby + ry * pu + 0.5); anchor: center; align: center; size: 12.5; width: 68 * pu; lines: 1; color: faint; show: vpn_r.$i.on; family: "Space Grotesk" }
+                box { at: spx + 330 * pu, sby + ry * pu; size: 96 * pu, 24 * pu; corner: 12 * pu; color: if(vpn_r.$i.active, ink, mint); opacity: if(vpn_r.$i.on and vpn_arm != i, if(vpn_r.$i.active, 10% + 9% * vpn_tg_hit.$i.hover, 18% + 14% * vpn_tg_hit.$i.hover), 0%) }
+                text "Disconnect" { at: floor(spx + 330 * pu + 0.5), floor(sby + ry * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 600; color: if(vpn_r.$i.active, ink, mint); show: vpn_r.$i.on and vpn_r.$i.active and vpn_arm != i; family: "Space Grotesk" }
+                text "Connect" { at: floor(spx + 330 * pu + 0.5), floor(sby + ry * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 600; color: if(vpn_r.$i.active, ink, mint); show: vpn_r.$i.on and not vpn_r.$i.active and vpn_arm != i; family: "Space Grotesk" }
+                zone box vpn_tg_hit.$i { at: spx + 330 * pu, sby + ry * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (vpn_r.$i.on and vpn_arm != i and not vpn_busy) and (((ry) * pu - vpn.off) > 14 * pu and ((ry) * pu - vpn.off) < 440 * pu) }
+                on press vpn_tg_hit.$i { emit vpn_toggle(i) }
+                box { at: spx + 330 * pu, sby + ry * pu; size: 96 * pu, 24 * pu; corner: 12 * pu; color: alert; opacity: if(vpn_r.$i.on and vpn_arm == i, 26% + 14% * vpn_dl_hit.$i.hover, 0%) }
+                text "Delete?" { at: floor(spx + 330 * pu + 0.5), floor(sby + ry * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; color: alert; show: vpn_r.$i.on and vpn_arm == i; family: "Space Grotesk" }
+                zone box vpn_dl_hit.$i { at: spx + 330 * pu, sby + ry * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (vpn_r.$i.on and vpn_arm == i and not vpn_busy) and (((ry) * pu - vpn.off) > 14 * pu and ((ry) * pu - vpn.off) < 440 * pu) }
+                on press vpn_dl_hit.$i { emit vpn_delete(i) }
+                line { from: spx + 415.5 * pu, sby + (ry - 3.5) * pu; to: spx + 422.5 * pu, sby + (ry + 3.5) * pu; width: 1.4 * pu; color: ink; opacity: if(vpn_r.$i.on, 45% + 45% * vpn_x_hit.$i.hover, 0%) }
+                line { from: spx + 422.5 * pu, sby + (ry - 3.5) * pu; to: spx + 415.5 * pu, sby + (ry + 3.5) * pu; width: 1.4 * pu; color: ink; opacity: if(vpn_r.$i.on, 45% + 45% * vpn_x_hit.$i.hover, 0%) }
+                zone box vpn_x_hit.$i { at: spx + 419 * pu, sby + ry * pu; size: 22 * pu, 22 * pu; corner: 11 * pu; cursor: pointer; active: (vpn_r.$i.on and not vpn_busy) and (((ry) * pu - vpn.off) > 14 * pu and ((ry) * pu - vpn.off) < 440 * pu) }
+                on press vpn_x_hit.$i { emit vpn_arm_ask(i) }
+            }
+            box { at: spx + 219 * pu, sby + (vpn.ab + (84 + vpn.fh + 44) / 2) * pu; size: 438 * pu, (84 + vpn.fh + 44) * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "ADD A PROFILE" { at: floor(spx + 14 * pu + 0.5), floor(sby + (vpn.ab + 20) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            box { at: spx + 79.7 * pu, sby + (vpn.ab + 52) * pu; size: 131.3 * pu, 26 * pu; corner: 13 * pu; color: if(vpn_mode == vpm_wg, mint, ink); opacity: if(vpn_mode == vpm_wg, 24%, 8% + 9% * vpn_m0_hit.hover) }
+            text "WireGuard" { at: floor(spx + 79.7 * pu + 0.5), floor(sby + (vpn.ab + 52) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; color: if(vpn_mode == vpm_wg, mint, ink); opacity: if(vpn_mode == vpm_wg, 100%, 85%); family: "Space Grotesk" }
+            zone box vpn_m0_hit { at: spx + 79.7 * pu, sby + (vpn.ab + 52) * pu; size: 130 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: (((vpn.ab + 52) * pu - vpn.off) > 14 * pu and ((vpn.ab + 52) * pu - vpn.off) < 440 * pu) }
+            on press vpn_m0_hit { vpn_mode = vpm_wg }
+            box { at: spx + 219 * pu, sby + (vpn.ab + 52) * pu; size: 131.3 * pu, 26 * pu; corner: 13 * pu; color: if(vpn_mode == vpm_ovpn, mint, ink); opacity: if(vpn_mode == vpm_ovpn, 24%, 8% + 9% * vpn_m1_hit.hover) }
+            text "OpenVPN" { at: floor(spx + 219 * pu + 0.5), floor(sby + (vpn.ab + 52) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; color: if(vpn_mode == vpm_ovpn, mint, ink); opacity: if(vpn_mode == vpm_ovpn, 100%, 85%); family: "Space Grotesk" }
+            zone box vpn_m1_hit { at: spx + 219 * pu, sby + (vpn.ab + 52) * pu; size: 130 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: (((vpn.ab + 52) * pu - vpn.off) > 14 * pu and ((vpn.ab + 52) * pu - vpn.off) < 440 * pu) }
+            on press vpn_m1_hit { vpn_mode = vpm_ovpn }
+            box { at: spx + 358.3 * pu, sby + (vpn.ab + 52) * pu; size: 131.3 * pu, 26 * pu; corner: 13 * pu; color: if(vpn_mode == vpm_imp, mint, ink); opacity: if(vpn_mode == vpm_imp, 24%, 8% + 9% * vpn_m2_hit.hover) }
+            text "Import file" { at: floor(spx + 358.3 * pu + 0.5), floor(sby + (vpn.ab + 52) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; color: if(vpn_mode == vpm_imp, mint, ink); opacity: if(vpn_mode == vpm_imp, 100%, 85%); family: "Space Grotesk" }
+            zone box vpn_m2_hit { at: spx + 358.3 * pu, sby + (vpn.ab + 52) * pu; size: 130 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: (((vpn.ab + 52) * pu - vpn.off) > 14 * pu and ((vpn.ab + 52) * pu - vpn.off) < 440 * pu) }
+            on press vpn_m2_hit { vpn_mode = vpm_imp }
+            group {
+                show: vpn_mode == vpm_wg
+            box { at: spx + 113.5 * pu, sby + (vpn.ab + 84 + 0 * 36 + 17) * pu; size: 199 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 8% }
+            }
+            group {
+                show: vpn_mode == vpm_wg and (((vpn.ab + 84 + 0 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 0 * 36 + 17) * pu - vpn.off) < 440 * pu)
+                input vpnw_name { at: floor(spx + 26.0 * pu + 0.5), floor(sby + (vpn.ab + 84 + 0 * 36 + 17) * pu - 6.5 * pu + 0.5); width: 175 * pu; size: 14; color: ink; family: "Space Grotesk"; placeholder: "Name" }
+            }
+            group {
+                show: vpn_mode == vpm_wg
+            box { at: spx + 324.5 * pu, sby + (vpn.ab + 84 + 0 * 36 + 17) * pu; size: 199 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 8% }
+            }
+            group {
+                show: vpn_mode == vpm_wg and (((vpn.ab + 84 + 0 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 0 * 36 + 17) * pu - vpn.off) < 440 * pu)
+                input vpnw_addr { at: floor(spx + 237.0 * pu + 0.5), floor(sby + (vpn.ab + 84 + 0 * 36 + 17) * pu - 6.5 * pu + 0.5); width: 175 * pu; size: 14; color: ink; family: "Space Grotesk"; placeholder: "Address (10.2.0.2/32)" }
+            }
+            group {
+                show: vpn_mode == vpm_wg
+            box { at: spx + 219 * pu, sby + (vpn.ab + 84 + 1 * 36 + 17) * pu; size: 410 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 8% }
+            }
+            group {
+                show: vpn_mode == vpm_wg and (((vpn.ab + 84 + 1 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 1 * 36 + 17) * pu - vpn.off) < 440 * pu)
+                input vpnw_key { at: floor(spx + 26.0 * pu + 0.5), floor(sby + (vpn.ab + 84 + 1 * 36 + 17) * pu - 6.5 * pu + 0.5); width: 386 * pu; size: 14; color: ink; family: "Space Grotesk"; secret: true; placeholder: "Your private key" }
+            }
+            group {
+                show: vpn_mode == vpm_wg
+            box { at: spx + 219 * pu, sby + (vpn.ab + 84 + 2 * 36 + 17) * pu; size: 410 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 8% }
+            }
+            group {
+                show: vpn_mode == vpm_wg and (((vpn.ab + 84 + 2 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 2 * 36 + 17) * pu - vpn.off) < 440 * pu)
+                input vpnw_peer { at: floor(spx + 26.0 * pu + 0.5), floor(sby + (vpn.ab + 84 + 2 * 36 + 17) * pu - 6.5 * pu + 0.5); width: 386 * pu; size: 14; color: ink; family: "Space Grotesk"; placeholder: "Server's public key" }
+            }
+            group {
+                show: vpn_mode == vpm_wg
+            box { at: spx + 113.5 * pu, sby + (vpn.ab + 84 + 3 * 36 + 17) * pu; size: 199 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 8% }
+            }
+            group {
+                show: vpn_mode == vpm_wg and (((vpn.ab + 84 + 3 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 3 * 36 + 17) * pu - vpn.off) < 440 * pu)
+                input vpnw_end { at: floor(spx + 26.0 * pu + 0.5), floor(sby + (vpn.ab + 84 + 3 * 36 + 17) * pu - 6.5 * pu + 0.5); width: 175 * pu; size: 14; color: ink; family: "Space Grotesk"; placeholder: "Endpoint (host:51820)" }
+            }
+            group {
+                show: vpn_mode == vpm_wg
+            box { at: spx + 324.5 * pu, sby + (vpn.ab + 84 + 3 * 36 + 17) * pu; size: 199 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 8% }
+            }
+            group {
+                show: vpn_mode == vpm_wg and (((vpn.ab + 84 + 3 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 3 * 36 + 17) * pu - vpn.off) < 440 * pu)
+                input vpnw_dns { at: floor(spx + 237.0 * pu + 0.5), floor(sby + (vpn.ab + 84 + 3 * 36 + 17) * pu - 6.5 * pu + 0.5); width: 175 * pu; size: 14; color: ink; family: "Space Grotesk"; placeholder: "DNS (optional)" }
+            }
+            group {
+                show: vpn_mode == vpm_wg
+            box { at: spx + 113.5 * pu, sby + (vpn.ab + 84 + 4 * 36 + 17) * pu; size: 199 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 8% }
+            }
+            group {
+                show: vpn_mode == vpm_wg and (((vpn.ab + 84 + 4 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 4 * 36 + 17) * pu - vpn.off) < 440 * pu)
+                input vpnw_ips { at: floor(spx + 26.0 * pu + 0.5), floor(sby + (vpn.ab + 84 + 4 * 36 + 17) * pu - 6.5 * pu + 0.5); width: 175 * pu; size: 14; color: ink; family: "Space Grotesk"; placeholder: "Allowed IPs (all traffic)" }
+            }
+            group {
+                show: vpn_mode == vpm_wg
+                box { at: spx + 324.5 * pu, sby + (vpn.ab + 84 + 4 * 36 + 17) * pu; size: 199 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 8% }
+            }
+            group {
+                show: vpn_mode == vpm_wg and (((vpn.ab + 84 + 4 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 4 * 36 + 17) * pu - vpn.off) < 440 * pu)
+                input vpnw_psk { at: floor(spx + 237.0 * pu + 0.5), floor(sby + (vpn.ab + 84 + 4 * 36 + 17) * pu - 6.5 * pu + 0.5); width: 175 * pu; size: 14; color: ink; family: "Space Grotesk"; secret: true; placeholder: "Preshared key (optional)" }
+                on submit vpnw_psk { emit vpn_add_wg }
+            }
+            group {
+                show: vpn_mode == vpm_ovpn
+            box { at: spx + 113.5 * pu, sby + (vpn.ab + 84 + 0 * 36 + 17) * pu; size: 199 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 8% }
+            }
+            group {
+                show: vpn_mode == vpm_ovpn and (((vpn.ab + 84 + 0 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 0 * 36 + 17) * pu - vpn.off) < 440 * pu)
+                input vpno_name { at: floor(spx + 26.0 * pu + 0.5), floor(sby + (vpn.ab + 84 + 0 * 36 + 17) * pu - 6.5 * pu + 0.5); width: 175 * pu; size: 14; color: ink; family: "Space Grotesk"; placeholder: "Name" }
+            }
+            group {
+                show: vpn_mode == vpm_ovpn
+            box { at: spx + 324.5 * pu, sby + (vpn.ab + 84 + 0 * 36 + 17) * pu; size: 199 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 8% }
+            }
+            group {
+                show: vpn_mode == vpm_ovpn and (((vpn.ab + 84 + 0 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 0 * 36 + 17) * pu - vpn.off) < 440 * pu)
+                input vpno_server { at: floor(spx + 237.0 * pu + 0.5), floor(sby + (vpn.ab + 84 + 0 * 36 + 17) * pu - 6.5 * pu + 0.5); width: 175 * pu; size: 14; color: ink; family: "Space Grotesk"; placeholder: "Server (host or address)" }
+            }
+            group {
+                show: vpn_mode == vpm_ovpn
+            box { at: spx + 113.5 * pu, sby + (vpn.ab + 84 + 1 * 36 + 17) * pu; size: 199 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 8% }
+            }
+            group {
+                show: vpn_mode == vpm_ovpn and (((vpn.ab + 84 + 1 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 1 * 36 + 17) * pu - vpn.off) < 440 * pu)
+                input vpno_port { at: floor(spx + 26.0 * pu + 0.5), floor(sby + (vpn.ab + 84 + 1 * 36 + 17) * pu - 6.5 * pu + 0.5); width: 175 * pu; size: 14; color: ink; family: "Space Grotesk"; placeholder: "Port (1194)" }
+            }
+            group {
+                show: vpn_mode == vpm_ovpn
+            box { at: spx + 113.5 * pu, sby + (vpn.ab + 84 + 2 * 36 + 17) * pu; size: 199 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 8% }
+            }
+            group {
+                show: vpn_mode == vpm_ovpn and (((vpn.ab + 84 + 2 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 2 * 36 + 17) * pu - vpn.off) < 440 * pu)
+                input vpno_user { at: floor(spx + 26.0 * pu + 0.5), floor(sby + (vpn.ab + 84 + 2 * 36 + 17) * pu - 6.5 * pu + 0.5); width: 175 * pu; size: 14; color: ink; family: "Space Grotesk"; placeholder: "User name" }
+            }
+            group {
+                show: vpn_mode == vpm_ovpn
+            box { at: spx + 324.5 * pu, sby + (vpn.ab + 84 + 2 * 36 + 17) * pu; size: 199 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 8% }
+            }
+            group {
+                show: vpn_mode == vpm_ovpn and (((vpn.ab + 84 + 2 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 2 * 36 + 17) * pu - vpn.off) < 440 * pu)
+                input vpno_pw { at: floor(spx + 237.0 * pu + 0.5), floor(sby + (vpn.ab + 84 + 2 * 36 + 17) * pu - 6.5 * pu + 0.5); width: 175 * pu; size: 14; color: ink; family: "Space Grotesk"; secret: true; placeholder: "Password" }
+            }
+            group {
+                show: vpn_mode == vpm_ovpn
+                box { at: spx + 219 * pu, sby + (vpn.ab + 84 + 3 * 36 + 17) * pu; size: 410 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 8% }
+            }
+            group {
+                show: vpn_mode == vpm_ovpn and (((vpn.ab + 84 + 3 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 3 * 36 + 17) * pu - vpn.off) < 440 * pu)
+                input vpno_ca { at: floor(spx + 26.0 * pu + 0.5), floor(sby + (vpn.ab + 84 + 3 * 36 + 17) * pu - 6.5 * pu + 0.5); width: 386 * pu; size: 14; color: ink; family: "Space Grotesk"; placeholder: "CA certificate file (optional)" }
+                on submit vpno_ca { emit vpn_add_ovpn }
+            }
+            group {
+                show: vpn_mode == vpm_imp
+                box { at: spx + 219 * pu, sby + (vpn.ab + 84 + 0 * 36 + 17) * pu; size: 410 * pu, 28 * pu; corner: 14 * pu; color: ink; opacity: 8% }
+            }
+            group {
+                show: vpn_mode == vpm_imp and (((vpn.ab + 84 + 0 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 0 * 36 + 17) * pu - vpn.off) < 440 * pu)
+                input vpn_file { at: floor(spx + 26.0 * pu + 0.5), floor(sby + (vpn.ab + 84 + 0 * 36 + 17) * pu - 6.5 * pu + 0.5); width: 386 * pu; size: 14; color: ink; family: "Space Grotesk"; placeholder: "Pick a file below, or paste its path" }
+                on submit vpn_file { emit vpn_import }
+            }
+            group {
+                show: vpn_mode == vpm_ovpn
+                box { at: spx + 273 * pu, sby + (vpn.ab + 84 + 1 * 36 + 17) * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; color: if(not vpn_tcp, mint, ink); opacity: if(not vpn_tcp, 24%, 8% + 9% * vpn_p0_hit.hover) }
+                text "UDP" { at: floor(spx + 273 * pu + 0.5), floor(sby + (vpn.ab + 84 + 1 * 36 + 17) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; color: if(not vpn_tcp, mint, ink); family: "Space Grotesk" }
+            }
+            zone box vpn_p0_hit { at: spx + 273 * pu, sby + (vpn.ab + 84 + 1 * 36 + 17) * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: vpn_mode == vpm_ovpn and (((vpn.ab + 84 + 1 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 1 * 36 + 17) * pu - vpn.off) < 440 * pu) }
+            on press vpn_p0_hit { vpn_tcp = false }
+            group {
+                show: vpn_mode == vpm_ovpn
+                box { at: spx + 375 * pu, sby + (vpn.ab + 84 + 1 * 36 + 17) * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; color: if(vpn_tcp, mint, ink); opacity: if(vpn_tcp, 24%, 8% + 9% * vpn_p1_hit.hover) }
+                text "TCP" { at: floor(spx + 375 * pu + 0.5), floor(sby + (vpn.ab + 84 + 1 * 36 + 17) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; color: if(vpn_tcp, mint, ink); family: "Space Grotesk" }
+            }
+            zone box vpn_p1_hit { at: spx + 375 * pu, sby + (vpn.ab + 84 + 1 * 36 + 17) * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: vpn_mode == vpm_ovpn and (((vpn.ab + 84 + 1 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 1 * 36 + 17) * pu - vpn.off) < 440 * pu) }
+            on press vpn_p1_hit { vpn_tcp = true }
+            group {
+                show: vpn_mode == vpm_imp
+                text vpn_dir { at: floor(spx + 14 * pu + 0.5), floor(sby + (vpn.ab + 84 + 48) * pu + 0.5); anchor: left center; size: 12.5; weight: 600; width: 410 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+                box { at: spx + 219 * pu, sby + (vpn.ab + 84 + 62 + 108) * pu; size: 410 * pu, 216 * pu; corner: 12 * pu; color: ink; opacity: 6% }
+                text "No folders or .conf / .ovpn files here" { at: floor(spx + 219 * pu + 0.5), floor(sby + (vpn.ab + 84 + 62 + 108) * pu + 0.5); anchor: center; align: center; size: 14; color: faint; show: not vpn_f.0.on; family: "Space Grotesk" }
+            }
+            zone box vpn_fwheel { at: spx + 219 * pu, sby + (vpn.ab + 84 + 62 + 108) * pu; size: 410 * pu, 216 * pu; active: vpn_mode == vpm_imp and vpn_fmore and (((vpn.ab + 84 + 170) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + 170) * pu - vpn.off) < 440 * pu) }
+            on scroll vpn_fwheel { emit vpn_fscroll(wheel) }
+            repeat i in 0..8 {
+                let fy = vpn.ab + 84 + 62 + 4 + i * 26 + 13
+                box { at: spx + 219 * pu, sby + fy * pu; size: 402 * pu, 24 * pu; corner: 9 * pu; color: mint; opacity: if(vpn_mode == vpm_imp and vpn_f.$i.on, 14% * vpn_ff_hit.$i.hover, 0%) }
+                group {
+                    show: vpn_mode == vpm_imp and vpn_f.$i.on and vpn_f.$i.dir
+                    box { at: spx + 30 * pu, sby + (fy + 1) * pu; size: 14 * pu, 10 * pu; corner: 2 * pu; stroke: 1.3 * pu; color: faint }
+                    box { at: spx + 26.5 * pu, sby + (fy - 5.5) * pu; size: 6 * pu, 3 * pu; corner: 1 * pu; color: faint }
+                }
+                group {
+                    show: vpn_mode == vpm_imp and vpn_f.$i.on and not vpn_f.$i.dir
+                    box { at: spx + 30 * pu, sby + fy * pu; size: 11 * pu, 14 * pu; corner: 2 * pu; stroke: 1.3 * pu; color: mint }
+                    line { from: spx + 27.5 * pu, sby + (fy - 1.5) * pu; to: spx + 32.5 * pu, sby + (fy - 1.5) * pu; width: 1.1 * pu; color: mint }
+                    line { from: spx + 27.5 * pu, sby + (fy + 2) * pu; to: spx + 32.5 * pu, sby + (fy + 2) * pu; width: 1.1 * pu; color: mint }
+                }
+                text vpn_f.$i.name { at: floor(spx + 46 * pu + 0.5), floor(sby + fy * pu + 0.5); anchor: left center; size: 14.5; weight: 600; width: 360 * pu; lines: 1; color: if(vpn_f.$i.dir, ink, mint); show: vpn_mode == vpm_imp and vpn_f.$i.on; family: "Space Grotesk" }
+                zone box vpn_ff_hit.$i { at: spx + 219 * pu, sby + fy * pu; size: 402 * pu, 24 * pu; corner: 9 * pu; cursor: pointer; active: (vpn_mode == vpm_imp and vpn_f.$i.on) and (((fy) * pu - vpn.off) > 14 * pu and ((fy) * pu - vpn.off) < 440 * pu) }
+                on press vpn_ff_hit.$i { emit vpn_fpick(i) }
+            }
+            text vpn_msg { at: floor(spx + 14 * pu + 0.5), floor(sby + (vpn.ab + 84 + vpn.fh + 24) * pu + 0.5); anchor: left center; size: 13; width: 290 * pu; lines: 2; color: mint; family: "Space Grotesk" }
+            box { at: spx + 370 * pu, sby + (vpn.ab + 84 + vpn.fh + 24) * pu; size: 108 * pu, 28 * pu; corner: 14 * pu; color: mint; opacity: if(vpn_busy, 35%, 85% + 15% * vpn_add_hit.hover) }
+            text "Add profile" { at: floor(spx + 370 * pu + 0.5), floor(sby + (vpn.ab + 84 + vpn.fh + 24) * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; color: onmint; show: vpn_mode != vpm_imp; family: "Space Grotesk" }
+            text "Import" { at: floor(spx + 370 * pu + 0.5), floor(sby + (vpn.ab + 84 + vpn.fh + 24) * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; color: onmint; show: vpn_mode == vpm_imp; family: "Space Grotesk" }
+            zone box vpn_add_hit { at: spx + 370 * pu, sby + (vpn.ab + 84 + vpn.fh + 24) * pu; size: 110 * pu, 30 * pu; corner: 15 * pu; cursor: pointer; active: not vpn_busy and (((vpn.ab + 84 + vpn.fh + 24) * pu - vpn.off) > 14 * pu and ((vpn.ab + 84 + vpn.fh + 24) * pu - vpn.off) < 440 * pu) }
+            on press vpn_add_hit while vpn_mode == vpm_wg { emit vpn_add_wg }
+            on press vpn_add_hit while vpn_mode == vpm_ovpn { emit vpn_add_ovpn }
+            on press vpn_add_hit while vpn_mode == vpm_imp { emit vpn_import }
+            }
+            let vpn.thh = 456 * 456 / vpn.h
+            let vpn.thy = vpn.thh / 2 + vpn.sc / max(1, vpn.h - 456) * (456 - vpn.thh)
+            box { at: spx + 442 * pu, sby + 228 * pu; size: 3 * pu, 456 * pu; corner: 1.5 * pu; color: ink; opacity: 6% }
+            box { at: spx + 442 * pu, sby + vpn.thy * pu; size: 3 * pu, vpn.thh * pu; corner: 1.5 * pu; color: mint; opacity: 55% }
+            let vpn.cue = clamp((vpn.h - 456 - vpn.sc) / 24, 0, 1)
+            let vpn.cuey = sby + (456 - 26) * pu + 2.5 * pu * sin(time * 270)
+            repeat i in 0..16 {
+                let fk = (i + 1) / 16
+                box { from: spx - 4 * pu, sby + (400 + i * 3.5) * pu; size: 448 * pu, 3.5 * pu + 0.5; color: deep; opacity: 45% * fk * fk * vpn.cue }
+            }
+            box { at: spx + 224 * pu, vpn.cuey; size: 76 * pu, 26 * pu; corner: 13 * pu; color: deep; opacity: 80% * vpn.cue }
+            box { at: spx + 224 * pu, vpn.cuey; size: 76 * pu, 26 * pu; corner: 13 * pu; color: mint; opacity: (10% + 14% * vpn_cue_hit.hover) * vpn.cue }
+            path { at: spx + 204 * pu, vpn.cuey - 1 * pu; stroke: 1.6 * pu; color: mint; opacity: vpn.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
+            path { at: spx + 204 * pu, vpn.cuey + 4 * pu; stroke: 1.6 * pu; color: mint; opacity: vpn.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
+            text "More" { at: floor(spx + 232 * pu + 0.5), floor(vpn.cuey + 0.5); anchor: center; size: 15; weight: 700; color: ink; opacity: vpn.cue; family: "Space Grotesk" }
+            zone box vpn_cue_hit { at: spx + 224 * pu, sby + (456 - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: vpn.cue > 0.5 }
+            on press vpn_cue_hit { vpn_scroll_to = clamp(vpn_scroll_to + 342, 0, max(0, vpn.h - 456)) }
+            zone box vpn_bar_hit { at: spx + 442 * pu, sby + 228 * pu; size: 14 * pu, 456 * pu; cursor: pointer; active: vpn.h > 456 }
+            on press vpn_bar_hit { vpn_scroll_to = clamp(((pointer.y - sby) / pu - vpn.thh / 2) / max(1, 456 - vpn.thh) * (vpn.h - 456), 0, max(0, vpn.h - 456)) }
+            on drag vpn_bar_hit { vpn_scroll_to = clamp(((pointer.y - sby) / pu - vpn.thh / 2) / max(1, 456 - vpn.thh) * (vpn.h - 456), 0, max(0, vpn.h - 456)) }
+        }
+        //  ── VPN page: END ──
+
         //  ── System monitor page: BEGIN (generated; see bin/vitreus-sysmon) ──
         //  The page scrolls like Display's: a clipped viewport as tall as the Wallpaper page, the content moved up by `sm.off`, and the wheel
         //  caught by the zone under it. Nothing on it is pressed, so nothing has to be kept from a click when it is out of sight.
@@ -4955,7 +5398,7 @@ scene Vitreus {
             let sm.off = floor(sm.sc * pu + 0.5)        // whole pixels: text that is shifted by a fraction of one is resampled, and looks soft
             clip box { at: spx + 224 * pu, sby + 228 * pu; size: 456 * pu, 456 * pu }
             zone box sm_wheel { at: spx + 219 * pu, sby + 228 * pu; size: 446 * pu, 456 * pu }
-            on scroll sm_wheel { sm_scroll_to = clamp(sm_scroll_to + wheel * 44, 0, max(0, sm.h - 456)) }
+            on scroll sm_wheel { sm_scroll_to = clamp(sm_scroll_to - wheel * 44, 0, max(0, sm.h - 456)) }
             group {
                 move: 0, -sm.off
             box { at: spx + 219 * pu, sby + 40 * pu; size: 438 * pu, 68 * pu; corner: 14 * pu; color: ink; opacity: veil }
@@ -5170,7 +5613,7 @@ scene Vitreus {
             //  (a clip does not stop a zone). The wheel is caught by the zone under everything else.
             clip box { at: spx + 224 * pu, sby + 228 * pu; size: 456 * pu, 456 * pu }
             zone box disp_wheel { at: spx + 219 * pu, sby + 228 * pu; size: 446 * pu, 456 * pu }
-            on scroll disp_wheel { disp_scroll_to = clamp(disp_scroll_to + wheel * 40, 0, max(0, disp.h - 456)) }
+            on scroll disp_wheel { disp_scroll_to = clamp(disp_scroll_to - wheel * 40, 0, max(0, disp.h - 456)) }
             group {
                 move: 0, -disp.off
 
