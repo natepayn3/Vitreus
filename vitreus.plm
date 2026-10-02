@@ -853,7 +853,7 @@ scene Vitreus {
     //  The wallpaper picker (SUPER + B): glass hexagons centred on the screen, drawn at the end of this scene. Every wallpaper is one
     //  hexagon (its picture already cut to the hexagon by the logic); how many there are sets how big they are, so that they always fill
     //  the tray. The logic makes the pictures (`wp_picker`), orders them by colour and does the awww side of a pick.
-    model wp_picker max 200 { img: image 186, 215; hue: number; cur: bool; dim: bool; name: text }       // the picture is 124 x 143 (120 x 139 and two transparent pixels all round), but the cell is declared at the size the resting tiles are drawn at: declared much smaller, a faint line shows along the edge of every tile
+    model wp_picker max 200 { img: image 104, 120; hue: number; cur: bool; dim: bool; name: text }       // the picture is 124 x 143 (120 x 139 and two transparent pixels all round), and the cell is declared smaller, 104 x 120, in the same shape (the picture is fitted inside it; the resting tiles are drawn at about that size): every image takes its whole cell from the atlas (one 2048 x 2048 texture, shared with the text), and at 186 x 215 only about a hundred of the hundred and thirty-seven tiles fitted, the rest were drawn empty
     fact wp_picker_open = false
     text wp_picker_status = ""                // "Reading your wallpapers… 42 of 137" while the first analysis runs
     text wp_picker_hero_name = ""             // the name of the hexagon under the pointer
@@ -5261,6 +5261,9 @@ scene Vitreus {
     group {
         show: wp_picker_show > 0.01
         opacity: wp_picker_show * wp_picker_veil
+        //  Behind the tiles, a plain dark sheet over the whole surface (a shape, not a glass body: those were what made the picker slow), so that
+        //  nothing of what is under shows through.
+        box { at: screen.width / 2, screen.height / 2; size: screen.width, screen.height; color: #05070d; opacity: 88% }
         repeat i in 0..200 {
             let grow = floor(i / g.cols)
             let bx = g.x0 + g.w * (i - grow * g.cols + 0.5 + 0.5 * mod(grow, 2))
@@ -5281,7 +5284,7 @@ scene Vitreus {
                 show: i < g.n and i < wp_picker.count and wp_picker_hot != i
                 //  The fade goes on each shape, not on the group: a group with an opacity (or a clip) is drawn in a layer of its own, and the renderer gives only
                 //  sixty-four of those a frame, so the lower tiles lost their opacity and the hovered one its tilt. The pictures are already cut to the hexagon.
-                let to = ent * if(wp_picker.$i.dim, 25%, 1) * (0.75 + 0.25 * max(hv, cu))
+                let to = ent * if(wp_picker.$i.dim, 25%, 1) 
                 //  No blurred shadow under the resting tiles: a hundred and forty blur passes a frame were most of what this page cost. The hovered tile has its own.
                 // (a plain path, not a `body`: a body is a layer of its own, and its rectangle's edge showed as a faint line across the small tiles)
                 path { at: bxl, byl; color: #05070d; opacity: 30% * to; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
