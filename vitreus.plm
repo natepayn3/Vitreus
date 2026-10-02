@@ -1621,10 +1621,11 @@ scene Vitreus {
     let win.x = bar.l + pre.title
     let win.w = max(0, bar.r - post.title - win.x)
     let room = 10 * u
+    let roomv = 10 * cu                    // and down the left, where the dots are larger
     //  Down the left, top to bottom: the workspaces (their middle one at `lv.ws`), the tray apps, and from the foot up the clock (its
     //  hour at `lv.clk`, the minutes and am/pm under it), the controls, search and the gear, 32 apart. Whole pixels, for the texts.
-    let lv.ws = yo + lf.t + 46 * u
-    let lv.tray = lv.ws + 30 * u + 22 * u
+    let lv.ws = yo + lf.t + 50 * cu
+    let lv.tray = lv.ws + 30 * cu + 22 * cu
     let lv.clk = vb - lf.t - 84 * u
     let lv.ctl = lv.clk - 46 * u
     let lv.set = lv.ctl - 32 * u
@@ -1633,10 +1634,10 @@ scene Vitreus {
     //  up), centred in what the other pieces leave (`lv.tt` to `lv.bot`), with the player's buttons stacked at its top end while there is a player.
     let lv.tt = lv.tray + max(0, trn * 24 - 6) * u + 14 * u
     let lv.bot = lv.sr - 22 * u
-    let lv.mc = 62 * u * mshow * bs.media0            // what the player's buttons take, along the title
+    let lv.mc = 62 * cu * mshow * bs.media0            // what the player's buttons take, along the title
     let lv.span = clamp(max(vclw.width, vtiw.width), 0, max(1, lv.bot - lv.tt - lv.mc))     // how long the text is (cut where the stretch ends)
     let lv.y0 = clamp(vc - (lv.span + lv.mc) / 2, lv.tt, max(lv.tt, lv.bot - lv.span - lv.mc))     // the top of buttons and text together, centred as one on the middle of the screen, as near as the pieces above and below let it
-    let lv.mid = lv.y0 + 31 * u                       // the buttons' middle (previous nearest the text, 17 apart)
+    let lv.mid = lv.y0 + 31 * cu                       // the buttons' middle (previous nearest the text, 17 apart)
     let lv.tm = lv.y0 + lv.mc + lv.span / 2           // the text's middle
 
     //  The music only moves the bar: it fades out as the panel opens (gone by a third of
@@ -2058,8 +2059,8 @@ scene Vitreus {
             let wx = at.ws + (i - 3) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
             //  One shape per workspace that morphs: a dot, a taller capsule if it has windows, and a
             //  wide mint pill while it is the active one.
-            let wy = lv.ws + (i - 3) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
-            zone box ws.hit.$i { at: mix(wx, lf.x, lm), mix(bar.y, wy, lm); size: mix(15 * u, 40 * u, lm), mix(bar.h, 15 * u, lm); cursor: pointer; active: bs.ws > 0.5 }
+            let wy = lv.ws + (i - 3) * 15 * cu + roomv * 0.5 * clamp(i - pill, -1, 1)
+            zone box ws.hit.$i { at: mix(wx, lf.x, lm), mix(bar.y, wy, lm); size: mix(15 * u, 40 * u, lm), mix(bar.h, 15 * cu, lm); cursor: pointer; active: bs.ws > 0.5 }
             on press ws.hit.$i { emit go(i) }
             on press right ws.hit.$i { emit ov_toggle }
             follow wsh.$i = ws.hit.$i.hover
@@ -2074,8 +2075,8 @@ scene Vitreus {
         //  It is only as wide as the text it holds (never past `win.w`, never thinner than a
         //  fingertip), not the whole gap up to the clock. Unseen copies, with no width limit,
         //  only to know how wide the app name and the title really are.
-        text win.class { at: 0, 0; anchor: left center; size: 12.5 * u; weight: 600; lines: 1; measure: vclw; opacity: 0; family: "Space Grotesk" }
-    text win.title { at: 0, 0; anchor: left center; size: 11.5 * u; weight: 500; lines: 1; measure: vtiw; opacity: 0; family: "Space Grotesk" }
+        text win.class { at: 0, 0; anchor: left center; size: 15; weight: 600; lines: 1; measure: vclw; opacity: 0; family: "Space Grotesk" }
+    text win.title { at: 0, 0; anchor: left center; size: 14; weight: 500; lines: 1; measure: vtiw; opacity: 0; family: "Space Grotesk" }
     text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; lines: 1; measure: clsw; opacity: 0; family: "Space Grotesk" }
         text win.title { at: floor(win.x + 0.5), floor(bar.y + 8.75 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 500; lines: 1; measure: titw; opacity: 0; family: "Space Grotesk" }
         //  While a player exists its buttons (previous, play, next: 48 wide) sit in this button's top right, beside the app name.
@@ -2107,9 +2108,9 @@ scene Vitreus {
 
         zone box vt_hit { at: lf.x, lv.tm; size: lf.w - 6 * u, max(1, lv.span); cursor: pointer; active: lm > 0.5 and bv.title and lv.span > 20 * u }
         on press vt_hit { panel = if(panel == player, none, player) }
-        zone box vm_prev { at: lf.x, lv.mid + 17 * u; size: 30 * u, 17 * u; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
-        zone box vm_play { at: lf.x, lv.mid; size: 30 * u, 17 * u; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
-        zone box vm_next { at: lf.x, lv.mid - 17 * u; size: 30 * u, 17 * u; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
+        zone box vm_prev { at: lf.x, lv.mid + 17 * cu; size: 30 * cu, 17 * cu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
+        zone box vm_play { at: lf.x, lv.mid; size: 30 * cu, 17 * cu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
+        zone box vm_next { at: lf.x, lv.mid - 17 * cu; size: 30 * cu, 17 * cu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
         on press vm_prev { emit mcmd(0) }
         on press vm_play { emit mcmd(1) }
         on press vm_next { emit mcmd(2) }
@@ -2155,8 +2156,8 @@ scene Vitreus {
         }
         repeat i in 1..6 {
             let wxs = at.ws + (i - 3) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
-            let wys = lv.ws + (i - 3) * 15 * u + room * 0.5 * clamp(i - pill, -1, 1)
-            box ws.dot.$i { at: mix(wxs, lf.x, lm), mix(bar.y, wys, lm); size: mix((6 + 14 * ws.act.$i) * u, (6 + 4 * ws.tall.$i * (1 - ws.act.$i)) * u, lm), mix((6 + 4 * ws.tall.$i * (1 - ws.act.$i)) * u, (6 + 14 * ws.act.$i) * u, lm); corner: 3 * u
+            let wys = lv.ws + (i - 3) * 15 * cu + roomv * 0.5 * clamp(i - pill, -1, 1)
+            box ws.dot.$i { at: mix(wxs, lf.x, lm), mix(bar.y, wys, lm); size: mix((6 + 14 * ws.act.$i) * u, (6 + 4 * ws.tall.$i * (1 - ws.act.$i)) * cu, lm), mix((6 + 4 * ws.tall.$i * (1 - ws.act.$i)) * u, (6 + 14 * ws.act.$i) * cu, lm); corner: mix(3 * u, 3 * cu, lm)
                             color: mix(ink, mint, ws.act.$i); opacity: mix(28% + 62% * ws.tall.$i, 100%, ws.act.$i) * bs.ws }
         }
         //  The player's buttons.
@@ -2177,13 +2178,13 @@ scene Vitreus {
             opacity: mshow * bs.media0 * lm
             pivot: lf.x, lv.mid
             rotate: -90deg
-            box { at: lf.x - 20.5 * u, lv.mid; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * vm_prev.hover }
-            path { at: lf.x - 17 * u, lv.mid; color: ink; opacity: 65% + 35% * vm_prev.hover; move 3 * u, -3.5 * u; line -2.5 * u, 0; line 3 * u, 3.5 * u; close }
-            box { at: lf.x - 3 * u, lv.mid; size: 2.6 * u, 9 * u; corner: 1 * u; color: ink; opacity: 85% + 15% * vm_play.hover; show: media.playing }
-            box { at: lf.x + 3 * u, lv.mid; size: 2.6 * u, 9 * u; corner: 1 * u; color: ink; opacity: 85% + 15% * vm_play.hover; show: media.playing }
-            path { at: lf.x, lv.mid; color: ink; opacity: 85% + 15% * vm_play.hover; show: not media.playing; move -3 * u, -4.5 * u; line 7 * u, 0; line -3 * u, 4.5 * u; close }
-            path { at: lf.x + 17 * u, lv.mid; color: ink; opacity: 65% + 35% * vm_next.hover; move -3 * u, -3.5 * u; line 2.5 * u, 0; line -3 * u, 3.5 * u; close }
-            box { at: lf.x + 20.5 * u, lv.mid; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * vm_next.hover }
+            box { at: lf.x - 20.5 * cu, lv.mid; size: 1.4 * cu, 7 * cu; corner: 0.7 * cu; color: ink; opacity: 65% + 35% * vm_prev.hover }
+            path { at: lf.x - 17 * cu, lv.mid; color: ink; opacity: 65% + 35% * vm_prev.hover; move 3 * cu, -3.5 * cu; line -2.5 * cu, 0; line 3 * cu, 3.5 * cu; close }
+            box { at: lf.x - 3 * cu, lv.mid; size: 2.6 * cu, 9 * cu; corner: 1 * cu; color: ink; opacity: 85% + 15% * vm_play.hover; show: media.playing }
+            box { at: lf.x + 3 * cu, lv.mid; size: 2.6 * cu, 9 * cu; corner: 1 * cu; color: ink; opacity: 85% + 15% * vm_play.hover; show: media.playing }
+            path { at: lf.x, lv.mid; color: ink; opacity: 85% + 15% * vm_play.hover; show: not media.playing; move -3 * cu, -4.5 * cu; line 7 * cu, 0; line -3 * cu, 4.5 * cu; close }
+            path { at: lf.x + 17 * cu, lv.mid; color: ink; opacity: 65% + 35% * vm_next.hover; move -3 * cu, -3.5 * cu; line 2.5 * cu, 0; line -3 * cu, 3.5 * cu; close }
+            box { at: lf.x + 20.5 * cu, lv.mid; size: 1.4 * cu, 7 * cu; corner: 0.7 * cu; color: ink; opacity: 65% + 35% * vm_next.hover }
         }
         //  The settings button: a gear, between the player's buttons and the controls button.
         group {
@@ -2235,16 +2236,16 @@ scene Vitreus {
     //  The window title down the left: the app, and under it (to its right once turned) the title, turned a quarter anticlockwise so that it reads
     //  from the foot up, each centred on the strip's middle line and on the stretch `lv.tm` and cut with an ellipsis where that ends.
     group {
-        pivot: lf.x - 8 * u, lv.tm
+        pivot: lf.x - 9 * cu, lv.tm
         rotate: -90deg
         opacity: lm * bs.title0
-        text win.class { at: floor(lf.x - 8 * u + 0.5), floor(lv.tm + 0.5); anchor: center; align: center; size: 12.5 * u; weight: 600; width: max(1, lv.span); lines: 1; color: faint; opacity: 70%; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        text win.class { at: floor(lf.x - 9 * cu + 0.5), floor(lv.tm + 0.5); anchor: center; align: center; size: 15; weight: 600; width: max(1, lv.span); lines: 1; color: faint; opacity: 70%; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     }
     group {
-        pivot: lf.x + 8 * u, lv.tm
+        pivot: lf.x + 9 * cu, lv.tm
         rotate: -90deg
         opacity: lm * bs.title0
-        text win.title { at: floor(lf.x + 8 * u + 0.5), floor(lv.tm + 0.5); anchor: center; align: center; size: 11.5 * u; weight: 500; width: max(1, lv.span); lines: 1; color: ink; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        text win.title { at: floor(lf.x + 9 * cu + 0.5), floor(lv.tm + 0.5); anchor: center; align: center; size: 14; weight: 500; width: max(1, lv.span); lines: 1; color: ink; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     }
     text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; width: max(0, win.hw - 12 * u - mctl); lines: 1; color: faint; opacity: 55% * bs.title; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     text win.title { at: floor(win.x + 0.5), floor(bar.y + 8.75 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 500; width: max(0, win.hw - 12 * u); lines: 1; color: ink; opacity: bs.title; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
