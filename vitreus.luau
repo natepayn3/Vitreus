@@ -2436,7 +2436,8 @@ local disp_key_seen = nil                 -- the set of connected displays the l
 local disp_trial = 0                      -- seconds left of a change on trial; 0 for none
 local disp_before = nil                   -- the eval that puts back what a change on trial replaced
 local disp_grab = nil                     -- a monitor being dragged on the canvas: { i, dx, dy } in canvas pixels
-local disp_grab_scale, disp_grab_origin = 1, nil   -- how the canvas maps to the desk: set each time it is drawn
+local disp_wp = {}                        -- monitor name -> the wallpaper it shows (what awww says)
+local disp_grab_origin = nil               -- how the canvas maps to the desk (`f` the scale): set each time it is drawn
 
 local function disp_num(n, d) return (string.format("%." .. (d or 2) .. "f", n):gsub("0+$", ""):gsub("%.$", "")) end
 
@@ -2549,10 +2550,24 @@ local function disp_render()
         x0, y0 = math.min(x0, d.x), math.min(y0, d.y)
         x1, y1 = math.max(x1, d.x + w), math.max(y1, d.y + h)
     end
-    local cw, ch, pad = 400, 96, 12
-    local f = math.min((cw - 2 * pad) / math.max(1, x1 - x0), (ch - 2 * pad) / math.max(1, y1 - y0))
-    local ox = (cw - (x1 - x0) * f) / 2
-    local oy = (ch - (y1 - y0) * f) / 2
+    local cw, ch, pad = 400, 190, 12
+    local f, ox, oy
+    if disp_grab and disp_grab_origin then
+        -- while a box is being dragged the canvas holds still: refitting it on every move shifts the ground under
+        -- the pointer, which is what made the drag jump to the top or bottom
+        f, ox, oy, x0, y0 = disp_grab_origin.f, disp_grab_origin.ox, disp_grab_origin.oy, disp_grab_origin.x0, disp_grab_origin.y0
+    else
+        -- room round the monitors (a quarter of the biggest one on each side), so a box can be moved past the others
+        local mw, mh = 0, 0
+        for _, m in ipairs(disp_mons) do
+            local w, h = disp_size(m, disp_draft[m.name])
+            mw, mh = math.max(mw, w), math.max(mh, h)
+        end
+        x0, y0, x1, y1 = x0 - mw / 4, y0 - mh / 4, x1 + mw / 4, y1 + mh / 4
+        f = math.min((cw - 2 * pad) / math.max(1, x1 - x0), (ch - 2 * pad) / math.max(1, y1 - y0))
+        ox = (cw - (x1 - x0) * f) / 2
+        oy = (ch - (y1 - y0) * f) / 2
+    end
     for i = 0, 3 do
         local m = disp_mons[i + 1]
         if not m then
@@ -2569,10 +2584,12 @@ local function disp_render()
             fact["disp_b." .. i .. ".dirty"] = disp_changed(m, d)
             text["disp_b." .. i .. ".name"] = m.name
             text["disp_b." .. i .. ".mode"] = d.res:gsub("x", " × ") .. " · " .. d.hz .. " Hz"
+            text["disp_b." .. i .. ".scale"] = (d.scale == "auto" and "auto" or disp_num(d.scale, 2)) .. "×"
+            text["disp_b." .. i .. ".wp"] = disp_wp[m.name] or ""
+            fact["disp_b." .. i .. ".main"] = d.x == 0 and d.y == 0
         end
     end
-    disp_grab_scale = f
-    disp_grab_origin = { x0 = x0, y0 = y0, ox = ox, oy = oy }
+    disp_grab_origin = { f = f, x0 = x0, y0 = y0, ox = ox, oy = oy }
     -- the selected monitor
     local m = disp_mons[disp_sel]
     local d = disp_draft[m.name]
@@ -2602,7 +2619,7 @@ local function disp_render()
     end
     -- the monitors, for the inspector's pills
     for i = 0, 3 do
-        local mm = disp_mons[i + 1]
+        local mm = disp_mons[4 - i]       -- the slots run right to left, and slot i selects monitor 3 - i (0-based)
         fact["disp_pill." .. i .. ".on"] = mm ~= nil and n > 1
         text["disp_pill." .. i .. ".text"] = mm and mm.name or ""
     end
@@ -2670,6 +2687,17 @@ local function disp_read(done, max_age)
         disp_draft = fresh
         disp_render()
         if done then done() end
+        -- the wallpaper each monitor shows, for the canvas's tiles
+        run("awww", { "query" }, function(o, c)
+            if c ~= 0 or not o then return end
+            local wp = {}
+            for line in o:gmatch("[^\n]+") do
+                local name, path = line:match("^:%s*([^:]+):.-currently displaying: image: (.+)$")
+                if name then wp[name] = path end
+            end
+            disp_wp = wp
+            disp_render()
+        end)
     end)
 end
 
@@ -2814,6 +2842,12 @@ on("disp_pick_hz", function(i)
     end)
 end)
 on("disp_pick_scale", function(i) disp_edit(function(_, d) d.scale = DISP_SCALES[i + 1] or d.scale end) end)
+on("disp_rot_mon", function(i)
+    local m = disp_mons[i + 1]
+    if not m then return end
+    disp_sel = i + 1
+    disp_edit(function(_, d) d.transform = ((d.transform or 0) % 4 + 1) % 4 end)
+end)
 on("disp_pick_rot", function(i) disp_edit(function(_, d) d.transform = i end) end)
 -- The sliders: SDR brightness from 1.0 to 2.0, saturation from 0.9 to 1.1, in hundredths.
 on("disp_sdrb_set", function(t) disp_edit(function(_, d) d.sdrb = math.floor((1 + math.max(0, math.min(1, t))) * 100 + 0.5) / 100 end) end)
@@ -2835,7 +2869,8 @@ on("disp_grab", function()
     if not m or not disp_grab_origin then return end
     disp_sel = i
     local d = disp_draft[m.name]
-    local f, o = disp_grab_scale, disp_grab_origin
+    local o = disp_grab_origin
+    local f = o.f
     disp_grab = { i = i, dx = fact.disp_px - (o.ox + (d.x - o.x0) * f), dy = fact.disp_py - (o.oy + (d.y - o.y0) * f) }
     disp_render()
 end)
@@ -2844,11 +2879,12 @@ on("disp_drag", function()
     local m = disp_mons[disp_grab.i]
     if not m then return end
     local d = disp_draft[m.name]
-    local f, o = disp_grab_scale, disp_grab_origin
+    local o = disp_grab_origin
+    local f = o.f
     local x = o.x0 + (fact.disp_px - disp_grab.dx - o.ox) / f
     local y = o.y0 + (fact.disp_py - disp_grab.dy - o.oy) / f
     local w, h = disp_size(m, d)
-    local snap = 40 / f * 0.4              -- a few canvas pixels, in real ones
+    local snap = 4 / f                     -- four canvas units, in desk pixels: close enough to feel the edge, not to fight the pointer
     for _, other in ipairs(disp_mons) do
         if other ~= m then
             local od = disp_draft[other.name]
