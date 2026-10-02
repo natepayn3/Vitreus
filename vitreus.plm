@@ -453,7 +453,7 @@ scene Vitreus {
     let veil  = 8%
 
     shader wave = file "wave.wgsl"
-    spring dripl = 60, 11         // the drip down the left: slow enough to see the neck stretch, thin and snap
+    spring dripl = 46, 8          // the drip down the left: slow enough to see the neck stretch, thin and snap, and loose enough to swing past where it lands
     spring drip = 170, 18         // underdamped: it overshoots and settles back, like a real drop landing
     spring pop  = 300, 12         // snappier and much less damped: a toggle knob popping past where it lands
 
@@ -558,9 +558,9 @@ scene Vitreus {
     on change drop > 0.97 while drop > 0.97 { impulse sag 220; impulse wobble -260 }
     //  The same moments as in Marea, for the left layout's drop: it lets go (the edge jumps and bounces, two ripples set off, a small drop stays
     //  hanging and is swallowed), it is grabbed on its way back, and the edge closes over it once it has gone in.
-    on change dsl > 0.84 while dsl > 0.84 and lm > 0.5 { impulse pbounce -150; impulse wobble -340; prip: 0 ~16ms; prip: 1 ~900ms after 30ms; pstray: 1 ~16ms; pstray: 0 ~520ms after 60ms }
-    on change dsl < 0.84 while dsl < 0.84 and lm > 0.5 { impulse wobble 190; impulse pbounce 40 }
-    on change dsl < 0.06 while dsl < 0.06 and lm > 0.5 { impulse pbounce -110; impulse wobble -90; prip: 0 ~16ms; prip: 1 ~760ms after 30ms }
+    on change dsl > 0.84 while dsl > 0.84 and lm > 0.5 { impulse pbounce -280; impulse wobble -520; prip: 0 ~16ms; prip: 1 ~1100ms after 30ms; pstray: 1 ~16ms; pstray: 0 ~700ms after 60ms }
+    on change dsl < 0.84 while dsl < 0.84 and lm > 0.5 { impulse wobble 300; impulse pbounce 80 }
+    on change dsl < 0.06 while dsl < 0.06 and lm > 0.5 { impulse pbounce -200; impulse wobble -160; prip: 0 ~16ms; prip: 1 ~900ms after 30ms }
     //  A drawer that has gone back into the bar: the surface closes over it, and a ripple runs out from the
     //  middle of the bar (the same wave the music makes, from another place).
     on change drop < 0.08 while drop < 0.08 and panel == none {
@@ -626,8 +626,8 @@ scene Vitreus {
     prop pw_x = 450 ~90ms
     prop dtrav = 0 ~dripl             // how far a panel has come out of the strip, 0 to 1 (the left layout's own, slow, drop)
     prop pbounce = 0 ~splash          // the strip's edge bouncing when the thread breaks
-    prop prip = 1 ~900ms              // the ripple that runs along the strip's edge, 0 just born, 1 gone
-    prop pstray = 0 ~520ms            // the small drop that is left hanging from the edge
+    prop prip = 1 ~1100ms              // the ripple that runs along the strip's edge, 0 just born, 1 gone
+    prop pstray = 0 ~700ms            // the small drop that is left hanging from the edge
     prop pw_y = 20 ~90ms
     prop rand_spin = 0 ~pop
     prop set_pg = 0 ~calm
@@ -1839,12 +1839,12 @@ scene Vitreus {
     //  speed (`dj.stretch`) and shakes (`wobble`) when it lets go. `dj.y0` is where it comes out: the panel's own vertical middle.
     let dj.out = clamp(dsl, 0, 1)
     let dj.tension = 4 * dj.out * (1 - dj.out)
-    let dj.sag = max((16 * dj.tension + pbounce) * u * lm * (1 - att), 0.3)
-    let dj.neck = 30 * u * 4 * dj.out * (1 - dj.out)
-    let dj.ripx = (10 + 48 * prip) * u
-    let dj.riph = 12 * u * (1 - prip) * clamp(prip * 6, 0, 1) * lm * (1 - att)
-    let dj.stray = 5.5 * u * pstray * lm * (1 - att)
-    let dj.stretch = clamp(vel(dtrav) * 0.04, 0, 0.3) * lm
+    let dj.sag = max((26 * dj.tension + pbounce) * u * lm * (1 - att), 0.3)
+    let dj.neck = 52 * u * 4 * dj.out * (1 - dj.out)
+    let dj.ripx = (12 + 90 * prip) * u
+    let dj.riph = 20 * u * (1 - prip) * clamp(prip * 6, 0, 1) * lm * (1 - att)
+    let dj.stray = 10 * u * pstray * lm * (1 - att)
+    let dj.stretch = clamp(vel(dtrav) * 0.07, 0, 0.5) * lm
     let dj.y0 = lp.sy0
     let dj.ey = if(lp_k == 1, vb - lf.t / 2, yo + lf.t / 2)     // the frame edge a drop comes out of (bottom for Settings, top for the launcher)
     let dj.es = if(lp_k == 1, -1, 1)                                  // and which way the small stray drop hangs from it: up, or down
