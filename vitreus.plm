@@ -1091,7 +1091,7 @@ scene Vitreus {
     //  One number scales the whole shell. The exclusive zone (`reserve` above) is
     //  the bar and a little air: 8 + bar.h + 6.
     let u = 1.35                    // (the icon models are declared at their size times this: 20 → 27, 22 → 30, 26 → 35)
-    let cu = 1.5525                  // u * 1.15: the control center and the calendar are laid out 15% larger than the rest
+    let cu = 1.5525                  // u * 1.15: the control center, the calendar and the player and tray are laid out 15% larger than the rest
     let pu = 1.6875                  // u * 1.25: the Settings and the launcher are laid out 25% larger than the rest, at real size (not zoomed)
     //  One reminder of the chosen day: a circle to tick it off, its time, its words, a cross.
     component CalRow(e: record, tick: event, gone: event) {
@@ -1273,19 +1273,19 @@ scene Vitreus {
     //  bold if it has the keyboard), and a close button that shows while the row is under the pointer.
     //  A press gives it the keyboard; a middle press closes it.
     component TaskRow(t: record, focus: event, kill: event) {
-        size: 288 * u, floor(36 * u + 0.5)          // whole pixels (with the list's gap), so the icon is not drawn between two
-        zone box touch { from: 0, 0; size: 288 * u, 36 * u; corner: 12 * u; cursor: pointer }
-        box { from: 0, 0; size: 288 * u, 36 * u; corner: 12 * u; color: ink; opacity: if(t.active, 11%, 5%) + 8% * touch.hover }
-        image t.icon { at: floor(8 * u + 0.5), floor(7 * u + 0.5); size: floor(22 * u + 0.5), floor(22 * u + 0.5) }
-        text t.title { at: floor(38 * u + 0.5), floor(18 * u + 0.5); anchor: left center; size: 12.5 * u; width: 186 * u; lines: 1; color: ink; family: "Space Grotesk"; show: not t.active }
-        text t.title { at: floor(38 * u + 0.5), floor(18 * u + 0.5); anchor: left center; size: 12.5 * u; weight: 700; width: 186 * u; lines: 1; color: mint; family: "Space Grotesk"; show: t.active }
+        size: 288 * cu, floor(36 * cu + 0.5)          // whole pixels (with the list's gap), so the icon is not drawn between two
+        zone box touch { from: 0, 0; size: 288 * cu, 36 * cu; corner: 12 * cu; cursor: pointer }
+        box { from: 0, 0; size: 288 * cu, 36 * cu; corner: 12 * cu; color: ink; opacity: if(t.active, 11%, 5%) + 8% * touch.hover }
+        image t.icon { at: floor(8 * cu + 0.5), floor(7 * cu + 0.5); size: floor(22 * cu + 0.5), floor(22 * cu + 0.5) }
+        text t.title { at: floor(38 * cu + 0.5), floor(18 * cu + 0.5); anchor: left center; size: 14.5; width: 186 * cu; lines: 1; color: ink; family: "Space Grotesk"; show: not t.active }
+        text t.title { at: floor(38 * cu + 0.5), floor(18 * cu + 0.5); anchor: left center; size: 14.5; weight: 700; width: 186 * cu; lines: 1; color: mint; family: "Space Grotesk"; show: t.active }
         //  Which workspace it is on, in a small pill.
-        box { at: 240 * u, 18 * u; size: 24 * u, 18 * u; corner: 9 * u; color: ink; opacity: 8% }
-        text t.ws { at: floor(240 * u + 0.5), floor(18 * u + 0.5); anchor: center; align: center; size: 10.5 * u; weight: 700; width: 24 * u; lines: 1; color: ink; opacity: 80%; family: "Space Grotesk" }
-        ellipse { at: 268 * u, 18 * u; radius: 10 * u; color: if(close_z.hover, alert, ink); opacity: (if(close_z.hover, 90%, 9%)) * touch.hover }
-        line { from: 264.5 * u, 14.5 * u; to: 271.5 * u, 21.5 * u; width: 1.4 * u; color: ink; opacity: 70% * touch.hover }
-        line { from: 271.5 * u, 14.5 * u; to: 264.5 * u, 21.5 * u; width: 1.4 * u; color: ink; opacity: 70% * touch.hover }
-        zone box close_z { at: 268 * u, 18 * u; size: 22 * u, 22 * u; corner: 11 * u; cursor: pointer }
+        box { at: 240 * cu, 18 * cu; size: 24 * cu, 18 * cu; corner: 9 * cu; color: ink; opacity: 8% }
+        text t.ws { at: floor(240 * cu + 0.5), floor(18 * cu + 0.5); anchor: center; align: center; size: 12; weight: 700; width: 24 * cu; lines: 1; color: ink; opacity: 80%; family: "Space Grotesk" }
+        ellipse { at: 268 * cu, 18 * cu; radius: 10 * cu; color: if(close_z.hover, alert, ink); opacity: (if(close_z.hover, 90%, 9%)) * touch.hover }
+        line { from: 264.5 * cu, 14.5 * cu; to: 271.5 * cu, 21.5 * cu; width: 1.4 * cu; color: ink; opacity: 70% * touch.hover }
+        line { from: 271.5 * cu, 14.5 * cu; to: 264.5 * cu, 21.5 * cu; width: 1.4 * cu; color: ink; opacity: 70% * touch.hover }
+        zone box close_z { at: 268 * cu, 18 * cu; size: 22 * cu, 22 * cu; corner: 11 * cu; cursor: pointer }
         on press touch { emit focus(t.index); panel = none }
         on press middle touch { emit kill(t.index) }
         on press close_z { emit kill(t.index) }
@@ -1337,28 +1337,28 @@ scene Vitreus {
     //  One app that lives in the tray, with no window of its own: its icon and name. A press is what clicking its
     //  icon would do; the dots open its menu, and the pin keeps it on the bar.
     component TrayRow(t: record, click: event, pin: event, menu: event) {
-        size: 288 * u, floor(36 * u + 0.5)          // whole pixels (with the list's gap), so the icon is not drawn between two
-        zone box touch { from: 0, 0; size: 288 * u, 36 * u; corner: 12 * u; cursor: pointer }
-        box { from: 0, 0; size: 288 * u, 36 * u; corner: 12 * u; color: ink; opacity: 5% + 8% * touch.hover }
-        image t.icon { at: floor(8 * u + 0.5), floor(7 * u + 0.5); size: floor(22 * u + 0.5), floor(22 * u + 0.5) }
-        text t.title { at: floor(38 * u + 0.5), floor(18 * u + 0.5); anchor: left center; size: 12.5 * u; width: 184 * u; lines: 1; color: ink; family: "Space Grotesk" }
+        size: 288 * cu, floor(36 * cu + 0.5)          // whole pixels (with the list's gap), so the icon is not drawn between two
+        zone box touch { from: 0, 0; size: 288 * cu, 36 * cu; corner: 12 * cu; cursor: pointer }
+        box { from: 0, 0; size: 288 * cu, 36 * cu; corner: 12 * cu; color: ink; opacity: 5% + 8% * touch.hover }
+        image t.icon { at: floor(8 * cu + 0.5), floor(7 * cu + 0.5); size: floor(22 * cu + 0.5), floor(22 * cu + 0.5) }
+        text t.title { at: floor(38 * cu + 0.5), floor(18 * cu + 0.5); anchor: left center; size: 14.5; width: 184 * cu; lines: 1; color: ink; family: "Space Grotesk" }
         //  Its menu: three dots.
         group {
             show: t.menu
             opacity: 45% + 55% * menu_z.hover
-            ellipse { at: 232 * u, 18 * u; radius: 1.4 * u; color: ink }
-            ellipse { at: 238 * u, 18 * u; radius: 1.4 * u; color: ink }
-            ellipse { at: 244 * u, 18 * u; radius: 1.4 * u; color: ink }
+            ellipse { at: 232 * cu, 18 * cu; radius: 1.4 * cu; color: ink }
+            ellipse { at: 238 * cu, 18 * cu; radius: 1.4 * cu; color: ink }
+            ellipse { at: 244 * cu, 18 * cu; radius: 1.4 * cu; color: ink }
         }
-        zone box menu_z { at: 238 * u, 18 * u; size: 24 * u, 28 * u; corner: 10 * u; cursor: pointer; active: t.menu }
+        zone box menu_z { at: 238 * cu, 18 * cu; size: 24 * cu, 28 * cu; corner: 10 * cu; cursor: pointer; active: t.menu }
         //  The pin: shown on the row under the pointer, and always on a pinned one.
         group {
             opacity: if(t.pinned, 100%, 55% * touch.hover + 25% * pin_z.hover)
-            ellipse { at: 266 * u, 15 * u; radius: 3.6 * u; color: mint; opacity: if(t.pinned, 100%, 0%) }
-            ellipse { at: 266 * u, 15 * u; radius: 3.6 * u; stroke: 1.3 * u; color: ink; opacity: if(t.pinned, 0%, 100%) }
-            line { from: 266 * u, 18.5 * u; to: 266 * u, 24 * u; width: 1.4 * u; color: if(t.pinned, mint, ink) }
+            ellipse { at: 266 * cu, 15 * cu; radius: 3.6 * cu; color: mint; opacity: if(t.pinned, 100%, 0%) }
+            ellipse { at: 266 * cu, 15 * cu; radius: 3.6 * cu; stroke: 1.3 * cu; color: ink; opacity: if(t.pinned, 0%, 100%) }
+            line { from: 266 * cu, 18.5 * cu; to: 266 * cu, 24 * cu; width: 1.4 * cu; color: if(t.pinned, mint, ink) }
         }
-        zone box pin_z { at: 266 * u, 18 * u; size: 22 * u, 28 * u; corner: 10 * u; cursor: pointer }
+        zone box pin_z { at: 266 * cu, 18 * cu; size: 22 * cu, 28 * cu; corner: 10 * cu; cursor: pointer }
         on press touch { emit click(t.index); panel = none }
         on press menu_z { emit menu(t.index) }
         on press pin_z { emit pin(t.index) }
@@ -1367,13 +1367,13 @@ scene Vitreus {
     //  One entry of a tray app's menu: a check if it is ticked, its label (in a step for each level of submenu
     //  it is under), and an arrow if it opens more. A separator is a line.
     component TmRow(r: record, pick: event) {
-        size: 288 * u, floor(if(r.sep, 10, 28) * u + 0.5)
-        zone box touch { from: 0, 0; size: 288 * u, 28 * u; corner: 9 * u; cursor: pointer; active: r.enabled and not r.sep }
-        box { from: 0, 0; size: 288 * u, 28 * u; corner: 9 * u; color: ink; opacity: if(r.sep, 0%, 9% * touch.hover) }
-        box { at: 144 * u, 5 * u; size: 264 * u, 1 * u; color: ink; opacity: if(r.sep, 12%, 0%) }
-        path { at: 15 * u, 14 * u; stroke: 1.6 * u; color: mint; opacity: if(r.checked, 100%, 0%); move -3.5 * u, 0.5 * u; line -1 * u, 3 * u; line 4 * u, -3.5 * u }
-        text r.label { at: floor((30 + r.depth * 14) * u + 0.5), floor(14 * u + 0.5); anchor: left center; size: 12.5 * u; width: (226 - r.depth * 14) * u; lines: 1; color: ink; opacity: if(r.enabled, 100%, 40%); show: not r.sep; family: "Space Grotesk" }
-        path { at: 274 * u, 14 * u; stroke: 1.5 * u; color: ink; rotate: if(r.open, 90deg, 0deg); opacity: if(r.kids, 60%, 0%); move -2 * u, -3.5 * u; line 2 * u, 0; line -2 * u, 3.5 * u }
+        size: 288 * cu, floor(if(r.sep, 10, 28) * cu + 0.5)
+        zone box touch { from: 0, 0; size: 288 * cu, 28 * cu; corner: 9 * cu; cursor: pointer; active: r.enabled and not r.sep }
+        box { from: 0, 0; size: 288 * cu, 28 * cu; corner: 9 * cu; color: ink; opacity: if(r.sep, 0%, 9% * touch.hover) }
+        box { at: 144 * cu, 5 * cu; size: 264 * cu, 1 * cu; color: ink; opacity: if(r.sep, 12%, 0%) }
+        path { at: 15 * cu, 14 * cu; stroke: 1.6 * cu; color: mint; opacity: if(r.checked, 100%, 0%); move -3.5 * cu, 0.5 * cu; line -1 * cu, 3 * cu; line 4 * cu, -3.5 * cu }
+        text r.label { at: floor((30 + r.depth * 14) * cu + 0.5), floor(14 * cu + 0.5); anchor: left center; size: 14.5; width: (226 - r.depth * 14) * cu; lines: 1; color: ink; opacity: if(r.enabled, 100%, 40%); show: not r.sep; family: "Space Grotesk" }
+        path { at: 274 * cu, 14 * cu; stroke: 1.5 * cu; color: ink; rotate: if(r.open, 90deg, 0deg); opacity: if(r.kids, 60%, 0%); move -2 * cu, -3.5 * cu; line 2 * cu, 0; line -2 * cu, 3.5 * cu }
         on press touch { emit pick(r.index) }
     }
 
@@ -1539,7 +1539,7 @@ scene Vitreus {
     let rgt = if(lp_k > 6, 1, 0)                                    // the volume and the notifications come out of the right frame, not the strip, and grow leftwards
     let edg = if(lp_k == 1 or lp_k == 2, 1, 0)                      // Settings rises out of the bottom frame's middle, the launcher lowers out of the top frame's: not from the strip
     let dsl = max(0, dtrav * 1.3 - 0.3)
-    let ku = if(lp_k == 1 or lp_k == 2, pu, if(lp_k == 3 or lp_k == 4, cu, u))                      // the unit of the panel that is open: the Settings and the launcher are larger
+    let ku = if(lp_k == 1 or lp_k == 2, pu, if(lp_k >= 3 and lp_k <= 6, cu, u))                      // the unit of the panel that is open: the Settings and the launcher are larger
     let lp.gx0 = lf.x
     let lp.gxf = ccx - (pw_x / 2 + 6.5) * ku
     let lp.xl = mix(lp.gx0 + (lp.gxf - lp.gx0) * dsl, lf.x, att)
@@ -1786,7 +1786,7 @@ scene Vitreus {
     let dl.top = mix(bar.y, bar.y - bar.h / 2, dl.f)
     let os.w = (120 + 220 * (min(1, do0 * 1.6) + max(0, do0 - 1) * 0.6)) * u
     let os.hh = bar.h / 2 + (8 + osd_h + 16) * u * do0 + max(0, sag)
-    let dm.w = (120 + 192 * (min(1, dm0 * 1.6) + max(0, dm0 - 1) * 0.6)) * u
+    let dm.w = (120 + 192 * (min(1, dm0 * 1.6) + max(0, dm0 - 1) * 0.6)) * cu
     //  Under the player's plate, the running windows and then the tray apps, each a header and rows, scrolling past a few.
     let task_rows = min(max(1, tasks.count), 6)
     let tasks_top = media_bot + 8
@@ -1799,7 +1799,7 @@ scene Vitreus {
     //  The tray menu: the app's plate (8..60), Open and Alt (66..92), then its menu from 100 (or a line saying it has none).
     let tm.list = min(tm_h, 224)
     let tm_bot = 100 + if(tm_has_menu, tm.list, 30) + 8
-    let dm.hh = bar.h / 2 + (if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * u * dm0 + max(0, sag)
+    let dm.hh = bar.h / 2 + (if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * cu * dm0 + max(0, sag)
     let mdx = pcx
     //  Down the left, where the open panel is (`lp_k`: which was opened last), in its own coordinates: it ends up in the middle of the screen,
     //  except the volume, which is low, and the notification, which is high. It leaves the strip at the height of its button (`lp.btn`; the volume
@@ -1809,7 +1809,7 @@ scene Vitreus {
     //  `lp.dy` and the drawer made `lp.dd` taller to make them 18.5 all round (Settings included).
     let lp.dy = if(lp_k == 1, 4.5, if(lp_k == 2 or lp_k == 3 or lp_k == 5 or lp_k == 6 or lp_k == 7 or lp_k == 8, 6.5, if(lp_k == 4, -0.5, 0))) * ku * lm
     let lp.dd = if(lp_k == 1, 11, if(lp_k == 2, 11, if(lp_k == 3 or lp_k == 5 or lp_k == 6 or lp_k == 7 or lp_k == 8, 13, if(lp_k == 4, 6, 0)))) * ku * lm
-    let lp.hd = (if(lp_k == 1, (8 + 36 + 8 + set.h + 16) * pu, if(lp_k == 2, (112 + lr * 44) * pu, if(lp_k == 3, (content_bot + 16) * cu, if(lp_k == 4, 373 * cu, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * u, (8 + osd_h + 16) * u)))))) + lp.dd
+    let lp.hd = (if(lp_k == 1, (8 + 36 + 8 + set.h + 16) * pu, if(lp_k == 2, (112 + lr * 44) * pu, if(lp_k == 3, (content_bot + 16) * cu, if(lp_k == 4, 373 * cu, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * cu, (8 + osd_h + 16) * u)))))) + lp.dd
     //  Where it settles, as drawn (`ty`): Settings low, the launcher high, a good way from the middle, and clear of the frame; then back to the panel's
     //  own coordinates (the contents are scaled about the middle of the screen).
     let lp.ty = if(lp_k == 1, min(vc + 190 * u, vb - lf.t - 24 * u - lp.hd / 2), max(vc - 210 * u, yo + lf.t + 24 * u + lp.hd / 2))
@@ -1909,9 +1909,9 @@ scene Vitreus {
     let do.ey = mix(bar.y + os.hh / 2, lp.cy, lm)
     let dm.gl = mix(min(dtrav, dm0), dm0, att)
     let dm.lf = mix(min(1, dm0 * 1.6) + max(0, dm0 - 1) * 0.6, min(1, dm.gl * 1.6) + max(0, dm.gl - 1) * 0.6, lm)
-    let dm.rt = mix(2 * (156 + 6.5) * u, (lf.w - lf.x) + 325 * u, att)
+    let dm.rt = mix(2 * (156 + 6.5) * cu, (lf.w - lf.x) + 325 * cu, att)
     let dm.gw = max(0.1, dm.rt * dm.lf)
-    let dm.gh = (((if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * u) + lp.dd + max(0, sag)) * dm.lf
+    let dm.gh = (((if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * cu) + lp.dd + max(0, sag)) * dm.lf
     let dm.gx = mix(lp.xl + dm.gw / 2, ccx, edg)
     let dm.ew = mix(dm.w, dm.gw, lm)
     let dm.eh = mix(dm.hh, dm.gh, lm)
@@ -3025,7 +3025,7 @@ scene Vitreus {
     //  The player's panel: it hangs from the window title, not from the middle of the bar, in
     //  the same glass as the bar. Its content is clipped to the drawer's shape.
     group {
-        clip inset 2 box { at: mix(pcx, dm.gx, lm), mix(bar.y + dm.hh / 2, lp.cy, lm); size: mix(dm.w, dm.gw, lm), mix(dm.hh, dm.gh, lm); corner: 26 * u }
+        clip inset 2 box { at: mix(pcx, dm.gx, lm), mix(bar.y + dm.hh / 2, lp.cy, lm); size: mix(dm.w, dm.gw, lm), mix(dm.hh, dm.gh, lm); corner: 26 * cu }
         //  The player. A sliver with nothing playing — a note and a word, the same
         //  shape as the Wi-Fi and Bluetooth rows below it — that grows into the full
         //  card (cover, song, transport, equalizer) the moment something does.
@@ -3034,17 +3034,17 @@ scene Vitreus {
         group {
             show: dm_mode == dmm_player
             opacity: f3
-            move: 0, (1 - f3) * 12 * u
-            let my = ck + (media_top + media_h / 2) * u
-            let ax = mdx - 96 * u                     // the cover's centre
-            let ny = my + 26 * u                     // the controls' row
-            let px = mdx - 30 * u                     // previous
-            let cxp = mdx + 6 * u                     // play
-            let nx = mdx + 42 * u                     // next
+            move: 0, (1 - f3) * 12 * cu
+            let my = ck + (media_top + media_h / 2) * cu
+            let ax = mdx - 96 * cu                     // the cover's centre
+            let ny = my + 26 * cu                     // the controls' row
+            let px = mdx - 30 * cu                     // previous
+            let cxp = mdx + 6 * cu                     // play
+            let nx = mdx + 42 * cu                     // next
             let sw = clamp(swap, 0, 1.12)
 
             //  The plate is exactly the volume plate: the same 8% veil and the same corners.
-            box { at: mdx, my; size: 288 * u, media_h * u; corner: 14 * u; color: ink; opacity: veil }
+            box { at: mdx, my; size: 288 * cu, media_h * cu; corner: 14 * cu; color: ink; opacity: veil }
 
             //  Idle: a note, the way Wi-Fi and Bluetooth say their own name at rest.
             group {
@@ -3052,12 +3052,12 @@ scene Vitreus {
                 //  A note with a flag: solid parts, faded together so the overlaps do not show.
                 group {
                     opacity: 70%
-                    ellipse { at: mdx - 124 * u + 1.5, my + 5 * u; radius: 4.5 * u; color: ink }
-                    box { at: mdx - 118.5 * u - 1.5, my - 1 * u; size: 2 * u, 18 * u; corner: 1 * u; color: ink }
-                    path { at: mdx - 118.5 * u - 1.5, my - 10 * u; stroke: 2 * u; color: ink; move 0, 0.5 * u; curve 6 * u, 8 * u via 6.5 * u, 2.5 * u }
+                    ellipse { at: mdx - 124 * cu + 1.5, my + 5 * cu; radius: 4.5 * cu; color: ink }
+                    box { at: mdx - 118.5 * cu - 1.5, my - 1 * cu; size: 2 * cu, 18 * cu; corner: 1 * cu; color: ink }
+                    path { at: mdx - 118.5 * cu - 1.5, my - 10 * cu; stroke: 2 * cu; color: ink; move 0, 0.5 * cu; curve 6 * cu, 8 * cu via 6.5 * cu, 2.5 * cu }
                 }
-                text "Media" { at: floor(mdx - 96 * u + 0.5), floor(my - 8 * u + 0.5); anchor: left center; size: 14 * u; color: ink; family: "Space Grotesk" }
-                text "Nothing playing" { at: floor(mdx - 96 * u + 0.5), floor(my + 8 * u + 0.5); anchor: left center; size: 12 * u; color: faint; family: "Space Grotesk" }
+                text "Media" { at: floor(mdx - 96 * cu + 0.5), floor(my - 8 * cu + 0.5); anchor: left center; size: 16; color: ink; family: "Space Grotesk" }
+                text "Nothing playing" { at: floor(mdx - 96 * cu + 0.5), floor(my + 8 * cu + 0.5); anchor: left center; size: 14; color: faint; family: "Space Grotesk" }
             }
 
             //  Playing, or paused with something loaded: the full card.
@@ -3068,47 +3068,47 @@ scene Vitreus {
                 group {
                     show: not art_on
                     body {
-                        gradient: ax - 36 * u, my - 36 * u to ax + 36 * u, my + 36 * u, off, deep
+                        gradient: ax - 36 * cu, my - 36 * cu to ax + 36 * cu, my + 36 * cu, off, deep
                         rim: 14%
-                        box { at: ax, my; size: 72 * u, 72 * u; corner: 15 * u }
+                        box { at: ax, my; size: 72 * cu, 72 * cu; corner: 15 * cu }
                     }
-                    ellipse { at: ax - 6 * u, my + 11 * u; radius: 6.5 * u; color: ink; opacity: 75% }
-                    box { at: ax + 1.5 * u, my - 4 * u; size: 3 * u, 30 * u; corner: 1.5 * u; color: ink; opacity: 75% }
-                    path { at: ax, my; stroke: 3 * u; color: ink; opacity: 75%; move 3 * u, -19 * u; curve 15 * u, -6 * u via 13 * u, -17 * u }
+                    ellipse { at: ax - 6 * cu, my + 11 * cu; radius: 6.5 * cu; color: ink; opacity: 75% }
+                    box { at: ax + 1.5 * cu, my - 4 * cu; size: 3 * cu, 30 * cu; corner: 1.5 * cu; color: ink; opacity: 75% }
+                    path { at: ax, my; stroke: 3 * cu; color: ink; opacity: 75%; move 3 * cu, -19 * cu; curve 15 * cu, -6 * cu via 13 * cu, -17 * cu }
                 }
 
                 //  The cover, in a rounded tile.
                 group {
-                    glow: 12 * u, 60%
+                    glow: 12 * cu, 60%
                     saturation: 0.3 + 0.7 * playf
                     pivot: ax, my
                     scale: (0.88 + 0.12 * playf) * (0.7 + 0.3 * sw)
                     rotate: (1 - sw) * -12deg
                     opacity: art_on
                     group {
-                        clip inset 0 box { at: ax, my; size: 72 * u, 72 * u; corner: 15 * u }
-                        image art { at: ax - 36 * u, my - 36 * u; size: 72 * u, 72 * u }
+                        clip inset 0 box { at: ax, my; size: 72 * cu, 72 * cu; corner: 15 * cu }
+                        image art { at: ax - 36 * cu, my - 36 * cu; size: 72 * cu, 72 * cu }
                     }
                 }
 
-                text media.title { at: floor(mdx - 50 * u + 0.5), floor(my - 24 * u + 0.5); anchor: left center; size: 14.5 * u; weight: 700; width: 186 * u; lines: 1; color: ink; family: "Space Grotesk" }
-                text media.artist { at: floor(mdx - 50 * u + 0.5), floor(my - 6 * u + 0.5); anchor: left center; size: 12 * u; width: 186 * u; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk" }
+                text media.title { at: floor(mdx - 50 * cu + 0.5), floor(my - 24 * cu + 0.5); anchor: left center; size: 16.5; weight: 700; width: 186 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+                text media.artist { at: floor(mdx - 50 * cu + 0.5), floor(my - 6 * cu + 0.5); anchor: left center; size: 14; width: 186 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk" }
 
                 //  previous
-                box { at: px - 6 * u, ny; size: 2.2 * u, 12 * u; corner: 1.1 * u; color: ink; opacity: 75% + 25% * mp.prev.hover }
-                path { at: px, ny; color: ink; opacity: 75% + 25% * mp.prev.hover; move 5 * u, -6 * u; line -4.5 * u, 0; line 5 * u, 6 * u; close }
+                box { at: px - 6 * cu, ny; size: 2.2 * cu, 12 * cu; corner: 1.1 * cu; color: ink; opacity: 75% + 25% * mp.prev.hover }
+                path { at: px, ny; color: ink; opacity: 75% + 25% * mp.prev.hover; move 5 * cu, -6 * cu; line -4.5 * cu, 0; line 5 * cu, 6 * cu; close }
                 //  play / pause: a white disc with the mark cut out of it
-                ellipse { at: cxp, ny; radius: (15 + 1.5 * mp.play.hover) * u; color: ink; opacity: 95% }
-                path { at: cxp, ny; color: onmint; show: not media.playing; move -4 * u, -8 * u; line 8 * u, 0; line -4 * u, 8 * u; close }
-                box { at: cxp - 4 * u, ny; size: 4 * u, 14 * u; corner: 1.5 * u; color: onmint; show: media.playing }
-                box { at: cxp + 4 * u, ny; size: 4 * u, 14 * u; corner: 1.5 * u; color: onmint; show: media.playing }
+                ellipse { at: cxp, ny; radius: (15 + 1.5 * mp.play.hover) * cu; color: ink; opacity: 95% }
+                path { at: cxp, ny; color: onmint; show: not media.playing; move -4 * cu, -8 * cu; line 8 * cu, 0; line -4 * cu, 8 * cu; close }
+                box { at: cxp - 4 * cu, ny; size: 4 * cu, 14 * cu; corner: 1.5 * cu; color: onmint; show: media.playing }
+                box { at: cxp + 4 * cu, ny; size: 4 * cu, 14 * cu; corner: 1.5 * cu; color: onmint; show: media.playing }
                 //  next
-                path { at: nx, ny; color: ink; opacity: 75% + 25% * mp.next.hover; move -5 * u, -6 * u; line 4.5 * u, 0; line -5 * u, 6 * u; close }
-                box { at: nx + 6 * u, ny; size: 2.2 * u, 12 * u; corner: 1.1 * u; color: ink; opacity: 75% + 25% * mp.next.hover }
+                path { at: nx, ny; color: ink; opacity: 75% + 25% * mp.next.hover; move -5 * cu, -6 * cu; line 4.5 * cu, 0; line -5 * cu, 6 * cu; close }
+                box { at: nx + 6 * cu, ny; size: 2.2 * cu, 12 * cu; corner: 1.1 * cu; color: ink; opacity: 75% + 25% * mp.next.hover }
 
-                zone box mp.prev { at: px, ny; size: 30 * u, 34 * u; cursor: pointer }
-                zone box mp.play { at: cxp, ny; size: 38 * u, 38 * u; cursor: pointer }
-                zone box mp.next { at: nx, ny; size: 30 * u, 34 * u; cursor: pointer }
+                zone box mp.prev { at: px, ny; size: 30 * cu, 34 * cu; cursor: pointer }
+                zone box mp.play { at: cxp, ny; size: 38 * cu, 38 * cu; cursor: pointer }
+                zone box mp.next { at: nx, ny; size: 30 * cu, 34 * cu; cursor: pointer }
                 on press mp.prev { emit mcmd(0) }
                 on press mp.play { emit mcmd(1) }
                 on press mp.next { emit mcmd(2) }
@@ -3116,9 +3116,9 @@ scene Vitreus {
                 //  The equalizer: six rounded bars to the right of the controls, standing on the
                 //  same line as the bottom of the cover. They only show while it plays.
                 repeat i in 0..6 {
-                    let bx = mdx + 74 * u + i * 12 * u
-                    let bh = (3.5 + 31 * spec.s.$i) * u
-                    box { at: bx, my + 36 * u - bh / 2; size: 7 * u, bh; corner: 3.5 * u; color: mix(mint, ink, spec.s.$i)
+                    let bx = mdx + 74 * cu + i * 12 * cu
+                    let bh = (3.5 + 31 * spec.s.$i) * cu
+                    box { at: bx, my + 36 * cu - bh / 2; size: 7 * cu, bh; corner: 3.5 * cu; color: mix(mint, ink, spec.s.$i)
                           opacity: playf * (55% + 45% * spec.s.$i) }
                 }
             }
@@ -3131,33 +3131,33 @@ scene Vitreus {
         group {
             show: dm_mode == dmm_player
             opacity: f3
-            move: 0, (1 - f3) * 12 * u
-            text "No active windows" { at: floor(mdx + 0.5), floor(ck + tasks_list * u + 16 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: tasks.count < 1 }
+            move: 0, (1 - f3) * 12 * cu
+            text "No active windows" { at: floor(mdx + 0.5), floor(ck + tasks_list * cu + 16 * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: tasks.count < 1 }
             column task_col {
-                at: floor(mdx - 144 * u + 0.5), floor(ck + tasks_list * u + 0.5)
-                view: 288 * u, (task_rows * 40 - 4) * u
-                gap: floor(4 * u + 0.5)
+                at: floor(mdx - 144 * cu + 0.5), floor(ck + tasks_list * cu + 0.5)
+                view: 288 * cu, (task_rows * 40 - 4) * cu
+                gap: floor(4 * cu + 0.5)
                 for w in tasks { TaskRow(w, focus: task_focus, kill: task_close) }
             }
             //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
-            box { from: mdx + 147 * u, ck + tasks_list * u + task_col.scroll / max(task_col.content, 1) * ((task_rows * 40 - 4) * u); size: 3 * u, ((task_rows * 40 - 4) * u) * ((task_rows * 40 - 4) * u) / max(task_col.content, (task_rows * 40 - 4) * u); corner: 1.5 * u; color: ink; opacity: if(task_col.content > ((task_rows * 40 - 4) * u) + 1, 35%, 0%) }
+            box { from: mdx + 147 * cu, ck + tasks_list * cu + task_col.scroll / max(task_col.content, 1) * ((task_rows * 40 - 4) * cu); size: 3 * cu, ((task_rows * 40 - 4) * cu) * ((task_rows * 40 - 4) * cu) / max(task_col.content, (task_rows * 40 - 4) * cu); corner: 1.5 * cu; color: ink; opacity: if(task_col.content > ((task_rows * 40 - 4) * cu) + 1, 35%, 0%) }
             //  The apps that only live in the tray: no window to list, so they get their own section.
             group {
                 show: trays.count > 0
-                text "BACKGROUND APPS" { at: floor(mdx - 138 * u + 0.5), floor(ck + tray_top * u + 11 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 700; color: ink; family: "Space Grotesk" }
+                text "BACKGROUND APPS" { at: floor(mdx - 138 * cu + 0.5), floor(ck + tray_top * cu + 11 * cu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
                 column tray_col {
-                    at: floor(mdx - 144 * u + 0.5), floor(ck + tray_list * u + 0.5)
-                    view: 288 * u, (max(1, tray_rows) * 40 - 4) * u
-                    gap: floor(4 * u + 0.5)
+                    at: floor(mdx - 144 * cu + 0.5), floor(ck + tray_list * cu + 0.5)
+                    view: 288 * cu, (max(1, tray_rows) * 40 - 4) * cu
+                    gap: floor(4 * cu + 0.5)
                     for a in trays { TrayRow(a, click: tray_click, pin: tray_pin, menu: tray_menu_open) }
                 }
                 //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
-                box { from: mdx + 147 * u, ck + tray_list * u + tray_col.scroll / max(tray_col.content, 1) * ((max(1, tray_rows) * 40 - 4) * u); size: 3 * u, ((max(1, tray_rows) * 40 - 4) * u) * ((max(1, tray_rows) * 40 - 4) * u) / max(tray_col.content, (max(1, tray_rows) * 40 - 4) * u); corner: 1.5 * u; color: ink; opacity: if(tray_col.content > ((max(1, tray_rows) * 40 - 4) * u) + 1, 35%, 0%) }
+                box { from: mdx + 147 * cu, ck + tray_list * cu + tray_col.scroll / max(tray_col.content, 1) * ((max(1, tray_rows) * 40 - 4) * cu); size: 3 * cu, ((max(1, tray_rows) * 40 - 4) * cu) * ((max(1, tray_rows) * 40 - 4) * cu) / max(tray_col.content, (max(1, tray_rows) * 40 - 4) * cu); corner: 1.5 * cu; color: ink; opacity: if(tray_col.content > ((max(1, tray_rows) * 40 - 4) * cu) + 1, 35%, 0%) }
                 //  What the bar shows of them: every app, or only the pinned ones.
-                box { at: mdx + 96 * u, ck + tray_top * u + 11 * u; size: 86 * u, 20 * u; corner: 10 * u; color: if(tray_only_pinned, mint, ink); opacity: if(tray_only_pinned, 22%, 8% + 10% * tray_mode_hit.hover) }
-                text "Bar: pinned" { at: floor(mdx + 96 * u + 0.5), floor(ck + tray_top * u + 11 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 82 * u; lines: 1; color: mint; show: tray_only_pinned; family: "Space Grotesk" }
-                text "Bar: all" { at: floor(mdx + 96 * u + 0.5), floor(ck + tray_top * u + 11 * u + 0.5); anchor: center; align: center; size: 10 * u; weight: 600; width: 82 * u; lines: 1; color: ink; opacity: 85%; show: not tray_only_pinned; family: "Space Grotesk" }
-                zone box tray_mode_hit { at: mdx + 96 * u, ck + tray_top * u + 11 * u; size: 88 * u, 22 * u; corner: 11 * u; cursor: pointer }
+                box { at: mdx + 96 * cu, ck + tray_top * cu + 11 * cu; size: 86 * cu, 20 * cu; corner: 10 * cu; color: if(tray_only_pinned, mint, ink); opacity: if(tray_only_pinned, 22%, 8% + 10% * tray_mode_hit.hover) }
+                text "Bar: pinned" { at: floor(mdx + 96 * cu + 0.5), floor(ck + tray_top * cu + 11 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 82 * cu; lines: 1; color: mint; show: tray_only_pinned; family: "Space Grotesk" }
+                text "Bar: all" { at: floor(mdx + 96 * cu + 0.5), floor(ck + tray_top * cu + 11 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 82 * cu; lines: 1; color: ink; opacity: 85%; show: not tray_only_pinned; family: "Space Grotesk" }
+                zone box tray_mode_hit { at: mdx + 96 * cu, ck + tray_top * cu + 11 * cu; size: 88 * cu, 22 * cu; corner: 11 * cu; cursor: pointer }
                 on press tray_mode_hit { emit tray_mode }
             }
         }
@@ -3166,38 +3166,38 @@ scene Vitreus {
         group {
             show: dm_mode == dmm_tray
             opacity: f3
-            move: 0, (1 - f3) * 12 * u
-            let ty = ck + 34 * u                           // the app plate's middle
-            box { at: mdx, ty; size: 288 * u, 52 * u; corner: 14 * u; color: ink; opacity: veil }
-            image tm_icon { at: floor(mdx - 132 * u + 0.5), floor(ty - 15 * u + 0.5); size: floor(30 * u + 0.5), floor(30 * u + 0.5) }
-            text tm_title { at: floor(mdx - 94 * u + 0.5), floor(ty - 8 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 700; width: 170 * u; lines: 1; color: ink; family: "Space Grotesk" }
-            text tm_sub { at: floor(mdx - 94 * u + 0.5), floor(ty + 9 * u + 0.5); anchor: left center; size: 10.5 * u; width: 170 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            move: 0, (1 - f3) * 12 * cu
+            let ty = ck + 34 * cu                           // the app plate's middle
+            box { at: mdx, ty; size: 288 * cu, 52 * cu; corner: 14 * cu; color: ink; opacity: veil }
+            image tm_icon { at: floor(mdx - 132 * cu + 0.5), floor(ty - 15 * cu + 0.5); size: floor(30 * cu + 0.5), floor(30 * cu + 0.5) }
+            text tm_title { at: floor(mdx - 94 * cu + 0.5), floor(ty - 8 * cu + 0.5); anchor: left center; size: 15.5; weight: 700; width: 170 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+            text tm_sub { at: floor(mdx - 94 * cu + 0.5), floor(ty + 9 * cu + 0.5); anchor: left center; size: 12; width: 170 * cu; lines: 1; color: faint; family: "Space Grotesk" }
             //  The pin: a thumbtack, filled while the app is kept on the bar.
-            ellipse { at: mdx + 122 * u, ty; radius: 14 * u; color: ink; opacity: 6% + 10% * tm_pin_hit.hover }
-            ellipse { at: mdx + 122 * u, ty - 3 * u; radius: 4 * u; color: mix(ink, mint, if(tm_pinned, 1, 0)); opacity: if(tm_pinned, 100%, 0%) }
-            ellipse { at: mdx + 122 * u, ty - 3 * u; radius: 4 * u; stroke: 1.4 * u; color: mix(ink, mint, if(tm_pinned, 1, 0)); opacity: if(tm_pinned, 0%, 70%) }
-            line { from: mdx + 122 * u, ty + 1 * u; to: mdx + 122 * u, ty + 7 * u; width: 1.5 * u; color: mix(ink, mint, if(tm_pinned, 1, 0)); opacity: if(tm_pinned, 100%, 70%) }
-            zone box tm_pin_hit { at: mdx + 122 * u, ty; size: 28 * u, 28 * u; corner: 14 * u; cursor: pointer }
+            ellipse { at: mdx + 122 * cu, ty; radius: 14 * cu; color: ink; opacity: 6% + 10% * tm_pin_hit.hover }
+            ellipse { at: mdx + 122 * cu, ty - 3 * cu; radius: 4 * cu; color: mix(ink, mint, if(tm_pinned, 1, 0)); opacity: if(tm_pinned, 100%, 0%) }
+            ellipse { at: mdx + 122 * cu, ty - 3 * cu; radius: 4 * cu; stroke: 1.4 * cu; color: mix(ink, mint, if(tm_pinned, 1, 0)); opacity: if(tm_pinned, 0%, 70%) }
+            line { from: mdx + 122 * cu, ty + 1 * cu; to: mdx + 122 * cu, ty + 7 * cu; width: 1.5 * cu; color: mix(ink, mint, if(tm_pinned, 1, 0)); opacity: if(tm_pinned, 100%, 70%) }
+            zone box tm_pin_hit { at: mdx + 122 * cu, ty; size: 28 * cu, 28 * cu; corner: 14 * cu; cursor: pointer }
             on press tm_pin_hit { emit tm_pin }
             //  Open and Alt: what a left and a middle click on its icon would do.
-            box { at: mdx - 71 * u, ck + 79 * u; size: 138 * u, 26 * u; corner: 9 * u; color: ink; opacity: 8% + 10% * tm_open_hit.hover }
-            text "Open" { at: floor(mdx - 71 * u + 0.5), floor(ck + 79 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 600; width: 130 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
-            zone box tm_open_hit { at: mdx - 71 * u, ck + 79 * u; size: 140 * u, 28 * u; corner: 9 * u; cursor: pointer }
+            box { at: mdx - 71 * cu, ck + 79 * cu; size: 138 * cu, 26 * cu; corner: 9 * cu; color: ink; opacity: 8% + 10% * tm_open_hit.hover }
+            text "Open" { at: floor(mdx - 71 * cu + 0.5), floor(ck + 79 * cu + 0.5); anchor: center; align: center; size: 12.5; weight: 600; width: 130 * cu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
+            zone box tm_open_hit { at: mdx - 71 * cu, ck + 79 * cu; size: 140 * cu, 28 * cu; corner: 9 * cu; cursor: pointer }
             on press tm_open_hit { emit tm_open }
-            box { at: mdx + 71 * u, ck + 79 * u; size: 138 * u, 26 * u; corner: 9 * u; color: ink; opacity: 8% + 10% * tm_alt_hit.hover }
-            text "Alt" { at: floor(mdx + 71 * u + 0.5), floor(ck + 79 * u + 0.5); anchor: center; align: center; size: 11 * u; weight: 600; width: 130 * u; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
-            zone box tm_alt_hit { at: mdx + 71 * u, ck + 79 * u; size: 140 * u, 28 * u; corner: 9 * u; cursor: pointer }
+            box { at: mdx + 71 * cu, ck + 79 * cu; size: 138 * cu, 26 * cu; corner: 9 * cu; color: ink; opacity: 8% + 10% * tm_alt_hit.hover }
+            text "Alt" { at: floor(mdx + 71 * cu + 0.5), floor(ck + 79 * cu + 0.5); anchor: center; align: center; size: 12.5; weight: 600; width: 130 * cu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
+            zone box tm_alt_hit { at: mdx + 71 * cu, ck + 79 * cu; size: 140 * cu, 28 * cu; corner: 9 * cu; cursor: pointer }
             on press tm_alt_hit { emit tm_alt }
             //  Its menu.
-            text "This app provides no menu." { at: floor(mdx + 0.5), floor(ck + 115 * u + 0.5); anchor: center; size: 12 * u; color: faint; family: "Space Grotesk"; show: not tm_has_menu }
+            text "This app provides no menu." { at: floor(mdx + 0.5), floor(ck + 115 * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: not tm_has_menu }
             column tm_col {
-                at: floor(mdx - 144 * u + 0.5), floor(ck + 100 * u + 0.5)
-                view: 288 * u, tm.list * u
-                gap: floor(2 * u + 0.5)
+                at: floor(mdx - 144 * cu + 0.5), floor(ck + 100 * cu + 0.5)
+                view: 288 * cu, tm.list * cu
+                gap: floor(2 * cu + 0.5)
                 for r in tray_menu { TmRow(r, pick: tray_menu_pick) }
             }
             //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
-            box { from: mdx + 147 * u, ck + 100 * u + tm_col.scroll / max(tm_col.content, 1) * (tm.list * u); size: 3 * u, (tm.list * u) * (tm.list * u) / max(tm_col.content, tm.list * u); corner: 1.5 * u; color: ink; opacity: if(tm_col.content > (tm.list * u) + 1, 35%, 0%) }
+            box { from: mdx + 147 * cu, ck + 100 * cu + tm_col.scroll / max(tm_col.content, 1) * (tm.list * cu); size: 3 * cu, (tm.list * cu) * (tm.list * cu) / max(tm_col.content, tm.list * cu); corner: 1.5 * cu; color: ink; opacity: if(tm_col.content > (tm.list * cu) + 1, 35%, 0%) }
         }
 
     }
