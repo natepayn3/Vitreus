@@ -512,11 +512,13 @@ scene Vitreus {
 
     //  The colours live in palette-live.plm (ink, faint, mint, tint…); only the veil is the scene's.
     let veil  = 8%
+    let glyph_a = 0.4              // how strong the little marks on the toggle knobs are: kept subtle
 
     shader wave = file "wave.wgsl"
     spring dripl = 46, 8          // the drip down the left: slow enough to see the neck stretch, thin and snap, and loose enough to swing past where it lands
     spring drip = 170, 18         // underdamped: it overshoots and settles back, like a real drop landing
     spring pop  = 300, 12         // snappier and much less damped: a toggle knob popping past where it lands
+    spring slide = 220, 24        // the Caffeine thumb: quick, with only a hint of overshoot
 
     prop drop  = 0 ~drip          // the panel, 0 to 1: it hangs from the bar and falls
     //  The settle: the panel hangs a few px lower when it lands and eases back. Critically damped, so it is one slow hump and never a bounce.
@@ -541,6 +543,40 @@ scene Vitreus {
     follow glass_bend_pill = if(glass_bend, 1, 0)
     prop wifi_on = 0 ~pop         // the wifi toggle pill, popping past where it lands
     prop wifi_extra = 0 ~calm     // 0..1: whether a Wi-Fi row is open
+    //  The Wi-Fi toggle's own motion: finger down, a press held long enough, the tile filling with colour, the ring from the touch.
+    prop wf_press = 0 ~pop        // 0..1: the pill is being pressed
+    prop wf_hold = 0 ~calm        // 0..1: held long enough, so the pill has grown into a signal meter
+    prop wf_fill = 0 ~700ms       // 0..1: the colour that floods the tile from the toggle
+    prop wf_rip = 1 ~700ms        // 0..1: the ring that leaves the touch point and fades
+    fact wf_held = false          // the press became a hold: letting go then does not flip the radio
+    fact wf_rx = 0                // where the ring started (surface coordinates)
+    fact wf_ry = 0
+    //  The same motion on the other control center toggles (Bluetooth, Notifications, Caffeine).
+    prop bt_press = 0 ~pop
+    prop bt_rip = 1 ~700ms
+    prop bt_fill = 0 ~700ms
+    fact bt_rx = 0
+    fact bt_ry = 0
+    prop dnd_press = 0 ~pop
+    prop dnd_rip = 1 ~700ms
+    prop dnd_fill = 0 ~700ms
+    fact dnd_rx = 0
+    fact dnd_ry = 0
+    prop caf_press = 0 ~pop
+    prop dnd_sel = 0 ~slide         // which Do Not Disturb stop the thumb is on (0 = Off, 1 = 15m .. 4 = 2h, 5 = until turned off)
+    let dnd_sel_t = if(not dnd_on, 0, if(dnd_len == 15, 1, if(dnd_len == 30, 2, if(dnd_len == 60, 3, if(dnd_len == 120, 4, 5)))))
+    prop nt_rip = 1 ~700ms
+    fact nt_rx = 0
+    fact nt_ry = 0
+    prop caf_sel = 0 ~slide         // which Caffeine stop the thumb is on (0 = Off, 1 = 15m .. 5 = 4h, 6 = until off)
+    let caf_sel_t = if(not caf_on, 0, if(caf_len == 15, 1, if(caf_len == 30, 2, if(caf_len == 60, 3, if(caf_len == 120, 4, if(caf_len == 240, 5, 6))))))
+    prop cs_rip = 1 ~700ms
+    fact cs_rx = 0
+    fact cs_ry = 0
+    prop caf_rip = 1 ~700ms
+    prop caf_fill = 0 ~700ms
+    fact caf_rx = 0
+    fact caf_ry = 0
     prop wifi_sel = 0 ~calm       // which row, as a position: slides from one row to the next
     prop bt_extra = 0 ~calm       // 0..1: whether a Bluetooth row is open
     prop bt_pf = 0 ~calm          // the room its audio profiles take, once open
@@ -677,6 +713,12 @@ scene Vitreus {
     on change panel while panel == volume or panel == notif { fo: 1 after 140ms }
     on change panel while panel != volume and panel != notif { fo: 0 ~80ms }
     follow wifi_on = if(net.wifi, 1, 0)
+    follow wf_fill = if(net.wifi, 1, 0)
+    follow bt_fill = if(bt.powered, 1, 0)
+    follow dnd_fill = if(dnd_on, 1, 0)
+    follow caf_fill = if(caf_on, 1, 0)
+    follow dnd_sel = if(not dnd_on, 0, if(dnd_len == 15, 1, if(dnd_len == 30, 2, if(dnd_len == 60, 3, if(dnd_len == 120, 4, 5)))))
+    follow caf_sel = if(not caf_on, 0, if(caf_len == 15, 1, if(caf_len == 30, 2, if(caf_len == 60, 3, if(caf_len == 120, 4, if(caf_len == 240, 5, 6))))))
     follow wifi_extra = if(wifi_open_row >= 0, 1, 0)
     on change wifi_open_row while wifi_open_row >= 0 and wifi_extra < 0.05 { wifi_sel: wifi_open_row ~0ms }
     on change wifi_open_row while wifi_open_row >= 0 and wifi_extra >= 0.05 { wifi_sel: wifi_open_row }
@@ -1908,7 +1950,7 @@ scene Vitreus {
     let nt_rows_h = (max(1, nt_hist.count) * 60 - 6) / u
     let list_view_h = min(if(showing_sub == btview, bt_rows_h, if(showing_sub == notifview, nt_rows_h, wifi_rows_h)), if(showing_sub == notifview, 150, list_max))
     //  The Caffeine window is a row and two lines of chips (91 under its title), and has no list.
-    let sub_content = if(showing_sub == cafview, 91, if(showing_sub == capview, 142, if(showing_sub == powview, 151, if(showing_sub == notifview, 84, 0) + list_view_h)))
+    let sub_content = if(showing_sub == cafview, 38, if(showing_sub == capview, 142, if(showing_sub == powview, 151, if(showing_sub == notifview, 60, 0) + list_view_h)))
     let sub_bot = tiles_top + 54 + sub_content + 16
     //  The output list drops over what is under the volume row; with more than a couple of outputs
     //  it reaches past the drawer, so the drawer grows to hold it while it is open.
@@ -2876,22 +2918,86 @@ scene Vitreus {
             let tb3 = pcx + 118 * cu
 
             box { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: veil }
-            box { at: tb1 - 53 * cu, tile_cy - 14 * cu; size: 3 * cu, 6 * cu;  corner: 1.5 * cu; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 0.3, 0, 1), 30%) }
-            box { at: tb1 - 48 * cu, tile_cy - 16 * cu; size: 3 * cu, 10 * cu; corner: 1.5 * cu; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 0.65, 0, 1), 30%) }
-            box { at: tb1 - 43 * cu, tile_cy - 18 * cu; size: 3 * cu, 14 * cu; corner: 1.5 * cu; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 1.0, 0, 1), 30%) }
+            box { at: tb1 - 53 * cu, tile_cy - 14 * cu; size: 3 * cu, 6 * cu;  corner: 1.5 * cu; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 0.3, 0, 1), 30%) * (1 - wf_hold) }
+            box { at: tb1 - 48 * cu, tile_cy - 16 * cu; size: 3 * cu, 10 * cu; corner: 1.5 * cu; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 0.65, 0, 1), 30%) * (1 - wf_hold) }
+            box { at: tb1 - 43 * cu, tile_cy - 18 * cu; size: 3 * cu, 14 * cu; corner: 1.5 * cu; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 1.0, 0, 1), 30%) * (1 - wf_hold) }
             text "Wi-Fi" { at: floor(tb1 - 58 * cu + 0.5), floor(tile_cy + 4 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
             text net.name { at: floor(tb1 - 58 * cu + 0.5), floor(tile_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: on_wifi }
             text "Disconnected" { at: floor(tb1 - 58 * cu + 0.5), floor(tile_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; color: faint; family: "Space Grotesk"; show: net.wifi and not (on_wifi) }
             text "Off" { at: floor(tb1 - 58 * cu + 0.5), floor(tile_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; color: faint; family: "Space Grotesk"; show: not net.wifi }
-            body {
-                color: mix(off, mint, clamp(wifi_on, 0, 1))
-                box { at: tb1 + 5 * cu, tile_cy - 18 * cu; size: 38 * cu, 22 * cu; corner: 11 * cu }
+            //  The Wi-Fi pill. Where things are: the track keeps its right edge and, held, grows to the left into a signal meter;
+            //  `wf_m` is how much it is moving (0 at rest, 1 half way), which the ridges, the light and the squish ride on.
+            let wf_m    = clamp(4 * wifi_on * (1 - wifi_on), 0, 1)
+            let wf_w    = (34 + 4 * wifi_on + 26 * wf_hold) * cu
+            let wf_cx   = tb1 + 24 * cu - wf_w / 2
+            let wf_cy   = tile_cy - 18 * cu
+            let wf_l    = wf_cx - wf_w / 2
+            let wf_sg   = clamp(net.strength, 0.08, 1)
+            let wf_t    = wifi_on * (1 - wf_hold + wf_hold * wf_sg)
+            let wf_kx   = wf_l + 11 * cu + wf_t * (wf_w - 22 * cu)
+            let wf_kw   = (17 + 9 * wf_m + 7 * wf_press) * cu
+            let wf_kh   = (17 - 3 * wf_m - 2 * wf_press) * cu
+            let wf_dk   = off
+
+            //  Tile fills up: colour floods from the toggle, and drains back to it.
+            group {
+                clip inset 0 box { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu }
+                ellipse { at: tb1 + 5 * cu, wf_cy; radius: clamp(wf_fill, 0, 1.2) * 96 * cu; color: mint; opacity: 15% }
+                //  Ripple from the touch: a thin ring that leaves the finger and fades.
+                ellipse { at: wf_rx, wf_ry; radius: wf_rip * 70 * cu; stroke: 1.4 * cu; color: mint; opacity: (1 - wf_rip) * 55% }
             }
-            box { at: tb1 - 3 * cu + wifi_on * 16 * cu, tile_cy - 18 * cu; size: (17 + 9 * clamp(4 * wifi_on * (1 - wifi_on), 0, 1)) * cu, (17 - 3 * clamp(4 * wifi_on * (1 - wifi_on), 0, 1)) * cu; corner: (8.5 - 1.5 * clamp(4 * wifi_on * (1 - wifi_on), 0, 1)) * cu; color: ink }
+
+            //  The track. Off it is a dark hollow; on it is raised and lit from inside.
+            body {
+                color: mix(off, mint, clamp(wifi_on * (1 - wf_hold), 0, 1))
+                shadow: 0, 0, 10 * cu * wifi_on, 48% * wifi_on, mint
+                rim: 16% * wifi_on
+                box { at: wf_cx, wf_cy; size: wf_w, 22 * cu; corner: (11 - 2 * wifi_on) * cu }
+            }
+            group {
+                clip inset 0 box { at: wf_cx, wf_cy; size: wf_w, 22 * cu; corner: (11 - 2 * wifi_on) * cu }
+                //  Held: the track shows the signal as a mint bar up to the knob.
+                box { from: wf_l, wf_cy - 11 * cu; size: wf_kx - wf_l + 8 * cu, 22 * cu; color: mint; opacity: wf_hold * wifi_on }
+                //  Off: the hollow's inner shadow (dark above, a faint lip below).
+                group {
+                    blur: 3 * cu
+                    box { from: wf_l - 6 * cu, wf_cy - 18 * cu; size: wf_w + 12 * cu, 9 * cu; color: #000000; opacity: 55% * (1 - wifi_on) }
+                }
+                box { from: wf_l, wf_cy + 9.5 * cu; size: wf_w, 1.5 * cu; color: ink; opacity: 12% * (1 - wifi_on) }
+                //  A light that travels with the knob and drains back into it.
+                group {
+                    blur: 5 * cu
+                    ellipse { at: wf_kx, wf_cy; radius: (6 + 8 * wifi_on + 4 * wf_m) * cu; color: ink; opacity: 22% * wifi_on + 28% * wf_m }
+                }
+                //  Ridges that slide past as it moves, like a real switch.
+                repeat i in 0..8 {
+                    box { at: wf_l + (4.5 + 5 * i - (wifi_on - 0.5) * 9) * cu, wf_cy; size: 1.2 * cu, 9 * cu; corner: 0.6 * cu; color: ink; opacity: 24% * wf_m }
+                }
+            }
+
+            //  The knob: a plain solid one, swelling under the finger, with a Wi-Fi mark on it that is solid with the radio on
+            //  and an outline, crossed out, with it off.
+            body {
+                color: ink
+                shadow: 0, 2 * cu, 5 * cu, 26%
+                box { at: wf_kx, wf_cy; size: wf_kw, wf_kh; corner: (8.5 - 2 * clamp(wifi_on, 0, 1) - 1.5 * wf_m) * cu }
+            }
+            let wf_gy = wf_cy + 3.4 * cu
+            ellipse { at: wf_kx, wf_gy; radius: 1.5 * cu; color: wf_dk; opacity: glyph_a * (wifi_on) }
+            arc { at: wf_kx, wf_gy; radius: 4.2 * cu; span: 92deg; width: 1.4 * cu; color: wf_dk; opacity: glyph_a * (wifi_on) }
+            arc { at: wf_kx, wf_gy; radius: 7.2 * cu; span: 92deg; width: 1.4 * cu; color: wf_dk; opacity: glyph_a * (wifi_on * clamp(net.strength / 0.5 + 0.35, 0, 1)) }
+            arc { at: wf_kx, wf_gy; radius: 4.2 * cu; span: 92deg; width: 1.1 * cu; color: wf_dk; opacity: glyph_a * (0.7 * (1 - wifi_on)) }
+            arc { at: wf_kx, wf_gy; radius: 7.2 * cu; span: 92deg; width: 1.1 * cu; color: wf_dk; opacity: glyph_a * (0.7 * (1 - wifi_on)) }
+            line { from: wf_kx - 5 * cu, wf_cy - 5 * cu; to: wf_kx + 5 * cu, wf_cy + 5 * cu; width: 1.4 * cu; color: wf_dk; opacity: glyph_a * (0.8 * (1 - wifi_on)) }
+
             zone box wifi_tile_hit { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; cursor: pointer }
             on press wifi_tile_hit { panel_sub = if(panel_sub == netview, none, netview) }
-            zone box wifi_toggle_hit { at: tb1 + 5 * cu, tile_cy - 18 * cu; size: 46 * cu, 30 * cu; cursor: pointer }
-            on press wifi_toggle_hit { emit togglewifi(not net.wifi) }
+            zone box wifi_toggle_hit { at: wf_cx, wf_cy; size: wf_w + 8 * cu, 30 * cu; cursor: pointer }
+            //  Press: squish, ring from the finger. Hold: the pill becomes a signal meter. Release flips the radio unless it was a hold.
+            on press wifi_toggle_hit { wf_press: 1; wf_rx = pointer.x; wf_ry = pointer.y; wf_rip: 0 ~0ms; wf_rip: 1 ~700ms after 40ms }
+            on hold wifi_toggle_hit for 450ms { wf_held = true; wf_hold: 1 }
+            on release wifi_toggle_hit while not wf_held { emit togglewifi(not net.wifi) }
+            on release wifi_toggle_hit { wf_press: 0; wf_hold: 0; wf_held = false }
 
             box { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: veil }
             box { at: tb1 - 48 * cu, tile2_cy - 18 * cu; size: 2.4 * cu, 16 * cu; corner: 1.2 * cu; color: ink; opacity: 45% + 55% * bt_on }
@@ -2901,15 +3007,62 @@ scene Vitreus {
             text bt_name { at: floor(tb1 - 58 * cu + 0.5), floor(tile2_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: bt_connected }
             text "No device" { at: floor(tb1 - 58 * cu + 0.5), floor(tile2_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; color: faint; family: "Space Grotesk"; show: bt.powered and not bt_connected }
             text "Off" { at: floor(tb1 - 58 * cu + 0.5), floor(tile2_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; color: faint; family: "Space Grotesk"; show: not bt.powered }
+            //  gbt: the pill, like the Wi-Fi one. `gbt_m` is how much it is moving (0 at rest, 1 half way).
+            let gbt_m  = clamp(4 * bt_on * (1 - bt_on), 0, 1)
+            let gbt_w  = (34 + 4 * bt_on) * cu
+            let gbt_cx = tb1 + 24 * cu - gbt_w / 2
+            let gbt_cy = tile2_cy - 18 * cu
+            let gbt_l  = gbt_cx - gbt_w / 2
+            let gbt_kx = gbt_l + 11 * cu + bt_on * (gbt_w - 22 * cu)
+            let gbt_kw = (17 + 9 * gbt_m + 7 * bt_press) * cu
+            let gbt_kh = (17 - 3 * gbt_m - 2 * bt_press) * cu
+            let gbt_dk = off
+
+            //  Tile fills up from the toggle, and a thin ring leaves the touch.
+            group {
+                clip inset 0 box { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu }
+                ellipse { at: tb1 + 5 * cu, gbt_cy; radius: clamp(bt_fill, 0, 1.2) * 96 * cu; color: mint; opacity: 15% }
+                ellipse { at: bt_rx, bt_ry; radius: bt_rip * 70 * cu; stroke: 1.4 * cu; color: mint; opacity: (1 - bt_rip) * 55% }
+            }
+
+            //  The track: a dark hollow off, raised and lit from inside on.
             body {
                 color: mix(off, mint, clamp(bt_on, 0, 1))
-                box { at: tb1 + 5 * cu, tile2_cy - 18 * cu; size: 38 * cu, 22 * cu; corner: 11 * cu }
+                shadow: 0, 0, 10 * cu * bt_on, 48% * bt_on, mint
+                rim: 16% * bt_on
+                box { at: gbt_cx, gbt_cy; size: gbt_w, 22 * cu; corner: (11 - 2 * bt_on) * cu }
             }
-            box { at: tb1 - 3 * cu + bt_on * 16 * cu, tile2_cy - 18 * cu; size: (17 + 9 * clamp(4 * bt_on * (1 - bt_on), 0, 1)) * cu, (17 - 3 * clamp(4 * bt_on * (1 - bt_on), 0, 1)) * cu; corner: (8.5 - 1.5 * clamp(4 * bt_on * (1 - bt_on), 0, 1)) * cu; color: ink }
+            group {
+                clip inset 0 box { at: gbt_cx, gbt_cy; size: gbt_w, 22 * cu; corner: (11 - 2 * bt_on) * cu }
+                group {
+                    blur: 3 * cu
+                    box { from: gbt_l - 6 * cu, gbt_cy - 18 * cu; size: gbt_w + 12 * cu, 9 * cu; color: #000000; opacity: 55% * (1 - bt_on) }
+                }
+                box { from: gbt_l, gbt_cy + 9.5 * cu; size: gbt_w, 1.5 * cu; color: ink; opacity: 12% * (1 - bt_on) }
+                group {
+                    blur: 5 * cu
+                    ellipse { at: gbt_kx, gbt_cy; radius: (6 + 8 * bt_on + 4 * gbt_m) * cu; color: ink; opacity: 22% * bt_on + 28% * gbt_m }
+                }
+                repeat i in 0..8 {
+                    box { at: gbt_l + (4.5 + 5 * i - (bt_on - 0.5) * 9) * cu, gbt_cy; size: 1.2 * cu, 9 * cu; corner: 0.6 * cu; color: ink; opacity: 24% * gbt_m }
+                }
+            }
+
+            //  The knob: plain, solid, squared a little when on, swelling under the finger, with a mark on it.
+            body {
+                color: ink
+                shadow: 0, 2 * cu, 5 * cu, 26%
+                box { at: gbt_kx, gbt_cy; size: gbt_kw, gbt_kh; corner: (8.5 - 2 * clamp(bt_on, 0, 1) - 1.5 * gbt_m) * cu }
+            }
+            path { at: gbt_kx, gbt_cy; stroke: 1.3 * cu; color: gbt_dk; opacity: glyph_a * (bt_on); move -3.5 * cu, -3 * cu; line 3.5 * cu, 3 * cu; line 0, 5.5 * cu; line 0, -5.5 * cu; line 3.5 * cu, -3 * cu; line -3.5 * cu, 3 * cu }
+            path { at: gbt_kx, gbt_cy; stroke: 1.1 * cu; color: gbt_dk; opacity: glyph_a * (0.7 * (1 - bt_on)); move -3.5 * cu, -3 * cu; line 3.5 * cu, 3 * cu; line 0, 5.5 * cu; line 0, -5.5 * cu; line 3.5 * cu, -3 * cu; line -3.5 * cu, 3 * cu }
+            line { from: gbt_kx - 5 * cu, gbt_cy - 5 * cu; to: gbt_kx + 5 * cu, gbt_cy + 5 * cu; width: 1.4 * cu; color: gbt_dk; opacity: glyph_a * (0.8 * (1 - bt_on)) }
             zone box bt_tile_hit { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; cursor: pointer }
             on press bt_tile_hit { panel_sub = if(panel_sub == btview, none, btview) }
             zone box bt_toggle_hit { at: tb1 + 5 * cu, tile2_cy - 18 * cu; size: 46 * cu, 30 * cu; cursor: pointer }
             on press bt_toggle_hit { emit togglebt(not bt.powered) }
+            on press bt_toggle_hit { bt_press: 1; bt_rx = pointer.x; bt_ry = pointer.y; bt_rip: 0 ~0ms; bt_rip: 1 ~700ms after 40ms }
+            on release bt_toggle_hit { bt_press: 0 }
 
             //  Notifications (Do Not Disturb, with its own window) and Caffeine (the whole tile is its toggle), underneath.
 
@@ -2927,15 +3080,66 @@ scene Vitreus {
             path { at: tb3 - 48 * cu, tile_cy - 18 * cu; stroke: 1.8 * cu; color: alert; opacity: dnd_pill; move -8 * cu, -8 * cu; line 8 * cu, 8 * cu }
             text "Notifications" { at: floor(tb3 - 58 * cu + 0.5), floor(tile_cy + 4 * cu + 0.5); anchor: left center; size: 13; width: 74 * cu; lines: 1; color: ink; family: "Space Grotesk" }
             text nt_tile_sub { at: floor(tb3 - 58 * cu + 0.5), floor(tile_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
+            //  gdn: the pill, like the Wi-Fi one. `gdn_m` is how much it is moving (0 at rest, 1 half way).
+            let gdn_m  = clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)
+            let gdn_w  = (34 + 4 * dnd_pill) * cu
+            let gdn_cx = tb3 + 24 * cu - gdn_w / 2
+            let gdn_cy = tile_cy - 18 * cu
+            let gdn_l  = gdn_cx - gdn_w / 2
+            let gdn_kx = gdn_l + 11 * cu + dnd_pill * (gdn_w - 22 * cu)
+            let gdn_kw = (17 + 9 * gdn_m + 7 * dnd_press) * cu
+            let gdn_kh = (17 - 3 * gdn_m - 2 * dnd_press) * cu
+            let gdn_dk = off
+
+            //  Tile fills up from the toggle, and a thin ring leaves the touch.
+            group {
+                clip inset 0 box { at: tb3 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu }
+                ellipse { at: tb3 + 5 * cu, gdn_cy; radius: clamp(dnd_fill, 0, 1.2) * 96 * cu; color: mint; opacity: 15% }
+                ellipse { at: dnd_rx, dnd_ry; radius: dnd_rip * 70 * cu; stroke: 1.4 * cu; color: mint; opacity: (1 - dnd_rip) * 55% }
+            }
+
+            //  The track: a dark hollow off, raised and lit from inside on.
             body {
                 color: mix(off, mint, clamp(dnd_pill, 0, 1))
-                box { at: tb3 + 5 * cu, tile_cy - 18 * cu; size: 38 * cu, 22 * cu; corner: 11 * cu }
+                shadow: 0, 0, 10 * cu * dnd_pill, 48% * dnd_pill, mint
+                rim: 16% * dnd_pill
+                box { at: gdn_cx, gdn_cy; size: gdn_w, 22 * cu; corner: (11 - 2 * dnd_pill) * cu }
             }
-            box { at: tb3 - 3 * cu + dnd_pill * 16 * cu, tile_cy - 18 * cu; size: (17 + 9 * clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)) * cu, (17 - 3 * clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)) * cu; corner: (8.5 - 1.5 * clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)) * cu; color: ink }
+            group {
+                clip inset 0 box { at: gdn_cx, gdn_cy; size: gdn_w, 22 * cu; corner: (11 - 2 * dnd_pill) * cu }
+                group {
+                    blur: 3 * cu
+                    box { from: gdn_l - 6 * cu, gdn_cy - 18 * cu; size: gdn_w + 12 * cu, 9 * cu; color: #000000; opacity: 55% * (1 - dnd_pill) }
+                }
+                box { from: gdn_l, gdn_cy + 9.5 * cu; size: gdn_w, 1.5 * cu; color: ink; opacity: 12% * (1 - dnd_pill) }
+                group {
+                    blur: 5 * cu
+                    ellipse { at: gdn_kx, gdn_cy; radius: (6 + 8 * dnd_pill + 4 * gdn_m) * cu; color: ink; opacity: 22% * dnd_pill + 28% * gdn_m }
+                }
+                repeat i in 0..8 {
+                    box { at: gdn_l + (4.5 + 5 * i - (dnd_pill - 0.5) * 9) * cu, gdn_cy; size: 1.2 * cu, 9 * cu; corner: 0.6 * cu; color: ink; opacity: 24% * gdn_m }
+                }
+            }
+
+            //  The knob: plain, solid, squared a little when on, swelling under the finger, with a mark on it.
+            body {
+                color: ink
+                shadow: 0, 2 * cu, 5 * cu, 26%
+                box { at: gdn_kx, gdn_cy; size: gdn_kw, gdn_kh; corner: (8.5 - 2 * clamp(dnd_pill, 0, 1) - 1.5 * gdn_m) * cu }
+            }
+            group {
+                opacity: glyph_a
+                ellipse { at: gdn_kx, gdn_cy - 1.2 * cu; radius: 3.4 * cu; color: gdn_dk }
+                box { at: gdn_kx, gdn_cy + 2.2 * cu; size: 9 * cu, 2 * cu; corner: 1 * cu; color: gdn_dk }
+                ellipse { at: gdn_kx, gdn_cy + 4.6 * cu; radius: 1 * cu; color: gdn_dk }
+            }
+            line { from: gdn_kx - 5.5 * cu, gdn_cy - 5.5 * cu; to: gdn_kx + 5.5 * cu, gdn_cy + 5.5 * cu; width: 1.5 * cu; color: gdn_dk; opacity: glyph_a * dnd_pill }
             zone box dnd_hit { at: tb3 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; cursor: pointer }
             on press dnd_hit { panel_sub = if(panel_sub == notifview, none, notifview) }
             zone box dnd_toggle_hit { at: tb3 + 5 * cu, tile_cy - 18 * cu; size: 46 * cu, 30 * cu; cursor: pointer }
             on press dnd_toggle_hit { emit togglednd }
+            on press dnd_toggle_hit { dnd_press: 1; dnd_rx = pointer.x; dnd_ry = pointer.y; dnd_rip: 0 ~0ms; dnd_rip: 1 ~700ms after 40ms }
+            on release dnd_toggle_hit { dnd_press: 0 }
 
             //  Caffeine: a cup that steams while the machine is being kept awake. Dimmed on a
             //  machine with no hypridle, which is what the card would be stopping.
@@ -2956,15 +3160,69 @@ scene Vitreus {
                 text caf_tile_sub { at: floor(tb2 - 58 * cu + 0.5), floor(tile_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: caf_on and caf_len > 0 }
                 text "Off" { at: floor(tb2 - 58 * cu + 0.5), floor(tile_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; color: faint; family: "Space Grotesk"; show: not caf_on and caf_avail }
                 text "No hypridle" { at: floor(tb2 - 58 * cu + 0.5), floor(tile_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; color: faint; family: "Space Grotesk"; show: not caf_avail }
+                //  gcf: the pill, like the Wi-Fi one. `gcf_m` is how much it is moving (0 at rest, 1 half way).
+                let gcf_m  = clamp(4 * caf_pill * (1 - caf_pill), 0, 1)
+                let gcf_w  = (34 + 4 * caf_pill) * cu
+                let gcf_cx = tb2 + 24 * cu - gcf_w / 2
+                let gcf_cy = tile_cy - 18 * cu
+                let gcf_l  = gcf_cx - gcf_w / 2
+                let gcf_kx = gcf_l + 11 * cu + caf_pill * (gcf_w - 22 * cu)
+                let gcf_kw = (17 + 9 * gcf_m + 7 * caf_press) * cu
+                let gcf_kh = (17 - 3 * gcf_m - 2 * caf_press) * cu
+                let gcf_dk = off
+
+                //  Tile fills up from the toggle, and a thin ring leaves the touch.
+                group {
+                    clip inset 0 box { at: tb2 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu }
+                    ellipse { at: tb2 + 5 * cu, gcf_cy; radius: clamp(caf_fill, 0, 1.2) * 96 * cu; color: mint; opacity: 15% }
+                    ellipse { at: caf_rx, caf_ry; radius: caf_rip * 70 * cu; stroke: 1.4 * cu; color: mint; opacity: (1 - caf_rip) * 55% }
+                }
+
+                //  The track: a dark hollow off, raised and lit from inside on.
                 body {
                     color: mix(off, mint, clamp(caf_pill, 0, 1))
-                    box { at: tb2 + 5 * cu, tile_cy - 18 * cu; size: 38 * cu, 22 * cu; corner: 11 * cu }
+                    shadow: 0, 0, 10 * cu * caf_pill, 48% * caf_pill, mint
+                    rim: 16% * caf_pill
+                    box { at: gcf_cx, gcf_cy; size: gcf_w, 22 * cu; corner: (11 - 2 * caf_pill) * cu }
                 }
-                box { at: tb2 - 3 * cu + caf_pill * 16 * cu, tile_cy - 18 * cu; size: (17 + 9 * clamp(4 * caf_pill * (1 - caf_pill), 0, 1)) * cu, (17 - 3 * clamp(4 * caf_pill * (1 - caf_pill), 0, 1)) * cu; corner: (8.5 - 1.5 * clamp(4 * caf_pill * (1 - caf_pill), 0, 1)) * cu; color: ink }
+                group {
+                    clip inset 0 box { at: gcf_cx, gcf_cy; size: gcf_w, 22 * cu; corner: (11 - 2 * caf_pill) * cu }
+                    group {
+                        blur: 3 * cu
+                        box { from: gcf_l - 6 * cu, gcf_cy - 18 * cu; size: gcf_w + 12 * cu, 9 * cu; color: #000000; opacity: 55% * (1 - caf_pill) }
+                    }
+                    box { from: gcf_l, gcf_cy + 9.5 * cu; size: gcf_w, 1.5 * cu; color: ink; opacity: 12% * (1 - caf_pill) }
+                    group {
+                        blur: 5 * cu
+                        ellipse { at: gcf_kx, gcf_cy; radius: (6 + 8 * caf_pill + 4 * gcf_m) * cu; color: ink; opacity: 22% * caf_pill + 28% * gcf_m }
+                    }
+                    repeat i in 0..8 {
+                        box { at: gcf_l + (4.5 + 5 * i - (caf_pill - 0.5) * 9) * cu, gcf_cy; size: 1.2 * cu, 9 * cu; corner: 0.6 * cu; color: ink; opacity: 24% * gcf_m }
+                    }
+                }
+
+                //  The knob: plain, solid, squared a little when on, swelling under the finger, with a mark on it.
+                body {
+                    color: ink
+                    shadow: 0, 2 * cu, 5 * cu, 26%
+                    box { at: gcf_kx, gcf_cy; size: gcf_kw, gcf_kh; corner: (8.5 - 2 * clamp(caf_pill, 0, 1) - 1.5 * gcf_m) * cu }
+                }
+                group {
+                    opacity: glyph_a * (caf_pill)
+                    box { at: gcf_kx - 1 * cu, gcf_cy + 0.5 * cu; size: 8 * cu, 7 * cu; corner: 2 * cu; color: gcf_dk }
+                    ellipse { at: gcf_kx + 4 * cu, gcf_cy + 0.5 * cu; radius: 2.2 * cu; stroke: 1.2 * cu; color: gcf_dk }
+                }
+                group {
+                    opacity: glyph_a * (0.7 * (1 - caf_pill))
+                    box { at: gcf_kx - 1 * cu, gcf_cy + 0.5 * cu; size: 8 * cu, 7 * cu; corner: 2 * cu; stroke: 1.1 * cu; color: gcf_dk }
+                    ellipse { at: gcf_kx + 4 * cu, gcf_cy + 0.5 * cu; radius: 2.2 * cu; stroke: 1.1 * cu; color: gcf_dk }
+                }
                 zone box caf_hit { at: tb2 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; cursor: pointer; active: caf_avail }
                 on press caf_hit { panel_sub = if(panel_sub == cafview, none, cafview) }
                 zone box caf_toggle_hit { at: tb2 + 5 * cu, tile_cy - 18 * cu; size: 46 * cu, 30 * cu; cursor: pointer; active: caf_avail }
                 on press caf_toggle_hit { emit togglecaf }
+                on press caf_toggle_hit { caf_press: 1; caf_rx = pointer.x; caf_ry = pointer.y; caf_rip: 0 ~0ms; caf_rip: 1 ~700ms after 40ms }
+                on release caf_toggle_hit { caf_press: 0 }
             }
 
             //  Capture and Power: a third row. Capture's button starts and stops a recording; the rest of the tile opens its window
@@ -3078,44 +3336,70 @@ scene Vitreus {
             zone box nt_back { at: pcx - 124 * cu, nx_cy; size: 30 * cu, 30 * cu; cursor: pointer }
             on press nt_back { panel_sub = none }
             text "NOTIFICATIONS" { at: floor(pcx - 102 * cu + 0.5), floor(nx_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
+            //  Where it stands, beside the title: how long is left, or that it is on until turned off.
+            text dnd_left { at: floor(pcx + 78 * cu + 0.5), floor(nx_cy + 0.5); anchor: right center; align: right; size: 11.5; width: 92 * cu; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
             box { at: pcx + 112 * cu, nx_cy; size: 52 * cu, 24 * cu; corner: 12 * cu; color: ink; opacity: 8% + 10% * nt_clear_hit.hover }
             text "Clear" { at: floor(pcx + 112 * cu + 0.5), floor(nx_cy + 0.5); anchor: center; size: 12.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
             zone box nt_clear_hit { at: pcx + 112 * cu, nx_cy; size: 54 * cu, 26 * cu; corner: 13 * cu; cursor: pointer }
             on press nt_clear_hit { emit nt_clear }
             box { at: pcx, nx_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
 
-            //  Do Not Disturb: its toggle, and what state it is in.
-            box { at: pcx, nx_top + 66 * cu; size: 276 * cu, 34 * cu; corner: 12 * cu; color: ink; opacity: veil }
-            text "Do Not Disturb" { at: floor(pcx - 128 * cu + 0.5), floor(nx_top + 60 * cu + 0.5); anchor: left center; size: 14.5; weight: 700; color: ink; family: "Space Grotesk" }
-            text dnd_left { at: floor(pcx - 128 * cu + 0.5), floor(nx_top + 74 * cu + 0.5); anchor: left center; size: 11.5; width: 200 * cu; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
-            body {
-                color: mix(off, mint, clamp(dnd_pill, 0, 1))
-                box { at: pcx + 118 * cu, nx_top + 66 * cu; size: 30 * cu, 16 * cu; corner: 8 * cu }
+            //  Do Not Disturb, in one control: six stops, Off, then how long, then until turned off. The thumb sits on the one in use
+            //  and glows when it is on (grey on Off), sliding and stretching like liquid to a new stop. Pressing the lit stop again,
+            //  or Off, turns it off; a ring leaves the touch.
+            let ns_y   = nx_top + 68 * cu
+            let ns_str = clamp(abs(dnd_sel_t - dnd_sel), 0, 3)
+            let ns_tx  = pcx + (dnd_sel - 2.5) * 44 * cu
+            let ns_tw  = (38 + 11 * ns_str) * cu
+            let ns_th  = (26 - 3 * clamp(ns_str, 0, 1) - 2 * dnd_press) * cu
+            let ns_on  = clamp(dnd_pill, 0, 1)
+            box { at: pcx, ns_y; size: 264 * cu, 36 * cu; corner: 18 * cu; color: ink; opacity: veil }
+            group {
+                clip inset 0 box { at: pcx, ns_y; size: 264 * cu, 36 * cu; corner: 18 * cu }
+                group {
+                    blur: 3 * cu
+                    box { from: pcx - 144 * cu, ns_y - 24 * cu; size: 288 * cu, 9 * cu; color: #000000; opacity: 40% }
+                }
+                repeat i in 0..5 {
+                    box { at: pcx + (i - 2) * 44 * cu, ns_y; size: 1 * cu, 10 * cu; corner: 0.5 * cu; color: ink; opacity: 12% }
+                }
+                ellipse { at: nt_rx, nt_ry; radius: nt_rip * 50 * cu; stroke: 1.4 * cu; color: mint; opacity: (1 - nt_rip) * 55% }
             }
-            ellipse { at: pcx + 111 * cu + dnd_pill * 14 * cu, nx_top + 66 * cu; radius: 6.2 * cu; color: ink }
-            zone box nt_dnd_toggle { at: pcx + 118 * cu, nx_top + 66 * cu; size: 40 * cu, 26 * cu; corner: 13 * cu; cursor: pointer }
-            on press nt_dnd_toggle { emit togglednd }
-
-            //  The timer: pressing a chip silences for that long; pressing the lit one again cancels it.
-            repeat i in 0..4 {
-                let chx = pcx - 107 * cu + i * 70 * cu
-                box { at: chx, nx_top + 100 * cu; size: 62 * cu, 26 * cu; corner: 13 * cu; color: if(dnd_len == pick(i, 15, 30, 60, 120), mint, ink); opacity: if(dnd_len == pick(i, 15, 30, 60, 120), 24%, 8% + 10% * dnd_chip.$i.hover) }
-                text pick(i, "15 min", "30 min", "1 hour", "2 hours") { at: floor(chx + 0.5), floor(nx_top + 100 * cu + 0.5); anchor: center; align: center; size: 12.5; weight: 600; width: 60 * cu; lines: 1; color: if(dnd_len == pick(i, 15, 30, 60, 120), mint, ink); family: "Space Grotesk" }
-                zone box dnd_chip.$i { at: chx, nx_top + 100 * cu; size: 64 * cu, 28 * cu; corner: 14 * cu; cursor: pointer }
-                on press dnd_chip.$i { emit dnd_for(pick(i, 15, 30, 60, 120)) }
+            body {
+                color: mix(ink, mint, ns_on)
+                opacity: 16% + 84% * ns_on
+                shadow: 0, 0, 10 * cu * ns_on, 48% * ns_on, mint
+                rim: 16% * ns_on
+                box { at: ns_tx, ns_y; size: ns_tw, ns_th; corner: 10 * cu }
+            }
+            repeat i in 0..6 {
+                let lx  = pcx + (i - 2.5) * 44 * cu
+                let sel = clamp(1 - abs(dnd_sel - i), 0, 1) * ns_on
+                text pick(i, "Off", "15m", "30m", "1h", "2h", "") { at: floor(lx + 0.5), floor(ns_y + 0.5); anchor: center; align: center; size: 12; weight: 600; color: mix(ink, off, sel); opacity: 62% + 38% * sel + 30% * dnd_chip.$i.hover; family: "Space Grotesk"; show: i < 5 }
+                //  "Until turned off": an infinity mark.
+                ellipse { at: lx - 3.4 * cu, ns_y; radius: 3.4 * cu; stroke: 1.5 * cu; color: mix(ink, off, sel); opacity: 62% + 38% * sel + 30% * dnd_chip.$i.hover; show: i == 5 }
+                ellipse { at: lx + 3.4 * cu, ns_y; radius: 3.4 * cu; stroke: 1.5 * cu; color: mix(ink, off, sel); opacity: 62% + 38% * sel + 30% * dnd_chip.$i.hover; show: i == 5 }
+                zone box dnd_chip.$i { at: lx, ns_y; size: 44 * cu, 36 * cu; cursor: pointer }
+                on press dnd_chip.$i while i > 0 and i < 5 { emit dnd_for(pick(i, 0, 15, 30, 60, 120, 0)) }
+                on press dnd_chip.$i while i == 0 and dnd_on { emit togglednd }
+                on press dnd_chip.$i while i == 5 and not dnd_on { emit togglednd }
+                on press dnd_chip.$i while i == 5 and dnd_on and dnd_len == 0 { emit togglednd }
+                on press dnd_chip.$i while i == 5 and dnd_on and dnd_len > 0 { emit togglednd; emit togglednd }
+                on press dnd_chip.$i { dnd_press: 1; nt_rx = pointer.x; nt_ry = pointer.y; nt_rip: 0 ~0ms; nt_rip: 1 ~700ms after 40ms }
+                on release dnd_chip.$i { dnd_press: 0 }
             }
 
             //  The history.
-            text "HISTORY" { at: floor(pcx - 134 * cu + 0.5), floor(nx_top + 126 * cu + 0.5); anchor: left center; size: 10.5; weight: 700; color: faint; opacity: 80%; family: "Space Grotesk" }
+            text "HISTORY" { at: floor(pcx - 134 * cu + 0.5), floor(nx_top + 102 * cu + 0.5); anchor: left center; size: 10.5; weight: 700; color: faint; opacity: 80%; family: "Space Grotesk" }
             column nt_hist_col {
-                at: floor(pcx - 138 * cu + 0.5), floor(nx_top + 138 * cu + 0.5)
+                at: floor(pcx - 138 * cu + 0.5), floor(nx_top + 114 * cu + 0.5)
                 view: 276 * cu, list_view_h * cu
                 gap: 6
                 for h in nt_hist { NtHistRow(h, del: nt_hist_del) }
             }
             //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
-            box { from: pcx + 141 * cu, nx_top + 138 * cu + nt_hist_col.scroll / max(nt_hist_col.content, 1) * (list_view_h * cu); size: 3 * cu, (list_view_h * cu) * (list_view_h * cu) / max(nt_hist_col.content, list_view_h * cu); corner: 1.5 * cu; color: ink; opacity: if(nt_hist_col.content > (list_view_h * cu) + 1, 35%, 0%) }
-            text "No notifications yet" { at: floor(pcx + 0.5), floor(nx_top + 138 * cu + 20 * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: nt_hist.count < 1 }
+            box { from: pcx + 141 * cu, nx_top + 114 * cu + nt_hist_col.scroll / max(nt_hist_col.content, 1) * (list_view_h * cu); size: 3 * cu, (list_view_h * cu) * (list_view_h * cu) / max(nt_hist_col.content, list_view_h * cu); corner: 1.5 * cu; color: ink; opacity: if(nt_hist_col.content > (list_view_h * cu) + 1, 35%, 0%) }
+            text "No notifications yet" { at: floor(pcx + 0.5), floor(nx_top + 114 * cu + 20 * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: nt_hist.count < 1 }
         }
 
         //  The Caffeine window: the keep-awake switch and what state it is in, and timer chips. A chip keeps the
@@ -3131,28 +3415,51 @@ scene Vitreus {
             text "CAFFEINE" { at: floor(pcx - 102 * cu + 0.5), floor(kx_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
             box { at: pcx, kx_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
 
+            //  Where it stands, up beside the title: how long is left, or that it is on until turned off.
+            text caf_left { at: floor(pcx + 134 * cu + 0.5), floor(kx_cy + 0.5); anchor: right center; align: right; size: 12.5; width: 150 * cu; lines: 1; color: if(caf_on, mint, faint); family: "Space Grotesk" }
+
             group {
                 opacity: mix(0.45, 1, caf_avail)
-                box { at: pcx, kx_top + 66 * cu; size: 276 * cu, 34 * cu; corner: 12 * cu; color: ink; opacity: veil }
-                text "Keep awake" { at: floor(pcx - 128 * cu + 0.5), floor(kx_top + 60 * cu + 0.5); anchor: left center; size: 14.5; weight: 700; color: ink; family: "Space Grotesk" }
-                text caf_left { at: floor(pcx - 128 * cu + 0.5), floor(kx_top + 74 * cu + 0.5); anchor: left center; size: 11.5; width: 200 * cu; lines: 1; color: if(caf_on, mint, faint); family: "Space Grotesk" }
-                body {
-                    color: mix(off, mint, clamp(caf_pill, 0, 1))
-                    box { at: pcx + 118 * cu, kx_top + 66 * cu; size: 30 * cu, 16 * cu; corner: 8 * cu }
+                //  One control for all of it: seven stops, Off and then how long. The thumb sits on the one in use and glows when
+                //  Caffeine is on (grey on Off); it slides to a new stop, stretching like liquid on the way. The label under it turns
+                //  dark. Pressing the lit stop again, or Off, turns it off; a ring leaves the touch.
+                let cs_y   = kx_top + 70 * cu
+                let cs_str = clamp(abs(caf_sel_t - caf_sel), 0, 3)
+                let cs_tx  = pcx + (caf_sel - 3) * 38 * cu
+                let cs_tw  = (34 + 11 * cs_str) * cu
+                let cs_th  = (26 - 3 * clamp(cs_str, 0, 1) - 2 * caf_press) * cu
+                let cs_on  = clamp(caf_pill, 0, 1)
+                box { at: pcx, cs_y; size: 266 * cu, 36 * cu; corner: 18 * cu; color: ink; opacity: veil }
+                group {
+                    clip inset 0 box { at: pcx, cs_y; size: 266 * cu, 36 * cu; corner: 18 * cu }
+                    group {
+                        blur: 3 * cu
+                        box { from: pcx - 144 * cu, cs_y - 24 * cu; size: 288 * cu, 9 * cu; color: #000000; opacity: 40% }
+                    }
+                    repeat i in 0..6 {
+                        box { at: pcx + (i - 2.5) * 38 * cu, cs_y; size: 1 * cu, 10 * cu; corner: 0.5 * cu; color: ink; opacity: 12% }
+                    }
+                    ellipse { at: cs_rx, cs_ry; radius: cs_rip * 50 * cu; stroke: 1.4 * cu; color: mint; opacity: (1 - cs_rip) * 55% }
                 }
-                ellipse { at: pcx + 111 * cu + caf_pill * 14 * cu, kx_top + 66 * cu; radius: 6.2 * cu; color: ink }
-                zone box caf_toggle2 { at: pcx + 118 * cu, kx_top + 66 * cu; size: 40 * cu, 26 * cu; corner: 13 * cu; cursor: pointer; active: caf_avail }
-                on press caf_toggle2 { emit togglecaf }
-
-                //  Two lines of three chips.
-                repeat i in 0..6 {
-                    let chx = pcx + (mod(i, 3) - 1) * 94 * cu
-                    let chy = kx_top + 100 * cu + floor(i / 3) * 32 * cu
-                    let lit = caf_on and caf_len == pick(i, 15, 30, 60, 120, 240, 0)
-                    box { at: chx, chy; size: 88 * cu, 26 * cu; corner: 13 * cu; color: if(lit, mint, ink); opacity: if(lit, 24%, 8% + 10% * caf_chip.$i.hover) }
-                    text pick(i, "15 min", "30 min", "1 hour", "2 hours", "4 hours", "Until off") { at: floor(chx + 0.5), floor(chy + 0.5); anchor: center; align: center; size: 12.5; weight: 600; width: 84 * cu; lines: 1; color: if(lit, mint, ink); opacity: if(lit, 100%, 85%); family: "Space Grotesk" }
-                    zone box caf_chip.$i { at: chx, chy; size: 90 * cu, 28 * cu; corner: 14 * cu; cursor: pointer; active: caf_avail }
-                    on press caf_chip.$i { emit caf_for(pick(i, 15, 30, 60, 120, 240, 0)) }
+                body {
+                    color: mix(ink, mint, cs_on)
+                    opacity: 16% + 84% * cs_on
+                    shadow: 0, 0, 10 * cu * cs_on, 48% * cs_on, mint
+                    rim: 16% * cs_on
+                    box { at: cs_tx, cs_y; size: cs_tw, cs_th; corner: 10 * cu }
+                }
+                repeat i in 0..7 {
+                    let lx  = pcx + (i - 3) * 38 * cu
+                    let sel = clamp(1 - abs(caf_sel - i), 0, 1) * cs_on
+                    text pick(i, "Off", "15m", "30m", "1h", "2h", "4h", "") { at: floor(lx + 0.5), floor(cs_y + 0.5); anchor: center; align: center; size: 12; weight: 600; color: mix(ink, off, sel); opacity: 62% + 38% * sel + 30% * caf_chip.$i.hover; family: "Space Grotesk"; show: i < 6 }
+                    //  "Until off": an infinity mark.
+                    ellipse { at: lx - 3.4 * cu, cs_y; radius: 3.4 * cu; stroke: 1.5 * cu; color: mix(ink, off, sel); opacity: 62% + 38% * sel + 30% * caf_chip.$i.hover; show: i == 6 }
+                    ellipse { at: lx + 3.4 * cu, cs_y; radius: 3.4 * cu; stroke: 1.5 * cu; color: mix(ink, off, sel); opacity: 62% + 38% * sel + 30% * caf_chip.$i.hover; show: i == 6 }
+                    zone box caf_chip.$i { at: lx, cs_y; size: 38 * cu, 36 * cu; cursor: pointer; active: caf_avail }
+                    on press caf_chip.$i while i > 0 { emit caf_for(pick(i, 0, 15, 30, 60, 120, 240, 0)) }
+                    on press caf_chip.$i while i == 0 and caf_on { emit togglecaf }
+                    on press caf_chip.$i { caf_press: 1; cs_rx = pointer.x; cs_ry = pointer.y; cs_rip: 0 ~0ms; cs_rip: 1 ~700ms after 40ms }
+                    on release caf_chip.$i { caf_press: 0 }
                 }
             }
         }
