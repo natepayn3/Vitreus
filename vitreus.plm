@@ -613,8 +613,16 @@ scene Vitreus {
     //  (the amounts of the two add up to 1, so this is their weighted middle).
     let pill = ws.act.1 * 1 + ws.act.2 * 2 + ws.act.3 * 3 + ws.act.4 * 4 + ws.act.5 * 5
     //  Occupied but not active: the dot stretches up into a capsule.
-    repeat i in 1..6 { prop ws.tall.$i = 0 ~lively }
-    repeat i in 1..6 { follow ws.tall.$i = if(ws.$i.busy, 1, 0) }
+    prop ws.tall.1 = 0 ~lively
+    prop ws.tall.2 = 0 ~lively
+    prop ws.tall.3 = 0 ~lively
+    prop ws.tall.4 = 0 ~lively
+    prop ws.tall.5 = 0 ~lively
+    follow ws.tall.1 = if(ws.1.busy, 1, 0)
+    follow ws.tall.2 = if(ws.2.busy, 1, 0)
+    follow ws.tall.3 = if(ws.3.busy, 1, 0)
+    follow ws.tall.4 = if(ws.4.busy, 1, 0)
+    follow ws.tall.5 = if(ws.5.busy, 1, 0)
     //  The mark of the workspace in view is one piece that travels: its head runs ahead to the new place and its tail follows, so it
     //  stretches across what lies between and gathers again.
     prop pl.head = 1 ~150ms
@@ -1762,23 +1770,47 @@ scene Vitreus {
     let win.w = max(0, bar.r - post.title - win.x)
     let room = 14 * u
     let roomv = 14 * cu                    // and down the left, where the dots are larger
-    //  Down the left, top to bottom: the workspaces (their middle one at `lv.ws`), the tray apps, and from the foot up the clock (its
+    //  Down the left, top to bottom: the workspaces (their middle one at `lv.ws`), the title, and from the foot up the clock (its
     //  hour at `lv.clk`, the minutes, am/pm, the weekday and the date under it), the controls, search and the gear, 32 apart. Whole pixels, for the texts.
-    let lv.ws = yo + lf.t + 50 * cu
-    let lv.tray = lv.ws + 30 * cu + 22 * cu
+    let lv.ws = yo + lf.t + 62 * cu
     let lv.clk = vb - lf.t - 91 * u
     let lv.ctl = lv.clk - 46 * u
     let lv.set = lv.ctl - 32 * u
     let lv.sr = lv.set - 32 * u
+    let lv.tray = lv.sr - 22 * u - max(0, trn * 24 - 6) * u      // the tray apps sit just above the search, under the title
     //  The window title down the left, as in Synoptik's ActiveWindowCard: the app and its title turned a quarter anticlockwise (read from the foot
     //  up), centred in what the other pieces leave (`lv.tt` to `lv.bot`), with the player's buttons stacked at its top end while there is a player.
-    let lv.tt = lv.tray + max(0, trn * 24 - 6) * u + 14 * u
-    let lv.bot = lv.sr - 22 * u
+    let lv.tt = lv.ws + 52 * cu + 14 * u
+    let lv.bot = lv.tray - 14 * u * min(1, trn)
     let lv.mc = 62 * cu * mshow * bs.media0            // what the player's buttons take, along the title
     let lv.span = clamp(max(vclw.width, vtiw.width), 0, max(1, lv.bot - lv.tt - lv.mc))     // how long the text is (cut where the stretch ends)
     let lv.y0 = clamp(vc - (lv.span + lv.mc) / 2, lv.tt, max(lv.tt, lv.bot - lv.span - lv.mc))     // the top of buttons and text together, centred as one on the middle of the screen, as near as the pieces above and below let it
     let lv.mid = lv.y0 + 31 * cu                       // the buttons' middle (previous nearest the text, 17 apart)
     let lv.tm = lv.y0 + lv.mc + lv.span / 2           // the text's middle
+    //  The marks are laid out along one line with the SAME empty space between every neighbouring pair, whatever their sizes: each one has a slot as long
+    //  as itself (a dot, a larger square if it has windows, or the pill while it is the active one, and in between while it morphs), and the slots follow
+    //  each other `ws.g` apart, the whole row centred on its place. `ws.cN` is where slot N's middle is, from the row's middle.
+    let ws.U = mix(u, cu, lm)
+    let ws.g = 9 * ws.U
+    let ws.pb = 15 * ws.U                 // the pill's thickness, the same wherever it is
+    let ws.pl = ws.pb + 14 * ws.U         // and its length, resting on one workspace
+    let ws.s1 = mix((8 + 4.5 * ws.tall.1) * ws.U, ws.pl, ws.act.1)
+    let ws.s2 = mix((8 + 4.5 * ws.tall.2) * ws.U, ws.pl, ws.act.2)
+    let ws.s3 = mix((8 + 4.5 * ws.tall.3) * ws.U, ws.pl, ws.act.3)
+    let ws.s4 = mix((8 + 4.5 * ws.tall.4) * ws.U, ws.pl, ws.act.4)
+    let ws.s5 = mix((8 + 4.5 * ws.tall.5) * ws.U, ws.pl, ws.act.5)
+    let ws.w = ws.s1 + ws.s2 + ws.s3 + ws.s4 + ws.s5 + 4 * ws.g
+    let ws.c1 = ws.s1 / 2 - ws.w / 2
+    let ws.c2 = ws.c1 + ws.s1 / 2 + ws.g + ws.s2 / 2
+    let ws.c3 = ws.c2 + ws.s2 / 2 + ws.g + ws.s3 / 2
+    let ws.c4 = ws.c3 + ws.s3 / 2 + ws.g + ws.s4 / 2
+    let ws.c5 = ws.c4 + ws.s4 / 2 + ws.g + ws.s5 / 2
+    let ws.o = mix(at.ws, lv.ws, lm)
+    let ws.a1 = ws.o + ws.c1
+    let ws.a2 = ws.o + ws.c2
+    let ws.a3 = ws.o + ws.c3
+    let ws.a4 = ws.o + ws.c4
+    let ws.a5 = ws.o + ws.c5
 
     //  The music only moves the bar: it fades out as the panel opens (gone by a third of
     //  the way), so an open panel sits still.
@@ -2211,13 +2243,10 @@ scene Vitreus {
         zone box bar_hover { at: pcx, bar.y; size: bar.w, bar.h; active: lm < 0.5 }
         zone box lf_hover { at: lf.x, vc; size: lf.w, vh; active: lm > 0.5 }
         repeat i in 1..6 {
-            //  The others sit 15 apart; the ones beside the active one slide away from it by `room / 2`
-            //  each, so the widening one has space, and the row flows as the amounts change.
-            let wx = at.ws + (i - 3) * 18 * u + room * 0.5 * clamp(i - pill, -1, 1)
-            //  One shape per workspace that morphs: a dot, a taller capsule if it has windows, and a
-            //  wide mint pill while it is the active one.
-            let wy = lv.ws + (i - 3) * 18 * cu + roomv * 0.5 * clamp(i - pill, -1, 1)
-            zone box ws.hit.$i { at: mix(wx, lf.x, lm), mix(bar.y, wy, lm); size: mix(18 * u, 40 * u, lm), mix(bar.h, 18 * cu, lm); cursor: pointer; active: bs.ws > 0.5 }
+            //  A zone as long as the slot and its share of the gap, so the zones touch.
+            let wa = if(i == 1, ws.a1, if(i == 2, ws.a2, if(i == 3, ws.a3, if(i == 4, ws.a4, ws.a5))))
+            let wsz = (if(i == 1, ws.s1, if(i == 2, ws.s2, if(i == 3, ws.s3, if(i == 4, ws.s4, ws.s5)))) + ws.g)
+            zone box ws.hit.$i { at: mix(wa, lf.x, lm), mix(bar.y, wa, lm); size: mix(wsz, 40 * u, lm), mix(bar.h, wsz, lm); cursor: pointer; active: bs.ws > 0.5 }
             on press ws.hit.$i { emit go(i) }
             on press right ws.hit.$i { emit ov_toggle }
             follow wsh.$i = ws.hit.$i.hover
@@ -2314,56 +2343,78 @@ scene Vitreus {
         //  Every workspace is a soft square. The one in view stretches into a rectangle (along the bar; down the strip, down) and turns
         //  to the accent, one square becoming the other with nothing travelling; one with a window in it is a little more solid; one calling for
         //  attention is coral, still, until you go there.
-        let wx1 = at.ws + (1 - 3) * 18 * u + room * 0.5 * clamp(1 - pill, -1, 1)
-        let wy1 = lv.ws + (1 - 3) * 18 * cu + roomv * 0.5 * clamp(1 - pill, -1, 1)
-        let cx1 = mix(wx1, lf.x, lm)
-        let cy1 = mix(bar.y, wy1, lm)
+        let cx1 = mix(ws.a1, lf.x, lm)
+        let cy1 = mix(bar.y, ws.a1, lm)
         let wg1 = ws.urg.1 * (1 - ws.act.1)
-        let bw1 = (8 + 4.5 * ws.tall.1) * mix(u, cu, lm)
-        let bh1 = (8 + 4.5 * ws.tall.1) * mix(u, cu, lm)
-        let wx2 = at.ws + (2 - 3) * 18 * u + room * 0.5 * clamp(2 - pill, -1, 1)
-        let wy2 = lv.ws + (2 - 3) * 18 * cu + roomv * 0.5 * clamp(2 - pill, -1, 1)
-        let cx2 = mix(wx2, lf.x, lm)
-        let cy2 = mix(bar.y, wy2, lm)
+        let bw1 = (8 + 4.5 * ws.tall.1) * ws.U
+        let bh1 = (8 + 4.5 * ws.tall.1) * ws.U
+        let cx2 = mix(ws.a2, lf.x, lm)
+        let cy2 = mix(bar.y, ws.a2, lm)
         let wg2 = ws.urg.2 * (1 - ws.act.2)
-        let bw2 = (8 + 4.5 * ws.tall.2) * mix(u, cu, lm)
-        let bh2 = (8 + 4.5 * ws.tall.2) * mix(u, cu, lm)
-        let wx3 = at.ws + (3 - 3) * 18 * u + room * 0.5 * clamp(3 - pill, -1, 1)
-        let wy3 = lv.ws + (3 - 3) * 18 * cu + roomv * 0.5 * clamp(3 - pill, -1, 1)
-        let cx3 = mix(wx3, lf.x, lm)
-        let cy3 = mix(bar.y, wy3, lm)
+        let bw2 = (8 + 4.5 * ws.tall.2) * ws.U
+        let bh2 = (8 + 4.5 * ws.tall.2) * ws.U
+        let cx3 = mix(ws.a3, lf.x, lm)
+        let cy3 = mix(bar.y, ws.a3, lm)
         let wg3 = ws.urg.3 * (1 - ws.act.3)
-        let bw3 = (8 + 4.5 * ws.tall.3) * mix(u, cu, lm)
-        let bh3 = (8 + 4.5 * ws.tall.3) * mix(u, cu, lm)
-        let wx4 = at.ws + (4 - 3) * 18 * u + room * 0.5 * clamp(4 - pill, -1, 1)
-        let wy4 = lv.ws + (4 - 3) * 18 * cu + roomv * 0.5 * clamp(4 - pill, -1, 1)
-        let cx4 = mix(wx4, lf.x, lm)
-        let cy4 = mix(bar.y, wy4, lm)
+        let bw3 = (8 + 4.5 * ws.tall.3) * ws.U
+        let bh3 = (8 + 4.5 * ws.tall.3) * ws.U
+        let cx4 = mix(ws.a4, lf.x, lm)
+        let cy4 = mix(bar.y, ws.a4, lm)
         let wg4 = ws.urg.4 * (1 - ws.act.4)
-        let bw4 = (8 + 4.5 * ws.tall.4) * mix(u, cu, lm)
-        let bh4 = (8 + 4.5 * ws.tall.4) * mix(u, cu, lm)
-        let wx5 = at.ws + (5 - 3) * 18 * u + room * 0.5 * clamp(5 - pill, -1, 1)
-        let wy5 = lv.ws + (5 - 3) * 18 * cu + roomv * 0.5 * clamp(5 - pill, -1, 1)
-        let cx5 = mix(wx5, lf.x, lm)
-        let cy5 = mix(bar.y, wy5, lm)
+        let bw4 = (8 + 4.5 * ws.tall.4) * ws.U
+        let bh4 = (8 + 4.5 * ws.tall.4) * ws.U
+        let cx5 = mix(ws.a5, lf.x, lm)
+        let cy5 = mix(bar.y, ws.a5, lm)
         let wg5 = ws.urg.5 * (1 - ws.act.5)
-        let bw5 = (8 + 4.5 * ws.tall.5) * mix(u, cu, lm)
-        let bh5 = (8 + 4.5 * ws.tall.5) * mix(u, cu, lm)
-        box ws.sq1 { at: cx1, cy1; size: bw1, bh1; corner: 0.3 * min(bw1, bh1); color: mix(ink, warm, wg1); opacity: mix(30% + 55% * ws.tall.1, 100%, wg1) * (1 - ws.act.1) * bs.ws }
-        box ws.sq2 { at: cx2, cy2; size: bw2, bh2; corner: 0.3 * min(bw2, bh2); color: mix(ink, warm, wg2); opacity: mix(30% + 55% * ws.tall.2, 100%, wg2) * (1 - ws.act.2) * bs.ws }
-        box ws.sq3 { at: cx3, cy3; size: bw3, bh3; corner: 0.3 * min(bw3, bh3); color: mix(ink, warm, wg3); opacity: mix(30% + 55% * ws.tall.3, 100%, wg3) * (1 - ws.act.3) * bs.ws }
-        box ws.sq4 { at: cx4, cy4; size: bw4, bh4; corner: 0.3 * min(bw4, bh4); color: mix(ink, warm, wg4); opacity: mix(30% + 55% * ws.tall.4, 100%, wg4) * (1 - ws.act.4) * bs.ws }
-        box ws.sq5 { at: cx5, cy5; size: bw5, bh5; corner: 0.3 * min(bw5, bh5); color: mix(ink, warm, wg5); opacity: mix(30% + 55% * ws.tall.5, 100%, wg5) * (1 - ws.act.5) * bs.ws }
-        let pl.b = (8 + 4.5 * (ws.act.1 * ws.tall.1 + ws.act.2 * ws.tall.2 + ws.act.3 * ws.tall.3 + ws.act.4 * ws.tall.4 + ws.act.5 * ws.tall.5)) * mix(u, cu, lm)
-        let pl.x1 = at.ws + (pl.head - 3) * 18 * u + room * 0.5 * clamp(pl.head - pill, -1, 1)
-        let pl.x2 = at.ws + (pl.tail - 3) * 18 * u + room * 0.5 * clamp(pl.tail - pill, -1, 1)
-        let pl.y1 = lv.ws + (pl.head - 3) * 18 * cu + roomv * 0.5 * clamp(pl.head - pill, -1, 1)
-        let pl.y2 = lv.ws + (pl.tail - 3) * 18 * cu + roomv * 0.5 * clamp(pl.tail - pill, -1, 1)
+        let bw5 = (8 + 4.5 * ws.tall.5) * ws.U
+        let bh5 = (8 + 4.5 * ws.tall.5) * ws.U
+        body ws.sq1 {
+            color: mix(ink, warm, wg1)
+            opacity: mix(30% + 55% * ws.tall.1, 100%, wg1) * (1 - ws.act.1) * bs.ws
+            rim: 40%
+            box { at: cx1, cy1; size: bw1, bh1; corner: 0.3 * min(bw1, bh1) }
+        }
+        body ws.sq2 {
+            color: mix(ink, warm, wg2)
+            opacity: mix(30% + 55% * ws.tall.2, 100%, wg2) * (1 - ws.act.2) * bs.ws
+            rim: 40%
+            box { at: cx2, cy2; size: bw2, bh2; corner: 0.3 * min(bw2, bh2) }
+        }
+        body ws.sq3 {
+            color: mix(ink, warm, wg3)
+            opacity: mix(30% + 55% * ws.tall.3, 100%, wg3) * (1 - ws.act.3) * bs.ws
+            rim: 40%
+            box { at: cx3, cy3; size: bw3, bh3; corner: 0.3 * min(bw3, bh3) }
+        }
+        body ws.sq4 {
+            color: mix(ink, warm, wg4)
+            opacity: mix(30% + 55% * ws.tall.4, 100%, wg4) * (1 - ws.act.4) * bs.ws
+            rim: 40%
+            box { at: cx4, cy4; size: bw4, bh4; corner: 0.3 * min(bw4, bh4) }
+        }
+        body ws.sq5 {
+            color: mix(ink, warm, wg5)
+            opacity: mix(30% + 55% * ws.tall.5, 100%, wg5) * (1 - ws.act.5) * bs.ws
+            rim: 40%
+            box { at: cx5, cy5; size: bw5, bh5; corner: 0.3 * min(bw5, bh5) }
+        }
+        let pl.h1 = ws.c1 + clamp(pl.head - 1, 0, 1) * (ws.c2 - ws.c1) + clamp(pl.head - 2, 0, 1) * (ws.c3 - ws.c2) + clamp(pl.head - 3, 0, 1) * (ws.c4 - ws.c3) + clamp(pl.head - 4, 0, 1) * (ws.c5 - ws.c4)
+        let pl.h2 = ws.c1 + clamp(pl.tail - 1, 0, 1) * (ws.c2 - ws.c1) + clamp(pl.tail - 2, 0, 1) * (ws.c3 - ws.c2) + clamp(pl.tail - 3, 0, 1) * (ws.c4 - ws.c3) + clamp(pl.tail - 4, 0, 1) * (ws.c5 - ws.c4)
         let pl.s = min(1, abs(pl.head - pl.tail))
-        let pl.t = pl.b * (1 - 0.18 * pl.s)
-        let pl.w = mix(abs(pl.x1 - pl.x2) + pl.b + 18 * u, pl.t, lm)
-        let pl.h = mix(pl.t, abs(pl.y1 - pl.y2) + pl.b + 18 * cu, lm)
-        box ws.pill { at: mix((pl.x1 + pl.x2) / 2, lf.x, lm), mix(bar.y, (pl.y1 + pl.y2) / 2, lm); size: pl.w, pl.h; corner: 0.3 * min(pl.w, pl.h); color: mint; opacity: bs.ws }
+        let pl.t = ws.pb * (1 - 0.18 * pl.s)
+        let pl.len = abs(pl.h1 - pl.h2) + ws.pl
+        let pl.m = ws.o + (pl.h1 + pl.h2) / 2
+        let pl.w = mix(pl.len, pl.t, lm)
+        let pl.h = mix(pl.t, pl.len, lm)
+        group {
+            body ws.pill {
+                gradient: 0, mix(bar.y, pl.m, lm) - pl.h / 2 to 0, mix(bar.y, pl.m, lm) + pl.h / 2, minthi, mintlo
+                rim: 55%
+                shadow: 0, 0, 7 * u, 30%, mint
+                opacity: bs.ws
+                box { at: mix(pl.m, lf.x, lm), mix(bar.y, pl.m, lm); size: pl.w, pl.h; corner: 0.3 * min(pl.w, pl.h) }
+            }
+        }
         //  The player's buttons.
         group {
             opacity: mshow * bs.media * bs.title
