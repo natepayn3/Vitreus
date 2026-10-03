@@ -5401,12 +5401,13 @@ end)()
         after(ms, function() if g == capture_gen then capture() end end)
     end
 
-    local function refresh()
-        run("hyprctl", { "clients" }, function(out, code)
-            if code ~= 0 or not open then return end
+    local clients = {}              -- the windows as last read from `hyprctl clients`; a move edits this at once, so its card does not wait for Hyprland
+    local moving = false            -- a window was dropped on another workspace and Hyprland has not caught up: do not read the old place back yet
+    local function render()
+        do
             local per = { {}, {}, {}, {}, {} }
             local elsewhere = 0
-            for _, w in ipairs(parse_clients(out)) do
+            for _, w in ipairs(clients) do
                 if w.mapped == "1" then
                     local id = tonumber((w.workspace or ""):match("^(-?%d+)")) or 0
                     if id >= 1 and id <= 5 then table.insert(per[id], w) else elsewhere += 1 end
@@ -5445,6 +5446,14 @@ end)()
                 last_sig = joined
                 model.ovw = rows
             end
+        end
+    end
+    local function refresh()
+        if moving then return end
+        run("hyprctl", { "clients" }, function(out, code)
+            if code ~= 0 or not open or moving then return end
+            clients = parse_clients(out)
+            render()
         end)
     end
     on("fact:ov_open", function(v)
@@ -5484,9 +5493,17 @@ end)()
         local addr = addrs[n + 1]
         local ws = math.floor((tonumber(col) or -1) + 1)
         if not addr or ws < 1 or ws > 5 then return end
+        -- The card goes to its new workspace now, and what Hyprland says is not read back until it has done it (otherwise the card shows on the old
+        -- workspace again for a moment, until the next read).
+        moving = true
+        for _, w in ipairs(clients) do
+            if w.addr == addr then w.workspace = tostring(ws) end
+        end
+        render()
         run("hyprctl", { "dispatch", string.format('hl.dsp.window.move({ workspace = %d, follow = false, window = "address:0x%s" })', ws, addr) }, function()
-            after(250, refresh)
+            after(250, function() moving = false; refresh() end)
         end)
+        after(1500, function() moving = false end)         -- whatever happens, the overview does not stay frozen
     end)
     on("ov_focus", function(n)
         local addr = addrs[n + 1]
