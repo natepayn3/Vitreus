@@ -2236,17 +2236,35 @@ scene Vitreus {
             let bf.m = 7 * u                                        // the margin between the gauge and the bar's edge
             let bf.x = pcx - (bar.w + pv * 10 * u) / 2 + bf.m
             let bf.mid = bar.y - bar.h / 2 + (bar.h + pop) / 2      // the pill's middle line
-            let bf.full = bar.w + pv * 10 * u - 2 * bf.m           // the gauge's length at 100 %
+            let bf.nub = 6.6 * u                                    // how far the nub on its far end sticks out
+            let bf.full = bar.w + pv * 10 * u - 2 * bf.m - bf.nub   // the gauge's length at 100 %: the nub has the same margin at its end as the gauge has at the other
             let bf.tall = bar.h + pop - 2 * bf.m                   // the pill's height
             let bf.show = clamp(batt_open, 0, 1) * (1 - lm)
             let bf.hh = bf.tall * (0.7 + 0.3 * bf.show)
             let bf.len = max(0.1, bf.full * batt_fill)
             let bf.c = mix(mint, #e0655a, batt_low)
+            //  The empty part of the gauge, very faint, the same size as the gauge at a full charge. The nub on its far end, like the terminal of a
+            //  battery (it says what this is), is its own shape, below.
+            body {
+                color: bf.c
+                rim: 10%
+                opacity: 10% * bf.show * batt_on
+                box { from: bf.x, bf.mid - bf.hh / 2; size: bf.full, bf.hh; corner: min(bf.hh / 2, max(0.5, bar.rad - bf.m)) }
+                box { at: bf.x + bf.full + 3.1 * u, bf.mid; size: 7 * u, 0.56 * bf.hh; corner: 2.6 * u }
+            }
             body {
                 gradient: bf.x, 0 to bf.x + max(1, bf.len), 0, mix(tint, bf.c, 0.28), bf.c
                 rim: 18%
                 opacity: (19% + 9% * batt_low) * bf.show * batt_on
                 box { from: bf.x, bf.mid - bf.hh / 2; size: bf.len, bf.hh; corner: min(bf.hh / 2, max(0.5, bar.rad - bf.m)) }
+            }
+            //  The nub on the gauge's far end, like a battery's terminal. It is in the faint track too, so that it has the same two layers the fill has (the
+            //  fill alone is not as bright as the fill over the track), in the colour the fill's gradient ends on, with the fill's opacity. Its edges are exactly the track nub's, it stops where the gauge starts, and it has no edge light of its own: the track's gives the edge,
+            //  and a second one would draw a line across the joint.
+            body {
+                color: bf.c
+                opacity: (19% + 9% * batt_low) * bf.show * batt_on
+                box { at: bf.x + bf.full + 3.3 * u, bf.mid; size: 6.6 * u, 0.56 * bf.hh; corner: 2.6 * u }
             }
         }
 
@@ -2257,14 +2275,29 @@ scene Vitreus {
             let bl.show = clamp(batt_open, 0, 1) * lm
             let bl.w = lf.w - 2 * bl.m
             let bl.bot = vb - lf.t - bl.m
-            let bl.full = vh - 2 * (lf.t + bl.m)
+            let bl.nub = 6.6 * u                                    // how far the nub on its top end sticks out
+            let bl.full = vh - 2 * (lf.t + bl.m) - bl.nub           // the gauge's length at 100 %: the nub has the same margin at its end as the gauge has at the other
             let bl.len = max(0.1, bl.full * batt_fill)
             let bl.c = mix(mint, #e0655a, batt_low)
+            //  The empty part of the strip's gauge (the nub on its top end is part of the fill's shape, below).
+            body {
+                color: bl.c
+                rim: 10%
+                opacity: 10% * bl.show * batt_on
+                box { from: bl.m, bl.bot - bl.full; size: bl.w, bl.full; corner: min(bl.w / 2, max(0.5, bar.rad - bl.m)); show: lm > 0.004 }
+                box { at: lf.x, bl.bot - bl.full - 3.1 * u; size: 0.56 * bl.w, 7 * u; corner: 2.6 * u; show: lm > 0.004 }
+            }
             body {
                 gradient: lf.x, bl.bot to lf.x, bl.bot - max(1, bl.len), mix(tint, bl.c, 0.28), bl.c
                 rim: 18%
                 opacity: (19% + 9% * batt_low) * bl.show * batt_on
                 box { from: bl.m, bl.bot - bl.len; size: bl.w, bl.len; corner: min(bl.w / 2, max(0.5, bar.rad - bl.m)); show: lm > 0.004 }
+            }
+            //  The nub on the strip gauge's top end (see the bar's): its own body, in the colour the fill's gradient ends on.
+            body {
+                color: bl.c
+                opacity: (19% + 9% * batt_low) * bl.show * batt_on
+                box { at: lf.x, bl.bot - bl.full - 3.3 * u; size: 0.56 * bl.w, 6.6 * u; corner: 2.6 * u; show: lm > 0.004 }
             }
         }
 
