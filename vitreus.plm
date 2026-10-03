@@ -2184,6 +2184,14 @@ scene Vitreus {
     let ctl.cmax = max(vol_bot + max(dd.rows * 30 - 28, mix.m), 312)
     let ctl.zh = (ctl.cmax + 16) * cu + 13 * cu
     let ctl.zc = clamp(lv.ctl, yo + lf.t + 24 * u + ctl.zh / 2, vb - lf.t - 24 * u - ctl.zh / 2)
+    //  Hot edges: rest the pointer against the top of the screen, over where the launcher (search) opens, or against the bottom,
+    //  over where Settings opens, and a small notch (see the end of the scene) slides out of that edge. Each hot zone is only as
+    //  wide as its panel and sits where the panel does: in the middle of the screen, or beside the strip when the bar is down a
+    //  side. Declared before the bar and the panels, like the zone below, so theirs still take their own presses.
+    let edge_lx = mix(cx, mix(lf.w + 6.5 * pu + 225 * pu, screen.width - lf.t - 6.5 * pu - 225 * pu, rgt), lm)
+    let edge_sx = mix(cx, mix(lf.w + 6.5 * pu + 310 * pu, screen.width - lf.t - 6.5 * pu - 310 * pu, rgt), lm)
+    zone box edge_top { at: edge_lx, 6; size: 450 * pu, 12; active: panel != launch }
+    zone box edge_bottom { at: edge_sx, screen.height - 6; size: 620 * pu, 12; active: panel != settings }
     //  Declared here, before the bar and the panels, so that every zone of theirs drawn over them still takes its own presses.
     zone box ctl_btn_z { at: lf.w / 2, lv.ctl; size: lf.w, 36 * u; active: lm > 0.5 }
     zone box ctl_band_z { at: dk.ex, ctl.zc; size: dk.ew + 8, ctl.zh + 8; active: lm > 0.5 and panel == controls }
@@ -6835,6 +6843,49 @@ scene Vitreus {
         text "Authenticate" { at: floor(pk.x + 88 * u + 0.5), floor(pk.top + 226 * u + 0.5); anchor: center; align: center; size: 12 * u; weight: 700; color: onmint; family: "Space Grotesk" }
         zone box pk_ok_hit { at: pk.x + 88 * u, pk.top + 226 * u; size: 174 * u, 34 * u; corner: 15 * u; cursor: pointer; active: not pk_busy }
         on press pk_ok_hit { pk_go = true }
+    }
+
+    //  The notches. Rest the pointer on the top edge, over where the launcher opens, and a small tab slides down out of it; on the
+    //  bottom edge, over where Settings opens, and one slides up. Each has the three dots the volume card has under its plate: the
+    //  hint that it can be pressed, and pressing it opens the panel. It stays while the pointer is on the edge or on the notch, a
+    //  moment after leaving (so it is not lost on the way), and goes when the panel it opens is open.
+    prop nt_hold_t = 0 ~350ms
+    prop nt_hold_b = 0 ~350ms
+    prop nt_vis_t = 0 ~calm
+    prop nt_vis_b = 0 ~calm
+    let nt_ty = nt_vis_t * 14 * cu                        // how far the top notch hangs down from the edge
+    let nt_by = screen.height - nt_vis_b * 14 * cu        // where the bottom notch's top edge is
+    zone box ntch_top { at: edge_lx, nt_ty - 6 * cu; size: 58 * cu, 26 * cu; cursor: pointer; active: nt_vis_t > 0.3 }
+    zone box ntch_bot { at: edge_sx, nt_by + 6 * cu; size: 58 * cu, 26 * cu; cursor: pointer; active: nt_vis_b > 0.3 }
+    follow nt_hold_t = if(max(edge_top.hover, ntch_top.hover) > 0.5, 1, 0)
+    follow nt_hold_b = if(max(edge_bottom.hover, ntch_bot.hover) > 0.5, 1, 0)
+    follow nt_vis_t = if(nt_hold_t > 0.5 and panel != launch, 1, 0)
+    follow nt_vis_b = if(nt_hold_b > 0.5 and panel != settings, 1, 0)
+    on press ntch_top { panel = launch }
+    on press ntch_bot { panel = settings }
+    group {
+        show: nt_vis_t > 0.02
+        body {
+            color: off
+            rim: 14%
+            shadow: 0, 2 * cu, 8 * cu, 30%
+            box { at: edge_lx, nt_ty - 11 * cu; size: 46 * cu, 22 * cu; corner: 9 * cu }
+        }
+        repeat i in 0..3 {
+            ellipse { at: edge_lx + (i - 1) * 6.5 * cu, nt_ty - 7 * cu; radius: 1.6 * cu; color: ink; opacity: 35% + 55% * ntch_top.hover }
+        }
+    }
+    group {
+        show: nt_vis_b > 0.02
+        body {
+            color: off
+            rim: 14%
+            shadow: 0, -2 * cu, 8 * cu, 30%
+            box { at: edge_sx, nt_by + 11 * cu; size: 46 * cu, 22 * cu; corner: 9 * cu }
+        }
+        repeat i in 0..3 {
+            ellipse { at: edge_sx + (i - 1) * 6.5 * cu, nt_by + 7 * cu; radius: 1.6 * cu; color: ink; opacity: 35% + 55% * ntch_bot.hover }
+        }
     }
 
 }
