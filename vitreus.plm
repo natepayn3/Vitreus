@@ -42,7 +42,7 @@ scene Vitreus {
     fact pal_alert_r = 0.9373   // #ef4444
     fact pal_alert_g = 0.2667
     fact pal_alert_b = 0.2667
-    surface { size: full, 1440; anchor: bar_anchor; margin: 0; reserve: 68; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open }
+    surface { size: full, 1440; anchor: bar_anchor; margin: 0; reserve: 68; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif and panel != desk) or wp_picker_open or ov_open or pk_open or desk_kb }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play" }
 
@@ -117,7 +117,7 @@ scene Vitreus {
     measure cdw
     //  Which panel hangs from the bar: the clock and calendar (click the clock), or the
     //  controls (click the window title).
-    fact panel: none | calendar | controls | player | volume | notif | settings | launch | tray = none
+    fact panel: none | calendar | controls | player | volume | notif | settings | launch | tray | desk = none
     fact media_on = false          // is there a player at all
     fact bass = 0
     //  The six bars cava reports, 0..1 each, for the equalizer in the media card. Each one
@@ -589,6 +589,7 @@ scene Vitreus {
     prop dk    = 0 ~drip
     prop dm    = 0 ~drip          // the player's panel, hanging from the window title
     prop do    = 0 ~drip          // the volume / notification drawer
+    prop dz    = 0 ~drip          // the desk's drawer, out of the right frame
     prop ds    = 0 ~drip          // the settings panel
     prop fs    = 0 ~300ms         // what is in it, fading in
     prop dl    = 0 ~drip          // the launcher
@@ -618,6 +619,7 @@ scene Vitreus {
     follow dk   = if(panel == controls, 1, 0)
     follow dm   = if(panel == player or panel == tray, 1, 0)
     follow do   = if(panel == volume or panel == notif, 1, 0)
+    follow dz   = if(panel == desk, 1, 0)
     follow ds   = if(panel == settings, 1, 0)
     follow dl   = if(panel == launch, 1, 0)
     follow lr   = max(1, lcount, if(lp_on, 6, 1))
@@ -1756,7 +1758,9 @@ scene Vitreus {
     let rgt = if(lp_k > 6, 1, 0)                                    // the volume and the notifications come out of the right frame, not the strip, and grow leftwards
     let edg = if(lp_k == 1 or lp_k == 2, 1, 0)                      // Settings rises out of the bottom frame's middle, the launcher lowers out of the top frame's: not from the strip
     let dsl = max(0, dtrav * 1.3 - 0.3)
-    let ku = if(lp_k == 1 or lp_k == 2, pu, if(lp_k >= 3 and lp_k <= 6, cu, u))                      // the unit of the panel that is open: the Settings and the launcher are larger
+    let ku = if(lp_k == 1 or lp_k == 2, pu, if(lp_k == 9 or (lp_k >= 3 and lp_k <= 6), cu, u))                      // the unit of the panel that is open: the Settings and the launcher are larger
+    let dsk_w = 340 * cu                                   // the desk's width and height, once out
+    let dsk_h = 450 * cu
     let lp.gx0 = lf.x
     let lp.gxf = ccx - (pw_x / 2 + 6.5) * ku
     let lp.xl = mix(lp.gx0 + (lp.gxf - lp.gx0) * dsl, lf.x, att)
@@ -1764,7 +1768,7 @@ scene Vitreus {
     //  Click away. The surface is the whole screen (its input region is only what has a zone, so the rest lets clicks through), and this
     //  zone, declared before everything else so that everything else wins over it, closes the panel on a press anywhere that is not
     //  the panel or the bar. A second surface for this would take Escape away from the panel, so it is done here.
-    zone box away_z { at: screen.width / 2, screen.height / 2; size: screen.width, screen.height; active: (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open }
+    zone box away_z { at: screen.width / 2, screen.height / 2; size: screen.width, screen.height; active: (panel != none and panel != volume and panel != notif and panel != desk) or wp_picker_open or ov_open }
     on press away_z { panel = none; wp_picker_open = false; ov_open = false }
     on press right away_z { panel = none; wp_picker_open = false; ov_open = false }
     //  The tray's icons (the pinned apps, or all of them) are a piece of the bar like the others; the bar widens for them.
@@ -1893,6 +1897,7 @@ scene Vitreus {
     let dk0 = max(0, dk)
     let dm0 = max(0, dm)
     let do0 = max(0, do)
+    let dz0 = max(0, dz)
     let ds0 = max(0, ds)
     let dl0 = max(0, dl)
     let expand0 = max(0, expand)
@@ -1904,6 +1909,7 @@ scene Vitreus {
     let dl.bell = 4 * min(1, dl0) * (1 - min(1, dl0))
     let dc.bell = 4 * min(1, dc0) * (1 - min(1, dc0))
     let do.bell = 4 * min(1, do0) * (1 - min(1, do0))
+    let dz.bell = 4 * min(1, dz0) * (1 - min(1, dz0))
     let dm.bell = 4 * min(1, dm0) * (1 - min(1, dm0))
     //  Both panels fill in their width quickly and then keep growing taller - so a
     //  plain `min(1, …)` on the width leaves it capped flat once that's done, and
@@ -2057,7 +2063,7 @@ scene Vitreus {
     //  `lp.dy` and the drawer made `lp.dd` taller to make them 18.5 all round (Settings included).
     let lp.dy = if(lp_k == 1, 4.5, if(lp_k == 2 or lp_k == 3 or lp_k == 5 or lp_k == 6 or lp_k == 7 or lp_k == 8, 6.5, if(lp_k == 4, -0.5, 0))) * ku * lm
     let lp.dd = if(lp_k == 1, 11, if(lp_k == 2, 11, if(lp_k == 3 or lp_k == 5 or lp_k == 6 or lp_k == 7 or lp_k == 8, 13, if(lp_k == 4, 6, 0)))) * ku * lm
-    let lp.hd = (if(lp_k == 1, (8 + 36 + 8 + set.h + 16) * pu, if(lp_k == 2, (112 + lr * 44) * pu, if(lp_k == 3, (content_bot + 16) * cu, if(lp_k == 4, 373 * cu, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * cu, (8 + osd_h + 16) * u)))))) + lp.dd
+    let lp.hd = (if(lp_k == 1, (8 + 36 + 8 + set.h + 16) * pu, if(lp_k == 2, (112 + lr * 44) * pu, if(lp_k == 3, (content_bot + 16) * cu, if(lp_k == 4, 373 * cu, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * cu, if(lp_k == 9, dsk_h, (8 + osd_h + 16) * u))))))) + lp.dd
     //  Where it settles, as drawn (`ty`): Settings low, the launcher high, a good way from the middle, and clear of the frame; then back to the panel's
     //  own coordinates (the contents are scaled about the middle of the screen).
     let lp.ty = if(lp_k == 1, min(vc + 190 * u, vb - lf.t - 24 * u - lp.hd / 2), max(vc - 210 * u, yo + lf.t + 24 * u + lp.hd / 2))
@@ -2075,8 +2081,8 @@ scene Vitreus {
         //  Which panel was opened last, and how wide it is: where the panels sit down the left follows it (see `lp.top`, `pcx`). Here, in the
         //  scene, not in the logic (its own popups, volume and notifications, set `panel` itself and nothing told it), and only once the panel
         //  is really being opened: a switch from one to another leaves the open one in its own shape until it has gone.
-        lp_w = if(panel == settings, 620, if(panel == controls or panel == player or panel == tray, 312, if(panel == volume or panel == notif, 340, if(panel == calendar or panel == launch, 450, lp_w))))
-        lp_k = if(panel == settings, 1, if(panel == launch, 2, if(panel == controls, 3, if(panel == calendar, 4, if(panel == tray, 5, if(panel == player, 6, if(panel == volume, 7, if(panel == notif, 8, lp_k))))))))
+        lp_w = if(panel == settings, 620, if(panel == controls or panel == player or panel == tray, 312, if(panel == volume or panel == notif, 340, if(panel == calendar or panel == launch, 450, if(panel == desk, 340, lp_w)))))
+        lp_k = if(panel == settings, 1, if(panel == launch, 2, if(panel == controls, 3, if(panel == calendar, 4, if(panel == tray, 5, if(panel == player, 6, if(panel == volume, 7, if(panel == notif, 8, if(panel == desk, 9, lp_k)))))))))
     }
     //  Whatever happened on the way (a hover that bounced between the two), the drawer that is coming out is the one whose shape and width the strip uses.
     on change dk > 0.5 while dk > 0.5 { lp_k = 3; lp_w = 312 }
@@ -2172,6 +2178,14 @@ scene Vitreus {
     let dm.eh = mix(dm.hh, dm.gh, lm)
     let dm.ex = mix(pcx, dm.gx, lm)
     let dm.ey = mix(bar.y + dm.hh / 2, lp.cy, lm)
+    //  The desk's drawer: the volume's out of the right frame, with its own size (see `do.*`).
+    let dz.gl = mix(min(dtrav, dz0), dz0, att)
+    let dz.lf = mix(min(1, dz0 * 1.6) + max(0, dz0 - 1) * 0.6, min(1, dz.gl * 1.6) + max(0, dz.gl - 1) * 0.6, lm)
+    let dz.rt = lf.t + dsk_w + 32.5 * cu
+    let dz.gw = max(0.1, dz.rt * dz.lf)
+    let dz.gh = (dsk_h + max(0, sag)) * dz.lf
+    let dz.ex = screen.width + 26 * cu * dz.lf - dz.gw / 2
+    let dz.ey = lp.cy
     //  The control center opens when the pointer rests on its button, and closes when it has left the button and the drawer (a moment's grace, so
     //  that crossing the gap does not close it). It is quick launch, so it stays joined to the strip instead of dropping out of it.
     //  Both are invisible zones (`ctl_btn_z`, `ctl_band_z`, below), not the mouse's position: naming `cursor` made pleamar ask Hyprland where the
@@ -2205,6 +2219,115 @@ scene Vitreus {
     follow nt_hold_b = if(max(ntz_b.hover, max(ntn_b.hover, ntp_b.hover)) > 0.5, 1, 0)
     follow nt_vis_t = if(nt_hold_t > 0.3, 1, 0)
     follow nt_vis_b = if(nt_hold_b > 0.3, 1, 0)
+    //  The right notch opens the desk: a panel (`panel == desk`, `lp_k` 9) out of the right frame with a few small tools, in tabs. It is drawn
+    //  by the same drawer machinery as the volume's and the title panel's (`dz.*`), so it opens, stretches and settles the same way.
+    fact desk_tab = 2                                      // 0 Pad, 1 Shelf, 2 Focus
+    prop desk_sel = 2 ~slide                               // which tab the thumb is on
+    follow desk_sel = desk_tab
+    let dsk_x0 = screen.width - lf.t - dsk_w               // its inner left edge
+    let dsk_xc = dsk_x0 + dsk_w / 2
+    let dsk_y0 = vc - dsk_h / 2
+    zone box ntz_r { at: screen.width - (lf.t + 6 * cu) / 2, vc; size: lf.t + 6 * cu, nt_w + 24 * cu; active: lm > 0.5 and panel != desk }
+    zone box ntn_r { at: screen.width - (lf.t + nt_d) / 2, vc; size: lf.t + nt_d, nt_w; cursor: pointer; active: lm > 0.5 and nt_vis_r > 0.5 and panel != desk }
+    prop nt_vis_r = 0 ~calm
+    prop nt_hold_r = 0 ~280ms
+    follow nt_hold_r = if(max(ntz_r.hover, ntn_r.hover) > 0.5, 1, 0)
+    follow nt_vis_r = if(nt_hold_r > 0.3 and panel != desk, 1, 0)
+    on press ntn_r { panel = desk }
+    //  The focus timer (see the Focus section of vitreus.luau).
+    event ft_toggle ->                                      // start, pause or resume; carries the minutes
+    event ft_reset ->
+    event ft_set ->                                         // a preset was chosen while idle
+    fact ft_len = 30
+    fact ft_state = 0                                       // 0 ready, 1 running, 2 paused, 3 done
+    fact ft_prog = 1.0                                      // the fraction left
+    fact desk_kb = false                                    // typing in the desk (the task field): only then does it take the keyboard
+    on change desk_tab { desk_kb = false }
+    on change panel while panel != desk { desk_kb = false }
+    fact ft_dnd = true                                      // silence notifications while it runs
+    fact ft_caf = true                                      // keep the machine awake while it runs
+    text ft_time = "30:00"
+    prop ft_ring = 1 ~gentle
+    prop ft_press = 0 ~pop
+    //  The desk's contents come in one after another once the drawer is out, like the title panel's (`f3`) and the controls' (`f5`..`f7`):
+    //  each section fades in and rises a little, on a longer spring than the one before.
+    prop fd0 = 0 ~380ms                                     // the tabs
+    prop fd1 = 0 ~560ms
+    prop fd2 = 0 ~680ms
+    prop fd3 = 0 ~780ms
+    prop fd4 = 0 ~880ms
+    on change panel while panel == desk { fd0: 1 after 200ms; fd1: 1 after 200ms; fd2: 1 after 200ms; fd3: 1 after 200ms; fd4: 1 after 200ms }
+    on change panel while panel != desk { fd0: 0 ~80ms; fd1: 0 ~80ms; fd2: 0 ~80ms; fd3: 0 ~80ms; fd4: 0 ~80ms }
+    //  The shelf: up to eight things dropped on it (files, links, text), each draggable back out to another program.
+    repeat k in 0..8 {
+        text shelf.$k.name = ""
+        text shelf.$k.path = ""
+        text shelf.$k.tag = ""
+        fact shelf.$k.has = false
+        //  The same for the shelf's cards: one that is dismissed slides off and fades, and the ones after it glide into its place.
+        fact shelf.$k.gone = false
+        prop shelf.$k.out = 0 ~180ms
+        prop shelf.$k.dx = 0 ~220ms
+        prop shelf.$k.dy = 0 ~220ms
+        on change shelf.$k.gone while shelf.$k.gone { shelf.$k.out: 1 ~180ms }
+        on change shelf.$k.gone while not shelf.$k.gone { shelf.$k.out: 0 ~0ms }
+        on shelf_shifted(v) while k >= v { shelf.$k.dx: if(mod(k, 2) == 0, 158, -158) * cu ~0ms; shelf.$k.dy: if(mod(k, 2) == 0, 0, 50) * cu ~0ms; shelf.$k.dx: 0 ~220ms after 40ms; shelf.$k.dy: 0 ~220ms after 40ms }
+    }
+    fact shelf_n = 0
+    event shelf_del ->
+    event shelf_clear ->
+    prop desk_drag = 0 ~120ms                               // 1 while something from another program is being carried over the desk
+    follow desk_drag = drag.over
+    prop shelf_flash = 0 ~calm                              // the glow of a drop that has just landed
+    //  The task list: nine lines with a check each.
+    repeat k in 0..9 {
+        text task.$k.text = ""
+        fact task.$k.has = false
+        fact task.$k.done = false
+        prop task.$k.p = 0 ~pop
+        follow task.$k.p = if(task.$k.done, 1, 0)
+        //  Dismissed: the line slides off to the right and fades (the logic marks it `gone`, waits a moment, then removes it), and the
+        //  lines under it glide up into the gap (`task_shifted` says from which one; each starts where its text was and settles).
+        fact task.$k.gone = false
+        prop task.$k.out = 0 ~180ms
+        prop task.$k.dy = 0 ~220ms
+        on change task.$k.gone while task.$k.gone { task.$k.out: 1 ~180ms }
+        on change task.$k.gone while not task.$k.gone { task.$k.out: 0 ~0ms }
+        on task_shifted(v) while k >= v { task.$k.dy: 29 * cu ~0ms; task.$k.dy: 0 ~220ms after 40ms }
+    }
+    fact task_n = 0
+    //  The drawing board in the Pad tab: the logic keeps the strokes as short segments (half units, from the board's corner) and gives
+    //  them back here to draw, up to 768 in three lists of 256. A point is reported as one number: x * 1000 + y, in half units.
+    fact pad_mode = 0                                       // 0 tasks, 1 draw
+    prop pad_sel = 0 ~slide
+    follow pad_sel = pad_mode
+    fact dr_col = 0                                         // the pen: a colour out of five
+    fact dr_thick = 0                                       // and one of three sizes (also the eraser's)
+    fact dr_tool = 0                                        // 0 pen, 1 eraser
+    fact dr_held = false                                    // the pointer is down on the board
+    fact dr_px = 0                                          // and where, for the eraser's ring
+    fact dr_py = 0
+    model dr_segs0 max 256 { x0: number; y0: number; x1: number; y1: number; c: number; w: number }
+    model dr_segs1 max 256 { x0: number; y0: number; x1: number; y1: number; c: number; w: number }
+    model dr_segs2 max 256 { x0: number; y0: number; x1: number; y1: number; c: number; w: number }
+    event dr_down ->
+    event dr_pt ->
+    event dr_up ->
+    event dr_undo ->
+    event dr_clear ->
+    text task_in = ""
+    event task_toggle ->
+    event task_del ->
+    event task_clear ->
+    event task_shifted                                      // from the logic: lines from this one on have moved up
+    event shelf_shifted
+    prop ft_dnd_p = 1 ~pop
+    prop ft_caf_p = 1 ~pop
+    follow ft_dnd_p = if(ft_dnd, 1, 0)
+    follow ft_caf_p = if(ft_caf, 1, 0)
+    prop ft_sel = 1 ~slide
+    follow ft_ring = ft_prog
+    follow ft_sel = if(ft_len == 15, 0, if(ft_len == 30, 1, if(ft_len == 45, 2, 3)))
     on press ntn_t { panel = if(panel == launch, none, launch) }
     on press ntn_b { panel = if(panel == settings, none, settings) }
     //  Declared here, before the bar and the panels, so that every zone of theirs drawn over them still takes its own presses.
@@ -2294,6 +2417,8 @@ scene Vitreus {
             //  (Moved off the screen outside the Frame layout: `show:` does not take a shape off the glass.)
             box { at: ccx + if(lm > 0.35, 0, 30000), yo + (lf.t + nt_d * nt_vis_t) / 2; size: nt_w, lf.t + nt_d * nt_vis_t; corner: 9 * cu; blend: 9 * u }
             box { at: ccx + if(lm > 0.35, 0, 30000), vb - (lf.t + nt_d * nt_vis_b) / 2; size: nt_w, lf.t + nt_d * nt_vis_b; corner: 9 * cu; blend: 9 * u }
+            box { at: screen.width - (lf.t + nt_d * nt_vis_r) / 2 + if(lm > 0.35, 0, 30000), vc; size: lf.t + nt_d * nt_vis_r, nt_w; corner: 9 * cu; blend: 9 * u }
+            box zdrawer { at: dz.ex + if(lm > 0.35, 0, 30000), dz.ey; size: dz.gw * (1 + dj.stretch - 0.07 * dz.bell + 0.003 * wobble), dz.gh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dz.gw, dz.gh) / 2, 26 * u, clamp(dz0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dz.bell) * u * min(1, dz0 * 4); show: dz0 > 0.004 }
         }
         //  The three dots on each tab (the volume card's hint), fading out as the panel they open comes out.
         group {
@@ -2301,6 +2426,427 @@ scene Vitreus {
             repeat i in 0..3 {
                 ellipse { at: ccx + (i - 1) * 6.5 * cu, yo + lf.t + nt_d * nt_vis_t / 2; radius: 1.6 * cu; color: ink; opacity: (35% + 55% * ntn_t.hover) * clamp(nt_vis_t * 1.6 - 0.4, 0, 1) * (1 - clamp(dl, 0, 1)) }
                 ellipse { at: ccx + (i - 1) * 6.5 * cu, vb - lf.t - nt_d * nt_vis_b / 2; radius: 1.6 * cu; color: ink; opacity: (35% + 55% * ntn_b.hover) * clamp(nt_vis_b * 1.6 - 0.4, 0, 1) * (1 - clamp(ds, 0, 1)) }
+            }
+        }
+        //  The right tab's three dots (stacked, since the tab is on the side).
+        group {
+            show: lm > 0.35 and nt_vis_r > 0.05
+            repeat i in 0..3 {
+                ellipse { at: screen.width - lf.t - nt_d * nt_vis_r / 2, vc + (i - 1) * 6.5 * cu; radius: 1.6 * cu; color: ink; opacity: (35% + 55% * ntn_r.hover) * clamp(nt_vis_r * 1.6 - 0.4, 0, 1) }
+            }
+        }
+        //  The desk: a panel out of the right frame with tabs. What is drawn is laid out for the full size and the panel's shape uncovers it.
+        group {
+            show: lm > 0.35 and dz0 > 0.02
+            clip inset 2 box { at: dz.ex, dz.ey; size: max(0.3, dz.gw), max(0.3, dz.gh); corner: 26 * cu }
+            //  What is inside grows with the drawer's shape (`dz.lf`), from the right frame's edge at the panel's middle, like the volume's.
+            group {
+            pivot: screen.width + 26 * cu, dz.ey
+            scale: max(dz.lf, 0.05)
+            zone box desk_band { at: dsk_xc, dsk_y0 + dsk_h / 2; size: dsk_w, dsk_h }
+            on leave desk_band { desk_kb = false }
+            group {
+                opacity: fd0
+                move: 0, (1 - fd0) * 12 * cu
+            //  The tabs: one track, a thumb that slides to the one in use and stretches on the way.
+            let dt_y   = dsk_y0 + 30 * cu
+            let dt_w   = (dsk_w - 72 * cu) / 3
+            let dt_cx  = dsk_xc - 18 * cu
+            let dt_str = clamp(abs(desk_tab - desk_sel), 0, 2)
+            box { at: dt_cx, dt_y; size: dsk_w - 72 * cu, 34 * cu; corner: 17 * cu; color: ink; opacity: veil }
+            body {
+                color: mint
+                shadow: 0, 0, 10 * cu, 40%, mint
+                rim: 16%
+                box { at: dt_cx + (desk_sel - 1) * dt_w, dt_y; size: (dt_w - 8 * cu) + 10 * cu * dt_str, 26 * cu - 3 * cu * clamp(dt_str, 0, 1); corner: 10 * cu }
+            }
+            repeat i in 0..3 {
+                let tl  = dt_cx + (i - 1) * dt_w
+                let tsl = clamp(1 - abs(desk_sel - i), 0, 1)
+                text pick(i, "Pad", "Shelf", "Focus") { at: floor(tl + 0.5), floor(dt_y + 0.5); anchor: center; align: center; size: 12.5; weight: 600; color: mix(ink, off, tsl); opacity: 62% + 38% * tsl + 30% * desk_tab_z.$i.hover; family: "Space Grotesk" }
+                zone box desk_tab_z.$i { at: tl, dt_y; size: dt_w, 34 * cu; cursor: pointer }
+                on press desk_tab_z.$i { desk_tab = i }
+            }
+
+            }
+            //  Close: a small round button (the desk stays open when you click elsewhere, so you can pick up a file in another window and drop it here).
+            ellipse { at: dsk_xc + 143 * cu, dt_y; radius: 13 * cu; color: ink; opacity: 8% + 12% * desk_close_z.hover }
+            path { at: dsk_xc + 143 * cu, dt_y; stroke: 1.5 * cu; color: ink; opacity: 70% + 30% * desk_close_z.hover; move -3.4 * cu, -3.4 * cu; line 3.4 * cu, 3.4 * cu }
+            path { at: dsk_xc + 143 * cu, dt_y; stroke: 1.5 * cu; color: ink; opacity: 70% + 30% * desk_close_z.hover; move 3.4 * cu, -3.4 * cu; line -3.4 * cu, 3.4 * cu }
+            zone box desk_close_z { at: dsk_xc + 143 * cu, dt_y; size: 28 * cu, 28 * cu; cursor: pointer }
+            on press desk_close_z { panel = none }
+            //  Shelf: drop things on it, drag them back out anywhere.
+            group {
+                show: desk_tab == 1
+                group {
+                    opacity: fd1
+                    move: 0, (1 - fd1) * 12 * cu
+                text "Drag files, links or text into the panel to keep them here" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 76 * cu + 0.5); anchor: center; align: center; size: 11; color: faint; opacity: 90%; family: "Space Grotesk" }
+                }
+                group {
+                    opacity: fd2
+                    move: 0, (1 - fd2) * 12 * cu
+                text "Nothing on the shelf yet" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 190 * cu + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: shelf_n < 1 }
+                repeat k in 0..8 {
+                    let cx_ = dsk_xc + (mod(k, 2) - 0.5) * 158 * cu
+                    let cy_ = dsk_y0 + 122 * cu + floor(k / 2) * 50 * cu
+                    group {
+                        show: shelf.$k.has
+                        opacity: 1 - clamp(shelf.$k.out, 0, 1)
+                        move: 70 * cu * shelf.$k.out + shelf.$k.dx, shelf.$k.dy
+                        body {
+                            color: ink
+                            opacity: 8% + 9% * max(shelf_card.$k.hover, shelf_x.$k.hover)
+                            rim: 14% + 14% * max(shelf_card.$k.hover, shelf_x.$k.hover)
+                            box { at: cx_, cy_; size: 150 * cu, 42 * cu; corner: 13 * cu }
+                        }
+                        box { at: cx_ - 54 * cu, cy_; size: 30 * cu, 30 * cu; corner: 9 * cu; color: mint; opacity: 20% }
+                        text shelf.$k.tag { at: floor(cx_ - 54 * cu + 0.5), floor(cy_ + 0.5); anchor: center; align: center; size: 9.5; weight: 700; width: 28 * cu; lines: 1; color: mint; family: "Space Grotesk" }
+                        text shelf.$k.name { at: floor(cx_ - 34 * cu + 0.5), floor(cy_ + 0.5); anchor: left center; size: 11.5; weight: 600; width: 74 * cu; lines: 1; color: ink; opacity: 90%; family: "Space Grotesk" }
+                        zone box shelf_card.$k { at: cx_, cy_; size: 150 * cu, 42 * cu; corner: 13 * cu; cursor: pointer; carries: "{shelf.$k.path}" }
+                        ellipse { at: cx_ + 62 * cu, cy_ - 13 * cu; radius: 7 * cu; color: ink; opacity: 14% * shelf_x.$k.hover * max(shelf_card.$k.hover, shelf_x.$k.hover) }
+                        path { at: cx_ + 62 * cu, cy_ - 13 * cu; stroke: 1.4 * cu; color: ink; opacity: 85% * max(shelf_card.$k.hover, shelf_x.$k.hover); move -2.2 * cu, -2.2 * cu; line 2.2 * cu, 2.2 * cu }
+                        path { at: cx_ + 62 * cu, cy_ - 13 * cu; stroke: 1.4 * cu; color: ink; opacity: 85% * max(shelf_card.$k.hover, shelf_x.$k.hover); move 2.2 * cu, -2.2 * cu; line -2.2 * cu, 2.2 * cu }
+                        zone box shelf_x.$k { at: cx_ + 62 * cu, cy_ - 13 * cu; size: 18 * cu, 18 * cu; cursor: pointer }
+                        on press shelf_x.$k { emit shelf_del(k) }
+                    }
+                }
+                }
+                group {
+                    opacity: fd3
+                    move: 0, (1 - fd3) * 12 * cu
+                box { at: dsk_xc + 112 * cu, dsk_y0 + 411 * cu; size: 66 * cu, 26 * cu; corner: 11 * cu; color: ink; opacity: 8% + 10% * shelf_clear_b.hover; show: shelf_n > 0 }
+                text "Clear all" { at: floor(dsk_xc + 112 * cu + 0.5), floor(dsk_y0 + 411 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: shelf_n > 0 }
+                zone box shelf_clear_b { at: dsk_xc + 112 * cu, dsk_y0 + 411 * cu; size: 68 * cu, 28 * cu; corner: 12 * cu; cursor: pointer; active: shelf_n > 0 }
+                on press shelf_clear_b { emit shelf_clear }
+                }
+            }
+
+            //  Pad has two things: a short task list and a drawing board, with a small switch for which.
+            group {
+                show: desk_tab == 0
+                opacity: fd1
+                move: 0, (1 - fd1) * 12 * cu
+                let pm_y = dsk_y0 + 74 * cu
+                let pm_str = clamp(abs(pad_mode - pad_sel), 0, 1)
+                box { at: dsk_xc, pm_y; size: 168 * cu, 28 * cu; corner: 14 * cu; color: ink; opacity: veil }
+                body {
+                    color: mint
+                    shadow: 0, 0, 8 * cu, 38%, mint
+                    rim: 16%
+                    box { at: dsk_xc + (pad_sel - 0.5) * 82 * cu, pm_y; size: (74 + 8 * pm_str) * cu, 21 * cu; corner: 8.5 * cu }
+                }
+                repeat i in 0..2 {
+                    let pl_ = dsk_xc + (i - 0.5) * 82 * cu
+                    let psl_ = clamp(1 - abs(pad_sel - i), 0, 1)
+                    text pick(i, "Tasks", "Draw") { at: floor(pl_ + 0.5), floor(pm_y + 0.5); anchor: center; align: center; size: 12; weight: 600; color: mix(ink, off, psl_); opacity: 62% + 38% * psl_ + 30% * pad_mode_z.$i.hover; family: "Space Grotesk" }
+                    zone box pad_mode_z.$i { at: pl_, pm_y; size: 84 * cu, 28 * cu; cursor: pointer }
+                    on press pad_mode_z.$i { pad_mode = i }
+                }
+            }
+            //  The board: draw with the pointer; five pens, two thicknesses, undo and clear.
+            group {
+                show: desk_tab == 0 and pad_mode == 1
+                opacity: fd2
+                move: 0, (1 - fd2) * 12 * cu
+                let bd_x = dsk_xc - 156 * cu
+                let bd_y = dsk_y0 + 108 * cu
+                body {
+                    color: ink
+                    opacity: 6%
+                    rim: 18%
+                    box { at: dsk_xc, bd_y + 118 * cu; size: 312 * cu, 236 * cu; corner: 16 * cu }
+                }
+                group {
+                    clip inset 0 box { at: dsk_xc, bd_y + 118 * cu; size: 312 * cu, 236 * cu; corner: 16 * cu }
+                    for sg in dr_segs0 {
+                        line { from: bd_x + sg.x0 * cu / 2, bd_y + sg.y0 * cu / 2; to: bd_x + sg.x1 * cu / 2, bd_y + sg.y1 * cu / 2; width: (1.8 + 2.6 * sg.w) * cu; color: pick(sg.c, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb) }
+                    }
+                    for sg in dr_segs1 {
+                        line { from: bd_x + sg.x0 * cu / 2, bd_y + sg.y0 * cu / 2; to: bd_x + sg.x1 * cu / 2, bd_y + sg.y1 * cu / 2; width: (1.8 + 2.6 * sg.w) * cu; color: pick(sg.c, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb) }
+                    }
+                    for sg in dr_segs2 {
+                        line { from: bd_x + sg.x0 * cu / 2, bd_y + sg.y0 * cu / 2; to: bd_x + sg.x1 * cu / 2, bd_y + sg.y1 * cu / 2; width: (1.8 + 2.6 * sg.w) * cu; color: pick(sg.c, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb) }
+                    }
+                    ellipse { at: dr_px, dr_py; radius: pick(dr_thick, 7, 12, 20) * cu; stroke: 1.4 * cu; color: ink; opacity: if(dr_held and dr_tool == 1, 85%, 0%) }
+                }
+                zone box dr_pad { at: dsk_xc, bd_y + 118 * cu; size: 312 * cu, 236 * cu; cursor: pointer }
+                on press dr_pad { dr_held = true; dr_px = pointer.x; dr_py = pointer.y; emit dr_down(floor((pointer.x - bd_x) / cu * 2) * 1000 + floor((pointer.y - bd_y) / cu * 2)) }
+                on drag dr_pad { dr_px = pointer.x; dr_py = pointer.y; emit dr_pt(floor((pointer.x - bd_x) / cu * 2) * 1000 + floor((pointer.y - bd_y) / cu * 2)) }
+                on release dr_pad { dr_held = false; emit dr_up }
+                //  The tools: a rainbow of eight pens on one row; two thicknesses, undo and clear on the next.
+                let tl_y = dsk_y0 + 370 * cu
+                let tl2_y = dsk_y0 + 410 * cu
+                repeat i in 0..8 {
+                    let px_ = dsk_xc + (i - 3.5) * 37 * cu
+                    ellipse { at: px_, tl_y; radius: 9 * cu; color: pick(i, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb) }
+                    ellipse { at: px_, tl_y; radius: 13 * cu; stroke: 1.7 * cu; color: pick(i, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb); opacity: if(dr_col == i, 100%, 0%) }
+                    zone box dr_pen.$i { at: px_, tl_y; size: 34 * cu, 30 * cu; cursor: pointer }
+                    on press dr_pen.$i { dr_col = i; dr_tool = 0 }
+                }
+                repeat i in 0..3 {
+                    let tx_ = dsk_xc - 138 * cu + i * 26 * cu
+                    ellipse { at: tx_, tl2_y; radius: (2.2 + 2.2 * i) * cu; color: ink; opacity: if(dr_thick == i, 100%, 40%) }
+                    zone box dr_th.$i { at: tx_, tl2_y; size: 25 * cu, 28 * cu; cursor: pointer }
+                    on press dr_th.$i { dr_thick = i }
+                }
+                //  The eraser takes out whatever of a stroke it passes over; it lights up while it is the tool.
+                body {
+                    color: mix(ink, mint, dr_tool)
+                    opacity: 9% + 10% * dr_eraser_b.hover + 16% * dr_tool
+                    shadow: 0, 0, 8 * cu * dr_tool, 40% * dr_tool, mint
+                    rim: 22%
+                    box { at: dsk_xc - 22 * cu, tl2_y; size: 64 * cu, 28 * cu; corner: 11 * cu }
+                }
+                box { at: dsk_xc - 40 * cu, tl2_y; size: 13 * cu, 8 * cu; corner: 2 * cu; rotate: -35deg; color: ink; opacity: 85% }
+                text "Erase" { at: floor(dsk_xc - 18 * cu + 0.5), floor(tl2_y + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: mix(ink, mint, dr_tool); opacity: 90%; family: "Space Grotesk" }
+                zone box dr_eraser_b { at: dsk_xc - 22 * cu, tl2_y; size: 66 * cu, 30 * cu; corner: 12 * cu; cursor: pointer }
+                on press dr_eraser_b { dr_tool = if(dr_tool == 1, 0, 1) }
+                body {
+                    color: ink
+                    opacity: 9% + 10% * dr_undo_b.hover
+                    rim: 22%
+                    box { at: dsk_xc + 56 * cu, tl2_y; size: 56 * cu, 28 * cu; corner: 11 * cu }
+                }
+                text "Undo" { at: floor(dsk_xc + 56 * cu + 0.5), floor(tl2_y + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 88%; family: "Space Grotesk" }
+                zone box dr_undo_b { at: dsk_xc + 56 * cu, tl2_y; size: 58 * cu, 30 * cu; corner: 12 * cu; cursor: pointer }
+                on press dr_undo_b { emit dr_undo }
+                body {
+                    color: ink
+                    opacity: 9% + 10% * dr_clear_b.hover
+                    rim: 22%
+                    box { at: dsk_xc + 120 * cu, tl2_y; size: 56 * cu, 28 * cu; corner: 11 * cu }
+                }
+                text "Clear" { at: floor(dsk_xc + 120 * cu + 0.5), floor(tl2_y + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 88%; family: "Space Grotesk" }
+                zone box dr_clear_b { at: dsk_xc + 120 * cu, tl2_y; size: 58 * cu, 30 * cu; corner: 12 * cu; cursor: pointer }
+                on press dr_clear_b { emit dr_clear }
+            }
+
+            //  Pad: a short task list.
+            group {
+                show: desk_tab == 0 and pad_mode == 0
+                opacity: fd2
+                move: 0, (1 - fd2) * 12 * cu
+                let tk_y = dsk_y0 + 118 * cu
+                box { at: dsk_xc, tk_y; size: dsk_w - 28 * cu, 36 * cu; corner: 14 * cu; color: ink; opacity: veil + 4% * task_zone.hover }
+                input task_in { at: floor(dsk_xc - (dsk_w - 28 * cu) / 2 + 14 * cu + 0.5), floor(tk_y - 6.5 * cu + 0.5); width: dsk_w - 70 * cu; size: 13; color: ink; family: "Space Grotesk"; placeholder: "Add a task and press Enter" }
+                zone box task_zone { at: dsk_xc, tk_y; size: dsk_w - 28 * cu, 36 * cu; cursor: text }
+                on press task_zone { focus task_in; desk_kb = true }
+                text "Nothing to do. Nice." { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 250 * cu + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: task_n < 1 }
+                repeat k in 0..9 {
+                    let ty_ = dsk_y0 + 166 * cu + k * 29 * cu
+                    group {
+                        show: task.$k.has
+                        opacity: 1 - clamp(task.$k.out, 0, 1)
+                        move: 70 * cu * task.$k.out, task.$k.dy
+                        box { at: dsk_xc, ty_; size: dsk_w - 28 * cu, 28 * cu; corner: 11 * cu; color: ink; opacity: 5% * max(task_row.$k.hover, task_x.$k.hover) }
+                        //  The check: a rounded square that fills and shows a tick.
+                        body {
+                            color: mix(ink, mint, clamp(task.$k.p, 0, 1))
+                            opacity: 14% + 86% * clamp(task.$k.p, 0, 1)
+                            rim: 22%
+                            box { at: dsk_xc - (dsk_w - 28 * cu) / 2 + 20 * cu, ty_; size: 17 * cu, 17 * cu; corner: 6 * cu }
+                        }
+                        path { at: dsk_xc - (dsk_w - 28 * cu) / 2 + 20 * cu, ty_; stroke: 1.8 * cu; color: off; opacity: clamp(task.$k.p, 0, 1); move -3.6 * cu, 0.2 * cu; line -1.1 * cu, 2.8 * cu; line 3.8 * cu, -2.6 * cu }
+                        text task.$k.text { at: floor(dsk_xc - (dsk_w - 28 * cu) / 2 + 38 * cu + 0.5), floor(ty_ + 0.5); anchor: left center; size: 12.5; weight: 500; width: 226 * cu; lines: 1; color: ink; opacity: 92% - 52% * clamp(task.$k.p, 0, 1); family: "Space Grotesk" }
+                        zone box task_row.$k { at: dsk_xc, ty_; size: dsk_w - 28 * cu, 28 * cu; cursor: pointer }
+                        on press task_row.$k { emit task_toggle(k) }
+                        //  The x: a round backdrop that grows under the pointer and shrinks and turns red under the finger, and a cross that turns.
+                        ellipse { at: dsk_xc + (dsk_w - 28 * cu) / 2 - 14 * cu, ty_; radius: 8 * cu; color: ink; opacity: 14% * task_x.$k.hover }
+                        path { at: dsk_xc + (dsk_w - 28 * cu) / 2 - 14 * cu, ty_; stroke: 1.4 * cu; color: ink; opacity: (60% + 40% * task_x.$k.hover) * max(task_row.$k.hover, task_x.$k.hover); move -2.6 * cu, -2.6 * cu; line 2.6 * cu, 2.6 * cu }
+                        path { at: dsk_xc + (dsk_w - 28 * cu) / 2 - 14 * cu, ty_; stroke: 1.4 * cu; color: ink; opacity: (60% + 40% * task_x.$k.hover) * max(task_row.$k.hover, task_x.$k.hover); move 2.6 * cu, -2.6 * cu; line -2.6 * cu, 2.6 * cu }
+                        zone box task_x.$k { at: dsk_xc + (dsk_w - 28 * cu) / 2 - 14 * cu, ty_; size: 22 * cu, 24 * cu; cursor: pointer }
+                        on press task_x.$k { emit task_del(k) }
+                    }
+                }
+            }
+
+            //  Focus: a ring that runs down, the length, start and reset, and what to do with the rest of the machine meanwhile.
+            group {
+                show: desk_tab == 2
+                let fr_y = dsk_y0 + 178 * cu
+                let fp_y = dsk_y0 + 292 * cu
+                let fc_y = dsk_y0 + 353 * cu
+                let fs_y = dsk_y0 + 411 * cu
+                let fbusy = if(ft_state == 1 or ft_state == 2, 1, 0.0)
+                group {
+                    opacity: fd1
+                    move: 0, (1 - fd1) * 12 * cu
+                ellipse { at: dsk_xc, fr_y; radius: 70 * cu; stroke: 8 * cu; color: ink; opacity: 9% }
+                arc { at: dsk_xc, fr_y; radius: 70 * cu; span: clamp(ft_ring, 0.002, 1) * 360deg; rotate: clamp(ft_ring, 0.002, 1) * 180deg; width: 16 * cu; color: mint; opacity: 14% }
+                arc { at: dsk_xc, fr_y; radius: 70 * cu; span: clamp(ft_ring, 0.002, 1) * 360deg; rotate: clamp(ft_ring, 0.002, 1) * 180deg; width: 8 * cu; color: mint; opacity: if(ft_state == 2, 45%, 100%) }
+                text ft_time { at: floor(dsk_xc + 0.5), floor(fr_y - 6 * cu + 0.5); anchor: center; align: center; size: 38; weight: 700; color: ink; family: "Space Grotesk" }
+                text pick(ft_state, "READY", "FOCUSING", "PAUSED", "DONE") { at: floor(dsk_xc + 0.5), floor(fr_y + 26 * cu + 0.5); anchor: center; align: center; size: 11; weight: 700; color: if(ft_state == 1, mint, faint); family: "Space Grotesk" }
+
+                }
+                group {
+                    opacity: fd2
+                    move: 0, (1 - fd2) * 12 * cu
+                //  How long: one track and a glowing thumb that slides and stretches, like the tabs; it dims while a timer runs.
+                let fp_w = 58 * cu
+                let fp_str = clamp(abs(if(ft_len == 15, 0, if(ft_len == 30, 1, if(ft_len == 45, 2, 3))) - ft_sel), 0, 3)
+                group {
+                    opacity: 1 - 0.45 * fbusy
+                    box { at: dsk_xc, fp_y; size: fp_w * 4 + 4 * cu, 32 * cu; corner: 16 * cu; color: ink; opacity: veil }
+                    body {
+                        color: mint
+                        shadow: 0, 0, 9 * cu, 42%, mint
+                        rim: 16%
+                        box { at: dsk_xc + (ft_sel - 1.5) * fp_w, fp_y; size: fp_w - 6 * cu + 8 * cu * fp_str, 24 * cu - 3 * cu * clamp(fp_str, 0, 1); corner: 10 * cu }
+                    }
+                    repeat i in 0..4 {
+                        let pl = dsk_xc + (i - 1.5) * fp_w
+                        let psl = clamp(1 - abs(ft_sel - i), 0, 1)
+                        text pick(i, "15", "30", "45", "60") { at: floor(pl + 0.5), floor(fp_y + 0.5); anchor: center; align: center; size: 13; weight: 600; color: mix(ink, off, psl); opacity: 62% + 38% * psl + 30% * ft_chip.$i.hover; family: "Space Grotesk" }
+                        zone box ft_chip.$i { at: pl, fp_y; size: fp_w, 32 * cu; cursor: pointer; active: ft_state != 1 and ft_state != 2 }
+                        on press ft_chip.$i { ft_len = pick(i, 15, 30, 45, 60); emit ft_set(pick(i, 15, 30, 45, 60)) }
+                    }
+                }
+                text "minutes" { at: floor(dsk_xc + 0.5), floor(fp_y + 24 * cu + 0.5); anchor: center; align: center; size: 10; color: faint; opacity: 80%; family: "Space Grotesk" }
+
+                }
+                group {
+                    opacity: fd3
+                    move: 0, (1 - fd3) * 12 * cu
+                //  Start / pause: a lit button with its own icon; it squishes under the finger and glows more under the pointer.
+                let fgw = (144 - 8 * ft_press) * cu
+                let fgh = (40 - 3 * ft_press) * cu
+                let fgx = dsk_xc - 38 * cu
+                body {
+                    gradient: 0, fc_y - fgh / 2 to 0, fc_y + fgh / 2, minthi, mintlo
+                    shadow: 0, 0, (8 + 6 * ft_go.hover) * cu, 42% + 22% * ft_go.hover, mint
+                    rim: 20%
+                    box { at: fgx, fc_y; size: fgw, fgh; corner: 14 * cu }
+                }
+                path { at: fgx - 26 * cu, fc_y; color: off; opacity: if(ft_state == 1, 0, 0.85); move -3.4 * cu, -5 * cu; line 5.4 * cu, 0; line -3.4 * cu, 5 * cu; close }
+                box { at: fgx - 28.6 * cu, fc_y; size: 2.8 * cu, 10 * cu; corner: 1 * cu; color: off; opacity: if(ft_state == 1, 0.85, 0) }
+                box { at: fgx - 23.4 * cu, fc_y; size: 2.8 * cu, 10 * cu; corner: 1 * cu; color: off; opacity: if(ft_state == 1, 0.85, 0) }
+                text pick(ft_state, "Start", "Pause", "Resume", "Again") { at: floor(fgx + 8 * cu + 0.5), floor(fc_y + 0.5); anchor: center; align: center; size: 14; weight: 700; color: off; family: "Space Grotesk" }
+                zone box ft_go { at: fgx, fc_y; size: 146 * cu, 42 * cu; corner: 16 * cu; cursor: pointer }
+                //  Reset: glass, with a turning arrow.
+                let frx = dsk_xc + 80 * cu
+                body {
+                    color: ink
+                    opacity: 9% + 10% * ft_reset_b.hover
+                    rim: 24%
+                    box { at: frx, fc_y; size: (76 - 6 * ft_press) * cu, (40 - 3 * ft_press) * cu; corner: 14 * cu }
+                }
+                arc { at: frx - 18 * cu, fc_y + 1 * cu; radius: 5.2 * cu; span: 270deg; rotate: 40deg + ft_reset_b.hover * 90deg; width: 1.5 * cu; color: ink; opacity: 85% }
+                text "Reset" { at: floor(frx + 8 * cu + 0.5), floor(fc_y + 0.5); anchor: center; align: center; size: 13; weight: 600; color: ink; opacity: 88%; family: "Space Grotesk" }
+                zone box ft_reset_b { at: frx, fc_y; size: 78 * cu, 42 * cu; corner: 16 * cu; cursor: pointer }
+                on press ft_go { ft_press: 1 }
+                on press ft_reset_b { ft_press: 1 }
+                on release ft_go { ft_press: 0 }
+                on release ft_reset_b { ft_press: 0 }
+                //  Starting also silences notifications and keeps the machine awake for that long, if those are switched on below.
+                on press ft_go while ft_state == 1 or ft_state == 2 { emit ft_toggle(ft_len) }
+                on press ft_go while ft_state == 0 or ft_state == 3 { emit ft_toggle(ft_len) }
+                on press ft_go while (ft_state == 0 or ft_state == 3) and ft_dnd and dnd_len != ft_len { emit dnd_for(ft_len) }
+                on press ft_go while (ft_state == 0 or ft_state == 3) and ft_caf and caf_len != ft_len { emit caf_for(ft_len) }
+                on press ft_reset_b while ft_state == 1 or ft_state == 2 { emit ft_reset(ft_len) }
+                on press ft_reset_b while (ft_state == 1 or ft_state == 2) and ft_dnd and dnd_len == ft_len { emit dnd_for(ft_len) }
+                on press ft_reset_b while (ft_state == 1 or ft_state == 2) and ft_caf and caf_len == ft_len { emit caf_for(ft_len) }
+
+                }
+                group {
+                    opacity: fd4
+                    move: 0, (1 - fd4) * 12 * cu
+                //  What it does to the rest of the machine: two cards with toggles.
+                //  Silence alerts: a card with a toggle like the tiles'.
+                let sx0 = dsk_xc + (0 - 0.5) * 158 * cu
+                let sp0 = ft_dnd_p
+                let sm0 = clamp(4 * ft_dnd_p * (1 - ft_dnd_p), 0, 1)
+                let sw0 = (34 + 4 * sp0) * cu
+                let sr0 = sx0 + 68 * cu
+                let sl0 = sr0 - sw0
+                let sk0 = sl0 + 11 * cu + sp0 * (sw0 - 22 * cu)
+                box { at: sx0, fs_y; size: 150 * cu, 34 * cu; corner: 13 * cu; color: ink; opacity: 7% + 5% * ft_sw.0.hover }
+                group {
+                    opacity: 45% + 55% * clamp(sp0, 0, 1)
+                    ellipse { at: (sx0 - 58 * cu), fs_y - 1 * cu; radius: 3 * cu; color: ink }
+                    box { at: (sx0 - 58 * cu), fs_y + 2.2 * cu; size: 8 * cu, 1.8 * cu; corner: 0.9 * cu; color: ink }
+                    ellipse { at: (sx0 - 58 * cu), fs_y + 4 * cu; radius: 0.9 * cu; color: ink }
+                }
+                text "Silence alerts" { at: floor(sx0 - 46 * cu + 0.5), floor(fs_y + 0.5); anchor: left center; size: 11.5; weight: 600; color: ink; opacity: 70% + 30% * clamp(sp0, 0, 1); family: "Space Grotesk" }
+                body {
+                    color: mix(off, mint, clamp(sp0, 0, 1))
+                    shadow: 0, 0, 10 * cu * sp0, 48% * sp0, mint
+                    rim: 16% * sp0
+                    box { at: sr0 - sw0 / 2, fs_y; size: sw0, 22 * cu; corner: (11 - 2 * sp0) * cu }
+                }
+                body {
+                    color: ink
+                    shadow: 0, 2 * cu, 5 * cu, 26%
+                    box { at: sk0, fs_y; size: (17 + 9 * sm0 + 4 * ft_press) * cu, (17 - 3 * sm0) * cu; corner: (8.5 - 2 * clamp(sp0, 0, 1) - 1.5 * sm0) * cu }
+                }
+                group {
+                    opacity: glyph_a
+                    ellipse { at: sk0, fs_y - 1.2 * cu; radius: 3.4 * cu; color: off }
+                    box { at: sk0, fs_y + 2.2 * cu; size: 9 * cu, 2 * cu; corner: 1 * cu; color: off }
+                    ellipse { at: sk0, fs_y + 4.6 * cu; radius: 1 * cu; color: off }
+                }
+                line { from: sk0 - 5.5 * cu, fs_y - 5.5 * cu; to: sk0 + 5.5 * cu, fs_y + 5.5 * cu; width: 1.5 * cu; color: off; opacity: glyph_a * sp0 }
+                zone box ft_sw.0 { at: sx0, fs_y; size: 152 * cu, 36 * cu; corner: 14 * cu; cursor: pointer }
+                //  Keep awake: a card with a toggle like the tiles'.
+                let sx1 = dsk_xc + (1 - 0.5) * 158 * cu
+                let sp1 = ft_caf_p
+                let sm1 = clamp(4 * ft_caf_p * (1 - ft_caf_p), 0, 1)
+                let sw1 = (34 + 4 * sp1) * cu
+                let sr1 = sx1 + 68 * cu
+                let sl1 = sr1 - sw1
+                let sk1 = sl1 + 11 * cu + sp1 * (sw1 - 22 * cu)
+                box { at: sx1, fs_y; size: 150 * cu, 34 * cu; corner: 13 * cu; color: ink; opacity: 7% + 5% * ft_sw.1.hover }
+                group {
+                    opacity: 45% + 55% * clamp(sp1, 0, 1)
+                    box { at: (sx1 - 58 * cu) - 0.8 * cu, fs_y + 0.5 * cu; size: 7 * cu, 6 * cu; corner: 1.8 * cu; color: ink }
+                    ellipse { at: (sx1 - 58 * cu) + 3.4 * cu, fs_y + 0.5 * cu; radius: 1.9 * cu; stroke: 1.1 * cu; color: ink }
+                }
+                text "Keep awake" { at: floor(sx1 - 46 * cu + 0.5), floor(fs_y + 0.5); anchor: left center; size: 11.5; weight: 600; color: ink; opacity: 70% + 30% * clamp(sp1, 0, 1); family: "Space Grotesk" }
+                body {
+                    color: mix(off, mint, clamp(sp1, 0, 1))
+                    shadow: 0, 0, 10 * cu * sp1, 48% * sp1, mint
+                    rim: 16% * sp1
+                    box { at: sr1 - sw1 / 2, fs_y; size: sw1, 22 * cu; corner: (11 - 2 * sp1) * cu }
+                }
+                body {
+                    color: ink
+                    shadow: 0, 2 * cu, 5 * cu, 26%
+                    box { at: sk1, fs_y; size: (17 + 9 * sm1 + 4 * ft_press) * cu, (17 - 3 * sm1) * cu; corner: (8.5 - 2 * clamp(sp1, 0, 1) - 1.5 * sm1) * cu }
+                }
+                group {
+                    opacity: glyph_a * sp1
+                    box { at: sk1 - 1 * cu, fs_y + 0.5 * cu; size: 8 * cu, 7 * cu; corner: 2 * cu; color: off }
+                    ellipse { at: sk1 + 4 * cu, fs_y + 0.5 * cu; radius: 2.2 * cu; stroke: 1.2 * cu; color: off }
+                }
+                group {
+                    opacity: glyph_a * (0.7 * (1 - clamp(sp1, 0, 1)))
+                    box { at: sk1 - 1 * cu, fs_y + 0.5 * cu; size: 8 * cu, 7 * cu; corner: 2 * cu; stroke: 1.1 * cu; color: off }
+                    ellipse { at: sk1 + 4 * cu, fs_y + 0.5 * cu; radius: 2.2 * cu; stroke: 1.1 * cu; color: off }
+                }
+                zone box ft_sw.1 { at: sx1, fs_y; size: 152 * cu, 36 * cu; corner: 14 * cu; cursor: pointer }
+                on press ft_sw.0 { ft_dnd = not ft_dnd }
+                on press ft_sw.1 { ft_caf = not ft_caf }
+                }
+            }
+            //  Anything carried over the panel, on any tab, can be let go to keep it on the shelf. This is declared last so that, while a
+            //  drag is over, it is the zone on top (the cards and buttons below keep their own presses the rest of the time: it is off then).
+            group {
+                opacity: desk_drag
+                show: desk_drag > 0.01
+                body {
+                    color: mint
+                    opacity: 12%
+                    shadow: 0, 0, 12 * cu, 40%, mint
+                    rim: 45%
+                    box { at: dsk_xc, vc; size: dsk_w - 12 * cu, dsk_h - 12 * cu; corner: 22 * cu }
+                }
+                path { at: dsk_xc, vc - 18 * cu; stroke: 2.4 * cu; color: mint; move 0, 14 * cu; line 0, -14 * cu }
+                path { at: dsk_xc, vc - 18 * cu; stroke: 2.4 * cu; color: mint; move -9 * cu, -4 * cu; line 0, -14 * cu; line 9 * cu, -4 * cu }
+                text "Let go to keep it" { at: floor(dsk_xc + 0.5), floor(vc + 22 * cu + 0.5); anchor: center; align: center; size: 16; weight: 700; color: mint; family: "Space Grotesk" }
+                text "it goes on your shelf" { at: floor(dsk_xc + 0.5), floor(vc + 44 * cu + 0.5); anchor: center; align: center; size: 12; color: ink; opacity: 70%; family: "Space Grotesk" }
+                zone box desk_drop { at: dsk_xc, vc; size: dsk_w, dsk_h; active: drag.over > 0.5 }
+                on drop desk_drop { desk_tab = 1; shelf_flash: 1 ~0ms; shelf_flash: 0 after 250ms }
+            }
             }
         }
         //  The battery gauge, inside the bar with a thick margin of empty glass round it (`bf.m`). It is only there
