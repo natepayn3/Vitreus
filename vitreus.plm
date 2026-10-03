@@ -42,7 +42,7 @@ scene Vitreus {
     fact pal_alert_r = 0.9373   // #ef4444
     fact pal_alert_g = 0.2667
     fact pal_alert_b = 0.2667
-    surface { size: full, 1440; anchor: bar_anchor; margin: 0; reserve: 68; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif and panel != desk) or wp_picker_open or ov_open or pk_open or desk_kb }
+    surface { size: full, 1440; anchor: bar_anchor; margin: 0; reserve: 68; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play" }
 
@@ -619,7 +619,7 @@ scene Vitreus {
     follow dk   = if(panel == controls, 1, 0)
     follow dm   = if(panel == player or panel == tray, 1, 0)
     follow do   = if(panel == volume or panel == notif, 1, 0)
-    follow dz   = if(panel == desk, 1, 0)
+    follow dz   = if(desk_open, 1, 0)
     follow ds   = if(panel == settings, 1, 0)
     follow dl   = if(panel == launch, 1, 0)
     follow lr   = max(1, lcount, if(lp_on, 6, 1))
@@ -1768,7 +1768,7 @@ scene Vitreus {
     //  Click away. The surface is the whole screen (its input region is only what has a zone, so the rest lets clicks through), and this
     //  zone, declared before everything else so that everything else wins over it, closes the panel on a press anywhere that is not
     //  the panel or the bar. A second surface for this would take Escape away from the panel, so it is done here.
-    zone box away_z { at: screen.width / 2, screen.height / 2; size: screen.width, screen.height; active: (panel != none and panel != volume and panel != notif and panel != desk) or wp_picker_open or ov_open }
+    zone box away_z { at: screen.width / 2, screen.height / 2; size: screen.width, screen.height; active: (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open }
     on press away_z { panel = none; wp_picker_open = false; ov_open = false }
     on press right away_z { panel = none; wp_picker_open = false; ov_open = false }
     //  The tray's icons (the pinned apps, or all of them) are a piece of the bar like the others; the bar widens for them.
@@ -2035,7 +2035,7 @@ scene Vitreus {
     //  The launcher: a drop that widens to the bar's width as it lands, like the calendar. The search field (40), the
     //  rows (44 each, up to eight; seven where there is a preview beside them) and a line of hints.
     let dl.w = (120 + 330 * (min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6)) * pu
-    let dl.hh = bar.h / 2 + (112 + lr * 44) * pu * dl0 + max(0, sag)
+    let dl.hh = bar.h / 2 + (154 + lr * 44) * pu * dl0 + max(0, sag)
     let dl.f = clamp((dl.w - bar.w + 24 * u) / (24 * u), 0, 1)     // as for the calendar
     let dl.top = mix(bar.y, bar.y - bar.h / 2, dl.f)
     let os.w = (120 + 220 * (min(1, do0 * 1.6) + max(0, do0 - 1) * 0.6)) * u
@@ -2063,7 +2063,7 @@ scene Vitreus {
     //  `lp.dy` and the drawer made `lp.dd` taller to make them 18.5 all round (Settings included).
     let lp.dy = if(lp_k == 1, 4.5, if(lp_k == 2 or lp_k == 3 or lp_k == 5 or lp_k == 6 or lp_k == 7 or lp_k == 8, 6.5, if(lp_k == 4, -0.5, 0))) * ku * lm
     let lp.dd = if(lp_k == 1, 11, if(lp_k == 2, 11, if(lp_k == 3 or lp_k == 5 or lp_k == 6 or lp_k == 7 or lp_k == 8, 13, if(lp_k == 4, 6, 0)))) * ku * lm
-    let lp.hd = (if(lp_k == 1, (8 + 36 + 8 + set.h + 16) * pu, if(lp_k == 2, (112 + lr * 44) * pu, if(lp_k == 3, (content_bot + 16) * cu, if(lp_k == 4, 373 * cu, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * cu, if(lp_k == 9, dsk_h, (8 + osd_h + 16) * u))))))) + lp.dd
+    let lp.hd = (if(lp_k == 1, (8 + 36 + 8 + set.h + 16) * pu, if(lp_k == 2, (154 + lr * 44) * pu, if(lp_k == 3, (content_bot + 16) * cu, if(lp_k == 4, 373 * cu, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * cu, if(lp_k == 9, dsk_h, (8 + osd_h + 16) * u))))))) + lp.dd
     //  Where it settles, as drawn (`ty`): Settings low, the launcher high, a good way from the middle, and clear of the frame; then back to the panel's
     //  own coordinates (the contents are scaled about the middle of the screen).
     let lp.ty = if(lp_k == 1, min(vc + 190 * u, vb - lf.t - 24 * u - lp.hd / 2), max(vc - 210 * u, yo + lf.t + 24 * u + lp.hd / 2))
@@ -2152,7 +2152,7 @@ scene Vitreus {
     let dl.lf = mix(min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6, min(1, dl.gl * 1.6) + max(0, dl.gl - 1) * 0.6, lm)
     let dl.rt = 2 * (225 + 6.5) * pu
     let dl.gw = max(0.1, dl.rt * dl.lf)
-    let dl.gh = (((112 + lr * 44) * pu) + lp.dd + max(0, sag)) * dl.lf
+    let dl.gh = (((154 + lr * 44) * pu) + lp.dd + max(0, sag)) * dl.lf
     let dl.gx = mix(lp.xl + dl.gw / 2, ccx, edg)
     let dl.ew = mix(dl.w, dl.gw, lm)
     let dl.eh = mix((bar.y + dl.hh - dl.top), dl.gh, lm)
@@ -2179,13 +2179,13 @@ scene Vitreus {
     let dm.ex = mix(pcx, dm.gx, lm)
     let dm.ey = mix(bar.y + dm.hh / 2, lp.cy, lm)
     //  The desk's drawer: the volume's out of the right frame, with its own size (see `do.*`).
-    let dz.gl = mix(min(dtrav, dz0), dz0, att)
-    let dz.lf = mix(min(1, dz0 * 1.6) + max(0, dz0 - 1) * 0.6, min(1, dz.gl * 1.6) + max(0, dz.gl - 1) * 0.6, lm)
+    let dz.lf = min(1, dz0 * 1.6) + max(0, dz0 - 1) * 0.6
     let dz.rt = lf.t + dsk_w + 32.5 * cu
     let dz.gw = max(0.1, dz.rt * dz.lf)
-    let dz.gh = (dsk_h + max(0, sag)) * dz.lf
+    let dz.gh = dsk_h * dz.lf
     let dz.ex = screen.width + 26 * cu * dz.lf - dz.gw / 2
-    let dz.ey = lp.cy
+    let dz.ey = vc
+    let dz.stretch = clamp(vel(dz) * 0.07, 0, 0.5)
     //  The control center opens when the pointer rests on its button, and closes when it has left the button and the drawer (a moment's grace, so
     //  that crossing the gap does not close it). It is quick launch, so it stays joined to the strip instead of dropping out of it.
     //  Both are invisible zones (`ctl_btn_z`, `ctl_band_z`, below), not the mouse's position: naming `cursor` made pleamar ask Hyprland where the
@@ -2219,21 +2219,23 @@ scene Vitreus {
     follow nt_hold_b = if(max(ntz_b.hover, max(ntn_b.hover, ntp_b.hover)) > 0.5, 1, 0)
     follow nt_vis_t = if(nt_hold_t > 0.3, 1, 0)
     follow nt_vis_b = if(nt_hold_b > 0.3, 1, 0)
-    //  The right notch opens the desk: a panel (`panel == desk`, `lp_k` 9) out of the right frame with a few small tools, in tabs. It is drawn
-    //  by the same drawer machinery as the volume's and the title panel's (`dz.*`), so it opens, stretches and settles the same way.
+    //  The right notch opens the desk: a panel out of the right frame with a few small tools, in tabs. It is not one of the values of `panel`, so it
+    //  stays open while the calendar, the controls, the volume or a notification come and go. It is drawn like the volume's and the title panel's
+    //  drawers (`dz.*`: the same springs and shape) but with its own geometry, which does not depend on whichever of those is out.
+    fact desk_open = false
     fact desk_tab = 2                                      // 0 Pad, 1 Shelf, 2 Focus
     prop desk_sel = 2 ~slide                               // which tab the thumb is on
     follow desk_sel = desk_tab
     let dsk_x0 = screen.width - lf.t - dsk_w               // its inner left edge
     let dsk_xc = dsk_x0 + dsk_w / 2
     let dsk_y0 = vc - dsk_h / 2
-    zone box ntz_r { at: screen.width - (lf.t + 6 * cu) / 2, vc; size: lf.t + 6 * cu, nt_w + 24 * cu; active: lm > 0.5 and panel != desk }
-    zone box ntn_r { at: screen.width - (lf.t + nt_d) / 2, vc; size: lf.t + nt_d, nt_w; cursor: pointer; active: lm > 0.5 and nt_vis_r > 0.5 and panel != desk }
+    zone box ntz_r { at: screen.width - (lf.t + 6 * cu) / 2, vc; size: lf.t + 6 * cu, nt_w + 24 * cu; active: lm > 0.5 and not desk_open }
+    zone box ntn_r { at: screen.width - (lf.t + nt_d) / 2, vc; size: lf.t + nt_d, nt_w; cursor: pointer; active: lm > 0.5 and nt_vis_r > 0.5 and not desk_open }
     prop nt_vis_r = 0 ~calm
     prop nt_hold_r = 0 ~280ms
     follow nt_hold_r = if(max(ntz_r.hover, ntn_r.hover) > 0.5, 1, 0)
-    follow nt_vis_r = if(nt_hold_r > 0.3 and panel != desk, 1, 0)
-    on press ntn_r { panel = desk }
+    follow nt_vis_r = if(nt_hold_r > 0.3 and not desk_open, 1, 0)
+    on press ntn_r { desk_open = true }
     //  The focus timer (see the Focus section of vitreus.luau).
     event ft_toggle ->                                      // start, pause or resume; carries the minutes
     event ft_reset ->
@@ -2243,7 +2245,7 @@ scene Vitreus {
     fact ft_prog = 1.0                                      // the fraction left
     fact desk_kb = false                                    // typing in the desk (the task field): only then does it take the keyboard
     on change desk_tab { desk_kb = false }
-    on change panel while panel != desk { desk_kb = false }
+    on change desk_open while not desk_open { desk_kb = false }
     fact ft_dnd = true                                      // silence notifications while it runs
     fact ft_caf = true                                      // keep the machine awake while it runs
     text ft_time = "30:00"
@@ -2256,8 +2258,8 @@ scene Vitreus {
     prop fd2 = 0 ~680ms
     prop fd3 = 0 ~780ms
     prop fd4 = 0 ~880ms
-    on change panel while panel == desk { fd0: 1 after 200ms; fd1: 1 after 200ms; fd2: 1 after 200ms; fd3: 1 after 200ms; fd4: 1 after 200ms }
-    on change panel while panel != desk { fd0: 0 ~80ms; fd1: 0 ~80ms; fd2: 0 ~80ms; fd3: 0 ~80ms; fd4: 0 ~80ms }
+    on change desk_open while desk_open { fd0: 1 after 200ms; fd1: 1 after 200ms; fd2: 1 after 200ms; fd3: 1 after 200ms; fd4: 1 after 200ms }
+    on change desk_open while not desk_open { fd0: 0 ~80ms; fd1: 0 ~80ms; fd2: 0 ~80ms; fd3: 0 ~80ms; fd4: 0 ~80ms }
     //  The shelf: up to eight things dropped on it (files, links, text), each draggable back out to another program.
     repeat k in 0..8 {
         text shelf.$k.name = ""
@@ -2418,7 +2420,7 @@ scene Vitreus {
             box { at: ccx + if(lm > 0.35, 0, 30000), yo + (lf.t + nt_d * nt_vis_t) / 2; size: nt_w, lf.t + nt_d * nt_vis_t; corner: 9 * cu; blend: 9 * u }
             box { at: ccx + if(lm > 0.35, 0, 30000), vb - (lf.t + nt_d * nt_vis_b) / 2; size: nt_w, lf.t + nt_d * nt_vis_b; corner: 9 * cu; blend: 9 * u }
             box { at: screen.width - (lf.t + nt_d * nt_vis_r) / 2 + if(lm > 0.35, 0, 30000), vc; size: lf.t + nt_d * nt_vis_r, nt_w; corner: 9 * cu; blend: 9 * u }
-            box zdrawer { at: dz.ex + if(lm > 0.35, 0, 30000), dz.ey; size: dz.gw * (1 + dj.stretch - 0.07 * dz.bell + 0.003 * wobble), dz.gh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dz.gw, dz.gh) / 2, 26 * u, clamp(dz0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dz.bell) * u * min(1, dz0 * 4); show: dz0 > 0.004 }
+            box zdrawer { at: dz.ex + if(lm > 0.35, 0, 30000), dz.ey; size: dz.gw * (1 + dz.stretch - 0.07 * dz.bell), dz.gh * (1 - dz.stretch * 0.5); corner: mix(min(dz.gw, dz.gh) / 2, 26 * u, clamp(dz0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dz.bell) * u * min(1, dz0 * 4); show: dz0 > 0.004 }
         }
         //  The three dots on each tab (the volume card's hint), fading out as the panel they open comes out.
         group {
@@ -2474,7 +2476,7 @@ scene Vitreus {
             path { at: dsk_xc + 143 * cu, dt_y; stroke: 1.5 * cu; color: ink; opacity: 70% + 30% * desk_close_z.hover; move -3.4 * cu, -3.4 * cu; line 3.4 * cu, 3.4 * cu }
             path { at: dsk_xc + 143 * cu, dt_y; stroke: 1.5 * cu; color: ink; opacity: 70% + 30% * desk_close_z.hover; move 3.4 * cu, -3.4 * cu; line -3.4 * cu, 3.4 * cu }
             zone box desk_close_z { at: dsk_xc + 143 * cu, dt_y; size: 28 * cu, 28 * cu; cursor: pointer }
-            on press desk_close_z { panel = none }
+            on press desk_close_z { desk_open = false }
             //  Shelf: drop things on it, drag them back out anywhere.
             group {
                 show: desk_tab == 1
@@ -4546,16 +4548,29 @@ scene Vitreus {
         opacity: fl
         move: 0, (1 - fl) * 12 * pu
         let lx = pcx - 215 * pu
-        let ly = ck + 8 * pu
+        let lhy = ck + 25 * pu                             // the header's middle
+        let ly = ck + 50 * pu                              // the field's top
         let lry = ly + 68 * pu                             // the rows start under the hints
         let lph = max(1, lr * 44 - 4) * pu                 // the rows' height, and the preview's
         let lpx = lx + lw + 8 * pu                         // the preview's left edge
         let lpw = 430 * pu - lw - 8 * pu
+        //  Header, like Settings': a badge with an icon, the title, a chip with what kind of search it is (apps, files...), and a cross.
+        box { at: lx + 16 * pu, lhy; size: 32 * pu, 32 * pu; corner: 9 * pu; color: mint; opacity: 20% }
+        repeat i in 0..4 {
+            box { at: lx + 16 * pu + (mod(i, 2) - 0.5) * 8.5 * pu, lhy + (floor(i / 2) - 0.5) * 8.5 * pu; size: 6.5 * pu, 6.5 * pu; corner: 2 * pu; color: mint }
+        }
+        text "SEARCH" { at: floor(lx + 40 * pu + 0.5), floor(lhy + 0.5); anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" }
+        box { at: lx + 168 * pu, lhy; size: 100 * pu, 22 * pu; corner: 11 * pu; color: ink; opacity: 6% }
+        text lmode { at: floor(lx + 168 * pu + 0.5), floor(lhy + 0.5); anchor: center; align: center; size: 13; weight: 700; width: 90 * pu; lines: 1; color: mint; family: "Space Grotesk" }
+        ellipse { at: lx + 414 * pu, lhy; radius: 13 * pu; color: ink; opacity: 5% + 10% * launch_x.hover }
+        line { from: lx + 409.5 * pu, lhy - 4.5 * pu; to: lx + 418.5 * pu, lhy + 4.5 * pu; width: 1.5 * pu; color: ink; opacity: 60% + 40% * launch_x.hover }
+        line { from: lx + 418.5 * pu, lhy - 4.5 * pu; to: lx + 409.5 * pu, lhy + 4.5 * pu; width: 1.5 * pu; color: ink; opacity: 60% + 40% * launch_x.hover }
+        zone box launch_x { at: lx + 414 * pu, lhy; size: 28 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
+        on press launch_x { panel = none }
         box { from: lx, ly; size: 430 * pu, 40 * pu; corner: 20 * pu; color: ink; opacity: 8% }
         ellipse { at: lx + 24 * pu, ly + 19 * pu; radius: 5.5 * pu; stroke: 1.6 * pu; color: mint }
         line { from: lx + 28 * pu, ly + 23 * pu; to: lx + 32.5 * pu, ly + 27.5 * pu; width: 1.8 * pu; color: mint }
-        input lq { at: floor(lx + 46 * pu + 0.5), floor(ly + 12 * pu + 0.5); width: 290 * pu; size: 20; color: ink; family: "Space Grotesk"; placeholder: "Search apps…" }
-        text lmode { at: floor(lx + 412 * pu + 0.5), floor(ly + 20 * pu + 0.5); anchor: right center; align: right; size: 13.5; weight: 700; width: 70 * pu; lines: 1; color: mint; family: "Space Grotesk" }
+        input lq { at: floor(lx + 46 * pu + 0.5), floor(ly + 12 * pu + 0.5); width: 366 * pu; size: 20; color: ink; family: "Space Grotesk"; placeholder: "Search apps…" }
         text "files" { at: 0, 0; size: 13; lines: 1; measure: lhw0; opacity: 0; family: "Space Grotesk" }
         text "commands" { at: 0, 0; size: 13; lines: 1; measure: lhw1; opacity: 0; family: "Space Grotesk" }
         text "emoji" { at: 0, 0; size: 13; lines: 1; measure: lhw2; opacity: 0; family: "Space Grotesk" }
