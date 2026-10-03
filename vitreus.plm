@@ -4212,23 +4212,26 @@ scene Vitreus {
                 box { at: bpx, bpy - 21 * pu; size: 28 * pu, 3.2 * pu; corner: 1.6 * pu; color: mix(ink, mint, bplit); show: k == 0 }
                 box { at: bpx - 14 * pu, bpy - 12 * pu; size: 3.6 * pu, 20 * pu; corner: 1.8 * pu; color: mix(ink, mint, bplit); show: k == 1 }
                 box { at: bpx + 2 * pu, bpy - 12 * pu; size: 28 * pu, 17 * pu; corner: 3 * pu; stroke: 0.9 * pu; color: mix(ink, mint, bplit); opacity: 60%; show: k == 1 }
-                text pick(k, "Top", "Left") { at: floor(bpx + 0.5), floor(bpy + 13 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 70 * pu; lines: 1; color: mix(ink, mint, bplit); family: "Space Grotesk" }
+                text pick(k, "Island", "Frame") { at: floor(bpx + 0.5), floor(bpy + 13 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 70 * pu; lines: 1; color: mix(ink, mint, bplit); family: "Space Grotesk" }
                 text pick(k, "along the top", "with a frame") { at: floor(bpx + 0.5), floor(bpy + 26 * pu + 0.5); anchor: center; align: center; size: 12; width: 70 * pu; lines: 1; color: faint; family: "Space Grotesk" }
                 zone box bar_pos_hit.$k { at: bpx, bpy; size: 76 * pu, 64 * pu; corner: 12 * pu; cursor: pointer }
                 on press bar_pos_hit.$k { emit bar_pick_pos(k) }
             }
             text "It moves at once; windows make room for the strip." { at: floor(spx + 14 * pu + 0.5), floor(sby + 418 * pu + 0.5); anchor: left center; size: 13.5; width: 410 * pu; lines: 1; color: faint; family: "Space Grotesk" }
 
-            //  ── The layout: a small copy of the bar, and under it a tray for the pieces that are hidden ──
+            //  ── The Island's layout: a small copy of the bar, and under it a tray for the pieces that are hidden. The Frame has a fixed one (see the end). ──
             //  Drag a piece along the bar to move it, or down into the tray to hide it (all but the settings gear,
             //  the way back here). The logic places the chips and makes room where the dragged one would land.
             let mbx = spx + 14 * pu                         // the editor's origin: the small bar's top-left
             let mby = sby + 190 * pu
+            group {
+            //  The Frame has a fixed layout, so the editor is faded while it is the one in use (and its zones are off: see `active:`).
+            opacity: 100% - 68% * clamp(bar_lm, 0, 1)
             box { at: spx + 219 * pu, sby + 244 * pu; size: 438 * pu, 132 * pu; corner: 14 * pu; color: ink; opacity: veil }
-            text "BAR LAYOUT" { at: floor(spx + 14 * pu + 0.5), floor(sby + 166 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text "ISLAND LAYOUT" { at: floor(spx + 14 * pu + 0.5), floor(sby + 166 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
             box { at: spx + 400 * pu, sby + 166 * pu; size: 48 * pu, 20 * pu; corner: 10 * pu; color: ink; opacity: 8% + 10% * blay_reset_hit.hover }
             text "Reset" { at: floor(spx + 400 * pu + 0.5), floor(sby + 166 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 600; width: 44 * pu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
-            zone box blay_reset_hit { at: spx + 400 * pu, sby + 166 * pu; size: 50 * pu, 22 * pu; corner: 11 * pu; cursor: pointer }
+            zone box blay_reset_hit { at: spx + 400 * pu, sby + 166 * pu; size: 50 * pu, 22 * pu; corner: 11 * pu; cursor: pointer; active: bar_anchor == top }
             on press blay_reset_hit { emit bar_lay_reset }
             //  The small bar, and the tray: lit while the dragged piece would land in it.
             box { from: mbx, mby; size: 410 * pu, 36 * pu; corner: 12 * pu; color: ink; opacity: 5% }
@@ -4240,13 +4243,13 @@ scene Vitreus {
 
             //  The drag is followed by a zone that stays still, under the chips: a drag reaches every zone that was
             //  under the press, and one that moves itself (a chip following the pointer) loses it at the first jump.
-            zone box blay_area { from: mbx - 8 * pu, mby - 8 * pu; size: 426 * pu, 104 * pu }     // the small bar and the tray, not Reset
+            zone box blay_area { from: mbx - 8 * pu, mby - 8 * pu; size: 426 * pu, 104 * pu; active: bar_anchor == top }     // the small bar and the tray, not Reset
             on drag blay_area { bdx = (pointer.x - mbx) / pu; bdy = (pointer.y - mby) / pu; emit bar_lay_drag }
             //  The chips' zones, apart from their drawing: pressing one takes it.
             repeat i in 0..8 {
                 let zx = mbx + if(bdrag == i, bdx - bgx, bcx.$i) * pu
                 let zy = mby + if(bdrag == i, bdy - bgy, bcy.$i) * pu
-                zone box bchip.$i { from: zx, zy; size: bcw.$i * pu, 28 * pu; corner: 9 * pu; cursor: grab }
+                zone box bchip.$i { from: zx, zy; size: bcw.$i * pu, 28 * pu; corner: 9 * pu; cursor: grab; active: bar_anchor == top }
                 on press bchip.$i { bgx = (pointer.x - zx) / pu; bgy = (pointer.y - zy) / pu; bdx = (pointer.x - mbx) / pu; bdy = (pointer.y - mby) / pu; bdrag = i; emit bar_lay_grab }
                 on release bchip.$i { emit bar_lay_drop }
             }
@@ -4312,6 +4315,14 @@ scene Vitreus {
                 text "4:20" { at: floor(ccx + 0.5), floor(ccy + 0.5); anchor: center; align: center; size: 17.5; weight: 700; width: chw; lines: 1; color: mix(mint, ink, 0.25); show: i == 6; family: "Space Grotesk" }
               }
             }
+            }
+            }
+            //  The Frame's layout is fixed: its pieces are where the strip puts them, so there is nothing to drag. Say so, over the faded editor.
+            group {
+                opacity: clamp(bar_lm, 0, 1)
+                show: bar_lm > 0.01
+                text "The Frame layout cannot be adjusted" { at: floor(spx + 219 * pu + 0.5), floor(sby + 224 * pu + 0.5); anchor: center; align: center; size: 16; weight: 700; width: 420 * pu; lines: 1; color: ink; family: "Space Grotesk" }
+                text "Its pieces have fixed places. Switch to Island to rearrange the bar." { at: floor(spx + 219 * pu + 0.5), floor(sby + 246 * pu + 0.5); anchor: center; align: center; size: 13.5; width: 420 * pu; lines: 1; color: faint; family: "Space Grotesk" }
             }
         }
 

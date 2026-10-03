@@ -3853,7 +3853,7 @@ end
         { "Settings: About", "open", open_settings("pg_about"), "version info credits vitreus pleamar" },
         { "Settings: System monitor", "open", open_settings("pg_sys"), "cpu gpu ram memory disk network temperature fan processes task manager performance usage" },
         { "Settings: Notifications", "open", open_settings("pg_nt"), "alerts do not disturb dnd sounds rules apps banner mute" },
-        { "Settings: Bar", "open", open_settings("pg_bar"), "panel widgets order clock tray media title items" },
+        { "Settings: Bar", "open", open_settings("pg_bar"), "panel widgets order clock tray media title items layout island frame top left position" },
         { "Settings: Lock screen", "open", open_settings("pg_lock"), "lockscreen lock password mask blur clock date format media player shapes dots asterisks symbols special palette colours colors example live test glyphs vibrant neon pastel monochrome security idle" },
         { "Calendar", "panel", function() set_panel("calendar"); return true end, "date month day reminders schedule" },
         { "Controls", "panel", function() set_panel("controls"); return true end, "quick settings wifi bluetooth volume brightness power profile capture screenshot record" },
