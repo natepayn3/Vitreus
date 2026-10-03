@@ -1280,6 +1280,14 @@ local nt_now = nil           -- the notification on screen: { id, keys }
 local nt_queue = {}
 local nt_seen = {}
 local nt_first = true
+-- The drawer's own state ("volume", "notif" or "none", in `nt_queue.osd`), mirrored into the scene's `osd_on`. It is not a value of `panel`,
+-- so it shows beside Settings, the search, the desk... and never takes the place of a panel the user opened. (Kept on `nt_queue`, not in
+-- locals of their own: a chunk may only have 200 of those, and this file is at the limit.)
+nt_queue.osd = "none"
+function nt_queue.set_osd(name)
+    nt_queue.osd = name
+    fact.osd_on = name ~= "none"
+end
 
 local function panel_is(name) return tostring(cur_panel) == name end
 -- The scene tells the logic when `panel` changes from its side, not when the logic changes it, so
@@ -1289,10 +1297,10 @@ local function set_panel(name)
     nt_queue.want = name     -- what was asked for: the scene closes an open panel before opening another (it goes through "none"), see below
     fact.panel = name
 end
-local function osd_free() return panel_is("none") or panel_is("volume") or panel_is("notif") end
+local function osd_free() return true end
 
 local function hide_osd(kind)
-    if panel_is(kind == "vol" and "volume" or "notif") then set_panel("none") end
+    if nt_queue.osd == (kind == "vol" and "volume" or "notif") then nt_queue.set_osd("none") end
 end
 
 -- Volume: whenever the level or the mute changes with nothing else open.
@@ -1303,18 +1311,16 @@ sys.watch("audio", function(a)
     local changed = last_vol ~= nil and (vol ~= last_vol or mute ~= last_mute)
     last_vol, last_mute = vol, mute
     if not changed then return end
-    if panel_is("notif") and nt_now and nt_now.n then
+    if nt_queue.osd == "notif" and nt_now and nt_now.n then
         -- The volume comes first: the notification on screen goes back to the front of the queue and shows again once the volume has gone.
         table.insert(nt_queue, 1, nt_now.n)
         nt_now = nil
-    elseif not (panel_is("none") or panel_is("volume")) then
-        return
     end
     osd_gen = osd_gen + 1
     local gen = osd_gen
     nt_queue.hold = true            -- no notification is shown while the volume is (see `pump`)
     fact.osd_kind = "vol"
-    set_panel("volume")
+    nt_queue.set_osd("volume")
     after(2000, function()
         if gen == osd_gen then
             hide_osd("vol")
@@ -1541,7 +1547,7 @@ local function show_notification(n)
     osd_gen = osd_gen + 1
     local gen = osd_gen
     fact.osd_kind = "note"
-    set_panel("notif")
+    nt_queue.set_osd("notif")
     emit("ntnew")
     -- How long it stays is decided with the rest (`decide`): a critical one until it is dismissed, one with buttons longer, and
     -- an app's own rule over both. 0 is "until it is dismissed".
@@ -1604,9 +1610,14 @@ on("fact:panel", function(v)
     if tostring(v) == "none" and nt_queue.want and nt_queue.want ~= "none" then return end
     nt_queue.want = nil
     cur_panel = v
-    -- The notification's drawer was closed from elsewhere (a click on the bar, Escape): it counts as
-    -- seen, and the next one may come.
-    if nt_now and not panel_is("notif") then
+    pump()
+end)
+
+-- The drawer closed from the scene (a press on the volume plate): a notification on screen counts as seen, and the next one may come.
+on("fact:osd_on", function(v)
+    if v == true or tostring(v) == "true" then return end
+    nt_queue.osd = "none"
+    if nt_now then
         pcall(sys.call, "notifications.dismiss", nt_now.id)
         nt_now = nil
     end
