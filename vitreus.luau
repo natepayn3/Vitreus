@@ -91,6 +91,7 @@ sys.watch("clock", function(c)
     text.clock_mm = string.format(":%02d", c.minute)
     text.clock_mn = string.format("%02d", c.minute)     -- for the clock stacked down the left bar
     text.bar_ap = c.hour < 12 and "am" or "pm"
+    text.bar_ap1 = c.hour < 12 and "a" or "p"
     text.bar_date = days[c.weekday]:sub(1, 3):upper()      -- just the day: MON
     text.datelong = string.format("%s, %s %d, %d", days[c.weekday], months[c.month], c.day, c.year)
     -- The clock card's pieces.
