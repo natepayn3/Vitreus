@@ -99,6 +99,10 @@ if [ "$action" = uninstall ]; then
         run sed -i '/vitreus\/lockscreen\/lockscreen\.plm/d' "$autostart"
         say "removed the lock screen's line from $autostart (hypridle and any key binding that lock with it are yours to change)"
     fi
+    if [ -f "$autostart" ] && grep -q 'vitreus/desktopclock/desktopclock.plm' "$autostart"; then
+        run sed -i '/vitreus\/desktopclock\/desktopclock\.plm/d' "$autostart"
+        say "removed the desktop clock's line from $autostart"
+    fi
     hyprlua="$conf/hypr/hyprland.lua"
     if [ -f "$hyprlua" ] && grep -q '^-- >>> vitreus' "$hyprlua"; then
         run sed -i '/^-- >>> vitreus/,/^-- <<< vitreus/d' "$hyprlua"
@@ -315,6 +319,7 @@ fi
 line="pleamar --scene $dest/vitreus.plm --no-hud"
 lockline="pleamar --scene $dest/lockscreen/lockscreen.plm --no-hud"
 transline="pleamar --scene $dest/wptrans/wptrans.plm --no-hud"
+clockline="pleamar --scene $dest/desktopclock/desktopclock.plm --no-hud"
 if $do_autostart; then
     if [ -f "$autostart" ] && grep -q 'vitreus.plm' "$autostart"; then
         say "it is already in $autostart"
@@ -337,6 +342,13 @@ if $do_autostart; then
     else
         if $dry; then echo "    would add to $autostart: $transline"; else printf '%s\n' "$transline" >> "$autostart"; fi
         say "the wallpaper picker's hexagon dissolve starts with the desktop too (a line in $autostart)"
+    fi
+    # The desktop clock (digits of glass on the bottom layer) is a scene of its own as well; it starts shown, and turns off from the launcher.
+    if [ -f "$autostart" ] && grep -q 'desktopclock/desktopclock.plm' "$autostart"; then
+        say "the desktop clock is already in $autostart"
+    else
+        if $dry; then echo "    would add to $autostart: $clockline"; else printf '%s\n' "$clockline" >> "$autostart"; fi
+        say "the desktop clock starts with the desktop too (a line in $autostart); \"Desktop clock: toggle\" in the launcher turns it off"
     fi
 fi
 

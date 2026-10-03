@@ -1,6 +1,7 @@
 language 0.1
 
 import "palette-live.plm"
+import "desktopclock/clockface.plm"
 
 //  Vitreus: a bar of liquid glass. The glass only blurs what is behind it (the
 //  compositor does it; `lens: false`, unless the Glass page turns bending on), and the panel is not stuck under the
@@ -270,7 +271,7 @@ scene Vitreus {
     event glass_reset ->
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
     //  panel's height, which follows the page).
-    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_night | pg_hypr | pg_about | pg_sys | pg_nt | pg_lock | pg_wm | pg_vpn = pg_wall
+    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_night | pg_hypr | pg_about | pg_sys | pg_nt | pg_lock | pg_wm | pg_vpn | pg_clock = pg_wall
     //  The Bar page: which monitors the bar is on (see the Bar section of vitreus.luau). `bar_scr` is -1 for all
     //  of them, or which monitor tile is chosen.
     fact bar_scr = -1
@@ -727,6 +728,7 @@ scene Vitreus {
     prop set_pgl = 0 ~calm
     prop set_pgw = 0 ~calm
     prop set_pgv = 0 ~calm
+    prop set_pgk = 0 ~calm
     prop set_pgb = 0 ~calm
     prop bs.ws = 1 ~calm              // each piece of the bar, 1 shown .. 0 hidden: its room and its opacity
     prop bs.title = 1 ~calm
@@ -788,6 +790,7 @@ scene Vitreus {
     follow set_pgl = if(set_page == pg_lock, 1, 0)
     follow set_pgw = if(set_page == pg_wm, 1, 0)
     follow set_pgv = if(set_page == pg_vpn, 1, 0)
+    follow set_pgk = if(set_page == pg_clock, 1, 0)
     follow bs.ws = if(bv.ws, 1, 0)
     follow bs.title = if(bv.title and bar_anchor == top, 1, 0)
     follow bs.media = if(bv.media and bar_anchor == top, 1, 0)
@@ -896,6 +899,29 @@ scene Vitreus {
     fact lk_media = true
     fact lk_date: lkd_long | lkd_std | lkd_day | lkd_iso = lkd_long
     fact lk_ok = true
+    //  Settings > Clock: the desktop clock is a scene of its own (desktopclock/), which keeps its settings in its own desktopclock.json. This page asks it
+    //  for them when it opens (`ck_ok` is false when it does not answer, which is when it is not running) and tells it each change.
+    fact ck_on = false
+    fact ck_lay = 0                    // the layout: 0 pipe, 1 rule, 2 tower, 3 capsule, 4 slash, 5 hero
+    fact ck_pos = 4                    // where it sits, row by row: 0 top left, 1 top, 2 top right, 3 left, 4 centre, 5 right, 6 bottom left, 7 bottom, 8 bottom right
+    fact ck_px = 220                   // the digits' height: 140, 220, 280 or 340
+    fact ck_12h = true
+    fact ck_wt = 1                     // the strokes: 0 thin, 1 regular, 2 bold
+    fact ck_cl = 1                     // the glass: 0 clear, 1 soft, 2 full
+    fact ck_ok = true
+    prop ck_pill = 0 ~pop
+    follow ck_pill = if(ck_on, 1, 0)
+    prop ck_mx = 1 ~quick              // the marker on the position grid: column and row, 0 to 2
+    prop ck_my = 1 ~quick
+    follow ck_mx = if(ck_pos == 0 or ck_pos == 3 or ck_pos == 6, 0, if(ck_pos == 2 or ck_pos == 5 or ck_pos == 8, 2, 1))
+    follow ck_my = if(ck_pos < 3, 0, if(ck_pos < 6, 1, 2))
+    event ck_toggle ->
+    event ck_lay_set ->                // 0 to 5, as above
+    event ck_pos_set ->                // 0 to 8, as above
+    event ck_size_set ->               // 0 small, 1 medium, 2 large, 3 extra large
+    event ck_12h_set ->                // 1 twelve hours, 0 twenty-four
+    event ck_wt_set ->
+    event ck_cl_set ->
     prop lk_pill_am = 0 ~pop
     prop lk_pill_md = 0 ~pop
     follow lk_pill_am = if(lk_ampm, 1, 0)
@@ -1926,7 +1952,8 @@ scene Vitreus {
     //  The sidebar's SYSTEM group, top to bottom. To add a section, give it a row here (`side.NAME = previous row + 32`), draw its item
     //  like the others, and move `side.last` to its row: About is always the row after `side.last`, so it stays the final one, and
     //  Settings' minimum height follows it (see `set.h`).
-    let side.hy = 226
+    let side.ck = 202                  // the Clock row: the last of Visuals, after Night mode (170)
+    let side.hy = 258
     let side.wm = side.hy + 32
     let side.mon = side.wm + 32
     let side.nt = side.mon + 32
@@ -3691,7 +3718,7 @@ scene Vitreus {
         text "VISUALS" { at: floor(sl + 122 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 12; weight: 700; color: faint; opacity: 1 - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw - set_pgv; family: "Space Grotesk" }
         text "SYSTEM" { at: floor(sl + 122 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 12; weight: 700; color: faint; opacity: set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv; family: "Space Grotesk" }
         path { at: sl + 168 * pu, hy; stroke: 1.3 * pu; color: faint; move -2 * pu, -3.5 * pu; line 2 * pu, 0; line -2 * pu, 3.5 * pu }
-        text "Wallpaper" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw - set_pgv; family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw - set_pgv - set_pgk; family: "Space Grotesk" }
         text "Display" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: set_pgd; family: "Space Grotesk" }
         text "Glass" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: set_pg; family: "Space Grotesk" }
         text "Hyprland" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: set_pgh; family: "Space Grotesk" }
@@ -3703,6 +3730,7 @@ scene Vitreus {
         text "Notifications" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: set_pgt; family: "Space Grotesk" }
         text "VPN" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: set_pgv; family: "Space Grotesk" }
         text "Lock screen" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: set_pgl; family: "Space Grotesk" }
+        text "Clock" { at: floor(sl + 176 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; weight: 700; color: mint; opacity: set_pgk; family: "Space Grotesk" }
         ellipse { at: pcx + 282 * pu, hy; radius: 13 * pu; color: ink; opacity: 5% + 10% * set_x.hover }
         line { from: pcx + 277.5 * pu, hy - 4.5 * pu; to: pcx + 286.5 * pu, hy + 4.5 * pu; width: 1.5 * pu; color: ink; opacity: 60% + 40% * set_x.hover }
         line { from: pcx + 286.5 * pu, hy - 4.5 * pu; to: pcx + 277.5 * pu, hy + 4.5 * pu; width: 1.5 * pu; color: ink; opacity: 60% + 40% * set_x.hover }
@@ -3714,14 +3742,14 @@ scene Vitreus {
         text "VISUALS" { at: floor(sl + 14 * pu + 0.5), floor(sby + 18 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
         //  The highlight's place is each page's own selection (a spring, 0 or 1) times its row, summed: a straight line from one row to the next.
         //  (Nested `mix`es bent it: the old row's value falling while the new one rises dragged it back towards the top row and down again.)
-        box { at: sl + 75 * pu, sby + (42 + 32 * (set_pg + 2 * set_pgd + 3 * set_pgb + 4 * set_pgn) + (side.hy - 42) * set_pgh + (side.wm - 42) * set_pgw + (side.mon - 42) * set_pgs + (side.nt - 42) * set_pgt + (side.lk - 42) * set_pgl + (side.vpn - 42) * set_pgv + (side.ab - 42) * set_pga) * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; color: mint; opacity: 16% }
+        box { at: sl + 75 * pu, sby + (42 + 32 * (set_pg + 2 * set_pgd + 3 * set_pgb + 4 * set_pgn) + (side.hy - 42) * set_pgh + (side.wm - 42) * set_pgw + (side.mon - 42) * set_pgs + (side.nt - 42) * set_pgt + (side.lk - 42) * set_pgl + (side.vpn - 42) * set_pgv + (side.ck - 42) * set_pgk + (side.ab - 42) * set_pga) * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; color: mint; opacity: 16% }
         group {
-            opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv, 0, 1))
-            box { at: sl + 24 * pu, sby + 42 * pu; size: 13 * pu, 10 * pu; corner: 2 * pu; stroke: 1.3 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv, 0, 1)) }
-            path { at: sl + 24 * pu, sby + 42 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv, 0, 1)); move -5 * pu, 3 * pu; line -1.5 * pu, -1 * pu; line 1 * pu, 1.5 * pu; line 2.5 * pu, -1.5 * pu; line 5 * pu, 3 * pu; close }
-            ellipse { at: sl + 27 * pu, sby + 39 * pu; radius: 1.2 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv, 0, 1)) }
+            opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk, 0, 1))
+            box { at: sl + 24 * pu, sby + 42 * pu; size: 13 * pu, 10 * pu; corner: 2 * pu; stroke: 1.3 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk, 0, 1)) }
+            path { at: sl + 24 * pu, sby + 42 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk, 0, 1)); move -5 * pu, 3 * pu; line -1.5 * pu, -1 * pu; line 1 * pu, 1.5 * pu; line 2.5 * pu, -1.5 * pu; line 5 * pu, 3 * pu; close }
+            ellipse { at: sl + 27 * pu, sby + 39 * pu; radius: 1.2 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk, 0, 1)) }
         }
-        text "Wallpaper" { at: floor(sl + 40 * pu + 0.5), floor(sby + 42 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv, 0, 1); family: "Space Grotesk" }
+        text "Wallpaper" { at: floor(sl + 40 * pu + 0.5), floor(sby + 42 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk, 0, 1); family: "Space Grotesk" }
         //  Glass: a pane with a highlight across its corner.
         group {
             opacity: 65% + 35% * set_pg
@@ -3752,7 +3780,7 @@ scene Vitreus {
         text "Night mode" { at: floor(sl + 40 * pu + 0.5), floor(sby + 170 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: mix(ink, mint, set_pgn); opacity: 85% + 15% * set_pgn; family: "Space Grotesk" }
         zone box side_nt { at: sl + 75 * pu, sby + 170 * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; cursor: pointer }
         on press side_nt { set_page = pg_night }
-        text "SYSTEM" { at: floor(sl + 14 * pu + 0.5), floor(sby + 204 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
+        text "SYSTEM" { at: floor(sl + 14 * pu + 0.5), floor(sby + 236 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
         //  Hyprland: a window with its title bar.
         group {
             opacity: 65% + 35% * set_pgh
@@ -3797,6 +3825,14 @@ scene Vitreus {
             box { at: sl + 24 * pu, sby + side.lk * pu + 2 * pu; size: 12 * pu, 8.5 * pu; corner: 2.2 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgl) }
         }
         text "Lock screen" { at: floor(sl + 40 * pu + 0.5), floor(sby + side.lk * pu + 0.5); anchor: left center; size: 16; weight: 700; width: 108 * pu; lines: 1; color: mix(ink, mint, set_pgl); opacity: 85% + 15% * set_pgl; family: "Space Grotesk" }
+        //  Clock: a dial.
+        group {
+            opacity: 65% + 35% * set_pgk
+            ellipse { at: sl + 24 * pu, sby + side.ck * pu; radius: 6.5 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgk) }
+            line { from: sl + 24 * pu, sby + side.ck * pu; to: sl + 24 * pu, sby + (side.ck - 3.6) * pu; width: 1.3 * pu; color: mix(ink, mint, set_pgk) }
+            line { from: sl + 24 * pu, sby + side.ck * pu; to: sl + 26.6 * pu, sby + (side.ck + 1.6) * pu; width: 1.3 * pu; color: mix(ink, mint, set_pgk) }
+        }
+        text "Clock" { at: floor(sl + 40 * pu + 0.5), floor(sby + side.ck * pu + 0.5); anchor: left center; size: 16; weight: 700; width: 108 * pu; lines: 1; color: mix(ink, mint, set_pgk); opacity: 85% + 15% * set_pgk; family: "Space Grotesk" }
         //  VPN: a shield.
         group {
             opacity: 65% + 35% * set_pgv
@@ -3807,6 +3843,8 @@ scene Vitreus {
         on press side_vpn { set_page = pg_vpn }
         zone box side_lk { at: sl + 75 * pu, sby + side.lk * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; cursor: pointer }
         on press side_lk { set_page = pg_lock }
+        zone box side_ck { at: sl + 75 * pu, sby + side.ck * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; cursor: pointer }
+        on press side_ck { set_page = pg_clock }
         zone box side_nt2 { at: sl + 75 * pu, sby + side.nt * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; cursor: pointer }
         on press side_nt2 { set_page = pg_nt }
         zone box side_sy { at: sl + 75 * pu, sby + side.mon * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; cursor: pointer }
@@ -3825,8 +3863,8 @@ scene Vitreus {
         on press side_gl { set_page = pg_glass }
 
         group {
-            show: set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv < 0.99
-            opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw - set_pgv
+            show: set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk < 0.99
+            opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw - set_pgv - set_pgk
             //  The wallpaper page. Card one: the wallpaper in use, and Random.
             box { at: spx + 219 * pu, sby + 46 * pu; size: 438 * pu, 92 * pu; corner: 14 * pu; color: ink; opacity: veil }
             group {
@@ -5226,6 +5264,184 @@ scene Vitreus {
             on drag nt_bar_hit { nt_scroll_to = clamp(((pointer.y - sby) / pu - nt.thh / 2) / max(1, 456 - nt.thh) * (nt.h - 456), 0, max(0, nt.h - 456)) }
         }
         //  ── Notifications page: END ──
+
+        //  ── Clock page: BEGIN ──
+        //  Settings > Clock. The desktop clock (desktopclock/): its switch, the layout as badges (each one is the real clock face, small), where it sits
+        //  on a grid of the screen, its size and hours, and its look. The scene keeps the settings (desktopclock.json); the logic asks it for them when the
+        //  page opens and tells it each change. See "Settings > Clock" in the logic.
+        group {
+            show: set_pgk > 0.01
+            opacity: set_pgk
+            let ckl0 = if(ck_lay == 0, 1, 0)
+            let ckl1 = if(ck_lay == 1, 1, 0)
+            let ckl2 = if(ck_lay == 2, 1, 0)
+            let ckl3 = if(ck_lay == 3, 1, 0)
+            let ckl4 = if(ck_lay == 4, 1, 0)
+            let ckl5 = if(ck_lay == 5, 1, 0)
+            let cks0 = if(ck_px < 180, 1, 0)
+            let cks1 = if(ck_px >= 180 and ck_px < 250, 1, 0)
+            let cks2 = if(ck_px >= 250 and ck_px < 310, 1, 0)
+            let cks3 = if(ck_px >= 310, 1, 0)
+            let ckh12 = if(ck_12h, 1, 0)
+            let ckh24 = 1 - ckh12
+            let ckw0 = if(ck_wt == 0, 1, 0)
+            let ckw1 = if(ck_wt == 1, 1, 0)
+            let ckw2 = if(ck_wt == 2, 1, 0)
+            let ckc0 = if(ck_cl == 0, 1, 0)
+            let ckc1 = if(ck_cl == 1, 1, 0)
+            let ckc2 = if(ck_cl == 2, 1, 0)
+
+            //  The switch.
+            box { at: spx + 219 * pu, sby + 34 * pu; size: 438 * pu, 56 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "Desktop clock" { at: floor(spx + 14 * pu + 0.5), floor(sby + 24 * pu + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
+            text "Digits of glass on your wallpaper, under the windows" { at: floor(spx + 14 * pu + 0.5), floor(sby + 44 * pu + 0.5); anchor: left center; size: 12.5; color: faint; show: ck_ok; family: "Space Grotesk" }
+            text "Not running: turn the switch on to start it" { at: floor(spx + 14 * pu + 0.5), floor(sby + 44 * pu + 0.5); anchor: left center; size: 12.5; color: faint; show: not ck_ok; family: "Space Grotesk" }
+            body {
+                color: mix(off, mint, clamp(ck_pill, 0, 1))
+                box { at: spx + 405 * pu, sby + 34 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+            }
+            box { at: spx + 397 * pu + ck_pill * 16 * pu, sby + 34 * pu; size: (17 + 9 * clamp(4 * ck_pill * (1 - ck_pill), 0, 1)) * pu, (17 - 3 * clamp(4 * ck_pill * (1 - ck_pill), 0, 1)) * pu; corner: 7 * pu; color: ink }
+            zone box ck_hit { at: spx + 405 * pu, sby + 34 * pu; size: 46 * pu, 30 * pu; cursor: pointer }
+            on press ck_hit { emit ck_toggle }
+
+            //  The layouts: a badge each.
+            box { at: spx + 219 * pu, sby + 120 * pu; size: 438 * pu, 100 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "Layout" { at: floor(spx + 14 * pu + 0.5), floor(sby + 84 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: spx + 46 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; color: mix(ink, mint, ckl0); opacity: 7% + 20% * ckl0 + 6% * ck_l0.hover }
+            box { at: spx + 46 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; stroke: 1.3 * pu; color: mint; opacity: 75% * ckl0 }
+            ClockFace(0.145 * pu, 0, 1, 2, 3, 4, spx + 46 * pu, sby + 125 * pu, mix(ink, mint, ckl0), 0, 0.5, 60% + 40% * ckl0, 1)
+            zone box ck_l0 { at: spx + 46 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; cursor: pointer }
+            on press ck_l0 { emit ck_lay_set(0) }
+            text "Pipe" { at: floor(spx + 46 * pu + 0.5), floor(sby + 160 * pu + 0.5); anchor: center; size: 11.5; weight: 600; color: mix(faint, mint, ckl0); family: "Space Grotesk" }
+            box { at: spx + 116 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; color: mix(ink, mint, ckl1); opacity: 7% + 20% * ckl1 + 6% * ck_l1.hover }
+            box { at: spx + 116 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; stroke: 1.3 * pu; color: mint; opacity: 75% * ckl1 }
+            ClockFace(0.145 * pu, 1, 1, 2, 3, 4, spx + 116 * pu, sby + 125 * pu, mix(ink, mint, ckl1), 0, 0.5, 60% + 40% * ckl1, 1)
+            zone box ck_l1 { at: spx + 116 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; cursor: pointer }
+            on press ck_l1 { emit ck_lay_set(1) }
+            text "Rule" { at: floor(spx + 116 * pu + 0.5), floor(sby + 160 * pu + 0.5); anchor: center; size: 11.5; weight: 600; color: mix(faint, mint, ckl1); family: "Space Grotesk" }
+            box { at: spx + 186 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; color: mix(ink, mint, ckl2); opacity: 7% + 20% * ckl2 + 6% * ck_l2.hover }
+            box { at: spx + 186 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; stroke: 1.3 * pu; color: mint; opacity: 75% * ckl2 }
+            ClockFace(0.145 * pu, 2, 1, 2, 3, 4, spx + 186 * pu, sby + 125 * pu, mix(ink, mint, ckl2), 0, 0.5, 60% + 40% * ckl2, 1)
+            zone box ck_l2 { at: spx + 186 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; cursor: pointer }
+            on press ck_l2 { emit ck_lay_set(2) }
+            text "Tower" { at: floor(spx + 186 * pu + 0.5), floor(sby + 160 * pu + 0.5); anchor: center; size: 11.5; weight: 600; color: mix(faint, mint, ckl2); family: "Space Grotesk" }
+            box { at: spx + 256 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; color: mix(ink, mint, ckl3); opacity: 7% + 20% * ckl3 + 6% * ck_l3.hover }
+            box { at: spx + 256 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; stroke: 1.3 * pu; color: mint; opacity: 75% * ckl3 }
+            ClockFace(0.145 * pu, 3, 1, 2, 3, 4, spx + 256 * pu, sby + 125 * pu, mix(ink, mint, ckl3), 0, 0.5, 60% + 40% * ckl3, 1)
+            zone box ck_l3 { at: spx + 256 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; cursor: pointer }
+            on press ck_l3 { emit ck_lay_set(3) }
+            text "Capsule" { at: floor(spx + 256 * pu + 0.5), floor(sby + 160 * pu + 0.5); anchor: center; size: 11.5; weight: 600; color: mix(faint, mint, ckl3); family: "Space Grotesk" }
+            box { at: spx + 326 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; color: mix(ink, mint, ckl4); opacity: 7% + 20% * ckl4 + 6% * ck_l4.hover }
+            box { at: spx + 326 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; stroke: 1.3 * pu; color: mint; opacity: 75% * ckl4 }
+            ClockFace(0.145 * pu, 4, 1, 2, 3, 4, spx + 326 * pu, sby + 125 * pu, mix(ink, mint, ckl4), 0, 0.5, 60% + 40% * ckl4, 1)
+            zone box ck_l4 { at: spx + 326 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; cursor: pointer }
+            on press ck_l4 { emit ck_lay_set(4) }
+            text "Slash" { at: floor(spx + 326 * pu + 0.5), floor(sby + 160 * pu + 0.5); anchor: center; size: 11.5; weight: 600; color: mix(faint, mint, ckl4); family: "Space Grotesk" }
+            box { at: spx + 396 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; color: mix(ink, mint, ckl5); opacity: 7% + 20% * ckl5 + 6% * ck_l5.hover }
+            box { at: spx + 396 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; stroke: 1.3 * pu; color: mint; opacity: 75% * ckl5 }
+            ClockFace(0.145 * pu, 5, 1, 2, 3, 4, spx + 396 * pu, sby + 125 * pu, mix(ink, mint, ckl5), 0, 0.5, 60% + 40% * ckl5, 1)
+            zone box ck_l5 { at: spx + 396 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; cursor: pointer }
+            on press ck_l5 { emit ck_lay_set(5) }
+            text "Hero" { at: floor(spx + 396 * pu + 0.5), floor(sby + 160 * pu + 0.5); anchor: center; size: 11.5; weight: 600; color: mix(faint, mint, ckl5); family: "Space Grotesk" }
+
+            //  Where it sits: the screen as a grid of nine, and the clock's marker on one of them.
+            box { at: spx + 219 * pu, sby + 232 * pu; size: 438 * pu, 104 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "Position" { at: floor(spx + 14 * pu + 0.5), floor(sby + 194 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            body {
+                color: deep
+                rim: 14%
+                box { at: spx + 74 * pu, sby + 240 * pu; size: 120 * pu, 66 * pu; corner: 7 * pu }
+            }
+            ellipse { at: spx + 34 * pu, sby + 218 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * ck_pc0.hover }
+            zone box ck_pc0 { at: spx + 34 * pu, sby + 218 * pu; size: 40 * pu, 22 * pu; cursor: pointer }
+            on press ck_pc0 { emit ck_pos_set(0) }
+            ellipse { at: spx + 74 * pu, sby + 218 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * ck_pc1.hover }
+            zone box ck_pc1 { at: spx + 74 * pu, sby + 218 * pu; size: 40 * pu, 22 * pu; cursor: pointer }
+            on press ck_pc1 { emit ck_pos_set(1) }
+            ellipse { at: spx + 114 * pu, sby + 218 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * ck_pc2.hover }
+            zone box ck_pc2 { at: spx + 114 * pu, sby + 218 * pu; size: 40 * pu, 22 * pu; cursor: pointer }
+            on press ck_pc2 { emit ck_pos_set(2) }
+            ellipse { at: spx + 34 * pu, sby + 240 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * ck_pc3.hover }
+            zone box ck_pc3 { at: spx + 34 * pu, sby + 240 * pu; size: 40 * pu, 22 * pu; cursor: pointer }
+            on press ck_pc3 { emit ck_pos_set(3) }
+            ellipse { at: spx + 74 * pu, sby + 240 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * ck_pc4.hover }
+            zone box ck_pc4 { at: spx + 74 * pu, sby + 240 * pu; size: 40 * pu, 22 * pu; cursor: pointer }
+            on press ck_pc4 { emit ck_pos_set(4) }
+            ellipse { at: spx + 114 * pu, sby + 240 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * ck_pc5.hover }
+            zone box ck_pc5 { at: spx + 114 * pu, sby + 240 * pu; size: 40 * pu, 22 * pu; cursor: pointer }
+            on press ck_pc5 { emit ck_pos_set(5) }
+            ellipse { at: spx + 34 * pu, sby + 262 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * ck_pc6.hover }
+            zone box ck_pc6 { at: spx + 34 * pu, sby + 262 * pu; size: 40 * pu, 22 * pu; cursor: pointer }
+            on press ck_pc6 { emit ck_pos_set(6) }
+            ellipse { at: spx + 74 * pu, sby + 262 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * ck_pc7.hover }
+            zone box ck_pc7 { at: spx + 74 * pu, sby + 262 * pu; size: 40 * pu, 22 * pu; cursor: pointer }
+            on press ck_pc7 { emit ck_pos_set(7) }
+            ellipse { at: spx + 114 * pu, sby + 262 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * ck_pc8.hover }
+            zone box ck_pc8 { at: spx + 114 * pu, sby + 262 * pu; size: 40 * pu, 22 * pu; cursor: pointer }
+            on press ck_pc8 { emit ck_pos_set(8) }
+            body {
+                gradient: 0, sby + (240 + (ck_my - 1) * 22) * pu - 7 * pu to 0, sby + (240 + (ck_my - 1) * 22) * pu + 7 * pu, minthi, mintlo
+                rim: 45%
+                shadow: 0, 0, 6 * pu, 30%, mint
+                box { at: spx + (74 + (ck_mx - 1) * 40) * pu, sby + (240 + (ck_my - 1) * 22) * pu; size: 28 * pu, 14 * pu; corner: 4 * pu }
+            }
+            text "Size" { at: floor(spx + 156 * pu + 0.5), floor(sby + 194 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: spx + 187 * pu, sby + 216 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, cks0); opacity: 8% + 20% * cks0 + 6% * ck_s0.hover }
+            text "Small" { at: floor(spx + 187 * pu + 0.5), floor(sby + 216 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 58 * pu; lines: 1; color: mix(ink, mint, cks0); family: "Space Grotesk" }
+            zone box ck_s0 { at: spx + 187 * pu, sby + 216 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer }
+            on press ck_s0 { emit ck_size_set(0) }
+            box { at: spx + 253 * pu, sby + 216 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, cks1); opacity: 8% + 20% * cks1 + 6% * ck_s1.hover }
+            text "Medium" { at: floor(spx + 253 * pu + 0.5), floor(sby + 216 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 58 * pu; lines: 1; color: mix(ink, mint, cks1); family: "Space Grotesk" }
+            zone box ck_s1 { at: spx + 253 * pu, sby + 216 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer }
+            on press ck_s1 { emit ck_size_set(1) }
+            box { at: spx + 319 * pu, sby + 216 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, cks2); opacity: 8% + 20% * cks2 + 6% * ck_s2.hover }
+            text "Large" { at: floor(spx + 319 * pu + 0.5), floor(sby + 216 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 58 * pu; lines: 1; color: mix(ink, mint, cks2); family: "Space Grotesk" }
+            zone box ck_s2 { at: spx + 319 * pu, sby + 216 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer }
+            on press ck_s2 { emit ck_size_set(2) }
+            box { at: spx + 385 * pu, sby + 216 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, cks3); opacity: 8% + 20% * cks3 + 6% * ck_s3.hover }
+            text "Huge" { at: floor(spx + 385 * pu + 0.5), floor(sby + 216 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 58 * pu; lines: 1; color: mix(ink, mint, cks3); family: "Space Grotesk" }
+            zone box ck_s3 { at: spx + 385 * pu, sby + 216 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer }
+            on press ck_s3 { emit ck_size_set(3) }
+            text "Hours" { at: floor(spx + 156 * pu + 0.5), floor(sby + 244 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: spx + 206 * pu, sby + 266 * pu; size: 100 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, ckh12); opacity: 8% + 20% * ckh12 + 6% * ck_h0.hover }
+            text "12-hour" { at: floor(spx + 206 * pu + 0.5), floor(sby + 266 * pu + 0.5); anchor: center; align: center; size: 13; weight: 700; width: 96 * pu; lines: 1; color: mix(ink, mint, ckh12); family: "Space Grotesk" }
+            zone box ck_h0 { at: spx + 206 * pu, sby + 266 * pu; size: 100 * pu, 24 * pu; corner: 8 * pu; cursor: pointer }
+            on press ck_h0 { emit ck_12h_set(1) }
+            box { at: spx + 316 * pu, sby + 266 * pu; size: 100 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, ckh24); opacity: 8% + 20% * ckh24 + 6% * ck_h1.hover }
+            text "24-hour" { at: floor(spx + 316 * pu + 0.5), floor(sby + 266 * pu + 0.5); anchor: center; align: center; size: 13; weight: 700; width: 96 * pu; lines: 1; color: mix(ink, mint, ckh24); family: "Space Grotesk" }
+            zone box ck_h1 { at: spx + 316 * pu, sby + 266 * pu; size: 100 * pu, 24 * pu; corner: 8 * pu; cursor: pointer }
+            on press ck_h1 { emit ck_12h_set(0) }
+
+            //  How it looks.
+            box { at: spx + 219 * pu, sby + 328 * pu; size: 438 * pu, 72 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "Weight" { at: floor(spx + 14 * pu + 0.5), floor(sby + 312 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: spx + 194 * pu, sby + 312 * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, ckw0); opacity: 8% + 20% * ckw0 + 6% * ck_w0.hover }
+            text "Thin" { at: floor(spx + 194 * pu + 0.5), floor(sby + 312 * pu + 0.5); anchor: center; align: center; size: 13; weight: 700; width: 84 * pu; lines: 1; color: mix(ink, mint, ckw0); family: "Space Grotesk" }
+            zone box ck_w0 { at: spx + 194 * pu, sby + 312 * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; cursor: pointer }
+            on press ck_w0 { emit ck_wt_set(0) }
+            box { at: spx + 286 * pu, sby + 312 * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, ckw1); opacity: 8% + 20% * ckw1 + 6% * ck_w1.hover }
+            text "Regular" { at: floor(spx + 286 * pu + 0.5), floor(sby + 312 * pu + 0.5); anchor: center; align: center; size: 13; weight: 700; width: 84 * pu; lines: 1; color: mix(ink, mint, ckw1); family: "Space Grotesk" }
+            zone box ck_w1 { at: spx + 286 * pu, sby + 312 * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; cursor: pointer }
+            on press ck_w1 { emit ck_wt_set(1) }
+            box { at: spx + 378 * pu, sby + 312 * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, ckw2); opacity: 8% + 20% * ckw2 + 6% * ck_w2.hover }
+            text "Bold" { at: floor(spx + 378 * pu + 0.5), floor(sby + 312 * pu + 0.5); anchor: center; align: center; size: 13; weight: 700; width: 84 * pu; lines: 1; color: mix(ink, mint, ckw2); family: "Space Grotesk" }
+            zone box ck_w2 { at: spx + 378 * pu, sby + 312 * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; cursor: pointer }
+            on press ck_w2 { emit ck_wt_set(2) }
+            text "Glass" { at: floor(spx + 14 * pu + 0.5), floor(sby + 344 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: spx + 194 * pu, sby + 344 * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, ckc0); opacity: 8% + 20% * ckc0 + 6% * ck_c0.hover }
+            text "Clear" { at: floor(spx + 194 * pu + 0.5), floor(sby + 344 * pu + 0.5); anchor: center; align: center; size: 13; weight: 700; width: 84 * pu; lines: 1; color: mix(ink, mint, ckc0); family: "Space Grotesk" }
+            zone box ck_c0 { at: spx + 194 * pu, sby + 344 * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; cursor: pointer }
+            on press ck_c0 { emit ck_cl_set(0) }
+            box { at: spx + 286 * pu, sby + 344 * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, ckc1); opacity: 8% + 20% * ckc1 + 6% * ck_c1.hover }
+            text "Soft" { at: floor(spx + 286 * pu + 0.5), floor(sby + 344 * pu + 0.5); anchor: center; align: center; size: 13; weight: 700; width: 84 * pu; lines: 1; color: mix(ink, mint, ckc1); family: "Space Grotesk" }
+            zone box ck_c1 { at: spx + 286 * pu, sby + 344 * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; cursor: pointer }
+            on press ck_c1 { emit ck_cl_set(1) }
+            box { at: spx + 378 * pu, sby + 344 * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, ckc2); opacity: 8% + 20% * ckc2 + 6% * ck_c2.hover }
+            text "Full" { at: floor(spx + 378 * pu + 0.5), floor(sby + 344 * pu + 0.5); anchor: center; align: center; size: 13; weight: 700; width: 84 * pu; lines: 1; color: mix(ink, mint, ckc2); family: "Space Grotesk" }
+            zone box ck_c2 { at: spx + 378 * pu, sby + 344 * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; cursor: pointer }
+            on press ck_c2 { emit ck_cl_set(2) }
+        }
+        //  ── Clock page: END ──
 
         //  ── VPN page: BEGIN ──
         //  Settings > VPN. Scrolls like Notifications: a clipped viewport, the content moved by a whole-pixel `vpn.off`. Three cards: what is

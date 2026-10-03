@@ -1,0 +1,48 @@
+language 0.1
+import "../palette.plm"
+import "clockface.plm"
+
+//  The desktop clock: the time in digits drawn as glass, on the bottom layer (above the wallpaper, under every window).
+//  Each digit is a single stroke (clockface.plm), and all of them are one body of glass: the light runs round their edges and the compositor
+//  blurs what is behind them. Its tint is the shell's (`tint` of palette.plm, which Iris keeps), the same as the bar's glass.
+//
+//  Turn it on or off with   pleamar --say desktopclock "fact shown true"   (or false); Settings > Clock has the switch and the rest.
+//  Its settings are kept in desktopclock.json, in ~/.local/share/pleamar/desktopclock (see desktopclock.luau).
+
+scene DesktopClock {
+    surface { size: 1500, 1100; anchor: where; margin: 40; level: bottom; screens: all; reserve: -1 }
+
+    permissions { services: "clock", "files", "files.write" }
+
+    service clock as now { hour: number }
+
+    fact where: top_left | top | top_right | left | center | right | bottom_left | bottom | bottom_right = center
+    fact shown = false     // the logic sets it from desktopclock.json (so that `sh` follows it from nothing)
+    fact lay = 0           // 0 pipe, 1 rule, 2 tower, 3 capsule, 4 slash, 5 hero (see clockface.plm)
+    fact h12 = true        // a 12 hour clock (the logic turns it into the digits); the Settings page reads it
+    fact d0 = -1           // the digits shown: -1 for none (the hour's tens, with a 12 hour clock, when the hour is below 10)
+    fact d1 = 0
+    fact d2 = 0
+    fact d3 = 0
+    fact px = 220          // the digits' height in pixels
+    fact wti = 1           // the strokes: 0 thin, 1 regular, 2 bold
+    fact cli = 1           // the glass: 0 clear, 1 soft, 2 full
+
+    prop sh = 0 ~calm
+    follow sh = if(shown, 1, 0)
+
+    let k = px / 88
+    let wt = if(wti == 0, 0.62, if(wti == 2, 1.4, 1))
+    let clr = if(cli == 0, 55%, if(cli == 1, 80%, 100%))
+    //  Where the middle of the face is, in the surface: the middle of it, or against the edge or corner it sits in (half the face, and its stroke).
+    let hw = (if(lay == 0, 149, if(lay == 1 or lay == 5, 61, if(lay == 2, 31, if(lay == 3, 190, 130)))) + 6.5 * wt) * k
+    let hh = (if(lay == 0, 59, if(lay == 1, 111, if(lay == 2, 131, if(lay == 3, 82, if(lay == 4, 112, 84))))) + 6.5 * wt) * k
+    let isl = if(where == top_left or where == left or where == bottom_left, 1, 0)
+    let isr = if(where == top_right or where == right or where == bottom_right, 1, 0)
+    let ist = if(where == top_left or where == top or where == top_right, 1, 0)
+    let isb = if(where == bottom_left or where == bottom or where == bottom_right, 1, 0)
+    let fx = if(isl > 0.5, 40 + hw, if(isr > 0.5, 1500 - 40 - hw, 750))
+    let fy = if(ist > 0.5, 40 + hh, if(isb > 0.5, 1100 - 40 - hh, 550))
+
+    ClockFace(k, lay, d0, d1, d2, d3, fx, fy, tint, 1, 0.4, sh * clr, wt)
+}

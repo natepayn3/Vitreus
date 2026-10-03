@@ -122,6 +122,14 @@ tile you clicked (`wptrans/`). It is a scene of its own on the bottom layer, abo
 picture at the screen's size, shows it through a shader, and has awww switch to it the moment it covers the screen. The installer starts it with
 the desktop; when it is not running a pick uses awww's own transition.
 
+**Desktop clock** — the time in digits drawn as glass, on your desktop (`desktopclock/`). It is a scene of its own on the bottom layer, above your
+wallpaper and under every window: each digit is a single stroke, and together they are one body of glass, so the light runs round their edges and the
+compositor blurs the wallpaper behind them (it never bends it with real lens glass, which would cost power). The installer starts it with the desktop.
+Settings > Clock (under Visuals) has the switch (it turns the running clock on or off, no reload) and the look: six layouts as badges (a pipe between the hour and the minutes, a rule, a tower, a capsule, a slash, and a hero), where it sits on a 3 by 3 grid of the screen, its size, 12 or 24 hours, the weight of the strokes,
+and how clear the glass is. Its tint is always the shell's own, the same as the bar's glass. "Desktop clock: toggle" in the launcher shows or hides it too. It keeps its settings in `desktopclock.json` (in
+`~/.local/share/pleamar/desktopclock`): `shown`, `use_12_hour`, `size` (the digits' height in pixels, 100 to 340), `layout` (0 to 5), `position`
+(`top_left`, `top`, `top_right`, `left`, `center`, `right`, `bottom_left`, `bottom` or `bottom_right`), `weight` (0 to 2) and `clarity` (0 to 2).
+
 **Other compositors** — the shell is a pleamar shell, so it is not tied to Hyprland. [`pleamar-wm/`](pleamar-wm/README.md) has what makes it
 run on pleamar-wm, which can be chosen at a login screen: its keys, an idle config, a `hyprctl` shim, the window manager's own scene with slim glass
 title bars, and a script that puts it in the list of sessions. Some pages that talk to Hyprland (Hyprland, Display, the overview's window list,
@@ -265,6 +273,7 @@ start paints it from the first frame.
 | `palette-live.plm` | the shell's colours, as `rgb()` of the `pal_*` facts the logic sets |
 | `palette.default.plm` | the stock palette (copy to `palette.plm`, for the lock screen) |
 | `wave.wgsl` | the shader that bends the bar's glass on the beat |
+| `desktopclock/` | the desktop clock: digits of glass on the bottom layer |
 | `lockscreen/` | a lock screen, **off** until you start it (pleamar 0.2.2 or newer); see its README |
 
 ---
