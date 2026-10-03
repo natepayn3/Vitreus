@@ -1774,7 +1774,7 @@ scene Vitreus {
     //  hour at `lv.clk`, the minutes, am/pm, the weekday and the date under it), the controls, search and the gear, 32 apart. Whole pixels, for the texts.
     let lv.ws = yo + lf.t + 62 * cu
     let lv.clk = vb - lf.t - 91 * u
-    let lv.ctl = lv.clk - 46 * u
+    let lv.ctl = lv.clk - 34 * u
     let lv.set = lv.ctl - 32 * u
     let lv.sr = lv.set - 32 * u
     let lv.tray = lv.sr - 22 * u - max(0, trn * 24 - 6) * u      // the tray apps sit just above the search, under the title
@@ -2135,6 +2135,19 @@ scene Vitreus {
     on change cal_arm > 0.9 while cal_arm > 0.9 { panel = calendar }
     on change cal_arm > 0.5 while cal_arm > 0.5 and panel == controls { panel = calendar }
     on change cal_hold < 0.05 while cal_hold < 0.05 and panel == calendar and lm > 0.5 { panel = none }
+    //  The window title (and the player's buttons over it) the same way: resting on it opens the player's panel, which stays while the pointer is on the title or the drawer.
+    zone box pl_btn_z { at: lf.w / 2, lv.y0 + (lv.mc + lv.span) / 2; size: lf.w, max(1, lv.mc + lv.span); active: lm > 0.5 and bv.title and lv.span > 20 * u }
+    zone box pl_band_z { at: dm.ex, dm.ey; size: dm.ew + 8, dm.eh + 8; active: lm > 0.5 and panel == player }
+    prop pl_arm = 0 ~120ms
+    follow pl_arm = if(pl_btn_z.hover > 0.5, 1, 0)
+    prop pl_hold = 0 ~280ms
+    follow pl_hold = if(max(pl_btn_z.hover, pl_band_z.hover) > 0.5, 1, 0)
+    on change pl_arm > 0.9 while pl_arm > 0.9 { panel = player }
+    on change pl_arm > 0.5 while pl_arm > 0.5 and (panel == controls or panel == calendar) { panel = player }
+    on change ctl_arm > 0.5 while ctl_arm > 0.5 and panel == player { panel = controls }
+    on change cal_arm > 0.5 while cal_arm > 0.5 and panel == player { panel = calendar }
+    on change pl_hold < 0.05 while pl_hold < 0.05 and panel == player and lm > 0.5 { panel = none }
+    on change dm > 0.5 while dm > 0.5 and panel == player { lp_k = 6; lp_w = 312 }
     //  Where the contents hang from: the panel's old middle, so they keep their
     //  place when the panel grows to make room for the player.
     let cy = bar.y + bar.h / 2 + (6 + 125 * mix(drop, 1, lm)) * ku + lp.dy
