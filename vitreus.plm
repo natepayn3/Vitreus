@@ -2293,7 +2293,7 @@ scene Vitreus {
         let mcx = mix(win.x + win.w / 2, win.x - 6 * u + win.hw - 27.5 * u, win.have)
         let mcy = mix(bar.y, bar.y - 6.5 * u, win.have)
         zone box win_hit { at: win.zc, bar.y; size: win.zw, bar.h; cursor: pointer; active: bs.title > 0.5 }
-        on press win_hit { panel = if(panel == player, none, player) }
+        on press win_hit { pending = none; panel = if(panel == player, none, player) }
 
         // ── the player, small, in the bar ────────────────────────────
         //  While there is a player, playing or paused; they fade in as the title gives them room.
@@ -2309,7 +2309,7 @@ scene Vitreus {
         }
 
         zone box vt_hit { at: lf.x, lv.tm; size: lf.w - 6 * u, max(1, lv.span); cursor: pointer; active: lm > 0.5 and bv.title and lv.span > 20 * u }
-        on press vt_hit { panel = if(panel == player, none, player) }
+        on press vt_hit { pending = none; panel = if(panel == player, none, player) }
         zone box vm_prev { at: lf.x, lv.mid + 17 * cu; size: 30 * cu, 17 * cu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
         zone box vm_play { at: lf.x, lv.mid; size: 30 * cu, 17 * cu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
         zone box vm_next { at: lf.x, lv.mid - 17 * cu; size: 30 * cu, 17 * cu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
@@ -2322,11 +2322,11 @@ scene Vitreus {
         zone box sr_hit { at: mix(sr.x, lf.x, lm), mix(bar.y, lv.sr, lm); size: mix(24 * u, 36 * u, lm), mix(bar.h, 30 * u, lm); cursor: pointer; active: bs.sr > 0.5 }
         on press sr_hit { panel = if(panel == launch, none, launch) }
         zone box ctl_hit { at: mix(ctl.x, lf.x, lm), mix(bar.y, lv.ctl, lm); size: mix(26 * u, 36 * u, lm), mix(bar.h, 30 * u, lm); cursor: pointer; active: bs.ctl > 0.5 }
-        on press ctl_hit { panel = if(lm > 0.5, controls, if(panel == controls, none, controls)) }
+        on press ctl_hit { pending = none; panel = if(panel == controls, none, controls) }
 
         //  The calendar's button is the clock and a little around it: 4 more at each side.
         zone box bar_hit { at: mix(at.clock, lf.x, lm), mix(bar.y, lv.clk + 30 * u, lm); size: mix(fw.clock + 8 * u, lf.w - 4 * u, lm), mix(bar.h, 100 * u, lm); cursor: pointer; active: bs.clock > 0.5 }
-        on press bar_hit { panel = if(lm > 0.5, calendar, if(panel == calendar, none, calendar)) }
+        on press bar_hit { pending = none; panel = if(panel == calendar, none, calendar) }
         //  Right-click closes whatever is open. It also matters for a reason that
         //  has nothing to do with the calendar: pleamar treats an unclaimed right
         //  click, anywhere in a scene that never uses the right button at all, as
