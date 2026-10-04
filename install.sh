@@ -296,6 +296,24 @@ if $do_binds; then
     elif grep -q 'hypr_vitreus' "$hyprlua"; then
         say "hyprland.lua already loads hypr_vitreus.lua"
         run ln -sf "$dest/hypr_vitreus.lua" "$hyprdir/hypr_vitreus.lua"
+        # An install from before a file existed never loaded it (vitreus_colors.lua keeps the room the left bar takes; without
+        # it, every reload of the config gives the gaps back): add what is missing, inside the block if it is there.
+        for mod in vitreus_monitors vitreus_hypr vitreus_colors; do
+            grep -q "$mod" "$hyprlua" && continue
+            if $dry; then
+                echo "    would add pcall(require, \"$mod\") to $hyprlua"
+            else
+                line="pcall(require, \"$mod\")"
+                if grep -q '^-- <<< vitreus' "$hyprlua"; then
+                    tmp=$(mktemp)
+                    awk -v l="$line" '/^-- <<< vitreus/ { print l } { print }' "$hyprlua" > "$tmp" && cat "$tmp" > "$hyprlua"
+                    rm -f "$tmp"
+                else
+                    echo "$line" >> "$hyprlua"
+                fi
+                say "added $line to $hyprlua"
+            fi
+        done
     elif ask "load Vitreus's key binds (SUPER + L, SUPER + Space) from $hyprlua?"; then
         run ln -sf "$dest/hypr_vitreus.lua" "$hyprdir/hypr_vitreus.lua"
         if $dry; then

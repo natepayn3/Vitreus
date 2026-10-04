@@ -1747,7 +1747,7 @@ end
 
 -- Hyprland's window border follows the palette: the active border is the accent running to its lighter shade (as it did
 -- under Synoptik), the inactive one a quiet shade of the background. It is sent to Hyprland at once (`hyprctl eval`) and kept in
--- vitreus_colors.lua, which hyprland.lua loads after hypr_style.lua so it wins on the next start.
+-- vitreus_colors.lua, which hyprland.lua loads after hypr_style.lua (the installer adds the line, also to an older install) so it wins on the next start.
 iris_fx = {}
 function iris_fx.rgba(hex, alpha) return string.format('"rgba(%s%s)"', hex:sub(2), alpha) end
 function iris_fx.border_code(pal)
@@ -1824,7 +1824,7 @@ end
 
 -- What Hyprland is told: the window borders from the palette, and, with the bar down the left (bar_fx.left), the room the strip and the frame
 -- take round the windows (gaps_out: the layer's own reserved zone is not moved when the surface changes edge). It is sent at once and kept in
--- vitreus_colors.lua, which hyprland.lua loads last. Up on the top, the gaps go back to what they were (bar_fx.orig, read once).
+-- vitreus_colors.lua, which hyprland.lua loads last (the installer adds the line). Up on the top, the gaps go back to what they were (bar_fx.orig, read once).
 bar_fx = { left = false, orig = nil, on = "all", mons = {} }
 bar_fx.restart = [[
 P="$1"; L="$2"
@@ -3193,7 +3193,7 @@ every(1800000, wx_refresh_now)           -- every half hour
 -- ── Settings > Hyprland ───────────────────────────────────────────────────────────────────────────────────────
 -- Window-manager knobs: layout, gaps, border resize, tearing, animations and input. The values
 -- shown are what Hyprland says now. A change is sent with `hyprctl eval` at once, and once it has settled it is
--- written to vitreus_hypr.lua, which hyprland.lua loads after hypr_style.lua so it wins on the next start.
+-- written to vitreus_hypr.lua, which hyprland.lua loads after hypr_style.lua (the installer adds the line, also to an older install) so it wins on the next start.
 do
     local LAYOUTS = { "dwindle", "master", "scrolling" }
     local hy = { layout = 3, gaps = 5, round = 10, border = 3, blur = 3, passes = 1, resize = false, tear = false, anim = true, sens = 0, follow = 1, nat = false }
