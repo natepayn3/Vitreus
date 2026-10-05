@@ -25,9 +25,10 @@
 > **vit·re·us** _(Latin)_ — *of glass; glassy, transparent.*
 
 **Vitreus** is a desktop shell for Wayland, written for [pleamar](https://github.com/k4ditano/pleamar). It is a single
-floating pill of frosted glass at the top of the screen. Everything else — the calendar, the quick controls, the
-player, the settings, the launcher, the volume indicator, an incoming notification — is a drawer that grows out of the bar, joined to it by a liquid neck, in the
-same glass, with the same spring, and folds back into it.
+floating pill of frosted glass at the top of the screen, or a strip down the left edge with a thin glass frame round
+the screen. Everything else — the calendar, the quick controls, the player, the settings, the launcher, the volume
+indicator, an incoming notification — is a drawer that grows out of the bar, joined to it by a liquid neck, in the same
+glass, with the same spring, and folds back into it.
 
 It is built to be *not boring*: a shell that morphs rather than pops. On pleamar the animation, the springs and the
 layout all run in the renderer, and the logic only reports facts.
@@ -54,6 +55,14 @@ layout all run in the renderer, and the logic only reports facts.
 ---
 
 ## ✨ Features
+
+**Two layouts** (Settings > Bar)
+* **Island** — the floating pill along the top. Its pieces (workspaces, title, clock, buttons, tray) can be reordered
+  and hidden in the piece editor on the same page.
+* **Frame** — the bar becomes a strip down the left edge, and a thin frame of the same glass runs round the other three
+  edges of the screen. The calendar, the controls and the player come out of the strip on a click (on the clock, the
+  controls icon and the window title). Touching the middle of the top frame brings a small tab out of it that opens the
+  launcher; the bottom frame's opens Settings, and the right frame's opens the Desk.
 
 **The bar**
 * Workspace indicator whose dots morph into capsules and a wide accent pill.
@@ -117,6 +126,14 @@ with its content fading in after the glass has settled
 * **Notifications** — Vitreus is the notification server. Banners grow to fit their title, body and buttons; critical
   ones stay until dismissed; everything lands in the history, including what Do Not Disturb held back.
 
+**Desk** — a panel of small tools that comes out of the right frame (Frame layout), or from an icon at the top right
+(Island layout). It stays open while you work in other windows, and has three tabs:
+* **Focus** — a ring timer of 15, 30, 45 or 60 minutes with start, pause and reset; starting it can also turn on Do Not
+  Disturb and keep the machine awake for that long. A notification says when it is done.
+* **Shelf** — drop anything on the panel (files, links, text) to keep it as a card, up to eight, and drag a card back out
+  into another program.
+* **Pad** — a short task list with checks, and a drawing board.
+
 **Wallpaper transition** — picking a wallpaper in the picker dissolves it in through a honeycomb of hexagons that opens in a wave from the
 tile you clicked (`wptrans/`). It is a scene of its own on the bottom layer, above your wallpaper and under every window: it makes the
 picture at the screen's size, shows it through a shader, and has awww switch to it the moment it covers the screen. The installer starts it with
@@ -145,12 +162,13 @@ the text. It takes about half a second after a wallpaper change.
 
 ## 📦 Requirements
 
-* [**pleamar**](https://github.com/k4ditano/pleamar) 0.2.2 or newer — the runtime Vitreus is written for. (The lock
-  screen needs 0.2.2: earlier versions crash the session on `kind: lock`.)
+* [**pleamar**](https://github.com/k4ditano/pleamar) 0.2.9 or newer — the runtime Vitreus is written for. (The lock
+  screen's choice of monitor, a shell that fills monitors taller than 1440 pixels, and a fix for a crash when a monitor
+  goes away all need 0.2.9. `pleamar-update` brings it up to date.)
 * A Wayland compositor with layer-shell. It is developed on **Hyprland**; the running-windows list uses `hyprctl`,
   so that part is Hyprland-only.
-* [**hyprsunset**](https://github.com/hyprwm/hyprsunset) — Hyprland's blue-light filter, which Night mode drives (the installer
-  requires it). It tints the screen by handing the compositor a colour transform, so nothing is re-rendered.
+* [**hyprsunset**](https://github.com/hyprwm/hyprsunset), on Hyprland — Hyprland's blue-light filter, which Night mode drives
+  (the installer requires it there; elsewhere Night mode is not available). It tints the screen by handing the compositor a colour transform, so nothing is re-rendered.
 * The **Space Grotesk** font.
 
 Optional, each enabling one thing (Vitreus runs without them and that part stays quiet):
@@ -193,7 +211,9 @@ curl -fsSL https://raw.githubusercontent.com/natepayn3/Vitreus/main/install.sh |
 ```
 
 It asks before each step (`--yes` answers them all, `--dry-run` only says what it would do, `--help` lists the rest),
-and running it again updates Vitreus. `./install.sh --uninstall` takes it away and leaves your data.
+and running it again updates Vitreus. An update keeps what Settings changed in the shell's own files (which monitors
+show the bar and the lock screen) and any edits of yours; if an edit of yours clashes with the new version, nothing is
+updated and the script says so. `./install.sh --uninstall` takes it away and leaves your data.
 
 **By hand.** Vitreus must live in pleamar's shells folder under the name `vitreus`: the palette it writes and the data
 it keeps are found from there.
@@ -202,10 +222,13 @@ it keeps are found from there.
 git clone https://github.com/natepayn3/Vitreus.git ~/.config/pleamar/shells/vitreus
 cd ~/.config/pleamar/shells/vitreus
 cp palette.default.plm palette.plm          # the lock screen's colours; Vitreus rewrites this file from your wallpaper
+cp wm-palette.default.plm wm-palette.plm    # pleamar-wm's window borders; the same
 pleamar --scene ~/.config/pleamar/shells/vitreus/vitreus.plm --no-hud
 ```
 
-To start it with the desktop, add that last line to `~/.config/pleamar/autostart`, and on Hyprland put
+To start it with the desktop, add `vitreus-keep ~/.config/pleamar/shells/vitreus/vitreus.plm` to `~/.config/pleamar/autostart`
+(after linking `bin/vitreus-keep` into `~/.local/bin`: it runs the scene and starts it again if it ever stops, such as a crash
+when a monitor wakes; the installer does the same for the lock screen, the wallpaper transition and the desktop clock), and on Hyprland put
 `exec-once = pleamar --autostart` in your config (`hl.on("hyprland.start", …)` in a Lua config). The scene reloads
 itself whenever a file in the folder is saved.
 
@@ -255,7 +278,8 @@ The scene's colours are `let`s in `palette-live.plm`, each one `rgb(pal_ink_r, p
 wallpaper changes, Vitreus runs `iris --json-only`, applies a contrast floor and your chosen intensity, and sets those facts: the
 colours change on the spot, with no file written and no reload. (This needs a pleamar with `rgb()`.) The lock screen is another
 program and cannot see the shell's facts, so it still imports `palette.plm`, which the logic rewrites; that file is git-ignored,
-and the stock colours are tracked as `palette.default.plm`. The last palette is kept in `palette.json` in the data folder, so a
+and the stock colours are tracked as `palette.default.plm`. pleamar-wm's window borders work the same way, with
+`wm-palette.plm` and `wm-palette.default.plm`. The last palette is kept in `palette.json` in the data folder, so a
 start paints it from the first frame.
 
 ---
@@ -268,13 +292,17 @@ start paints it from the first frame.
 | `vitreus.luau` | the logic: services, scanning, weather, Iris, history, the launcher's searches — it only reports facts |
 | `hypr_vitreus.lua` | Hyprland key binds: `SUPER + Space` launcher, `SUPER + SHIFT + Space` Settings, `SUPER + L` lock |
 | `bin/vitreus-clipimg` | a helper for the launcher's clipboard pictures (thumbnail, copy back) |
+| `bin/vitreus-keep` | runs a scene from autostart and starts it again if it stops, while the session lasts |
 | `assets/emoji.json` | the emoji the launcher searches |
 | `install.sh` | installs, updates and removes Vitreus |
 | `palette-live.plm` | the shell's colours, as `rgb()` of the `pal_*` facts the logic sets |
 | `palette.default.plm` | the stock palette (copy to `palette.plm`, for the lock screen) |
+| `wm-palette.default.plm` | pleamar-wm's stock border colour (copy to `wm-palette.plm`) |
 | `wave.wgsl` | the shader that bends the bar's glass on the beat |
 | `desktopclock/` | the desktop clock: digits of glass on the bottom layer |
-| `lockscreen/` | a lock screen, **off** until you start it (pleamar 0.2.2 or newer); see its README |
+| `lockscreen/` | the lock screen, started with the desktop (pleamar 0.2.9 or newer); see its README |
+| `wptrans/` | the wallpaper picker's hexagon dissolve, on the bottom layer |
+| `pleamar-wm/` | what makes Vitreus run on pleamar-wm; see its README |
 
 ---
 

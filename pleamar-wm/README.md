@@ -14,12 +14,13 @@ is one that can be chosen at a login screen (SDDM, GDM). What is here is what ma
 The files can be linked into place so that what you tune in a session is what the repo keeps: `ln -s <this folder>/wm ~/.config/pleamar/wm` and
 `ln -sf <this folder>/keys.conf ~/.config/pleamar/keys.conf`. Nothing here touches Hyprland's files (`hypr_vitreus.lua`, `~/.config/hypr`).
 
-The `autostart` file is shared: lines without a prefix start on every desktop, and `wm:` lines only in pleamar-wm's session. For this shell
-that is `wm: awww-daemon`, `wm: hypridle` and `wm: wl-paste --watch cliphist store`, which Hyprland's config starts by itself.
+The `autostart` file is shared: lines without a prefix start on every desktop, and `wm:` lines only in pleamar-wm's session. Vitreus's
+daemons (`awww-daemon`, `hypridle` and `wl-paste --watch cliphist store`) are plain lines, guarded so that one already running is not
+started twice, so they start on Hyprland and on pleamar-wm alike.
 
 A login session needs `~/.local/bin` on its PATH (`pleamar-session` finds `pleamar-wm` there). A login shell that reads `~/.bashrc` stops
 there when it is not interactive, so set the PATH in `~/.bash_profile`, before it sources `.bashrc`.
 
 **What is Hyprland's and does not work on pleamar-wm yet:** the Hyprland and Display settings pages, the workspace overview's window list
-(pleamar-wm has its own overview on `Super+Tab`), moving and focusing windows from the bar's title, and Night mode (Hyprland's screen shader).
+(pleamar-wm has its own overview on `Super+Tab`), moving and focusing windows from the bar's title, and Night mode (hyprsunset, which is Hyprland's).
 Programs are started directly there, since `hyprctl dispatch exec_cmd` is Hyprland's.

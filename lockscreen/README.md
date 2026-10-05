@@ -5,14 +5,16 @@ liquid that leaves the centre (`lockwave.wgsl`), then the clock, avatar and pass
 Typed characters become random shapes (`shapes.svg`); the password itself is never drawn. It checks the password with
 PAM (`auth.check`) and opens when it is right.
 
-**It needs pleamar 0.2.2 or newer.** Before that, `kind: lock` made the compositor end pleamar with
+**It needs pleamar 0.2.9 or newer.** Before 0.2.2, `kind: lock` made the compositor end pleamar with
 `ext_session_lock_surface_v1: error 1: Null buffer attached` and left the session locked with no locker, and a picture
-drawn on the lock only appeared on the first lock after the scene was read. Both were fixed upstream in 0.2.2.
+drawn on the lock only appeared on the first lock after the scene was read. 0.2.9 added `screens:` on a lock, which the
+monitor setting below uses, and fixed a portrait monitor beside a landscape one getting the other's shape.
 
 ## Turning it on
 
 1. The installer adds it to `~/.config/pleamar/autostart` for you, so it starts with the desktop. By hand, the line is
-   `pleamar --scene ~/.config/pleamar/shells/vitreus/lockscreen/lockscreen.plm --no-hud`.
+   `vitreus-keep ~/.config/pleamar/shells/vitreus/lockscreen/lockscreen.plm` (or `pleamar --scene … --no-hud`, without the
+   keeper that starts it again if it stops).
 2. Lock with `pleamar --say lockscreen "fact locked true"`. For idle and sleep, point hypridle's `lock_cmd`,
    `before_sleep_cmd` and idle listener at that same command, and bind a key to it. The Vitreus binds (`SUPER + L`) and its
    lock buttons already use it, and do nothing while the scene is not running.
@@ -43,6 +45,10 @@ the scene starts, and read each time it starts, so restart the lock screen after
 | `show_power` | `true` | Sleep, restart and power off, on a pill at the bottom of the screen. Each is **held for a second**, since none of them can be undone |
 | `mask_style` | `"shapes"` | What a typed character becomes: `"shapes"`, `"dots"`, `"asterisks"` or `"special"` (a random symbol) |
 | `shape_palette` | `"accent"` | The colours of those: `"vibrant"`, `"accent"` (the theme's), `"neon"`, `"pastel"` or `"monochrome"` |
+| `monitor` | `"all"` | Which monitor shows the lock: `"all"`, or a monitor's name (`"DP-2"`). The others are covered in black. A monitor that is not plugged in puts it on all of them, so there is always somewhere to type the password |
+
+The monitor is also written into the scene's own `screens:` line, since that is the only place pleamar reads it from:
+the Settings page does that when you pick one, and puts it back after an update that reset the file to `all`.
 
 **Test lock** (on the Settings page) locks now in the safe mode below: Esc on an empty bar, or a minute without a key, opens it, and the next lock is a normal one again.
 
