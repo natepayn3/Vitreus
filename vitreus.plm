@@ -3564,7 +3564,7 @@ scene Vitreus {
             //  `wf_m` is how much it is moving (0 at rest, 1 half way), which the ridges, the light and the squish ride on.
             let wf_m    = clamp(4 * wifi_on * (1 - wifi_on), 0, 1)
             let wf_w    = (34 + 4 * wifi_on + 26 * wf_hold) * cu
-            let wf_cx   = tb1 + 24 * cu - wf_w / 2
+            let wf_cx   = tb1 + 18 * cu - wf_w / 2
             let wf_cy   = tile_cy - 18 * cu
             let wf_l    = wf_cx - wf_w / 2
             let wf_sg   = clamp(net.strength, 0.08, 1)
@@ -3645,7 +3645,7 @@ scene Vitreus {
             //  gbt: the pill, like the Wi-Fi one. `gbt_m` is how much it is moving (0 at rest, 1 half way).
             let gbt_m  = clamp(4 * bt_on * (1 - bt_on), 0, 1)
             let gbt_w  = (34 + 4 * bt_on) * cu
-            let gbt_cx = tb1 + 24 * cu - gbt_w / 2
+            let gbt_cx = tb1 + 18 * cu - gbt_w / 2
             let gbt_cy = tile2_cy - 18 * cu
             let gbt_l  = gbt_cx - gbt_w / 2
             let gbt_kx = gbt_l + 11 * cu + bt_on * (gbt_w - 22 * cu)
@@ -3694,7 +3694,7 @@ scene Vitreus {
             line { from: gbt_kx - 5 * cu, gbt_cy - 5 * cu; to: gbt_kx + 5 * cu, gbt_cy + 5 * cu; width: 1.4 * cu; color: gbt_dk; opacity: glyph_a * (0.8 * (1 - bt_on)) }
             zone box bt_tile_hit { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; cursor: pointer }
             on press bt_tile_hit { panel_sub = if(panel_sub == btview, none, btview) }
-            zone box bt_toggle_hit { at: tb1 + 5 * cu, tile2_cy - 18 * cu; size: 46 * cu, 30 * cu; cursor: pointer }
+            zone box bt_toggle_hit { at: tb1 - 1 * cu, tile2_cy - 18 * cu; size: 46 * cu, 30 * cu; cursor: pointer }
             on press bt_toggle_hit { emit togglebt(not bt.powered) }
             on press bt_toggle_hit { bt_press: 1; bt_rx = pointer.x; bt_ry = pointer.y; bt_rip: 0 ~0ms; bt_rip: 1 ~700ms after 40ms }
             on release bt_toggle_hit { bt_press: 0 }
@@ -3718,7 +3718,7 @@ scene Vitreus {
             //  gdn: the pill, like the Wi-Fi one. `gdn_m` is how much it is moving (0 at rest, 1 half way).
             let gdn_m  = clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)
             let gdn_w  = (34 + 4 * dnd_pill) * cu
-            let gdn_cx = tb3 + 24 * cu - gdn_w / 2
+            let gdn_cx = tb3 + 18 * cu - gdn_w / 2
             let gdn_cy = tile_cy - 18 * cu
             let gdn_l  = gdn_cx - gdn_w / 2
             let gdn_kx = gdn_l + 11 * cu + dnd_pill * (gdn_w - 22 * cu)
@@ -3771,7 +3771,7 @@ scene Vitreus {
             line { from: gdn_kx - 5.5 * cu, gdn_cy - 5.5 * cu; to: gdn_kx + 5.5 * cu, gdn_cy + 5.5 * cu; width: 1.5 * cu; color: gdn_dk; opacity: glyph_a * dnd_pill }
             zone box dnd_hit { at: tb3 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; cursor: pointer }
             on press dnd_hit { panel_sub = if(panel_sub == notifview, none, notifview) }
-            zone box dnd_toggle_hit { at: tb3 + 5 * cu, tile_cy - 18 * cu; size: 46 * cu, 30 * cu; cursor: pointer }
+            zone box dnd_toggle_hit { at: tb3 - 1 * cu, tile_cy - 18 * cu; size: 46 * cu, 30 * cu; cursor: pointer }
             on press dnd_toggle_hit { emit togglednd }
             on press dnd_toggle_hit { dnd_press: 1; dnd_rx = pointer.x; dnd_ry = pointer.y; dnd_rip: 0 ~0ms; dnd_rip: 1 ~700ms after 40ms }
             on release dnd_toggle_hit { dnd_press: 0 }
@@ -3798,7 +3798,7 @@ scene Vitreus {
                 //  gcf: the pill, like the Wi-Fi one. `gcf_m` is how much it is moving (0 at rest, 1 half way).
                 let gcf_m  = clamp(4 * caf_pill * (1 - caf_pill), 0, 1)
                 let gcf_w  = (34 + 4 * caf_pill) * cu
-                let gcf_cx = tb2 + 24 * cu - gcf_w / 2
+                let gcf_cx = tb2 + 18 * cu - gcf_w / 2
                 let gcf_cy = tile_cy - 18 * cu
                 let gcf_l  = gcf_cx - gcf_w / 2
                 let gcf_kx = gcf_l + 11 * cu + caf_pill * (gcf_w - 22 * cu)
@@ -3854,7 +3854,7 @@ scene Vitreus {
                 }
                 zone box caf_hit { at: tb2 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; cursor: pointer; active: caf_avail }
                 on press caf_hit { panel_sub = if(panel_sub == cafview, none, cafview) }
-                zone box caf_toggle_hit { at: tb2 + 5 * cu, tile_cy - 18 * cu; size: 46 * cu, 30 * cu; cursor: pointer; active: caf_avail }
+                zone box caf_toggle_hit { at: tb2 - 1 * cu, tile_cy - 18 * cu; size: 46 * cu, 30 * cu; cursor: pointer; active: caf_avail }
                 on press caf_toggle_hit { emit togglecaf }
                 on press caf_toggle_hit { caf_press: 1; caf_rx = pointer.x; caf_ry = pointer.y; caf_rip: 0 ~0ms; caf_rip: 1 ~700ms after 40ms }
                 on release caf_toggle_hit { caf_press: 0 }
@@ -3870,11 +3870,11 @@ scene Vitreus {
             text rec_time { at: floor(tb2 - 58 * cu + 0.5), floor(tile2_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; family: "Space Grotesk"; show: rec_on }
             text "Shot · Record" { at: floor(tb2 - 58 * cu + 0.5), floor(tile2_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: faint; family: "Space Grotesk"; show: not rec_on }
             //  The record button: a ring with a dot in it, which becomes a square (and beats) while it records.
-            ellipse { at: tb2 + 5 * cu, tile2_cy - 18 * cu; radius: 10 * cu; stroke: 1.5 * cu; color: mint; opacity: 55% + 45% * rec_pill }
-            box { at: tb2 + 5 * cu, tile2_cy - 18 * cu; size: (10 - 2 * rec_pill) * cu, (10 - 2 * rec_pill) * cu; corner: (5 - 3 * rec_pill) * cu; color: mint; opacity: 65% + 35% * rec_pill - rec_pill * 0.25 * (0.5 + 0.5 * sin(time * 300)) }
+            ellipse { at: tb2 + 8 * cu, tile2_cy - 18 * cu; radius: 10 * cu; stroke: 1.5 * cu; color: mint; opacity: 55% + 45% * rec_pill }
+            box { at: tb2 + 8 * cu, tile2_cy - 18 * cu; size: (10 - 2 * rec_pill) * cu, (10 - 2 * rec_pill) * cu; corner: (5 - 3 * rec_pill) * cu; color: mint; opacity: 65% + 35% * rec_pill - rec_pill * 0.25 * (0.5 + 0.5 * sin(time * 300)) }
             zone box cap_hit { at: tb2 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; cursor: pointer }
             on press cap_hit { panel_sub = if(panel_sub == capview, none, capview) }
-            zone box cap_rec_hit { at: tb2 + 5 * cu, tile2_cy - 18 * cu; size: 34 * cu, 30 * cu; corner: 15 * cu; cursor: pointer }
+            zone box cap_rec_hit { at: tb2 + 8 * cu, tile2_cy - 18 * cu; size: 34 * cu, 30 * cu; corner: 15 * cu; cursor: pointer }
             on press cap_rec_hit { emit rec_toggle }
 
             box { at: tb3 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: veil + 6% * pow_hit.hover }
