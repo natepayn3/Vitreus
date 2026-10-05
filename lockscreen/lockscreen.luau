@@ -12,7 +12,8 @@
 --   clock_size  the clock's size in pixels: 100, 150 or 200 (anything from 80 to 240 works; the card below follows)
 --   show_seconds H:MM:SS on the clock
 --   show_power  the sleep, restart and power off buttons at the bottom (each is held for a second)
---   monitor     where the clock, the password bar and the buttons are: "all", or the name of one monitor ("DP-2"); the others show the wallpaper
+--   monitor     which monitor shows the lock: "all", or the name of one monitor ("DP-2"); the others are covered in black. It is the
+--               scene's `screens:` line that does it, which Vitreus's Settings page writes (see "Which monitor" below)
 --   shape_palette the colours of those: "vibrant", "accent" (the theme's), "neon", "pastel" or "monochrome"
 local cfg = { blur = 36, show_media = true, use_12_hour = true, show_am_pm = true, date_format = "long", mask_style = "shapes", shape_palette = "accent", clock_size = 200, show_seconds = false, show_power = true, monitor = "all" }
 do

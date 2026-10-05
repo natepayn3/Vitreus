@@ -5883,17 +5883,34 @@ end)()
             show_mons()
         end)
     end
+    -- Make the lock screen's `screens:` line name `pref` ("all", or a monitor), if it does not already.
+    local function lock_screens(pref)
+        with_dirs(function(d)
+            local plm = d.conf .. "/lockscreen/lockscreen.plm"
+            local value = pref == "all" and "all" or ('"' .. pref .. '"')
+            run("grep", { "-m1", "-E", "^        screens: ", plm }, function(out)
+                if (out or ""):match("screens:%s*(.-)%s*$") == value then return end
+                -- never while it is locked: the write reloads the scene
+                say("get locked", function(l)
+                    if trim(l) == "false" then
+                        run("sed", { "-i", "-E", "/^        screens: /s/screens: .*/screens: " .. value .. "/", plm }, function() end)
+                    end
+                end)
+            end)
+        end)
+    end
     on("lk_mon_set", function(i)
         local k = math.floor(i + 0.5)
         lk_pref = (k >= 1 and lk_names[k]) or "all"
         show_mons()
-        local pref = lk_pref
-        -- the lock screen saves the choice, then its file says which monitors show it (`screens:`), which it reads when it is saved
-        say("text cfg_monitor " .. pref, function()
-            with_dirs(function(d)
-                local value = pref == "all" and "all" or ('"' .. pref .. '"')
-                run("sed", { "-i", "-E", "/^        screens: /s/screens: .*/screens: " .. value .. "/", d.conf .. "/lockscreen/lockscreen.plm" }, function() end)
-            end)
+        say("text cfg_monitor " .. lk_pref, function() lock_screens(lk_pref) end)
+    end)
+    -- The lock screen's own file says which monitors show it (`screens:`), and an update can put the stock `all` back: so once
+    -- the lock screen answers, its file is made to say what it has saved. Only when they differ, since a write reloads the lock scene.
+    after(8000, function()
+        say("get cfg_monitor", function(o, code)
+            local pref = trim(o):match("^[%w%._%-]+$")
+            if code == 0 and pref then lock_screens(pref) end
         end)
     end)
 
