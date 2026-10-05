@@ -42,7 +42,7 @@ scene Vitreus {
     fact pal_alert_r = 0.9373   // #ef4444
     fact pal_alert_g = 0.2667
     fact pal_alert_b = 0.2667
-    surface { size: full, 1440; anchor: bar_anchor; margin: 0; reserve: 68; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb }
+    surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play" }
 
@@ -1311,7 +1311,8 @@ scene Vitreus {
     }
 
     //  One number scales the whole shell. The exclusive zone (`reserve` above) is
-    //  the bar and a little air: 8 + bar.h + 6.
+    //  the bar and a little air: 8 + bar.h + 6. Only along the top: down the left, the room is the windows' gaps
+    //  (vitreus_colors.lua), and a reserve there as well would leave an empty strip beside the bar.
     let u = 1.35                    // (the icon models are declared at their size times this: 20 → 27, 22 → 30, 26 → 35)
     let cu = 1.5525                  // u * 1.15: the control center, the calendar and the player and tray are laid out 15% larger than the rest
     let pu = 1.6875                  // u * 1.25: the Settings and the launcher are laid out 25% larger than the rest, at real size (not zoomed)
@@ -1746,8 +1747,8 @@ scene Vitreus {
     //  unit of the one that is open. `lp.gx0` is where its left edge leaves the strip and `lp.gxf` where it lands;
     //  its left edge travels between them (`lp.xl`, as far as `dsl` of the way: a little after it starts to open), and its contents with it. The
     //  glass melts shapes that are near each other, so as it leaves a neck stretches and breaks: the drawers' blend (below) is what makes the neck.
-    //  The surface is a fixed 1440 tall (`size: full, full` would lose the bar's reserved strip), so on a monitor of another height
-    //  `screen.height` is not the screen. The logic reports the monitor's real height (`mon_h`, 0 until it is known, and always 0
+    //  The surface is the whole monitor (`size: full, full`, which keeps the bar's reserved strip since pleamar 0.2.9), but with the bar on
+    //  more than one monitor `screen.height` is only one of them. The logic reports the monitor's real height (`mon_h`, 0 until it is known, and always 0
     //  where it cannot ask): `vh` is what to centre on (never more than the surface, which is all there is to draw on), `mh` the
     //  monitor's own, for the compositor's coordinates.
     fact mon_h = 0

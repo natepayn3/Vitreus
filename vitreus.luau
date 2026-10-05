@@ -420,6 +420,8 @@ end)
 -- Caffeine: what keeps the machine awake is hypridle being stopped, so the
 -- truth is asked of the system, not remembered. A timer is the one thing that is remembered: when it ends,
 -- hypridle is started again. It is kept in `caffeine.json`, so a shell that restarts while it runs picks it up.
+-- (In a block of its own, like the Display page's: the file's top level is near Luau's limit of 200 locals in one scope.)
+do
 local caf_on, caf_avail = false, true
 local caf_until = 0                       -- the time a running timer ends, in seconds; 0 for none
 local caf_len = 0                         -- how many minutes it was set for: which chip is lit
@@ -541,6 +543,7 @@ every(1000, function()
         end
     end
 end)
+end
 
 -- Bluetooth only says a device's name inside its `devices` list, not as a
 -- top-level field - so the connected one (there is at most one that matters
@@ -548,6 +551,8 @@ end)
 -- default output out of its list. `bt_list` is the same list again, kept only
 -- so a row's tap (a position - see the Wi-Fi list below for why) can find its
 -- address.
+-- (In a block of its own, like the Display page's: the file's top level is near Luau's limit of 200 locals in one scope.)
+do
 local bt_list = {}
 local bt_last = nil                       -- the last thing the service said
 local bt_sig = nil                        -- what the list said last time it was handed over
@@ -802,6 +807,7 @@ on("bt_scan", function()
         bt_render()
     end)
 end)
+end
 
 -- Wi-Fi asks NetworkManager once and the answer arrives within a few seconds, so its spinner is timed. As with
 -- Bluetooth, pleamar's own `network.scan` returns without an error but NetworkManager's `LastScan` never moves;
@@ -855,6 +861,13 @@ end)
 --  (`notify-send`, to whoever receives them), once: it is marked so that a restart
 --  does not say it again. The layout of the month and the way of saving are
 --  Marea's calendar's, with weeks that start on Sunday and times in 12 hours.
+local function key(y, m, d) return string.format("%04d-%02d-%02d", y, m, d) end
+local function today()
+    local t = os.date("*t")
+    return t.year, t.month, t.day
+end
+-- (In a block of its own, like the Display page's: the file's top level is near Luau's limit of 200 locals in one scope.)
+do
 local SUNDAY_FIRST = true
 local MONTHS = { "January", "February", "March", "April", "May", "June", "July",
                  "August", "September", "October", "November", "December" }
@@ -872,11 +885,6 @@ local function weekday(y, m, d)
     local w = os.date("*t", os.time({ year = y, month = m, day = d, hour = 12 })).wday   -- 1 is Sunday
     if SUNDAY_FIRST then return w - 1 end
     return (w + 5) % 7
-end
-local function key(y, m, d) return string.format("%04d-%02d-%02d", y, m, d) end
-local function today()
-    local t = os.date("*t")
-    return t.year, t.month, t.day
 end
 local function parse_key(k)
     local y, m, d = k:match("^(%d+)-(%d+)-(%d+)$")
@@ -1078,6 +1086,7 @@ end)
 open_today()
 painted_day = key(today())
 
+end
 -- The running windows. Hyprland is asked for them (`hyprctl clients`), since the window service
 -- gives no list there; the panel under the window title keeps them fresh while it is open. A row's
 -- icon is the icon of the app whose `.desktop` file that window's class belongs to (by id,
@@ -3074,6 +3083,8 @@ end
 -- conditions and the next seven days. `units` there is "fahrenheit" (the default) or "celsius".
 -- The sandbox has no JSON parser for what curl brings, so curl writes each answer into the data folder
 -- and `files.read` parses it.
+-- (In a block of its own, like the Display page's: the file's top level is near Luau's limit of 200 locals in one scope.)
+do
 local wx_cfg = { location = "", units = "fahrenheit" }
 local wx_loc = nil                        -- { lat, lon }
 local wx_busy = false
@@ -3189,6 +3200,7 @@ do
 end
 wx_refresh_now()
 every(1800000, wx_refresh_now)           -- every half hour
+end
 
 -- ── Settings > Hyprland ───────────────────────────────────────────────────────────────────────────────────────
 -- Window-manager knobs: layout, gaps, border resize, tearing, animations and input. The values
