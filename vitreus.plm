@@ -44,7 +44,7 @@ scene Vitreus {
     fact pal_alert_b = 0.2667
     surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play" }
+                  run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "vitreus-term", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
     model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number }
@@ -1765,7 +1765,7 @@ scene Vitreus {
     let dsl = max(0, dtrav * 1.3 - 0.3)
     let ku = if(lp_k == 1 or lp_k == 2, pu, if(lp_k == 9 or (lp_k >= 3 and lp_k <= 6), cu, u))                      // the unit of the panel that is open: the Settings and the launcher are larger
     let dsk_w = 340 * cu                                   // the desk's width and height, once out
-    let dsk_h = 450 * cu
+    let dsk_h = 460 * cu
     let lp.gx0 = lf.x
     let lp.gxf = ccx - (pw_x / 2 + 6.5) * ku
     let lp.xl = mix(lp.gx0 + (lp.gxf - lp.gx0) * dsl, lf.x, att)
@@ -2237,7 +2237,7 @@ scene Vitreus {
     //  stays open while the calendar, the controls, the volume or a notification come and go. It is drawn like the volume's and the title panel's
     //  drawers (`dz.*`: the same springs and shape) but with its own geometry, which does not depend on whichever of those is out.
     fact desk_open = false
-    fact desk_tab = 2                                      // 0 Pad, 1 Shelf, 2 Focus
+    fact desk_tab = 2                                      // 0 Pad, 1 Shelf, 2 Focus, 3 Term
     prop desk_sel = 2 ~slide                               // which tab the thumb is on
     follow desk_sel = desk_tab
     zone box ntz_r { at: screen.width - (lf.t + 6 * cu) / 2, vc; size: lf.t + 6 * cu, nt_w + 24 * cu; active: lm > 0.5 and not desk_open }
@@ -2254,9 +2254,27 @@ scene Vitreus {
     fact ft_len = 30
     fact ft_state = 0                                       // 0 ready, 1 running, 2 paused, 3 done
     fact ft_prog = 1.0                                      // the fraction left
-    fact desk_kb = false                                    // typing in the desk (the task field): only then does it take the keyboard
-    on change desk_tab { desk_kb = false }
-    on change desk_open while not desk_open { desk_kb = false }
+    fact desk_kb = false                                    // typing in the desk (the task field, the terminal): only then does it take the keyboard
+    on change desk_tab { desk_kb = false; term_armed = false }
+    on change desk_open while not desk_open { desk_kb = false; term_armed = false }
+    //  The terminal follows the mouse, as Hyprland's windows do here: once it has been clicked, the pointer coming back over the desk
+    //  gives it the keyboard again, and leaving lets it go (`desk_band`), until the desk shuts or another tab is chosen.
+    fact term_armed = false
+    //  The terminal (Term tab; see the Terminal section of vitreus.luau). bin/vitreus-term runs the shell and keeps its screen; the logic
+    //  hands each stretch of one colour to `term_runs` (row, column, text, colours) and the cursor to `term_c*`. It is 64 by 35 cells of
+    //  Space Mono (the monospaced sibling of Space Grotesk, as the Nerd Font build so prompts keep their icons) at 11.75 px, 7.19 by 16
+    //  px each, which is what fits the desk's card; the logic starts the shell at that size.
+    model term_runs max 256 { t: text; x: number; y: number; n: number; fg: bool; r: number; g: number; b: number; hasbg: bool; br: number; bg: number; bb: number; bold: bool }
+    fact term_cx = 0
+    fact term_cy = 0
+    fact term_cur = false                                   // the cursor is to be drawn (a program can hide it; scrolled back it is not where you type)
+    fact term_scrolled = 0                                  // how many half pages back in the history the view is
+    fact term_state = 0                                     // 0 not started, 1 running, 2 the shell has ended, 3 it cannot run (`term_msg` says why)
+    text term_msg = ""
+    event term_scroll ->                                    // the wheel over the terminal: carries `wheel`
+    //  Keys typed in the terminal reach the logic only if no input has the writing cursor, and gaining the keyboard gives it to the
+    //  first input there is (the task field, even hidden). So on the Term tab it is taken away again.
+    on focus while desk_tab == 3 { blur }
     fact ft_dnd = true                                      // silence notifications while it runs
     fact ft_caf = true                                      // keep the machine awake while it runs
     text ft_time = "30:00"
@@ -2650,12 +2668,13 @@ scene Vitreus {
             scale: max(dz.lf, 0.05)
             zone box desk_band { at: dsk_xc, dsk_y0 + dsk_h / 2; size: dsk_w, dsk_h }
             on leave desk_band { desk_kb = false }
+            on enter desk_band while desk_tab == 3 and term_armed { desk_kb = true }
             group {
                 opacity: fd0
                 move: 0, (1 - fd0) * 12 * cu
             //  The tabs: one track, a thumb that slides to the one in use and stretches on the way.
-            let dt_y   = dsk_y0 + 30 * cu
-            let dt_w   = (dsk_w - 72 * cu) / 3
+            let dt_y   = dsk_y0 + 40 * cu
+            let dt_w   = (dsk_w - 72 * cu) / 4
             let dt_cx  = dsk_xc - 18 * cu
             let dt_str = clamp(abs(desk_tab - desk_sel), 0, 2)
             box { at: dt_cx, dt_y; size: dsk_w - 72 * cu, 34 * cu; corner: 17 * cu; color: ink; opacity: veil }
@@ -2663,12 +2682,12 @@ scene Vitreus {
                 color: mint
                 shadow: 0, 0, 10 * cu, 40%, mint
                 rim: 16%
-                box { at: dt_cx + (desk_sel - 1) * dt_w, dt_y; size: (dt_w - 8 * cu) + 10 * cu * dt_str, 26 * cu - 3 * cu * clamp(dt_str, 0, 1); corner: 10 * cu }
+                box { at: dt_cx + (desk_sel - 1.5) * dt_w, dt_y; size: (dt_w - 8 * cu) + 10 * cu * dt_str, 26 * cu - 3 * cu * clamp(dt_str, 0, 1); corner: 10 * cu }
             }
-            repeat i in 0..3 {
-                let tl  = dt_cx + (i - 1) * dt_w
+            repeat i in 0..4 {
+                let tl  = dt_cx + (i - 1.5) * dt_w
                 let tsl = clamp(1 - abs(desk_sel - i), 0, 1)
-                text pick(i, "Pad", "Shelf", "Focus") { at: floor(tl + 0.5), floor(dt_y + 0.5); anchor: center; align: center; size: 12.5; weight: 600; color: mix(ink, off, tsl); opacity: 62% + 38% * tsl + 30% * desk_tab_z.$i.hover; family: "Space Grotesk" }
+                text pick(i, "Pad", "Shelf", "Focus", "Term") { at: floor(tl + 0.5), floor(dt_y + 0.5); anchor: center; align: center; size: 12.5; weight: 600; color: mix(ink, off, tsl); opacity: 62% + 38% * tsl + 30% * desk_tab_z.$i.hover; family: "Space Grotesk" }
                 zone box desk_tab_z.$i { at: tl, dt_y; size: dt_w, 34 * cu; cursor: pointer }
                 on press desk_tab_z.$i { desk_tab = i }
             }
@@ -2686,15 +2705,15 @@ scene Vitreus {
                 group {
                     opacity: fd1
                     move: 0, (1 - fd1) * 12 * cu
-                text "Drag files, links or text into the panel to keep them here" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 76 * cu + 0.5); anchor: center; align: center; size: 11; color: faint; opacity: 90%; family: "Space Grotesk" }
+                text "Drag files, links or text into the panel to keep them here" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 86 * cu + 0.5); anchor: center; align: center; size: 11; color: faint; opacity: 90%; family: "Space Grotesk" }
                 }
                 group {
                     opacity: fd2
                     move: 0, (1 - fd2) * 12 * cu
-                text "Nothing on the shelf yet" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 190 * cu + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: shelf_n < 1 }
+                text "Nothing on the shelf yet" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 200 * cu + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: shelf_n < 1 }
                 repeat k in 0..8 {
                     let cx_ = dsk_xc + (mod(k, 2) - 0.5) * 158 * cu
-                    let cy_ = dsk_y0 + 122 * cu + floor(k / 2) * 50 * cu
+                    let cy_ = dsk_y0 + 132 * cu + floor(k / 2) * 50 * cu
                     group {
                         show: shelf.$k.has
                         opacity: 1 - clamp(shelf.$k.out, 0, 1)
@@ -2720,9 +2739,9 @@ scene Vitreus {
                 group {
                     opacity: fd3
                     move: 0, (1 - fd3) * 12 * cu
-                box { at: dsk_xc + 112 * cu, dsk_y0 + 411 * cu; size: 66 * cu, 26 * cu; corner: 11 * cu; color: ink; opacity: 8% + 10% * shelf_clear_b.hover; show: shelf_n > 0 }
-                text "Clear all" { at: floor(dsk_xc + 112 * cu + 0.5), floor(dsk_y0 + 411 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: shelf_n > 0 }
-                zone box shelf_clear_b { at: dsk_xc + 112 * cu, dsk_y0 + 411 * cu; size: 68 * cu, 28 * cu; corner: 12 * cu; cursor: pointer; active: shelf_n > 0 }
+                box { at: dsk_xc + 112 * cu, dsk_y0 + 421 * cu; size: 66 * cu, 26 * cu; corner: 11 * cu; color: ink; opacity: 8% + 10% * shelf_clear_b.hover; show: shelf_n > 0 }
+                text "Clear all" { at: floor(dsk_xc + 112 * cu + 0.5), floor(dsk_y0 + 421 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: shelf_n > 0 }
+                zone box shelf_clear_b { at: dsk_xc + 112 * cu, dsk_y0 + 421 * cu; size: 68 * cu, 28 * cu; corner: 12 * cu; cursor: pointer; active: shelf_n > 0 }
                 on press shelf_clear_b { emit shelf_clear }
                 }
             }
@@ -2732,7 +2751,7 @@ scene Vitreus {
                 show: desk_tab == 0
                 opacity: fd1
                 move: 0, (1 - fd1) * 12 * cu
-                let pm_y = dsk_y0 + 74 * cu
+                let pm_y = dsk_y0 + 84 * cu
                 let pm_str = clamp(abs(pad_mode - pad_sel), 0, 1)
                 box { at: dsk_xc, pm_y; size: 168 * cu, 28 * cu; corner: 14 * cu; color: ink; opacity: veil }
                 body {
@@ -2755,7 +2774,7 @@ scene Vitreus {
                 opacity: fd2
                 move: 0, (1 - fd2) * 12 * cu
                 let bd_x = dsk_xc - 156 * cu
-                let bd_y = dsk_y0 + 108 * cu
+                let bd_y = dsk_y0 + 118 * cu
                 body {
                     color: ink
                     opacity: 6%
@@ -2780,8 +2799,8 @@ scene Vitreus {
                 on drag dr_pad { dr_px = pointer.x; dr_py = pointer.y; emit dr_pt(floor((pointer.x - bd_x) / cu * 2) * 1000 + floor((pointer.y - bd_y) / cu * 2)) }
                 on release dr_pad { dr_held = false; emit dr_up }
                 //  The tools: a rainbow of eight pens on one row; two thicknesses, undo and clear on the next.
-                let tl_y = dsk_y0 + 370 * cu
-                let tl2_y = dsk_y0 + 410 * cu
+                let tl_y = dsk_y0 + 380 * cu
+                let tl2_y = dsk_y0 + 420 * cu
                 repeat i in 0..8 {
                     let px_ = dsk_xc + (i - 3.5) * 37 * cu
                     ellipse { at: px_, tl_y; radius: 9 * cu; color: pick(i, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb) }
@@ -2832,14 +2851,14 @@ scene Vitreus {
                 show: desk_tab == 0 and pad_mode == 0
                 opacity: fd2
                 move: 0, (1 - fd2) * 12 * cu
-                let tk_y = dsk_y0 + 118 * cu
+                let tk_y = dsk_y0 + 128 * cu
                 box { at: dsk_xc, tk_y; size: dsk_w - 28 * cu, 36 * cu; corner: 14 * cu; color: ink; opacity: veil + 4% * task_zone.hover }
                 input task_in { at: floor(dsk_xc - (dsk_w - 28 * cu) / 2 + 14 * cu + 0.5), floor(tk_y - 6.5 * cu + 0.5); width: dsk_w - 70 * cu; size: 13; color: ink; family: "Space Grotesk"; placeholder: "Add a task and press Enter" }
                 zone box task_zone { at: dsk_xc, tk_y; size: dsk_w - 28 * cu, 36 * cu; cursor: text }
                 on press task_zone { focus task_in; desk_kb = true }
-                text "Nothing to do. Nice." { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 250 * cu + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: task_n < 1 }
+                text "Nothing to do. Nice." { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 260 * cu + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: task_n < 1 }
                 repeat k in 0..9 {
-                    let ty_ = dsk_y0 + 166 * cu + k * 29 * cu
+                    let ty_ = dsk_y0 + 176 * cu + k * 29 * cu
                     group {
                         show: task.$k.has
                         opacity: 1 - clamp(task.$k.out, 0, 1)
@@ -2869,10 +2888,10 @@ scene Vitreus {
             //  Focus: a ring that runs down, the length, start and reset, and what to do with the rest of the machine meanwhile.
             group {
                 show: desk_tab == 2
-                let fr_y = dsk_y0 + 178 * cu
-                let fp_y = dsk_y0 + 292 * cu
-                let fc_y = dsk_y0 + 353 * cu
-                let fs_y = dsk_y0 + 411 * cu
+                let fr_y = dsk_y0 + 188 * cu
+                let fp_y = dsk_y0 + 302 * cu
+                let fc_y = dsk_y0 + 363 * cu
+                let fs_y = dsk_y0 + 421 * cu
                 let fbusy = if(ft_state == 1 or ft_state == 2, 1, 0.0)
                 group {
                     opacity: fd1
@@ -3031,6 +3050,45 @@ scene Vitreus {
                 zone box ft_sw.1 { at: sx1, fs_y; size: 152 * cu, 36 * cu; corner: 14 * cu; cursor: pointer }
                 on press ft_sw.0 { ft_dnd = not ft_dnd }
                 on press ft_sw.1 { ft_caf = not ft_caf }
+                }
+            }
+            //  Term: the shell, in a dark card under the tabs. Each stretch of one colour is a text at its cell (and a box behind it when it
+            //  has a background of its own); the cursor is a block while the terminal has the keyboard and an outline while it has not.
+            //  A press on the card gives it the keyboard; the wheel goes back through what has scrolled off the top.
+            group {
+                show: desk_tab == 3
+                let tm_y0 = dsk_y0 + 66 * cu                    // the card, under the tabs
+                let tm_h  = dsk_h - 87 * cu                     // its bottom 21 above the desk's, where the Focus tab's last row ends
+                let tm_w  = dsk_w - 28 * cu
+                let tm_cw = 11.75 * 0.612                       // a cell's width: Space Mono is 0.612 of its size wide, every glyph alike
+                let tm_gx = dsk_xc - 64 * tm_cw / 2             // the grid's left edge and the middle of its first row
+                let tm_gy = tm_y0 + (tm_h - 35 * 16) / 2 + 8
+                let tm_on = if(desk_kb, 1, 0)
+                group {
+                    opacity: fd1
+                    move: 0, (1 - fd1) * 12 * cu
+                box { at: dsk_xc, tm_y0 + tm_h / 2; size: tm_w, tm_h; corner: 14 * cu; color: deep; opacity: 42% + 8% * tm_on }
+                box { at: dsk_xc, tm_y0 + tm_h / 2; size: tm_w, tm_h; corner: 14 * cu; stroke: 1.2; color: mint; opacity: 22% * tm_on }
+                zone box term_zone { at: dsk_xc, tm_y0 + tm_h / 2; size: tm_w, tm_h; corner: 14 * cu; cursor: text }
+                on press term_zone { desk_kb = true; term_armed = true; blur }
+                on scroll term_zone { emit term_scroll(wheel) }
+                for c in term_runs {
+                    box { at: tm_gx + (c.x + c.n / 2) * tm_cw, tm_gy + c.y * 16; size: c.n * tm_cw, 16; color: rgb(c.br, c.bg, c.bb); show: c.hasbg }
+                    text c.t { at: tm_gx + c.x * tm_cw, tm_gy + c.y * 16; anchor: left center; size: 11.75; weight: 400; color: if(c.fg, rgb(c.r, c.g, c.b), ink); family: "SpaceMono Nerd Font"; show: not c.bold }
+                    text c.t { at: tm_gx + c.x * tm_cw, tm_gy + c.y * 16; anchor: left center; size: 11.75; weight: 700; color: if(c.fg, rgb(c.r, c.g, c.b), ink); family: "SpaceMono Nerd Font"; show: c.bold }
+                }
+                box { at: tm_gx + (term_cx + 0.5) * tm_cw, tm_gy + term_cy * 16; size: tm_cw, 16; corner: 1.5; color: mint; opacity: 80%; show: term_cur and desk_kb }
+                box { at: tm_gx + (term_cx + 0.5) * tm_cw, tm_gy + term_cy * 16; size: tm_cw - 1, 15; corner: 1.5; stroke: 1; color: mint; opacity: 70%; show: term_cur and not desk_kb }
+                //  Scrolled back: a pill at the bottom says so, and how to come back.
+                group {
+                    show: term_scrolled > 0
+                    box { at: dsk_xc, tm_y0 + tm_h - 22 * cu; size: 214 * cu, 26 * cu; corner: 13 * cu; color: mint; opacity: 90% }
+                    text "Scrolled back · type to return" { at: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h - 22 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: off; family: "Space Grotesk" }
+                }
+                //  Not running: the shell has ended, or the terminal cannot start (pyte missing).
+                text "The shell has ended" { at: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h / 2 - 12 * cu + 0.5); anchor: center; align: center; size: 15; weight: 600; color: ink; family: "Space Grotesk"; show: term_state == 2 }
+                text "Click here and press any key to start a new one" { at: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h / 2 + 12 * cu + 0.5); anchor: center; align: center; size: 12; color: faint; family: "Space Grotesk"; show: term_state == 2 }
+                text term_msg { at: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h / 2 + 0.5); anchor: center; align: center; size: 12.5; width: tm_w - 48 * cu; color: faint; family: "Space Grotesk"; show: term_state == 3 }
                 }
             }
             //  Anything carried over the panel, on any tab, can be let go to keep it on the shelf. This is declared last so that, while a

@@ -1,0 +1,279 @@
+#!/usr/bin/env python3
+"""vitreus-term: the terminal on the Desk's Term tab. It runs your shell in a pseudo-terminal, keeps its screen with pyte,
+and prints that screen as one line of JSON each time it changes (at most every 30 ms), for the shell to draw.
+
+    vitreus-term COLS ROWS       run until the shell ends; then exit
+
+It reads commands from its input, one a line:
+
+    k COMBO HEX     a key, as pleamar names it (`a`, `Return`, `Ctrl+c`, `Shift+Tab`), and what it types, in hex (may be empty)
+    s N             scroll the history: N > 0 back, N < 0 forward, 0 to the bottom
+    p               paste the clipboard (wl-paste)
+
+Each line printed is {"runs": [[row, col, text, fg, bg, bold], ...], "cx", "cy", "cursor", "scrolled", "title"}: the screen's
+non-blank stretches of one colour, with the colours as "rrggbb" or "" for the panel's own. There are at most 256 of them,
+since that is what the scene's model holds; a busy row past that is sent in one colour.
+
+It needs python-pyte (`sudo pacman -S python-pyte`). Without it, it says so on one line and exits.
+"""
+import fcntl
+import json
+import os
+import pty
+import select
+import signal
+import struct
+import subprocess
+import sys
+import termios
+import time
+
+try:
+    import pyte
+
+except ImportError:
+    print(json.dumps({"error": "The terminal needs python-pyte: sudo pacman -S python-pyte"}), flush=True)
+    sys.exit(2)
+
+MAX_RUNS = 256
+# Private modes, as pyte keeps them (shifted by 5): cursor keys in application mode, and bracketed paste.
+APP_CURSOR = 1 << 5
+BRACKETED_PASTE = 2004 << 5
+FRAME = 0.03
+
+# The 16 colours, toned to sit on the panel's glass (Vitreus's mint for green and cyan).
+NAMED = {
+    "black": "4a5552", "red": "e0655a", "green": "9ed6bd", "brown": "e3c27a", "yellow": "e3c27a", "blue": "7fa8e0",
+    "magenta": "c79ae0", "cyan": "8fd3d0", "white": "d8dedb",
+    "brightblack": "6f7a77", "brightred": "f08a80", "brightgreen": "b9ecd4", "brightbrown": "f2d79a", "brightyellow": "f2d79a",
+    "brightblue": "a3c2f0", "brightmagenta": "dbb8f0", "brightcyan": "b0e8e5", "brightwhite": "f5f7f5",
+}
+
+
+def colour(c, bold=False):
+    if c == "default":
+        return ""
+    if bold and c in NAMED and "bright" + c in NAMED:
+        c = "bright" + c
+    if c in NAMED:
+        return NAMED[c]
+    if isinstance(c, str) and len(c) == 6:
+        return c.lower()
+    return ""
+
+
+class Screen(pyte.HistoryScreen):
+    """pyte's screen, answering the terminal's questions (fish asks what the terminal is before its first prompt)."""
+
+    def __init__(self, cols, rows, fd):
+        super().__init__(cols, rows, history=2000, ratio=0.5)
+        self.fd = fd
+        self.title_text = ""
+
+    def write_process_input(self, data):
+        try:
+            os.write(self.fd, data.encode())
+        except OSError:
+            pass
+
+    def set_title(self, param):
+        self.title_text = param
+
+
+# Keys that type nothing, as xterm sends them. The arrows and Home/End depend on the cursor-key mode.
+SPECIAL = {
+    "Return": "\r", "KP_Enter": "\r", "BackSpace": "\x7f", "Tab": "\t", "Shift+Tab": "\x1b[Z", "ISO_Left_Tab": "\x1b[Z",
+    "Shift+ISO_Left_Tab": "\x1b[Z", "Escape": "\x1b", "Delete": "\x1b[3~", "Insert": "\x1b[2~", "Prior": "\x1b[5~",
+    "Next": "\x1b[6~", "F1": "\x1bOP", "F2": "\x1bOQ", "F3": "\x1bOR", "F4": "\x1bOS", "F5": "\x1b[15~", "F6": "\x1b[17~",
+    "F7": "\x1b[18~", "F8": "\x1b[19~", "F9": "\x1b[20~", "F10": "\x1b[21~", "F11": "\x1b[23~", "F12": "\x1b[24~",
+}
+CURSOR = {"Up": "A", "Down": "B", "Right": "C", "Left": "D", "Home": "H", "End": "F"}
+
+
+def key_bytes(combo, typed, app_cursor):
+    parts = combo.split("+")
+    name = parts[-1] if combo != "+" else "+"
+    mods = set(parts[:-1])
+    ctrl, alt, shift = "Ctrl" in mods, "Alt" in mods, "Shift" in mods
+    if name in CURSOR:
+        if ctrl or alt or shift:
+            m = 1 + (shift and 1) + (alt and 2) + (ctrl and 4)
+            return "\x1b[1;%d%s" % (m, CURSOR[name])
+        return ("\x1bO" if app_cursor else "\x1b[") + CURSOR[name]
+    if combo in SPECIAL:
+        return SPECIAL[combo]
+    if name in SPECIAL and not ctrl:
+        return ("\x1b" if alt else "") + SPECIAL[name]
+    if ctrl and len(name) == 1:
+        ch = name.lower()
+        if "a" <= ch <= "z":
+            out = chr(ord(ch) - 96)
+        elif ch in "@[\\]^_":
+            out = chr(ord(ch) & 31)
+        elif ch == " ":
+            out = "\x00"
+        else:
+            return ""
+        return ("\x1b" if alt else "") + out
+    if ctrl and name == "space":
+        return "\x00"
+    if typed:
+        return ("\x1b" if alt else "") + typed
+    if alt and len(name) == 1:
+        return "\x1b" + name
+    return ""
+
+
+def runs_of(screen, cols, rows):
+    """The screen as stretches of one look, row by row, leaving out blank ones."""
+    per_row = []
+    buffer = screen.buffer
+    for y in range(rows):
+        line = buffer[y]
+        row = []
+        cur = None
+        for x in range(cols):
+            ch = line[x]
+            fg, bg = colour(ch.fg, ch.bold), colour(ch.bg)
+            if ch.reverse:
+                fg, bg = (bg or "101614"), (fg or "d8dedb")
+            look = (fg, bg, bool(ch.bold))
+            data = ch.data or " "
+            if cur and cur[0] == look:
+                cur[2].append(data)
+            else:
+                cur = [look, x, [data]]
+                row.append(cur)
+        out = []
+        for look, x, chars in row:
+            text = "".join(chars)
+            if look[1] == "":
+                stripped = text.rstrip()
+                lead = len(text) - len(text.lstrip())
+                if not stripped.strip():
+                    continue
+                text = stripped[lead:]
+                x += lead
+            out.append([y, x, text, look[0], look[1], look[2]])
+        per_row.append(out)
+    total = sum(len(r) for r in per_row)
+    # Too many for the scene: the busiest rows go in one colour until it fits.
+    while total > MAX_RUNS:
+        y = max(range(rows), key=lambda r: len(per_row[r]))
+        if len(per_row[y]) <= 1:
+            break
+        text = "".join(buffer[y][x].data or " " for x in range(cols)).rstrip()
+        lead = len(text) - len(text.lstrip())
+        total -= len(per_row[y]) - 1
+        per_row[y] = [[y, lead, text[lead:], "", "", False]]
+    return [r for row in per_row for r in row]
+
+
+def main():
+    cols = int(sys.argv[1]) if len(sys.argv) > 1 else 64
+    rows = int(sys.argv[2]) if len(sys.argv) > 2 else 35
+    shell = os.environ.get("SHELL") or "/bin/sh"
+    env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor", COLUMNS=str(cols), LINES=str(rows))
+    env.pop("TERM_PROGRAM", None)
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.chdir(os.path.expanduser("~"))
+        os.execvpe(shell, [shell, "-l"], env)
+    fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+    screen = Screen(cols, rows, fd)
+    stream = pyte.ByteStream(screen)
+    signal.signal(signal.SIGTERM, lambda *_: (os.kill(pid, signal.SIGHUP), sys.exit(0)))
+
+    stdin = sys.stdin.fileno()
+    pending = b""
+    dirty = True
+    last_sent = 0.0
+    last_frame = None
+    scrolled = 0
+    while True:
+        wait = max(0.0, FRAME - (time.monotonic() - last_sent)) if dirty else None
+        try:
+            ready, _, _ = select.select([fd, stdin], [], [], wait)
+        except InterruptedError:
+            continue
+        if fd in ready:
+            try:
+                data = os.read(fd, 65536)
+            except OSError:
+                data = b""
+            if not data:
+                break
+            # New output brings a scrolled-back view down to the bottom.
+            while scrolled > 0:
+                screen.next_page()
+                scrolled -= 1
+            stream.feed(data)
+            dirty = True
+        if stdin in ready:
+            chunk = os.read(stdin, 65536)
+            if not chunk:
+                break
+            pending += chunk
+            while b"\n" in pending:
+                line, pending = pending.split(b"\n", 1)
+                cmd = line.decode(errors="replace").split(" ")
+                if cmd[0] == "k" and len(cmd) >= 2:
+                    typed = bytes.fromhex(cmd[2]).decode(errors="replace") if len(cmd) > 2 and cmd[2] else ""
+                    combo = cmd[1]
+                    if combo in ("Shift+Prior", "Shift+Next"):
+                        cmd = ["s", "1" if combo == "Shift+Prior" else "-1"]
+                    elif combo in ("Ctrl+Shift+V", "Ctrl+Shift+v"):
+                        cmd = ["p"]
+                    else:
+                        out = key_bytes(combo, typed, APP_CURSOR in screen.mode)
+                        if out:
+                            if scrolled:
+                                while scrolled > 0:
+                                    screen.next_page()
+                                    scrolled -= 1
+                                dirty = True
+                            os.write(fd, out.encode())
+                        continue
+                if cmd[0] == "s" and len(cmd) >= 2:
+                    n = int(cmd[1]) if cmd[1].lstrip("-").isdigit() else 0
+                    if n == 0:
+                        n = -scrolled
+                    for _ in range(abs(n)):
+                        if n > 0 and screen.history.top:
+                            screen.prev_page()
+                            scrolled += 1
+                        elif n < 0 and scrolled > 0:
+                            screen.next_page()
+                            scrolled -= 1
+                    dirty = True
+                elif cmd[0] == "p":
+                    try:
+                        text = subprocess.run(["wl-paste", "--no-newline"], capture_output=True, timeout=2).stdout
+                    except (OSError, subprocess.TimeoutExpired):
+                        text = b""
+                    if text:
+                        if BRACKETED_PASTE in screen.mode:
+                            text = b"\x1b[200~" + text + b"\x1b[201~"
+                        os.write(fd, text)
+        if dirty and time.monotonic() - last_sent >= FRAME:
+            frame = {
+                "runs": runs_of(screen, cols, rows),
+                "cx": screen.cursor.x, "cy": screen.cursor.y,
+                "cursor": not screen.cursor.hidden and scrolled == 0,
+                "scrolled": scrolled, "title": screen.title_text,
+            }
+            line = json.dumps(frame, separators=(",", ":"))
+            if line != last_frame:
+                sys.stdout.write(line + "\n")
+                sys.stdout.flush()
+                last_frame = line
+            last_sent = time.monotonic()
+            dirty = False
+    try:
+        os.waitpid(pid, 0)
+    except ChildProcessError:
+        pass
+
+
+if __name__ == "__main__":
+    main()

@@ -127,12 +127,17 @@ with its content fading in after the glass has settled
   ones stay until dismissed; everything lands in the history, including what Do Not Disturb held back.
 
 **Desk** — a panel of small tools that comes out of the right frame (Frame layout), or from an icon at the top right
-(Island layout). It stays open while you work in other windows, and has three tabs:
+(Island layout). It stays open while you work in other windows, and has four tabs:
 * **Focus** — a ring timer of 15, 30, 45 or 60 minutes with start, pause and reset; starting it can also turn on Do Not
   Disturb and keep the machine awake for that long. A notification says when it is done.
 * **Shelf** — drop anything on the panel (files, links, text) to keep it as a card, up to eight, and drag a card back out
   into another program.
 * **Pad** — a short task list with checks, and a drawing board.
+* **Term** — your shell, drawn in the panel's own glass (64 by 35 characters). Click it once to type; after that the keyboard
+  follows the mouse, like your windows: off the panel it goes back to them, and back over the panel it is the terminal's again,
+  until you close the panel or pick another tab. The wheel (or Shift+PageUp/PageDown) scrolls back, Ctrl+Shift+V pastes. The shell
+  keeps running when the panel closes. `bin/vitreus-term` runs it and keeps its screen, which needs `python-pyte`;
+  it is drawn in SpaceMono Nerd Font (`sudo pacman -S python-pyte ttf-space-mono-nerd`).
 
 **Wallpaper transition** — picking a wallpaper in the picker dissolves it in through a honeycomb of hexagons that opens in a wave from the
 tile you clicked (`wptrans/`). It is a scene of its own on the bottom layer, above your wallpaper and under every window: it makes the
@@ -193,6 +198,7 @@ Optional, each enabling one thing (Vitreus runs without them and that part stays
 | `power-profiles-daemon` (`powerprofilesctl`) | the power profile in Power |
 | `systemd` (`systemctl`, `loginctl`) | Power's sleep, restart, power off and log out |
 | `polkit` + `python-gobject` | the authentication dialog (`bin/vitreus-polkit-agent`, started by the shell; needs no other agent running) |
+| `python-pyte` + `ttf-space-mono-nerd` | the Desk's terminal (`bin/vitreus-term`; the font is Space Grotesk's monospaced sibling, with the Nerd Font icons prompts use) |
 | `pipewire-audio` (`pw-play`) + `sound-theme-freedesktop` | the sounds notifications make |
 | `pactl` (PipeWire or PulseAudio) | the per-app volume mixer |
 | `hyprctl` | running windows, Settings > Display and > Hyprland, and the launcher starting apps |
