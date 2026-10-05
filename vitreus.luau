@@ -181,6 +181,15 @@ local function hush()
     for i = 1, 6 do spec_last[i] = 0; fact["spec." .. (i - 1)] = 0 end
 end
 
+-- cava only runs while what it feeds is on screen: the bar's swell on the beat, which only the Island layout
+-- has (in the Frame layout the bar is the frame, and `pv` is 0), and the equalizer in the player's panel. Left
+-- running in the Frame layout it kept the `pulse` spring moving for nothing, and so the whole scene painting at the
+-- monitor's rate for as long as music played. (Globals: this chunk is at Luau's limit of locals.)
+cava_playing = false
+function cava_want()
+    if cava_playing and (fact.bar_anchor == "top" or watching) then listen() else hush() end
+end
+
 -- The cover. Every player publishes it the same way (MPRIS `mpris:artUrl`), and
 -- `playerctl` reads it: a local file (browsers write theirs into /tmp, mpv and VLC
 -- point at the folder) or a link (Spotify and most streaming apps). A file is used
@@ -239,7 +248,8 @@ sys.watch("media", function(m)
     -- it reports a player name but no title, so the name alone doesn't count.
     local has_media = m.player ~= "" and m.title ~= ""
     fact.media_on = has_media
-    if m.playing then listen() else hush() end
+    cava_playing = m.playing == true
+    cava_want()
     if not has_media then
         song = ""
         use_art("")
@@ -1248,7 +1258,9 @@ end)
 on("fact:tasks_watch", function(v)
     watching = v == 1 or v == true
     if watching then refresh_tasks() end
+    cava_want()
 end)
+on("fact:bar_anchor", function() cava_want() end)
 every(1000, function() if watching then refresh_tasks() end end)
 -- This Hyprland takes its dispatchers in Lua. `close` has no way to name a window that is not the
 -- focused one (a selector it does not understand is ignored, and the focused window closes), so a
