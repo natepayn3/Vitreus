@@ -2349,8 +2349,17 @@ scene Vitreus {
     zone box cal_btn_z { at: lf.w / 2, lv.clk + 30 * u; size: lf.w, 104 * u; cursor: pointer; active: lm > 0.5 }
     on press cal_btn_z { panel = if(panel == calendar, none, calendar) }
     //  The window title (and the player's buttons over it) the same way: a click on it opens the player's panel.
-    zone box pl_btn_z { at: lf.w / 2, lv.y0 + (lv.mc + lv.span) / 2; size: lf.w, max(1, lv.mc + lv.span); cursor: pointer; active: lm > 0.5 and bv.title and lv.span > 20 * u }
+    //  At least as long as an edge notch (`nt_w`), so a short title ("Signal") is still easy to find and to hit.
+    zone box pl_btn_z { at: lf.w / 2, lv.y0 + (lv.mc + lv.span) / 2; size: lf.w, max(52 * cu, lv.mc + lv.span); cursor: pointer; active: lm > 0.5 and bv.title and lv.span > 20 * u }
     on press pl_btn_z { panel = if(panel == player, none, player) }
+    //  A small tab out of the strip's right edge beside the title, while the pointer is on it: the edge notches' way of
+    //  saying "this opens", only a few pixels. It tucks back in when the player's panel comes out of the same place.
+    let ptab_h = max(52 * cu, lv.mc + lv.span)             // as long as what can be clicked (`pl_btn_z`): the player's buttons and the title
+    let ptab_d = 5 * u                                     // how far out it comes
+    prop ptab_vis = 0 ~calm                        // the same spring as the edge notches (`nt_vis_*`)
+    prop ptab_hold = 0 ~280ms                      // the notches' short wait before coming out, and grace before going back
+    follow ptab_hold = if(pl_btn_z.hover > 0.5 and panel != player, 1, 0)
+    follow ptab_vis = if(ptab_hold > 0.3, 1, 0)
     on change dm > 0.5 while dm > 0.5 and panel == player { lp_k = 6; lp_w = 312 }
     //  Where the contents hang from: the panel's old middle, so they keep their
     //  place when the panel grows to make room for the player.
@@ -2406,6 +2415,9 @@ scene Vitreus {
             box { at: ccx + if(lm > 0.35, 0, 30000), yo + (lf.t + nt_d * nt_vis_t) / 2; size: nt_w, lf.t + nt_d * nt_vis_t; corner: 9 * cu; blend: 9 * u }
             box { at: ccx + if(lm > 0.35, 0, 30000), vb - (lf.t + nt_d * nt_vis_b) / 2; size: nt_w, lf.t + nt_d * nt_vis_b; corner: 9 * cu; blend: 9 * u }
             box { at: screen.width - (lf.t + nt_d * nt_vis_r) / 2 + if(lm > 0.35, 0, 30000), vc; size: lf.t + nt_d * nt_vis_r, nt_w; corner: 9 * cu; blend: 9 * u }
+            //  The title's small tab: `ptab_d` out of the strip's edge while the title is under the pointer. At rest it is off the screen,
+            //  not tucked into the strip: the glass melts shapes that are near each other, and a tucked tab would still bulge the edge.
+            box { at: lf.w - 6 * u + (6 * u + ptab_d * ptab_vis) / 2 + if(lm > 0.35 and ptab_vis > 0.01, 0, 30000), lv.y0 + (lv.mc + lv.span) / 2; size: 6 * u + ptab_d * ptab_vis, ptab_h; corner: 5 * u; blend: 6 * u * ptab_vis }
             box zdrawer { at: dz.ex + if(lm > 0.5, 0, 30000), dz.ey; size: dz.gw * (1 + dz.stretch - 0.07 * dz.bell), dz.gh * (1 - dz.stretch * 0.5); corner: mix(min(dz.gw, dz.gh) / 2, 26 * u, clamp(dz0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dz.bell) * u * min(1, dz0 * 4); show: dz0 > 0.004 }
         }
         //  The three dots on each tab (the volume card's hint), fading out as the panel they open comes out.
