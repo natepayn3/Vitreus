@@ -7,7 +7,8 @@ and prints that screen as one line of JSON each time it changes (at most every 3
 It reads commands from its input, one a line:
 
     k COMBO HEX     a key, as pleamar names it (`a`, `Return`, `Ctrl+c`, `Shift+Tab`), and what it types, in hex (may be empty)
-    s N             scroll the history: N > 0 back, N < 0 forward, 0 to the bottom
+    s N             the wheel, N lines: N > 0 back, N < 0 forward, 0 to the bottom. A program that asked for the mouse gets
+                    it as wheel presses, one on the alternate screen gets it as arrows, and anything else scrolls the history
     p               paste the clipboard (wl-paste)
 
 Each line printed is {"runs": [[row, col, text, fg, bg, bold], ...], "cx", "cy", "cursor", "scrolled", "title"}: the screen's
@@ -40,6 +41,9 @@ MAX_RUNS = 256
 # Private modes, as pyte keeps them (shifted by 5): cursor keys in application mode, and bracketed paste.
 APP_CURSOR = 1 << 5
 BRACKETED_PASTE = 2004 << 5
+# Mouse reporting (any of press, drag, motion), and SGR coordinates for it.
+MOUSE_MODES = (1000 << 5, 1002 << 5, 1003 << 5)
+MOUSE_SGR = 1006 << 5
 FRAME = 0.03
 
 # The 16 colours, toned to sit on the panel's glass (Vitreus's mint for green and cyan).
@@ -67,7 +71,8 @@ class Screen(pyte.HistoryScreen):
     """pyte's screen, answering the terminal's questions (fish asks what the terminal is before its first prompt)."""
 
     def __init__(self, cols, rows, fd):
-        super().__init__(cols, rows, history=2000, ratio=0.5)
+        # One line a page, so the history moves a line at a time (0.5 so ceil(rows * ratio) is 1).
+        super().__init__(cols, rows, history=2000, ratio=0.5 / rows)
         self.fd = fd
         self.title_text = ""
 
@@ -307,16 +312,24 @@ def main():
                 data = b""
             if not data:
                 break
-            # New output brings a scrolled-back view down to the bottom.
+            # Output arrives at the bottom, so a scrolled-back view goes there for it and comes back after, over the same text
+            # (as far up again as what it pushed into the history): a program redrawing its status line does not undo the scroll.
+            back = scrolled
             while scrolled > 0:
                 screen.next_page()
                 scrolled -= 1
+            before = len(screen.history.top)
             try:
                 stream.feed(data)
             except Exception as e:
                 # Something pyte does not know how to take: the parser is started again rather than the terminal lost.
                 print("vitreus-term · pyte could not take what the program wrote (%s): going on" % e, file=sys.stderr, flush=True)
                 stream = pyte.ByteStream(screen)
+            if back:
+                back += max(0, len(screen.history.top) - before)
+                while scrolled < back and screen.history.top:
+                    screen.prev_page()
+                    scrolled += 1
             seen = carry + data
             kitty.feed(seen)
             tail = seen[-24:]
@@ -334,7 +347,7 @@ def main():
                     typed = bytes.fromhex(cmd[2]).decode(errors="replace") if len(cmd) > 2 and cmd[2] else ""
                     combo = cmd[1]
                     if combo in ("Shift+Prior", "Shift+Next"):
-                        cmd = ["s", "1" if combo == "Shift+Prior" else "-1"]
+                        cmd = ["s", str(rows - 1) if combo == "Shift+Prior" else str(1 - rows), "page"]
                     elif combo in ("Ctrl+Shift+V", "Ctrl+Shift+v"):
                         cmd = ["p"]
                     else:
@@ -351,6 +364,21 @@ def main():
                         continue
                 if cmd[0] == "s" and len(cmd) >= 2:
                     n = int(cmd[1]) if cmd[1].lstrip("-").isdigit() else 0
+                    wants_mouse = any(m in screen.mode for m in MOUSE_MODES)
+                    if n and len(cmd) == 2 and scrolled == 0 and (wants_mouse or kitty.alt):
+                        # The program scrolls itself: the wheel goes to it, as presses at the middle of the screen if it asked
+                        # for the mouse, as arrow keys otherwise (what xterm and kitty do on the alternate screen).
+                        if wants_mouse:
+                            button, x, y = (64 if n > 0 else 65), cols // 2 + 1, rows // 2 + 1
+                            if MOUSE_SGR in screen.mode:
+                                press = "\x1b[<%d;%d;%dM" % (button, x, y)
+                            else:
+                                press = "\x1b[M" + chr(32 + button) + chr(32 + x) + chr(32 + y)
+                            out = press * abs(n)
+                        else:
+                            out = key_bytes("Up" if n > 0 else "Down", "", APP_CURSOR in screen.mode) * abs(n)
+                        os.write(fd, out.encode())
+                        continue
                     if n == 0:
                         n = -scrolled
                     for _ in range(abs(n)):
