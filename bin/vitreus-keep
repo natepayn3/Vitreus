@@ -1,0 +1,43 @@
+#!/bin/sh
+# vitreus-keep SCENE.plm [LOG]: runs a pleamar scene and starts it again when it stops, for as long as the
+# session lasts. The autostart lines go through it, so a shell that a monitor's sleep or a protocol error
+# brought down comes back by itself instead of staying gone until the next login.
+#
+#   - One keeper per scene: a second one (the shell's own restart, a second autostart) sees the first and
+#     leaves, and the first starts the scene again once it has stopped.
+#   - A scene that is already running, started by hand, is left alone: the keeper ends.
+#   - When the compositor has gone (the session ended), it ends too.
+#   - Five quick stops in a row (each within 30 s of starting) and it gives up: a scene that cannot start
+#     is not started forever.
+#   - To stop a scene for good, stop its keeper first (pkill -f "vitreus-keep SCENE"), then the scene.
+set -u
+P="${1:?usage: vitreus-keep SCENE.plm [LOG]}"
+L="${2:-/dev/null}"
+export PATH="$HOME/.local/bin:$PATH"
+name=$(basename "$P" .plm)
+run="${XDG_RUNTIME_DIR:-/tmp}"
+say() { printf 'vitreus-keep · %s · %s\n' "$name" "$*" >> "$L"; }
+running() { pgrep -f "^pleamar --scene $P( |\$)" > /dev/null; }
+alive() { [ -n "${WAYLAND_DISPLAY:-}" ] && [ -S "$run/$WAYLAND_DISPLAY" ] || [ -S "$WAYLAND_DISPLAY" ]; }
+
+exec 9> "$run/vitreus-keep-$name.lock"
+flock -n 9 || exit 0
+
+quick=0
+while :; do
+    if running; then
+        say "already running: left to whoever started it"
+        exit 0
+    fi
+    started=$(date +%s)
+    pleamar --scene "$P" --no-hud >> "$L" 2>&1 9>&-
+    code=$?
+    alive || exit 0
+    if [ $(( $(date +%s) - started )) -lt 30 ]; then quick=$((quick + 1)); else quick=0; fi
+    if [ "$quick" -ge 5 ]; then
+        say "stopped five times in a row within 30 s of starting (last exit $code): giving up"
+        exit 1
+    fi
+    say "stopped (exit $code): starting it again"
+    sleep 2
+done

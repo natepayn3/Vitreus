@@ -14,7 +14,7 @@
 # What it does, in order:
 #   1. the packages Vitreus uses      (Arch and its relatives: pacman, and yay/paru for the AUR;
 #                                      on any other distribution it lists what to install by hand).
-#                                      hyprsunset is required (Night mode): without it, this stops
+#                                      hyprsunset is required on Hyprland (Night mode): without it, this stops
 #   2. pleamar, the runtime           (its own installer, into your home; a few minutes to build)
 #   3. the Space Grotesk font         (into ~/.local/share/fonts, no sudo)
 #   4. the shell                      (into ~/.config/pleamar/shells/vitreus: cloned, or updated)
@@ -74,15 +74,27 @@ run() {
 }
 
 # ask "question": yes/no, default yes. Reads the keyboard even when the script itself was piped in.
+# ask_no "question": the same, default no, for what cannot be undone; with no keyboard (and no --yes) it is a no.
+tty_ok() { [ -r /dev/tty ] && ( exec < /dev/tty ) 2> /dev/null; }
 ask() {
     $assume_yes && return 0
-    if [ -r /dev/tty ]; then
+    if tty_ok; then
         printf '\033[1;36mvitreus ·\033[0m %s [Y/n] ' "$1" > /dev/tty
         read -r answer < /dev/tty || answer=y
         case "$answer" in n|N|no|No) return 1 ;; *) return 0 ;; esac
     fi
     warn "no keyboard to ask on: $1 (answering yes; use --yes to skip questions)"
     return 0
+}
+ask_no() {
+    $assume_yes && return 0
+    if tty_ok; then
+        printf '\033[1;36mvitreus ·\033[0m %s [y/N] ' "$1" > /dev/tty
+        read -r answer < /dev/tty || answer=n
+        case "$answer" in y|Y|yes|Yes) return 0 ;; *) return 1 ;; esac
+    fi
+    warn "no keyboard to ask on: $1 (answering no; --yes says yes)"
+    return 1
 }
 
 [ "$(id -u)" -ne 0 ] || fail "run this as yourself, not as root: it installs into your home (and asks for sudo only for packages)"
@@ -95,10 +107,14 @@ if [ "$action" = uninstall ]; then
         run sed -i '/vitreus\.plm/d' "$autostart"
         say "removed its line from $autostart"
     fi
-    # The lock screen is not started by this script, but whoever turned it on has a line for it (see lockscreen/README.md).
+    # The lock screen, the wallpaper transition and the desktop clock are scenes of their own, each with its line.
     if [ -f "$autostart" ] && grep -q 'vitreus/lockscreen/lockscreen.plm' "$autostart"; then
         run sed -i '/vitreus\/lockscreen\/lockscreen\.plm/d' "$autostart"
         say "removed the lock screen's line from $autostart (hypridle and any key binding that lock with it are yours to change)"
+    fi
+    if [ -f "$autostart" ] && grep -q 'vitreus/wptrans/wptrans.plm' "$autostart"; then
+        run sed -i '/vitreus\/wptrans\/wptrans\.plm/d' "$autostart"
+        say "removed the wallpaper transition's line from $autostart"
     fi
     if [ -f "$autostart" ] && grep -q 'vitreus/desktopclock/desktopclock.plm' "$autostart"; then
         run sed -i '/vitreus\/desktopclock\/desktopclock\.plm/d' "$autostart"
@@ -113,6 +129,14 @@ if [ "$action" = uninstall ]; then
         run sed -i -E '/^# >>> vitreus \((pleamar-wm|session)\)/,/^# <<< vitreus/d' "$autostart"
         say "removed its daemon lines from $autostart"
     fi
+    # Marea and swaybg, which the pleamar-wm step turned off, are turned back on.
+    if [ -f "$autostart" ] && grep -q '  (turned off by Vitreus: it is the bar now)$' "$autostart"; then
+        run sed -i 's/^# \(.*\)  (turned off by Vitreus: it is the bar now)$/\1/' "$autostart"
+        say "turned Marea (and swaybg) back on in $autostart"
+    fi
+    if [ -f "$autostart" ] && grep -q '^# wm: swaybg' "$autostart"; then
+        say "an older install commented out «wm: swaybg» in $autostart without a mark: uncomment it if you want it back"
+    fi
     for l in "$conf/pleamar/keys.conf" "$conf/pleamar/wm" "$HOME/.local/bin/hyprctl"; do
         case "$(readlink -f "$l" 2> /dev/null)" in "$(readlink -f "$dest")"/*) run rm -f "$l"; say "removed the link $l" ;; esac
     done
@@ -122,9 +146,10 @@ if [ "$action" = uninstall ]; then
     if [ -L "$HOME/.local/bin/vitreus-clipimg" ]; then run rm -f "$HOME/.local/bin/vitreus-clipimg"; fi
     if [ -L "$HOME/.local/bin/vitreus-polkit-agent" ]; then run rm -f "$HOME/.local/bin/vitreus-polkit-agent"; fi
     if [ -L "$HOME/.local/bin/vitreus-sysmon" ]; then run rm -f "$HOME/.local/bin/vitreus-sysmon"; fi
+    if [ -L "$HOME/.local/bin/vitreus-keep" ]; then run rm -f "$HOME/.local/bin/vitreus-keep"; fi
     if [ -L "$conf/hypr/hypr_vitreus.lua" ]; then run rm -f "$conf/hypr/hypr_vitreus.lua"; fi
     run rm -f "$conf/hypr/vitreus_monitors.lua" "$conf/hypr/vitreus_hypr.lua" "$conf/hypr/vitreus_colors.lua"
-    if [ -d "$dest" ] && ask "delete $dest?"; then run rm -rf "$dest"; fi
+    if [ -d "$dest" ] && ask_no "delete $dest?"; then run rm -rf "$dest"; fi
     say "left as they were: your data in $data/pleamar/vitreus, the caches in ${XDG_CACHE_HOME:-$HOME/.cache}/pleamar/vitreus"
     say "and .../pleamar/lockscreen, and pleamar and the packages. To remove the data too: rm -rf $data/pleamar/vitreus"
     exit 0
@@ -165,7 +190,7 @@ if $deps; then
         fi
     else
         say "this is not an Arch-family system, so nothing is installed for you. Vitreus uses these programs"
-        say "(all optional except pleamar and hyprsunset: each of the others only enables one feature):"
+        say "(all optional except pleamar, and hyprsunset on Hyprland: each of the others only enables one feature):"
         cat <<'LIST'
     cava            the bass pulse and the equalizer
     playerctl       cover art
@@ -185,16 +210,20 @@ if $deps; then
     BlueZ           Bluetooth (bluetoothctl)
     brightnessctl   the brightness slider
     hypridle        Caffeine
-    hyprsunset      Night mode (REQUIRED: https://github.com/hyprwm/hyprsunset)
+    hyprsunset      Night mode (REQUIRED on Hyprland: https://github.com/hyprwm/hyprsunset)
     libnotify       calendar reminders (notify-send)
     xdg-user-dirs   finding your Pictures folder
     git, fontconfig
 LIST
     fi
-    # hyprsunset is not optional: Night mode is driven by it. Without it the shell would have to fall back to a Hyprland
-    # screen shader, which makes Hyprland rebuild its buffers on every change and flicker while a panel is open.
+    # On Hyprland hyprsunset is not optional: Night mode is driven by it. Without it the shell would have to fall back to a Hyprland
+    # screen shader, which makes Hyprland rebuild its buffers on every change and flicker while a panel is open. Elsewhere Night
+    # mode is not there anyway, so it is only a note.
     if ! $dry && ! have hyprsunset; then
-        fail "hyprsunset is required (it is what Night mode uses) and it is not installed. Install it and run this again: sudo pacman -S hyprsunset (Arch), or your distribution's package (https://github.com/hyprwm/hyprsunset)"
+        if have Hyprland || have hyprland; then
+            fail "hyprsunset is required on Hyprland (it is what Night mode uses) and it is not installed. Install it and run this again: sudo pacman -S hyprsunset (Arch), or your distribution's package (https://github.com/hyprwm/hyprsunset)"
+        fi
+        warn "hyprsunset is not installed: Night mode (Hyprland only) will not work"
     fi
     have hyprctl || warn "Hyprland was not found. Vitreus needs a Wayland compositor with layer-shell; the list of running windows needs Hyprland."
 
@@ -203,7 +232,7 @@ LIST
         pv=$( { pleamar --version 2> /dev/null || "$HOME/.local/bin/pleamar" --version 2> /dev/null; } | sed -n 's/^pleamar \([0-9][0-9.]*\).*/\1/p' | head -1)
         say "pleamar is installed${pv:+ ($pv)}"
         case "$pv" in
-            0.0*|0.1*|0.2.0*|0.2.1*) warn "Vitreus needs pleamar 0.2.2 or newer (the lock screen crashes the session on older ones): update it" ;;
+            0.0*|0.1*|0.2.[0-8]) warn "Vitreus needs pleamar 0.2.9 or newer (the lock screen's monitor choice, and a crash when a monitor goes away, need it): update it with pleamar-update" ;;
         esac
     else
         say "pleamar, the runtime Vitreus is written for, is not installed"
@@ -236,36 +265,74 @@ fi
 # ── 4. the shell itself ────────────────────────────────────────────────────
 have git || fail "git is needed to fetch Vitreus"
 if [ -d "$dest/.git" ]; then
-    if git -C "$dest" diff --quiet && git -C "$dest" diff --cached --quiet; then
-        before=$(git -C "$dest" rev-parse HEAD)
-        if $dry; then echo "    would run: git -C $dest pull --ff-only"; else
-            git -C "$dest" pull --ff-only --quiet || warn "could not bring it up to date (left as it was)"
-            after=$(git -C "$dest" rev-parse HEAD)
-            if [ "$before" != "$after" ]; then
-                say "new since last time:"
-                git -C "$dest" log --oneline --no-decorate "$before..$after" | sed 's/^/    /' | head -20
-            else
-                say "Vitreus is up to date"
-            fi
+    if $dry; then echo "    would run: git -C $dest pull --ff-only (your changes, and the monitors Settings chose, carried across)"; else
+        g() { git -C "$dest" -c user.name=vitreus -c user.email=vitreus@localhost "$@"; }
+        before=$(g rev-parse HEAD)
+        # Settings keeps which monitors show the bar and the lock in the scenes' own `screens:` lines. They are put back to the stock
+        # ones for the pull, so that they never stand in its way, and the chosen ones are written again after it.
+        bar_sed='/^    surface \{/{s/.*screens: ([^;]*);.*/\1/p;q;}'
+        lock_sed='/^        screens: /{s/^        screens: (.*)$/\1/p;q;}'
+        set_screens() {
+            if [ -n "$1" ] && [ -f "$dest/vitreus.plm" ]; then sed -i -E "/^    surface \{/s/screens: [^;]*;/screens: $1;/" "$dest/vitreus.plm"; fi
+            if [ -n "$2" ] && [ -f "$dest/lockscreen/lockscreen.plm" ]; then sed -i -E "/^        screens: /s/screens: .*/screens: $2/" "$dest/lockscreen/lockscreen.plm"; fi
+        }
+        bar_s=$(sed -n -E "$bar_sed" "$dest/vitreus.plm" 2> /dev/null || true)
+        lock_s=$(sed -n -E "$lock_sed" "$dest/lockscreen/lockscreen.plm" 2> /dev/null || true)
+        set_screens "$(g show HEAD:vitreus.plm 2> /dev/null | sed -n -E "$bar_sed")" "$(g show HEAD:lockscreen/lockscreen.plm 2> /dev/null | sed -n -E "$lock_sed")"
+        # wm-palette.plm was tracked once and is git-ignored now (Vitreus writes it): kept aside, so the pull that takes it out of git
+        # does not take it off the disk, or trip over the colours Vitreus wrote into it.
+        wmpal=""
+        if g ls-files --error-unmatch wm-palette.plm > /dev/null 2>&1; then
+            wmpal=$(mktemp)
+            cp "$dest/wm-palette.plm" "$wmpal"
+            g checkout --quiet -- wm-palette.plm
         fi
-    else
-        warn "$dest has changes of yours: not updated"
+        # Anything else of yours (a tuned pleamar-wm scene or keys.conf, which are linked here, or your own edits) is set aside for
+        # the pull and put back on top of it. If it no longer fits the new version, nothing is updated and your changes stay.
+        stashed=false
+        held=false
+        if ! { g diff --quiet && g diff --cached --quiet; }; then
+            g stash push --quiet -m "install.sh: your changes, set aside for an update" && stashed=true
+        fi
+        g pull --ff-only --quiet || warn "could not bring it up to date (left as it was)"
+        if $stashed && ! g stash pop --quiet > /dev/null 2>&1; then
+            warn "your changes in $dest do not fit the new version: it is left as it was, with your changes"
+            held=true
+            g reset --quiet --hard "$before"
+            g stash pop --quiet || warn "your changes are kept in git's stash: git -C $dest stash list"
+        fi
+        set_screens "$bar_s" "$lock_s"
+        if [ -n "$wmpal" ]; then
+            cp "$wmpal" "$dest/wm-palette.plm"
+            rm -f "$wmpal"
+        fi
+        after=$(g rev-parse HEAD)
+        if [ "$before" != "$after" ]; then
+            say "new since last time:"
+            g log --oneline --no-decorate "$before..$after" | sed 's/^/    /' | head -20
+        elif ! $held; then
+            say "Vitreus is up to date"
+        fi
     fi
 elif [ -e "$dest" ]; then
     fail "$dest exists and is not a copy of Vitreus: move it away and run this again"
 else
     say "fetching Vitreus into $dest"
     run mkdir -p "$(dirname "$dest")"
-    run git clone --quiet "$repo" "$dest"
+    run git clone --quiet --depth 1 "$repo" "$dest"
 fi
 
-# ── 5. the palette ─────────────────────────────────────────────────────────
-if [ -f "$dest/palette.plm" ]; then
-    say "the palette is there (Vitreus rewrites it from your wallpaper)"
-elif [ -f "$dest/palette.default.plm" ] || $dry; then
-    say "making your palette from the stock colours"
-    run cp "$dest/palette.default.plm" "$dest/palette.plm"
-fi
+# ── 5. the palettes ────────────────────────────────────────────────────────
+# Vitreus rewrites both from your wallpaper, so git ignores them: the stock ones are the `.default` copies. palette.plm is the lock
+# screen's, wm-palette.plm pleamar-wm's (its window borders).
+for pal in palette wm-palette; do
+    if [ -f "$dest/$pal.plm" ]; then
+        say "$pal.plm is there (Vitreus rewrites it from your wallpaper)"
+    elif [ -f "$dest/$pal.default.plm" ] || $dry; then
+        say "making $pal.plm from the stock colours"
+        run cp "$dest/$pal.default.plm" "$dest/$pal.plm"
+    fi
+done
 
 # ── the launcher's helper ──────────────────────────────────────────────────
 # Clipboard pictures cannot go through the logic (its command output is text), so a small script does the piping.
@@ -278,6 +345,8 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
     [ -x "$dest/bin/vitreus-polkit-agent" ] && run ln -sf "$dest/bin/vitreus-polkit-agent" "$HOME/.local/bin/vitreus-polkit-agent"
     # Settings > System monitor's data source: started by the shell while that page is showing, and stopped when it is not.
     [ -x "$dest/bin/vitreus-sysmon" ] && run ln -sf "$dest/bin/vitreus-sysmon" "$HOME/.local/bin/vitreus-sysmon"
+    # The keeper the autostart lines run each scene under: it starts a scene again when it stops (a crash on a monitor's wake).
+    [ -x "$dest/bin/vitreus-keep" ] && run ln -sf "$dest/bin/vitreus-keep" "$HOME/.local/bin/vitreus-keep"
     case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) warn "$HOME/.local/bin is not in your PATH: the launcher's clipboard pictures need it" ;; esac
 # Hyprland does not read ~/.bashrc: if ~/.local/bin is only added there, its binds and exec-once lines never find
 # `pleamar`. hypr_vitreus.lua adds it to PATH itself; whatever you start from hyprland.lua has to do the same.
@@ -335,11 +404,19 @@ if $do_binds; then
 fi
 
 # ── start with the desktop ─────────────────────────────────────────────────
-line="pleamar --scene $dest/vitreus.plm --no-hud"
-lockline="pleamar --scene $dest/lockscreen/lockscreen.plm --no-hud"
-transline="pleamar --scene $dest/wptrans/wptrans.plm --no-hud"
-clockline="pleamar --scene $dest/desktopclock/desktopclock.plm --no-hud"
+# Each scene runs under bin/vitreus-keep, which starts it again if it stops while the session lasts.
+line="vitreus-keep $dest/vitreus.plm \"\$HOME/.local/share/pleamar/vitreus/vitreus.log\""
+lockline="vitreus-keep $dest/lockscreen/lockscreen.plm"
+transline="vitreus-keep $dest/wptrans/wptrans.plm"
+clockline="vitreus-keep $dest/desktopclock/desktopclock.plm"
 if $do_autostart; then
+    # Lines from before the keeper started the scenes straight, once: they go through it now.
+    if [ -f "$autostart" ] && grep -q "^pleamar --scene $dest/.*\.plm --no-hud\$" "$autostart"; then
+        if $dry; then echo "    would put the scenes in $autostart under vitreus-keep"; else
+            sed -i "s|^pleamar --scene \($dest/vitreus\.plm\) --no-hud\$|vitreus-keep \1 \"\$HOME/.local/share/pleamar/vitreus/vitreus.log\"|; s|^pleamar --scene \($dest/[^ ]*\.plm\) --no-hud\$|vitreus-keep \1|" "$autostart"
+            say "the scenes in $autostart now run under vitreus-keep, which starts them again if they stop"
+        fi
+    fi
     if [ -f "$autostart" ] && grep -q 'vitreus.plm' "$autostart"; then
         say "it is already in $autostart"
     elif ask "start Vitreus with the desktop (add a line to $autostart)?"; then
@@ -411,7 +488,7 @@ if $do_wm && [ -d "$wmdir" ] && { have pleamar-wm || [ -x "$HOME/.local/bin/plea
     # (The daemons Vitreus needs are started for every compositor, in the section above.)
     if $do_autostart && [ -f "$autostart" ] && ! $dry; then
         sed -i -e 's/^marea start\([[:space:]].*\)\{0,1\}$/# \0  (turned off by Vitreus: it is the bar now)/' \
-               -e 's/^wm: swaybg/# wm: swaybg/' "$autostart"
+               -e 's/^wm: swaybg\(.*\)$/# wm: swaybg\1  (turned off by Vitreus: it is the bar now)/' "$autostart"
     fi
     # keys: Vitreus's launcher, Settings, lock, wallpaper picker, capture, volume. Only over the stock file (just `defaults` and comments).
     keys="$conf/pleamar/keys.conf"

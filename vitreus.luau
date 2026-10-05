@@ -1843,6 +1843,9 @@ i=0
 while pgrep -f "^pleamar --scene $P" >/dev/null && [ $i -lt 15 ]; do sleep 0.2; i=$((i+1)); done
 pkill -f "^pleamar --scene $P"
 sleep 0.3
+[ "$(stat -c %s "$L" 2>/dev/null || echo 0)" -gt 1048576 ] && mv -f "$L" "$L.1"
+# under its keeper when there is one (bin/vitreus-keep): a keeper already looking after it starts it again itself
+command -v vitreus-keep >/dev/null 2>&1 && exec vitreus-keep "$P" "$L"
 exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
 ]]
 -- The room round the windows is per monitor: only a monitor the bar is on gets the strip's and the frame's room. `bar_fx.mons` is what is plugged in
@@ -4208,6 +4211,9 @@ i=0
 while pgrep -f "^pleamar --scene $P" >/dev/null && [ $i -lt 15 ]; do sleep 0.2; i=$((i+1)); done
 pkill -f "^pleamar --scene $P"
 sleep 0.3
+[ "$(stat -c %s "$L" 2>/dev/null || echo 0)" -gt 1048576 ] && mv -f "$L" "$L.1"
+# under its keeper when there is one (bin/vitreus-keep): a keeper already looking after it starts it again itself
+command -v vitreus-keep >/dev/null 2>&1 && exec vitreus-keep "$P" "$L"
 exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
 ]]
 
@@ -4568,6 +4574,9 @@ i=0
 while pgrep -f "^pleamar --scene $P" >/dev/null && [ $i -lt 15 ]; do sleep 0.2; i=$((i+1)); done
 pkill -f "^pleamar --scene $P"
 sleep 0.3
+[ "$(stat -c %s "$L" 2>/dev/null || echo 0)" -gt 1048576 ] && mv -f "$L" "$L.1"
+# under its keeper when there is one (bin/vitreus-keep): a keeper already looking after it starts it again itself
+command -v vitreus-keep >/dev/null 2>&1 && exec vitreus-keep "$P" "$L"
 exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
 ]]
     local SSH = "core.sshCommand=ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=5 -o ServerAliveCountMax=3"
