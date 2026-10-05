@@ -1695,11 +1695,12 @@ local function blend(a, b, t)                       -- a toward b
 end
 -- Nudge a colour's lightness, in the direction it already leans, until it clears `min_ratio`
 -- against the background: hue and saturation are kept, so Iris's choice survives.
-local function ensure_contrast(hex, bg, min_ratio)
+-- `dir` (1 lighter, -1 darker) forces the way it moves; without it, away from the background's lightness.
+local function ensure_contrast(hex, bg, min_ratio, dir)
     if contrast(hex, bg) >= min_ratio then return hex end
     local h, s, l = rgb_to_hsl(hex_to_rgb(hex))
     local _, _, bl = rgb_to_hsl(hex_to_rgb(bg))
-    local dir = l >= bl and 1 or -1
+    dir = dir or (l >= bl and 1 or -1)
     for _ = 1, 30 do
         l = math.max(0.03, math.min(0.97, l + dir * 0.03))
         local cand = rgb_to_hex(hsl_to_rgb(h, s, l))
@@ -1903,13 +1904,18 @@ function iris_fx.build_palette(bg, surface, fg, dim, accent, red)
     }
 end
 
+-- The text is not on Iris's `surface`: it is on the glass, which shows the blurred wallpaper through the tint and reads dark whatever the
+-- wallpaper (measured behind the Settings text on a light one: #263746 to #434D4C). So Iris is asked for a dark scheme for glass, and every
+-- colour that is read is held to 4.5:1 against a reference a little LIGHTER than that glass (the worst case for light text), moving only
+-- lighter. The accent counts as text: it labels the chosen page, the breadcrumb, the values. An alert only has to be seen: 3:1.
 local function apply_iris(json)
     local surface = json_hex(json, "surface") or "#1e202b"
     local bg = json_hex(json, "bg") or "#12131a"
-    local accent = intensity_accent(json_hex(json, "accent") or "#94a3b8", iris_cfg.intensity)
-    local fg = ensure_contrast(json_hex(json, "fg") or "#e6e6e6", surface, 4.5)
-    local dim = ensure_contrast(json_hex(json, "dim") or "#a0a4ab", surface, 3.0)
-    local red = ensure_contrast(json_hex(json, "red") or "#ef4444", bg, 3.0)
+    local glass = blend(surface, "#ffffff", 0.12)
+    local accent = ensure_contrast(intensity_accent(json_hex(json, "accent") or "#94a3b8", iris_cfg.intensity), glass, 4.5, 1)
+    local fg = ensure_contrast(json_hex(json, "fg") or "#e6e6e6", glass, 4.5, 1)
+    local dim = ensure_contrast(json_hex(json, "dim") or "#a0a4ab", glass, 4.5, 1)
+    local red = ensure_contrast(json_hex(json, "red") or "#ef4444", glass, 3.0, 1)
     iris_fx.apply_palette(iris_fx.build_palette(bg, surface, fg, dim, accent, red))
 end
 
@@ -1920,7 +1926,8 @@ function iris_fx.apply_mono()
 end
 
 local function run_iris(path)
-    run("iris", { "--json-only", path }, function(out, code)
+    -- Dark, and for glass (`--glass` adjusts the background for transparency): see apply_iris.
+    run("iris", { "--json-only", "--dark", "1", "--glass", path }, function(out, code)
         if code ~= 0 or not out then return end
         local json = out:match("%b{}")
         if json and json_hex(json, "bg") then apply_iris(json) end
