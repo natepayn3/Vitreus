@@ -20,6 +20,7 @@ import fcntl
 import json
 import os
 import pty
+import re
 import select
 import signal
 import struct
@@ -79,6 +80,13 @@ class Screen(pyte.HistoryScreen):
     def set_title(self, param):
         self.title_text = param
 
+    def set_margins(self, *args, **kwargs):
+        # `CSI ? r` (put private modes back, which kitty's kittens send on the way out) arrives here as private; this pyte
+        # does not take that and raised, which took the whole terminal down. There is nothing to put back: it is let be.
+        if kwargs.get("private"):
+            return
+        super().set_margins(*args)
+
 
 # Keys that type nothing, as xterm sends them. The arrows and Home/End depend on the cursor-key mode.
 SPECIAL = {
@@ -122,6 +130,97 @@ def key_bytes(combo, typed, app_cursor):
     if alt and len(name) == 1:
         return "\x1b" + name
     return ""
+
+
+# kitty's keyboard protocol (https://sw.kovidgoyal.net/kitty/keyboard-protocol/). Some programs turn it on without asking
+# whether the terminal has it —kitty's own kittens do, `kitty +list-fonts` among them— and from then on they understand
+# only keys sent its way: a bare Esc or Ctrl+C is not a key to them, and there is no way out. So the modes a program
+# pushes, pops and sets are followed, one stack for each screen, and while one is on, keys are sent as it asks. A program
+# that asks first (`CSI ? u`: fish, Neovim) gets no answer, and stays with the keys every terminal sends.
+KITTY_SEQ = re.compile(rb"\x1b\[([?<>=])([0-9;]*)u|\x1b\[\?(1049|1047|47)([hl])")
+KITTY_FUNC = {  # name: (number, final), as kitty sends them: CSI number ; mods final
+    "Escape": (27, "u"), "Return": (13, "u"), "KP_Enter": (13, "u"), "Tab": (9, "u"), "ISO_Left_Tab": (9, "u"),
+    "BackSpace": (127, "u"), "Insert": (2, "~"), "Delete": (3, "~"), "Prior": (5, "~"), "Next": (6, "~"),
+    "Up": (1, "A"), "Down": (1, "B"), "Right": (1, "C"), "Left": (1, "D"), "Home": (1, "H"), "End": (1, "F"),
+    "F1": (1, "P"), "F2": (1, "Q"), "F3": (13, "~"), "F4": (1, "S"), "F5": (15, "~"), "F6": (17, "~"), "F7": (18, "~"),
+    "F8": (19, "~"), "F9": (20, "~"), "F10": (21, "~"), "F11": (23, "~"), "F12": (24, "~"),
+}
+KEYSYM_CHAR = {
+    "space": " ", "minus": "-", "plus": "+", "equal": "=", "slash": "/", "backslash": "\\", "period": ".", "comma": ",",
+    "semicolon": ";", "colon": ":", "apostrophe": "'", "quotedbl": '"', "grave": "`", "asciitilde": "~",
+    "bracketleft": "[", "bracketright": "]", "braceleft": "{", "braceright": "}", "less": "<", "greater": ">",
+    "question": "?", "exclam": "!", "at": "@", "numbersign": "#", "dollar": "$", "percent": "%", "asciicircum": "^",
+    "ampersand": "&", "asterisk": "*", "parenleft": "(", "parenright": ")", "underscore": "_", "bar": "|",
+}
+
+
+class KittyKeys:
+    """The keyboard modes programs have asked for, main screen and alternate screen apart."""
+
+    def __init__(self):
+        self.stacks = {False: [0], True: [0]}
+        self.alt = False
+
+    @property
+    def flags(self):
+        return self.stacks[self.alt][-1]
+
+    def feed(self, data):
+        for m in KITTY_SEQ.finditer(data):
+            if m.group(3):
+                self.alt = m.group(4) == b"h"
+                if not self.alt:
+                    self.stacks[True] = [0]
+                continue
+            kind, args = m.group(1), m.group(2).decode()
+            nums = [int(x) if x else 0 for x in args.split(";")] if args else []
+            stack = self.stacks[self.alt]
+            if kind == b">":
+                stack.append(nums[0] if nums else 0)
+                del stack[:-16]
+            elif kind == b"<":
+                for _ in range(max(1, nums[0] if nums else 1)):
+                    if len(stack) > 1:
+                        stack.pop()
+                    else:
+                        stack[0] = 0
+            elif kind == b"=":
+                f, mode = (nums + [0, 1])[:2] if nums else (0, 1)
+                stack[-1] = f if mode == 1 else (stack[-1] | f if mode == 2 else stack[-1] & ~f)
+
+    def encode(self, combo, typed):
+        """The key as kitty sends it under the current flags, or None for the usual bytes."""
+        flags = self.flags
+        if not flags:
+            return None
+        parts = combo.split("+")
+        name = parts[-1] if combo != "+" else "+"
+        mods = set(parts[:-1])
+        all_keys = bool(flags & 8)
+        ch = KEYSYM_CHAR.get(name, name if len(name) == 1 else "")
+        shift = "Shift" in mods or (len(ch) == 1 and ch.isalpha() and ch.isupper())
+        m = 1 + (shift and 1) + ("Alt" in mods and 2) + ("Ctrl" in mods and 4) + ("Super" in mods and 8)
+        if name in KITTY_FUNC:
+            num, final = KITTY_FUNC[name]
+            # Enter, Tab and Backspace stay as they were unless every key is to be reported, or a modifier is on.
+            if num in (13, 9, 127) and not all_keys and m == 1:
+                return None
+            if final == "u" or m > 1:
+                return "\x1b[%d;%d%s" % (num, m, final) if m > 1 else "\x1b[%du" % num
+            return "\x1b[%s" % final if num == 1 else "\x1b[%d~" % num
+        if not ch:
+            return None
+        # Plain typing is left as text, unless every key is to be reported or Ctrl/Alt/Super is held.
+        if m in (1, 2) and not all_keys:
+            return None
+        code = ord(ch.lower())
+        out = "\x1b[%d" % code
+        text = typed if (flags & 16) and typed and m in (1, 2) else ""
+        if m > 1 or text:
+            out += ";%d" % m if m > 1 else ";"
+        if text:
+            out += ";" + ":".join(str(ord(c)) for c in text)
+        return out + "u"
 
 
 def runs_of(screen, cols, rows):
@@ -174,7 +273,10 @@ def main():
     rows = int(sys.argv[2]) if len(sys.argv) > 2 else 35
     shell = os.environ.get("SHELL") or "/bin/sh"
     env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor", COLUMNS=str(cols), LINES=str(rows))
-    env.pop("TERM_PROGRAM", None)
+    # What says the shell is in another terminal (Vitreus started by hand from kitty, say): here it is not.
+    for k in list(env):
+        if k.startswith(("KITTY_", "WEZTERM_", "ALACRITTY_", "GHOSTTY_", "VTE_", "TERM_PROGRAM")) or k in ("TERMINFO", "WINDOWID"):
+            del env[k]
     pid, fd = pty.fork()
     if pid == 0:
         os.chdir(os.path.expanduser("~"))
@@ -182,6 +284,8 @@ def main():
     fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
     screen = Screen(cols, rows, fd)
     stream = pyte.ByteStream(screen)
+    kitty = KittyKeys()
+    carry = b""                                  # the end of a read that may be the start of a mode change
     signal.signal(signal.SIGTERM, lambda *_: (os.kill(pid, signal.SIGHUP), sys.exit(0)))
 
     stdin = sys.stdin.fileno()
@@ -207,7 +311,16 @@ def main():
             while scrolled > 0:
                 screen.next_page()
                 scrolled -= 1
-            stream.feed(data)
+            try:
+                stream.feed(data)
+            except Exception as e:
+                # Something pyte does not know how to take: the parser is started again rather than the terminal lost.
+                print("vitreus-term · pyte could not take what the program wrote (%s): going on" % e, file=sys.stderr, flush=True)
+                stream = pyte.ByteStream(screen)
+            seen = carry + data
+            kitty.feed(seen)
+            tail = seen[-24:]
+            carry = tail[tail.rfind(b"\x1b"):] if b"\x1b" in tail and not KITTY_SEQ.search(tail[tail.rfind(b"\x1b"):]) else b""
             dirty = True
         if stdin in ready:
             chunk = os.read(stdin, 65536)
@@ -225,7 +338,9 @@ def main():
                     elif combo in ("Ctrl+Shift+V", "Ctrl+Shift+v"):
                         cmd = ["p"]
                     else:
-                        out = key_bytes(combo, typed, APP_CURSOR in screen.mode)
+                        out = kitty.encode(combo, typed)
+                        if out is None:
+                            out = key_bytes(combo, typed, APP_CURSOR in screen.mode)
                         if out:
                             if scrolled:
                                 while scrolled > 0:
