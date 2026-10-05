@@ -2273,8 +2273,9 @@ scene Vitreus {
     text term_msg = ""
     event term_scroll ->                                    // the wheel over the terminal: carries `wheel`
     //  Keys typed in the terminal reach the logic only if no input has the writing cursor, and gaining the keyboard gives it to the
-    //  first input there is (the task field, even hidden). So on the Term tab it is taken away again.
-    on focus while desk_tab == 3 { blur }
+    //  first input there is (the task field, even hidden). So when it is the terminal that takes the keyboard, the cursor is taken
+    //  away again; only then: the desk stays on Term while the search or another panel opens, and theirs must keep it.
+    on focus while desk_open and desk_tab == 3 and desk_kb and panel == none { blur }
     fact ft_dnd = true                                      // silence notifications while it runs
     fact ft_caf = true                                      // keep the machine awake while it runs
     text ft_time = "30:00"

@@ -44,7 +44,12 @@ BRACKETED_PASTE = 2004 << 5
 # Mouse reporting (any of press, drag, motion), and SGR coordinates for it.
 MOUSE_MODES = (1000 << 5, 1002 << 5, 1003 << 5)
 MOUSE_SGR = 1006 << 5
-FRAME = 0.03
+# How often the screen is sent. Every frame sent makes the shell compose its whole scene again (a few ms on Vitreus, and
+# once seen at 30); so a terminal whose output streams (a build, a program animating) is sent at most 8 times a second,
+# and only what follows a key, a scroll or a paste comes at once, so typing still answers at once.
+FRAME_TYPING = 0.012
+FRAME_STREAMING = 0.125
+TYPING_WINDOW = 0.3                              # for this long after a key, what the program writes is its answer
 
 # The 16 colours, toned to sit on the panel's glass (Vitreus's mint for green and cyan).
 NAMED = {
@@ -297,10 +302,12 @@ def main():
     pending = b""
     dirty = True
     last_sent = 0.0
+    last_key = 0.0
     last_frame = None
     scrolled = 0
     while True:
-        wait = max(0.0, FRAME - (time.monotonic() - last_sent)) if dirty else None
+        frame = FRAME_TYPING if time.monotonic() - last_key < TYPING_WINDOW else FRAME_STREAMING
+        wait = max(0.0, frame - (time.monotonic() - last_sent)) if dirty else None
         try:
             ready, _, _ = select.select([fd, stdin], [], [], wait)
         except InterruptedError:
@@ -361,6 +368,7 @@ def main():
                                     scrolled -= 1
                                 dirty = True
                             os.write(fd, out.encode())
+                            last_key = time.monotonic()
                         continue
                 if cmd[0] == "s" and len(cmd) >= 2:
                     n = int(cmd[1]) if cmd[1].lstrip("-").isdigit() else 0
@@ -378,6 +386,7 @@ def main():
                         else:
                             out = key_bytes("Up" if n > 0 else "Down", "", APP_CURSOR in screen.mode) * abs(n)
                         os.write(fd, out.encode())
+                        last_key = time.monotonic()
                         continue
                     if n == 0:
                         n = -scrolled
@@ -389,6 +398,7 @@ def main():
                             screen.next_page()
                             scrolled -= 1
                     dirty = True
+                    last_key = time.monotonic()
                 elif cmd[0] == "p":
                     try:
                         text = subprocess.run(["wl-paste", "--no-newline"], capture_output=True, timeout=2).stdout
@@ -398,7 +408,8 @@ def main():
                         if BRACKETED_PASTE in screen.mode:
                             text = b"\x1b[200~" + text + b"\x1b[201~"
                         os.write(fd, text)
-        if dirty and time.monotonic() - last_sent >= FRAME:
+                        last_key = time.monotonic()
+        if dirty and time.monotonic() - last_sent >= (FRAME_TYPING if time.monotonic() - last_key < TYPING_WINDOW else FRAME_STREAMING):
             frame = {
                 "runs": runs_of(screen, cols, rows),
                 "cx": screen.cursor.x, "cy": screen.cursor.y,
