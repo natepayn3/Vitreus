@@ -809,6 +809,7 @@ scene Vitreus {
     every 5s while pwr.charging and pwr.percent < 98 { charge_sweep: 0 ~0ms; charge_sweep: 1 ~900ms after 40ms }
     on change pwr.charging while pwr.charging and pwr.percent < 98 { charge_sweep: 0 ~0ms; charge_sweep: 1 ~900ms after 40ms }
     repeat i in 1..6 { prop wsh.$i = 0 ~quick }         // each workspace dot's hover, brought out of its `repeat`
+    repeat i in 1..6 { prop wsp.$i = 0 ~pop }           // the same, on a spring that pops a little past: how much a hovered mark swells
     follow batt_fill = clamp(pwr.percent / 100, 0, 1)
     follow batt_on = if(pwr.present, 1, 0)
     follow batt_low = if(pwr.percent < 20 and not pwr.charging, 1, 0)
@@ -2529,6 +2530,7 @@ scene Vitreus {
             on press ws.hit.$i { emit go(i) }
             on press right ws.hit.$i { emit ov_toggle }
             follow wsh.$i = ws.hit.$i.hover
+            follow wsp.$i = ws.hit.$i.hover
         }
 
         //  What is in front: the app in small type above, the title under it, cut
@@ -3073,59 +3075,59 @@ scene Vitreus {
         }
         //  Every workspace is a soft square. The one in view stretches into a rectangle (along the bar; down the strip, down) and turns
         //  to the accent, one square becoming the other with nothing travelling; one with a window in it is a little more solid; one calling for
-        //  attention is coral, still, until you go there.
+        //  attention is coral, still, until you go there. Under the pointer a mark swells by a third, popping a little past, and brightens.
         let cx1 = mix(ws.a1, lf.x, lm)
         let cy1 = mix(bar.y, ws.a1, lm)
         let wg1 = ws.urg.1 * (1 - ws.act.1)
-        let bw1 = (8 + 4.5 * ws.tall.1) * ws.U
-        let bh1 = (8 + 4.5 * ws.tall.1) * ws.U
+        let bw1 = (8 + 4.5 * ws.tall.1) * ws.U * (1 + 0.35 * wsp.1)
+        let bh1 = (8 + 4.5 * ws.tall.1) * ws.U * (1 + 0.35 * wsp.1)
         let cx2 = mix(ws.a2, lf.x, lm)
         let cy2 = mix(bar.y, ws.a2, lm)
         let wg2 = ws.urg.2 * (1 - ws.act.2)
-        let bw2 = (8 + 4.5 * ws.tall.2) * ws.U
-        let bh2 = (8 + 4.5 * ws.tall.2) * ws.U
+        let bw2 = (8 + 4.5 * ws.tall.2) * ws.U * (1 + 0.35 * wsp.2)
+        let bh2 = (8 + 4.5 * ws.tall.2) * ws.U * (1 + 0.35 * wsp.2)
         let cx3 = mix(ws.a3, lf.x, lm)
         let cy3 = mix(bar.y, ws.a3, lm)
         let wg3 = ws.urg.3 * (1 - ws.act.3)
-        let bw3 = (8 + 4.5 * ws.tall.3) * ws.U
-        let bh3 = (8 + 4.5 * ws.tall.3) * ws.U
+        let bw3 = (8 + 4.5 * ws.tall.3) * ws.U * (1 + 0.35 * wsp.3)
+        let bh3 = (8 + 4.5 * ws.tall.3) * ws.U * (1 + 0.35 * wsp.3)
         let cx4 = mix(ws.a4, lf.x, lm)
         let cy4 = mix(bar.y, ws.a4, lm)
         let wg4 = ws.urg.4 * (1 - ws.act.4)
-        let bw4 = (8 + 4.5 * ws.tall.4) * ws.U
-        let bh4 = (8 + 4.5 * ws.tall.4) * ws.U
+        let bw4 = (8 + 4.5 * ws.tall.4) * ws.U * (1 + 0.35 * wsp.4)
+        let bh4 = (8 + 4.5 * ws.tall.4) * ws.U * (1 + 0.35 * wsp.4)
         let cx5 = mix(ws.a5, lf.x, lm)
         let cy5 = mix(bar.y, ws.a5, lm)
         let wg5 = ws.urg.5 * (1 - ws.act.5)
-        let bw5 = (8 + 4.5 * ws.tall.5) * ws.U
-        let bh5 = (8 + 4.5 * ws.tall.5) * ws.U
+        let bw5 = (8 + 4.5 * ws.tall.5) * ws.U * (1 + 0.35 * wsp.5)
+        let bh5 = (8 + 4.5 * ws.tall.5) * ws.U * (1 + 0.35 * wsp.5)
         body ws.sq1 {
             color: mix(ink, warm, wg1)
-            opacity: mix(30% + 55% * ws.tall.1, 100%, wg1) * (1 - ws.act.1) * bs.ws
+            opacity: min(100%, mix(30% + 55% * ws.tall.1, 100%, wg1) + 35% * wsh.1) * (1 - ws.act.1) * bs.ws
             rim: 40%
             box { at: cx1, cy1; size: bw1, bh1; corner: 0.3 * min(bw1, bh1) }
         }
         body ws.sq2 {
             color: mix(ink, warm, wg2)
-            opacity: mix(30% + 55% * ws.tall.2, 100%, wg2) * (1 - ws.act.2) * bs.ws
+            opacity: min(100%, mix(30% + 55% * ws.tall.2, 100%, wg2) + 35% * wsh.2) * (1 - ws.act.2) * bs.ws
             rim: 40%
             box { at: cx2, cy2; size: bw2, bh2; corner: 0.3 * min(bw2, bh2) }
         }
         body ws.sq3 {
             color: mix(ink, warm, wg3)
-            opacity: mix(30% + 55% * ws.tall.3, 100%, wg3) * (1 - ws.act.3) * bs.ws
+            opacity: min(100%, mix(30% + 55% * ws.tall.3, 100%, wg3) + 35% * wsh.3) * (1 - ws.act.3) * bs.ws
             rim: 40%
             box { at: cx3, cy3; size: bw3, bh3; corner: 0.3 * min(bw3, bh3) }
         }
         body ws.sq4 {
             color: mix(ink, warm, wg4)
-            opacity: mix(30% + 55% * ws.tall.4, 100%, wg4) * (1 - ws.act.4) * bs.ws
+            opacity: min(100%, mix(30% + 55% * ws.tall.4, 100%, wg4) + 35% * wsh.4) * (1 - ws.act.4) * bs.ws
             rim: 40%
             box { at: cx4, cy4; size: bw4, bh4; corner: 0.3 * min(bw4, bh4) }
         }
         body ws.sq5 {
             color: mix(ink, warm, wg5)
-            opacity: mix(30% + 55% * ws.tall.5, 100%, wg5) * (1 - ws.act.5) * bs.ws
+            opacity: min(100%, mix(30% + 55% * ws.tall.5, 100%, wg5) + 35% * wsh.5) * (1 - ws.act.5) * bs.ws
             rim: 40%
             box { at: cx5, cy5; size: bw5, bh5; corner: 0.3 * min(bw5, bh5) }
         }
