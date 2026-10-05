@@ -5887,7 +5887,14 @@ end)()
         local k = math.floor(i + 0.5)
         lk_pref = (k >= 1 and lk_names[k]) or "all"
         show_mons()
-        say("text cfg_monitor " .. lk_pref)
+        local pref = lk_pref
+        -- the lock screen saves the choice, then its file says which monitors show it (`screens:`), which it reads when it is saved
+        say("text cfg_monitor " .. pref, function()
+            with_dirs(function(d)
+                local value = pref == "all" and "all" or ('"' .. pref .. '"')
+                run("sed", { "-i", "-E", "/^        screens: /s/screens: .*/screens: " .. value .. "/", d.conf .. "/lockscreen/lockscreen.plm" }, function() end)
+            end)
+        end)
     end)
 
     local function refresh()

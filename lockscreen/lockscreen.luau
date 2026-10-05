@@ -50,44 +50,19 @@ fact.mask_pal = PAL_FACT[cfg.shape_palette]
 local function save_cfg() pcall(sys.call, "files.write", "lockscreen.json", cfg) end
 
 -- ── Which monitor ────────────────────────────────────────────────────────────────────────────────────
--- The lock surface cannot ask for its monitor's name, only its size, so the chosen monitor's size is worked out here (what Hyprland lays out:
--- the mode over the scale, turned if the monitor is on its side) and every copy of the surface compares its own with it. The size is looked
--- at again every so often and as the lock closes, so a monitor plugged in or turned in between is followed. A chosen monitor that is not
--- there puts everything on all of them, so a lock is never left without a password bar.
+-- Only the chosen monitor shows the lock: the scene's `screens:` line names it (Vitreus's Settings page rewrites that line), and the rest
+-- are covered in black. The keyboard goes to the monitor the pointer is on, so the pointer is brought to the chosen one as the lock closes.
 text.cfg_monitor = cfg.monitor
-local function resolve_monitor(then_focus)
-    if cfg.monitor == "all" or cfg.monitor == "" then
-        fact.main_w, fact.main_h = 0, 0
-        return
-    end
-    run("hyprctl", { "monitors", "-j" }, function(out, code)
-        if code ~= 0 or not out then return end
-        local ok, list = pcall(json.decode, out)
-        if not ok or type(list) ~= "table" then return end
-        local w, h = 0, 0
-        for _, m in ipairs(list) do
-            if m.name == cfg.monitor then
-                local mw, mh = m.width or 0, m.height or 0
-                if (m.transform or 0) % 2 == 1 then mw, mh = mh, mw end
-                local sc = (m.scale and m.scale > 0) and m.scale or 1
-                w, h = math.floor(mw / sc + 0.5), math.floor(mh / sc + 0.5)
-            end
-        end
-        fact.main_w, fact.main_h = w, h
-        -- the keyboard goes to the monitor the pointer is on, so the pointer is brought to the one that has the bar
-        if then_focus and w > 0 then
-            run("hyprctl", { "dispatch", 'hl.dsp.focus({ monitor = "' .. cfg.monitor .. '" })' }, function() end)
-        end
-    end)
-end
-resolve_monitor()
-every(15000, function() if not fact.locked then resolve_monitor() end end)
 on("text:cfg_monitor", function(t)
     t = (t or ""):match("^[%w%._%-]+$") and t or "all"
     cfg.monitor = t
     save_cfg()
-    resolve_monitor()
 end)
+local function focus_monitor()
+    if cfg.monitor ~= "all" and cfg.monitor ~= "" then
+        run("hyprctl", { "dispatch", 'hl.dsp.focus({ monitor = "' .. cfg.monitor .. '" })' }, function() end)
+    end
+end
 
 -- ── The clock ────────────────────────────────────────────────────────────────────────────────────────
 local weekdays = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }
@@ -401,7 +376,7 @@ end
 
 on("fact:locked", function(v)
     if v then
-        resolve_monitor(true)
+        focus_monitor()
         reset()
         fact.settled = false
         -- the entrance is 2.2 s; after that nothing on the screen needs the clock any more
