@@ -2210,18 +2210,6 @@ scene Vitreus {
     let dz.ix = screen.width - 7.5 * cu - dz.iw / 2
     let dz.iy = vc
     let dz.stretch = clamp(vel(dz) * 0.07, 0, 0.5)
-    //  The control center opens when the pointer rests on its button, and closes when it has left the button and the drawer (a moment's grace, so
-    //  that crossing the gap does not close it). It is quick launch, so it stays joined to the strip instead of dropping out of it.
-    //  Both are invisible zones (`ctl_btn_z`, `ctl_band_z`, below), not the mouse's position: naming `cursor` made pleamar ask Hyprland where the
-    //  mouse was thirty times a second, and every move of it, anywhere on the desktop, made the scene work itself out again (3% of a core).
-    //  What keeps it open is a fixed band, not the drawer as it is drawn: the drawer is as tall as what it holds (a sub-view, the mixer or the
-    //  output list opening or closing) and sits where its height lets the frame clamp it, so what the pointer was on can end up outside the drawn
-    //  one, and it closed under the pointer. The band is the drawer at its tallest (`ctl.cmax`: the main view with the larger of the output list and the
-    //  mixer under the volume card, or the tallest sub-view, 312). It is placed the way the drawer is, and the drawer at its tallest covers it at any
-    //  shorter height: its top only goes up and its foot only down as it grows. So it depends on how many outputs and apps there are, never on what is open.
-    let ctl.cmax = max(vol_bot + max(dd.rows * 30 - 28, mix.m), 312)
-    let ctl.zh = (ctl.cmax + 16) * cu + 13 * cu
-    let ctl.zc = clamp(lv.ctl, yo + lf.t + 24 * u + ctl.zh / 2, vb - lf.t - 24 * u - ctl.zh / 2)
     //  The notches (Frame layout only). Touch the middle of the top frame and a small tab grows out of it, with the three dots the volume
     //  card has under its plate; touch the bottom frame's middle and one grows up out of it. Pressing the tab opens the panel that
     //  comes out of that edge (the launcher from the top, Settings from the bottom), and pressing it again closes it. Hovering only
@@ -2354,38 +2342,14 @@ scene Vitreus {
     on press ntn_t { panel = if(panel == launch, none, launch) }
     on press ntn_b { panel = if(panel == settings, none, settings) }
     //  Declared here, before the bar and the panels, so that every zone of theirs drawn over them still takes its own presses.
-    zone box ctl_btn_z { at: lf.w / 2, lv.ctl; size: lf.w, 36 * u; active: lm > 0.5 }
-    zone box ctl_band_z { at: dk.ex, ctl.zc; size: dk.ew + 8, ctl.zh + 8; active: lm > 0.5 and panel == controls }
-    prop ctl_arm = 0 ~120ms
-    follow ctl_arm = if(ctl_btn_z.hover > 0.5, 1, 0)
-    prop ctl_hold = 0 ~280ms
-    follow ctl_hold = if(max(ctl_btn_z.hover, ctl_band_z.hover) > 0.5, 1, 0)
-    on change ctl_arm > 0.9 while ctl_arm > 0.9 { panel = controls }
-    //  Coming from the calendar's button, the pointer has already shown what it wants: answer half way through the arm instead of at the end.
-    on change ctl_arm > 0.5 while ctl_arm > 0.5 and panel == calendar { panel = controls }
-    on change ctl_hold < 0.05 while ctl_hold < 0.05 and panel == controls and lm > 0.5 { panel = none }
-    //  The calendar the same way, from the clock.
-    zone box cal_btn_z { at: lf.w / 2, lv.clk + 30 * u; size: lf.w, 104 * u; active: lm > 0.5 }
-    zone box cal_band_z { at: dc.ex, dc.ey; size: dc.ew + 8, dc.eh + 8; active: lm > 0.5 and panel == calendar }
-    prop cal_arm = 0 ~120ms
-    follow cal_arm = if(cal_btn_z.hover > 0.5, 1, 0)
-    prop cal_hold = 0 ~280ms
-    follow cal_hold = if(max(cal_btn_z.hover, cal_band_z.hover) > 0.5, 1, 0)
-    on change cal_arm > 0.9 while cal_arm > 0.9 { panel = calendar }
-    on change cal_arm > 0.5 while cal_arm > 0.5 and panel == controls { panel = calendar }
-    on change cal_hold < 0.05 while cal_hold < 0.05 and panel == calendar and lm > 0.5 { panel = none }
-    //  The window title (and the player's buttons over it) the same way: resting on it opens the player's panel, which stays while the pointer is on the title or the drawer.
-    zone box pl_btn_z { at: lf.w / 2, lv.y0 + (lv.mc + lv.span) / 2; size: lf.w, max(1, lv.mc + lv.span); active: lm > 0.5 and bv.title and lv.span > 20 * u }
-    zone box pl_band_z { at: dm.ex, dm.ey; size: dm.ew + 8, dm.eh + 8; active: lm > 0.5 and panel == player }
-    prop pl_arm = 0 ~120ms
-    follow pl_arm = if(pl_btn_z.hover > 0.5, 1, 0)
-    prop pl_hold = 0 ~280ms
-    follow pl_hold = if(max(pl_btn_z.hover, pl_band_z.hover) > 0.5, 1, 0)
-    on change pl_arm > 0.9 while pl_arm > 0.9 { panel = player }
-    on change pl_arm > 0.5 while pl_arm > 0.5 and (panel == controls or panel == calendar) { panel = player }
-    on change ctl_arm > 0.5 while ctl_arm > 0.5 and panel == player { panel = controls }
-    on change cal_arm > 0.5 while cal_arm > 0.5 and panel == player { panel = calendar }
-    on change pl_hold < 0.05 while pl_hold < 0.05 and panel == player and lm > 0.5 { panel = none }
+    //  The control centre and the calendar open on a click, from the strip's icon and its clock; a click on either again, a click anywhere else or Esc closes them.
+    zone box ctl_btn_z { at: lf.w / 2, lv.ctl; size: lf.w, 36 * u; cursor: pointer; active: lm > 0.5 }
+    on press ctl_btn_z { panel = if(panel == controls, none, controls) }
+    zone box cal_btn_z { at: lf.w / 2, lv.clk + 30 * u; size: lf.w, 104 * u; cursor: pointer; active: lm > 0.5 }
+    on press cal_btn_z { panel = if(panel == calendar, none, calendar) }
+    //  The window title (and the player's buttons over it) the same way: a click on it opens the player's panel.
+    zone box pl_btn_z { at: lf.w / 2, lv.y0 + (lv.mc + lv.span) / 2; size: lf.w, max(1, lv.mc + lv.span); cursor: pointer; active: lm > 0.5 and bv.title and lv.span > 20 * u }
+    on press pl_btn_z { panel = if(panel == player, none, player) }
     on change dm > 0.5 while dm > 0.5 and panel == player { lp_k = 6; lp_w = 312 }
     //  Where the contents hang from: the panel's old middle, so they keep their
     //  place when the panel grows to make room for the player.
