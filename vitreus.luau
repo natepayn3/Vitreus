@@ -4456,35 +4456,11 @@ require("logic/nightmode")(with_dirs)
         return files
     end
 
-    -- A video's hexagon plays while it is hovered: a few seconds of it as an animated PNG, in the hexagon's own shape (the still
-    -- hexagon's alpha is the mask), made when it is first hovered (a fraction of a second) and kept. The still shows until it is there.
-    G.clips = {}                                         -- video -> true (made) | "busy"
-    function G.clip(f)
-        local out = G.dir .. "/" .. name_of(f) .. ".clip.png"
-        local function show() if G.hovered == f then text.wp_picker_hex_img = out; fact.wp_picker_clip = true end end
-        if G.clips[f] == true then show() return end
-        if G.clips[f] or not G.have[name_of(f)] then return end
-        G.clips[f] = "busy"
-        run("ffmpeg", { "-y", "-loglevel", "error", "-i", f, "-i", hex_of(f), "-t", "3", "-filter_complex",
-                        "[0:v]fps=12,scale=" .. (TW + 2 * PAD) .. ":" .. (TH + 2 * PAD) .. ":force_original_aspect_ratio=increase,crop="
-                            .. (TW + 2 * PAD) .. ":" .. (TH + 2 * PAD) .. ",format=rgba[v];[1:v]alphaextract[a];[v][a]alphamerge",
-                        "-f", "apng", "-plays", "0", out }, function(_, code)
-            G.clips[f] = code == 0 or nil
-            if code == 0 then
-                show()
-            end
-        end)
-    end
-
     local function set_name(i)
         local f = G.files and G.files[i + 1]
         if not f then return end
-        text.wp_picker_hero_name = stem(f)
-        G.hovered = f
-        fact.wp_picker_clip = false
-        text.wp_picker_hex_img = hex_of(f)
+        text.wp_picker_hero_name = name_of(f)
         fact.wp_picker_hero_cur = f == wp_cur
-        if wpv.is(f) then G.clip(f) end
     end
     on("fact:wp_picker_hot", function(v) if type(v) == "number" and v >= 0 then set_name(math.floor(v + 0.5)) end end)
 

@@ -1027,7 +1027,6 @@ scene Vitreus {
     text wp_picker_status = ""                // "Reading your wallpapers… 42 of 137" while the first analysis runs
     text wp_picker_hero_name = ""             // the name of the hexagon under the pointer
     fact wp_picker_hero_cur = false           // the one under the pointer is the wallpaper in use
-    fact wp_picker_clip = false               // the hovered hexagon is a video whose clip is ready: it plays in place of the still
     fact wp_picker_hot = -1                   // the hexagon under the pointer, -1 none
     fact wp_picker_px = 0                     // where a pick was, for awww: pixels from the bottom left
     fact wp_picker_py = 0
@@ -1044,8 +1043,6 @@ scene Vitreus {
     //  arrives, and its edge ripples (`liquid.wgsl`).
     shader liquid = file "liquid.wgsl"
     spring wp_picker_pop = 240, 14             // a spring that overshoots (about 17%): the snap out to the large size bounces
-    text wp_picker_hex_img = ""               // the hovered hexagon's picture, from the logic
-    image wp_picker_lens = from wp_picker_hex_img, 124, 143
     fact wp_picker_hx = 0                     // where the hovered hexagon is
     fact wp_picker_hy = 0
     prop wp_picker_hs = 0 ~wp_picker_pop            // 0 at rest, 1 hovered (it overshoots)
@@ -2610,7 +2607,8 @@ scene Vitreus {
     //  off) and the ring next to it shrinks a little. The hovered one grows on its own spring (`gt`). `sg` is how far this reaches.
     let g.K = 0.55 * clamp(wp_picker_hs, 0, 1.1)
     let g.sg = 1.5 * g.w
-    let g.y0 = yo + (vh - g.gh - 60) / 2             // centred on the screen (the foot line takes 60 below the hexagons)
+    let g.foot = 0.8 * g.R + 64                      // what the foot line takes below the hexagons: the hovered one in the last row swells down over 0.7 of a radius, and the line goes under that
+    let g.y0 = yo + (vh - g.gh - g.foot) / 2          // centred on the screen
 
     group {
         show: wp_picker_show > 0.01
@@ -2672,9 +2670,7 @@ scene Vitreus {
                 }
                 group {
                     clip path { at: bxl, byl; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
-                    image wp_picker.$i.img { at: bxl - 0.866 * rr * 124 / 120, byl - rr * 143 / 139; size: 1.732 * rr * 124 / 120, 2 * rr * 143 / 139; show: not wp_picker_clip }
-                    //  A video's hexagon plays once its clip is made (the logic points `wp_picker_hex_img` at it): until then the still above.
-                    image wp_picker_lens { at: bxl - 0.866 * rr * 124 / 120, byl - rr * 143 / 139; size: 1.732 * rr * 124 / 120, 2 * rr * 143 / 139; show: wp_picker_clip }
+                    image wp_picker.$i.img { at: bxl - 0.866 * rr * 124 / 120, byl - rr * 143 / 139; size: 1.732 * rr * 124 / 120, 2 * rr * 143 / 139 }
                 }
                 path { at: bxl, byl; stroke: 3.4; color: if(cu > 0, mint, #ffffff); opacity: 95%; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
             }
@@ -2686,9 +2682,9 @@ scene Vitreus {
         }
 
         //  The foot: the name of the one under the pointer, or a line of help; and Random.
-        let fy = g.y0 + g.gh + 36
-        text wp_picker_hero_name { at: floor(cx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 640; lines: 1; color: #ffffff; family: "Space Grotesk"; show: wp_picker_hot >= 0 }
-        text "Pick a wallpaper  ·  Esc or a click outside closes" { at: floor(cx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 13; color: #ffffff; opacity: 42%; family: "Space Grotesk"; show: wp_picker_hot < 0 and wp_picker.count > 0 }
+        let fy = g.y0 + g.gh + g.foot - 22
+        text wp_picker_hero_name { at: floor(cx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 23; weight: 700; width: 900; lines: 1; color: #ffffff; family: "Space Grotesk"; show: wp_picker_hot >= 0 }
+        text "Pick a wallpaper  ·  Esc or a click outside closes" { at: floor(cx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 18; color: #ffffff; opacity: 55%; family: "Space Grotesk"; show: wp_picker_hot < 0 and wp_picker.count > 0 }
         text wp_picker_status { at: floor(cx + 0.5), floor(yo + vh / 2 + 0.5); anchor: center; align: center; size: 16; weight: 600; width: 600; lines: 1; color: #ffffff; opacity: 70%; family: "Space Grotesk"; show: wp_picker.count < 1 }
     }
 
