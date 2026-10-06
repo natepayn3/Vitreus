@@ -39,8 +39,8 @@ autostart="$conf/pleamar/autostart"
 fonts="$data/fonts/SpaceGrotesk"
 
 # Official-repo packages, then AUR ones: what each is for is in the README.
-pacman_pkgs="git curl fontconfig imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle hyprsunset libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww grim slurp wf-recorder power-profiles-daemon polkit python-gobject python-pyte ttf-space-mono-nerd pipewire-audio sound-theme-freedesktop"
-aur_pkgs="iris-colors"
+pacman_pkgs="git curl fontconfig imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle hyprsunset libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww ffmpeg grim slurp wf-recorder power-profiles-daemon polkit python-gobject python-pyte ttf-space-mono-nerd pipewire-audio sound-theme-freedesktop"
+aur_pkgs="iris-colors mpvpaper"
 
 assume_yes=false
 dry=false
@@ -196,6 +196,7 @@ if $deps; then
     cava            the bass pulse and the equalizer
     playerctl       cover art
     awww            the wallpaper picker
+    mpvpaper (AUR), ffmpeg  video wallpapers (mp4, webm): mpvpaper plays them, ffmpeg takes the frame the rest of the shell reads
     iris            theming from the wallpaper (https://aur.archlinux.org/packages/iris-colors)
     imagemagick     wallpaper thumbnails, the launcher's picture previews
     wl-clipboard    the launcher copying (wl-copy), and Capture copying a screenshot

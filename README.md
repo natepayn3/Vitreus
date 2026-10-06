@@ -183,6 +183,7 @@ Optional, each enabling one thing (Vitreus runs without them and that part stays
 | `cava` | the bass pulse in the bar and the equalizer in the player |
 | `playerctl` | cover art for the player |
 | `awww` | the wallpaper picker, and Iris following your wallpaper |
+| `mpvpaper` (AUR) + `ffmpeg` | video wallpapers (mp4, webm) in the wallpaper picker: mpvpaper plays the video over awww, and ffmpeg takes the frame (kept in the cache) that Iris, the thumbnails and the lock screen read |
 | `iris` | theming from the wallpaper |
 | `imagemagick` | wallpaper thumbnails (cropped once, cached), and the launcher's picture previews |
 | `wl-clipboard` (`wl-copy`) | the launcher copying an emoji, a sum's answer or a clipboard entry |
