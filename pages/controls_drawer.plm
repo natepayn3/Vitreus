@@ -1,0 +1,910 @@
+part ControlsDrawer {
+    //  The controls' content is clipped to the drawer's shape.
+    group {
+        clip inset 2 box { at: mix(pcx, dk.gx, lm), mix(bar.y + dk.hh / 2, lp.cy, lm); size: mix(dk.w, dk.gw, lm), mix(dk.hh, dk.gh, lm); corner: 26 * cu }
+        //  Down the left it comes out of the strip: what is inside grows with the drawer's shape (`dk.lf`), from the strip's edge at the panel's middle, instead of waiting still under the clip.
+        group {
+            pivot: lp.xl, lp.cy
+            scale: mix(1, max(dk.lf, 0.05), lm * att)
+        //  A plate is a veil, not more glass: glass does not go on glass.
+        group {
+            opacity: f5 * clamp(1 - expand0, 0, 1)
+            move: 0, (1 - f5) * 12 * cu
+            let vol_cy = ck + (vol_top + 32) * cu
+            box { at: pcx, vol_cy + (vp.h - 64) / 2 * cu; size: 288 * cu, vp.h * cu; corner: 14 * cu; color: ink; opacity: veil }
+            //  ── the slider ──
+            //  The track runs from `sl.x0` for `sl.w`; the pointer is turned into a volume
+            //  against those two numbers, so they are written once.
+            let sl.x0 = pcx - 96 * cu
+            let sl.w = 222 * cu
+            let sy = vol_cy + 11 * cu
+            let th = (16 + 3 * vol_hit.hover) * cu          // the track thickens under the pointer
+            //  A speaker on the left that says how loud it is: two waves that come and go
+            //  with the level, or a slash when it is silenced.
+            path { at: pcx - 124 * cu, sy; color: ink; opacity: 70% + 30% * mute_hit.hover; move 0, -3 * cu; line 3.5 * cu, -3 * cu; line 8 * cu, -7 * cu; line 8 * cu, 7 * cu; line 3.5 * cu, 3 * cu; line 0, 3 * cu; close }
+            path { at: pcx - 124 * cu, sy; stroke: 1.5 * cu; color: ink; opacity: if(audio.muted, 0, 25% + 75% * clamp(volume_level * 12, 0, 1)); move 11 * cu, -3 * cu; curve 11 * cu, 3 * cu via 14 * cu, 0 }
+            path { at: pcx - 124 * cu, sy; stroke: 1.5 * cu; color: ink; opacity: if(audio.muted, 0, 20% + 80% * clamp((volume_level - 0.35) * 4, 0, 1)); move 14 * cu, -6.5 * cu; curve 14 * cu, 6.5 * cu via 20 * cu, 0 }
+            path { at: pcx - 124 * cu, sy; stroke: 1.6 * cu; color: alert; opacity: if(audio.muted, 100%, 0); move 11 * cu, -5 * cu; line 20 * cu, 5 * cu }
+            //  The track is a sunken pill with its own thin light on the inside.
+            body {
+                color: deep
+                rim: 9%
+                box { at: sl.x0 + sl.w / 2, sy; size: sl.w, th; corner: th / 2 }
+            }
+            //  The fill is a gradient laid along the whole track, so the more there is, the
+            //  brighter its end. It glows a little.
+            group {
+                glow: 7 * cu, 50%, mint
+                show: not audio.muted
+                body {
+                    gradient: sl.x0, 0 to sl.x0 + sl.w, 0, mintlo, mint 55%, minthi
+                    rim: 22%
+                    box { from: sl.x0, sy - th / 2; size: max(0.1, sl.w * volume_level), th; corner: th / 2 }
+                }
+            }
+            body {
+                color: off
+                rim: 12%
+                show: audio.muted
+                box { from: sl.x0, sy - th / 2; size: max(0.1, sl.w * volume_level), th; corner: th / 2 }
+            }
+            //  The zone that takes the click: the whole track and a little more each side
+            //  and above and below, so it is easy to hit; on the press and all through a drag
+            //  it turns where the pointer is into a volume.
+            zone box vol_plate { at: pcx, vol_cy + (vp.h - 64) / 2 * cu; size: 288 * cu, vp.h * cu; corner: 14 * cu }
+            on press right vol_plate { vm_open = not vm_open; dd_open = false }
+            zone box vol_hit { at: sl.x0 + sl.w / 2, sy; size: sl.w + 16 * cu, 24 * cu; cursor: pointer }
+            on press vol_hit { emit setvol(clamp((pointer.x - sl.x0) / sl.w, 0, 1)) }
+            on press right vol_hit { vm_open = not vm_open; dd_open = false }
+            on drag vol_hit { emit setvol(clamp((pointer.x - sl.x0) / sl.w, 0, 1)) }
+            //  Three small dots at the foot of the plate say there is more under it: the mixer. They are a button too
+            //  (right-clicking the plate does the same).
+            repeat i in 0..3 {
+                ellipse { at: pcx + (i - 1) * 6.5 * cu, vol_cy + (vp.h - 36.5) * cu; radius: 1.6 * cu; color: ink; opacity: (35% + 55% * mix_hit.hover) * (1 - clamp(vm * 1.6, 0, 1)) * clamp(mvis, 0, 1) }
+            }
+            //  While it is open the dots give way to an arrow pointing up: press it to fold the mixer away.
+            path { at: pcx, vol_cy + (vp.h - 36.5) * cu; stroke: 1.6 * cu; color: mint; opacity: (55% + 40% * mix_hit.hover) * clamp(vm * 1.6 - 0.6, 0, 1) * clamp(mvis, 0, 1); move -4.5 * cu, 1.8 * cu; line 0, -1.8 * cu; line 4.5 * cu, 1.8 * cu }
+            zone box mix_hit { at: pcx, vol_cy + (vp.h - 36.5) * cu; size: 40 * cu, 9 * cu; corner: 4.5 * cu; cursor: pointer; active: mixer.count > 0 or vm_open }
+            on press mix_hit { vm_open = not vm_open; dd_open = false }
+            on press right mix_hit { vm_open = not vm_open; dd_open = false }
+            //  The speaker is a mute button. Declared after the track's zone, which reaches
+            //  a little way under it, so the icon wins there.
+            zone box mute_hit { at: pcx - 114 * cu, sy; size: 26 * cu, 32 * cu; cursor: pointer }
+            on press mute_hit { emit mute }
+            on press right mute_hit { vm_open = not vm_open; dd_open = false }
+            //  The row above the track: which output, and how loud.
+            //  Name and chevron are one button, right-aligned next to the percentage: the
+            //  name ends where the chevron starts, and the zone is measured from the name.
+            //  Unseen copy with no width limit, only to know how wide the name really is.
+            text outname { at: floor(pcx + 66 * cu + 0.5), floor(vol_cy - 14 * cu + 0.5); anchor: right center; size: 16; lines: 1; measure: outw; opacity: 0; family: "Space Grotesk" }
+            text outname { at: floor(pcx + 66 * cu + 0.5), floor(vol_cy - 14 * cu + 0.5); anchor: right center; align: right; size: 16; width: 130 * cu; lines: 1; color: faint; opacity: 65% + 35% * out_hit.hover; family: "Space Grotesk" }
+            //  The percentage is centred between the end of the track (pcx + 74) and the plate's edge (pcx + 158).
+            text number(audio.volume * 100, 0, "%") { at: floor(pcx + 128 * cu + 0.5), floor(vol_cy - 14 * cu + 0.5); anchor: right center; size: 18.5; weight: 600; color: ink; family: "Space Grotesk"; show: not audio.muted }
+            text "Muted" { at: floor(pcx + 128 * cu + 0.5), floor(vol_cy - 14 * cu + 0.5); anchor: right center; size: 18.5; weight: 600; color: faint; family: "Space Grotesk"; show: audio.muted }
+            //  The output name is a button: it opens the list of outputs.
+            path { at: pcx + 76 * cu, vol_cy - 14 * cu; stroke: 1.4 * cu; color: ink; opacity: 55% + 35% * out_hit.hover; move -3.5 * cu, -2 * cu; line 0, 2 * cu; line 3.5 * cu, -2 * cu }
+            let out.w = min(outw.width, 130 * cu) + 30 * cu
+            zone box out_hit { at: pcx + 86 * cu - out.w / 2, vol_cy - 14 * cu; size: out.w, 30 * cu; cursor: pointer }
+            on press out_hit { toggle dd_open; vm_open = false }
+            on press right out_hit { vm_open = not vm_open; dd_open = false }
+            text "Volume" { at: floor(pcx - 128 * cu + 0.5), floor(vol_cy - 14 * cu + 0.5); anchor: left center; size: 16; color: faint; family: "Space Grotesk" }
+        }
+
+        //  The mixer: every app that is playing, each with a slider of its own, inside the volume card (which grows to hold
+        //  them). Right-click the card, or press its dots, to open it.
+        group {
+            show: vm > 0.01
+            opacity: f5 * clamp(1 - expand0, 0, 1) * clamp(vm, 0, 1) * (1 - clamp(dd * 2, 0, 1))
+            let mix_top = ck + (vol_top + 58) * cu                   // under the slider, inside the card
+            clip inset 0 box { at: pcx, mix_top + (mix.m - 12) * cu * clamp(vm, 0, 1) / 2; size: 288 * cu, (mix.m - 12) * cu * clamp(vm, 0, 1) }
+            text "No app is playing sound" { at: floor(pcx + 0.5), floor(mix_top + 12 * cu + 0.5); anchor: center; align: center; size: 12.5; color: faint; family: "Space Grotesk"; show: mixer.count < 1 }
+            column mixcol {
+                at: floor(pcx - 144 * cu + 0.5), floor(mix_top + 0.5)
+                view: 288 * cu, max(1, mixer.count * 32 - 4) * cu
+                gap: floor(4 * cu + 0.5)
+                for m in mixer { MixRow(m, set: mix_set, mute: mix_mute) }
+            }
+        }
+
+        //  Brightness: the volume slider's shape again, in miniature — a sun
+        //  that opens its rays as the backlight climbs. Dimmed, not hidden,
+        //  on a machine with no backlight to move.
+        group {
+            opacity: f6 * mix(0.45, 1, brightness.present) * mix(0.45, 1, bright_avail) * clamp(1 - expand0, 0, 1)
+            move: 0, (1 - f6) * 12 * cu
+            let bcy = ck + (bright_top + 32) * cu
+            box { at: pcx, bcy; size: 288 * cu, 64 * cu; corner: 14 * cu; color: ink; opacity: veil }
+            let bsl.x0 = pcx - 96 * cu
+            let bsl.w = 222 * cu
+            let bsy = bcy + 14 * cu
+            let bth = (16 + 3 * bright_hit.hover) * cu
+            ellipse { at: pcx - 119 * cu, bsy; radius: 3 * cu; color: ink; opacity: 70% + 30% * bright_hit.hover }
+            path { at: pcx - 119 * cu, bsy; stroke: 1.3 * cu; color: ink; opacity: 40% + 60% * bright_level; move -3.8 * cu, -3.8 * cu; line -(5.5 + 1.5 * bright_level) * cu, -(5.5 + 1.5 * bright_level) * cu }
+            path { at: pcx - 119 * cu, bsy; stroke: 1.3 * cu; color: ink; opacity: 40% + 60% * bright_level; move 3.8 * cu, -3.8 * cu; line (5.5 + 1.5 * bright_level) * cu, -(5.5 + 1.5 * bright_level) * cu }
+            path { at: pcx - 119 * cu, bsy; stroke: 1.3 * cu; color: ink; opacity: 40% + 60% * bright_level; move -3.8 * cu, 3.8 * cu; line -(5.5 + 1.5 * bright_level) * cu, (5.5 + 1.5 * bright_level) * cu }
+            path { at: pcx - 119 * cu, bsy; stroke: 1.3 * cu; color: ink; opacity: 40% + 60% * bright_level; move 3.8 * cu, 3.8 * cu; line (5.5 + 1.5 * bright_level) * cu, (5.5 + 1.5 * bright_level) * cu }
+            body {
+                color: deep
+                rim: 9%
+                box { at: bsl.x0 + bsl.w / 2, bsy; size: bsl.w, bth; corner: bth / 2 }
+            }
+            group {
+                glow: 7 * cu, 50%, mint
+                body {
+                    gradient: bsl.x0, 0 to bsl.x0 + bsl.w, 0, mintlo, mint 55%, minthi
+                    rim: 22%
+                    box { from: bsl.x0, bsy - bth / 2; size: max(0.1, bsl.w * bright_level), bth; corner: bth / 2 }
+                }
+            }
+            zone box bright_hit { at: bsl.x0 + bsl.w / 2, bsy; size: bsl.w + 28 * cu, 34 * cu; cursor: pointer; active: brightness.present and bright_avail }
+            on press bright_hit { emit setbright(clamp((pointer.x - bsl.x0) / bsl.w, 0, 1)) }
+            on drag bright_hit { emit setbright(clamp((pointer.x - bsl.x0) / bsl.w, 0, 1)) }
+            text number(bright_level * 100, 0, "%") { at: floor(pcx + 128 * cu + 0.5), floor(bcy - 14 * cu + 0.5); anchor: right center; size: 18.5; weight: 600; color: ink; family: "Space Grotesk"; show: brightness.present and bright_avail }
+            text "No backlight" { at: floor(pcx + 128 * cu + 0.5), floor(bcy - 14 * cu + 0.5); anchor: right center; size: 15; color: faint; family: "Space Grotesk"; show: not brightness.present }
+            text "brightnessctl missing" { at: floor(pcx + 128 * cu + 0.5), floor(bcy - 14 * cu + 0.5); anchor: right center; size: 14; color: faint; family: "Space Grotesk"; show: brightness.present and not bright_avail }
+            text "Brightness" { at: floor(pcx - 128 * cu + 0.5), floor(bcy - 14 * cu + 0.5); anchor: left center; size: 16; color: faint; family: "Space Grotesk" }
+        }
+
+        //  Wi-Fi and Bluetooth: two narrow tiles side by side, each just its
+        //  name, a signal, and the toggle for its radio. Tapping the rest of
+        //  the tile - the toggle has its own small zone, declared after so it
+        //  wins there - grows it into its own window, below.
+        group {
+            opacity: f2 * clamp(1 - expand0, 0, 1)
+            move: 0, (1 - f2) * 12 * cu
+            let tile_cy = ck + (tiles_top + tiles_h / 2) * cu
+            let tile2_cy = ck + (tiles2_top + tiles_h / 2) * cu
+            //  Six tiles, three across and two down. Each one hangs its content from a `base` 21 right of its middle: tile 1's middle
+            //  is 97 left of the drawer's, tile 3's 97 right of it.
+            let tb1 = pcx - 76 * cu
+            let tb2 = pcx + 21 * cu
+            let tb3 = pcx + 118 * cu
+
+            box { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: veil }
+            box { at: tb1 - 53 * cu, tile_cy - 14 * cu; size: 3 * cu, 6 * cu;  corner: 1.5 * cu; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 0.3, 0, 1), 30%) * (1 - wf_hold) }
+            box { at: tb1 - 48 * cu, tile_cy - 16 * cu; size: 3 * cu, 10 * cu; corner: 1.5 * cu; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 0.65, 0, 1), 30%) * (1 - wf_hold) }
+            box { at: tb1 - 43 * cu, tile_cy - 18 * cu; size: 3 * cu, 14 * cu; corner: 1.5 * cu; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 1.0, 0, 1), 30%) * (1 - wf_hold) }
+            text "Wi-Fi" { at: floor(tb1 - 58 * cu + 0.5), floor(tile_cy + 4 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
+            text net.name { at: floor(tb1 - 58 * cu + 0.5), floor(tile_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: on_wifi }
+            text "Disconnected" { at: floor(tb1 - 58 * cu + 0.5), floor(tile_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; color: faint; family: "Space Grotesk"; show: net.wifi and not (on_wifi) }
+            text "Off" { at: floor(tb1 - 58 * cu + 0.5), floor(tile_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; color: faint; family: "Space Grotesk"; show: not net.wifi }
+            //  The Wi-Fi pill. Where things are: the track keeps its right edge and, held, grows to the left into a signal meter;
+            //  `wf_m` is how much it is moving (0 at rest, 1 half way), which the ridges, the light and the squish ride on.
+            let wf_m    = clamp(4 * wifi_on * (1 - wifi_on), 0, 1)
+            let wf_w    = (34 + 4 * wifi_on + 26 * wf_hold) * cu
+            let wf_cx   = tb1 + 18 * cu - wf_w / 2
+            let wf_cy   = tile_cy - 18 * cu
+            let wf_l    = wf_cx - wf_w / 2
+            let wf_sg   = clamp(net.strength, 0.08, 1)
+            let wf_t    = wifi_on * (1 - wf_hold + wf_hold * wf_sg)
+            let wf_kx   = wf_l + 11 * cu + wf_t * (wf_w - 22 * cu)
+            let wf_kw   = (17 + 9 * wf_m + 7 * wf_press) * cu
+            let wf_kh   = (17 - 3 * wf_m - 2 * wf_press) * cu
+            let wf_dk   = off
+
+            //  Tile fills up: colour floods from the toggle, and drains back to it.
+            group {
+                clip inset 0 box { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu }
+                ellipse { at: tb1 + 5 * cu, wf_cy; radius: clamp(wf_fill, 0, 1.2) * 96 * cu; color: mint; opacity: 15% }
+                //  Ripple from the touch: a thin ring that leaves the finger and fades.
+                ellipse { at: wf_rx, wf_ry; radius: wf_rip * 70 * cu; stroke: 1.4 * cu; color: mint; opacity: (1 - wf_rip) * 55% }
+            }
+
+            //  The track. Off it is a dark hollow; on it is raised and lit from inside.
+            body {
+                color: mix(off, mint, clamp(wifi_on * (1 - wf_hold), 0, 1))
+                shadow: 0, 0, 10 * cu * wifi_on, 48% * wifi_on, mint
+                rim: 16% * wifi_on
+                box { at: wf_cx, wf_cy; size: wf_w, 22 * cu; corner: (11 - 2 * wifi_on) * cu }
+            }
+            group {
+                clip inset 0 box { at: wf_cx, wf_cy; size: wf_w, 22 * cu; corner: (11 - 2 * wifi_on) * cu }
+                //  Held: the track shows the signal as a mint bar up to the knob.
+                box { from: wf_l, wf_cy - 11 * cu; size: wf_kx - wf_l + 8 * cu, 22 * cu; color: mint; opacity: wf_hold * wifi_on }
+                //  Off: the hollow's inner shadow (dark above, a faint lip below).
+                group {
+                    blur: 3 * cu
+                    box { from: wf_l - 6 * cu, wf_cy - 18 * cu; size: wf_w + 12 * cu, 9 * cu; color: #000000; opacity: 55% * (1 - wifi_on) }
+                }
+                box { from: wf_l, wf_cy + 9.5 * cu; size: wf_w, 1.5 * cu; color: ink; opacity: 12% * (1 - wifi_on) }
+                //  A light that travels with the knob and drains back into it.
+                group {
+                    blur: 5 * cu
+                    ellipse { at: wf_kx, wf_cy; radius: (6 + 8 * wifi_on + 4 * wf_m) * cu; color: ink; opacity: 22% * wifi_on + 28% * wf_m }
+                }
+                //  Ridges that slide past as it moves, like a real switch.
+                repeat i in 0..8 {
+                    box { at: wf_l + (4.5 + 5 * i - (wifi_on - 0.5) * 9) * cu, wf_cy; size: 1.2 * cu, 9 * cu; corner: 0.6 * cu; color: ink; opacity: 24% * wf_m }
+                }
+            }
+
+            //  The knob: a plain solid one, swelling under the finger, with a Wi-Fi mark on it that is solid with the radio on
+            //  and an outline, crossed out, with it off.
+            body {
+                color: ink
+                shadow: 0, 2 * cu, 5 * cu, 26%
+                box { at: wf_kx, wf_cy; size: wf_kw, wf_kh; corner: (8.5 - 2 * clamp(wifi_on, 0, 1) - 1.5 * wf_m) * cu }
+            }
+            let wf_gy = wf_cy + 3.4 * cu
+            ellipse { at: wf_kx, wf_gy; radius: 1.5 * cu; color: wf_dk; opacity: glyph_a * (wifi_on) }
+            arc { at: wf_kx, wf_gy; radius: 4.2 * cu; span: 92deg; width: 1.4 * cu; color: wf_dk; opacity: glyph_a * (wifi_on) }
+            arc { at: wf_kx, wf_gy; radius: 7.2 * cu; span: 92deg; width: 1.4 * cu; color: wf_dk; opacity: glyph_a * (wifi_on * clamp(net.strength / 0.5 + 0.35, 0, 1)) }
+            arc { at: wf_kx, wf_gy; radius: 4.2 * cu; span: 92deg; width: 1.1 * cu; color: wf_dk; opacity: glyph_a * (0.7 * (1 - wifi_on)) }
+            arc { at: wf_kx, wf_gy; radius: 7.2 * cu; span: 92deg; width: 1.1 * cu; color: wf_dk; opacity: glyph_a * (0.7 * (1 - wifi_on)) }
+            line { from: wf_kx - 5 * cu, wf_cy - 5 * cu; to: wf_kx + 5 * cu, wf_cy + 5 * cu; width: 1.4 * cu; color: wf_dk; opacity: glyph_a * (0.8 * (1 - wifi_on)) }
+
+            zone box wifi_tile_hit { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; cursor: pointer }
+            on press wifi_tile_hit { panel_sub = if(panel_sub == netview, none, netview) }
+            zone box wifi_toggle_hit { at: wf_cx, wf_cy; size: wf_w + 8 * cu, 30 * cu; cursor: pointer }
+            //  Press: squish, ring from the finger. Hold: the pill becomes a signal meter. Release flips the radio unless it was a hold.
+            on press wifi_toggle_hit { wf_press: 1; wf_rx = pointer.x; wf_ry = pointer.y; wf_rip: 0 ~0ms; wf_rip: 1 ~700ms after 40ms }
+            on hold wifi_toggle_hit for 450ms { wf_held = true; wf_hold: 1 }
+            on release wifi_toggle_hit while not wf_held { emit togglewifi(not net.wifi) }
+            on release wifi_toggle_hit { wf_press: 0; wf_hold: 0; wf_held = false }
+
+            box { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: veil }
+            box { at: tb1 - 48 * cu, tile2_cy - 18 * cu; size: 2.4 * cu, 16 * cu; corner: 1.2 * cu; color: ink; opacity: 45% + 55% * bt_on }
+            path { at: tb1 - 48 * cu, tile2_cy - 18 * cu; stroke: 1.5 * cu; color: ink; opacity: 45% + 55% * bt_on; move -4 * cu, -4 * cu; line 4 * cu, 4 * cu }
+            path { at: tb1 - 48 * cu, tile2_cy - 18 * cu; stroke: 1.5 * cu; color: ink; opacity: 45% + 55% * bt_on; move 4 * cu, -4 * cu; line -4 * cu, 4 * cu }
+            text "Bluetooth" { at: floor(tb1 - 58 * cu + 0.5), floor(tile2_cy + 4 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
+            text bt_name { at: floor(tb1 - 58 * cu + 0.5), floor(tile2_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: bt_connected }
+            text "No device" { at: floor(tb1 - 58 * cu + 0.5), floor(tile2_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; color: faint; family: "Space Grotesk"; show: bt.powered and not bt_connected }
+            text "Off" { at: floor(tb1 - 58 * cu + 0.5), floor(tile2_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; color: faint; family: "Space Grotesk"; show: not bt.powered }
+            //  gbt: the pill, like the Wi-Fi one. `gbt_m` is how much it is moving (0 at rest, 1 half way).
+            let gbt_m  = clamp(4 * bt_on * (1 - bt_on), 0, 1)
+            let gbt_w  = (34 + 4 * bt_on) * cu
+            let gbt_cx = tb1 + 18 * cu - gbt_w / 2
+            let gbt_cy = tile2_cy - 18 * cu
+            let gbt_l  = gbt_cx - gbt_w / 2
+            let gbt_kx = gbt_l + 11 * cu + bt_on * (gbt_w - 22 * cu)
+            let gbt_kw = (17 + 9 * gbt_m + 7 * bt_press) * cu
+            let gbt_kh = (17 - 3 * gbt_m - 2 * bt_press) * cu
+            let gbt_dk = off
+
+            //  Tile fills up from the toggle, and a thin ring leaves the touch.
+            group {
+                clip inset 0 box { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu }
+                ellipse { at: tb1 + 5 * cu, gbt_cy; radius: clamp(bt_fill, 0, 1.2) * 96 * cu; color: mint; opacity: 15% }
+                ellipse { at: bt_rx, bt_ry; radius: bt_rip * 70 * cu; stroke: 1.4 * cu; color: mint; opacity: (1 - bt_rip) * 55% }
+            }
+
+            //  The track: a dark hollow off, raised and lit from inside on.
+            body {
+                color: mix(off, mint, clamp(bt_on, 0, 1))
+                shadow: 0, 0, 10 * cu * bt_on, 48% * bt_on, mint
+                rim: 16% * bt_on
+                box { at: gbt_cx, gbt_cy; size: gbt_w, 22 * cu; corner: (11 - 2 * bt_on) * cu }
+            }
+            group {
+                clip inset 0 box { at: gbt_cx, gbt_cy; size: gbt_w, 22 * cu; corner: (11 - 2 * bt_on) * cu }
+                group {
+                    blur: 3 * cu
+                    box { from: gbt_l - 6 * cu, gbt_cy - 18 * cu; size: gbt_w + 12 * cu, 9 * cu; color: #000000; opacity: 55% * (1 - bt_on) }
+                }
+                box { from: gbt_l, gbt_cy + 9.5 * cu; size: gbt_w, 1.5 * cu; color: ink; opacity: 12% * (1 - bt_on) }
+                group {
+                    blur: 5 * cu
+                    ellipse { at: gbt_kx, gbt_cy; radius: (6 + 8 * bt_on + 4 * gbt_m) * cu; color: ink; opacity: 22% * bt_on + 28% * gbt_m }
+                }
+                repeat i in 0..8 {
+                    box { at: gbt_l + (4.5 + 5 * i - (bt_on - 0.5) * 9) * cu, gbt_cy; size: 1.2 * cu, 9 * cu; corner: 0.6 * cu; color: ink; opacity: 24% * gbt_m }
+                }
+            }
+
+            //  The knob: plain, solid, squared a little when on, swelling under the finger, with a mark on it.
+            body {
+                color: ink
+                shadow: 0, 2 * cu, 5 * cu, 26%
+                box { at: gbt_kx, gbt_cy; size: gbt_kw, gbt_kh; corner: (8.5 - 2 * clamp(bt_on, 0, 1) - 1.5 * gbt_m) * cu }
+            }
+            path { at: gbt_kx, gbt_cy; stroke: 1.3 * cu; color: gbt_dk; opacity: glyph_a * (bt_on); move -3.5 * cu, -3 * cu; line 3.5 * cu, 3 * cu; line 0, 5.5 * cu; line 0, -5.5 * cu; line 3.5 * cu, -3 * cu; line -3.5 * cu, 3 * cu }
+            path { at: gbt_kx, gbt_cy; stroke: 1.1 * cu; color: gbt_dk; opacity: glyph_a * (0.7 * (1 - bt_on)); move -3.5 * cu, -3 * cu; line 3.5 * cu, 3 * cu; line 0, 5.5 * cu; line 0, -5.5 * cu; line 3.5 * cu, -3 * cu; line -3.5 * cu, 3 * cu }
+            line { from: gbt_kx - 5 * cu, gbt_cy - 5 * cu; to: gbt_kx + 5 * cu, gbt_cy + 5 * cu; width: 1.4 * cu; color: gbt_dk; opacity: glyph_a * (0.8 * (1 - bt_on)) }
+            zone box bt_tile_hit { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; cursor: pointer }
+            on press bt_tile_hit { panel_sub = if(panel_sub == btview, none, btview) }
+            zone box bt_toggle_hit { at: tb1 - 1 * cu, tile2_cy - 18 * cu; size: 46 * cu, 30 * cu; cursor: pointer }
+            on press bt_toggle_hit { emit togglebt(not bt.powered) }
+            on press bt_toggle_hit { bt_press: 1; bt_rx = pointer.x; bt_ry = pointer.y; bt_rip: 0 ~0ms; bt_rip: 1 ~700ms after 40ms }
+            on release bt_toggle_hit { bt_press: 0 }
+
+            //  Notifications (Do Not Disturb, with its own window) and Caffeine (the whole tile is its toggle), underneath.
+
+            box { at: tb3 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: veil + 6% * dnd_hit.hover }
+            //  A bell: dome, rim and clapper, struck through while it is on.
+            group {
+                pivot: tb3 - 48 * cu, tile_cy - 18 * cu
+                rotate: dnd_wobble * 14deg
+                //  Solid parts, faded as one group: partial opacity per part shows the overlaps.
+                opacity: 45% + 55% * dnd_pill
+                ellipse { at: tb3 - 48 * cu, tile_cy - 19 * cu; radius: 5.5 * cu; color: ink }
+                box { at: tb3 - 48 * cu, tile_cy - 14.5 * cu; size: 14 * cu, 3 * cu; corner: 1.5 * cu; color: ink }
+                ellipse { at: tb3 - 48 * cu, tile_cy - 11 * cu; radius: 1.6 * cu; color: ink }
+            }
+            path { at: tb3 - 48 * cu, tile_cy - 18 * cu; stroke: 1.8 * cu; color: alert; opacity: dnd_pill; move -8 * cu, -8 * cu; line 8 * cu, 8 * cu }
+            text "Notifications" { at: floor(tb3 - 58 * cu + 0.5), floor(tile_cy + 4 * cu + 0.5); anchor: left center; size: 13; width: 74 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+            text nt_tile_sub { at: floor(tb3 - 58 * cu + 0.5), floor(tile_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
+            //  gdn: the pill, like the Wi-Fi one. `gdn_m` is how much it is moving (0 at rest, 1 half way).
+            let gdn_m  = clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)
+            let gdn_w  = (34 + 4 * dnd_pill) * cu
+            let gdn_cx = tb3 + 18 * cu - gdn_w / 2
+            let gdn_cy = tile_cy - 18 * cu
+            let gdn_l  = gdn_cx - gdn_w / 2
+            let gdn_kx = gdn_l + 11 * cu + dnd_pill * (gdn_w - 22 * cu)
+            let gdn_kw = (17 + 9 * gdn_m + 7 * dnd_press) * cu
+            let gdn_kh = (17 - 3 * gdn_m - 2 * dnd_press) * cu
+            let gdn_dk = off
+
+            //  Tile fills up from the toggle, and a thin ring leaves the touch.
+            group {
+                clip inset 0 box { at: tb3 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu }
+                ellipse { at: tb3 + 5 * cu, gdn_cy; radius: clamp(dnd_fill, 0, 1.2) * 96 * cu; color: mint; opacity: 15% }
+                ellipse { at: dnd_rx, dnd_ry; radius: dnd_rip * 70 * cu; stroke: 1.4 * cu; color: mint; opacity: (1 - dnd_rip) * 55% }
+            }
+
+            //  The track: a dark hollow off, raised and lit from inside on.
+            body {
+                color: mix(off, mint, clamp(dnd_pill, 0, 1))
+                shadow: 0, 0, 10 * cu * dnd_pill, 48% * dnd_pill, mint
+                rim: 16% * dnd_pill
+                box { at: gdn_cx, gdn_cy; size: gdn_w, 22 * cu; corner: (11 - 2 * dnd_pill) * cu }
+            }
+            group {
+                clip inset 0 box { at: gdn_cx, gdn_cy; size: gdn_w, 22 * cu; corner: (11 - 2 * dnd_pill) * cu }
+                group {
+                    blur: 3 * cu
+                    box { from: gdn_l - 6 * cu, gdn_cy - 18 * cu; size: gdn_w + 12 * cu, 9 * cu; color: #000000; opacity: 55% * (1 - dnd_pill) }
+                }
+                box { from: gdn_l, gdn_cy + 9.5 * cu; size: gdn_w, 1.5 * cu; color: ink; opacity: 12% * (1 - dnd_pill) }
+                group {
+                    blur: 5 * cu
+                    ellipse { at: gdn_kx, gdn_cy; radius: (6 + 8 * dnd_pill + 4 * gdn_m) * cu; color: ink; opacity: 22% * dnd_pill + 28% * gdn_m }
+                }
+                repeat i in 0..8 {
+                    box { at: gdn_l + (4.5 + 5 * i - (dnd_pill - 0.5) * 9) * cu, gdn_cy; size: 1.2 * cu, 9 * cu; corner: 0.6 * cu; color: ink; opacity: 24% * gdn_m }
+                }
+            }
+
+            //  The knob: plain, solid, squared a little when on, swelling under the finger, with a mark on it.
+            body {
+                color: ink
+                shadow: 0, 2 * cu, 5 * cu, 26%
+                box { at: gdn_kx, gdn_cy; size: gdn_kw, gdn_kh; corner: (8.5 - 2 * clamp(dnd_pill, 0, 1) - 1.5 * gdn_m) * cu }
+            }
+            group {
+                opacity: glyph_a
+                ellipse { at: gdn_kx, gdn_cy - 1.2 * cu; radius: 3.4 * cu; color: gdn_dk }
+                box { at: gdn_kx, gdn_cy + 2.2 * cu; size: 9 * cu, 2 * cu; corner: 1 * cu; color: gdn_dk }
+                ellipse { at: gdn_kx, gdn_cy + 4.6 * cu; radius: 1 * cu; color: gdn_dk }
+            }
+            line { from: gdn_kx - 5.5 * cu, gdn_cy - 5.5 * cu; to: gdn_kx + 5.5 * cu, gdn_cy + 5.5 * cu; width: 1.5 * cu; color: gdn_dk; opacity: glyph_a * dnd_pill }
+            zone box dnd_hit { at: tb3 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; cursor: pointer }
+            on press dnd_hit { panel_sub = if(panel_sub == notifview, none, notifview) }
+            zone box dnd_toggle_hit { at: tb3 - 1 * cu, tile_cy - 18 * cu; size: 46 * cu, 30 * cu; cursor: pointer }
+            on press dnd_toggle_hit { emit togglednd }
+            on press dnd_toggle_hit { dnd_press: 1; dnd_rx = pointer.x; dnd_ry = pointer.y; dnd_rip: 0 ~0ms; dnd_rip: 1 ~700ms after 40ms }
+            on release dnd_toggle_hit { dnd_press: 0 }
+
+            //  Caffeine: a cup that steams while the machine is being kept awake. Dimmed on a
+            //  machine with no hypridle, which is what the card would be stopping.
+            group {
+                opacity: mix(0.45, 1, caf_avail)
+                box { at: tb2 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: veil + 6% * caf_hit.hover * caf_avail }
+                group {
+                    opacity: 45% + 55% * caf_pill
+                    box { at: tb2 - 49 * cu, tile_cy - 16 * cu; size: 12 * cu, 10 * cu; corner: 3 * cu; color: ink }
+                    ellipse { at: tb2 - 41.5 * cu, tile_cy - 16 * cu; radius: 3 * cu; stroke: 1.5 * cu; color: ink }
+                }
+                repeat i in 0..3 {
+                    let sp = fract(time * 0.7 + i * 0.33)
+                    box { at: tb2 - 52 * cu + i * 3.5 * cu, tile_cy - 24 * cu - sp * 6 * cu; size: 1.4 * cu, 5 * cu; corner: 0.7 * cu; color: ink; opacity: caf_pill * 55% * sin(sp * 180) }
+                }
+                text "Caffeine" { at: floor(tb2 - 58 * cu + 0.5), floor(tile_cy + 4 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
+                text "Awake" { at: floor(tb2 - 58 * cu + 0.5), floor(tile_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; color: mint; opacity: 90%; family: "Space Grotesk"; show: caf_on and caf_len == 0 }
+                text caf_tile_sub { at: floor(tb2 - 58 * cu + 0.5), floor(tile_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: caf_on and caf_len > 0 }
+                text "Off" { at: floor(tb2 - 58 * cu + 0.5), floor(tile_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; color: faint; family: "Space Grotesk"; show: not caf_on and caf_avail }
+                text "No hypridle" { at: floor(tb2 - 58 * cu + 0.5), floor(tile_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; color: faint; family: "Space Grotesk"; show: not caf_avail }
+                //  gcf: the pill, like the Wi-Fi one. `gcf_m` is how much it is moving (0 at rest, 1 half way).
+                let gcf_m  = clamp(4 * caf_pill * (1 - caf_pill), 0, 1)
+                let gcf_w  = (34 + 4 * caf_pill) * cu
+                let gcf_cx = tb2 + 18 * cu - gcf_w / 2
+                let gcf_cy = tile_cy - 18 * cu
+                let gcf_l  = gcf_cx - gcf_w / 2
+                let gcf_kx = gcf_l + 11 * cu + caf_pill * (gcf_w - 22 * cu)
+                let gcf_kw = (17 + 9 * gcf_m + 7 * caf_press) * cu
+                let gcf_kh = (17 - 3 * gcf_m - 2 * caf_press) * cu
+                let gcf_dk = off
+
+                //  Tile fills up from the toggle, and a thin ring leaves the touch.
+                group {
+                    clip inset 0 box { at: tb2 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu }
+                    ellipse { at: tb2 + 5 * cu, gcf_cy; radius: clamp(caf_fill, 0, 1.2) * 96 * cu; color: mint; opacity: 15% }
+                    ellipse { at: caf_rx, caf_ry; radius: caf_rip * 70 * cu; stroke: 1.4 * cu; color: mint; opacity: (1 - caf_rip) * 55% }
+                }
+
+                //  The track: a dark hollow off, raised and lit from inside on.
+                body {
+                    color: mix(off, mint, clamp(caf_pill, 0, 1))
+                    shadow: 0, 0, 10 * cu * caf_pill, 48% * caf_pill, mint
+                    rim: 16% * caf_pill
+                    box { at: gcf_cx, gcf_cy; size: gcf_w, 22 * cu; corner: (11 - 2 * caf_pill) * cu }
+                }
+                group {
+                    clip inset 0 box { at: gcf_cx, gcf_cy; size: gcf_w, 22 * cu; corner: (11 - 2 * caf_pill) * cu }
+                    group {
+                        blur: 3 * cu
+                        box { from: gcf_l - 6 * cu, gcf_cy - 18 * cu; size: gcf_w + 12 * cu, 9 * cu; color: #000000; opacity: 55% * (1 - caf_pill) }
+                    }
+                    box { from: gcf_l, gcf_cy + 9.5 * cu; size: gcf_w, 1.5 * cu; color: ink; opacity: 12% * (1 - caf_pill) }
+                    group {
+                        blur: 5 * cu
+                        ellipse { at: gcf_kx, gcf_cy; radius: (6 + 8 * caf_pill + 4 * gcf_m) * cu; color: ink; opacity: 22% * caf_pill + 28% * gcf_m }
+                    }
+                    repeat i in 0..8 {
+                        box { at: gcf_l + (4.5 + 5 * i - (caf_pill - 0.5) * 9) * cu, gcf_cy; size: 1.2 * cu, 9 * cu; corner: 0.6 * cu; color: ink; opacity: 24% * gcf_m }
+                    }
+                }
+
+                //  The knob: plain, solid, squared a little when on, swelling under the finger, with a mark on it.
+                body {
+                    color: ink
+                    shadow: 0, 2 * cu, 5 * cu, 26%
+                    box { at: gcf_kx, gcf_cy; size: gcf_kw, gcf_kh; corner: (8.5 - 2 * clamp(caf_pill, 0, 1) - 1.5 * gcf_m) * cu }
+                }
+                group {
+                    opacity: glyph_a * (caf_pill)
+                    box { at: gcf_kx - 1 * cu, gcf_cy + 0.5 * cu; size: 8 * cu, 7 * cu; corner: 2 * cu; color: gcf_dk }
+                    ellipse { at: gcf_kx + 4 * cu, gcf_cy + 0.5 * cu; radius: 2.2 * cu; stroke: 1.2 * cu; color: gcf_dk }
+                }
+                group {
+                    opacity: glyph_a * (0.7 * (1 - caf_pill))
+                    box { at: gcf_kx - 1 * cu, gcf_cy + 0.5 * cu; size: 8 * cu, 7 * cu; corner: 2 * cu; stroke: 1.1 * cu; color: gcf_dk }
+                    ellipse { at: gcf_kx + 4 * cu, gcf_cy + 0.5 * cu; radius: 2.2 * cu; stroke: 1.1 * cu; color: gcf_dk }
+                }
+                zone box caf_hit { at: tb2 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; cursor: pointer; active: caf_avail }
+                on press caf_hit { panel_sub = if(panel_sub == cafview, none, cafview) }
+                zone box caf_toggle_hit { at: tb2 - 1 * cu, tile_cy - 18 * cu; size: 46 * cu, 30 * cu; cursor: pointer; active: caf_avail }
+                on press caf_toggle_hit { emit togglecaf }
+                on press caf_toggle_hit { caf_press: 1; caf_rx = pointer.x; caf_ry = pointer.y; caf_rip: 0 ~0ms; caf_rip: 1 ~700ms after 40ms }
+                on release caf_toggle_hit { caf_press: 0 }
+            }
+
+            //  Capture and Power: a third row. Capture's button starts and stops a recording; the rest of the tile opens its window
+            //  (screenshots, and a recording of the whole screen). Power has no switch: the whole tile opens its window.
+
+            box { at: tb2 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: veil + 6% * cap_hit.hover }
+            box { at: tb2 - 48 * cu, tile2_cy - 17 * cu; size: 16 * cu, 12 * cu; corner: 3 * cu; stroke: 1.5 * cu; color: ink; opacity: 45% + 55% * rec_pill }
+            ellipse { at: tb2 - 48 * cu, tile2_cy - 17 * cu; radius: 2.6 * cu; stroke: 1.4 * cu; color: ink; opacity: 45% + 55% * rec_pill }
+            text "Capture" { at: floor(tb2 - 58 * cu + 0.5), floor(tile2_cy + 4 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
+            text rec_time { at: floor(tb2 - 58 * cu + 0.5), floor(tile2_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; family: "Space Grotesk"; show: rec_on }
+            text "Shot · Record" { at: floor(tb2 - 58 * cu + 0.5), floor(tile2_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: faint; family: "Space Grotesk"; show: not rec_on }
+            //  The record button: a ring with a dot in it, which becomes a square (and beats) while it records.
+            ellipse { at: tb2 + 8 * cu, tile2_cy - 18 * cu; radius: 10 * cu; stroke: 1.5 * cu; color: mint; opacity: 55% + 45% * rec_pill }
+            box { at: tb2 + 8 * cu, tile2_cy - 18 * cu; size: (10 - 2 * rec_pill) * cu, (10 - 2 * rec_pill) * cu; corner: (5 - 3 * rec_pill) * cu; color: mint; opacity: 65% + 35% * rec_pill - rec_pill * 0.25 * (0.5 + 0.5 * sin(time * 300)) }
+            zone box cap_hit { at: tb2 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; cursor: pointer }
+            on press cap_hit { panel_sub = if(panel_sub == capview, none, capview) }
+            zone box cap_rec_hit { at: tb2 + 8 * cu, tile2_cy - 18 * cu; size: 34 * cu, 30 * cu; corner: 15 * cu; cursor: pointer }
+            on press cap_rec_hit { emit rec_toggle }
+
+            box { at: tb3 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: veil + 6% * pow_hit.hover }
+            //  A power symbol: a ring open at the top, and the bar through the gap.
+            path { at: tb3 - 48 * cu, tile2_cy - 17 * cu; stroke: 1.6 * cu; color: ink; opacity: 75%; move 3.73 * cu, -5.32 * cu; line 5.32 * cu, -3.73 * cu; line 6.28 * cu, -1.68 * cu; line 6.48 * cu, 0.57 * cu; line 5.89 * cu, 2.75 * cu; line 4.60 * cu, 4.60 * cu; line 2.75 * cu, 5.89 * cu; line 0.57 * cu, 6.48 * cu; line -1.68 * cu, 6.28 * cu; line -3.73 * cu, 5.32 * cu; line -5.32 * cu, 3.73 * cu; line -6.28 * cu, 1.68 * cu; line -6.48 * cu, -0.57 * cu; line -5.89 * cu, -2.75 * cu; line -4.60 * cu, -4.60 * cu }
+            box { at: tb3 - 48 * cu, tile2_cy - 21.5 * cu; size: 1.6 * cu, 8 * cu; corner: 0.8 * cu; color: ink; opacity: 75% }
+            text "Power" { at: floor(tb3 - 58 * cu + 0.5), floor(tile2_cy + 4 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
+            text "Power saver" { at: floor(tb3 - 58 * cu + 0.5), floor(tile2_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: pow_prof == 0 }
+            text "Balanced" { at: floor(tb3 - 58 * cu + 0.5), floor(tile2_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: pow_prof == 1 }
+            text "Performance" { at: floor(tb3 - 58 * cu + 0.5), floor(tile2_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: pow_prof == 2 }
+            text "Lock · Sleep · Off" { at: floor(tb3 - 58 * cu + 0.5), floor(tile2_cy + 19 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: faint; family: "Space Grotesk"; show: pow_prof < 0 }
+            zone box pow_hit { at: tb3 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; cursor: pointer }
+            on press pow_hit { panel_sub = if(panel_sub == powview, none, powview) }
+        }
+
+        //  The Wi-Fi tile's own window: the networks in range, strongest first.
+        //  A known or open one connects on a tap; a secured one not seen before
+        //  asks for its password first.
+        group {
+            show: showing_sub == netview
+            opacity: expand0
+            let ex_top = ck + tiles_top * cu
+            let ex_cy = ex_top + 22 * cu
+            path { at: pcx - 124 * cu, ex_cy; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * wifi_back.hover; move 4 * cu, -6 * cu; line -4 * cu, 0; line 4 * cu, 6 * cu }
+            zone box wifi_back { at: pcx - 124 * cu, ex_cy; size: 30 * cu, 30 * cu; cursor: pointer }
+            on press wifi_back { panel_sub = none }
+            text "WI-FI" { at: floor(pcx - 102 * cu + 0.5), floor(ex_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: pcx + 112 * cu, ex_cy; size: 52 * cu, 24 * cu; corner: 12 * cu; color: if(wifi_scanning, mint, ink); opacity: if(wifi_scanning, 22%, 8% + 10% * wifi_scan_hit.hover) }
+            text "Scan" { at: floor(pcx + 112 * cu + 0.5), floor(ex_cy + 0.5); anchor: center; size: 12.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not wifi_scanning }
+            //  While it runs: a ring turning where the word was, and the list says so.
+            group {
+                show: wifi_scanning
+                pivot: pcx + 112 * cu, ex_cy
+                rotate: time * 420deg
+                arc { at: pcx + 112 * cu, ex_cy; radius: 6 * cu; span: 260deg; width: 1.8 * cu; color: mint }
+            }
+            zone box wifi_scan_hit { at: pcx + 112 * cu, ex_cy; size: 54 * cu, 26 * cu; corner: 13 * cu; cursor: pointer }
+            on press wifi_scan_hit { emit wifi_scan }
+            box { at: pcx, ex_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
+            column wifi_list_col ~quick {
+                at: floor(pcx - 138 * cu + 0.5), floor(ex_top + 54 * cu + 0.5)
+                view: 276 * cu, list_view_h * cu
+                gap: 5
+                for n in wifi_nets { WifiRow(n, pick: wifi_pick, forget: wifi_forget, joingo: wifi_join_go) }
+            }
+            //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
+            box { from: pcx + 141 * cu, ex_top + 54 * cu + wifi_list_col.scroll / max(wifi_list_col.content, 1) * (list_view_h * cu); size: 3 * cu, (list_view_h * cu) * (list_view_h * cu) / max(wifi_list_col.content, list_view_h * cu); corner: 1.5 * cu; color: ink; opacity: if(wifi_list_col.content > (list_view_h * cu) + 1, 35%, 0%) }
+            text "No networks in range" { at: floor(pcx + 0.5), floor(ex_top + 54 * cu + 15 * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: wifi_nets.count < 1 and not wifi_scanning }
+            text "Scanning…" { at: floor(pcx + 0.5), floor(ex_top + 54 * cu + 15 * cu + 0.5); anchor: center; size: 14; color: mint; family: "Space Grotesk"; show: wifi_nets.count < 1 and wifi_scanning }
+        }
+
+        //  The Bluetooth tile's own window: paired and nearby devices, connected first.
+        group {
+            show: showing_sub == btview
+            opacity: expand0
+            let ex2_top = ck + tiles_top * cu
+            let ex2_cy = ex2_top + 22 * cu
+            path { at: pcx - 124 * cu, ex2_cy; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * bt_back.hover; move 4 * cu, -6 * cu; line -4 * cu, 0; line 4 * cu, 6 * cu }
+            zone box bt_back { at: pcx - 124 * cu, ex2_cy; size: 30 * cu, 30 * cu; cursor: pointer }
+            on press bt_back { panel_sub = none }
+            text "BLUETOOTH" { at: floor(pcx - 102 * cu + 0.5), floor(ex2_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: pcx + 112 * cu, ex2_cy; size: 52 * cu, 24 * cu; corner: 12 * cu; color: if(bt_scanning, mint, ink); opacity: if(bt_scanning, 22%, 8% + 10% * bt_scan_hit.hover) }
+            text "Scan" { at: floor(pcx + 112 * cu + 0.5), floor(ex2_cy + 0.5); anchor: center; size: 12.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not bt_scanning }
+            //  While it runs: a ring turning where the word was, and the list says so.
+            group {
+                show: bt_scanning
+                pivot: pcx + 112 * cu, ex2_cy
+                rotate: time * 420deg
+                arc { at: pcx + 112 * cu, ex2_cy; radius: 6 * cu; span: 260deg; width: 1.8 * cu; color: mint }
+            }
+            zone box bt_scan_hit { at: pcx + 112 * cu, ex2_cy; size: 54 * cu, 26 * cu; corner: 13 * cu; cursor: pointer }
+            on press bt_scan_hit { emit bt_scan }
+            box { at: pcx, ex2_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
+            column bt_list_col ~quick {
+                at: floor(pcx - 138 * cu + 0.5), floor(ex2_top + 54 * cu + 0.5)
+                view: 276 * cu, list_view_h * cu
+                gap: 5
+                for d in bt_devices { BtRow(d, pick: bt_pick, forget: bt_forget) }
+            }
+            //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
+            box { from: pcx + 141 * cu, ex2_top + 54 * cu + bt_list_col.scroll / max(bt_list_col.content, 1) * (list_view_h * cu); size: 3 * cu, (list_view_h * cu) * (list_view_h * cu) / max(bt_list_col.content, list_view_h * cu); corner: 1.5 * cu; color: ink; opacity: if(bt_list_col.content > (list_view_h * cu) + 1, 35%, 0%) }
+            text "No devices found" { at: floor(pcx + 0.5), floor(ex2_top + 54 * cu + 15 * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: bt_devices.count < 1 and not bt_scanning }
+            text "Scanning…" { at: floor(pcx + 0.5), floor(ex2_top + 54 * cu + 15 * cu + 0.5); anchor: center; size: 14; color: mint; family: "Space Grotesk"; show: bt_devices.count < 1 and bt_scanning }
+        }
+
+        //  The notifications window: Do Not Disturb (a toggle, and timer chips that count down), and under them
+        //  the history of what came in, newest first. Clear empties it; a row's cross removes that one.
+        group {
+            show: showing_sub == notifview
+            opacity: expand0
+            let nx_top = ck + tiles_top * cu
+            let nx_cy = nx_top + 22 * cu
+            path { at: pcx - 124 * cu, nx_cy; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * nt_back.hover; move 4 * cu, -6 * cu; line -4 * cu, 0; line 4 * cu, 6 * cu }
+            zone box nt_back { at: pcx - 124 * cu, nx_cy; size: 30 * cu, 30 * cu; cursor: pointer }
+            on press nt_back { panel_sub = none }
+            text "NOTIFICATIONS" { at: floor(pcx - 102 * cu + 0.5), floor(nx_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
+            //  Where it stands, beside the title: how long is left, or that it is on until turned off.
+            text dnd_left { at: floor(pcx + 78 * cu + 0.5), floor(nx_cy + 0.5); anchor: right center; align: right; size: 11.5; width: 92 * cu; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
+            box { at: pcx + 112 * cu, nx_cy; size: 52 * cu, 24 * cu; corner: 12 * cu; color: ink; opacity: 8% + 10% * nt_clear_hit.hover }
+            text "Clear" { at: floor(pcx + 112 * cu + 0.5), floor(nx_cy + 0.5); anchor: center; size: 12.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
+            zone box nt_clear_hit { at: pcx + 112 * cu, nx_cy; size: 54 * cu, 26 * cu; corner: 13 * cu; cursor: pointer }
+            on press nt_clear_hit { emit nt_clear }
+            box { at: pcx, nx_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
+
+            //  Do Not Disturb, in one control: six stops, Off, then how long, then until turned off. The thumb sits on the one in use
+            //  and glows when it is on (grey on Off), sliding and stretching like liquid to a new stop. Pressing the lit stop again,
+            //  or Off, turns it off; a ring leaves the touch.
+            let ns_y   = nx_top + 68 * cu
+            let ns_str = clamp(abs(dnd_sel_t - dnd_sel), 0, 3)
+            let ns_tx  = pcx + (dnd_sel - 2.5) * 44 * cu
+            let ns_tw  = (38 + 11 * ns_str) * cu
+            let ns_th  = (26 - 3 * clamp(ns_str, 0, 1) - 2 * dnd_press) * cu
+            let ns_on  = clamp(dnd_pill, 0, 1)
+            box { at: pcx, ns_y; size: 264 * cu, 36 * cu; corner: 18 * cu; color: ink; opacity: veil }
+            group {
+                clip inset 0 box { at: pcx, ns_y; size: 264 * cu, 36 * cu; corner: 18 * cu }
+                group {
+                    blur: 3 * cu
+                    box { from: pcx - 144 * cu, ns_y - 24 * cu; size: 288 * cu, 9 * cu; color: #000000; opacity: 40% }
+                }
+                repeat i in 0..5 {
+                    box { at: pcx + (i - 2) * 44 * cu, ns_y; size: 1 * cu, 10 * cu; corner: 0.5 * cu; color: ink; opacity: 12% }
+                }
+                ellipse { at: nt_rx, nt_ry; radius: nt_rip * 50 * cu; stroke: 1.4 * cu; color: mint; opacity: (1 - nt_rip) * 55% }
+            }
+            body {
+                color: mix(ink, mint, ns_on)
+                opacity: 16% + 84% * ns_on
+                shadow: 0, 0, 10 * cu * ns_on, 48% * ns_on, mint
+                rim: 16% * ns_on
+                box { at: ns_tx, ns_y; size: ns_tw, ns_th; corner: 10 * cu }
+            }
+            repeat i in 0..6 {
+                let lx  = pcx + (i - 2.5) * 44 * cu
+                let sel = clamp(1 - abs(dnd_sel - i), 0, 1) * ns_on
+                text pick(i, "Off", "15m", "30m", "1h", "2h", "") { at: floor(lx + 0.5), floor(ns_y + 0.5); anchor: center; align: center; size: 12; weight: 600; color: mix(ink, off, sel); opacity: 62% + 38% * sel + 30% * dnd_chip.$i.hover; family: "Space Grotesk"; show: i < 5 }
+                //  "Until turned off": an infinity mark.
+                ellipse { at: lx - 3.4 * cu, ns_y; radius: 3.4 * cu; stroke: 1.5 * cu; color: mix(ink, off, sel); opacity: 62% + 38% * sel + 30% * dnd_chip.$i.hover; show: i == 5 }
+                ellipse { at: lx + 3.4 * cu, ns_y; radius: 3.4 * cu; stroke: 1.5 * cu; color: mix(ink, off, sel); opacity: 62% + 38% * sel + 30% * dnd_chip.$i.hover; show: i == 5 }
+                zone box dnd_chip.$i { at: lx, ns_y; size: 44 * cu, 36 * cu; cursor: pointer }
+                on press dnd_chip.$i while i > 0 and i < 5 { emit dnd_for(pick(i, 0, 15, 30, 60, 120, 0)) }
+                on press dnd_chip.$i while i == 0 and dnd_on { emit togglednd }
+                on press dnd_chip.$i while i == 5 and not dnd_on { emit togglednd }
+                on press dnd_chip.$i while i == 5 and dnd_on and dnd_len == 0 { emit togglednd }
+                on press dnd_chip.$i while i == 5 and dnd_on and dnd_len > 0 { emit togglednd; emit togglednd }
+                on press dnd_chip.$i { dnd_press: 1; nt_rx = pointer.x; nt_ry = pointer.y; nt_rip: 0 ~0ms; nt_rip: 1 ~700ms after 40ms }
+                on release dnd_chip.$i { dnd_press: 0 }
+            }
+
+            //  The history.
+            text "HISTORY" { at: floor(pcx - 134 * cu + 0.5), floor(nx_top + 102 * cu + 0.5); anchor: left center; size: 10.5; weight: 700; color: faint; opacity: 80%; family: "Space Grotesk" }
+            column nt_hist_col {
+                at: floor(pcx - 138 * cu + 0.5), floor(nx_top + 114 * cu + 0.5)
+                view: 276 * cu, list_view_h * cu
+                gap: 6
+                for h in nt_hist { NtHistRow(h, del: nt_hist_del) }
+            }
+            //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
+            box { from: pcx + 141 * cu, nx_top + 114 * cu + nt_hist_col.scroll / max(nt_hist_col.content, 1) * (list_view_h * cu); size: 3 * cu, (list_view_h * cu) * (list_view_h * cu) / max(nt_hist_col.content, list_view_h * cu); corner: 1.5 * cu; color: ink; opacity: if(nt_hist_col.content > (list_view_h * cu) + 1, 35%, 0%) }
+            text "No notifications yet" { at: floor(pcx + 0.5), floor(nx_top + 114 * cu + 20 * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: nt_hist.count < 1 }
+        }
+
+        //  The Caffeine window: the keep-awake switch and what state it is in, and timer chips. A chip keeps the
+        //  machine awake for that long and then lets it sleep again; the lit one, pressed again, turns it off.
+        group {
+            show: showing_sub == cafview
+            opacity: expand0
+            let kx_top = ck + tiles_top * cu
+            let kx_cy = kx_top + 22 * cu
+            path { at: pcx - 124 * cu, kx_cy; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * caf_back.hover; move 4 * cu, -6 * cu; line -4 * cu, 0; line 4 * cu, 6 * cu }
+            zone box caf_back { at: pcx - 124 * cu, kx_cy; size: 30 * cu, 30 * cu; cursor: pointer }
+            on press caf_back { panel_sub = none }
+            text "CAFFEINE" { at: floor(pcx - 102 * cu + 0.5), floor(kx_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: pcx, kx_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
+
+            //  Where it stands, up beside the title: how long is left, or that it is on until turned off.
+            text caf_left { at: floor(pcx + 134 * cu + 0.5), floor(kx_cy + 0.5); anchor: right center; align: right; size: 12.5; width: 150 * cu; lines: 1; color: if(caf_on, mint, faint); family: "Space Grotesk" }
+
+            group {
+                opacity: mix(0.45, 1, caf_avail)
+                //  One control for all of it: seven stops, Off and then how long. The thumb sits on the one in use and glows when
+                //  Caffeine is on (grey on Off); it slides to a new stop, stretching like liquid on the way. The label under it turns
+                //  dark. Pressing the lit stop again, or Off, turns it off; a ring leaves the touch.
+                let cs_y   = kx_top + 70 * cu
+                let cs_str = clamp(abs(caf_sel_t - caf_sel), 0, 3)
+                let cs_tx  = pcx + (caf_sel - 3) * 38 * cu
+                let cs_tw  = (34 + 11 * cs_str) * cu
+                let cs_th  = (26 - 3 * clamp(cs_str, 0, 1) - 2 * caf_press) * cu
+                let cs_on  = clamp(caf_pill, 0, 1)
+                box { at: pcx, cs_y; size: 266 * cu, 36 * cu; corner: 18 * cu; color: ink; opacity: veil }
+                group {
+                    clip inset 0 box { at: pcx, cs_y; size: 266 * cu, 36 * cu; corner: 18 * cu }
+                    group {
+                        blur: 3 * cu
+                        box { from: pcx - 144 * cu, cs_y - 24 * cu; size: 288 * cu, 9 * cu; color: #000000; opacity: 40% }
+                    }
+                    repeat i in 0..6 {
+                        box { at: pcx + (i - 2.5) * 38 * cu, cs_y; size: 1 * cu, 10 * cu; corner: 0.5 * cu; color: ink; opacity: 12% }
+                    }
+                    ellipse { at: cs_rx, cs_ry; radius: cs_rip * 50 * cu; stroke: 1.4 * cu; color: mint; opacity: (1 - cs_rip) * 55% }
+                }
+                body {
+                    color: mix(ink, mint, cs_on)
+                    opacity: 16% + 84% * cs_on
+                    shadow: 0, 0, 10 * cu * cs_on, 48% * cs_on, mint
+                    rim: 16% * cs_on
+                    box { at: cs_tx, cs_y; size: cs_tw, cs_th; corner: 10 * cu }
+                }
+                repeat i in 0..7 {
+                    let lx  = pcx + (i - 3) * 38 * cu
+                    let sel = clamp(1 - abs(caf_sel - i), 0, 1) * cs_on
+                    text pick(i, "Off", "15m", "30m", "1h", "2h", "4h", "") { at: floor(lx + 0.5), floor(cs_y + 0.5); anchor: center; align: center; size: 12; weight: 600; color: mix(ink, off, sel); opacity: 62% + 38% * sel + 30% * caf_chip.$i.hover; family: "Space Grotesk"; show: i < 6 }
+                    //  "Until off": an infinity mark.
+                    ellipse { at: lx - 3.4 * cu, cs_y; radius: 3.4 * cu; stroke: 1.5 * cu; color: mix(ink, off, sel); opacity: 62% + 38% * sel + 30% * caf_chip.$i.hover; show: i == 6 }
+                    ellipse { at: lx + 3.4 * cu, cs_y; radius: 3.4 * cu; stroke: 1.5 * cu; color: mix(ink, off, sel); opacity: 62% + 38% * sel + 30% * caf_chip.$i.hover; show: i == 6 }
+                    zone box caf_chip.$i { at: lx, cs_y; size: 38 * cu, 36 * cu; cursor: pointer; active: caf_avail }
+                    on press caf_chip.$i while i > 0 { emit caf_for(pick(i, 0, 15, 30, 60, 120, 240, 0)) }
+                    on press caf_chip.$i while i == 0 and caf_on { emit togglecaf }
+                    on press caf_chip.$i { caf_press: 1; cs_rx = pointer.x; cs_ry = pointer.y; cs_rip: 0 ~0ms; cs_rip: 1 ~700ms after 40ms }
+                    on release caf_chip.$i { caf_press: 0 }
+                }
+            }
+        }
+
+        //  The Capture window: a screenshot of a region or of the whole screen (kept in ~/Pictures/Screenshots and copied), and
+        //  a screen recording (kept in ~/Videos), with a Stop while one is running. Big tiles with an icon each.
+        group {
+            show: showing_sub == capview
+            opacity: expand0
+            let qx_top = ck + tiles_top * cu
+            let qx_cy = qx_top + 22 * cu
+            path { at: pcx - 124 * cu, qx_cy; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * qx_back.hover; move 4 * cu, -6 * cu; line -4 * cu, 0; line 4 * cu, 6 * cu }
+            zone box qx_back { at: pcx - 124 * cu, qx_cy; size: 30 * cu, 30 * cu; cursor: pointer }
+            on press qx_back { panel_sub = none }
+            text "CAPTURE" { at: floor(pcx - 102 * cu + 0.5), floor(qx_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: pcx, qx_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
+            text "SCREENSHOT" { at: floor(pcx - 138 * cu + 0.5), floor(qx_top + 62 * cu + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
+            box { at: pcx - 70 * cu, qx_top + 92 * cu; size: 134 * cu, 52 * cu; corner: 14 * cu; color: ink; opacity: 8% + 9% * cap_s0.hover }
+            box { at: pcx - 70 * cu, qx_top + 92 * cu; size: 134 * cu, 52 * cu; corner: 14 * cu; color: mint; opacity: 16% * cap_s0.hover }
+            path { at: pcx - 70 * cu - 37.0 * cu, qx_top + 92 * cu; stroke: 1.6 * cu; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move -7 * cu, -3 * cu; line -7 * cu, -7 * cu; line -3 * cu, -7 * cu }
+            path { at: pcx - 70 * cu - 37.0 * cu, qx_top + 92 * cu; stroke: 1.6 * cu; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move -7 * cu, 3 * cu; line -7 * cu, 7 * cu; line -3 * cu, 7 * cu }
+            path { at: pcx - 70 * cu - 37.0 * cu, qx_top + 92 * cu; stroke: 1.6 * cu; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move 7 * cu, -3 * cu; line 7 * cu, -7 * cu; line 3 * cu, -7 * cu }
+            path { at: pcx - 70 * cu - 37.0 * cu, qx_top + 92 * cu; stroke: 1.6 * cu; color: mix(ink, mint, cap_s0.hover); opacity: 100%; move 7 * cu, 3 * cu; line 7 * cu, 7 * cu; line 3 * cu, 7 * cu }
+            ellipse { at: pcx - 70 * cu - 37.0 * cu, qx_top + 92 * cu; radius: 1.5 * cu; color: mix(ink, mint, cap_s0.hover); opacity: 100% }
+            text "Region" { at: floor(pcx - 70 * cu - 17.0 * cu + 0.5), floor(qx_top + 92 * cu + 0.5); anchor: left center; size: 14; weight: 600; width: 72 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+            zone box cap_s0 { at: pcx - 70 * cu, qx_top + 92 * cu; size: 136 * cu, 54 * cu; corner: 15 * cu; cursor: pointer }
+            on press cap_s0 { emit shot(0) }
+            box { at: pcx + 70 * cu, qx_top + 92 * cu; size: 134 * cu, 52 * cu; corner: 14 * cu; color: ink; opacity: 8% + 9% * cap_s1.hover }
+            box { at: pcx + 70 * cu, qx_top + 92 * cu; size: 134 * cu, 52 * cu; corner: 14 * cu; color: mint; opacity: 16% * cap_s1.hover }
+            box { at: pcx + 70 * cu - 37.0 * cu, qx_top + 92 * cu - 1 * cu; size: 17 * cu, 11.5 * cu; corner: 2.5 * cu; stroke: 1.6 * cu; color: mix(ink, mint, cap_s1.hover); opacity: 100% }
+            path { at: pcx + 70 * cu - 37.0 * cu, qx_top + 92 * cu; stroke: 1.6 * cu; color: mix(ink, mint, cap_s1.hover); opacity: 100%; move -3 * cu, 7.5 * cu; line 3 * cu, 7.5 * cu }
+            text "Full screen" { at: floor(pcx + 70 * cu - 17.0 * cu + 0.5), floor(qx_top + 92 * cu + 0.5); anchor: left center; size: 14; weight: 600; width: 72 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+            zone box cap_s1 { at: pcx + 70 * cu, qx_top + 92 * cu; size: 136 * cu, 54 * cu; corner: 15 * cu; cursor: pointer }
+            on press cap_s1 { emit shot(1) }
+            text "SCREEN RECORDING" { at: floor(pcx - 138 * cu + 0.5), floor(qx_top + 134 * cu + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
+            text rec_time { at: floor(pcx + 138 * cu + 0.5), floor(qx_top + 134 * cu + 0.5); anchor: right center; size: 12; weight: 600; color: mint; family: "Space Grotesk"; show: rec_on }
+            group {
+                show: not rec_on
+                box { at: pcx - 70 * cu, qx_top + 164 * cu; size: 134 * cu, 52 * cu; corner: 14 * cu; color: ink; opacity: 8% + 9% * cap_r0.hover }
+                box { at: pcx - 70 * cu, qx_top + 164 * cu; size: 134 * cu, 52 * cu; corner: 14 * cu; color: mint; opacity: 14% * cap_r0.hover }
+                path { at: pcx - 70 * cu - 37 * cu, qx_top + 164 * cu; stroke: 1.6 * cu; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move -7 * cu, -3 * cu; line -7 * cu, -7 * cu; line -3 * cu, -7 * cu }
+                path { at: pcx - 70 * cu - 37 * cu, qx_top + 164 * cu; stroke: 1.6 * cu; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move -7 * cu, 3 * cu; line -7 * cu, 7 * cu; line -3 * cu, 7 * cu }
+                path { at: pcx - 70 * cu - 37 * cu, qx_top + 164 * cu; stroke: 1.6 * cu; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move 7 * cu, -3 * cu; line 7 * cu, -7 * cu; line 3 * cu, -7 * cu }
+                path { at: pcx - 70 * cu - 37 * cu, qx_top + 164 * cu; stroke: 1.6 * cu; color: mix(ink, mint, cap_r0.hover); opacity: 100%; move 7 * cu, 3 * cu; line 7 * cu, 7 * cu; line 3 * cu, 7 * cu }
+                ellipse { at: pcx - 70 * cu - 37 * cu, qx_top + 164 * cu; radius: 1.5 * cu; color: mix(ink, mint, cap_r0.hover); opacity: 100% }
+                ellipse { at: pcx - 70 * cu - 37 * cu + 10 * cu, qx_top + 164 * cu - 10 * cu; radius: 2.8 * cu; color: mint }
+                text "Region" { at: floor(pcx - 70 * cu - 17 * cu + 0.5), floor(qx_top + 164 * cu + 0.5); anchor: left center; size: 14; weight: 600; width: 72 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+                zone box cap_r0 { at: pcx - 70 * cu, qx_top + 164 * cu; size: 136 * cu, 54 * cu; corner: 15 * cu; cursor: pointer }
+                on press cap_r0 { emit rec_start(0) }
+                box { at: pcx + 70 * cu, qx_top + 164 * cu; size: 134 * cu, 52 * cu; corner: 14 * cu; color: ink; opacity: 8% + 9% * cap_r1.hover }
+                box { at: pcx + 70 * cu, qx_top + 164 * cu; size: 134 * cu, 52 * cu; corner: 14 * cu; color: mint; opacity: 14% * cap_r1.hover }
+                box { at: pcx + 70 * cu - 37 * cu, qx_top + 164 * cu - 1 * cu; size: 17 * cu, 11.5 * cu; corner: 2.5 * cu; stroke: 1.6 * cu; color: mix(ink, mint, cap_r1.hover); opacity: 100% }
+                path { at: pcx + 70 * cu - 37 * cu, qx_top + 164 * cu; stroke: 1.6 * cu; color: mix(ink, mint, cap_r1.hover); opacity: 100%; move -3 * cu, 7.5 * cu; line 3 * cu, 7.5 * cu }
+                ellipse { at: pcx + 70 * cu - 37 * cu + 10 * cu, qx_top + 164 * cu - 10 * cu; radius: 2.8 * cu; color: mint }
+                text "Full screen" { at: floor(pcx + 70 * cu - 17 * cu + 0.5), floor(qx_top + 164 * cu + 0.5); anchor: left center; size: 14; weight: 600; width: 72 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+                zone box cap_r1 { at: pcx + 70 * cu, qx_top + 164 * cu; size: 136 * cu, 54 * cu; corner: 15 * cu; cursor: pointer }
+                on press cap_r1 { emit rec_start(1) }
+            }
+            group {
+                show: rec_on
+                box { at: pcx, qx_top + 164 * cu; size: 276 * cu, 52 * cu; corner: 14 * cu; color: mint; opacity: 14% + 8% * cap_stop.hover }
+                ellipse { at: pcx - 104 * cu, qx_top + 164 * cu; radius: (9 + 2 * sin(time * 300)) * cu; color: mint; opacity: 30% }
+                box { at: pcx - 104 * cu, qx_top + 164 * cu; size: 11 * cu, 11 * cu; corner: 2.5 * cu; color: mint }
+                text "Stop recording" { at: floor(pcx - 80 * cu + 0.5), floor(qx_top + 164 * cu + 0.5); anchor: left center; size: 14.5; weight: 700; width: 150 * cu; lines: 1; color: mint; family: "Space Grotesk" }
+                text rec_time { at: floor(pcx + 128 * cu + 0.5), floor(qx_top + 164 * cu + 0.5); anchor: right center; size: 14; weight: 600; color: mint; family: "Space Grotesk" }
+                zone box cap_stop { at: pcx, qx_top + 164 * cu; size: 278 * cu, 54 * cu; corner: 15 * cu; cursor: pointer }
+                on press cap_stop { emit rec_stop }
+            }
+        }
+
+        //  The Power window: the session as five icon tiles, each of which has to be held for one second (it fills from the bottom and
+        //  counts down while it is held, and lets go if you do), and the power profile as a track with a glass thumb that slides, on a
+        //  spring that overshoots, to the one in use.
+        group {
+            show: showing_sub == powview
+            opacity: expand0
+            let px_top = ck + tiles_top * cu
+            let px_cy = px_top + 22 * cu
+            path { at: pcx - 124 * cu, px_cy; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * px_back.hover; move 4 * cu, -6 * cu; line -4 * cu, 0; line 4 * cu, 6 * cu }
+            zone box px_back { at: pcx - 124 * cu, px_cy; size: 30 * cu, 30 * cu; cursor: pointer }
+            on press px_back { panel_sub = none }
+            text "POWER" { at: floor(pcx - 102 * cu + 0.5), floor(px_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: pcx, px_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
+            text "SESSION" { at: floor(pcx - 138 * cu + 0.5), floor(px_top + 62 * cu + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
+            box { at: pcx + -113.0 * cu, px_top + 96 * cu; size: 52 * cu, 58 * cu; corner: 14 * cu; color: ink; opacity: 8% + 9% * pw_t0.hover }
+            box { at: pcx + -113.0 * cu, px_top + 96 * cu; size: 52 * cu, 58 * cu; corner: 14 * cu; color: mint; opacity: 12% * pw_t0.hover }
+            group {
+                clip inset 0 box { at: pcx + -113.0 * cu, px_top + 96 * cu; size: 52 * cu, 58 * cu; corner: 14 * cu }
+                box { at: pcx + -113.0 * cu, px_top + 96 * cu + 29 * cu - 29 * cu * clamp(pw_hp0, 0, 1); size: 52 * cu, 58 * cu * clamp(pw_hp0, 0, 1); color: mint; opacity: 34% }
+                box { at: pcx + -113.0 * cu, px_top + 96 * cu + 29 * cu - 58 * cu * clamp(pw_hp0, 0, 1); size: 52 * cu, 2 * cu; color: mint; opacity: 70% * clamp(pw_hp0 * 8, 0, 1) }
+            }
+            path { at: pcx + -113.0 * cu, px_top + 96 * cu - 8 * cu; stroke: 1.6 * cu; color: mix(ink, mint, max(pw_t0.hover, clamp(pw_hp0 * 3, 0, 1))); opacity: 100%; move -3.5 * cu, -1 * cu; line -3.5 * cu, -4 * cu; curve 3.5 * cu, -4 * cu via 0 * cu, -10.5 * cu; line 3.5 * cu, -1 * cu }
+            box { at: pcx + -113.0 * cu, px_top + 96 * cu - 8 * cu + 3.5 * cu; size: 13 * cu, 9.5 * cu; corner: 2.5 * cu; stroke: 1.6 * cu; color: mix(ink, mint, max(pw_t0.hover, clamp(pw_hp0 * 3, 0, 1))); opacity: 100% }
+            text "Lock" { at: floor(pcx + -113.0 * cu + 0.5), floor(px_top + 96 * cu + 19 * cu + 0.5); anchor: center; align: center; size: 11; weight: 600; width: 50 * cu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp0 < 0.03 }
+            text number(1 - clamp(pw_hp0, 0, 1), 1, "s") { at: floor(pcx + -113.0 * cu + 0.5), floor(px_top + 96 * cu + 19 * cu + 0.5); anchor: center; align: center; size: 11; weight: 700; width: 50 * cu; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp0 >= 0.03 }
+            zone box pw_t0 { at: pcx + -113.0 * cu, px_top + 96 * cu; size: 54 * cu, 60 * cu; corner: 15 * cu; cursor: pointer }
+            on press pw_t0 { pw_s0 = time; pw_d0 = true }
+            on release pw_t0 { pw_d0 = false }
+            on hold pw_t0 for 1000ms { pw_d0 = false; emit pow_press(0) }
+            box { at: pcx + -56.5 * cu, px_top + 96 * cu; size: 52 * cu, 58 * cu; corner: 14 * cu; color: ink; opacity: 8% + 9% * pw_t1.hover }
+            box { at: pcx + -56.5 * cu, px_top + 96 * cu; size: 52 * cu, 58 * cu; corner: 14 * cu; color: mint; opacity: 12% * pw_t1.hover }
+            group {
+                clip inset 0 box { at: pcx + -56.5 * cu, px_top + 96 * cu; size: 52 * cu, 58 * cu; corner: 14 * cu }
+                box { at: pcx + -56.5 * cu, px_top + 96 * cu + 29 * cu - 29 * cu * clamp(pw_hp1, 0, 1); size: 52 * cu, 58 * cu * clamp(pw_hp1, 0, 1); color: mint; opacity: 34% }
+                box { at: pcx + -56.5 * cu, px_top + 96 * cu + 29 * cu - 58 * cu * clamp(pw_hp1, 0, 1); size: 52 * cu, 2 * cu; color: mint; opacity: 70% * clamp(pw_hp1 * 8, 0, 1) }
+            }
+            path { at: pcx + -56.5 * cu, px_top + 96 * cu - 8 * cu; stroke: 1.6 * cu; color: mix(ink, mint, max(pw_t1.hover, clamp(pw_hp1 * 3, 0, 1))); opacity: 100%; move 8.29 * cu, 3.17 * cu; line 7.76 * cu, 4.27 * cu; line 7.08 * cu, 5.28 * cu; line 6.26 * cu, 6.18 * cu; line 5.33 * cu, 6.97 * cu; line 4.29 * cu, 7.61 * cu; line 3.18 * cu, 8.10 * cu; line 2.00 * cu, 8.42 * cu; line 0.79 * cu, 8.58 * cu; line -0.42 * cu, 8.56 * cu; line -1.63 * cu, 8.38 * cu; line -2.79 * cu, 8.02 * cu; line -3.90 * cu, 7.50 * cu; line -4.92 * cu, 6.84 * cu; line -5.83 * cu, 6.03 * cu; line -6.62 * cu, 5.11 * cu; line -7.28 * cu, 4.08 * cu; line -7.78 * cu, 2.97 * cu; line -8.12 * cu, 1.80 * cu; line -8.29 * cu, 0.59 * cu; line -8.28 * cu, -0.63 * cu; line -8.11 * cu, -1.83 * cu; line -7.77 * cu, -3.00 * cu; line -7.26 * cu, -4.11 * cu; line -6.61 * cu, -5.14 * cu; line -5.81 * cu, -6.06 * cu; line -4.90 * cu, -6.86 * cu; line -3.87 * cu, -7.53 * cu; line -2.77 * cu, -8.04 * cu; line -1.60 * cu, -8.39 * cu; line -0.40 * cu, -8.58 * cu; line -0.97 * cu, -7.92 * cu; line -1.46 * cu, -7.20 * cu; line -1.86 * cu, -6.43 * cu; line -2.17 * cu, -5.62 * cu; line -2.38 * cu, -4.78 * cu; line -2.49 * cu, -3.91 * cu; line -2.50 * cu, -3.05 * cu; line -2.40 * cu, -2.18 * cu; line -2.21 * cu, -1.33 * cu; line -1.92 * cu, -0.52 * cu; line -1.53 * cu, 0.26 * cu; line -1.06 * cu, 0.99 * cu; line -0.50 * cu, 1.66 * cu; line 0.13 * cu, 2.26 * cu; line 0.83 * cu, 2.78 * cu; line 1.58 * cu, 3.21 * cu; line 2.38 * cu, 3.55 * cu; line 3.21 * cu, 3.80 * cu; line 4.07 * cu, 3.95 * cu; line 4.94 * cu, 3.99 * cu; line 5.81 * cu, 3.94 * cu; line 6.66 * cu, 3.78 * cu; line 7.49 * cu, 3.52 * cu; line 8.29 * cu, 3.17 * cu; line 8.29 * cu, 3.17 * cu }
+            text "Sleep" { at: floor(pcx + -56.5 * cu + 0.5), floor(px_top + 96 * cu + 19 * cu + 0.5); anchor: center; align: center; size: 11; weight: 600; width: 50 * cu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp1 < 0.03 }
+            text number(1 - clamp(pw_hp1, 0, 1), 1, "s") { at: floor(pcx + -56.5 * cu + 0.5), floor(px_top + 96 * cu + 19 * cu + 0.5); anchor: center; align: center; size: 11; weight: 700; width: 50 * cu; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp1 >= 0.03 }
+            zone box pw_t1 { at: pcx + -56.5 * cu, px_top + 96 * cu; size: 54 * cu, 60 * cu; corner: 15 * cu; cursor: pointer }
+            on press pw_t1 { pw_s1 = time; pw_d1 = true }
+            on release pw_t1 { pw_d1 = false }
+            on hold pw_t1 for 1000ms { pw_d1 = false; emit pow_press(1) }
+            box { at: pcx + 0.0 * cu, px_top + 96 * cu; size: 52 * cu, 58 * cu; corner: 14 * cu; color: ink; opacity: 8% + 9% * pw_t2.hover }
+            box { at: pcx + 0.0 * cu, px_top + 96 * cu; size: 52 * cu, 58 * cu; corner: 14 * cu; color: mint; opacity: 12% * pw_t2.hover }
+            group {
+                clip inset 0 box { at: pcx + 0.0 * cu, px_top + 96 * cu; size: 52 * cu, 58 * cu; corner: 14 * cu }
+                box { at: pcx + 0.0 * cu, px_top + 96 * cu + 29 * cu - 29 * cu * clamp(pw_hp2, 0, 1); size: 52 * cu, 58 * cu * clamp(pw_hp2, 0, 1); color: mint; opacity: 34% }
+                box { at: pcx + 0.0 * cu, px_top + 96 * cu + 29 * cu - 58 * cu * clamp(pw_hp2, 0, 1); size: 52 * cu, 2 * cu; color: mint; opacity: 70% * clamp(pw_hp2 * 8, 0, 1) }
+            }
+            path { at: pcx + 0.0 * cu, px_top + 96 * cu - 8 * cu; stroke: 1.6 * cu; color: mix(ink, mint, max(pw_t2.hover, clamp(pw_hp2 * 3, 0, 1))); opacity: 100%; move 1 * cu, -7.5 * cu; line -5.5 * cu, -7.5 * cu; line -5.5 * cu, 7.5 * cu; line 1 * cu, 7.5 * cu }
+            path { at: pcx + 0.0 * cu, px_top + 96 * cu - 8 * cu; stroke: 1.6 * cu; color: mix(ink, mint, max(pw_t2.hover, clamp(pw_hp2 * 3, 0, 1))); opacity: 100%; move -2 * cu, 0 * cu; line 7 * cu, 0 * cu }
+            path { at: pcx + 0.0 * cu, px_top + 96 * cu - 8 * cu; stroke: 1.6 * cu; color: mix(ink, mint, max(pw_t2.hover, clamp(pw_hp2 * 3, 0, 1))); opacity: 100%; move 4 * cu, -3.2 * cu; line 7.2 * cu, 0 * cu; line 4 * cu, 3.2 * cu }
+            text "Log out" { at: floor(pcx + 0.0 * cu + 0.5), floor(px_top + 96 * cu + 19 * cu + 0.5); anchor: center; align: center; size: 11; weight: 600; width: 50 * cu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp2 < 0.03 }
+            text number(1 - clamp(pw_hp2, 0, 1), 1, "s") { at: floor(pcx + 0.0 * cu + 0.5), floor(px_top + 96 * cu + 19 * cu + 0.5); anchor: center; align: center; size: 11; weight: 700; width: 50 * cu; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp2 >= 0.03 }
+            zone box pw_t2 { at: pcx + 0.0 * cu, px_top + 96 * cu; size: 54 * cu, 60 * cu; corner: 15 * cu; cursor: pointer }
+            on press pw_t2 { pw_s2 = time; pw_d2 = true }
+            on release pw_t2 { pw_d2 = false }
+            on hold pw_t2 for 1000ms { pw_d2 = false; emit pow_press(2) }
+            box { at: pcx + 56.5 * cu, px_top + 96 * cu; size: 52 * cu, 58 * cu; corner: 14 * cu; color: ink; opacity: 8% + 9% * pw_t3.hover }
+            box { at: pcx + 56.5 * cu, px_top + 96 * cu; size: 52 * cu, 58 * cu; corner: 14 * cu; color: mint; opacity: 12% * pw_t3.hover }
+            group {
+                clip inset 0 box { at: pcx + 56.5 * cu, px_top + 96 * cu; size: 52 * cu, 58 * cu; corner: 14 * cu }
+                box { at: pcx + 56.5 * cu, px_top + 96 * cu + 29 * cu - 29 * cu * clamp(pw_hp3, 0, 1); size: 52 * cu, 58 * cu * clamp(pw_hp3, 0, 1); color: mint; opacity: 34% }
+                box { at: pcx + 56.5 * cu, px_top + 96 * cu + 29 * cu - 58 * cu * clamp(pw_hp3, 0, 1); size: 52 * cu, 2 * cu; color: mint; opacity: 70% * clamp(pw_hp3 * 8, 0, 1) }
+            }
+            path { at: pcx + 56.5 * cu, px_top + 96 * cu - 8 * cu; stroke: 1.6 * cu; color: mix(ink, mint, max(pw_t3.hover, clamp(pw_hp3 * 3, 0, 1))); opacity: 100%; move 5.3 * cu, -5.3 * cu; line 6.8 * cu, -3.17 * cu; line 7.47 * cu, -0.65 * cu; line 7.24 * cu, 1.94 * cu; line 6.14 * cu, 4.3 * cu; line 4.3 * cu, 6.14 * cu; line 1.94 * cu, 7.24 * cu; line -0.65 * cu, 7.47 * cu; line -3.17 * cu, 6.8 * cu; line -5.3 * cu, 5.3 * cu; line -6.8 * cu, 3.17 * cu; line -7.47 * cu, 0.65 * cu; line -7.24 * cu, -1.94 * cu; line -6.14 * cu, -4.3 * cu; line -4.3 * cu, -6.14 * cu }
+            path { at: pcx + 56.5 * cu, px_top + 96 * cu - 8 * cu; stroke: 1.6 * cu; color: mix(ink, mint, max(pw_t3.hover, clamp(pw_hp3 * 3, 0, 1))); opacity: 100%; move -6.75 * cu, -8.04 * cu; line -2.17 * cu, -7.63 * cu; line -3.36 * cu, -3.19 * cu }
+            text "Restart" { at: floor(pcx + 56.5 * cu + 0.5), floor(px_top + 96 * cu + 19 * cu + 0.5); anchor: center; align: center; size: 11; weight: 600; width: 50 * cu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp3 < 0.03 }
+            text number(1 - clamp(pw_hp3, 0, 1), 1, "s") { at: floor(pcx + 56.5 * cu + 0.5), floor(px_top + 96 * cu + 19 * cu + 0.5); anchor: center; align: center; size: 11; weight: 700; width: 50 * cu; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp3 >= 0.03 }
+            zone box pw_t3 { at: pcx + 56.5 * cu, px_top + 96 * cu; size: 54 * cu, 60 * cu; corner: 15 * cu; cursor: pointer }
+            on press pw_t3 { pw_s3 = time; pw_d3 = true }
+            on release pw_t3 { pw_d3 = false }
+            on hold pw_t3 for 1000ms { pw_d3 = false; emit pow_press(3) }
+            box { at: pcx + 113.0 * cu, px_top + 96 * cu; size: 52 * cu, 58 * cu; corner: 14 * cu; color: ink; opacity: 8% + 9% * pw_t4.hover }
+            box { at: pcx + 113.0 * cu, px_top + 96 * cu; size: 52 * cu, 58 * cu; corner: 14 * cu; color: mint; opacity: 12% * pw_t4.hover }
+            group {
+                clip inset 0 box { at: pcx + 113.0 * cu, px_top + 96 * cu; size: 52 * cu, 58 * cu; corner: 14 * cu }
+                box { at: pcx + 113.0 * cu, px_top + 96 * cu + 29 * cu - 29 * cu * clamp(pw_hp4, 0, 1); size: 52 * cu, 58 * cu * clamp(pw_hp4, 0, 1); color: mint; opacity: 34% }
+                box { at: pcx + 113.0 * cu, px_top + 96 * cu + 29 * cu - 58 * cu * clamp(pw_hp4, 0, 1); size: 52 * cu, 2 * cu; color: mint; opacity: 70% * clamp(pw_hp4 * 8, 0, 1) }
+            }
+            path { at: pcx + 113.0 * cu, px_top + 96 * cu - 8 * cu; stroke: 1.6 * cu; color: mix(ink, mint, max(pw_t4.hover, clamp(pw_hp4 * 3, 0, 1))); opacity: 100%; move 4.43 * cu, -5.67 * cu; line 6.11 * cu, -3.82 * cu; line 7.04 * cu, -1.5 * cu; line 7.13 * cu, 1 * cu; line 6.36 * cu, 3.38 * cu; line 4.82 * cu, 5.35 * cu; line 2.7 * cu, 6.68 * cu; line 0.25 * cu, 7.2 * cu; line -2.22 * cu, 6.85 * cu; line -4.43 * cu, 5.67 * cu; line -6.11 * cu, 3.82 * cu; line -7.04 * cu, 1.5 * cu; line -7.13 * cu, -1 * cu; line -6.36 * cu, -3.38 * cu; line -4.82 * cu, -5.35 * cu; line -4.43 * cu, -5.67 * cu }
+            box { at: pcx + 113.0 * cu, px_top + 96 * cu - 8 * cu - 5.5 * cu; size: 1.6 * cu, 9 * cu; corner: 0.8 * cu; color: mix(ink, mint, max(pw_t4.hover, clamp(pw_hp4 * 3, 0, 1))); opacity: 100% }
+            text "Power off" { at: floor(pcx + 113.0 * cu + 0.5), floor(px_top + 96 * cu + 19 * cu + 0.5); anchor: center; align: center; size: 11; weight: 600; width: 50 * cu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk"; show: pw_hp4 < 0.03 }
+            text number(1 - clamp(pw_hp4, 0, 1), 1, "s") { at: floor(pcx + 113.0 * cu + 0.5), floor(px_top + 96 * cu + 19 * cu + 0.5); anchor: center; align: center; size: 11; weight: 700; width: 50 * cu; lines: 1; color: mint; family: "Space Grotesk"; show: pw_hp4 >= 0.03 }
+            zone box pw_t4 { at: pcx + 113.0 * cu, px_top + 96 * cu; size: 54 * cu, 60 * cu; corner: 15 * cu; cursor: pointer }
+            on press pw_t4 { pw_s4 = time; pw_d4 = true }
+            on release pw_t4 { pw_d4 = false }
+            on hold pw_t4 for 1000ms { pw_d4 = false; emit pow_press(4) }
+            text "POWER PROFILE" { at: floor(pcx - 138 * cu + 0.5), floor(px_top + 142 * cu + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
+            group { opacity: mix(0.45, 1, clamp(pow_prof + 1, 0, 1))
+                box { at: pcx, px_top + 176 * cu; size: 276 * cu, 46 * cu; corner: 16 * cu; color: ink; opacity: 8% }
+                body {
+                    color: mint
+                    opacity: 24%
+                    rim: 40%
+                    shadow: 0, 2 * cu, 8 * cu, 25%, #000000
+                    box { at: pcx + (pow_th - 1) * 92 * cu, px_top + 176 * cu; size: (90 + 8 * abs(pow_th - if(pow_prof < 0, 1, pow_prof))) * cu, 40 * cu; corner: 14 * cu }
+                }
+                path { at: pcx + -92 * cu, px_top + 176 * cu - 8 * cu; stroke: 1.6 * cu; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); move -6.5 * cu, 6.5 * cu; curve 6.5 * cu, -6.5 * cu via -8 * cu, -6 * cu; curve -6.5 * cu, 6.5 * cu via 8 * cu, 6 * cu }
+                path { at: pcx + -92 * cu, px_top + 176 * cu - 8 * cu; stroke: 1.3 * cu; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); move -6.5 * cu, 6.5 * cu; line 1 * cu, -1 * cu }
+                text "Saver" { at: floor(pcx + -92 * cu + 0.5), floor(px_top + 176 * cu + 12 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 88 * cu; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); family: "Space Grotesk" }
+                zone box pw_p0 { at: pcx + -92 * cu, px_top + 176 * cu; size: 90 * cu, 44 * cu; corner: 15 * cu; cursor: pointer; active: pow_prof >= 0 }
+                on press pw_p0 { emit pow_prof_set(0) }
+                box { at: pcx + 0 * cu, px_top + 176 * cu - 8 * cu - 3 * cu; size: 13 * cu, 1.7 * cu; corner: 0.85 * cu; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover) }
+                box { at: pcx + 0 * cu, px_top + 176 * cu - 8 * cu + 3 * cu; size: 13 * cu, 1.7 * cu; corner: 0.85 * cu; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover) }
+                text "Balanced" { at: floor(pcx + 0 * cu + 0.5), floor(px_top + 176 * cu + 12 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 88 * cu; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover); family: "Space Grotesk" }
+                zone box pw_p1 { at: pcx + 0 * cu, px_top + 176 * cu; size: 90 * cu, 44 * cu; corner: 15 * cu; cursor: pointer; active: pow_prof >= 0 }
+                on press pw_p1 { emit pow_prof_set(1) }
+                path { at: pcx + 92 * cu, px_top + 176 * cu - 8 * cu; stroke: 1.5 * cu; color: mix(ink, mint, clamp(1 - abs(pow_th - 2), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 2), 0, 1), pw_p2.hover); move 1.5 * cu, -8.5 * cu; line -5 * cu, 1.5 * cu; line -0.6 * cu, 1.5 * cu; line -1.6 * cu, 8.5 * cu; line 5 * cu, -1.5 * cu; line 0.6 * cu, -1.5 * cu; line 1.5 * cu, -8.5 * cu }
+                text "Performance" { at: floor(pcx + 92 * cu + 0.5), floor(px_top + 176 * cu + 12 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 88 * cu; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 2), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 2), 0, 1), pw_p2.hover); family: "Space Grotesk" }
+                zone box pw_p2 { at: pcx + 92 * cu, px_top + 176 * cu; size: 90 * cu, 44 * cu; corner: 15 * cu; cursor: pointer; active: pow_prof >= 0 }
+                on press pw_p2 { emit pow_prof_set(2) }
+            }
+        }
+
+        //  The dropdown: a solid card that drops from the volume row over what is
+        //  below it. Declared last so its rows win the press over the slider.
+        group {
+            opacity: dd
+            move: 0, (1 - dd) * -8 * cu
+            let ddn = clamp(outlist.count, 1, 6)
+            let ddh = ddn * 30 * cu + 12 * cu
+            box { at: pcx, ck + (vol_top + 32) * cu + ddh / 2; size: 288 * cu, ddh; corner: 14 * cu; color: panel }
+            zone box dd_block { at: pcx, ck + (vol_top + 32) * cu + ddh / 2; size: 288 * cu, ddh; active: dd > 0.05 }
+            column dd_list {
+                at: floor(pcx - 138 * cu + 0.5), floor(ck + (vol_top + 32) * cu + 6 * cu + 0.5)
+                gap: 3
+                for o in outlist { OutRow(o, pick: pick_out) }
+            }
+            text "No outputs" { at: floor(pcx + 0.5), floor(ck + (vol_top + 32) * cu + ddh / 2 + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: outlist.count < 1 }
+        }
+        }
+    }
+}

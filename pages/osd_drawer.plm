@@ -1,0 +1,109 @@
+part OsdDrawer {
+    //  The volume and notification drawer's content, clipped to its shape. Both sit on one plate
+    //  (the same 8% veil as the others), 12 in from the drawer's edge; `osd_kind` picks which is drawn.
+    group {
+        clip inset 2 box { at: mix(do.ix, do.ex, lm), do.ey; size: mix(do.iw, do.ew, lm), do.eh; corner: 26 * u }
+        opacity: fo
+        move: 0, (1 - fo) * 12 * u
+        //  The same as the calendar's: what is inside grows with the drawer, from the edge it comes out of (the strip's, or the right frame's for the volume and the notifications, which grow leftwards).
+        group {
+            pivot: mix(screen.width - lf.t, screen.width + 26 * u, lm), do.ey
+            scale: max(do.lf, 0.05)
+        let oy = os.ck + (8 + osd_h / 2) * u                 // the plate's middle
+        let ot = os.ck + 8 * u                               // and its top
+        box { at: os.px, oy; size: 316 * u, osd_h * u; corner: 14 * u; color: ink; opacity: veil }
+        //  A press on the plate takes the drawer down (a notification is dismissed with it). Declared
+        //  first, so the cross and the buttons above it win where they overlap.
+        zone box os_hit { at: os.px, oy; size: 316 * u, osd_h * u; corner: 14 * u; cursor: pointer }
+        on press os_hit while osd_kind == vol { osd_on = false }
+        on press os_hit while osd_kind == note { emit nt_close }
+
+        // ── the volume ──
+        group {
+            opacity: okv
+            show: okv > 0.01
+            let vy = oy
+            let vtx = os.px - 128 * u                        // the face's tile
+            box { at: vtx, vy; size: 44 * u, 44 * u; corner: 12 * u; color: ink; opacity: 6% }
+            //  A little face on the slider: two eyes, and a mouth that opens
+            //  with the level and flattens when muted. It bobs a little.
+            group {
+                move: 0, -1.5 * u * (0.5 + 0.5 * sin(time * 200))
+                box { at: vtx - 6 * u, vy - 5 * u; size: 5 * u, if(audio.muted, 2, 5) * u; corner: 2 * u; color: if(audio.muted, faint, mint) }
+                box { at: vtx + 6 * u, vy - 5 * u; size: 5 * u, if(audio.muted, 2, 5) * u; corner: 2 * u; color: if(audio.muted, faint, mint) }
+                box { at: vtx, vy + 6 * u; size: if(audio.muted, 11, 7 + volume_level * 12) * u, if(audio.muted, 2, 5 + volume_level * 5) * u; corner: 2.5 * u; color: if(audio.muted, faint, mint) }
+            }
+            //  The level is a wave: it ripples as far as the volume goes, and the rest of the track is
+            //  a flat, faint line. A tall white pill marks the end.
+            let tr0 = os.px - 96 * u
+            let trw = 170 * u
+            let span = trw * volume_level
+            //  All 48 pieces of the wave are spread over the level's own length, so a short one is drawn as
+            //  smoothly as a long one (spread over the whole track, only a handful would fall inside it).
+            let seg = max(span, 1) / 48
+            //  The wave is always the same number of S-curves (two and a half), spread over however
+            //  long the level is: at 100% they are long and lazy, and as the volume drops the whole
+            //  thing is squeezed toward the left, the curves getting tighter and steeper. `wf` is
+            //  the ripple's frequency, in degrees a pixel (sin takes degrees), for the length it has to fit. It fades to flat over a tenth of
+            //  its length at each end, so it always meets the flat line and the pill.
+            let wf = 360 * 2.5 / max(span, 1)
+            let wa = 4.5 * u
+            let f0 = max(0.001, span * 0.1)
+            let f1 = max(0.001, span * 0.12)
+            repeat i in 0..48 {
+                let xa = tr0 + i * seg
+                let xb = xa + seg
+                //  The ripple dies away to nothing at both ends, so wherever it is in its swing the wave
+                //  always meets the flat line and the knob on the same centre line.
+                let ea = clamp((xa - tr0) / f0, 0, 1) * clamp((tr0 + span - xa) / f1, 0, 1)
+                let eb = clamp((xb - tr0) / f0, 0, 1) * clamp((tr0 + span - xb) / f1, 0, 1)
+                line { from: xa, vy + wa * ea * sin((xa - tr0) * wf - time * 120); to: xb, vy + wa * eb * sin((xb - tr0) * wf - time * 120); width: 5 * u; color: if(audio.muted, faint, mint); opacity: min(1, span / (3 * u)) }
+            }
+            line { from: tr0 + span, vy; to: tr0 + trw, vy; width: 5 * u; color: ink; opacity: 12% }
+            box { at: clamp(tr0 + span, tr0 + 4 * u, tr0 + trw - 4 * u), vy; size: 6 * u, 26 * u; corner: 3 * u; color: ink }
+            text number(audio.volume * 100, 0, "%") { at: floor(os.px + 116 * u + 0.5), floor(vy + 0.5); anchor: center; align: center; size: 21 * u; weight: 700; color: ink; family: "Space Grotesk"; show: not audio.muted }
+            text "Muted" { at: floor(os.px + 116 * u + 0.5), floor(vy + 0.5); anchor: center; align: center; size: 21 * u; weight: 700; color: faint; family: "Space Grotesk"; show: audio.muted }
+        }
+
+        // ── a notification ──
+        group {
+            opacity: okn
+            show: okn > 0.01
+            let nty = oy                                  // the tile's middle: the plate's, so it sits vertically centred
+            let ntx = os.px - 128 * u
+            let ntl = os.px - 96 * u                         // where its words start
+            box { at: ntx, nty; size: 44 * u, 44 * u; corner: 12 * u; color: ink; opacity: 6% }
+            //  No picture from the app: a bell, in the accent (or red, for something urgent).
+            group {
+                show: not nt_icon_on
+                ellipse { at: ntx, nty - 2 * u; radius: 7 * u; color: if(nt_urgent, alert, mint) }
+                box { at: ntx, nty + 5 * u; size: 18 * u, 3.5 * u; corner: 1.75 * u; color: if(nt_urgent, alert, mint) }
+                ellipse { at: ntx, nty + 9.5 * u; radius: 2 * u; color: if(nt_urgent, alert, mint) }
+            }
+            group {
+                show: nt_icon_on
+                image nt_img { at: floor(ntx - 22 * u + 0.5), floor(nty - 22 * u + 0.5); size: floor(44 * u + 0.5), floor(44 * u + 0.5) }
+            }
+            //  A ring off the tile when it arrives.
+            ellipse { at: ntx, nty; radius: (24 + 22 * nt_ring) * u; stroke: 2 * u; color: if(nt_urgent, alert, mint); opacity: 90% * (1 - nt_ring) }
+            ellipse { at: ntx + 20 * u, nty - 20 * u; radius: 5 * u; color: alert; opacity: if(nt_urgent, 60% + 40% * sin(time * 300), 0) }
+
+            text nt_app { at: floor(ntl + 0.5), floor(ot + 12 * u + 9 * u + 0.5); anchor: left center; size: 13 * u; weight: 700; width: 190 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            text nt_title { at: floor(ntl + 0.5), floor(ot + 35 * u + 0.5); anchor: left top; size: 19 * u; weight: 700; width: 236 * u; lines: 3; measure: ntt; color: ink; family: "Space Grotesk" }
+            text nt_body { at: floor(ntl + 0.5), floor(ot + (39 + nt_th) * u + 0.5); anchor: left top; size: 15.5 * u; width: 236 * u; lines: 6; measure: ntb; color: faint; family: "Space Grotesk"; show: nt_body_on }
+            //  Its buttons, under the words.
+            row nt_row {
+                at: floor(ntl + 0.5), floor(ot + (nt_content + 8) * u + 0.5)
+                gap: 8
+                for a in nt_acts { NtAct(a, click: nt_act) }
+            }
+            //  Close.
+            ellipse { at: os.px + 140 * u, ot + 12 * u + 8 * u; radius: 10 * u; color: ink; opacity: 22% * nt_x.hover }
+            line { from: os.px + 136.5 * u, ot + 12 * u + 4.5 * u; to: os.px + 143.5 * u, ot + 12 * u + 11.5 * u; width: 1.4 * u; color: ink; opacity: 55% + 45% * nt_x.hover }
+            line { from: os.px + 143.5 * u, ot + 12 * u + 4.5 * u; to: os.px + 136.5 * u, ot + 12 * u + 11.5 * u; width: 1.4 * u; color: ink; opacity: 55% + 45% * nt_x.hover }
+            zone box nt_x { at: os.px + 140 * u, ot + 12 * u + 8 * u; size: 24 * u, 24 * u; corner: 12 * u; cursor: pointer }
+            on press nt_x { emit nt_close }
+        }
+        }
+    }
+}

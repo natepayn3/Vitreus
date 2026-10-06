@@ -1,0 +1,152 @@
+part BarIcons {
+    //  The bar's icons are drawn here, on top of the bar and outside its wave-shader group, with a soft dark
+    //  halo (a group `glow` in the palette's dark colour) so they hold up on a light wallpaper, as the text
+    //  does. An effect cannot sit inside another effect's group, hence outside. The click areas and rules
+    //  stay in the bar group above.
+    group {
+        glow: 2.4 * u, 110%, deep
+        row tray_bar_row {
+            at: floor(tr.x - (bartrays.count * 24 - 6) * u / 2 + 0.5), floor(bar.y - 9 * u + 0.5)
+            gap: floor(6 * u + 0.5)
+            show: lm < 0.5
+            for t in bartrays { BarTray(t, click: bar_tray_click, menu: bar_tray_menu) }
+        }
+        column tray_bar_col {
+            at: floor(lf.x - 9 * u + 0.5), floor(lv.tray + 0.5)
+            gap: floor(6 * u + 0.5)
+            show: lm >= 0.5
+            for t in bartrays { BarTray(t, click: bar_tray_click, menu: bar_tray_menu) }
+        }
+        //  Every workspace is a soft square. The one in view stretches into a rectangle (along the bar; down the strip, down) and turns
+        //  to the accent, one square becoming the other with nothing travelling; one with a window in it is a little more solid; one calling for
+        //  attention is coral, still, until you go there. Under the pointer a mark swells by a third, popping a little past, and brightens.
+        let cx1 = mix(ws.a1, lf.x, lm)
+        let cy1 = mix(bar.y, ws.a1, lm)
+        let wg1 = ws.urg.1 * (1 - ws.act.1)
+        let bw1 = (8 + 4.5 * ws.tall.1) * ws.U * (1 + 0.35 * wsp.1)
+        let bh1 = (8 + 4.5 * ws.tall.1) * ws.U * (1 + 0.35 * wsp.1)
+        let cx2 = mix(ws.a2, lf.x, lm)
+        let cy2 = mix(bar.y, ws.a2, lm)
+        let wg2 = ws.urg.2 * (1 - ws.act.2)
+        let bw2 = (8 + 4.5 * ws.tall.2) * ws.U * (1 + 0.35 * wsp.2)
+        let bh2 = (8 + 4.5 * ws.tall.2) * ws.U * (1 + 0.35 * wsp.2)
+        let cx3 = mix(ws.a3, lf.x, lm)
+        let cy3 = mix(bar.y, ws.a3, lm)
+        let wg3 = ws.urg.3 * (1 - ws.act.3)
+        let bw3 = (8 + 4.5 * ws.tall.3) * ws.U * (1 + 0.35 * wsp.3)
+        let bh3 = (8 + 4.5 * ws.tall.3) * ws.U * (1 + 0.35 * wsp.3)
+        let cx4 = mix(ws.a4, lf.x, lm)
+        let cy4 = mix(bar.y, ws.a4, lm)
+        let wg4 = ws.urg.4 * (1 - ws.act.4)
+        let bw4 = (8 + 4.5 * ws.tall.4) * ws.U * (1 + 0.35 * wsp.4)
+        let bh4 = (8 + 4.5 * ws.tall.4) * ws.U * (1 + 0.35 * wsp.4)
+        let cx5 = mix(ws.a5, lf.x, lm)
+        let cy5 = mix(bar.y, ws.a5, lm)
+        let wg5 = ws.urg.5 * (1 - ws.act.5)
+        let bw5 = (8 + 4.5 * ws.tall.5) * ws.U * (1 + 0.35 * wsp.5)
+        let bh5 = (8 + 4.5 * ws.tall.5) * ws.U * (1 + 0.35 * wsp.5)
+        body ws.sq1 {
+            color: mix(ink, warm, wg1)
+            opacity: min(100%, mix(30% + 55% * ws.tall.1, 100%, wg1) + 35% * wsh.1) * (1 - ws.act.1) * bs.ws
+            rim: 40%
+            box { at: cx1, cy1; size: bw1, bh1; corner: 0.3 * min(bw1, bh1) }
+        }
+        body ws.sq2 {
+            color: mix(ink, warm, wg2)
+            opacity: min(100%, mix(30% + 55% * ws.tall.2, 100%, wg2) + 35% * wsh.2) * (1 - ws.act.2) * bs.ws
+            rim: 40%
+            box { at: cx2, cy2; size: bw2, bh2; corner: 0.3 * min(bw2, bh2) }
+        }
+        body ws.sq3 {
+            color: mix(ink, warm, wg3)
+            opacity: min(100%, mix(30% + 55% * ws.tall.3, 100%, wg3) + 35% * wsh.3) * (1 - ws.act.3) * bs.ws
+            rim: 40%
+            box { at: cx3, cy3; size: bw3, bh3; corner: 0.3 * min(bw3, bh3) }
+        }
+        body ws.sq4 {
+            color: mix(ink, warm, wg4)
+            opacity: min(100%, mix(30% + 55% * ws.tall.4, 100%, wg4) + 35% * wsh.4) * (1 - ws.act.4) * bs.ws
+            rim: 40%
+            box { at: cx4, cy4; size: bw4, bh4; corner: 0.3 * min(bw4, bh4) }
+        }
+        body ws.sq5 {
+            color: mix(ink, warm, wg5)
+            opacity: min(100%, mix(30% + 55% * ws.tall.5, 100%, wg5) + 35% * wsh.5) * (1 - ws.act.5) * bs.ws
+            rim: 40%
+            box { at: cx5, cy5; size: bw5, bh5; corner: 0.3 * min(bw5, bh5) }
+        }
+        let pl.h1 = ws.c1 + clamp(pl.head - 1, 0, 1) * (ws.c2 - ws.c1) + clamp(pl.head - 2, 0, 1) * (ws.c3 - ws.c2) + clamp(pl.head - 3, 0, 1) * (ws.c4 - ws.c3) + clamp(pl.head - 4, 0, 1) * (ws.c5 - ws.c4)
+        let pl.h2 = ws.c1 + clamp(pl.tail - 1, 0, 1) * (ws.c2 - ws.c1) + clamp(pl.tail - 2, 0, 1) * (ws.c3 - ws.c2) + clamp(pl.tail - 3, 0, 1) * (ws.c4 - ws.c3) + clamp(pl.tail - 4, 0, 1) * (ws.c5 - ws.c4)
+        let pl.s = min(1, abs(pl.head - pl.tail))
+        let pl.t = ws.pb * (1 - 0.18 * pl.s)
+        let pl.len = abs(pl.h1 - pl.h2) + ws.pl
+        let pl.m = ws.o + (pl.h1 + pl.h2) / 2
+        let pl.w = mix(pl.len, pl.t, lm)
+        let pl.h = mix(pl.t, pl.len, lm)
+        group {
+            body ws.pill {
+                gradient: 0, mix(bar.y, pl.m, lm) - pl.h / 2 to 0, mix(bar.y, pl.m, lm) + pl.h / 2, minthi, mintlo
+                rim: 55%
+                shadow: 0, 0, 7 * u, 30%, mint
+                opacity: bs.ws
+                box { at: mix(pl.m, lf.x, lm), mix(bar.y, pl.m, lm); size: pl.w, pl.h; corner: 0.3 * min(pl.w, pl.h) }
+            }
+        }
+        //  The player's buttons.
+        group {
+            opacity: mshow * bs.media * bs.title
+            box { at: mcx - 20.5 * u, mcy; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * bp.prev.hover }
+            path { at: mcx - 17 * u, mcy; color: ink; opacity: 65% + 35% * bp.prev.hover; move 3 * u, -3.5 * u; line -2.5 * u, 0; line 3 * u, 3.5 * u; close }
+            //  Pause while it plays, play while it is paused.
+            box { at: mcx - 3 * u, mcy; size: 2.6 * u, 9 * u; corner: 1 * u; color: ink; opacity: 85% + 15% * bp.play.hover; show: media.playing }
+            box { at: mcx + 3 * u, mcy; size: 2.6 * u, 9 * u; corner: 1 * u; color: ink; opacity: 85% + 15% * bp.play.hover; show: media.playing }
+            path { at: mcx, mcy; color: ink; opacity: 85% + 15% * bp.play.hover; show: not media.playing; move -3 * u, -4.5 * u; line 7 * u, 0; line -3 * u, 4.5 * u; close }
+            path { at: mcx + 17 * u, mcy; color: ink; opacity: 65% + 35% * bp.next.hover; move -3 * u, -3.5 * u; line 2.5 * u, 0; line -3 * u, 3.5 * u; close }
+            box { at: mcx + 20.5 * u, mcy; size: 1.4 * u, 7 * u; corner: 0.7 * u; color: ink; opacity: 65% + 35% * bp.next.hover }
+        }
+        //  Down the left the player's buttons are the top bar's own, turned with the title (a quarter anticlockwise, so they read from the foot up:
+        //  previous nearest the text, next at the far end), at the top end of it.
+        group {
+            opacity: mshow * bs.media0 * lm
+            pivot: lf.x, lv.mid
+            rotate: -90deg
+            box { at: lf.x - 20.5 * cu, lv.mid; size: 1.4 * cu, 7 * cu; corner: 0.7 * cu; color: ink; opacity: 65% + 35% * vm_prev.hover }
+            path { at: lf.x - 17 * cu, lv.mid; color: ink; opacity: 65% + 35% * vm_prev.hover; move 3 * cu, -3.5 * cu; line -2.5 * cu, 0; line 3 * cu, 3.5 * cu; close }
+            box { at: lf.x - 3 * cu, lv.mid; size: 2.6 * cu, 9 * cu; corner: 1 * cu; color: ink; opacity: 85% + 15% * vm_play.hover; show: media.playing }
+            box { at: lf.x + 3 * cu, lv.mid; size: 2.6 * cu, 9 * cu; corner: 1 * cu; color: ink; opacity: 85% + 15% * vm_play.hover; show: media.playing }
+            path { at: lf.x, lv.mid; color: ink; opacity: 85% + 15% * vm_play.hover; show: not media.playing; move -3 * cu, -4.5 * cu; line 7 * cu, 0; line -3 * cu, 4.5 * cu; close }
+            path { at: lf.x + 17 * cu, lv.mid; color: ink; opacity: 65% + 35% * vm_next.hover; move -3 * cu, -3.5 * cu; line 2.5 * cu, 0; line -3 * cu, 3.5 * cu; close }
+            box { at: lf.x + 20.5 * cu, lv.mid; size: 1.4 * cu, 7 * cu; corner: 0.7 * cu; color: ink; opacity: 65% + 35% * vm_next.hover }
+        }
+        //  The settings button: a gear, between the player's buttons and the controls button.
+        group {
+            opacity: 65% + 35% * max(set_hit.hover, clamp(ds, 0, 1))
+            move: (lf.x - set.x) * lm, (lv.set - bar.y) * lm
+            ellipse { at: set.x, bar.y; radius: 3.6 * u; stroke: 1.7 * u; color: mix(ink, mint, clamp(ds, 0, 1)) }
+            ellipse { at: set.x, bar.y; radius: 1.2 * u; color: mix(ink, mint, clamp(ds, 0, 1)) }
+            repeat i in 0..8 {
+                group {
+                    pivot: set.x, bar.y
+                    rotate: i * 45deg
+                    box { at: set.x, bar.y - 6 * u; size: 2 * u, 2.6 * u; corner: 0.7 * u; color: mix(ink, mint, clamp(ds, 0, 1)) }
+                }
+            }
+        }
+        //  The launcher's button, between the settings button and the controls button: a magnifying glass.
+        group {
+            opacity: (65% + 35% * max(sr_hit.hover, clamp(dl, 0, 1))) * bs.sr
+            move: (lf.x - sr.x) * lm, (lv.sr - bar.y) * lm
+            ellipse { at: sr.x - 1.2 * u, bar.y - 1.2 * u; radius: 4 * u; stroke: 1.7 * u; color: mix(ink, mint, clamp(dl, 0, 1)) }
+            line { from: sr.x + 1.8 * u, bar.y + 1.8 * u; to: sr.x + 5 * u, bar.y + 5 * u; width: 1.9 * u; color: mix(ink, mint, clamp(dl, 0, 1)) }
+        }
+        //  The controls button, between the settings button and the clock: two sliders.
+        group {
+            opacity: (65% + 35% * max(ctl_hit.hover, clamp(dk, 0, 1))) * bs.ctl
+            move: (lf.x - ctl.x) * lm, (lv.ctl - bar.y) * lm
+            box { at: ctl.x, bar.y - 3.5 * u; size: 13 * u, 1.6 * u; corner: 0.8 * u; color: mix(ink, mint, clamp(dk, 0, 1)) }
+            box { at: ctl.x, bar.y + 3.5 * u; size: 13 * u, 1.6 * u; corner: 0.8 * u; color: mix(ink, mint, clamp(dk, 0, 1)) }
+            ellipse { at: ctl.x + 2.5 * u, bar.y - 3.5 * u; radius: 2.6 * u; color: mix(ink, mint, clamp(dk, 0, 1)) }
+            ellipse { at: ctl.x - 2.5 * u, bar.y + 3.5 * u; radius: 2.6 * u; color: mix(ink, mint, clamp(dk, 0, 1)) }
+        }
+    }
+}

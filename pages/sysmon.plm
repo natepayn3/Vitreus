@@ -1,0 +1,207 @@
+part Sysmon {
+        //  ── System monitor page: BEGIN (generated; see bin/vitreus-sysmon) ──
+        //  The page scrolls like Display's: a clipped viewport as tall as the Wallpaper page, the content moved up by `sm.off`, and the wheel
+        //  caught by the zone under it. Nothing on it is pressed, so nothing has to be kept from a click when it is out of sight.
+        group {
+            show: set_pgs > 0.01
+            opacity: set_pgs
+            let sm.sc = clamp(sm_scroll, 0, max(0, sm.h - 456))
+            let sm.off = floor(sm.sc * pu + 0.5)        // whole pixels: text that is shifted by a fraction of one is resampled, and looks soft
+            clip box { at: spx + 224 * pu, sby + 228 * pu; size: 456 * pu, 456 * pu }
+            zone box sm_wheel { at: spx + 219 * pu, sby + 228 * pu; size: 446 * pu, 456 * pu }
+            on scroll sm_wheel { sm_scroll_to = clamp(sm_scroll_to - wheel * 44, 0, max(0, sm.h - 456)) }
+            group {
+                move: 0, -sm.off
+            box { at: spx + 219 * pu, sby + 40 * pu; size: 438 * pu, 68 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text sm_host { at: floor(spx + 14 * pu + 0.5), floor(sby + 25 * pu + 0.5); anchor: left center; size: 21.5; weight: 700; width: 300 * pu; lines: 1; color: ink; family: "Space Grotesk" }
+            text sm_cpu_name { at: floor(spx + 14 * pu + 0.5), floor(sby + 42 * pu + 0.5); anchor: left center; size: 13.5; weight: 500; width: 410 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            text "UPTIME" { at: floor(spx + 14 * pu + 0.5), floor(sby + 61 * pu + 0.5); anchor: left center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_uptime { at: floor(spx + 62 * pu + 0.5), floor(sby + 61 * pu + 0.5); anchor: left center; size: 15; weight: 600; width: 84 * pu; lines: 1; color: ink; family: "Space Grotesk" }
+            text "LOAD" { at: floor(spx + 152 * pu + 0.5), floor(sby + 61 * pu + 0.5); anchor: left center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_load { at: floor(spx + 200 * pu + 0.5), floor(sby + 61 * pu + 0.5); anchor: left center; size: 15; weight: 600; width: 84 * pu; lines: 1; color: ink; family: "Space Grotesk" }
+            text "KERNEL" { at: floor(spx + 292 * pu + 0.5), floor(sby + 61 * pu + 0.5); anchor: left center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_kernel { at: floor(spx + 346 * pu + 0.5), floor(sby + 61 * pu + 0.5); anchor: left center; size: 15; weight: 600; width: 84 * pu; lines: 1; color: ink; family: "Space Grotesk" }
+            box { at: spx + 219 * pu, sby + 176 * pu; size: 438 * pu, 188 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "PROCESSOR" { at: floor(spx + 14 * pu + 0.5), floor(sby + 96 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_cpu_meta { at: floor(spx + 424 * pu + 0.5), floor(sby + 96 * pu + 0.5); anchor: right center; size: 13.5; weight: 500; width: 260 * pu; lines: 1; color: faint; family: "Space Grotesk"; align: right }
+            arc { at: spx + 74 * pu, sby + 174 * pu; radius: 44 * pu; span: 270deg; width: 9 * pu; color: ink; opacity: 9%; rotate: 0deg }
+            group {
+                glow: 7, 26%
+                arc { at: spx + 74 * pu, sby + 174 * pu; radius: 44 * pu; span: (270 * clamp(sm_cpu_p, 0.004, 1)) * 1deg; width: 9 * pu; color: mix(mint, alert, clamp((sm_cpu_p - 0.75) / 0.25, 0, 1)); rotate: (-135 + 135 * clamp(sm_cpu_p, 0.004, 1)) * 1deg }
+            }
+            text sm_cpu_txt { at: floor(spx + 74 * pu + 0.5), floor(sby + 169 * pu + 0.5); anchor: center center; size: 29.5; weight: 700; width: 80 * pu; lines: 1; color: ink; family: "Space Grotesk"; align: center }
+            text "CPU" { at: floor(spx + 74 * pu + 0.5), floor(sby + 191 * pu + 0.5); anchor: center center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_threads { at: floor(spx + 74 * pu + 0.5), floor(sby + 250 * pu + 0.5); anchor: center center; size: 13.5; weight: 500; width: 110 * pu; lines: 1; color: faint; family: "Space Grotesk"; align: center }
+            box { at: spx + 286 * pu, sby + 146.5 * pu; size: 276 * pu, 0.6 * pu; color: ink; opacity: 7% }
+            box { at: spx + 286 * pu, sby + 135 * pu; size: 276 * pu, 0.6 * pu; color: ink; opacity: 7% }
+            box { at: spx + 286 * pu, sby + 123.5 * pu; size: 276 * pu, 0.6 * pu; color: ink; opacity: 7% }
+            box { at: spx + 286 * pu, sby + 158 * pu; size: 276 * pu, 0.8 * pu; color: ink; opacity: 14% }
+            repeat i in 0..60 {
+                let k = i + 60 - sm_hist.count
+                let hh = max(1.6, clamp(sm_hist.$i.cpu, 0, 1) * 46)
+                box { at: spx + 148 * pu + (k + 0.5) * 4.6 * pu, sby + 158 * pu - hh / 2 * pu; size: 3.4 * pu, hh * pu; corner: 1.2 * pu; color: mix(mint, alert, clamp((sm_hist.$i.cpu - 0.75) / 0.25, 0, 1)); opacity: (22% + 70% * k / 60); show: i < sm_hist.count }
+            }
+            text "CORES" { at: floor(spx + 148 * pu + 0.5), floor(sby + 170 * pu + 0.5); anchor: left center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            repeat c in 0..16 {
+                let cc = mod(c, 8)
+                let cr = floor(c / 8)
+                let cxx = 148 + cc * 35 + 13
+                let cyy = 179 + cr * 42
+                let cp = clamp(sm_core.$c.pct, 0, 1)
+                box { at: spx + cxx * pu, sby + (cyy + 13) * pu; size: 26 * pu, 26 * pu; corner: 7 * pu; color: ink; opacity: 8%; show: c < sm_core.count }
+                box { at: spx + cxx * pu, sby + (cyy + 26 - max(3, 26 * cp) / 2) * pu; size: 26 * pu, max(3, 26 * cp) * pu; corner: 7 * pu; color: mix(mint, alert, clamp((cp - 0.75) / 0.25, 0, 1)); opacity: 60% + 40% * cp; show: c < sm_core.count }
+                text number(c, 0, "") { at: floor(spx + cxx * pu + 0.5), floor(sby + (cyy + 34) * pu + 0.5); anchor: center; size: 11; color: faint; family: "Space Grotesk"; show: c < sm_core.count }
+            }
+            box { at: spx + 219 * pu, sby + 357 * pu; size: 438 * pu, 158 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "MEMORY" { at: floor(spx + 14 * pu + 0.5), floor(sby + 292 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_mem_total { at: floor(spx + 424 * pu + 0.5), floor(sby + 292 * pu + 0.5); anchor: right center; size: 13.5; weight: 500; width: 200 * pu; lines: 1; color: faint; family: "Space Grotesk"; align: right }
+            arc { at: spx + 74 * pu, sby + 360 * pu; radius: 40 * pu; span: 359deg; width: 11 * pu; color: ink; opacity: 9%; rotate: 0deg }
+            group {
+                glow: 7, 24%
+            arc { at: spx + 74 * pu, sby + 360 * pu; radius: 40 * pu; span: (360 * clamp(sm_cache_p, 0.004, 1)) * 1deg; width: 11 * pu; color: mint; opacity: 42%; rotate: (360 * clamp(sm_mem_p, 0, 1) + 180 * clamp(sm_cache_p, 0.004, 1)) * 1deg }
+            arc { at: spx + 74 * pu, sby + 360 * pu; radius: 40 * pu; span: (360 * clamp(sm_mem_p, 0.004, 1)) * 1deg; width: 11 * pu; color: mix(mint, alert, clamp((sm_mem_p - 0.85) / 0.15000000000000002, 0, 1)); rotate: (180 * clamp(sm_mem_p, 0.004, 1)) * 1deg }
+            }
+            text sm_mem_pct { at: floor(spx + 74 * pu + 0.5), floor(sby + 356 * pu + 0.5); anchor: center center; size: 27; weight: 700; width: 80 * pu; lines: 1; color: ink; family: "Space Grotesk"; align: center }
+            text "IN USE" { at: floor(spx + 74 * pu + 0.5), floor(sby + 375 * pu + 0.5); anchor: center center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            ellipse { at: spx + 148 * pu, sby + 312 * pu; radius: 3.2 * pu; color: mint; opacity: 100% }
+            text "Used" { at: floor(spx + 160 * pu + 0.5), floor(sby + 312 * pu + 0.5); anchor: left center; size: 14; weight: 600; color: ink; family: "Space Grotesk"; opacity: 85% }
+            text sm_mem_used { at: floor(spx + 424 * pu + 0.5), floor(sby + 312 * pu + 0.5); anchor: right center; size: 15; weight: 600; width: 200 * pu; lines: 1; color: ink; family: "Space Grotesk"; align: right }
+            ellipse { at: spx + 148 * pu, sby + 331 * pu; radius: 3.2 * pu; color: mint; opacity: 42% }
+            text "Cache" { at: floor(spx + 160 * pu + 0.5), floor(sby + 331 * pu + 0.5); anchor: left center; size: 14; weight: 600; color: ink; family: "Space Grotesk"; opacity: 85% }
+            text sm_mem_cache { at: floor(spx + 424 * pu + 0.5), floor(sby + 331 * pu + 0.5); anchor: right center; size: 15; weight: 600; width: 200 * pu; lines: 1; color: ink; family: "Space Grotesk"; align: right }
+            ellipse { at: spx + 148 * pu, sby + 350 * pu; radius: 3.2 * pu; color: ink; opacity: 22% }
+            text "Free" { at: floor(spx + 160 * pu + 0.5), floor(sby + 350 * pu + 0.5); anchor: left center; size: 14; weight: 600; color: ink; family: "Space Grotesk"; opacity: 85% }
+            text sm_mem_free { at: floor(spx + 424 * pu + 0.5), floor(sby + 350 * pu + 0.5); anchor: right center; size: 15; weight: 600; width: 200 * pu; lines: 1; color: ink; family: "Space Grotesk"; align: right }
+            text "SWAP" { at: floor(spx + 148 * pu + 0.5), floor(sby + 374 * pu + 0.5); anchor: left center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_swap_txt { at: floor(spx + 424 * pu + 0.5), floor(sby + 374 * pu + 0.5); anchor: right center; size: 13.5; weight: 500; width: 230 * pu; lines: 1; color: faint; family: "Space Grotesk"; align: right }
+            box { at: spx + 286 * pu, sby + 386 * pu; size: 276 * pu, 6 * pu; corner: 3 * pu; color: ink; opacity: 8% }
+            box { from: spx + 148 * pu, sby + 383 * pu; size: max(6, 276 * clamp(sm_swap_p, 0, 1)) * pu, 6 * pu; corner: 3 * pu; color: mint }
+            box { at: spx + 286 * pu, sby + 428 * pu; size: 276 * pu, 0.8 * pu; color: ink; opacity: 14% }
+            repeat i in 0..60 {
+                let k = i + 60 - sm_hist.count
+                let hh = max(1.6, clamp(sm_hist.$i.mem, 0, 1) * 30)
+                box { at: spx + 148 * pu + (k + 0.5) * 4.6 * pu, sby + 428 * pu - hh / 2 * pu; size: 3.4 * pu, hh * pu; corner: 1.2 * pu; color: mint; opacity: (22% + 70% * k / 60); show: i < sm_hist.count }
+            }
+            box { at: spx + 219 * pu, sby + 526 * pu; size: 438 * pu, 164 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "GRAPHICS" { at: floor(spx + 14 * pu + 0.5), floor(sby + 458 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_gpu_name { at: floor(spx + 424 * pu + 0.5), floor(sby + 458 * pu + 0.5); anchor: right center; size: 13.5; weight: 500; width: 300 * pu; lines: 1; color: faint; family: "Space Grotesk"; align: right; show: sm_gpu_on }
+            text "No GPU sensors found" { at: floor(spx + 219 * pu + 0.5), floor(sby + 530 * pu + 0.5); anchor: center center; size: 16; weight: 500; width: 300 * pu; lines: 1; color: faint; family: "Space Grotesk"; align: center; show: not sm_gpu_on }
+            group {
+                show: sm_gpu_on
+            arc { at: spx + 74 * pu, sby + 532 * pu; radius: 44 * pu; span: 270deg; width: 8 * pu; color: ink; opacity: 9%; rotate: 0deg }
+            group {
+                glow: 7, 26%
+                arc { at: spx + 74 * pu, sby + 532 * pu; radius: 44 * pu; span: (270 * clamp(sm_gpu_p, 0.004, 1)) * 1deg; width: 8 * pu; color: mix(mint, alert, clamp((sm_gpu_p - 0.8) / 0.19999999999999996, 0, 1)); rotate: (-135 + 135 * clamp(sm_gpu_p, 0.004, 1)) * 1deg }
+            }
+            arc { at: spx + 74 * pu, sby + 532 * pu; radius: 30 * pu; span: 270deg; width: 6 * pu; color: ink; opacity: 8%; rotate: 0deg }
+            group {
+                glow: 7, 26%
+                arc { at: spx + 74 * pu, sby + 532 * pu; radius: 30 * pu; span: (270 * clamp(sm_vram_p, 0.004, 1)) * 1deg; width: 6 * pu; color: mix(mint, ink, 0.25); rotate: (-135 + 135 * clamp(sm_vram_p, 0.004, 1)) * 1deg }
+            }
+            text sm_gpu_txt { at: floor(spx + 74 * pu + 0.5), floor(sby + 529 * pu + 0.5); anchor: center center; size: 23; weight: 700; width: 64 * pu; lines: 1; color: ink; family: "Space Grotesk"; align: center }
+            text "GPU" { at: floor(spx + 74 * pu + 0.5), floor(sby + 546 * pu + 0.5); anchor: center center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text "VRAM" { at: floor(spx + 148 * pu + 0.5), floor(sby + 478 * pu + 0.5); anchor: left center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_gpu_vram { at: floor(spx + 424 * pu + 0.5), floor(sby + 478 * pu + 0.5); anchor: right center; size: 14; weight: 600; width: 240 * pu; lines: 1; color: ink; family: "Space Grotesk"; align: right }
+            box { at: spx + 286 * pu, sby + 489 * pu; size: 276 * pu, 6 * pu; corner: 3 * pu; color: ink; opacity: 8% }
+            box { from: spx + 148 * pu, sby + 486 * pu; size: max(6, 276 * clamp(sm_vram_p, 0, 1)) * pu, 6 * pu; corner: 3 * pu; color: mix(mint, ink, 0.25) }
+            text "POWER" { at: floor(spx + 148 * pu + 0.5), floor(sby + 506 * pu + 0.5); anchor: left center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_gpu_power { at: floor(spx + 424 * pu + 0.5), floor(sby + 506 * pu + 0.5); anchor: right center; size: 14; weight: 600; width: 240 * pu; lines: 1; color: ink; family: "Space Grotesk"; align: right }
+            box { at: spx + 286 * pu, sby + 517 * pu; size: 276 * pu, 6 * pu; corner: 3 * pu; color: ink; opacity: 8% }
+            box { from: spx + 148 * pu, sby + 514 * pu; size: max(6, 276 * clamp(sm_pw_p, 0, 1)) * pu, 6 * pu; corner: 3 * pu; color: mix(mint, alert, clamp((sm_pw_p - 0.85) / 0.15000000000000002, 0, 1)) }
+            text "TEMP" { at: floor(spx + 148 * pu + 0.5), floor(sby + 536 * pu + 0.5); anchor: left center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_gpu_temp { at: floor(spx + 148 * pu + 0.5), floor(sby + 550 * pu + 0.5); anchor: left center; size: 15; weight: 700; width: 112 * pu; lines: 1; color: ink; family: "Space Grotesk" }
+            text "FAN" { at: floor(spx + 232 * pu + 0.5), floor(sby + 536 * pu + 0.5); anchor: left center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_gpu_fan { at: floor(spx + 232 * pu + 0.5), floor(sby + 550 * pu + 0.5); anchor: left center; size: 15; weight: 700; width: 112 * pu; lines: 1; color: ink; family: "Space Grotesk" }
+            text "CLOCK" { at: floor(spx + 306 * pu + 0.5), floor(sby + 536 * pu + 0.5); anchor: left center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_gpu_clock { at: floor(spx + 306 * pu + 0.5), floor(sby + 550 * pu + 0.5); anchor: left center; size: 15; weight: 700; width: 112 * pu; lines: 1; color: ink; family: "Space Grotesk" }
+            box { at: spx + 286 * pu, sby + 598 * pu; size: 276 * pu, 0.8 * pu; color: ink; opacity: 14% }
+            repeat i in 0..60 {
+                let k = i + 60 - sm_hist.count
+                let hh = max(1.6, clamp(sm_hist.$i.gpu, 0, 1) * 32)
+                box { at: spx + 148 * pu + (k + 0.5) * 4.6 * pu, sby + 598 * pu - hh / 2 * pu; size: 3.4 * pu, hh * pu; corner: 1.2 * pu; color: mix(mint, alert, clamp((sm_hist.$i.gpu - 0.8) / 0.2, 0, 1)); opacity: (22% + 70% * k / 60); show: i < sm_hist.count }
+            }
+            }
+            box { at: spx + 219 * pu, sby + 705 * pu; size: 438 * pu, 178 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "NETWORK" { at: floor(spx + 14 * pu + 0.5), floor(sby + 631 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_iface { at: floor(spx + 424 * pu + 0.5), floor(sby + 631 * pu + 0.5); anchor: right center; size: 13.5; weight: 500; width: 200 * pu; lines: 1; color: faint; family: "Space Grotesk"; align: right }
+            box { at: spx + 149 * pu, sby + 712 * pu; size: 270 * pu, 0.8 * pu; color: ink; opacity: 16% }
+            repeat i in 0..60 {
+                let k = i + 60 - sm_hist.count
+                let dh = max(1.4, clamp(sm_hist.$i.rx, 0, 1) * 62)
+                let uh = max(1.4, clamp(sm_hist.$i.tx, 0, 1) * 62)
+                box { at: spx + (14 + (k + 0.5) * 4.5) * pu, sby + (711 - dh / 2) * pu; size: 3.3 * pu, dh * pu; corner: 1.2 * pu; color: mint; opacity: (22% + 70% * k / 60); show: i < sm_hist.count }
+                box { at: spx + (14 + (k + 0.5) * 4.5) * pu, sby + (713 + uh / 2) * pu; size: 3.3 * pu, uh * pu; corner: 1.2 * pu; color: mix(mint, ink, 0.4); opacity: (18% + 55% * k / 60); show: i < sm_hist.count }
+            }
+            text "DOWNLOAD" { at: floor(spx + 304 * pu + 0.5), floor(sby + 656 * pu + 0.5); anchor: left center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_rx_txt { at: floor(spx + 304 * pu + 0.5), floor(sby + 674 * pu + 0.5); anchor: left center; size: 20; weight: 700; width: 126 * pu; lines: 1; color: ink; family: "Space Grotesk" }
+            text sm_rx_total { at: floor(spx + 304 * pu + 0.5), floor(sby + 692 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 126 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            text "UPLOAD" { at: floor(spx + 304 * pu + 0.5), floor(sby + 720 * pu + 0.5); anchor: left center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_tx_txt { at: floor(spx + 304 * pu + 0.5), floor(sby + 738 * pu + 0.5); anchor: left center; size: 20; weight: 700; width: 126 * pu; lines: 1; color: mix(mint, ink, 0.4); family: "Space Grotesk" }
+            text sm_tx_total { at: floor(spx + 304 * pu + 0.5), floor(sby + 756 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 126 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            box { at: spx + 219 * pu, sby + (802 + (226 - sm.ds) / 2) * pu; size: 438 * pu, (226 - sm.ds) * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "STORAGE" { at: floor(spx + 14 * pu + 0.5), floor(sby + 817 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            repeat m in 0..4 {
+                let my = 844 + m * 38
+                text sm_mnt.$m.name { at: floor(spx + 14 * pu + 0.5), floor(sby + my * pu + 0.5); anchor: left center; size: 15.5; weight: 600; width: 200 * pu; lines: 1; color: ink; family: "Space Grotesk"; show: m < sm_mnt.count }
+                text sm_mnt.$m.info { at: floor(spx + 424 * pu + 0.5), floor(sby + my * pu + 0.5); anchor: right center; align: right; size: 13.5; width: 220 * pu; lines: 1; color: faint; family: "Space Grotesk"; show: m < sm_mnt.count }
+                box { at: spx + 219 * pu, sby + (my + 15) * pu; size: 410 * pu, 8 * pu; corner: 4 * pu; color: ink; opacity: 8%; show: m < sm_mnt.count }
+                box { from: spx + 14 * pu, sby + (my + 11) * pu; size: max(8, 410 * clamp(sm_mnt.$m.pct, 0, 1)) * pu, 8 * pu; corner: 4 * pu; color: mix(mint, alert, clamp((sm_mnt.$m.pct - 0.8) / 0.19999999999999996, 0, 1)); show: m < sm_mnt.count }
+            }
+            box { at: spx + 219 * pu, sby + (968 - sm.ds) * pu; size: 410 * pu, 0.8 * pu; color: ink; opacity: 10% }
+            text "READ" { at: floor(spx + 14 * pu + 0.5), floor(sby + (986 - sm.ds) * pu + 0.5); anchor: left center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_dr_txt { at: floor(spx + 14 * pu + 0.5), floor(sby + (1005 - sm.ds) * pu + 0.5); anchor: left center; size: 17.5; weight: 700; width: 100 * pu; lines: 1; color: ink; family: "Space Grotesk" }
+            text "WRITE" { at: floor(spx + 124 * pu + 0.5), floor(sby + (986 - sm.ds) * pu + 0.5); anchor: left center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text sm_dw_txt { at: floor(spx + 124 * pu + 0.5), floor(sby + (1005 - sm.ds) * pu + 0.5); anchor: left center; size: 17.5; weight: 700; width: 100 * pu; lines: 1; color: mix(mint, ink, 0.4); family: "Space Grotesk" }
+            repeat i in 0..60 {
+                let k = i + 60 - sm_hist.count
+                let rh = max(1, clamp(sm_hist.$i.dr, 0, 1) * 22)
+                let wh = max(1, clamp(sm_hist.$i.dw, 0, 1) * 22)
+                box { at: spx + (240 + (k + 0.5) * 3.05) * pu, sby + (997.5 - sm.ds - rh / 2) * pu; size: 2.2 * pu, rh * pu; corner: 1 * pu; color: mint; opacity: (22% + 70% * k / 60); show: i < sm_hist.count }
+                box { at: spx + (240 + (k + 0.5) * 3.05) * pu, sby + (998.5 - sm.ds + wh / 2) * pu; size: 2.2 * pu, wh * pu; corner: 1 * pu; color: mix(mint, ink, 0.4); opacity: (18% + 55% * k / 60); show: i < sm_hist.count }
+            }
+            box { at: spx + 219 * pu, sby + (1036 - sm.ds + (242 - sm.dt) / 2) * pu; size: 438 * pu, (242 - sm.dt) * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "TEMPERATURES" { at: floor(spx + 14 * pu + 0.5), floor(sby + (1051 - sm.ds) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            repeat t in 0..8 {
+                let ty = 1076 - sm.ds + t * 24
+                text sm_tmp.$t.label { at: floor(spx + 14 * pu + 0.5), floor(sby + ty * pu + 0.5); anchor: left center; size: 15; weight: 600; width: 130 * pu; lines: 1; color: ink; family: "Space Grotesk"; show: t < sm_tmp.count }
+                box { at: spx + 255 * pu, sby + ty * pu; size: 210 * pu, 7 * pu; corner: 3.5 * pu; color: ink; opacity: 8%; show: t < sm_tmp.count }
+                box { from: spx + 150 * pu, sby + (ty - 3.5) * pu; size: max(7, 210 * clamp(sm_tmp.$t.f, 0, 1)) * pu, 7 * pu; corner: 3.5 * pu; color: mix(mint, alert, clamp(sm_tmp.$t.heat, 0, 1)); show: t < sm_tmp.count }
+                text sm_tmp.$t.txt { at: floor(spx + 424 * pu + 0.5), floor(sby + ty * pu + 0.5); anchor: right center; align: right; size: 15; weight: 700; width: 56 * pu; lines: 1; color: ink; family: "Space Grotesk"; show: t < sm_tmp.count }
+            }
+            text sm_fans { at: floor(spx + 14 * pu + 0.5), floor(sby + (1264 - sm.ds - sm.dt) * pu + 0.5); anchor: left center; size: 13.5; width: 410 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            box { at: spx + 219 * pu, sby + (1406 - sm.ds - sm.dt) * pu; size: 438 * pu, 240 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "BUSIEST PROGRAMS" { at: floor(spx + 14 * pu + 0.5), floor(sby + (1301 - sm.ds - sm.dt) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text "CPU" { at: floor(spx + 372 * pu + 0.5), floor(sby + (1301 - sm.ds - sm.dt) * pu + 0.5); anchor: right center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            text "MEMORY" { at: floor(spx + 424 * pu + 0.5), floor(sby + (1301 - sm.ds - sm.dt) * pu + 0.5); anchor: right center; size: 11.5; weight: 700; color: faint; family: "Space Grotesk" }
+            repeat r in 0..8 {
+                let ry = 1326 - sm.ds - sm.dt + r * 26
+                text sm_proc.$r.name { at: floor(spx + 14 * pu + 0.5), floor(sby + ry * pu + 0.5); anchor: left center; size: 15.5; weight: 600; width: 130 * pu; lines: 1; color: ink; family: "Space Grotesk"; show: r < sm_proc.count }
+                box { at: spx + 228 * pu, sby + ry * pu; size: 140 * pu, 7 * pu; corner: 3.5 * pu; color: ink; opacity: 8%; show: r < sm_proc.count }
+                box { from: spx + 158 * pu, sby + (ry - 3.5) * pu; size: max(7, 140 * clamp(sm_proc.$r.cpu, 0, 1)) * pu, 7 * pu; corner: 3.5 * pu; color: mix(mint, alert, clamp((sm_proc.$r.cpu - 0.75) / 0.25, 0, 1)); show: r < sm_proc.count }
+                text sm_proc.$r.cpu_txt { at: floor(spx + 372 * pu + 0.5), floor(sby + ry * pu + 0.5); anchor: right center; align: right; size: 14; weight: 700; width: 56 * pu; lines: 1; color: ink; family: "Space Grotesk"; show: r < sm_proc.count }
+                text sm_proc.$r.mem_txt { at: floor(spx + 424 * pu + 0.5), floor(sby + ry * pu + 0.5); anchor: right center; align: right; size: 14; weight: 500; width: 50 * pu; lines: 1; color: faint; family: "Space Grotesk"; show: r < sm_proc.count }
+            }
+            }
+            let sm.thh = 456 * 456 / sm.h
+            let sm.thy = sm.thh / 2 + sm.sc / max(1, sm.h - 456) * (456 - sm.thh)
+            box { at: spx + 442 * pu, sby + 228 * pu; size: 3 * pu, 456 * pu; corner: 1.5 * pu; color: ink; opacity: 6% }
+            box { at: spx + 442 * pu, sby + sm.thy * pu; size: 3 * pu, sm.thh * pu; corner: 1.5 * pu; color: mint; opacity: 55% }
+            let sm.cue = clamp((sm.h - 456 - sm.sc) / 24, 0, 1)
+            let sm.cuey = sby + (456 - 26) * pu + 2.5 * pu * sin(time * 270)
+            repeat i in 0..16 {
+                let fk = (i + 1) / 16
+                box { from: spx - 4 * pu, sby + (400 + i * 3.5) * pu; size: 448 * pu, 3.5 * pu + 0.5; color: deep; opacity: 45% * fk * fk * sm.cue }
+            }
+            box { at: spx + 224 * pu, sm.cuey; size: 76 * pu, 26 * pu; corner: 13 * pu; color: deep; opacity: 80% * sm.cue }
+            box { at: spx + 224 * pu, sm.cuey; size: 76 * pu, 26 * pu; corner: 13 * pu; color: mint; opacity: (10% + 14% * sm_cue_hit.hover) * sm.cue }
+            path { at: spx + 204 * pu, sm.cuey - 1 * pu; stroke: 1.6 * pu; color: mint; opacity: sm.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
+            path { at: spx + 204 * pu, sm.cuey + 4 * pu; stroke: 1.6 * pu; color: mint; opacity: sm.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
+            text "More" { at: floor(spx + 232 * pu + 0.5), floor(sm.cuey + 0.5); anchor: center; size: 15; weight: 700; color: ink; opacity: sm.cue; family: "Space Grotesk" }
+            zone box sm_cue_hit { at: spx + 224 * pu, sby + (456 - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: sm.cue > 0.5 }
+            on press sm_cue_hit { sm_scroll_to = clamp(sm_scroll_to + 342, 0, max(0, sm.h - 456)) }
+            zone box sm_bar_hit { at: spx + 442 * pu, sby + 228 * pu; size: 14 * pu, 456 * pu; cursor: pointer; active: sm.h > 456 }
+            on press sm_bar_hit { sm_scroll_to = clamp(((pointer.y - sby) / pu - sm.thh / 2) / max(1, 456 - sm.thh) * (sm.h - 456), 0, max(0, sm.h - 456)) }
+            on drag sm_bar_hit { sm_scroll_to = clamp(((pointer.y - sby) / pu - sm.thh / 2) / max(1, 456 - sm.thh) * (sm.h - 456), 0, max(0, sm.h - 456)) }
+        }
+        //  ── System monitor page: END ──
+}

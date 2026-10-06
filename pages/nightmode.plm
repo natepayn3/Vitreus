@@ -1,0 +1,81 @@
+part Nightmode {
+        //  The Night mode page (Visuals): the switch, how warm the tint is, and when it turns itself on and off.
+        group {
+            show: set_pgn > 0.01
+            opacity: set_pgn
+            let ntx0 = spx + 14 * pu
+            let ntw = 410 * pu
+
+            //  Card one: the switch.
+            box { at: spx + 219 * pu, sby + 26 * pu; size: 438 * pu, 52 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "Night mode" { at: floor(spx + 14 * pu + 0.5), floor(sby + 16 * pu + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
+            text night_status { at: floor(spx + 14 * pu + 0.5), floor(sby + 35 * pu + 0.5); anchor: left center; size: 13.5; width: 300 * pu; lines: 1; color: if(night_on, mint, faint); family: "Space Grotesk" }
+            body {
+                color: mix(off, mint, clamp(night_pill, 0, 1))
+                box { at: spx + 405 * pu, sby + 26 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+            }
+            box { at: spx + 397 * pu + night_pill * 16 * pu, sby + 26 * pu; size: (17 + 9 * clamp(4 * night_pill * (1 - night_pill), 0, 1)) * pu, (17 - 3 * clamp(4 * night_pill * (1 - night_pill), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * night_pill * (1 - night_pill), 0, 1)) * pu; color: ink }
+            zone box night_sw_hit { at: spx + 405 * pu, sby + 26 * pu; size: 46 * pu, 30 * pu; cursor: pointer }
+            on press night_sw_hit { emit night_toggle }
+
+            //  Card two: how warm. The track is the range itself, from neutral to the warmest, so what is being picked
+            //  can be seen; the knob sits where the tint is.
+            box { at: spx + 219 * pu, sby + 104 * pu; size: 438 * pu, 84 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "COLOR" { at: floor(spx + 14 * pu + 0.5), floor(sby + 73 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text "Warmth" { at: floor(spx + 14 * pu + 0.5), floor(sby + 94 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
+            text night_temp_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 94 * pu + 0.5); anchor: right center; size: 17.5; weight: 600; color: ink; family: "Space Grotesk" }
+            body {
+                gradient: ntx0, 0 to ntx0 + ntw, 0, #f4f7ff, #ffd9ad 45%, #ff9a45
+                rim: 12%
+                box { at: ntx0 + ntw / 2, sby + 116 * pu; size: ntw, 12 * pu; corner: 6 * pu }
+            }
+            ellipse { at: ntx0 + ntw * night_t, sby + 116 * pu; radius: 10 * pu; color: ink }
+            ellipse { at: ntx0 + ntw * night_t, sby + 116 * pu; radius: 10 * pu; stroke: 1 * pu; color: #000000; opacity: 30% }
+            text "6500 K" { at: floor(ntx0 + 0.5), floor(sby + 137 * pu + 0.5); anchor: left center; size: 12; color: faint; family: "Space Grotesk" }
+            text "2500 K" { at: floor(ntx0 + ntw + 0.5), floor(sby + 137 * pu + 0.5); anchor: right center; size: 12; color: faint; family: "Space Grotesk" }
+            zone box night_t_hit { at: ntx0 + ntw / 2, sby + 116 * pu; size: ntw + 24 * pu, 30 * pu; cursor: pointer }
+            on press night_t_hit { emit night_temp_set(clamp((pointer.x - ntx0) / ntw, 0, 1)) }
+            on drag night_t_hit { emit night_temp_set(clamp((pointer.x - ntx0) / ntw, 0, 1)) }
+
+            //  Card three: the schedule. Automatic, and the two times, in half hours.
+            box { at: spx + 219 * pu, sby + 240 * pu; size: 438 * pu, 136 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "SCHEDULE" { at: floor(spx + 14 * pu + 0.5), floor(sby + 179 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text "Automatic" { at: floor(spx + 14 * pu + 0.5), floor(sby + 197 * pu + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
+            text "Turns itself on and off at these times" { at: floor(spx + 14 * pu + 0.5), floor(sby + 214 * pu + 0.5); anchor: left center; size: 13.5; width: 300 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            body {
+                color: mix(off, mint, clamp(night_auto_pill, 0, 1))
+                box { at: spx + 405 * pu, sby + 205 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+            }
+            box { at: spx + 397 * pu + night_auto_pill * 16 * pu, sby + 205 * pu; size: (17 + 9 * clamp(4 * night_auto_pill * (1 - night_auto_pill), 0, 1)) * pu, (17 - 3 * clamp(4 * night_auto_pill * (1 - night_auto_pill), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * night_auto_pill * (1 - night_auto_pill), 0, 1)) * pu; color: ink }
+            zone box night_auto_hit { at: spx + 405 * pu, sby + 205 * pu; size: 46 * pu, 30 * pu; cursor: pointer }
+            on press night_auto_hit { emit night_auto_toggle }
+            //  From and Until: dimmed while it is not automatic, and still there to be set.
+            group {
+                opacity: 40% + 60% * night_auto_pill
+                text "From" { at: floor(spx + 14 * pu + 0.5), floor(sby + 245 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
+                ellipse { at: spx + 292 * pu, sby + 245 * pu; radius: 11 * pu; color: ink; opacity: 8% + 12% * night_sm_hit.hover }
+                box { at: spx + 292 * pu, sby + 245 * pu; size: 9 * pu, 1.6 * pu; corner: 0.8 * pu; color: ink }
+                box { at: spx + 345 * pu, sby + 245 * pu; size: 78 * pu, 24 * pu; corner: 7 * pu; color: ink; opacity: 8% }
+                text night_start_text { at: floor(spx + 345 * pu + 0.5), floor(sby + 245 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 74 * pu; lines: 1; color: mint; family: "Space Grotesk" }
+                ellipse { at: spx + 398 * pu, sby + 245 * pu; radius: 11 * pu; color: ink; opacity: 8% + 12% * night_sp_hit.hover }
+                box { at: spx + 398 * pu, sby + 245 * pu; size: 9 * pu, 1.6 * pu; corner: 0.8 * pu; color: ink }
+                box { at: spx + 398 * pu, sby + 245 * pu; size: 1.6 * pu, 9 * pu; corner: 0.8 * pu; color: ink }
+                text "Until" { at: floor(spx + 14 * pu + 0.5), floor(sby + 281 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
+                ellipse { at: spx + 292 * pu, sby + 281 * pu; radius: 11 * pu; color: ink; opacity: 8% + 12% * night_em_hit.hover }
+                box { at: spx + 292 * pu, sby + 281 * pu; size: 9 * pu, 1.6 * pu; corner: 0.8 * pu; color: ink }
+                box { at: spx + 345 * pu, sby + 281 * pu; size: 78 * pu, 24 * pu; corner: 7 * pu; color: ink; opacity: 8% }
+                text night_end_text { at: floor(spx + 345 * pu + 0.5), floor(sby + 281 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 74 * pu; lines: 1; color: mint; family: "Space Grotesk" }
+                ellipse { at: spx + 398 * pu, sby + 281 * pu; radius: 11 * pu; color: ink; opacity: 8% + 12% * night_ep_hit.hover }
+                box { at: spx + 398 * pu, sby + 281 * pu; size: 9 * pu, 1.6 * pu; corner: 0.8 * pu; color: ink }
+                box { at: spx + 398 * pu, sby + 281 * pu; size: 1.6 * pu, 9 * pu; corner: 0.8 * pu; color: ink }
+            }
+            zone box night_sm_hit { at: spx + 292 * pu, sby + 245 * pu; size: 26 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
+            zone box night_sp_hit { at: spx + 398 * pu, sby + 245 * pu; size: 26 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
+            zone box night_em_hit { at: spx + 292 * pu, sby + 281 * pu; size: 26 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
+            zone box night_ep_hit { at: spx + 398 * pu, sby + 281 * pu; size: 26 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
+            on press night_sm_hit { emit night_start_step(-1) }
+            on press night_sp_hit { emit night_start_step(1) }
+            on press night_em_hit { emit night_end_step(-1) }
+            on press night_ep_hit { emit night_end_step(1) }
+        }
+}

@@ -1,0 +1,110 @@
+part Wallpaper {
+        group {
+            show: set_pg + set_pgd + set_pgb + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk < 0.99
+            opacity: 1 - set_pg - set_pgd - set_pgb - set_pgn - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw - set_pgv - set_pgk
+            //  The wallpaper page. Card one: the wallpaper in use, and Random.
+            box { at: spx + 219 * pu, sby + 46 * pu; size: 438 * pu, 92 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            group {
+                clip inset 0 box { at: spx + 77 * pu, sby + 46 * pu; size: 130 * pu, 73 * pu; corner: 10 * pu }
+                image wp_cur { at: spx + 12 * pu, sby + 9.5 * pu; size: 130 * pu, 73 * pu }
+            }
+            text "ACTIVE WALLPAPER" { at: floor(spx + 154 * pu + 0.5), floor(sby + 27 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text wp_name { at: floor(spx + 154 * pu + 0.5), floor(sby + 46 * pu + 0.5); anchor: left center; size: 17.5; weight: 700; width: 150 * pu; lines: 1; color: ink; family: "Space Grotesk" }
+            text wp_dirtext { at: floor(spx + 154 * pu + 0.5), floor(sby + 63 * pu + 0.5); anchor: left center; size: 13.5; width: 150 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            //  One row, centred on the card: the wallpaper's name, Random, and Iris. Random is a hexagon with softened corners, like the
+            //  picker's tiles, with a die in it.
+            let rhx = spx + 331 * pu
+            let rhy = sby + 46 * pu
+            let rhr = 18 * pu
+            //  On a press it grows as the die turns and throbs back as it settles: `rth` is 0 at rest, 1 half way through the turn
+            //  (how far `rand_spin` has come of the way to `rand_turn`), and dips under 0 where the spring overshoots.
+            let rth = sin(clamp(1 - (rand_turn - rand_spin), 0, 1.3) * 180)
+            group {
+                pivot: rhx, rhy
+                scale: 1 + 0.22 * rth
+                path { at: rhx, rhy; color: mint; opacity: 16% + 16% * wp_rand_hit.hover + 22% * rth; move -0.260 * rhr, -0.850 * rhr; curve 0.260 * rhr, -0.850 * rhr via 0.000 * rhr, -1.000 * rhr; line 0.606 * rhr, -0.650 * rhr; curve 0.866 * rhr, -0.200 * rhr via 0.866 * rhr, -0.500 * rhr; line 0.866 * rhr, 0.200 * rhr; curve 0.606 * rhr, 0.650 * rhr via 0.866 * rhr, 0.500 * rhr; line 0.260 * rhr, 0.850 * rhr; curve -0.260 * rhr, 0.850 * rhr via 0.000 * rhr, 1.000 * rhr; line -0.606 * rhr, 0.650 * rhr; curve -0.866 * rhr, 0.200 * rhr via -0.866 * rhr, 0.500 * rhr; line -0.866 * rhr, -0.200 * rhr; curve -0.606 * rhr, -0.650 * rhr via -0.866 * rhr, -0.500 * rhr; close }
+                path { at: rhx, rhy; stroke: 1.2 * pu; color: mint; opacity: 45% + 35% * wp_rand_hit.hover + 20% * rth; move -0.260 * rhr, -0.850 * rhr; curve 0.260 * rhr, -0.850 * rhr via 0.000 * rhr, -1.000 * rhr; line 0.606 * rhr, -0.650 * rhr; curve 0.866 * rhr, -0.200 * rhr via 0.866 * rhr, -0.500 * rhr; line 0.866 * rhr, 0.200 * rhr; curve 0.606 * rhr, 0.650 * rhr via 0.866 * rhr, 0.500 * rhr; line 0.260 * rhr, 0.850 * rhr; curve -0.260 * rhr, 0.850 * rhr via 0.000 * rhr, 1.000 * rhr; line -0.606 * rhr, 0.650 * rhr; curve -0.866 * rhr, 0.200 * rhr via -0.866 * rhr, 0.500 * rhr; line -0.866 * rhr, -0.200 * rhr; curve -0.606 * rhr, -0.650 * rhr via -0.866 * rhr, -0.500 * rhr; close }
+                group {
+                    pivot: rhx, rhy
+                    rotate: rand_spin * 360deg
+                    box { at: rhx, rhy; size: 12 * pu, 12 * pu; corner: 3 * pu; stroke: 1.3 * pu; color: mint }
+                    ellipse { at: rhx - 2.6 * pu, rhy - 2.6 * pu; radius: 1.05 * pu; color: mint }
+                    ellipse { at: rhx, rhy; radius: 1.05 * pu; color: mint }
+                    ellipse { at: rhx + 2.6 * pu, rhy + 2.6 * pu; radius: 1.05 * pu; color: mint }
+                }
+            }
+            zone box wp_rand_hit { at: rhx, rhy; size: 38 * pu, 38 * pu; corner: 14 * pu; cursor: pointer }
+            on press wp_rand_hit { emit wp_random; rand_turn = rand_turn + 1 }
+
+            //  Iris, the palette from the wallpaper: a switch, as for the slideshow below. Off, the shell is monochrome. The window borders in
+            //  Hyprland follow it too.
+            text "Iris" { at: floor(spx + 378 * pu + 0.5), floor(sby + 46 * pu + 0.5); anchor: right center; size: 15.5; weight: 600; color: ink; family: "Space Grotesk" }
+            body {
+                color: mix(off, mint, clamp(iris_pill, 0, 1))
+                box { at: spx + 405 * pu, sby + 46 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+            }
+            box { at: spx + 397 * pu + iris_pill * 16 * pu, sby + 46 * pu; size: (17 + 9 * clamp(4 * iris_pill * (1 - iris_pill), 0, 1)) * pu, (17 - 3 * clamp(4 * iris_pill * (1 - iris_pill), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * iris_pill * (1 - iris_pill), 0, 1)) * pu; color: ink }
+            zone box wp_iris_hit { at: spx + 405 * pu, sby + 46 * pu; size: 46 * pu, 30 * pu; cursor: pointer }
+            on press wp_iris_hit { emit iris_toggle }
+
+            //  Card two: the slideshow. A switch, and how often: a stepper along a short list of intervals.
+            box { at: spx + 219 * pu, sby + 122 * pu; size: 438 * pu, 44 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "Slideshow" { at: floor(spx + 14 * pu + 0.5), floor(sby + 113 * pu + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
+            text wp_show_sub { at: floor(spx + 14 * pu + 0.5), floor(sby + 130 * pu + 0.5); anchor: left center; size: 13.5; width: 190 * pu; lines: 1; color: if(wp_show, mint, faint); family: "Space Grotesk" }
+            group {
+                opacity: 40% + 60% * wp_show_pill
+                ellipse { at: spx + 250 * pu, sby + 122 * pu; radius: 11 * pu; color: ink; opacity: 8% + 12% * wp_min_hit.hover }
+                box { at: spx + 250 * pu, sby + 122 * pu; size: 9 * pu, 1.6 * pu; corner: 0.8 * pu; color: ink }
+                box { at: spx + 295 * pu, sby + 122 * pu; size: 58 * pu, 24 * pu; corner: 7 * pu; color: ink; opacity: 8% }
+                text wp_mins_text { at: floor(spx + 295 * pu + 0.5), floor(sby + 122 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 56 * pu; lines: 1; color: mint; family: "Space Grotesk" }
+                ellipse { at: spx + 340 * pu, sby + 122 * pu; radius: 11 * pu; color: ink; opacity: 8% + 12% * wp_plus_hit.hover }
+                box { at: spx + 340 * pu, sby + 122 * pu; size: 9 * pu, 1.6 * pu; corner: 0.8 * pu; color: ink }
+                box { at: spx + 340 * pu, sby + 122 * pu; size: 1.6 * pu, 9 * pu; corner: 0.8 * pu; color: ink }
+            }
+            zone box wp_min_hit { at: spx + 250 * pu, sby + 122 * pu; size: 26 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
+            zone box wp_plus_hit { at: spx + 340 * pu, sby + 122 * pu; size: 26 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
+            on press wp_min_hit { emit wp_mins_step(-1) }
+            on press wp_plus_hit { emit wp_mins_step(1) }
+            body {
+                color: mix(off, mint, clamp(wp_show_pill, 0, 1))
+                box { at: spx + 405 * pu, sby + 122 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+            }
+            box { at: spx + 397 * pu + wp_show_pill * 16 * pu, sby + 122 * pu; size: (17 + 9 * clamp(4 * wp_show_pill * (1 - wp_show_pill), 0, 1)) * pu, (17 - 3 * clamp(4 * wp_show_pill * (1 - wp_show_pill), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * wp_show_pill * (1 - wp_show_pill), 0, 1)) * pu; color: ink }
+            zone box wp_show_hit { at: spx + 405 * pu, sby + 122 * pu; size: 46 * pu, 30 * pu; cursor: pointer }
+            on press wp_show_hit { emit wp_show_toggle }
+
+            //  Card three: the colour filter. Twelve swatches: the gallery, Random and the slideshow narrow to the
+            //  wallpapers whose dominant colour it is; the lit one, pressed again, clears it.
+            box { at: spx + 219 * pu, sby + 174 * pu; size: 438 * pu, 44 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "COLOR" { at: floor(spx + 14 * pu + 0.5), floor(sby + 165 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text wp_count { at: floor(spx + 14 * pu + 0.5), floor(sby + 182 * pu + 0.5); anchor: left center; size: 13; width: 100 * pu; lines: 1; color: if(wp_filter >= 0, mint, faint); family: "Space Grotesk" }
+            repeat i in 0..12 {
+                let swx = spx + 124 * pu + i * 26 * pu
+                let lit = if(wp_filter == i, 1, 0)
+                box { at: swx, sby + 174 * pu; size: (18 + 3 * lit) * pu, (18 + 3 * lit) * pu; corner: 5 * pu; color: pick(i, #e53935, #fb8c00, #fdd835, #43a047, #00acc1, #1e88e5, #8e24aa, #ec407a, #6d4c41, #f5f5f5, #9e9e9e, #212121) }
+                box { at: swx, sby + 174 * pu; size: (18 + 3 * lit) * pu, (18 + 3 * lit) * pu; corner: 5 * pu; stroke: 1 * pu; color: #000000; opacity: 35% }
+                box { at: swx, sby + 174 * pu; size: 25 * pu, 25 * pu; corner: 7 * pu; stroke: 2 * pu; color: mint; opacity: lit * 100% }
+                zone box wp_sw.$i { at: swx, sby + 174 * pu; size: 24 * pu, 24 * pu; corner: 6 * pu; cursor: pointer }
+                on press wp_sw.$i { emit wp_filter_set(i) }
+            }
+
+            //  Card four: the gallery, twelve at a time, with a pager.
+            box { at: spx + 219 * pu, sby + 330 * pu; size: 438 * pu, 252 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "WALLPAPER GALLERY" { at: floor(spx + 14 * pu + 0.5), floor(sby + 220 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text wp_dirtext { at: floor(spx + 424 * pu + 0.5), floor(sby + 220 * pu + 0.5); anchor: right center; size: 13; width: 260 * pu; lines: 1; align: right; color: faint; opacity: 70%; family: "Space Grotesk" }
+            text "No wallpaper of this color" { at: floor(spx + 219 * pu + 0.5), floor(sby + 330 * pu + 0.5); anchor: center; size: 16; color: faint; family: "Space Grotesk"; show: wps.count < 1 }
+            row wp_grid {
+                at: floor(spx + 15 * pu + 0.5), floor(sby + 238 * pu + 0.5)
+                gap: 8 * pu
+                wrap: 4
+                for w in wps { WpThumb(w, pick: wp_pick) }
+            }
+            path { at: spx + 40 * pu, sby + 438 * pu; stroke: 1.6 * pu; color: ink; opacity: 55% + 45% * wp_prev_hit.hover; move 3 * pu, -5 * pu; line -3 * pu, 0; line 3 * pu, 5 * pu }
+            text wp_pager { at: floor(spx + 219 * pu + 0.5), floor(sby + 438 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: 100 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            path { at: spx + 398 * pu, sby + 438 * pu; stroke: 1.6 * pu; color: ink; opacity: 55% + 45% * wp_next_hit.hover; move -3 * pu, -5 * pu; line 3 * pu, 0; line -3 * pu, 5 * pu }
+            zone box wp_prev_hit { at: spx + 40 * pu, sby + 438 * pu; size: 30 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
+            zone box wp_next_hit { at: spx + 398 * pu, sby + 438 * pu; size: 30 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
+            on press wp_prev_hit { emit wp_prev }
+            on press wp_next_hit { emit wp_next }
+        }
+}

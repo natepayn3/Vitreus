@@ -1,0 +1,127 @@
+part PanelFrame {
+    // ── the panel ────────────────────────────────────────────────
+    group {
+        //  The calendar's content is clipped to the calendar's shape.
+        clip inset 2 box { at: mix(pcx, dc.gx, lm), mix(bar.y + dc.hh / 2, lp.cy, lm); size: mix(dc.w, dc.gw, lm), mix(dc.hh, dc.gh, lm); corner: 26 * cu }
+        //  Down the left it comes out of the strip: what is inside grows with the drawer's shape (`dc.lf`), from the strip's edge at the panel's middle, instead of waiting still under the clip.
+        group {
+            pivot: lp.xl, lp.cy
+            scale: mix(1, max(dc.lf, 0.05), lm * att)
+        //  ── the calendar panel ──
+        //  Three plates like the volume and media ones, each 8% white and 12 from the panel's
+        //  edges: the time and date, the chosen day with its reminders, and the month. The two
+        //  on the left and the one on the right share a top and a bottom.
+        group {
+            opacity: f1
+            move: 0, (1 - f1) * 12 * cu + floor(68 * cu + 0.5)
+            box { at: pcx - 130 * cu, cy - 76 * cu; size: 166 * cu, 72 * cu; corner: 14 * cu; color: ink; opacity: veil }
+            box { at: pcx - 130 * cu, cy + 43 * cu; size: 166 * cu, 154 * cu; corner: 14 * cu; color: ink; opacity: veil }
+            //  The clock card: big numerals, the am/pm tucked small at their top-right in the accent, and under
+            //  them, indented a little, the date as weekday | month day with the pipe in the accent.
+            text clock_hm { at: floor(pcx - 201 * cu + 0.5), floor(cy - 88 * cu + 0.5); anchor: left center; size: 64.5; weight: 700; measure: hmw; color: ink; family: "Space Grotesk" }
+            //  The am/pm is a small pill in the accent, vertically centred on the numerals and set against their right side.
+            box { at: floor(pcx - 201 * cu + hmw.width + 8 * cu + 17 + 0.5), floor(cy - 88 * cu + 0.5); size: 34, 20; corner: 10; color: mint; opacity: 20% }
+            text clock_ap { at: floor(pcx - 201 * cu + hmw.width + 8 * cu + 17 + 0.5), floor(cy - 88 * cu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: 34; lines: 1; color: mint; family: "Space Grotesk" }
+            //  The date is right-aligned to the card's inner edge (pcx - 59): the month and day first, then the pipe
+            //  and the weekday laid out leftwards from it, each placed from the measured width of the one after.
+            text date_md { at: floor(pcx - 59 * cu + 0.5), floor(cy - 55 * cu + 0.5); anchor: right center; size: 14; weight: 700; measure: mdw; color: ink; family: "Space Grotesk" }
+            text "|" { at: floor(pcx - 59 * cu - mdw.width - 8 * cu + 0.5), floor(cy - 55 * cu + 0.5); anchor: right center; size: 16; weight: 300; color: mint; family: "Space Grotesk" }
+            text date_wd { at: floor(pcx - 59 * cu - mdw.width - 20 * cu + 0.5), floor(cy - 55 * cu + 0.5); anchor: right center; size: 14; weight: 700; color: faint; family: "Space Grotesk" }
+            text cal.sel_title { at: floor(pcx - 201 * cu + 0.5), floor(cy - 14 * cu + 0.5); anchor: left center; size: 15; weight: 600; width: 142 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+            text cal.sel_sub { at: floor(pcx - 201 * cu + 0.5), floor(cy + 1 * cu + 0.5); anchor: left center; size: 12; width: 142 * cu; lines: 1; color: faint; opacity: 75%; family: "Space Grotesk" }
+            column cal_list {
+                at: floor(pcx - 207 * cu + 0.5), floor(cy + 14 * cu + 0.5)
+                view: 154 * cu, 106 * cu
+                gap: 4
+                for e in cal_events { CalRow(e, tick: cal_check, gone: cal_delete) }
+            }
+            text "Add one below" { at: floor(pcx - 201 * cu + 0.5), floor(cy + 28 * cu + 0.5); anchor: left center; size: 13; color: faint; opacity: 55%; family: "Space Grotesk"; show: cal_events.count < 1 }
+        }
+        group {
+            opacity: f4
+            move: 0, (1 - f4) * 12 * cu
+            let cal.cw = 33 * cu
+            let cal.ch = 27 * cu
+            let cal.gx = pcx - 13 * cu                 // the middle of the first column
+            let cal.gy = cy - 42 * cu                 // the middle of the first row
+            group {
+                move: 0, floor(68 * cu + 0.5)        // the month sits 68 lower, under the weather strip (a whole number of pixels)
+            box { at: pcx + 86 * cu, cy + 4 * cu; size: 254 * cu, 232 * cu; corner: 14 * cu; color: ink; opacity: veil }
+            //  Month, and the three buttons that move it.
+            text cal.month { at: floor(pcx - 30 * cu + 0.5), floor(cy - 92 * cu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" }
+            path { at: pcx + 134 * cu, cy - 92 * cu; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * cal_prev_btn.hover; move 2.5 * cu, -5 * cu; line -2.5 * cu, 0; line 2.5 * cu, 5 * cu }
+            box { at: pcx + 163 * cu, cy - 92 * cu; size: 40 * cu, 20 * cu; corner: 10 * cu; color: ink; opacity: 8% + 10% * cal_today_btn.hover }
+            text "Today" { at: floor(pcx + 163 * cu + 0.5), floor(cy - 92 * cu + 0.5); anchor: center; size: 11.5; weight: 600; color: ink; opacity: 80%; family: "Space Grotesk" }
+            path { at: pcx + 192 * cu, cy - 92 * cu; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * cal_next_btn.hover; move -2.5 * cu, -5 * cu; line 2.5 * cu, 0; line -2.5 * cu, 5 * cu }
+            zone box cal_prev_btn { at: pcx + 134 * cu, cy - 92 * cu; size: 26 * cu, 26 * cu; corner: 13 * cu; cursor: pointer }
+            zone box cal_today_btn { at: pcx + 163 * cu, cy - 92 * cu; size: 42 * cu, 24 * cu; corner: 12 * cu; cursor: pointer }
+            zone box cal_next_btn { at: pcx + 192 * cu, cy - 92 * cu; size: 26 * cu, 26 * cu; corner: 13 * cu; cursor: pointer }
+            on press cal_prev_btn { emit cal_prev }
+            on press cal_today_btn { emit cal_today }
+            on press cal_next_btn { emit cal_next }
+            //  The weekdays.
+            repeat w in 1..8 {
+                text cal.wd.$w { at: floor(cal.gx + (w - 1) * cal.cw + 0.5), floor(cy - 66 * cu + 0.5); anchor: center; size: 11; weight: 600; color: faint; opacity: 65%; family: "Space Grotesk" }
+            }
+            //  The days.
+            repeat k in 0..42 {
+                let dx = cal.gx + mod(k, 7) * cal.cw
+                let dy = cal.gy + floor(k / 7) * cal.ch
+                prop cal.pick.$k = 0 ~lively
+                follow cal.pick.$k = if(cal.sel == k, 1, 0)
+                group {
+                    opacity: 38% + 62% * if(cal.in.$k, 1, 0)
+                    pivot: dx, dy
+                    scale: 1 + 0.08 * cal.pick.$k
+                    ellipse { at: dx, dy; radius: 12 * cu; color: ink; opacity: 9% * cal_cell.$k.hover * (1 - cal.pick.$k) }
+                    ellipse { at: dx, dy; radius: 12 * cu; color: mint; opacity: cal.pick.$k * 100% }
+                    group {
+                        glow: 5 * cu, 60%, mint
+                        ellipse { at: dx, dy; radius: 13 * cu; stroke: 1.5 * cu; color: mint; show: cal.today.$k }
+                    }
+                    ellipse { at: dx, dy + 8.5 * cu; radius: 1.5 * cu; color: mix(mint, onmint, cal.pick.$k); opacity: if(cal.n.$k > 0, 100%, 0) }
+                }
+                //  The day's number is not inside the group that grows when it is picked: a scaled text is resampled and comes out soft, so it
+                //  stays its size (a text's `size` takes plain numbers only: a prop or a `let` in it counts as 1), and is drawn on whole pixels.
+                text number(cal.day.$k, 0) { at: floor(dx + 0.5), floor(dy - 0.5 * cu + 0.5); anchor: center; size: 13; weight: 500 + 200 * if(cal.today.$k, 1, 0)
+                                             color: mix(ink, onmint, cal.pick.$k); opacity: 38% + 62% * if(cal.in.$k, 1, 0); family: "Space Grotesk" }
+                zone box cal_cell.$k { at: dx, dy; size: 30 * cu, 26 * cu; corner: 13 * cu; cursor: pointer }
+                on press cal_cell.$k { emit cal_pick(k) }
+            }
+            }
+            //  The weather, at the very top: what it is now, on the left, and the week, on the right.
+            box { at: pcx, cy - 82 * cu; size: 426 * cu, 60 * cu; corner: 14 * cu; color: ink; opacity: veil }
+            text "Loading weather…" { at: floor(pcx + 0.5), floor(cy - 82 * cu + 0.5); anchor: center; align: center; size: 13; width: 300 * cu; lines: 1; color: faint; family: "Space Grotesk"; show: not wx_ok }
+            group {
+                show: wx_ok
+                group {
+                    pivot: pcx - 190 * cu, cy - 90 * cu
+                    scale: 1.5
+                    column wx_now { at: pcx - 203 * cu, cy - 100 * cu; WxIcon(wx_kind) }
+                }
+                text wx_temp { at: floor(pcx - 160 * cu + 0.5), floor(cy - 92 * cu + 0.5); anchor: left center; size: 22; weight: 700; width: 70 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+                text wx_desc { at: floor(pcx - 160 * cu + 0.5), floor(cy - 73 * cu + 0.5); anchor: left center; size: 11.5; width: 100 * cu; lines: 1; color: faint; family: "Space Grotesk" }
+                box { at: pcx - 96 * cu, cy - 82 * cu; size: 1 * cu, 40 * cu; color: ink; opacity: 12% }
+                row wx_row {
+                    at: floor(pcx - 90 * cu + 0.5), floor(cy - 107 * cu + 0.5)
+                    gap: 1
+                    for d in wx_days { WxDay(d) }
+                }
+            }
+
+            //  Writing one: the field, and a button. Enter saves it as well.
+            box { at: pcx, cy + 213 * cu; size: 426 * cu, 34 * cu; corner: 14 * cu; color: ink; opacity: veil }
+            ellipse { at: pcx - 201 * cu, cy + 213 * cu; radius: 4 * cu; color: mint; opacity: 85% }
+            //  An input's `at` is not its middle: it is lifted 6.3 so its text sits on the row's centre.
+            input cal_new { at: floor(pcx - 189 * cu + 0.5), floor(cy + 206.7 * cu + 0.5); width: 330 * cu; size: 15; color: ink; family: "Space Grotesk"
+                            placeholder: "New reminder: 3:30pm Call mom"; selection: mintlo }
+            box { at: pcx + 178 * cu, cy + 213 * cu; size: 46 * cu, 24 * cu; corner: 12 * cu; color: mint; opacity: 80% + 20% * cal_add_btn.hover }
+            text "Add" { at: floor(pcx + 178 * cu + 0.5), floor(cy + 213 * cu + 0.5); anchor: center; size: 12.5; weight: 700; color: onmint; family: "Space Grotesk" }
+            zone box cal_add_btn { at: pcx + 178 * cu, cy + 213 * cu; size: 48 * cu, 28 * cu; corner: 14 * cu; cursor: pointer }
+            on press cal_add_btn { emit cal_add }
+        }
+        //  Opening the calendar puts the cursor in the field and the grid back on today.
+        on change panel while panel == calendar { focus cal_new; emit cal_open }
+        }
+    }
+}

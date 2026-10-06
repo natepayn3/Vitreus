@@ -1,0 +1,186 @@
+part Player {
+    //  The player's panel: it hangs from the window title, not from the middle of the bar, in
+    //  the same glass as the bar. Its content is clipped to the drawer's shape.
+    group {
+        clip inset 2 box { at: mix(pcx, dm.gx, lm), mix(bar.y + dm.hh / 2, lp.cy, lm); size: mix(dm.w, dm.gw, lm), mix(dm.hh, dm.gh, lm); corner: 26 * cu }
+        //  Down the left it comes out of the strip: what is inside grows with the drawer's shape (`dm.lf`), from the strip's edge at the panel's middle, as the calendar's and the controls' do.
+        group {
+            pivot: lp.xl, lp.cy
+            scale: mix(1, max(dm.lf, 0.05), lm * att)
+        //  The player. A sliver with nothing playing — a note and a word, the same
+        //  shape as the Wi-Fi and Bluetooth rows below it — that grows into the full
+        //  card (cover, song, transport, equalizer) the moment something does.
+        //  `media_open` is what moves; `media_h`, above, already reads it, so every
+        //  plate under this one is already where it should be.
+        group {
+            show: dm_mode == dmm_player
+            opacity: f3
+            move: 0, (1 - f3) * 12 * cu
+            let my = ck + (media_top + media_h / 2) * cu
+            let ax = mdx - 96 * cu                     // the cover's centre
+            let ny = my + 26 * cu                     // the controls' row
+            let px = mdx - 30 * cu                     // previous
+            let cxp = mdx + 6 * cu                     // play
+            let nx = mdx + 42 * cu                     // next
+            let sw = clamp(swap, 0, 1.12)
+
+            //  The plate is exactly the volume plate: the same 8% veil and the same corners.
+            box { at: mdx, my; size: 288 * cu, media_h * cu; corner: 14 * cu; color: ink; opacity: veil }
+
+            //  Idle: a note, the way Wi-Fi and Bluetooth say their own name at rest.
+            group {
+                opacity: 1 - media_open
+                //  A note with a flag: solid parts, faded together so the overlaps do not show.
+                group {
+                    opacity: 70%
+                    ellipse { at: mdx - 124 * cu + 1.5, my + 5 * cu; radius: 4.5 * cu; color: ink }
+                    box { at: mdx - 118.5 * cu - 1.5, my - 1 * cu; size: 2 * cu, 18 * cu; corner: 1 * cu; color: ink }
+                    path { at: mdx - 118.5 * cu - 1.5, my - 10 * cu; stroke: 2 * cu; color: ink; move 0, 0.5 * cu; curve 6 * cu, 8 * cu via 6.5 * cu, 2.5 * cu }
+                }
+                text "Media" { at: floor(mdx - 96 * cu + 0.5), floor(my - 8 * cu + 0.5); anchor: left center; size: 16; color: ink; family: "Space Grotesk" }
+                text "Nothing playing" { at: floor(mdx - 96 * cu + 0.5), floor(my + 8 * cu + 0.5); anchor: left center; size: 14; color: faint; family: "Space Grotesk" }
+            }
+
+            //  Playing, or paused with something loaded: the full card.
+            group {
+                opacity: media_open
+
+                //  No cover yet: a tile with a note on it.
+                group {
+                    show: not art_on
+                    body {
+                        gradient: ax - 36 * cu, my - 36 * cu to ax + 36 * cu, my + 36 * cu, off, deep
+                        rim: 14%
+                        box { at: ax, my; size: 72 * cu, 72 * cu; corner: 15 * cu }
+                    }
+                    ellipse { at: ax - 6 * cu, my + 11 * cu; radius: 6.5 * cu; color: ink; opacity: 75% }
+                    box { at: ax + 1.5 * cu, my - 4 * cu; size: 3 * cu, 30 * cu; corner: 1.5 * cu; color: ink; opacity: 75% }
+                    path { at: ax, my; stroke: 3 * cu; color: ink; opacity: 75%; move 3 * cu, -19 * cu; curve 15 * cu, -6 * cu via 13 * cu, -17 * cu }
+                }
+
+                //  The cover, in a rounded tile.
+                group {
+                    glow: 12 * cu, 60%
+                    saturation: 0.3 + 0.7 * playf
+                    pivot: ax, my
+                    scale: (0.88 + 0.12 * playf) * (0.7 + 0.3 * sw)
+                    rotate: (1 - sw) * -12deg
+                    opacity: art_on
+                    group {
+                        clip inset 0 box { at: ax, my; size: 72 * cu, 72 * cu; corner: 15 * cu }
+                        image art { at: ax - 36 * cu, my - 36 * cu; size: 72 * cu, 72 * cu }
+                    }
+                }
+
+                text media.title { at: floor(mdx - 50 * cu + 0.5), floor(my - 24 * cu + 0.5); anchor: left center; size: 16.5; weight: 700; width: 186 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+                text media.artist { at: floor(mdx - 50 * cu + 0.5), floor(my - 6 * cu + 0.5); anchor: left center; size: 14; width: 186 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk" }
+
+                //  previous
+                box { at: px - 6 * cu, ny; size: 2.2 * cu, 12 * cu; corner: 1.1 * cu; color: ink; opacity: 75% + 25% * mp.prev.hover }
+                path { at: px, ny; color: ink; opacity: 75% + 25% * mp.prev.hover; move 5 * cu, -6 * cu; line -4.5 * cu, 0; line 5 * cu, 6 * cu; close }
+                //  play / pause: a white disc with the mark cut out of it
+                ellipse { at: cxp, ny; radius: (15 + 1.5 * mp.play.hover) * cu; color: ink; opacity: 95% }
+                path { at: cxp, ny; color: onmint; show: not media.playing; move -4 * cu, -8 * cu; line 8 * cu, 0; line -4 * cu, 8 * cu; close }
+                box { at: cxp - 4 * cu, ny; size: 4 * cu, 14 * cu; corner: 1.5 * cu; color: onmint; show: media.playing }
+                box { at: cxp + 4 * cu, ny; size: 4 * cu, 14 * cu; corner: 1.5 * cu; color: onmint; show: media.playing }
+                //  next
+                path { at: nx, ny; color: ink; opacity: 75% + 25% * mp.next.hover; move -5 * cu, -6 * cu; line 4.5 * cu, 0; line -5 * cu, 6 * cu; close }
+                box { at: nx + 6 * cu, ny; size: 2.2 * cu, 12 * cu; corner: 1.1 * cu; color: ink; opacity: 75% + 25% * mp.next.hover }
+
+                zone box mp.prev { at: px, ny; size: 30 * cu, 34 * cu; cursor: pointer }
+                zone box mp.play { at: cxp, ny; size: 38 * cu, 38 * cu; cursor: pointer }
+                zone box mp.next { at: nx, ny; size: 30 * cu, 34 * cu; cursor: pointer }
+                on press mp.prev { emit mcmd(0) }
+                on press mp.play { emit mcmd(1) }
+                on press mp.next { emit mcmd(2) }
+
+                //  The equalizer: six rounded bars to the right of the controls, standing on the
+                //  same line as the bottom of the cover. They only show while it plays.
+                repeat i in 0..6 {
+                    let bx = mdx + 74 * cu + i * 12 * cu
+                    let bh = (3.5 + 31 * spec.s.$i) * cu
+                    box { at: bx, my + 36 * cu - bh / 2; size: 7 * cu, bh; corner: 3.5 * cu; color: mix(mint, ink, spec.s.$i)
+                          opacity: playf * (55% + 45% * spec.s.$i) }
+                }
+            }
+
+            //  A new song throws sparks off the cover.
+            particles { at: ax, my; count: 36; life: 0.5s .. 1.0s; speed: 70 .. 170; direction: 0deg; spread: 360deg; gravity: 0, 40; drag: 1.2; size: 3.5, 1; colors: mint, ink; shape: spark; burst: trackchange }
+        }
+
+        //  ── the running windows ──
+        group {
+            show: dm_mode == dmm_player
+            opacity: f3
+            move: 0, (1 - f3) * 12 * cu
+            text "No active windows" { at: floor(mdx + 0.5), floor(ck + tasks_list * cu + 16 * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: tasks.count < 1 }
+            column task_col {
+                at: floor(mdx - 144 * cu + 0.5), floor(ck + tasks_list * cu + 0.5)
+                view: 288 * cu, (task_rows * 40 - 4) * cu
+                gap: floor(4 * cu + 0.5)
+                for w in tasks { TaskRow(w, focus: task_focus, kill: task_close) }
+            }
+            //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
+            box { from: mdx + 147 * cu, ck + tasks_list * cu + task_col.scroll / max(task_col.content, 1) * ((task_rows * 40 - 4) * cu); size: 3 * cu, ((task_rows * 40 - 4) * cu) * ((task_rows * 40 - 4) * cu) / max(task_col.content, (task_rows * 40 - 4) * cu); corner: 1.5 * cu; color: ink; opacity: if(task_col.content > ((task_rows * 40 - 4) * cu) + 1, 35%, 0%) }
+            //  The apps that only live in the tray: no window to list, so they get their own section.
+            group {
+                show: trays.count > 0
+                text "BACKGROUND APPS" { at: floor(mdx - 138 * cu + 0.5), floor(ck + tray_top * cu + 11 * cu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+                column tray_col {
+                    at: floor(mdx - 144 * cu + 0.5), floor(ck + tray_list * cu + 0.5)
+                    view: 288 * cu, (max(1, tray_rows) * 40 - 4) * cu
+                    gap: floor(4 * cu + 0.5)
+                    for a in trays { TrayRow(a, click: tray_click, pin: tray_pin, menu: tray_menu_open) }
+                }
+                //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
+                box { from: mdx + 147 * cu, ck + tray_list * cu + tray_col.scroll / max(tray_col.content, 1) * ((max(1, tray_rows) * 40 - 4) * cu); size: 3 * cu, ((max(1, tray_rows) * 40 - 4) * cu) * ((max(1, tray_rows) * 40 - 4) * cu) / max(tray_col.content, (max(1, tray_rows) * 40 - 4) * cu); corner: 1.5 * cu; color: ink; opacity: if(tray_col.content > ((max(1, tray_rows) * 40 - 4) * cu) + 1, 35%, 0%) }
+                //  What the bar shows of them: every app, or only the pinned ones.
+                box { at: mdx + 96 * cu, ck + tray_top * cu + 11 * cu; size: 86 * cu, 20 * cu; corner: 10 * cu; color: if(tray_only_pinned, mint, ink); opacity: if(tray_only_pinned, 22%, 8% + 10% * tray_mode_hit.hover) }
+                text "Bar: pinned" { at: floor(mdx + 96 * cu + 0.5), floor(ck + tray_top * cu + 11 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 82 * cu; lines: 1; color: mint; show: tray_only_pinned; family: "Space Grotesk" }
+                text "Bar: all" { at: floor(mdx + 96 * cu + 0.5), floor(ck + tray_top * cu + 11 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 82 * cu; lines: 1; color: ink; opacity: 85%; show: not tray_only_pinned; family: "Space Grotesk" }
+                zone box tray_mode_hit { at: mdx + 96 * cu, ck + tray_top * cu + 11 * cu; size: 88 * cu, 22 * cu; corner: 11 * cu; cursor: pointer }
+                on press tray_mode_hit { emit tray_mode }
+            }
+        }
+
+        //  ── a tray app's menu ──
+        group {
+            show: dm_mode == dmm_tray
+            opacity: f3
+            move: 0, (1 - f3) * 12 * cu
+            let ty = ck + 34 * cu                           // the app plate's middle
+            box { at: mdx, ty; size: 288 * cu, 52 * cu; corner: 14 * cu; color: ink; opacity: veil }
+            image tm_icon { at: floor(mdx - 132 * cu + 0.5), floor(ty - 15 * cu + 0.5); size: floor(30 * cu + 0.5), floor(30 * cu + 0.5) }
+            text tm_title { at: floor(mdx - 94 * cu + 0.5), floor(ty - 8 * cu + 0.5); anchor: left center; size: 15.5; weight: 700; width: 170 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+            text tm_sub { at: floor(mdx - 94 * cu + 0.5), floor(ty + 9 * cu + 0.5); anchor: left center; size: 12; width: 170 * cu; lines: 1; color: faint; family: "Space Grotesk" }
+            //  The pin: a thumbtack, filled while the app is kept on the bar.
+            ellipse { at: mdx + 122 * cu, ty; radius: 14 * cu; color: ink; opacity: 6% + 10% * tm_pin_hit.hover }
+            ellipse { at: mdx + 122 * cu, ty - 3 * cu; radius: 4 * cu; color: mix(ink, mint, if(tm_pinned, 1, 0)); opacity: if(tm_pinned, 100%, 0%) }
+            ellipse { at: mdx + 122 * cu, ty - 3 * cu; radius: 4 * cu; stroke: 1.4 * cu; color: mix(ink, mint, if(tm_pinned, 1, 0)); opacity: if(tm_pinned, 0%, 70%) }
+            line { from: mdx + 122 * cu, ty + 1 * cu; to: mdx + 122 * cu, ty + 7 * cu; width: 1.5 * cu; color: mix(ink, mint, if(tm_pinned, 1, 0)); opacity: if(tm_pinned, 100%, 70%) }
+            zone box tm_pin_hit { at: mdx + 122 * cu, ty; size: 28 * cu, 28 * cu; corner: 14 * cu; cursor: pointer }
+            on press tm_pin_hit { emit tm_pin }
+            //  Open and Alt: what a left and a middle click on its icon would do.
+            box { at: mdx - 71 * cu, ck + 79 * cu; size: 138 * cu, 26 * cu; corner: 9 * cu; color: ink; opacity: 8% + 10% * tm_open_hit.hover }
+            text "Open" { at: floor(mdx - 71 * cu + 0.5), floor(ck + 79 * cu + 0.5); anchor: center; align: center; size: 12.5; weight: 600; width: 130 * cu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
+            zone box tm_open_hit { at: mdx - 71 * cu, ck + 79 * cu; size: 140 * cu, 28 * cu; corner: 9 * cu; cursor: pointer }
+            on press tm_open_hit { emit tm_open }
+            box { at: mdx + 71 * cu, ck + 79 * cu; size: 138 * cu, 26 * cu; corner: 9 * cu; color: ink; opacity: 8% + 10% * tm_alt_hit.hover }
+            text "Alt" { at: floor(mdx + 71 * cu + 0.5), floor(ck + 79 * cu + 0.5); anchor: center; align: center; size: 12.5; weight: 600; width: 130 * cu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
+            zone box tm_alt_hit { at: mdx + 71 * cu, ck + 79 * cu; size: 140 * cu, 28 * cu; corner: 9 * cu; cursor: pointer }
+            on press tm_alt_hit { emit tm_alt }
+            //  Its menu.
+            text "This app provides no menu." { at: floor(mdx + 0.5), floor(ck + 115 * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: not tm_has_menu }
+            column tm_col {
+                at: floor(mdx - 144 * cu + 0.5), floor(ck + 100 * cu + 0.5)
+                view: 288 * cu, tm.list * cu
+                gap: floor(2 * cu + 0.5)
+                for r in tray_menu { TmRow(r, pick: tray_menu_pick) }
+            }
+            //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
+            box { from: mdx + 147 * cu, ck + 100 * cu + tm_col.scroll / max(tm_col.content, 1) * (tm.list * cu); size: 3 * cu, (tm.list * cu) * (tm.list * cu) / max(tm_col.content, tm.list * cu); corner: 1.5 * cu; color: ink; opacity: if(tm_col.content > (tm.list * cu) + 1, 35%, 0%) }
+        }
+
+        }
+    }
+}

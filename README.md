@@ -295,7 +295,9 @@ start paints it from the first frame.
 | File | |
 | --- | --- |
 | `vitreus.plm` | the scene: every shape, panel, spring and rule |
+| `pages/*.plm` | the scene's big pieces, each a `part` pulled in with `include` (the bar, the desk, the drawers, the overview, every Settings page): same scene, in more files |
 | `vitreus.luau` | the logic: services, scanning, weather, Iris, history, the launcher's searches — it only reports facts |
+| `logic/*.luau` | the logic's self-contained features (Term, Pad, Shelf, Focus, tray, night mode, updates…), each loaded with `require` and handed what it shares |
 | `hypr_vitreus.lua` | Hyprland key binds: `SUPER + Space` launcher, `SUPER + SHIFT + Space` Settings, `SUPER + L` lock |
 | `bin/vitreus-clipimg` | a helper for the launcher's clipboard pictures (thumbnail, copy back) |
 | `bin/vitreus-keep` | runs a scene from autostart and starts it again if it stops, while the session lasts |

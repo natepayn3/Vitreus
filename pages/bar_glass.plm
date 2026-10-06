@@ -1,0 +1,235 @@
+part BarGlass {
+    //  The whole bar, glass and all, is one group so the wave can bend it as one thing.
+    group {
+        shader: wave, pv, mix(clamp(ring, 0, 1), 1, lm), mix((mc - (pcx - bar.w / 2)) / bar.w, 0.5, clamp(ring_mid, 0, 1)), 0, 2.6 * u * (1 - min(1, drop * 2)) * (1 - lm), bar.w, 0, 0
+        // ── the liquid ───────────────────────────────────────────────
+        body {
+            color: tint
+            glass: glass_frost
+            opacity: glass_op
+            lens: glass_bend
+            refraction: glass_refr
+            dispersion: glass_disp
+            rim: 10% * glass_rim + 14% * pv * glass_rim
+            shine: pointer
+            shadow: 0, 1 + 6 * drop + 3 * pv, 6 + 14 * drop + 8 * pv, 8% + 16% * drop + 8% * pv, deep
+            //  The bar is only the bar: it swells a little on the beat and nothing else. Every panel,
+            //  the calendar included, is a drawer of its own that drops from it, below.
+            box shell { at: mix(pcx, cx, lm), mix(bar.y0 + pop / 2, yo + lf.t / 2, lm); size: mix(bar.w + pv * 10 * u, screen.width, lm), mix(bar.h + pop, lf.t, lm); corner: mix(bar.rad, 0, lm) }
+            //  Down the left: the strip, and the frame's other two edges, plain rectangles. The inside corners are rounded by a ring: a rounded
+            //  rectangle drawn as an outline as thick as the frame, whose inner edge is the opening (its left side lies in the strip), so the corners
+            //  are exact curves and the glass's edge light runs round them unbroken. The ring has NO NAME on purpose: a named shape takes clicks across
+            //  its whole bounding box, and the ring's is the whole screen. The ring is 50 * u thicker than the frame, outwards, so that its outer curve is off
+            //  the screen: inside the screen it made a one-pixel speck of edge light at the corners. When the left layout is not in it is moved 30000 px away
+            //  (`show:` does not take it off the glass, and a ring thinned to a hair counts as a filled box and frosts the whole screen).
+            //  The strip's side of the drip (see `dj.*`): all melted into the strip and the drawers, so that the neck and the bulge are not drawn, they are
+            //  what the distances between the shapes make. Moved off the screen outside the left layout (`show:` does not take a shape off the glass).
+            ellipse { at: mix(lf.w, ccx, edg) + dj.px, mix(dj.y0, dj.ey, edg); radius: 30 * u; scale: mix(dj.sag / (30 * u), 1, edg), mix(1, dj.sag / (30 * u), edg); blend: 16 * u * clamp(dj.sag / (6 * u), 0, 1) }
+            ellipse { at: mix(lf.w, ccx - dj.ripx, edg) + dj.px, mix(dj.y0 - dj.ripx, dj.ey, edg); radius: 9 * u; scale: mix(max(dj.riph, 0.3) / (9 * u), 1, edg), mix(1, max(dj.riph, 0.3) / (9 * u), edg); blend: 8 * u * clamp(dj.riph / (3 * u), 0, 1) }
+            ellipse { at: mix(lf.w, ccx + dj.ripx, edg) + dj.px, mix(dj.y0 + dj.ripx, dj.ey, edg); radius: 9 * u; scale: mix(max(dj.riph, 0.3) / (9 * u), 1, edg), mix(1, max(dj.riph, 0.3) / (9 * u), edg); blend: 8 * u * clamp(dj.riph / (3 * u), 0, 1) }
+            ellipse { at: mix(lf.w + dj.stray * 0.7, ccx, edg) + dj.px, mix(dj.y0, dj.ey + dj.es * dj.stray * 0.7, edg); radius: max(dj.stray, 0.3); blend: 7 * u * clamp(dj.stray / (3 * u), 0, 1) }
+            box lf_left { at: lf.w * lm / 2, vc; size: lf.w * lm, vh; show: lm > 0.004 }
+            box lf_right { at: screen.width - lf.t * lm / 2, vc; size: lf.t * lm, vh; show: lm > 0.004 }
+            box lf_bottom { at: cx, vb - lf.t * lm / 2; size: screen.width, lf.t * lm; show: lm > 0.004 }
+            box { from: lf.w - (lf.t + 50 * u) / 2 + if(lm > 0.35, 0, 30000), yo + lf.t - (lf.t + 50 * u) / 2 + if(lm > 0.35, 0, 30000); size: screen.width - lf.t - lf.w + lf.t + 50 * u, vh - 2 * lf.t + lf.t + 50 * u; corner: 12 * u + (lf.t + 50 * u) / 2; stroke: lf.t * max(lm, 0.35) + 50 * u * lm }
+            //  The drawer is a second shape in the same glass. `blend` melts it into the bar, so where the
+            //  narrow drawer meets the wide bar there is a liquid neck, not a corner. It is only there
+            //  while it has size: a zero-size shape would leave a stray shadow behind.
+            box drawer { at: dk.ex, dk.ey; size: dk.ew * (1 + dj.stretch - 0.07 * dk.bell + 0.003 * wobble), dk.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dk.ew, dk.eh) / 2, 26 * u, clamp(dk0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * dk.bell) * u * min(1, dk0 * 4), mix(dj.neck, (16 + 20 * dk.bell) * u * min(1, dk0 * 4), att), lm); show: dk0 > 0.004 }
+            box cdrawer { at: dc.ex, dc.ey; size: dc.ew * (1 + dj.stretch - 0.07 * dc.bell + 0.003 * wobble), dc.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dc.ew, dc.eh) / 2, 26 * u, clamp(dc0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * dc.bell) * u * min(1, dc0 * 4) * (1 - dc.f * (1 - lm)), mix(dj.neck, (16 + 20 * dc.bell) * u * min(1, dc0 * 4) * (1 - dc.f * (1 - lm)), att), lm); show: dc0 > 0.004 }
+            box sdrawer { at: ds.ex, ds.ey; size: ds.ew * (1 + dj.stretch - 0.07 * ds.bell + 0.003 * wobble), ds.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(ds.ew, ds.eh) / 2, 26 * u, clamp(ds0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * ds.bell) * u * min(1, ds0 * 4), dj.neck, lm); show: ds0 > 0.004 }
+            box ldrawer { at: dl.ex, dl.ey; size: dl.ew * (1 + dj.stretch - 0.07 * dl.bell + 0.003 * wobble), dl.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dl.ew, dl.eh) / 2, 26 * u, clamp(dl0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * dl.bell) * u * min(1, dl0 * 4) * (1 - dl.f * (1 - lm)), dj.neck, lm); show: dl0 > 0.004 }
+            box odrawer { at: do.ex + if(lm > 0.5, 0, 30000), do.ey; size: do.ew * (1 + do.stretch - 0.07 * do.bell + 0.003 * wobble), do.eh * (1 - do.stretch * 0.5 - 0.002 * wobble); corner: mix(min(do.ew, do.eh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); blend: do.bl; show: do0 > 0.004 }
+            box mdrawer { at: dm.ex, dm.ey; size: dm.ew * (1 + dj.stretch - 0.07 * dm.bell + 0.003 * wobble), dm.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dm.ew, dm.eh) / 2, 26 * u, clamp(dm0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * dm.bell) * u * min(1, dm0 * 4), mix(dj.neck, (16 + 20 * dm.bell) * u * min(1, dm0 * 4), att), lm); show: dm0 > 0.004 }
+            //  The notches, melted into the frame like the drawers: as tall as the frame while they are in it, and they grow out of it by `nt_vis_*`.
+            //  (Moved off the screen outside the Frame layout: `show:` does not take a shape off the glass.)
+            box { at: ccx + if(lm > 0.35, 0, 30000), yo + (lf.t + nt_d * nt_vis_t) / 2; size: nt_w, lf.t + nt_d * nt_vis_t; corner: 9 * cu; blend: 9 * u }
+            box { at: ccx + if(lm > 0.35, 0, 30000), vb - (lf.t + nt_d * nt_vis_b) / 2; size: nt_w, lf.t + nt_d * nt_vis_b; corner: 9 * cu; blend: 9 * u }
+            box { at: screen.width - (lf.t + nt_d * nt_vis_r) / 2 + if(lm > 0.35, 0, 30000), vc; size: lf.t + nt_d * nt_vis_r, nt_w; corner: 9 * cu; blend: 9 * u }
+            //  The title's small tab: `ptab_d` out of the strip's edge while the title is under the pointer. At rest it is off the screen,
+            //  not tucked into the strip: the glass melts shapes that are near each other, and a tucked tab would still bulge the edge.
+            box { at: lf.w - 6 * u + (6 * u + ptab_d * ptab_vis) / 2 + if(lm > 0.35 and ptab_vis > 0.01, 0, 30000), lv.y0 + (lv.mc + lv.span) / 2; size: 6 * u + ptab_d * ptab_vis, ptab_h; corner: 5 * u; blend: 6 * u * ptab_vis }
+            box zdrawer { at: dz.ex + if(lm > 0.5, 0, 30000), dz.ey; size: dz.gw * (1 + dz.stretch - 0.07 * dz.bell), dz.gh * (1 - dz.stretch * 0.5); corner: mix(min(dz.gw, dz.gh) / 2, 26 * u, clamp(dz0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dz.bell) * u * min(1, dz0 * 4); show: dz0 > 0.004 }
+        }
+        //  The three dots on each tab (the volume card's hint), fading out as the panel they open comes out.
+        group {
+            show: lm > 0.35 and max(nt_vis_t, nt_vis_b) > 0.05
+            repeat i in 0..3 {
+                ellipse { at: ccx + (i - 1) * 6.5 * cu, yo + lf.t + nt_d * nt_vis_t / 2; radius: 1.6 * cu; color: ink; opacity: (35% + 55% * ntn_t.hover) * clamp(nt_vis_t * 1.6 - 0.4, 0, 1) * (1 - clamp(dl, 0, 1)) }
+                ellipse { at: ccx + (i - 1) * 6.5 * cu, vb - lf.t - nt_d * nt_vis_b / 2; radius: 1.6 * cu; color: ink; opacity: (35% + 55% * ntn_b.hover) * clamp(nt_vis_b * 1.6 - 0.4, 0, 1) * (1 - clamp(ds, 0, 1)) }
+            }
+        }
+        //  The battery gauge, inside the bar with a thick margin of empty glass round it (`bf.m`). It is only there
+        //  while `batt_open` (the pointer is on the bar, or the charge is under 20 %): it fades in and grows a little
+        //  from its middle line. It is a tint of the accent that brightens towards its front (a red one while it is
+        //  draining below 20 %), and its own rim gives it an edge. It follows the bar's shape (which swells with the
+        //  beat) and never moves by itself: an animation here would keep the scene painting, and most of all when
+        //  the battery is low.
+        group {
+            let bf.m = 7 * u                                        // the margin between the gauge and the bar's edge
+            let bf.x = pcx - (bar.w + pv * 10 * u) / 2 + bf.m
+            let bf.mid = bar.y - bar.h / 2 + (bar.h + pop) / 2      // the pill's middle line
+            let bf.nub = 6.6 * u                                    // how far the nub on its far end sticks out
+            let bf.full = bar.w + pv * 10 * u - 2 * bf.m - bf.nub   // the gauge's length at 100 %: the nub has the same margin at its end as the gauge has at the other
+            let bf.tall = bar.h + pop - 2 * bf.m                   // the pill's height
+            let bf.show = clamp(batt_open, 0, 1) * (1 - lm)
+            let bf.hh = bf.tall * (0.7 + 0.3 * bf.show)
+            let bf.len = max(0.1, bf.full * batt_fill)
+            let bf.c = mix(mint, #e0655a, batt_low)
+            //  The empty part of the gauge, very faint, the same size as the gauge at a full charge. The nub on its far end, like the terminal of a
+            //  battery (it says what this is), is its own shape, below.
+            body {
+                color: bf.c
+                rim: 10%
+                opacity: 10% * bf.show * batt_on
+                box { from: bf.x, bf.mid - bf.hh / 2; size: bf.full, bf.hh; corner: min(bf.hh / 2, max(0.5, bar.rad - bf.m)) }
+                box { at: bf.x + bf.full + 3.1 * u, bf.mid; size: 7 * u, 0.56 * bf.hh; corner: 2.6 * u }
+            }
+            body {
+                gradient: bf.x, 0 to bf.x + max(1, bf.len), 0, mix(tint, bf.c, 0.28), bf.c
+                rim: 18%
+                opacity: (19% + 9% * batt_low) * bf.show * batt_on
+                box { from: bf.x, bf.mid - bf.hh / 2; size: bf.len, bf.hh; corner: min(bf.hh / 2, max(0.5, bar.rad - bf.m)) }
+            }
+            //  The nub on the gauge's far end, like a battery's terminal. It is in the faint track too, so that it has the same two layers the fill has (the
+            //  fill alone is not as bright as the fill over the track), in the colour the fill's gradient ends on, with the fill's opacity. Its edges are exactly the track nub's, it stops where the gauge starts, and it has no edge light of its own: the track's gives the edge,
+            //  and a second one would draw a line across the joint.
+            body {
+                color: bf.c
+                opacity: (19% + 9% * batt_low) * bf.show * batt_on
+                box { at: bf.x + bf.full + 3.3 * u, bf.mid; size: 6.6 * u, 0.56 * bf.hh; corner: 2.6 * u }
+            }
+        }
+
+        //  Down the left the strip is the gauge: it fills from the foot up, with the same margin of empty glass round it, the same colours, and
+        //  the same rule for when it shows (the pointer on the strip, or a charge under 20 %).
+        group {
+            let bl.m = 7 * u
+            let bl.show = clamp(batt_open, 0, 1) * lm
+            let bl.w = lf.w - 2 * bl.m
+            let bl.bot = vb - lf.t - bl.m
+            let bl.nub = 6.6 * u                                    // how far the nub on its top end sticks out
+            let bl.full = vh - 2 * (lf.t + bl.m) - bl.nub           // the gauge's length at 100 %: the nub has the same margin at its end as the gauge has at the other
+            let bl.len = max(0.1, bl.full * batt_fill)
+            let bl.c = mix(mint, #e0655a, batt_low)
+            //  The empty part of the strip's gauge (the nub on its top end is part of the fill's shape, below).
+            body {
+                color: bl.c
+                rim: 10%
+                opacity: 10% * bl.show * batt_on
+                box { from: bl.m, bl.bot - bl.full; size: bl.w, bl.full; corner: min(bl.w / 2, max(0.5, bar.rad - bl.m)); show: lm > 0.004 }
+                box { at: lf.x, bl.bot - bl.full - 3.1 * u; size: 0.56 * bl.w, 7 * u; corner: 2.6 * u; show: lm > 0.004 }
+            }
+            body {
+                gradient: lf.x, bl.bot to lf.x, bl.bot - max(1, bl.len), mix(tint, bl.c, 0.28), bl.c
+                rim: 18%
+                opacity: (19% + 9% * batt_low) * bl.show * batt_on
+                box { from: bl.m, bl.bot - bl.len; size: bl.w, bl.len; corner: min(bl.w / 2, max(0.5, bar.rad - bl.m)); show: lm > 0.004 }
+            }
+            //  The nub on the strip gauge's top end (see the bar's): its own body, in the colour the fill's gradient ends on.
+            body {
+                color: bl.c
+                opacity: (19% + 9% * batt_low) * bl.show * batt_on
+                box { at: lf.x, bl.bot - bl.full - 3.3 * u; size: 0.56 * bl.w, 6.6 * u; corner: 2.6 * u; show: lm > 0.004 }
+            }
+        }
+
+        //  The charging glint: a soft band of the accent that crosses the bar from left to right, inside its shape. Built
+        //  of thin slices whose strength follows a bell, so it has no hard edge; it is strongest in the middle of the
+        //  crossing and gone (opacity 0) whenever `charge_sweep` rests at 1.
+        group {
+            clip inset 0 box { at: pcx, bar.y - bar.h / 2 + (bar.h + pop) / 2; size: bar.w + pv * 10 * u, bar.h + pop; corner: bar.rad }
+            let cg.w = 130 * u                                                   // the band's width
+            let cg.x = mix(pcx - bar.w / 2 - cg.w / 2, pcx + bar.w / 2 + cg.w / 2, clamp(charge_sweep, 0, 1))
+            let cg.a = sin(clamp(charge_sweep, 0, 1) * 180) * batt_on * (1 - lm)           // fades in and out over the crossing
+            repeat k in 0..14 {
+                box { at: cg.x + (k - 6.5) * cg.w / 14, bar.y; size: cg.w / 14 + 1, bar.h + pop; color: mint; opacity: 15% * cg.a * sin((k + 0.5) / 14 * 180) }
+            }
+        }
+
+        // ── the bar ──────────────────────────────────────────────────
+        //  Under everything else on the bar (declared first, so the pieces win their presses): it only says that the
+        //  pointer is over the bar, in the gaps between them.
+        zone box bar_hover { at: pcx, bar.y; size: bar.w, bar.h; active: lm < 0.5 }
+        zone box lf_hover { at: lf.x, vc; size: lf.w, vh; active: lm > 0.5 }
+        repeat i in 1..6 {
+            //  A zone as long as the slot and its share of the gap, so the zones touch.
+            let wa = if(i == 1, ws.a1, if(i == 2, ws.a2, if(i == 3, ws.a3, if(i == 4, ws.a4, ws.a5))))
+            let wsz = (if(i == 1, ws.s1, if(i == 2, ws.s2, if(i == 3, ws.s3, if(i == 4, ws.s4, ws.s5)))) + ws.g)
+            zone box ws.hit.$i { at: mix(wa, lf.x, lm), mix(bar.y, wa, lm); size: mix(wsz, 40 * u, lm), mix(bar.h, wsz, lm); cursor: pointer; active: bs.ws > 0.5 }
+            on press ws.hit.$i { emit go(i) }
+            on press right ws.hit.$i { emit ov_toggle }
+            follow wsh.$i = ws.hit.$i.hover
+            follow wsp.$i = ws.hit.$i.hover
+        }
+
+        //  What is in front: the app in small type above, the title under it, cut
+        //  with an ellipsis where the clock starts.
+        //  The title gives up room to the controls while something plays.
+
+        //  The whole title area is a button: it opens the controls panel. Declared before
+        //  the little player controls below, which sit over it and win where they overlap.
+        //  It is only as wide as the text it holds (never past `win.w`, never thinner than a
+        //  fingertip), not the whole gap up to the clock. Unseen copies, with no width limit,
+        //  only to know how wide the app name and the title really are.
+        text win.class { at: 0, 0; anchor: left center; size: 15; weight: 600; lines: 1; measure: vclw; opacity: 0; family: "Space Grotesk" }
+    text win.title { at: 0, 0; anchor: left center; size: 14; weight: 500; lines: 1; measure: vtiw; opacity: 0; family: "Space Grotesk" }
+    text win.class { at: floor(win.x + 0.5), floor(bar.y - 6.5 * u + 0.5); anchor: left center; size: 17 * u; weight: 600; lines: 1; measure: clsw; opacity: 0; family: "Space Grotesk" }
+        text win.title { at: floor(win.x + 0.5), floor(bar.y + 8.75 * u + 0.5); anchor: left center; size: 13.5 * u; weight: 500; lines: 1; measure: titw; opacity: 0; family: "Space Grotesk" }
+        //  While a player exists its buttons (previous, play, next: 48 wide) sit in this button's top right, beside the app name.
+        let mctl = 54 * u * mshow * bs.media * bs.title
+        let win.hw = clamp(max(clsw.width + mctl, titw.width) + 12 * u, 48 * u, win.w)
+        //  With a name in front (`win.have` 1) the button is as wide as the name, with the player's buttons in its top right. With no window
+        //  the texts are empty, and the button would be a narrow strip at the left: it then takes most of the gap and is centred in it, with the
+        //  player's buttons in the middle.
+        let win.have = clamp(max(clsw.width, titw.width) / (6 * u), 0, 1)
+        let win.zc = mix(win.x + win.w / 2, win.x - 6 * u + win.hw / 2, win.have)
+        let win.zw = mix(max(48 * u, win.w - 12 * u), win.hw, win.have)
+        let mcx = mix(win.x + win.w / 2, win.x - 6 * u + win.hw - 27.5 * u, win.have)
+        let mcy = mix(bar.y, bar.y - 6.5 * u, win.have)
+        zone box win_hit { at: win.zc, bar.y; size: win.zw, bar.h; cursor: pointer; active: bs.title > 0.5 }
+        on press win_hit { pending = none; panel = if(panel == player, none, player) }
+
+        // ── the player, small, in the bar ────────────────────────────
+        //  While there is a player, playing or paused; they fade in as the title gives them room.
+        group {
+            opacity: mshow * bs.media
+            //  In the title button's top right (`mcx`, `mcy`), and small: 17 between centres.
+            zone box bp.prev { at: mcx - 17 * u, mcy; size: 17 * u, 18 * u; cursor: pointer }
+            zone box bp.play { at: mcx, mcy; size: 17 * u, 18 * u; cursor: pointer }
+            zone box bp.next { at: mcx + 17 * u, mcy; size: 17 * u, 18 * u; cursor: pointer }
+            on press bp.prev { emit mcmd(0) }
+            on press bp.play { emit mcmd(1) }
+            on press bp.next { emit mcmd(2) }
+        }
+
+        zone box vt_hit { at: lf.x, lv.tm; size: lf.w - 6 * u, max(1, lv.span); cursor: pointer; active: lm > 0.5 and bv.title and lv.span > 20 * u }
+        on press vt_hit { pending = none; panel = if(panel == player, none, player) }
+        zone box vm_prev { at: lf.x, lv.mid + 17 * cu; size: 30 * cu, 17 * cu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
+        zone box vm_play { at: lf.x, lv.mid; size: 30 * cu, 17 * cu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
+        zone box vm_next { at: lf.x, lv.mid - 17 * cu; size: 30 * cu, 17 * cu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
+        on press vm_prev { emit mcmd(0) }
+        on press vm_play { emit mcmd(1) }
+        on press vm_next { emit mcmd(2) }
+        zone box set_hit { at: mix(set.x, lf.x, lm), mix(bar.y, lv.set, lm); size: mix(24 * u, 36 * u, lm), mix(bar.h, 30 * u, lm); cursor: pointer }
+        on press set_hit { panel = if(panel == settings, none, settings) }
+
+        zone box sr_hit { at: mix(sr.x, lf.x, lm), mix(bar.y, lv.sr, lm); size: mix(24 * u, 36 * u, lm), mix(bar.h, 30 * u, lm); cursor: pointer; active: bs.sr > 0.5 }
+        on press sr_hit { panel = if(panel == launch, none, launch) }
+        zone box ctl_hit { at: mix(ctl.x, lf.x, lm), mix(bar.y, lv.ctl, lm); size: mix(26 * u, 36 * u, lm), mix(bar.h, 30 * u, lm); cursor: pointer; active: bs.ctl > 0.5 }
+        on press ctl_hit { pending = none; panel = if(panel == controls, none, controls) }
+
+        //  The calendar's button is the clock and a little around it: 4 more at each side.
+        zone box bar_hit { at: mix(at.clock, lf.x, lm), mix(bar.y, lv.clk + 30 * u, lm); size: mix(fw.clock + 8 * u, lf.w - 4 * u, lm), mix(bar.h, 100 * u, lm); cursor: pointer; active: bs.clock > 0.5 }
+        on press bar_hit { pending = none; panel = if(panel == calendar, none, calendar) }
+        //  Right-click closes whatever is open. It also matters for a reason that
+        //  has nothing to do with the calendar: pleamar treats an unclaimed right
+        //  click, anywhere in a scene that never uses the right button at all, as
+        //  an emergency exit and quits outright - which is exactly what looked
+        //  like "everything crashes." Claiming it here, once, disarms that for
+        //  the whole scene.
+        on press right bar_hit { panel = none }
+        //  How open the battery gauge is (see `batt_open`): it lives here, where the bar's zones are, to read their hover.
+        follow batt_open = if(max(max(max(max(max(max(max(max(max(max(max(max(max(max(bar_hover.hover, wsh.1), wsh.2), wsh.3), wsh.4), wsh.5), win_hit.hover), bp.prev.hover), bp.play.hover), bp.next.hover), set_hit.hover), sr_hit.hover), ctl_hit.hover), bar_hit.hover), lf_hover.hover) > 0.15 or (pwr.percent < 20 and pwr.present), 1, 0)
+    }
+}
