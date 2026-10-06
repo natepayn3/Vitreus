@@ -1946,6 +1946,81 @@ local function run_iris(path)
     end)
 end
 
+-- ── Video wallpapers ─────────────────────────────────────────────────────────────────────────────────
+-- A video (mp4, webm) is played by mpvpaper, over awww's wallpaper. awww is given a frame of the video (the poster, taken a second in
+-- by ffmpeg and kept in the cache) so that everything which reads "the wallpaper" as a picture still can: Iris, the thumbnails, the colour
+-- filter, the hexagon dissolve and the lock screen. What awww says it shows is then mapped back to the video (`wpv.from_poster`).
+wpv = { exts = { mp4 = true, webm = true }, frames = nil, dir = nil, cur = nil, next = nil, busy = {} }   -- `dir`: the wallpaper folder
+
+function wpv.is(f)
+    local ext = f and f:match("%.(%w+)$")
+    return ext ~= nil and wpv.exts[ext:lower()] == true
+end
+
+function wpv.poster(f) return wpv.frames .. "/" .. (f:match("([^/]+)$") or f) .. ".jpg" end
+
+-- The video a poster was taken from, or nil when `path` is not a poster.
+function wpv.from_poster(path)
+    if not (wpv.frames and wpv.dir and path) then return nil end
+    local name = path:match("^" .. wpv.frames:gsub("%p", "%%%0") .. "/([^/]+)%.jpg$")
+    return name and (wpv.dir .. "/" .. name) or nil
+end
+
+-- Calls `fn` with the picture to read for `f`: `f` itself, or its poster (made first when there is none yet; nil when it cannot be).
+function wpv.src(f, fn)
+    if not wpv.is(f) then fn(f) return end
+    if not wpv.frames then fn(nil) return end
+    local p = wpv.poster(f)
+    local waiting = wpv.busy[p]
+    if waiting then waiting[#waiting + 1] = fn return end
+    wpv.busy[p] = { fn }
+    local function finish(ok)
+        local list = wpv.busy[p]
+        wpv.busy[p] = nil
+        for _, cb in ipairs(list) do cb(ok and p or nil) end
+    end
+    local function grab(ss, then_fn)
+        local args = { "-y", "-loglevel", "error" }
+        if ss then args[#args + 1] = "-ss"; args[#args + 1] = ss end
+        for _, a in ipairs({ "-i", f, "-frames:v", "1", "-vf", "scale=960:-1", "-q:v", "2", p }) do args[#args + 1] = a end
+        run("ffmpeg", args, then_fn)
+    end
+    run("stat", { "-c", "%s", p }, function(out, code)
+        if code == 0 and (tonumber((out or ""):match("%d+")) or 0) > 0 then finish(true) return end
+        run("mkdir", { "-p", wpv.frames }, function()
+        -- a clip shorter than a second has no frame at 00:00:01: the first one then
+        grab("00:00:01", function(_, code)
+            if code == 0 then finish(true) return end
+            grab(nil, function(_, code2) finish(code2 == 0) end)
+        end)
+        end)
+    end)
+end
+
+local function wpv_save()
+    pcall(sys.call, "files.write", "wallpaper-video.json", { path = wpv.cur or "" })
+end
+
+-- The wallpaper `f` is now what awww shows: stop the video that was playing, and play `f` if it is one.
+function wpv.settle(f, keep_running)
+    wpv.cur = wpv.is(f) and f or nil
+    wpv_save()
+    local line = "pkill -x mpvpaper"
+    if wpv.cur then
+        -- `keep_running`: the shell restarted, and the video it left playing is the one wanted
+        line = (keep_running and "pgrep -x mpvpaper > /dev/null || " or (line .. "; ")) .. "exec mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' '"
+            .. f:gsub("'", "'\\''") .. "' < /dev/null > /dev/null 2>&1"
+    end
+    exec_on_desktop(line)
+end
+
+-- The hexagon dissolve is still bringing the wallpaper in: it is settled when the dissolve is over (see `check_wallpaper`).
+function wpv.flush()
+    local n = wpv.next
+    wpv.next = nil
+    if n then wpv.settle(n[1]) end
+end
+
 -- The wallpaper is asked of awww every half second; when it changes, Iris is run on the new one.
 local wp_on_change = function(path) end       -- the wallpaper page, further down, takes this over
 -- A wallpaper that the hexagon dissolve is bringing in: awww is told about it only when the dissolve is over, a couple of seconds on, and
@@ -1960,10 +2035,19 @@ local function check_wallpaper()
             if path == wp_pending then wp_pending = nil
             elseif os.time() < wp_pending_until then return
             else wp_pending = nil end
+            wpv.flush()                      -- the dissolve is over: the video that goes with it starts (or the old one stops)
         end
-        if path and path ~= iris_last_wp then
-            iris_last_wp = path
-            wp_on_change(path)
+        -- awww shows a video's poster; the wallpaper is the video. One that is playing while awww shows something else was replaced
+        -- from outside.
+        local shown = wpv.from_poster(path) or path
+        if path and wpv.cur and shown ~= wpv.cur and not wpv.next then
+            wpv.cur = nil
+            wpv_save()
+            exec_on_desktop("pkill -x mpvpaper")
+        end
+        if path and shown ~= iris_last_wp then
+            iris_last_wp = shown
+            wp_on_change(shown)
             if iris_cfg.enabled then run_iris(path) end
         end
     end)
@@ -2002,6 +2086,23 @@ end
 -- launched while doing nothing, and every two seconds was still a third of it: every six.
 every(6000, check_wallpaper)
 check_wallpaper()
+-- A video that was playing comes back with the desktop (awww restores its poster; mpvpaper is not restored by anything).
+with_dirs(function(d)
+    wpv.frames = d.cache .. "/frames"
+    local ok, saved = pcall(sys.ask, "files.read", "wallpaper-video.json", "json")
+    local f = ok and type(saved) == "table" and saved.path
+    if type(f) == "string" and f ~= "" and wpv.is(f) then
+        wpv.dir = f:match("^(.*)/[^/]+$")
+        wpv.src(f, function(src)
+            if not src then return end
+            wpv.settle(f, true)
+            iris_last_wp = nil                       -- awww's poster was taken for the wallpaper before this was known
+            check_wallpaper()
+        end)
+    else
+        check_wallpaper()
+    end
+end)
 
 -- ── Settings: the wallpaper picker ───────────────────────────────────────────────────────
 -- The folder is `<Pictures>/Wallpapers` (`xdg-user-dir PICTURES`, else `$HOME/Pictures`). It is listed
@@ -2116,14 +2217,17 @@ local function wp_crop(files, kind, w, h, done)
     for _, f in ipairs(todo) do
         local out = crop_path(f, kind)
         wp_made[out] = "busy"
+        wpv.src(f, function(src)
+        if not src then wp_made[out] = false; left = left - 1; if left == 0 then done() end return end
         -- `jpeg:size` lets the decoder shrink while it reads (a 4K picture is not decoded whole to make a thumbnail), and one
         -- thread each keeps a page of these from taking every core.
-        run("magick", { "-limit", "thread", "1", "-define", "jpeg:size=" .. (w * 2) .. "x" .. (h * 2), f .. "[0]",
+        run("magick", { "-limit", "thread", "1", "-define", "jpeg:size=" .. (w * 2) .. "x" .. (h * 2), src .. "[0]",
                         "-thumbnail", w .. "x" .. h .. "^", "-gravity", "center",
                         "-extent", w .. "x" .. h, "-quality", "88", out }, function(_, code)
             wp_made[out] = code == 0
             left = left - 1
             if left == 0 then done() end
+        end)
         end)
     end
 end
@@ -2134,7 +2238,7 @@ local function wp_show_page()
         local f = wp_view[wp_page * WP_PER_PAGE + i]
         if not f then break end
         local t = crop_path(f, "t")
-        rows[i] = { thumb = wp_made[t] == true and t or f }
+        rows[i] = { thumb = wp_made[t] == true and t or (wpv.is(f) and "" or f) }
         if f == wp_cur then sel = i - 1 end
     end
     model.wps = rows
@@ -2163,11 +2267,11 @@ wp_on_change = function(path)
         wp_crop({ path }, "p", 320, 180, function()
             if wp_cur == path then
                 local pp = crop_path(path, "p")
-                text.wp_curpath = wp_made[pp] == true and pp or path
+                text.wp_curpath = wp_made[pp] == true and pp or (wpv.is(path) and "" or path)
             end
         end)
     else
-        text.wp_curpath = path
+        text.wp_curpath = wpv.is(path) and "" or path
     end
     for i, f in ipairs(wp_view) do
         if f == path then wp_page = (i - 1) // WP_PER_PAGE break end
@@ -2193,23 +2297,31 @@ end
 
 -- `how`: awww's transition flags. `hex`, `{ x =, y = }`: the dissolve from that point instead (the wallpaper picker's).
 local function wp_apply(path, how, started, hex)
-    local function by_awww()
-        local args = { "img", path }
-        for _, a in ipairs(how or { "--transition-type", "fade", "--transition-duration", "0.8" }) do args[#args + 1] = a end
-        run("awww", args, function() if started then started() end end)     -- `started`: awww has the picture, the change is under way
-    end
-    if hex then
-        wp_hex(path, hex.x, hex.y, function() if started then started() end end, by_awww)
-    else
-        by_awww()
-    end
-    wp_on_change(path)
-    -- The path is known: Iris starts now, while the fade plays, not when the watcher next notices the
-    -- change. Marking it seen stops the watcher running it a second time.
-    if iris_cfg.enabled and iris_last_wp ~= path then
-        iris_last_wp = path
-        run_iris(path)
-    end
+    -- `src`: the picture awww is given: the wallpaper itself, or a video's poster (made first, once)
+    wpv.src(path, function(src)
+        if not src then return end
+        local function by_awww()
+            local args = { "img", src }
+            for _, a in ipairs(how or { "--transition-type", "fade", "--transition-duration", "0.8" }) do args[#args + 1] = a end
+            run("awww", args, function()
+                wpv.settle(path)
+                if started then started() end     -- `started`: awww has the picture, the change is under way
+            end)
+        end
+        if hex then
+            -- the video (or the stop of the one playing) waits for the end of the dissolve: see `check_wallpaper`
+            wp_hex(src, hex.x, hex.y, function() wpv.next = { path }; if started then started() end end, by_awww)
+        else
+            by_awww()
+        end
+        wp_on_change(path)
+        -- The path is known: Iris starts now, while the fade plays, not when the watcher next notices the
+        -- change. Marking it seen stops the watcher running it a second time.
+        if iris_cfg.enabled and iris_last_wp ~= path then
+            iris_last_wp = path
+            run_iris(src)
+        end
+    end)
 end
 
 -- Tag every wallpaper that has no colour yet, three at a time so the shell stays quick.
@@ -2222,7 +2334,9 @@ end
 local WP_NEUTRAL = { black = true, white = true, gray = true, brown = true }
 
 local function wp_analyse_one(f, done)
-    run("magick", { f .. "[0]", "-thumbnail", "100x100", "-colors", "32", "-format", "%c", "histogram:info:" }, function(out, code)
+  wpv.src(f, function(src)
+    if not src then done() return end
+    run("magick", { src .. "[0]", "-thumbnail", "100x100", "-colors", "32", "-format", "%c", "histogram:info:" }, function(out, code)
         if code == 0 and out then
             local area, vivid, soft_pink, total = {}, {}, 0, 0
             for count, r, g, b in out:gmatch("(%d+):%s*%(%s*([%d%.]+)%s*,%s*([%d%.]+)%s*,%s*([%d%.]+)") do
@@ -2252,6 +2366,7 @@ local function wp_analyse_one(f, done)
         end
         done()
     end)
+  end)
 end
 
 local function wp_analyse_missing()
@@ -2306,6 +2421,7 @@ local function wp_load()
             -- With no user-dirs config xdg-user-dir answers with the home folder itself: then it is ~/Pictures.
             if pics == "" or pics == d.home then pics = d.home .. "/Pictures" end
             wp_dir = pics .. "/Wallpapers"
+            wpv.dir = wp_dir
             local shown = wp_dir
             if shown:sub(1, #d.home) == d.home then shown = "~" .. shown:sub(#d.home + 1) end
             text.wp_dirtext = shown
@@ -2317,7 +2433,7 @@ local function wp_load()
                 for name in list:gmatch("[^\n]+") do
                     local ext = name:match("%.(%w+)$")
                     ext = ext and ext:lower()
-                    if ext == "jpg" or ext == "jpeg" or ext == "png" or ext == "webp" or ext == "gif" or ext == "bmp" then
+                    if ext == "jpg" or ext == "jpeg" or ext == "png" or ext == "webp" or ext == "gif" or ext == "bmp" or wpv.exts[ext] then
                         wp_files[#wp_files + 1] = wp_dir .. "/" .. name
                     end
                 end
@@ -4275,12 +4391,14 @@ require("logic/nightmode")(with_dirs)
     -- shape, with a little gloss on it. One small picture per wallpaper, already the right shape, keeps the atlas (one
     -- texture for every image and letter on screen) from filling up.
     local function analyse(f, done)
+      wpv.src(f, function(src)
+        if not src then done() return end
         local hw = TW / 2
         local poly = string.format("polygon %g,0 %d,%g %d,%g %g,%d 0,%g 0,%g", hw, TW, TH * 0.25, TW, TH * 0.75, hw, TH, TH * 0.75, TH * 0.25)
         -- One pass, one thread: the picture is read once (shrunk while it is decoded, `jpeg:size`), cut to the hexagon and written,
         -- and the same square picture gives the colour histogram. This was two programs per wallpaper, the first reading the whole
         -- picture with every core, and the second reading back the square picture it had written.
-        run("magick", { "-limit", "thread", "1", "-define", "jpeg:size=" .. (HERO * 2) .. "x" .. (HERO * 2), f .. "[0]",
+        run("magick", { "-limit", "thread", "1", "-define", "jpeg:size=" .. (HERO * 2) .. "x" .. (HERO * 2), src .. "[0]",
                         "-thumbnail", HERO .. "x" .. HERO .. "^", "-gravity", "center", "-extent", HERO .. "x" .. HERO,
                         "(", "+clone", "-resize", TW .. "x" .. TH .. "^", "-extent", TW .. "x" .. TH, "-alpha", "set",
                              "(", "-size", TW .. "x" .. TH, "xc:none", "-fill", "white", "-draw", poly, ")",
@@ -4312,6 +4430,7 @@ require("logic/nightmode")(with_dirs)
                 end
                 done()
             end)
+      end)
     end
 
     local function save()
@@ -4337,12 +4456,35 @@ require("logic/nightmode")(with_dirs)
         return files
     end
 
+    -- A video's hexagon plays while it is hovered: a few seconds of it as an animated PNG, in the hexagon's own shape (the still
+    -- hexagon's alpha is the mask), made when it is first hovered (a fraction of a second) and kept. The still shows until it is there.
+    G.clips = {}                                         -- video -> true (made) | "busy"
+    function G.clip(f)
+        local out = G.dir .. "/" .. name_of(f) .. ".clip.png"
+        local function show() if G.hovered == f then text.wp_picker_hex_img = out; fact.wp_picker_clip = true end end
+        if G.clips[f] == true then show() return end
+        if G.clips[f] or not G.have[name_of(f)] then return end
+        G.clips[f] = "busy"
+        run("ffmpeg", { "-y", "-loglevel", "error", "-i", f, "-i", hex_of(f), "-t", "3", "-filter_complex",
+                        "[0:v]fps=12,scale=" .. (TW + 2 * PAD) .. ":" .. (TH + 2 * PAD) .. ":force_original_aspect_ratio=increase,crop="
+                            .. (TW + 2 * PAD) .. ":" .. (TH + 2 * PAD) .. ",format=rgba[v];[1:v]alphaextract[a];[v][a]alphamerge",
+                        "-f", "apng", "-plays", "0", out }, function(_, code)
+            G.clips[f] = code == 0 or nil
+            if code == 0 then
+                show()
+            end
+        end)
+    end
+
     local function set_name(i)
         local f = G.files and G.files[i + 1]
         if not f then return end
         text.wp_picker_hero_name = stem(f)
+        G.hovered = f
+        fact.wp_picker_clip = false
         text.wp_picker_hex_img = hex_of(f)
         fact.wp_picker_hero_cur = f == wp_cur
+        if wpv.is(f) then G.clip(f) end
     end
     on("fact:wp_picker_hot", function(v) if type(v) == "number" and v >= 0 then set_name(math.floor(v + 0.5)) end end)
 

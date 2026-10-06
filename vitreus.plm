@@ -44,7 +44,7 @@ scene Vitreus {
     fact pal_alert_b = 0.2667
     surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "vitreus-term", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play" }
+                  run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "vitreus-term", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play", "ffmpeg" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
     model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number }
@@ -1027,6 +1027,7 @@ scene Vitreus {
     text wp_picker_status = ""                // "Reading your wallpapers… 42 of 137" while the first analysis runs
     text wp_picker_hero_name = ""             // the name of the hexagon under the pointer
     fact wp_picker_hero_cur = false           // the one under the pointer is the wallpaper in use
+    fact wp_picker_clip = false               // the hovered hexagon is a video whose clip is ready: it plays in place of the still
     fact wp_picker_hot = -1                   // the hexagon under the pointer, -1 none
     fact wp_picker_px = 0                     // where a pick was, for awww: pixels from the bottom left
     fact wp_picker_py = 0
@@ -2671,7 +2672,9 @@ scene Vitreus {
                 }
                 group {
                     clip path { at: bxl, byl; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
-                    image wp_picker.$i.img { at: bxl - 0.866 * rr * 124 / 120, byl - rr * 143 / 139; size: 1.732 * rr * 124 / 120, 2 * rr * 143 / 139 }
+                    image wp_picker.$i.img { at: bxl - 0.866 * rr * 124 / 120, byl - rr * 143 / 139; size: 1.732 * rr * 124 / 120, 2 * rr * 143 / 139; show: not wp_picker_clip }
+                    //  A video's hexagon plays once its clip is made (the logic points `wp_picker_hex_img` at it): until then the still above.
+                    image wp_picker_lens { at: bxl - 0.866 * rr * 124 / 120, byl - rr * 143 / 139; size: 1.732 * rr * 124 / 120, 2 * rr * 143 / 139; show: wp_picker_clip }
                 }
                 path { at: bxl, byl; stroke: 3.4; color: if(cu > 0, mint, #ffffff); opacity: 95%; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
             }
