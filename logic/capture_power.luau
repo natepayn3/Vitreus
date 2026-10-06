@@ -25,7 +25,8 @@ return function(set_panel)
     end)
 
     -- ── Screen recording ─────────────────────────────────────────────────────────────────────────────────────────
-    -- `wf-recorder`, video only, into ~/Videos. Pressing the tile's button again (or Stop) ends it cleanly, which is
+    -- `wf-recorder`, video only, into ~/Videos. The whole-screen one names the focused monitor (`-o`): with two, wf-recorder
+    -- otherwise asks which one on a terminal that is not there, and records nothing. Pressing the tile's button again (or Stop) ends it cleanly, which is
     -- what makes the file playable. Whether it is running is asked of `pgrep`, so a recording started from anywhere counts.
     local seen = nil                                -- when it was first seen running
     local function rec_show(running)
@@ -45,9 +46,9 @@ return function(set_panel)
     local function rec_start(mode)
         if fact.rec_on then return end
         after_closed(function()
-            local pick = (mode == 0) and 'g=$(slurp) || exit 0; wf-recorder -g "$g" -f "$f"' or 'wf-recorder -f "$f"'
+            local pick = (mode == 0) and 'g=$(slurp) || exit 0; wf-recorder -g "$g" -f "$f"' or 'wf-recorder -o "$(hyprctl monitors -j | jq -r ".[] | select(.focused) | .name")" -f "$f"'
             spawn(sh('d="$HOME/Videos"; mkdir -p "$d"; f="$d/recording_$(date +%F_%H-%M-%S).mp4"; '
-                .. pick .. '; notify-send -a Vitreus "Recording saved" "$f"'))
+                .. pick .. '; if [ -s "$f" ]; then notify-send -a Vitreus "Recording saved" "$f"; else notify-send -a Vitreus "Recording failed" "Nothing was saved"; fi'))
             after(1500, rec_poll)
         end)
     end
