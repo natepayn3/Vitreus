@@ -42,7 +42,7 @@ scene Vitreus {
     fact pal_alert_r = 0.9373   // #ef4444
     fact pal_alert_g = 0.2667
     fact pal_alert_b = 0.2667
-    surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb }
+    surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top; screens: "DP-2"; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "vitreus-term", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play", "ffmpeg" }
 
@@ -2368,11 +2368,11 @@ scene Vitreus {
     on press cal_btn_z { panel = if(panel == calendar, none, calendar) }
     //  The window title (and the player's buttons over it) the same way: a click on it opens the player's panel.
     //  At least as long as an edge notch (`nt_w`), so a short title ("Signal") is still easy to find and to hit.
-    zone box pl_btn_z { at: lf.w / 2, lv.y0 + (lv.mc + lv.span) / 2; size: lf.w, max(52 * cu, lv.mc + lv.span); cursor: pointer; active: lm > 0.5 and bv.title and lv.span > 20 * u }
+    zone box pl_btn_z { at: lf.w / 2, lv.tm; size: lf.w, max(52 * cu, lv.span); cursor: pointer; active: lm > 0.5 and bv.title and lv.span > 20 * u }
     on press pl_btn_z { panel = if(panel == player, none, player) }
     //  A small tab out of the strip's right edge beside the title, while the pointer is on it: the edge notches' way of
     //  saying "this opens", only a few pixels. It tucks back in when the player's panel comes out of the same place.
-    let ptab_h = max(52 * cu, lv.mc + lv.span)             // as long as what can be clicked (`pl_btn_z`): the player's buttons and the title
+    let ptab_h = max(52 * cu, lv.span)             // as long as what can be clicked (`pl_btn_z`): the title text only, not the player's buttons
     let ptab_d = 5 * u                                     // how far out it comes
     prop ptab_vis = 0 ~calm                        // the same spring as the edge notches (`nt_vis_*`)
     prop ptab_hold = 0 ~280ms                      // the notches' short wait before coming out, and grace before going back
