@@ -2949,8 +2949,18 @@ local function disp_trial_text()
     text.disp_trial_text = string.format("Keep these display settings? Putting them back in %d s", disp_trial)
 end
 
+-- A new mode makes the shell start again (logic/monitor_height.luau: its surface keeps the size it had), and a trial held only in memory
+-- would be lost with it: the question gone and nothing to put back. So a trial is written down as it starts, and picked up by the next run.
+local function disp_trial_save(ends, restored)
+    pcall(sys.call, "files.write", "display-trial.json", { ends = ends, before = disp_before, restored = restored == true })
+end
+local function disp_trial_clear()
+    pcall(sys.call, "files.write", "display-trial.json", {})
+end
+
 local function disp_keep()
     disp_trial, disp_before = 0, nil
+    disp_trial_clear()
     fact.disp_trial = 0
     for _, m in ipairs(disp_mons) do
         disp_saved[m.name] = disp_spec_of(m)
@@ -2966,6 +2976,7 @@ local function disp_revert()
     local before = disp_before
     disp_trial, disp_before = 0, nil
     fact.disp_trial = 0
+    disp_trial_clear()
     disp_send(before, function()
         for _, m in ipairs(disp_mons) do disp_draft[m.name] = disp_spec_of(m) end
         disp_render()
@@ -2999,13 +3010,16 @@ local function disp_apply()
         end
     end
     text.disp_msg = "Applying…"
+    disp_trial_save(os.time() + DISP_TRIAL)
     disp_send(specs, function(ok)
         if not ok then
             disp_before = nil
+            disp_trial_clear()
             return
         end
         disp_trial = DISP_TRIAL
         fact.disp_trial = DISP_TRIAL
+        disp_trial_save(os.time() + DISP_TRIAL)
         disp_trial_text()
         text.disp_msg = ""
     end)
@@ -3210,6 +3224,24 @@ do
     end
     local ok2, kept = pcall(sys.ask, "files.read", "display.json", "json")
     if ok2 and type(kept) == "table" and type(kept.saved) == "table" then disp_saved = kept.saved end
+end
+-- A change was on trial when the shell last stopped (it starts again on a new mode): ask again, here on the page, with the time it had, or a fresh
+-- fifteen seconds the first time (the start itself ate most of the first lot). One that has already had its second chance is put back.
+do
+    local ok, t = pcall(sys.ask, "files.read", "display-trial.json", "json")
+    if ok and type(t) == "table" and type(t.before) == "table" and next(t.before) ~= nil then
+        disp_before = t.before
+        if t.restored and (tonumber(t.ends) or 0) <= os.time() then
+            disp_revert()
+        else
+            disp_trial = DISP_TRIAL
+            fact.disp_trial = DISP_TRIAL
+            disp_trial_save(os.time() + DISP_TRIAL, true)
+            disp_trial_text()
+            text.disp_msg = ""
+            after(1500, function() fact.set_page = "pg_disp"; set_panel("settings") end)
+        end
+    end
 end
 disp_read()
 every(5000, function() if disp_trial <= 0 and disp_grab == nil then disp_watch() end end)
