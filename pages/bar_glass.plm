@@ -49,7 +49,12 @@ part BarGlass {
             //  The title's small tab: `ptab_d` out of the strip's edge while the title is under the pointer. At rest it is off the screen,
             //  not tucked into the strip: the glass melts shapes that are near each other, and a tucked tab would still bulge the edge.
             box { at: lf.w - 6 * u + (6 * u + ptab_d * ptab_vis) / 2 + if(lm > 0.35 and ptab_vis > 0.01, 0, 30000), lv.tm; size: 6 * u + ptab_d * ptab_vis, ptab_h; corner: 5 * u; blend: 6 * u * ptab_vis }
-            box zdrawer { at: dz.ex + if(lm > 0.5, 0, 30000), dz.ey; size: dz.gw * (1 + dz.stretch - 0.07 * dz.bell), dz.gh * (1 - dz.stretch * 0.5); corner: mix(min(dz.gw, dz.gh) / 2, 26 * u, clamp(dz0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dz.bell) * u * min(1, dz0 * 4); show: dz0 > 0.004 }
+            //  The frame's side of the desk's liquid (see `dz.sag`): all melted into the frame and the desk, so what shows is what the distances make.
+            ellipse { at: screen.width - lf.t + dz.px, dz.fy; radius: 30 * u; scale: dz.sag / (30 * u), 1; blend: 16 * u * clamp(dz.sag / (6 * u), 0, 1) }
+            ellipse { at: screen.width - lf.t + dz.px, dz.fy - dz.ripx; radius: 9 * u; scale: max(dz.riph, 0.3) / (9 * u), 1; blend: 8 * u * clamp(dz.riph / (3 * u), 0, 1) }
+            ellipse { at: screen.width - lf.t + dz.px, dz.fy + dz.ripx; radius: 9 * u; scale: max(dz.riph, 0.3) / (9 * u), 1; blend: 8 * u * clamp(dz.riph / (3 * u), 0, 1) }
+            ellipse { at: screen.width - lf.t - dz.stray * 0.7 + dz.px, dz.fy; radius: max(dz.stray, 0.3); blend: 7 * u * clamp(dz.stray / (3 * u), 0, 1) }
+            box zdrawer { at: dz.fx + if(lm > 0.5, 0, 30000), dz.fcy; size: dz.fw * (1 + dz.stretch - 0.07 * dz.bell), dz.fh * (1 - dz.stretch * 0.5); corner: mix(min(dz.fw, dz.fh) / 2, 26 * u * desk_s, clamp(dz0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dz.bell) * u * min(1, dz0 * 4); show: dz0 > 0.004 }
         }
         //  The three dots on each tab (the volume card's hint), fading out as the panel they open comes out.
         group {

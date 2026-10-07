@@ -42,7 +42,7 @@ scene Vitreus {
     fact pal_alert_r = 0.9373   // #ef4444
     fact pal_alert_g = 0.2667
     fact pal_alert_b = 0.2667
-    surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top; screens: "DP-2"; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb }
+    surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "vitreus-term", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play", "ffmpeg" }
 
@@ -2215,20 +2215,71 @@ scene Vitreus {
     //  The desk: out of the right frame, in the middle of it (the Frame layout); or, in the Island layout, hanging from the top right corner of the
     //  screen, its first row level with the bar's, from the icon that opens it. `dsk_*` is where its contents are laid out, once out.
     let dsk_ri = mix(14 * cu, lf.t, lm)                        // the gap between the panel and the screen's right edge
-    let dsk_x0 = screen.width - dsk_ri - dsk_w                 // its inner left edge
+    //  It can be pulled off its place by the grip along its top (`desk_ox`, `desk_oy`: how far it is from where it sits attached) and put back
+    //  by dragging it near that place again. `dsk_h*` is that place, `dsk_x0`, `dsk_y0` where it is: everything in it is laid out from them.
+    let dsk_hx0 = screen.width - dsk_ri - dsk_w                // its inner left edge, attached
+    let dsk_hy0 = vc - dsk_h / 2                              // vertically centred on the right edge, in both layouts
+    let dsk_x0 = dsk_hx0 + desk_ox
     let dsk_xc = dsk_x0 + dsk_w / 2
-    let dsk_y0 = vc - dsk_h / 2                               // vertically centred on the right edge, in both layouts
+    let dsk_y0 = dsk_hy0 + desk_oy
+    //  How far it can be carried: against the frame's inner edge on every side (8 from the screen's edge along the top), and no further right than home.
+    let desk_xlo = lf.w * lm + 8 * cu * (1 - lm)
+    let desk_ylo = yo + lf.t * lm + 8 * cu * (1 - lm)
+    let desk_yhi = vb - lf.t * lm - 8 * cu * (1 - lm)
+    let desk_xhi = screen.width - dsk_ri
+    let desk_xmin = -(dsk_hx0 - desk_xlo)
+    let desk_ymin = -(dsk_hy0 - desk_ylo)
+    let desk_ymax = desk_yhi - dsk_hy0 - dsk_h * desk_s
+    let desk_smax = max(0.5, min(1, min((desk_yhi - dsk_y0) / dsk_h, (desk_xhi - dsk_x0) / dsk_w)))     // how big it can be made where it is
     let dz.lf = min(1, dz0 * 1.6) + max(0, dz0 - 1) * 0.6
     let dz.rt = dsk_ri + dsk_w + 32.5 * cu
-    let dz.gw = max(0.1, dz.rt * dz.lf)
+    //  Pulled off the frame, the glass stays joined to it by a neck that stretches (the blend of its shape in the frame's glass) while its far side
+    //  lets go of the frame: `dz.det` is 0 until it has been pulled a little way and 1 once it is a panel of its own, 6.5 wider than its contents all round.
+    let dz.det = clamp((abs(desk_ox + (desk_s - 1) * dsk_w) - 14 * cu) / (50 * cu), 0, 1) * lm
+    let dz.gl = screen.width + 26 * cu * dz.lf - max(0.1, dz.rt * dz.lf) + desk_ox
+    let dz.gr = mix(screen.width + 26 * cu * dz.lf, dz.gl + (dsk_w + 13 * cu) * dz.lf, dz.det)
+    let dz.gw = max(0.1, dz.gr - dz.gl)
     let dz.gh = dsk_h * dz.lf
-    let dz.ex = screen.width + 26 * cu * dz.lf - dz.gw / 2
-    let dz.ey = vc
+    let dz.ex = (dz.gl + dz.gr) / 2
+    //  The frame's edge while it is pulled (`dz.sag`, most halfway), the two ripples (`dz.ripx`, `dz.riph`) and the small drop (`dz.stray`). They are
+    //  never zero-size, and off the screen when nothing is happening (`show:` does not take a shape off the glass).
+    let dz.sag = max((24 * 4 * dz.det * (1 - dz.det) * (1 - 0.5 * dz.det) + dbounce) * u * lm, 0.3)
+    let dz.ripx = (12 + 90 * dprip) * u
+    let dz.riph = 20 * u * (1 - dprip) * clamp(dprip * 6, 0, 1) * lm
+    let dz.stray = 10 * u * dpstray * lm
+    let dz.act = if(lm > 0.5 and desk_open and (abs(desk_ox + (desk_s - 1) * dsk_w) > 4 * cu or dprip < 0.98 or dpstray > 0.01 or abs(dbounce) > 0.2), 1, 0)
+    let dz.px = if(dz.act > 0.5, 0, 30000)
+    let dz.fy = mix(vc + desk_oy, desk_ry, dz.det)       // along the frame: where the neck is, then where it broke
+    let dz.ey = vc + desk_oy
+    //  What the glass is when the desk is scaled (about its top left corner, which `dsk_x0`, `dsk_y0` is): the contents are scaled by a group and take
+    //  the unscaled shapes above for their clip, so the glass has its own. (`dz.s*` in the frame, `dz.i*` along the top.)
+    let dz.sex = dsk_x0 + (dz.ex - dsk_x0) * desk_s
+    let dz.sew = dz.gw * desk_s
+    let dz.sey = dsk_y0 + (dz.ey - dsk_y0) * desk_s
+    let dz.seh = dz.gh * desk_s
+    //  Touching the frame anywhere melts into it the way the right edge does: each side that is near the frame's inner edge (`dz.d*` 0 against it, 1 once
+    //  it is 64 away) reaches into the frame instead of ending, and the blend makes the wings. The right side is `dz.det` (above).
+    let dz.dl = clamp((dsk_x0 - desk_xlo - 14 * cu) / (50 * cu), 0, 1)
+    let dz.dt = clamp((dsk_y0 - desk_ylo - 14 * cu) / (50 * cu), 0, 1)
+    let dz.db = clamp((desk_yhi - dsk_y0 - dsk_h * desk_s - 14 * cu) / (50 * cu), 0, 1)
+    let dz.fl = mix(-26 * cu, dz.sex - dz.sew / 2, dz.dl)
+    let dz.fr = dz.sex + dz.sew / 2
+    let dz.ft = mix(yo - 26 * cu, dz.sey - dz.seh / 2, dz.dt)
+    let dz.fb = mix(vb + 26 * cu, dz.sey + dz.seh / 2, dz.db)
+    let dz.fx = (dz.fl + dz.fr) / 2
+    let dz.fw = max(0.1, dz.fr - dz.fl)
+    let dz.fcy = (dz.ft + dz.fb) / 2
+    let dz.fh = max(0.1, dz.fb - dz.ft)
+    let dz.free = max(dz.det, clamp((1 - desk_s) * 20, 0, 1))         // off the frame, or smaller than it was: the corner handles are there
     //  Along the top it is wholly on screen and centred, as in the left layout: its right edge 7.5 in from the screen's, all four corners show.
     let dz.iw = (dsk_w + 13 * cu) * dz.lf
     let dz.ih = dsk_h * dz.lf
-    let dz.ix = screen.width - 7.5 * cu - dz.iw / 2
-    let dz.iy = vc
+    let dz.ix = screen.width - 7.5 * cu - dz.iw / 2 + desk_ox
+    let dz.iy = vc + desk_oy
+    let dz.six = dsk_x0 + (dz.ix - dsk_x0) * desk_s
+    let dz.siw = dz.iw * desk_s
+    let dz.siy = dsk_y0 + (dz.iy - dsk_y0) * desk_s
+    let dz.sih = dz.ih * desk_s
     let dz.stretch = clamp(vel(dz) * 0.07, 0, 0.5)
     //  The notches (Frame layout only). Touch the middle of the top frame and a small tab grows out of it, with the three dots the volume
     //  card has under its plate; touch the bottom frame's middle and one grows up out of it. Pressing the tab opens the panel that
@@ -2257,6 +2308,42 @@ scene Vitreus {
     fact desk_open = false
     fact desk_tab = 2                                      // 0 Pad, 1 Shelf, 2 Focus, 3 Term
     prop desk_sel = 2 ~slide                               // which tab the thumb is on
+    //  Carrying the desk: `desk_gx`, `desk_gy` is where it is being taken to (an offset from its place in the frame), `desk_ox`, `desk_oy` where it
+    //  is, on a loose spring, so it trails the pointer like a drop and lands past its place when it is let go near it and snaps back.
+    fact desk_gx = 0
+    fact desk_gy = 0
+    fact desk_bx = 0                                       // where it was when the grip was pressed
+    fact desk_by = 0
+    fact desk_hold = false                                 // the grip is held: its zone stays where it was pressed, it would lose the drag if it moved with the panel
+    fact desk_hx = 0
+    fact desk_hy = 0
+    //  Detached, it can also be made smaller by the handle in its bottom corner (`desk_s`, 0.5 to 1; everything in it scales about its top left corner,
+    //  `desk_gs` is where the scale is going). Put back in its place it is full size again.
+    fact desk_gs = 1
+    fact desk_bs = 1                                       // the scale when the handle was pressed
+    fact desk_rk = -1                                      // which corner's handle is held (0 top left, 1 top right, 2 bottom left, 3 bottom right)
+    fact desk_fcx = 0                                      // the corner across from it, which stays where it is
+    fact desk_fcy = 0
+    fact desk_rhold = false                                // the handle is held: its zone stays where the pointer is, as the grip's does
+    fact desk_qx = 0
+    fact desk_qy = 0
+    spring desk_sp = 300, 20
+    prop desk_s = 1 ~desk_sp
+    follow desk_s = desk_gs
+    prop desk_ox = 0 ~desk_sp
+    prop desk_oy = 0 ~desk_sp
+    follow desk_ox = desk_gx
+    follow desk_oy = desk_gy
+    on change desk_open while not desk_open { desk_gx = 0; desk_gy = 0; desk_gs = 1; desk_hold = false; desk_rhold = false; desk_rk = -1 }
+    //  The frame's side of the liquid, as the drip down the left has it (`dj.*`): while the desk is pulled the frame's edge bulges towards it; when
+    //  the neck breaks the edge jumps and bounces, two ripples run along it and a small drop is left hanging; put back, the edge closes over it.
+    prop dbounce = 0 ~splash
+    prop dprip = 1 ~1100ms
+    prop dpstray = 0 ~700ms
+    fact desk_ry = 0                                       // where along the frame the neck broke
+    on change dz.det > 0.7 while dz.det > 0.7 { desk_ry = vc + desk_oy; impulse dbounce -280; impulse wobble -300; dprip: 0 ~16ms; dprip: 1 ~1100ms after 30ms; dpstray: 1 ~16ms; dpstray: 0 ~700ms after 60ms }
+    on change dz.det < 0.7 while dz.det < 0.7 and desk_open { desk_ry = vc + desk_oy; impulse dbounce 80; impulse wobble 200 }
+    on change dz.det < 0.05 while dz.det < 0.05 and desk_open { desk_ry = vc + desk_oy; impulse dbounce -200; impulse wobble -120; dprip: 0 ~16ms; dprip: 1 ~900ms after 30ms }
     follow desk_sel = desk_tab
     zone box ntz_r { at: screen.width - (lf.t + 6 * cu) / 2, vc; size: lf.t + 6 * cu, nt_w + 24 * cu; active: lm > 0.5 and not desk_open }
     zone box ntn_r { at: screen.width - (lf.t + nt_d) / 2, vc; size: lf.t + nt_d, nt_w; cursor: pointer; active: lm > 0.5 and nt_vis_r > 0.5 and not desk_open }
@@ -2277,7 +2364,7 @@ scene Vitreus {
     on change desk_open while not desk_open { desk_kb = false; term_armed = false }
     //  Settings and the launcher are wide (316.5 * pu each side of the middle), so on a smaller screen they reach the desk's side and the two glasses
     //  melt into each other. Whichever of the two was opened last stays; the other one goes.
-    let desk_clash = if(lm > 0.5 and ccx + 316.5 * pu > dsk_x0 - 8 * cu, 1, 0)
+    let desk_clash = if(lm > 0.5 and ccx + 316.5 * pu > dsk_hx0 - 8 * cu, 1, 0)
     on change desk_open while desk_open and desk_clash > 0.5 and (panel == settings or panel == launch) { panel = none }
     on change panel while (panel == settings or panel == launch) and desk_open and desk_clash > 0.5 { desk_open = false }
     //  The terminal follows the mouse, as Hyprland's windows do here: once it has been clicked, the pointer coming back over the desk
@@ -2426,7 +2513,7 @@ scene Vitreus {
             shine: pointer
             shadow: 0, 7, 20, 24%, deep
             box { at: do.ix + if(lm < 0.5 and do0 > 0.004, 0, 30000), do.ey; size: do.iw * (1 + do.stretch - 0.07 * do.bell + 0.003 * wobble), do.eh * (1 - do.stretch * 0.5 - 0.002 * wobble); corner: mix(min(do.ew, do.eh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); show: do0 > 0.004 }
-            box { at: dz.ix + if(lm < 0.5 and dz0 > 0.004, 0, 30000), dz.iy; size: dz.iw * (1 + dz.stretch - 0.07 * dz.bell), dz.ih * (1 - dz.stretch * 0.5); corner: mix(min(dz.iw, dz.ih) / 2, 26 * u, clamp(dz0 * 1.6 - 0.1, 0, 1)); show: dz0 > 0.004 }
+            box { at: dz.six + if(lm < 0.5 and dz0 > 0.004, 0, 30000), dz.siy; size: dz.siw * (1 + dz.stretch - 0.07 * dz.bell), dz.sih * (1 - dz.stretch * 0.5); corner: mix(min(dz.siw, dz.sih) / 2, 26 * u * desk_s, clamp(dz0 * 1.6 - 0.1, 0, 1)); show: dz0 > 0.004 }
         }
     }
     //  The desk's contents (and its tab and opener): drawn after the island's glass above, so the glass is under them and not over them.

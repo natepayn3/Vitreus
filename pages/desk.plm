@@ -1,11 +1,15 @@
 part Desk {
+    //  Scaled about its top left corner when it has been made smaller (`desk_s`): the zones inside follow the group's scale.
+    group {
+    pivot: dsk_x0, dsk_y0
+    scale: desk_s
         //  The desk: a panel out of the right frame with tabs. What is drawn is laid out for the full size and the panel's shape uncovers it.
         group {
             show: dz0 > 0.02
             clip inset 2 box { at: mix(dz.ix, dz.ex, lm), mix(dz.iy, dz.ey, lm); size: max(0.3, mix(dz.iw, dz.gw, lm)), max(0.3, mix(dz.ih, dz.gh, lm)); corner: 26 * cu }
             //  What is inside grows with the drawer's shape (`dz.lf`), from the right frame's edge at the panel's middle, like the volume's.
             group {
-            pivot: mix(screen.width - 7.5 * cu, screen.width + 26 * cu, lm), dz.ey
+            pivot: mix(screen.width - 7.5 * cu, screen.width + 26 * cu, lm) + desk_ox, dz.ey
             scale: max(dz.lf, 0.05)
             zone box desk_band { at: dsk_xc, dsk_y0 + dsk_h / 2; size: dsk_w, dsk_h }
             on leave desk_band { desk_kb = false }
@@ -38,6 +42,29 @@ part Desk {
             ellipse { at: dsk_xc + 143 * cu, dt_y; radius: 13 * cu; color: ink; opacity: 8% + 12% * desk_close_z.hover }
             path { at: dsk_xc + 143 * cu, dt_y; stroke: 1.5 * cu; color: ink; opacity: 70% + 30% * desk_close_z.hover; move -3.4 * cu, -3.4 * cu; line 3.4 * cu, 3.4 * cu }
             path { at: dsk_xc + 143 * cu, dt_y; stroke: 1.5 * cu; color: ink; opacity: 70% + 30% * desk_close_z.hover; move 3.4 * cu, -3.4 * cu; line -3.4 * cu, 3.4 * cu }
+            //  The grip along the top: take the panel by it and pull it off the frame; let go near its place and it snaps back, further away it stays.
+            box { at: dsk_xc, dsk_y0 + 11 * cu; size: 34 * cu, 4 * cu; corner: 2 * cu; color: ink; opacity: 20% + 35% * max(desk_grip.hover, if(desk_hold, 1, 0)) }
+            zone box desk_grip { at: if(desk_hold, dsk_x0 + (desk_hx - dsk_x0) / desk_s, dsk_xc), if(desk_hold, dsk_y0 + (desk_hy - dsk_y0) / desk_s, dsk_y0 + 11 * cu); size: dsk_w - 46 * cu, 22 * cu; cursor: grab }       // between the corner handles, not under them
+            on press desk_grip { desk_rk = -1; desk_rhold = false; desk_bx = desk_gx; desk_by = desk_gy; desk_hx = dsk_x0 + (dsk_xc - dsk_x0) * desk_s; desk_hy = dsk_y0 + 11 * cu * desk_s; desk_hold = true }
+            on drag desk_grip while desk_hold and desk_rk < 0 { desk_gx = clamp(desk_bx + drag.dx, desk_xmin, dsk_w * (1 - desk_gs)); desk_gy = clamp(desk_by + drag.dy, desk_ymin, desk_ymax) }
+            on release desk_grip while length(desk_gx - dsk_w * (1 - desk_gs), desk_gy) < 80 * cu { desk_gx = 0; desk_gy = 0; desk_gs = 1 }
+            on release desk_grip { desk_hold = false }
+            //  The handles in the four corners (invisible; the cursor shows them), only once it is off the frame: pull one in to make the panel smaller, out to make it bigger again. The
+            //  corner across from it stays where it is (`desk_fcx`, `desk_fcy`); the panel is moved as its size changes.
+            repeat i in 0..4 {
+                let rz_sx = if(i == 1 or i == 3, 1, -1)                 // which corner: right or left, bottom or top
+                let rz_sy = if(i >= 2, 1, -1)
+                let rz_cx = dsk_x0 + if(rz_sx > 0, dsk_w - 7.5 * cu, 7.5 * cu)      // the glass is 6.5 wider than the contents each side (not taller): 14 in from its corner both ways
+                let rz_cy = dsk_y0 + if(rz_sy > 0, dsk_h - 14 * cu, 14 * cu)
+                zone box desk_resize.$i { at: if(desk_rk == i, dsk_x0 + (desk_qx - dsk_x0) / desk_s, rz_cx), if(desk_rk == i, dsk_y0 + (desk_qy - dsk_y0) / desk_s, rz_cy); size: 28 * cu, 28 * cu; cursor: grab; active: (dz.free > 0.5 and desk_rk < 0) or desk_rk == i }
+                on press desk_resize.$i { desk_hold = false; desk_rk = i; desk_rhold = true; desk_bs = desk_gs; desk_qx = dsk_x0 + (rz_cx - dsk_x0) * desk_s; desk_qy = dsk_y0 + (rz_cy - dsk_y0) * desk_s; desk_fcx = dsk_hx0 + desk_gx + if(rz_sx > 0, 0, dsk_w * desk_gs); desk_fcy = dsk_hy0 + desk_gy + if(rz_sy > 0, 0, dsk_h * desk_gs) }
+                on drag desk_resize.$i while desk_rk == i {
+                    desk_gs = clamp(desk_bs + (rz_sx * drag.dx + rz_sy * drag.dy) / (dsk_w + dsk_h), 0.5, max(0.5, min(1, min(if(rz_sx > 0, desk_xhi - desk_fcx, desk_fcx - desk_xlo) / dsk_w, if(rz_sy > 0, desk_yhi - desk_fcy, desk_fcy - desk_ylo) / dsk_h))))
+                    desk_gx = min(dsk_w * (1 - desk_gs), if(rz_sx > 0, desk_fcx, desk_fcx - desk_gs * dsk_w) - dsk_hx0)
+                    desk_gy = if(rz_sy > 0, desk_fcy, desk_fcy - desk_gs * dsk_h) - dsk_hy0
+                }
+                on release desk_resize.$i { desk_rhold = false; desk_rk = -1 }
+            }
             zone box desk_close_z { at: dsk_xc + 143 * cu, dt_y; size: 28 * cu, 28 * cu; cursor: pointer }
             on press desk_close_z { desk_open = false }
             //  Shelf: drop things on it, drag them back out anywhere.
@@ -442,15 +469,16 @@ part Desk {
                     opacity: 12%
                     shadow: 0, 0, 12 * cu, 40%, mint
                     rim: 45%
-                    box { at: dsk_xc, vc; size: dsk_w - 12 * cu, dsk_h - 12 * cu; corner: 22 * cu }
+                    box { at: dsk_xc, dsk_y0 + dsk_h / 2; size: dsk_w - 12 * cu, dsk_h - 12 * cu; corner: 22 * cu }
                 }
-                path { at: dsk_xc, vc - 18 * cu; stroke: 2.4 * cu; color: mint; move 0, 14 * cu; line 0, -14 * cu }
-                path { at: dsk_xc, vc - 18 * cu; stroke: 2.4 * cu; color: mint; move -9 * cu, -4 * cu; line 0, -14 * cu; line 9 * cu, -4 * cu }
-                text "Let go to keep it" { at: floor(dsk_xc + 0.5), floor(vc + 22 * cu + 0.5); anchor: center; align: center; size: 16; weight: 700; color: mint; family: "Space Grotesk" }
-                text "it goes on your shelf" { at: floor(dsk_xc + 0.5), floor(vc + 44 * cu + 0.5); anchor: center; align: center; size: 12; color: ink; opacity: 70%; family: "Space Grotesk" }
-                zone box desk_drop { at: dsk_xc, vc; size: dsk_w, dsk_h; active: drag.over > 0.5 }
+                path { at: dsk_xc, dsk_y0 + dsk_h / 2 - 18 * cu; stroke: 2.4 * cu; color: mint; move 0, 14 * cu; line 0, -14 * cu }
+                path { at: dsk_xc, dsk_y0 + dsk_h / 2 - 18 * cu; stroke: 2.4 * cu; color: mint; move -9 * cu, -4 * cu; line 0, -14 * cu; line 9 * cu, -4 * cu }
+                text "Let go to keep it" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + dsk_h / 2 + 22 * cu + 0.5); anchor: center; align: center; size: 16; weight: 700; color: mint; family: "Space Grotesk" }
+                text "it goes on your shelf" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + dsk_h / 2 + 44 * cu + 0.5); anchor: center; align: center; size: 12; color: ink; opacity: 70%; family: "Space Grotesk" }
+                zone box desk_drop { at: dsk_xc, dsk_y0 + dsk_h / 2; size: dsk_w, dsk_h; active: drag.over > 0.5 }
                 on drop desk_drop { desk_tab = 1; shelf_flash: 1 ~0ms; shelf_flash: 0 after 250ms }
             }
             }
         }
+    }
 }
