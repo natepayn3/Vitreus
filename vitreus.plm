@@ -1879,7 +1879,8 @@ scene Vitreus {
     let lv.tt = lv.ws + 52 * cu + 14 * u
     let lv.bot = lv.tray - 14 * u * min(1, tn)
     let lv.mc = 62 * cu * mshow * bs.media0            // what the player's buttons take, along the title
-    let lv.span = clamp(max(vclw.width, vtiw.width), 0, max(1, lv.bot - lv.tt - lv.mc))     // how long the text is (cut where the stretch ends)
+    let lv.none = if(max(vclw.width, vtiw.width) < 1, 1, 0)       // nothing is focused (an empty workspace): three dots take the title's place, so there is something to click
+    let lv.span = clamp(max(max(vclw.width, vtiw.width), lv.none * 44 * cu), 0, max(1, lv.bot - lv.tt - lv.mc))     // how long the text is (cut where the stretch ends)
     let lv.y0 = clamp(vc - (lv.span + lv.mc) / 2, lv.tt, max(lv.tt, lv.bot - lv.span - lv.mc))     // the top of buttons and text together, centred as one on the middle of the screen, as near as the pieces above and below let it
     let lv.mid = lv.y0 + 31 * cu                       // the buttons' middle (previous nearest the text, 17 apart)
     let lv.tm = lv.y0 + lv.mc + lv.span / 2           // the text's middle
@@ -2508,8 +2509,8 @@ scene Vitreus {
     zone box cal_btn_z { at: lf.w / 2, lv.clk + 30 * u; size: lf.w, 104 * u; cursor: pointer; active: lm > 0.5 }
     on press cal_btn_z { panel = if(panel == calendar, none, calendar) }
     //  The window title (and the player's buttons over it) the same way: a click on it opens the player's panel.
-    //  At least as long as an edge notch (`nt_w`), so a short title ("Signal") is still easy to find and to hit.
-    zone box pl_btn_z { at: lf.w / 2, lv.tm; size: lf.w, max(52 * cu, lv.span); cursor: pointer; active: lm > 0.5 and bv.title and lv.span > 20 * u }
+    //  At least as long as an edge notch (`nt_w`), so a short title ("Signal") is still easy to find and to hit, and an empty workspace (no title at all) still opens the list of windows.
+    zone box pl_btn_z { at: lf.w / 2, lv.tm; size: lf.w, max(52 * cu, lv.span); cursor: pointer; active: lm > 0.5 and bv.title }
     on press pl_btn_z { panel = if(panel == player, none, player) }
     //  A small tab out of the strip's right edge beside the title, while the pointer is on it: the edge notches' way of
     //  saying "this opens", only a few pixels. It tucks back in when the player's panel comes out of the same place.
@@ -2599,6 +2600,12 @@ scene Vitreus {
         rotate: -90deg
         opacity: lm * bs.title0
         text win.class { at: floor(lf.x - 9 * cu + 0.5), floor(lv.tm + 0.5); anchor: center; align: center; size: 15; weight: 600; width: max(1, lv.span); lines: 1; color: faint; opacity: 70%; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    }
+    group {
+        opacity: lm * bs.title0 * lv.none
+        repeat i in 0..3 {
+            ellipse { at: lf.x, lv.tm + (i - 1) * 8 * cu; radius: 1.9 * cu; color: faint; opacity: 70% + 30% * pl_btn_z.hover }
+        }
     }
     group {
         pivot: lf.x + 9 * cu, lv.tm
