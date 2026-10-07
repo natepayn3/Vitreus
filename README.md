@@ -10,11 +10,16 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="MIT License" /></a>
   </p>
 
-  <img src="assets/screenshots/demo.webp" alt="Vitreus: panels flowing out of the bar" height="340" />
-  <img src="assets/screenshots/wallpaper-demo.webp" alt="The wallpaper picker: a honeycomb of glass hexagons, the one under the pointer swelling and tilting toward it" height="340" />
-  <img src="assets/screenshots/tour.webp" alt="A tour of Vitreus: Settings, the controls, the Desk, the terminal and the launcher" height="340" />
-  <img src="assets/screenshots/desk.webp" alt="The Desk: dragged off the edge, resized, and running the Focus timer" height="340" />
-  <br /><sub>Panels flowing out of the bar &nbsp;·&nbsp; the wallpaper picker (<code>SUPER + B</code>) &nbsp;·&nbsp; a tour &nbsp;·&nbsp; the Desk</sub>
+  <table>
+    <tr>
+      <td align="center"><img src="assets/screenshots/demo.webp" alt="Vitreus: panels flowing out of the bar" height="280" /><br /><sub>Panels flowing out of the bar</sub></td>
+      <td align="center"><img src="assets/screenshots/wallpaper-demo.webp" alt="The wallpaper picker: a honeycomb of glass hexagons, the one under the pointer swelling and tilting toward it" height="280" /><br /><sub>The wallpaper picker (<code>SUPER + B</code>)</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="assets/screenshots/tour.webp" alt="A tour of Vitreus: Settings, the controls, the Desk, the terminal and the launcher" height="280" /><br /><sub>A tour</sub></td>
+      <td align="center"><img src="assets/screenshots/desk.webp" alt="The Desk: dragged off the edge, resized, and running the Focus timer" height="280" /><br /><sub>The Desk</sub></td>
+    </tr>
+  </table>
 
 </div>
 
