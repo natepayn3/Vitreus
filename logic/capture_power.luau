@@ -29,9 +29,11 @@ return function(set_panel)
     -- otherwise asks which one on a terminal that is not there, and records nothing. Pressing the tile's button again (or Stop) ends it cleanly, which is
     -- what makes the file playable. Whether it is running is asked of `pgrep`, so a recording started from anywhere counts.
     local seen = nil                                -- when it was first seen running
+    local starting_until = 0                        -- after a start, until when to keep looking: slurp may take a while to pick the region
     local function rec_show(running)
         fact.rec_on = running
         if running then
+            starting_until = 0
             seen = seen or os.time()
             local n = os.time() - seen
             text.rec_time = string.format("%d:%02d", n // 60, n % 60)
@@ -45,6 +47,7 @@ return function(set_panel)
     end
     local function rec_start(mode)
         if fact.rec_on then return end
+        starting_until = os.time() + 120
         after_closed(function()
             local pick = (mode == 0) and 'g=$(slurp) || exit 0; wf-recorder -g "$g" -f "$f"' or 'wf-recorder -o "$(hyprctl monitors -j | jq -r ".[] | select(.focused) | .name")" -f "$f"'
             spawn(sh('d="$HOME/Videos"; mkdir -p "$d"; f="$d/recording_$(date +%F_%H-%M-%S).mp4"; '
@@ -65,6 +68,8 @@ return function(set_panel)
     -- Asking `pgrep` is a process started each time, so it is only done while it matters: a recording is on (to see it end),
     -- or the Controls drawer, where the Capture tile shows it, is open; and once as that drawer opens.
     every(2000, function() if fact.rec_on or fact.panel == "controls" then rec_poll() end end)
+    -- and every second for a while after a start, so the bar's dot is there as soon as the recording is, not at the next click.
+    every(1000, function() if not fact.rec_on and os.time() < starting_until then rec_poll() end end)
     on("fact:panel", function(v) if v == "controls" then rec_poll() end end)
     rec_poll()
 

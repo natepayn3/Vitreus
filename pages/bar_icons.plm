@@ -6,16 +6,18 @@ part BarIcons {
     group {
         glow: 2.4 * u, 110%, deep
         row tray_bar_row {
-            at: floor(tr.x - (bartrays.count * 24 - 6) * u / 2 + 0.5), floor(bar.y - 9 * u + 0.5)
+            at: floor(tr.x - ((if(bs.tray > 0.02, bartrays.count, 0) + if(rec_on, 1, 0)) * 24 - 6) * u / 2 + 0.5), floor(bar.y - 9 * u + 0.5)
             gap: floor(6 * u + 0.5)
             show: lm < 0.5
-            for t in bartrays { BarTray(t, click: bar_tray_click, menu: bar_tray_menu) }
+            BarRec(rec_stop) { show: rec_on }
+            for t in bartrays { BarTray(t, click: bar_tray_click, menu: bar_tray_menu) { show: bs.tray > 0.02 } }
         }
         column tray_bar_col {
             at: floor(lf.x - 9 * u + 0.5), floor(lv.tray + 0.5)
             gap: floor(6 * u + 0.5)
             show: lm >= 0.5
-            for t in bartrays { BarTray(t, click: bar_tray_click, menu: bar_tray_menu) }
+            BarRec(rec_stop) { show: rec_on }
+            for t in bartrays { BarTray(t, click: bar_tray_click, menu: bar_tray_menu) { show: bs.tray > 0.02 } }
         }
         //  Every workspace is a soft square. The one in view stretches into a rectangle (along the bar; down the strip, down) and turns
         //  to the accent, one square becoming the other with nothing travelling; one with a window in it is a little more solid; one calling for

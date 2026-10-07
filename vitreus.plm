@@ -813,6 +813,7 @@ scene Vitreus {
     follow batt_fill = clamp(pwr.percent / 100, 0, 1)
     follow batt_on = if(pwr.present, 1, 0)
     follow batt_low = if(pwr.percent < 20 and not pwr.charging, 1, 0)
+    prop rcn = 0 ~calm                // the recording dot's slot on the bar, 1 while a recording runs
     prop trn = 0 ~calm                // how many tray icons the bar holds, smoothly: the bar widens with it
     prop disp_auto_pill = 0 ~pop
     prop disp_dd = 0 ~calm            // the resolution dropdown, 0 shut .. 1 open
@@ -850,6 +851,7 @@ scene Vitreus {
     follow bs.clock = if(bv.clock, 1, 0)
     follow bs.tray = if(bv.tray, 1, 0)
     follow trn = bartrays.count
+    follow rcn = if(rec_on, 1, 0)
     repeat i in 0..8 {
         prop bcx.$i = 0 ~quick
         prop bcy.$i = 4 ~quick
@@ -1609,6 +1611,23 @@ scene Vitreus {
         on press right touch { emit menu(t.index) }
     }
 
+    //  While a screen recording runs, a red dot rides the tray. Under the pointer it squares off into a stop button.
+    component BarRec(stop: event) {
+        size: floor(18 * u + 0.5), floor(18 * u + 0.5)
+        box { at: 9 * u, 9 * u; size: 26 * u, 26 * u; corner: 8 * u; color: ink; opacity: 14% * touch.hover }
+        let beat = 0.5 + 0.5 * sin(time * 300)
+        let wave = fract(time * 0.83)
+        ellipse { at: 9 * u, 9 * u; radius: (6 + 7 * wave) * u; stroke: 1.3 * u; color: #ef4444; opacity: 55% * (1 - wave) * (1 - touch.hover) }
+        body {
+            color: #ef4444
+            opacity: 88% + 12% * touch.hover - (1 - touch.hover) * 0.25 * (1 - beat)
+            shadow: 0, 0, (4 + 5 * beat * (1 - touch.hover)) * u, 70%, #ef4444
+            box { at: 9 * u, 9 * u; size: (12 + 1.5 * beat * (1 - touch.hover) - 1.5 * touch.hover) * u, (12 + 1.5 * beat * (1 - touch.hover) - 1.5 * touch.hover) * u; corner: (6 - 4 * touch.hover) * u }
+        }
+        zone box touch { at: 9 * u, 9 * u; size: 24 * u, 30 * u; cursor: pointer; label: "Stop recording" }
+        on press touch { emit stop }
+    }
+
     //  A notification's button (Reply, Mark read…): a small pill with its label.
     component NtAct(a: record, click: event) {
         size: floor(82 * u + 0.5), floor(26 * u + 0.5)
@@ -1776,9 +1795,10 @@ scene Vitreus {
     on press right away_z { panel = none; wp_picker_open = false; ov_open = false }
     //  The tray's icons (the pinned apps, or all of them) are a piece of the bar like the others; the bar widens for them.
     let bar.gap = 12 * u
-    let fw.tray = max(0, trn * 24 - 6) * u               // icons 18 wide, 6 apart
-    let vw.tray = fw.tray * bs.tray
-    let bw.tray = (fw.tray + bar.gap * min(1, trn)) * bs.tray
+    let tn = trn * bs.tray + rcn                      // what the tray piece holds: the icons (as far as the piece is shown) and the recording dot
+    let fw.tray = max(0, tn * 24 - 6) * u               // icons 18 wide, 6 apart
+    let vw.tray = fw.tray
+    let bw.tray = fw.tray + bar.gap * min(1, tn)
     let bar.w = 450 * u + bw.tray
     let bar.h = 40 * u
     let bar.y0 = 8 + bar.h / 2
@@ -1853,11 +1873,11 @@ scene Vitreus {
     let lv.ctl = lv.clk - 34 * u
     let lv.set = lv.ctl - 32 * u
     let lv.sr = lv.set - 32 * u
-    let lv.tray = lv.sr - 22 * u - max(0, trn * 24 - 6) * u      // the tray apps sit just above the search, under the title
+    let lv.tray = lv.sr - 22 * u - max(0, tn * 24 - 6) * u      // the tray apps sit just above the search, under the title
     //  The window title down the left, as in Synoptik's ActiveWindowCard: the app and its title turned a quarter anticlockwise (read from the foot
     //  up), centred in what the other pieces leave (`lv.tt` to `lv.bot`), with the player's buttons stacked at its top end while there is a player.
     let lv.tt = lv.ws + 52 * cu + 14 * u
-    let lv.bot = lv.tray - 14 * u * min(1, trn)
+    let lv.bot = lv.tray - 14 * u * min(1, tn)
     let lv.mc = 62 * cu * mshow * bs.media0            // what the player's buttons take, along the title
     let lv.span = clamp(max(vclw.width, vtiw.width), 0, max(1, lv.bot - lv.tt - lv.mc))     // how long the text is (cut where the stretch ends)
     let lv.y0 = clamp(vc - (lv.span + lv.mc) / 2, lv.tt, max(lv.tt, lv.bot - lv.span - lv.mc))     // the top of buttons and text together, centred as one on the middle of the screen, as near as the pieces above and below let it
@@ -2031,7 +2051,7 @@ scene Vitreus {
     //  empty glass at its foot. It never goes below the sidebar's last row.
     let set.h = max(side.ab + 40, 456)
     //  A held Power button counts its second on this clock, and a recording pulses on it, so they need it too.
-    let need_clock = ((wifi_scanning or bt_scanning or bt_working or caf_on or rec_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or nt_urgent)) or (set_pgd > 0.01 and disp.h > 456)
+    let need_clock = ((wifi_scanning or bt_scanning or bt_working or caf_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or nt_urgent)) or (set_pgd > 0.01 and disp.h > 456) or rec_on
     spin time by if(need_clock, 1, 0)
     let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * pu
     let ss.hh = bar.h / 2 + (8 + 36 + 8 + set.h + 16) * pu * ds0 + max(0, sag)
