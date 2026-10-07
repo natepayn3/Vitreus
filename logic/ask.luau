@@ -162,6 +162,43 @@ return function()
         save()
     end
 
+    -- `claude -p "/usage"` prints what /usage shows (the session and the week, and when each resets) without asking the model anything, so it costs nothing:
+    -- it is asked when the shell starts, whenever the Ask tab opens, and every few minutes while it is open. (An answer brings the same numbers with it.)
+    local MONTHS = { Jan = 1, Feb = 2, Mar = 3, Apr = 4, May = 5, Jun = 6, Jul = 7, Aug = 8, Sep = 9, Oct = 10, Nov = 11, Dec = 12 }
+    local function reset_epoch(str)                     -- "Oct 7, 5:10pm", "Oct 14, 10am" or just "5:10pm", in this machine's own time
+        local now = os.time()
+        local t = os.date("*t", now)
+        local mon, day, rest = str:match("^%s*(%a%a%a)%a*%s+(%d+),?%s*(.-)%s*$")
+        if not mon then rest = str:match("^%s*(.-)%s*$") end
+        local h, mi, ap = (rest or ""):match("(%d+):?(%d*)%s*([apAP][mM])")
+        if not h then return nil end
+        h = tonumber(h) % 12
+        if ap:lower() == "pm" then h = h + 12 end
+        local at = { year = t.year, month = mon and MONTHS[mon] or t.month, day = mon and tonumber(day) or t.day, hour = h, min = tonumber(mi) or 0 }
+        -- `os.time` may read a table as UTC while `os.date` writes local time: how far apart they are, seen on now, is taken off
+        local off = os.time(os.date("*t", now)) - now
+        local e = os.time(at)
+        if e and e < now - 2 * 86400 then at.year = at.year + 1; e = os.time(at) end
+        return e and (e - off)
+    end
+    local polled = 0
+    local function poll_usage()
+        if not have[1] or os.time() - polled < 60 then return end
+        polled = os.time()
+        local buf = {}
+        spawn("claude", { "-p", "/usage", "--output-format", "json" }, function(line) buf[#buf + 1] = line end, function()
+            local ok, d = pcall(json.decode, table.concat(buf, "\n"))
+            local t = ok and type(d) == "table" and d.result
+            if type(t) ~= "string" then return end
+            local p5, m5 = t:match("Current session:%s*(%d+)%%%s*used[^\n]-resets%s+([^\n%(]+)")
+            local p7, m7 = t:match("Current week %(all models%):%s*(%d+)%%%s*used[^\n]-resets%s+([^\n%(]+)")
+            usage = usage or {}
+            if p5 then usage.u5, usage.r5 = tonumber(p5) / 100, reset_epoch(m5) or usage.r5 end
+            if p7 then usage.u7, usage.r7 = tonumber(p7) / 100, reset_epoch(m7) or usage.r7 end
+            if p5 or p7 then show_usage(); save() end
+        end)
+    end
+
     -- The conversation as one prompt, for the programs that take a prompt and keep nothing: the last few messages, then the new one.
     local function prompt_for(msgs)
         local out = {}
@@ -343,6 +380,9 @@ return function()
         text.ask_attach_in = ""
         ask_attach_from(src, t)
     end)
+    on("fact:desk_tab", function(v) if tonumber(v) == 5 and fact.desk_open then poll_usage() end end)
+    on("fact:desk_open", function(v) if (v == true or tostring(v) == "true") and tonumber(fact.desk_tab) == 5 then poll_usage() end end)
+    every(300000, function() if fact.desk_open and tonumber(fact.desk_tab) == 5 then poll_usage() end end)
     on("ask_att_clear", function() attach = nil; fact.ask_att = 0 end)
     on("ask_pick", pick)
     on("ask_stop", stop)
@@ -400,6 +440,7 @@ return function()
                 end
                 status()
                 if have[2] then load_models() end
+                poll_usage()
             end
         end)
     end
