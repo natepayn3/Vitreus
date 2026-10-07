@@ -13,13 +13,13 @@ part Desk {
             scale: max(dz.lf, 0.05)
             zone box desk_band { at: dsk_xc, dsk_y0 + dsk_h / 2; size: dsk_w, dsk_h }
             on leave desk_band { desk_kb = false }
-            on enter desk_band while desk_tab == 3 and term_armed { desk_kb = true }
+            on enter desk_band while desk_tab == 4 and term_armed { desk_kb = true }
             group {
                 opacity: fd0
                 move: 0, (1 - fd0) * 12 * cu
             //  The tabs: one track, a thumb that slides to the one in use and stretches on the way.
             let dt_y   = dsk_y0 + 40 * cu
-            let dt_w   = (dsk_w - 72 * cu) / 5
+            let dt_w   = (dsk_w - 72 * cu) / 6
             let dt_cx  = dsk_xc - 18 * cu
             let dt_str = clamp(abs(desk_tab - desk_sel), 0, 2)
             box { at: dt_cx, dt_y; size: dsk_w - 72 * cu, 34 * cu; corner: 17 * cu; color: ink; opacity: veil }
@@ -27,12 +27,12 @@ part Desk {
                 color: mint
                 shadow: 0, 0, 10 * cu, 40%, mint
                 rim: 16%
-                box { at: dt_cx + (desk_sel - 2) * dt_w, dt_y; size: (dt_w - 8 * cu) + 10 * cu * dt_str, 26 * cu - 3 * cu * clamp(dt_str, 0, 1); corner: 10 * cu }
+                box { at: dt_cx + (desk_sel - 2.5) * dt_w, dt_y; size: (dt_w - 8 * cu) + 10 * cu * dt_str, 26 * cu - 3 * cu * clamp(dt_str, 0, 1); corner: 10 * cu }
             }
-            repeat i in 0..5 {
-                let tl  = dt_cx + (i - 2) * dt_w
+            repeat i in 0..6 {
+                let tl  = dt_cx + (i - 2.5) * dt_w
                 let tsl = clamp(1 - abs(desk_sel - i), 0, 1)
-                text pick(i, "Pad", "Shelf", "Focus", "Term", "Ask") { at: floor(tl + 0.5), floor(dt_y + 0.5); anchor: center; align: center; size: 12.5; weight: 600; color: mix(ink, off, tsl); opacity: 62% + 38% * tsl + 30% * desk_tab_z.$i.hover; family: "Space Grotesk" }
+                text pick(i, "Pad", "Shelf", "Clip", "Focus", "Term", "Ask") { at: floor(tl + 0.5), floor(dt_y + 0.5); anchor: center; align: center; size: 12.5; weight: 600; color: mix(ink, off, tsl); opacity: 62% + 38% * tsl + 30% * desk_tab_z.$i.hover; family: "Space Grotesk" }
                 zone box desk_tab_z.$i { at: tl, dt_y; size: dt_w, 34 * cu; cursor: pointer }
                 on press desk_tab_z.$i { desk_tab = i }
             }
@@ -100,6 +100,10 @@ part Desk {
                         path { at: cx_ + 62 * cu, cy_ - 13 * cu; stroke: 1.4 * cu; color: ink; opacity: 85% * max(shelf_card.$k.hover, shelf_x.$k.hover); move -2.2 * cu, -2.2 * cu; line 2.2 * cu, 2.2 * cu }
                         path { at: cx_ + 62 * cu, cy_ - 13 * cu; stroke: 1.4 * cu; color: ink; opacity: 85% * max(shelf_card.$k.hover, shelf_x.$k.hover); move 2.2 * cu, -2.2 * cu; line -2.2 * cu, 2.2 * cu }
                         zone box shelf_x.$k { at: cx_ + 62 * cu, cy_ - 13 * cu; size: 18 * cu, 18 * cu; cursor: pointer }
+                        //  A text or a link can be asked about: a small Ask on the card's foot, while it is under the pointer.
+                        text "Ask" { at: cx_ + 50 * cu, cy_ + 13 * cu; anchor: center; align: center; size: 9.5; weight: 700; color: mint; opacity: 95% * max(shelf_card.$k.hover, shelf_ask.$k.hover); family: "Space Grotesk"; show: shelf.$k.askable }
+                        zone box shelf_ask.$k { at: cx_ + 50 * cu, cy_ + 13 * cu; size: 30 * cu, 16 * cu; cursor: pointer; active: shelf.$k.askable }
+                        on press shelf_ask.$k { emit shelf_ask(k) }
                         on press shelf_x.$k { emit shelf_del(k) }
                     }
                 }
@@ -255,7 +259,7 @@ part Desk {
 
             //  Focus: a ring that runs down, the length, start and reset, and what to do with the rest of the machine meanwhile.
             group {
-                show: desk_tab == 2
+                show: desk_tab == 3
                 let fr_y = dsk_y0 + 188 * cu
                 let fp_y = dsk_y0 + 302 * cu
                 let fc_y = dsk_y0 + 363 * cu
@@ -423,11 +427,10 @@ part Desk {
             //  Ask: a small chat with the assistants that are installed (logic/ask.luau). One text holds the whole conversation, wrapped to the card, and
             //  scrolls under a clip; it follows the end while an answer comes in, until the wheel takes it back up.
             group {
-                show: desk_tab == 4
+                show: desk_tab == 5
                 opacity: fd1
                 move: 0, (1 - fd1) * 12 * cu
-                let ak_vh  = 248 * cu - ask_dy                             // what the card shows of the conversation
-                let ak_max = max(0, ask_m.height - ak_vh)
+                let ak_vh  = 248 * cu - ask_dy - ask_db                    // what the card shows of the conversation
                 //  The assistants: one chip each (dim while it is not installed) and a button for a new conversation.
                 repeat k in 0..4 {
                     let ak_cx = dsk_x0 + (14 + 31 + k * 66) * cu
@@ -489,13 +492,29 @@ part Desk {
                     }
                 }
                 //  The conversation.
-                box { at: dsk_xc, dsk_y0 + 258 * cu + ask_dy / 2; size: 312 * cu, 268 * cu - ask_dy; corner: 16 * cu; color: ink; opacity: veil }
-                text "Ask something below" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 258 * cu + ask_dy / 2 + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: ask_n < 1 }
+                box { at: dsk_xc, dsk_y0 + 258 * cu + (ask_dy - ask_db) / 2; size: 312 * cu, 268 * cu - ask_dy - ask_db; corner: 16 * cu; color: ink; opacity: veil }
+                text "Ask something below" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 258 * cu + (ask_dy - ask_db) / 2 + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: ask_n < 1 }
+                //  The conversation: rows as tall as their text, scrolled by the wheel or by dragging; it stays at the end while an answer comes in.
+                column ask_col {
+                    at: dsk_x0 + 20 * cu, dsk_y0 + 124 * cu + ask_dy + 8 * cu
+                    view: 300 * cu, ak_vh - 16 * cu
+                    gap: 6
+                    for r in ask_rows { AskRow(r, copy: ask_copy) }
+                }
+                on change ask_col.content while ask_follow { ask_col.scroll: max(0, ask_col.content - (ak_vh - 16 * cu)) }
+                on change ask_col.scroll { ask_follow = ask_col.scroll >= ask_col.content - (ak_vh - 16 * cu) - 12 }
+                //  Something waiting to go with the next question (the clipboard, a card from the Shelf): a chip under the conversation, with a cross to drop it.
                 group {
-                    clip inset 0 box { at: dsk_xc, dsk_y0 + 258 * cu + ask_dy / 2; size: 312 * cu, 268 * cu - ask_dy; corner: 16 * cu }
-                    zone box ask_wheel { at: dsk_xc, dsk_y0 + 258 * cu + ask_dy / 2; size: 312 * cu, 268 * cu - ask_dy }
-                    on scroll ask_wheel { ask_scroll = clamp(ask_scroll - wheel * 48 * cu, 0, ak_max); ask_follow = ask_scroll > ak_max - 6 * cu }
-                    text ask_log { at: floor(dsk_x0 + 24 * cu + 0.5), floor(dsk_y0 + 134 * cu + ask_dy - ask_off + 0.5); anchor: left top; size: 13; width: 292 * cu; lines: 400; line_height: 1.25; color: ink; family: "Space Grotesk"; measure: ask_m }
+                    show: ask_atts > 0.02
+                    opacity: ask_atts
+                    let ac_y = dsk_y0 + 392 * cu - ask_db + 14 * cu
+                    box { at: dsk_xc, ac_y; size: 312 * cu, 22 * cu; corner: 11 * cu; color: mint; opacity: 16% }
+                    ellipse { at: dsk_x0 + 26 * cu, ac_y; radius: 3 * cu; color: mint }
+                    text ask_att_label { at: floor(dsk_x0 + 38 * cu + 0.5), floor(ac_y + 0.5); anchor: left center; size: 11; weight: 600; width: 250 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+                    path { at: dsk_x0 + 316 * cu, ac_y; stroke: 1.4 * cu; color: ink; opacity: 55% + 45% * ask_att_x.hover; move -3 * cu, -3 * cu; line 3 * cu, 3 * cu }
+                    path { at: dsk_x0 + 316 * cu, ac_y; stroke: 1.4 * cu; color: ink; opacity: 55% + 45% * ask_att_x.hover; move 3 * cu, -3 * cu; line -3 * cu, 3 * cu }
+                    zone box ask_att_x { at: dsk_x0 + 316 * cu, ac_y; size: 24 * cu, 22 * cu; cursor: pointer; active: ask_att > 0; label: "Drop the attachment" }
+                    on press ask_att_x { emit ask_att_clear }
                 }
                 //  The question.
                 let ak_y = dsk_y0 + 420 * cu
@@ -504,11 +523,27 @@ part Desk {
                 zone box ask_zone { at: dsk_xc, ak_y; size: 312 * cu, 36 * cu; cursor: text }
                 on press ask_zone { focus ask_in; desk_kb = true }
             }
+            //  Clip: the clipboard history (logic/clipboard.luau), pinned entries first. A row copies it again; its dot pins it, Ask sends it to the Ask tab as an
+            //  attachment, the cross removes it.
+            group {
+                show: desk_tab == 2
+                opacity: fd1
+                move: 0, (1 - fd1) * 12 * cu
+                text "CLICK TO COPY  ·  DOT PINS  ·  ASK SENDS IT TO THE CHAT" { at: floor(dsk_x0 + 20 * cu + 0.5), floor(dsk_y0 + 84 * cu + 0.5); anchor: left center; size: 9.5; weight: 700; color: faint; opacity: 80%; family: "Space Grotesk"; show: not clip_flash }
+                text clip_msg { at: floor(dsk_x0 + 20 * cu + 0.5), floor(dsk_y0 + 84 * cu + 0.5); anchor: left center; size: 11; weight: 600; color: mint; family: "Space Grotesk"; show: clip_flash }
+                text "Nothing copied yet" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 200 * cu + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: clip_n < 1 }
+                column clip_col {
+                    at: dsk_x0 + 20 * cu, dsk_y0 + 98 * cu
+                    view: 300 * cu, 330 * cu
+                    gap: 4
+                    for r in clip_rows { ClipRow(r, copy: clip_copy, pin: clip_pin, ask: clip_ask, del: clip_del) }
+                }
+            }
             //  Term: the shell, in a dark card under the tabs. Each stretch of one colour is a text at its cell (and a box behind it when it
             //  has a background of its own); the cursor is a block while the terminal has the keyboard and an outline while it has not.
             //  A press on the card gives it the keyboard; the wheel goes back through what has scrolled off the top.
             group {
-                show: desk_tab == 3
+                show: desk_tab == 4
                 let tm_y0 = dsk_y0 + 66 * cu                    // the card, under the tabs
                 let tm_h  = dsk_h - 87 * cu                     // its bottom 21 above the desk's, where the Focus tab's last row ends
                 let tm_w  = dsk_w - 28 * cu

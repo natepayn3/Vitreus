@@ -11,6 +11,7 @@ return function()
             text["shelf." .. k .. ".path"] = it and it.path or ""
             text["shelf." .. k .. ".tag"] = it and it.tag or ""
             fact["shelf." .. k .. ".has"] = it ~= nil
+            fact["shelf." .. k .. ".askable"] = it ~= nil and (it.tag == "TXT" or it.tag == "URL")
         end
         fact.shelf_n = #items
     end
@@ -69,6 +70,12 @@ return function()
             emit("shelf_shifted", k)
             busy = false
         end)
+    end)
+    -- A text or link card can be asked about: it goes to the Ask tab as an attachment (logic/ask.luau).
+    on("shelf_ask", function(k)
+        local it = type(k) == "number" and items[k + 1]
+        if not it or not (it.tag == "TXT" or it.tag == "URL") then return end
+        ask_attach_from(it.tag == "URL" and "Link" or "Shelf text", it.path)
     end)
     on("shelf_clear", function() items = {}; save(); render() end)
     render()

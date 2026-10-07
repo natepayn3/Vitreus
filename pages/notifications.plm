@@ -11,6 +11,51 @@ part Notifications {
             on scroll nt_wheel { nt_scroll_to = clamp(nt_scroll_to - wheel * 44, 0, max(0, nt.h - 456)) }
             group {
                 move: 0, -nt.off
+            //  Quiet hours: Do Not Disturb that turns itself on, by the clock, and while a window is fullscreen.
+            box { at: spx + 219 * pu, sby + 76 * pu; size: 438 * pu, 140 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "QUIET HOURS" { at: floor(spx + 14 * pu + 0.5), floor(sby + 22 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text "Hold notifications back" { at: floor(spx + 14 * pu + 0.5), floor(sby + 43 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
+            text "Between these times, every day (kept in the history)" { at: floor(spx + 14 * pu + 0.5), floor(sby + 59 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            body {
+                color: mix(off, mint, clamp(ntq0, 0, 1))
+                box { at: spx + 405 * pu, sby + 50 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+            }
+            box { at: spx + 397 * pu + ntq0 * 16 * pu, sby + 50 * pu; size: (17 + 9 * clamp(4 * ntq0 * (1 - ntq0), 0, 1)) * pu, (17 - 3 * clamp(4 * ntq0 * (1 - ntq0), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * ntq0 * (1 - ntq0), 0, 1)) * pu; color: ink }
+            zone box ntq_hit0 { at: spx + 219 * pu, sby + 50 * pu; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
+            on press ntq_hit0 { emit nt_q_toggle }
+            text "From" { at: floor(spx + 14 * pu + 0.5), floor(sby + 86 * pu + 0.5); anchor: left center; size: 14; weight: 600; color: faint; opacity: 70% + 30% * clamp(ntq0, 0, 1); family: "Space Grotesk" }
+            box { at: spx + 78 * pu, sby + 86 * pu; size: 24 * pu, 22 * pu; corner: 11 * pu; color: ink; opacity: 8% + 10% * ntq_fm.hover }
+            line { from: spx + 74 * pu, sby + 86 * pu; to: spx + 82 * pu, sby + 86 * pu; width: 1.5 * pu; color: ink; opacity: 85% }
+            zone box ntq_fm { at: spx + 78 * pu, sby + 86 * pu; size: 28 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
+            on press ntq_fm { emit nt_q_step(0) }
+            box { at: spx + 178 * pu, sby + 86 * pu; size: 24 * pu, 22 * pu; corner: 11 * pu; color: ink; opacity: 8% + 10% * ntq_fp.hover }
+            line { from: spx + 174 * pu, sby + 86 * pu; to: spx + 182 * pu, sby + 86 * pu; width: 1.5 * pu; color: ink; opacity: 85% }
+            line { from: spx + 178 * pu, sby + 82 * pu; to: spx + 178 * pu, sby + 90 * pu; width: 1.5 * pu; color: ink; opacity: 85% }
+            zone box ntq_fp { at: spx + 178 * pu, sby + 86 * pu; size: 28 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
+            on press ntq_fp { emit nt_q_step(1) }
+            text nt_qfrom_t { at: floor(spx + 128 * pu + 0.5), floor(sby + 86 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; color: ink; opacity: 55% + 45% * clamp(ntq0, 0, 1); family: "Space Grotesk" }
+            text "To" { at: floor(spx + 226 * pu + 0.5), floor(sby + 86 * pu + 0.5); anchor: left center; size: 14; weight: 600; color: faint; opacity: 70% + 30% * clamp(ntq0, 0, 1); family: "Space Grotesk" }
+            box { at: spx + 268 * pu, sby + 86 * pu; size: 24 * pu, 22 * pu; corner: 11 * pu; color: ink; opacity: 8% + 10% * ntq_tm.hover }
+            line { from: spx + 264 * pu, sby + 86 * pu; to: spx + 272 * pu, sby + 86 * pu; width: 1.5 * pu; color: ink; opacity: 85% }
+            zone box ntq_tm { at: spx + 268 * pu, sby + 86 * pu; size: 28 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
+            on press ntq_tm { emit nt_q_step(2) }
+            box { at: spx + 368 * pu, sby + 86 * pu; size: 24 * pu, 22 * pu; corner: 11 * pu; color: ink; opacity: 8% + 10% * ntq_tp.hover }
+            line { from: spx + 364 * pu, sby + 86 * pu; to: spx + 372 * pu, sby + 86 * pu; width: 1.5 * pu; color: ink; opacity: 85% }
+            line { from: spx + 368 * pu, sby + 82 * pu; to: spx + 368 * pu, sby + 90 * pu; width: 1.5 * pu; color: ink; opacity: 85% }
+            zone box ntq_tp { at: spx + 368 * pu, sby + 86 * pu; size: 28 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
+            on press ntq_tp { emit nt_q_step(3) }
+            text nt_qto_t { at: floor(spx + 318 * pu + 0.5), floor(sby + 86 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; color: ink; opacity: 55% + 45% * clamp(ntq0, 0, 1); family: "Space Grotesk" }
+            text "Silence while a window is fullscreen" { at: floor(spx + 14 * pu + 0.5), floor(sby + 112 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
+            text "A game, a video or a presentation: nothing pops up over it" { at: floor(spx + 14 * pu + 0.5), floor(sby + 128 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            body {
+                color: mix(off, mint, clamp(ntq1, 0, 1))
+                box { at: spx + 405 * pu, sby + 119 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+            }
+            box { at: spx + 397 * pu + ntq1 * 16 * pu, sby + 119 * pu; size: (17 + 9 * clamp(4 * ntq1 * (1 - ntq1), 0, 1)) * pu, (17 - 3 * clamp(4 * ntq1 * (1 - ntq1), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * ntq1 * (1 - ntq1), 0, 1)) * pu; color: ink }
+            zone box ntq_hit1 { at: spx + 219 * pu, sby + 119 * pu; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
+            on press ntq_hit1 { emit nt_fs_toggle }
+            group {
+                move: 0, 146 * pu
             box { at: spx + 219 * pu, sby + 122 * pu; size: 438 * pu, 232 * pu; corner: 14 * pu; color: ink; opacity: veil }
             text "DELIVERY" { at: floor(spx + 14 * pu + 0.5), floor(sby + 22 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
             text "Play a sound" { at: floor(spx + 14 * pu + 0.5), floor(sby + 43 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
@@ -202,6 +247,7 @@ part Notifications {
             text "Reset to defaults" { at: floor(spx + 79 * pu + 0.5), floor(sby + (1238 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 124 * pu; lines: 1; color: if(0, mint, ink); opacity: if(0, 100%, 85%); family: "Space Grotesk" }
             zone box nta_reset_hit { at: spx + 79 * pu, sby + (1238 - nt.ds) * pu; size: 132 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: nta_has_rule }
             on press nta_reset_hit { emit nta_reset }
+            }
             }
             }
             let nt.thh = 456 * 456 / nt.h

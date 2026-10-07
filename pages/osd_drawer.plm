@@ -104,6 +104,44 @@ part OsdDrawer {
             zone box nt_x { at: os.px + 140 * u, ot + 12 * u + 8 * u; size: 24 * u, 24 * u; corner: 12 * u; cursor: pointer }
             on press nt_x { emit nt_close }
         }
+
+        // ── a screenshot ──
+        group {
+            opacity: oks
+            show: oks > 0.01
+            let sty = ot + 8 * u                              // the picture's top
+            let stw = 292 * u
+            let sth = 164 * u
+            group {
+                clip inset 0 box { at: os.px, sty + sth / 2; size: stw, sth; corner: 10 * u }
+                image shot_img { at: floor(os.px - stw / 2 + 0.5), floor(sty + 0.5); size: floor(stw + 0.5), floor(sth + 0.5) }
+            }
+            zone box shot_open_z { at: os.px, sty + sth / 2; size: stw, sth; corner: 10 * u; cursor: pointer; label: "Open the screenshot" }
+            on press shot_open_z { emit shot_act(0) }
+            //  Close, on the picture's corner (a dark disc, so it shows on a light picture too).
+            ellipse { at: os.px + stw / 2 - 16 * u, sty + 16 * u; radius: 11 * u; color: #000000; opacity: 45% + 20% * shot_x.hover }
+            line { from: os.px + stw / 2 - 19.5 * u, sty + 12.5 * u; to: os.px + stw / 2 - 12.5 * u, sty + 19.5 * u; width: 1.5 * u; color: #ffffff; opacity: 90% }
+            line { from: os.px + stw / 2 - 12.5 * u, sty + 12.5 * u; to: os.px + stw / 2 - 19.5 * u, sty + 19.5 * u; width: 1.5 * u; color: #ffffff; opacity: 90% }
+            zone box shot_x { at: os.px + stw / 2 - 16 * u, sty + 16 * u; size: 26 * u, 26 * u; corner: 13 * u; cursor: pointer }
+            on press shot_x { emit shot_close }
+            text shot_name { at: floor(os.px - stw / 2 + 2 * u + 0.5), floor(sty + sth + 14 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; width: stw - 4 * u; lines: 1; color: faint; family: "Space Grotesk" }
+            //  What can be done with it: Open and Delete always; the text ones when tesseract can read it.
+            repeat k in 0..4 {
+                let sn = if(shot_ocr, 4, 2)
+                let sg = 6 * u
+                let sw = (stw - (sn - 1) * sg) / sn
+                let sl = if(shot_ocr, k, if(k == 0, 0, 3))        // which action this button is
+                let sx = os.px - stw / 2 + sw / 2 + k * (sw + sg)
+                let sy = sty + sth + 38 * u
+                group {
+                    show: k < sn
+                    box { at: sx, sy; size: sw, 26 * u; corner: 13 * u; color: if(sl == 3, alert, mint); opacity: 14% + 12% * shot_b.$k.hover }
+                    text pick(sl, "Open", "Copy text", "Ask", "Delete") { at: floor(sx + 0.5), floor(sy + 0.5); anchor: center; align: center; size: 12 * u; weight: 700; color: if(sl == 3, alert, mint); family: "Space Grotesk" }
+                    zone box shot_b.$k { at: sx, sy; size: sw, 28 * u; corner: 14 * u; cursor: pointer; active: k < sn and oks > 0.5 }
+                    on press shot_b.$k { emit shot_act(sl) }
+                }
+            }
+        }
         }
     }
 }

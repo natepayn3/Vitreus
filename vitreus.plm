@@ -44,7 +44,7 @@ scene Vitreus {
     fact pal_alert_b = 0.2667
     surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "vitreus-term", "claude", "ollama", "codex", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play", "ffmpeg" }
+                  run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "vitreus-term", "claude", "ollama", "codex", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play", "ffmpeg", "tesseract" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
     model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number }
@@ -163,7 +163,7 @@ scene Vitreus {
     //  The two transient panels (volume, and a notification arriving) share one drawer. `osd_kind` is
     //  which one it draws; unlike `panel` it stays put while the drawer closes, so it fades out
     //  showing what it was showing.
-    fact osd_kind: vol | note = vol
+    fact osd_kind: vol | note | shot = vol
     fact osd_on = false                                     // the volume / notification drawer is out: set by the logic; it is not a value of `panel`, so it shows beside Settings, the search, the desk...
     text nt_app = ""
     text nt_title = ""
@@ -178,6 +178,16 @@ scene Vitreus {
     model nt_acts max 3 { label: text }
     event ntnew                    // a notification just arrived: ripple the tile
     event nt_close ->              // its cross, or a press on the plate
+    //  A screenshot just taken, as a card in the same drawer (logic: `shot_done`): its picture, its name, and what can be done with it. The text buttons
+    //  need tesseract (`shot_ocr`).
+    text shot_path = ""
+    text shot_imgpath = ""
+    text shot_name = ""
+    image shot_img = from shot_imgpath, 394, 222               // drawn at 292 * u = 394 by 164 * u = 222
+    fact shot_ocr = false
+    event shot_done ->
+    event shot_act ->                // one of its buttons: 0 open, 1 copy the text, 2 ask about the text, 3 delete
+    event shot_close ->
     event nt_act ->                // one of its buttons, by position
     //  Settings: a panel of pages, the wallpaper picker first. The logic lists the folder and keeps one
     //  page of twelve thumbnails at a time (the folder can hold hundreds of full-size images).
@@ -273,7 +283,7 @@ scene Vitreus {
     event glass_reset ->
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
     //  panel's height, which follows the page).
-    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_night | pg_hypr | pg_about | pg_sys | pg_nt | pg_lock | pg_wm | pg_vpn | pg_clock = pg_wall
+    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_night | pg_hypr | pg_about | pg_sys | pg_nt | pg_lock | pg_wm | pg_vpn | pg_clock | pg_theme = pg_wall
     //  The Bar page: which monitors the bar is on (see the Bar section of vitreus.luau). `bar_scr` is -1 for all
     //  of them, or which monitor tile is chosen.
     fact bar_scr = -1
@@ -423,6 +433,10 @@ scene Vitreus {
     text wp_mins_text = ""          // 5 min
     event wp_show_toggle ->
     fact rand_turn = 0              // how many times Random has been pressed: the die turns once for each
+    fact theme_sel = 0               // Settings > Theme: 0 the wallpaper's colours, 1 to 6 a named palette, 7 monochrome
+    fact iris_int = 1                // how strongly the wallpaper's accent is pushed: 0 subtle, 1 medium, 2 bold
+    event theme_pick ->
+    event iris_int_set ->
     fact iris_on = true             // Iris, the palette from the wallpaper, is on; off, the shell is monochrome
     event iris_toggle ->
     event wp_mins_step ->           // the stepper: -1 or 1 along a short list of intervals
@@ -599,6 +613,7 @@ scene Vitreus {
     prop fo    = 0 ~300ms         // what is in it, fading in
     prop okv   = 0 ~calm          // 1 while it is the volume that is drawn
     prop okn   = 0 ~calm          // 1 while it is a notification
+    prop oks   = 0 ~calm          // 1 while it is a screenshot
     prop osd_h = 64 ~calm         // the height of its plate: a notification is taller with text and buttons
     prop nt_ring = 1 ~900ms       // a ripple off the notification's tile: 0 born, 1 gone
     prop expand = 0 ~drip          // a tile growing into its own window, 0 tile .. 1 full window
@@ -626,6 +641,7 @@ scene Vitreus {
     follow lr   = max(1, lcount, if(lp_on, 6, 1))
     follow okv  = if(osd_kind == vol, 1, 0)
     follow okn  = if(osd_kind == note, 1, 0)
+    follow oks  = if(osd_kind == shot, 1, 0)
     on ntnew {
         nt_ring: 0 ~16ms
         nt_ring: 1 ~800ms after 30ms
@@ -777,6 +793,7 @@ scene Vitreus {
     prop set_pgw = 0 ~calm
     prop set_pgv = 0 ~calm
     prop set_pgk = 0 ~calm
+    prop set_pgp = 0 ~calm
     prop set_pgb = 0 ~calm
     prop bs.ws = 1 ~calm              // each piece of the bar, 1 shown .. 0 hidden: its room and its opacity
     prop bs.title = 1 ~calm
@@ -841,6 +858,7 @@ scene Vitreus {
     follow set_pgw = if(set_page == pg_wm, 1, 0)
     follow set_pgv = if(set_page == pg_vpn, 1, 0)
     follow set_pgk = if(set_page == pg_clock, 1, 0)
+    follow set_pgp = if(set_page == pg_theme, 1, 0)
     follow bs.ws = if(bv.ws, 1, 0)
     follow bs.title = if(bv.title and bar_anchor == top, 1, 0)
     follow bs.media = if(bv.media and bar_anchor == top, 1, 0)
@@ -1227,6 +1245,13 @@ scene Vitreus {
     follow nt_scroll = nt_scroll_to
     fact ntg_sounds = true             // a sound when one is shown
     fact ntg_crit = true               // critical ones ignore Do Not Disturb
+    fact nt_quiet = false              // quiet hours are on (Settings > Notifications)
+    fact nt_fs = false                 // hold notifications back while a window is fullscreen
+    text nt_qfrom_t = ""
+    text nt_qto_t = ""
+    event nt_q_toggle ->
+    event nt_fs_toggle ->
+    event nt_q_step ->                 // 0 start earlier, 1 start later, 2 end earlier, 3 end later
     fact ntg_snd = 0                  // the default sound, 0..7
     fact nta_sel = -1                 // the app whose rules are open (its row), -1 none
     fact nta_count = 0
@@ -1251,6 +1276,8 @@ scene Vitreus {
     event ntg_sound ->
     event nt_test ->
     prop ntk0 = 0 ~pop
+    prop ntq0 = 0 ~pop
+    prop ntq1 = 0 ~pop
     prop ntk1 = 0 ~pop
     prop ntk2 = 0 ~pop
     prop ntk3 = 0 ~pop
@@ -1258,6 +1285,8 @@ scene Vitreus {
     prop ntk5 = 0 ~pop
     follow ntk0 = if(ntg_sounds, 1, 0)
     follow ntk1 = if(ntg_crit, 1, 0)
+    follow ntq0 = if(nt_quiet, 1, 0)
+    follow ntq1 = if(nt_fs, 1, 0)
     follow ntk2 = if(nta_mute, 1, 0)
     follow ntk3 = if(nta_silent, 1, 0)
     follow ntk4 = if(nta_bypass, 1, 0)
@@ -1341,6 +1370,55 @@ scene Vitreus {
         zone box gone_z { at: 140 * cu, 15; size: 20 * cu, 30; corner: 10 * cu; cursor: pointer }
         on press check_z { emit tick(e.index) }
         on press gone_z { emit gone(e.index) }
+    }
+
+    //  One row of the Ask tab's conversation (logic/ask.luau cuts it): a message, or the prose or the code of an answer. The first row of a message has its
+    //  name above it (and, on an answer, Copy); a piece of code is in a card of its own with its own Copy. As tall as its text needs.
+    component AskRow(m: record, copy: event) {
+        size: 300 * cu, (if(m.first, 20, 0)) + if(m.kind == 2, 26 * cu + floor(cwrap.height + 0.5) + 12 * cu, floor(wrap.height + 0.5) + 6)
+        let hh   = if(m.first, 20, 0)
+        let ph   = floor(if(m.kind == 2, cwrap.height, wrap.height) + 0.5)
+        text m.who { at: 2, 10; anchor: left center; size: 11; weight: 700; color: if(m.kind == 0, faint, mint); opacity: 90%; family: "Space Grotesk"; show: m.first }
+        text "Copy" { at: 300 * cu - 2, 10; anchor: right center; align: right; size: 11; weight: 600; color: mix(faint, mint, hc.hover); family: "Space Grotesk"; show: m.first and m.kind == 1 }
+        zone box hc { at: 300 * cu - 22 * cu, 10; size: 44 * cu, 20; cursor: pointer; active: m.first and m.kind == 1 }
+        on press hc { emit copy(m.index) }
+        column wrap {
+            at: 2, hh + 2
+            text m.body { size: 13; width: 292 * cu; lines: 400; line_height: 1.25; color: if(m.kind == 3, faint, ink); family: "Space Grotesk"; show: m.kind != 2 }
+        }
+        group {
+            show: m.kind == 2
+            box { from: 0, hh + 2; size: 300 * cu, 24 * cu + ph + 12 * cu - 2; corner: 10 * cu; color: ink; opacity: 11% }
+            text m.lang { at: 10 * cu, hh + 2 + 12 * cu; anchor: left center; size: 10; weight: 600; color: faint; family: "Space Grotesk" }
+            text "Copy" { at: 300 * cu - 10 * cu, hh + 2 + 12 * cu; anchor: right center; align: right; size: 11; weight: 600; color: mix(faint, mint, cc.hover); family: "Space Grotesk" }
+            zone box cc { at: 300 * cu - 26 * cu, hh + 2 + 12 * cu; size: 52 * cu, 22 * cu; cursor: pointer }
+            on press cc { emit copy(m.index) }
+        }
+        column cwrap {
+            at: 10 * cu, hh + 2 + 24 * cu
+            text m.body { size: 11.5; width: 280 * cu; lines: 400; line_height: 1.2; color: ink; family: "SpaceMono Nerd Font"; show: m.kind == 2 }
+        }
+    }
+
+    //  One row of the Desk's Clip tab: a dot (filled when pinned), the text, Ask, and a cross. Pressing the row copies it again.
+    component ClipRow(c: record, copy: event, pin: event, ask: event, del: event) {
+        size: 300 * cu, 34 * cu
+        zone box touch { from: 0, 0; size: 300 * cu, 34 * cu; corner: 11 * cu; cursor: pointer }
+        box { from: 0, 0; size: 300 * cu, 34 * cu; corner: 11 * cu; color: ink; opacity: 7% + 7% * touch.hover }
+        ellipse { at: 15 * cu, 17 * cu; radius: 4.5 * cu; stroke: 1.4 * cu; color: mint; opacity: if(c.image, 0, 70% + 30% * pin_z.hover) }
+        ellipse { at: 15 * cu, 17 * cu; radius: 4.5 * cu; color: mint; opacity: if(c.pinned, 100%, 0) }
+        text "IMG" { at: 15 * cu, 17 * cu; anchor: center; align: center; size: 8.5; weight: 700; color: mint; family: "Space Grotesk"; show: c.image }
+        text c.label { at: floor(30 * cu + 0.5), floor(17 * cu + 0.5); anchor: left center; size: 12; width: if(c.image, 210 * cu, 190 * cu); lines: 1; color: ink; opacity: 92%; family: "Space Grotesk" }
+        text "Ask" { at: 238 * cu, 17 * cu; anchor: center; align: center; size: 10.5; weight: 700; color: mix(faint, mint, ask_z.hover); family: "Space Grotesk"; show: not c.image }
+        line { from: 276 * cu, 17 * cu - 3 * cu; to: 282 * cu, 17 * cu + 3 * cu; width: 1.4 * cu; color: ink; opacity: 28% + 62% * del_z.hover }
+        line { from: 282 * cu, 17 * cu - 3 * cu; to: 276 * cu, 17 * cu + 3 * cu; width: 1.4 * cu; color: ink; opacity: 28% + 62% * del_z.hover }
+        on press touch { emit copy(c.index) }
+        zone box pin_z { at: 15 * cu, 17 * cu; size: 24 * cu, 30 * cu; cursor: pointer; active: not c.image }
+        zone box ask_z { at: 238 * cu, 17 * cu; size: 30 * cu, 30 * cu; cursor: pointer; active: not c.image }
+        zone box del_z { at: 279 * cu, 17 * cu; size: 24 * cu, 30 * cu; cursor: pointer }
+        on press pin_z { emit pin(c.index) }
+        on press ask_z { emit ask(c.index) }
+        on press del_z { emit del(c.index) }
     }
 
     //  One row of the output dropdown: a dot if it is the current one, its name.
@@ -2014,7 +2092,7 @@ scene Vitreus {
     let nt_bh = ntb.height / u
     let nt_content = if(nt_body_on, 39 + nt_th + nt_bh, 35 + nt_th)
     let nt_h = max(68, nt_content + if(nt_acts.count > 0, 34, 0) + 12)
-    follow osd_h = if(osd_kind == note, nt_h, 64)
+    follow osd_h = if(osd_kind == note, nt_h, if(osd_kind == shot, 248, 64))
     //  The settings panel: 620 wide. A header (36), then the sidebar and the page side by side (352).
     //  How tall the settings page in view is (unscaled): Wallpaper, Glass, Display.
     //  The Display page: its cards down to the profiles one, which is as tall as its rows (none: a line).
@@ -2025,8 +2103,9 @@ scene Vitreus {
     //  The sidebar's SYSTEM group, top to bottom. To add a section, give it a row here (`side.NAME = previous row + 32`), draw its item
     //  like the others, and move `side.last` to its row: About is always the row after `side.last`, so it stays the final one, and
     //  Settings' minimum height follows it (see `set.h`).
-    let side.ck = 202                  // the Clock row: the last of Visuals, after Night mode (170)
-    let side.hy = 258
+    let side.ck = 202                  // the Clock row: after Night mode (170)
+    let side.th = 234                  // the Theme row: the last of Visuals
+    let side.hy = 290
     let side.wm = side.hy + 32
     let side.mon = side.wm + 32
     let side.nt = side.mon + 32
@@ -2046,7 +2125,7 @@ scene Vitreus {
     let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36
-    let nt.h = 246 + 552 - nt.ds + 8 + if(nta_sel >= 0, 456, 0) + 12
+    let nt.h = 246 + 146 + 552 - nt.ds + 8 + if(nta_sel >= 0, 456, 0) + 12              // 146 of it the quiet hours card on top
     //  A fixed height, whatever the page: the panel used to follow the page in view (262 to 456), so it resized, and moved what hangs from it, with
     //  every click in the sidebar. A page taller than this scrolls inside it (they have their scroll thumb and "More" cue); a shorter one has
     //  empty glass at its foot. It never goes below the sidebar's last row.
@@ -2183,7 +2262,7 @@ scene Vitreus {
     //  The volume's and the notifications' drawer has its own place, whatever else is open: out of the right frame, the volume low and the
     //  notification high (down the left); from the bar, as before (along the top). Its content hangs from `os.ck` and is centred on `os.px`.
     let os.hd = (8 + osd_h + 16 + 13) * u
-    let os.cy = if(osd_kind == vol, vb - lf.t - 24 * u - os.hd / 2, yo + lf.t + 24 * u + os.hd / 2)
+    let os.cy = if(osd_kind == vol or osd_kind == shot, vb - lf.t - 24 * u - os.hd / 2, yo + lf.t + 24 * u + os.hd / 2)
     //  The same two places in both layouts (the left layout's): the volume low and the notification high, out of the right edge of the screen. Along the top there
     //  is no frame there, so they come out of the edge of the screen itself. Content hangs from `os.ck`, centred on `os.px`.
     let os.stop = bar.y - bar.h / 2                           // the bar's top edge (the desk's island placement hangs from it)
@@ -2314,8 +2393,8 @@ scene Vitreus {
     //  stays open while the calendar, the controls, the volume or a notification come and go. It is drawn like the volume's and the title panel's
     //  drawers (`dz.*`: the same springs and shape) but with its own geometry, which does not depend on whichever of those is out.
     fact desk_open = false
-    fact desk_tab = 2                                      // 0 Pad, 1 Shelf, 2 Focus, 3 Term, 4 Ask
-    prop desk_sel = 2 ~slide                               // which tab the thumb is on
+    fact desk_tab = 3                                      // 0 Pad, 1 Shelf, 2 Clip, 3 Focus, 4 Term, 5 Ask
+    prop desk_sel = 3 ~slide                               // which tab the thumb is on
     //  Carrying the desk: `desk_gx`, `desk_gy` is where it is being taken to (an offset from its place in the frame), `desk_ox`, `desk_oy` where it
     //  is, on a loose spring, so it trails the pointer like a drop and lands past its place when it is let go near it and snaps back.
     fact desk_gx = 0
@@ -2393,7 +2472,7 @@ scene Vitreus {
     //  Keys typed in the terminal reach the logic only if no input has the writing cursor, and gaining the keyboard gives it to the
     //  first input there is (the task field, even hidden). So when it is the terminal that takes the keyboard, the cursor is taken
     //  away again; only then: the desk stays on Term while the search or another panel opens, and theirs must keep it.
-    on focus while desk_open and desk_tab == 3 and desk_kb and panel == none { blur }
+    on focus while desk_open and desk_tab == 4 and desk_kb and panel == none { blur }
     fact ft_dnd = true                                      // silence notifications while it runs
     fact ft_caf = true                                      // keep the machine awake while it runs
     text ft_time = "30:00"
@@ -2414,6 +2493,7 @@ scene Vitreus {
         text shelf.$k.path = ""
         text shelf.$k.tag = ""
         fact shelf.$k.has = false
+        fact shelf.$k.askable = false
         //  The same for the shelf's cards: one that is dismissed slides off and fades, and the ones after it glide into its place.
         fact shelf.$k.gone = false
         prop shelf.$k.out = 0 ~180ms
@@ -2426,6 +2506,7 @@ scene Vitreus {
     fact shelf_n = 0
     event shelf_del ->
     event shelf_clear ->
+    event shelf_ask ->
     prop desk_drag = 0 ~120ms                               // 1 while something from another program is being carried over the desk
     follow desk_drag = drag.over
     prop shelf_flash = 0 ~calm                              // the glow of a drop that has just landed
@@ -2474,9 +2555,26 @@ scene Vitreus {
     fact ask_nmodels = 0                                   // how many Ollama models there are to choose from
     fact ask_n = 0
     text ask_in = ""
-    text ask_log = ""
+    model ask_rows max 60 { kind: number; who: text; body: text; lang: text; first: bool }     // 0 you, 1 answer, 2 code, 3 note
+    event ask_copy ->
+    //  The Clip tab (logic/clipboard.luau): the clipboard history, pinned entries first.
+    model clip_rows max 48 { label: text; pinned: bool; image: bool }
+    event clip_copy ->
+    event clip_pin ->
+    event clip_ask ->
+    event clip_del ->
+    event clip_refresh ->
+    fact clip_n = 0
+    text clip_msg = ""
+    fact clip_flash = false                                   // `clip_msg` is showing (a moment, after a copy)
+    event ask_attach ->                                       // something to ask about, from elsewhere: `ask_attach_in` is the text, `ask_attach_src` what it is
+    event ask_att_clear ->
+    event ask_attached ->
+    text ask_attach_in = ""
+    text ask_attach_src = ""
+    text ask_att_label = ""
+    fact ask_att = 0                                          // how many characters wait to go with the next question; 0 for none
     text ask_status = ""
-    measure ask_m
     measure ask_clr                                        // the width of "Clear", so its underline is exactly as long
     event ask_pick ->
     event ask_new ->
@@ -2495,11 +2593,11 @@ scene Vitreus {
     follow ask_f5 = max(0, ask_u5)
     follow ask_f7 = max(0, ask_u7)
     let ask_dy = 33 * cu * ask_us
-    fact ask_scroll = 0
-    fact ask_follow = true
-    prop ask_off = 0 ~calm
-    follow ask_off = ask_scroll
-    on change ask_m.height while ask_follow { ask_scroll = max(0, ask_m.height - (248 * cu - ask_dy)) }
+    prop ask_atts = 0 ~calm
+    follow ask_atts = if(ask_att > 0, 1, 0)
+    let ask_db = 26 * cu * ask_atts                          // and 26 off its foot while something waits to go with the next question
+    on ask_attached { desk_open = true; desk_tab = 5; focus ask_in; desk_kb = true }
+    fact ask_follow = true                                   // the conversation follows its end while an answer comes in, until the wheel takes it back up
     on change desk_open while not desk_open { ask_follow = true }
     event task_toggle ->
     event task_del ->

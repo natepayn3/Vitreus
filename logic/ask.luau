@@ -12,6 +12,7 @@ return function()
 
     local have = { false, false, false, false }
     local state = { backend = 1, model = "", history = {} }   -- backend: 1 claude, 2 ollama, 3 codex, 4 gemini
+    local attach, attach_label = nil, ""                -- text waiting to go with the next question (the clipboard, a card from the Shelf): { text } and what to call it
     local usage = nil                                 -- Claude's plan usage, as the last answer reported it: { u5, r5, u7, r7 } (fractions, and when each window resets)
     local models = {}
     local load_models                                 -- (below)
@@ -21,7 +22,7 @@ return function()
     local function save()
         local h = {}
         for _, m in ipairs(state.history) do
-            if m.role ~= "note" then h[#h + 1] = { role = m.role, text = m.text, who = m.who } end
+            if m.role ~= "note" then h[#h + 1] = { role = m.role, text = m.text, who = m.who, attach = m.attach, alabel = m.alabel } end
         end
         pcall(sys.call, "files.write", "desk-ask.json", { backend = state.backend, model = state.model, history = h, usage = usage })
     end
@@ -45,14 +46,51 @@ return function()
         fact.ask_ok = have[b] == true and (b ~= 2 or state.model ~= "")
     end
 
+    -- The conversation as rows the page lists: each message is one row, except an answer with code in it, which is cut at its ``` fences into prose
+    -- and code pieces (the code in a card of its own, with its own Copy). The first row of a message carries its name. An answer still arriving may
+    -- have a fence it has not closed yet: what follows it is code until it does.
+    local function pieces(s)
+        local out, i = {}, 1
+        local function prose(t)
+            t = t:gsub("^\n+", ""):gsub("%s+$", "")
+            if t ~= "" then out[#out + 1] = { code = false, text = t } end
+        end
+        while i <= #s do
+            local a, b = s:find("```", i, true)
+            if not a then break end
+            prose(s:sub(i, a - 1))
+            local nl = s:find("\n", b + 1, true)
+            local lang, from
+            if nl then lang, from = s:sub(b + 1, nl - 1):match("^%s*([%w_%+%-%.#]*)"), nl + 1
+            else lang, from = s:sub(b + 1):match("^%s*([%w_%+%-%.#]*)"), #s + 1 end
+            local ca, cb = s:find("```", from, true)
+            local body
+            if ca then body, i = s:sub(from, ca - 1), cb + 1 else body, i = s:sub(from), #s + 1 end
+            out[#out + 1] = { code = true, text = (body:gsub("\n+$", "")), lang = lang or "" }
+        end
+        if i <= #s then prose(s:sub(i)) end
+        return out
+    end
+
     local render_waiting = false
     local function render()
         render_waiting = false
-        local parts = {}
-        for _, m in ipairs(state.history) do
-            parts[#parts + 1] = (m.role == "user" and "You" or (m.who or "Assistant")) .. "\n" .. m.text
+        local rows = {}
+        for mi, m in ipairs(state.history) do
+            if m.role == "user" then
+                rows[#rows + 1] = { kind = 0, who = "You", body = m.text .. (m.alabel and ("\n[attached: " .. m.alabel .. "]") or ""), lang = "", first = true, mi = mi }
+            elseif m.role == "note" then
+                rows[#rows + 1] = { kind = 3, who = "", body = m.text, lang = "", first = false, mi = mi }
+            else
+                local ps = pieces(m.text)
+                if #ps == 0 then ps = { { code = false, text = "…" } } end
+                for k, p in ipairs(ps) do
+                    rows[#rows + 1] = { kind = p.code and 2 or 1, who = m.who or "Assistant", body = p.text, lang = p.lang or "", first = k == 1, mi = mi }
+                end
+            end
         end
-        text.ask_log = table.concat(parts, "\n\n")
+        while #rows > 60 do table.remove(rows, 1) end                 -- the newest sixty rows are what the page unfolds
+        model.ask_rows = rows
         fact.ask_n = #state.history
     end
 
@@ -129,9 +167,9 @@ return function()
         local out = {}
         for i = math.max(1, #msgs - CONTEXT), #msgs - 1 do
             local m = msgs[i]
-            if m.role ~= "note" then out[#out + 1] = (m.role == "user" and "User: " or "Assistant: ") .. m.text end
+            if m.role ~= "note" then out[#out + 1] = (m.role == "user" and "User: " or "Assistant: ") .. m.text .. (m.attach and ("\n\n" .. m.attach) or "") end
         end
-        local now = msgs[#msgs].text
+        local now = msgs[#msgs].text .. (msgs[#msgs].attach and ("\n\n" .. msgs[#msgs].attach) or "")
         if #out == 0 then return now end
         return "Conversation so far:\n" .. table.concat(out, "\n") .. "\n\nNew message from the user:\n" .. now
     end
@@ -162,7 +200,7 @@ return function()
     local function run_ollama(mine, msgs)
         local m = { { role = "system", content = SYSTEM } }
         for i = math.max(1, #msgs - CONTEXT), #msgs do
-            if msgs[i].role ~= "note" then m[#m + 1] = { role = msgs[i].role, content = msgs[i].text } end
+            if msgs[i].role ~= "note" then m[#m + 1] = { role = msgs[i].role, content = msgs[i].text .. (msgs[i].attach and ("\n\n" .. msgs[i].attach) or "") } end
         end
         local got = false
         return spawn("curl", { "-sN", "--max-time", "600", OLLAMA .. "/api/chat", "-d", "@-" }, function(line)
@@ -195,6 +233,7 @@ return function()
     local function ask(v)
         if type(v) ~= "string" then return end
         v = v:gsub("^%s+", ""):gsub("%s+$", "")
+        if v == "" and attach then v = "Explain this." end
         if v == "" or proc then return end
         for i = #state.history, 1, -1 do
             if state.history[i].role == "note" then table.remove(state.history, i) end
@@ -213,7 +252,10 @@ return function()
             if b == 2 and have[2] then load_models() end
             return
         end
-        table.insert(state.history, { role = "user", text = v })
+        fact.ask_follow = true
+        table.insert(state.history, { role = "user", text = v, attach = attach, alabel = attach and attach_label or nil })
+        attach = nil
+        fact.ask_att = 0
         table.insert(state.history, { role = "assistant", text = "", who = LABELS[state.backend] })
         trim()
         fact.ask_busy = true
@@ -268,6 +310,40 @@ return function()
         end)
     end
 
+    -- Copy on a row: a piece of code copies that code; the Copy beside an answer's name copies the whole answer.
+    on("ask_copy", function(i)
+        local r = model.ask_rows[i + 1]
+        if type(r) ~= "table" then return end
+        local str
+        if r.kind == 2 then str = r.body
+        elseif r.kind == 1 then
+            local m = state.history[r.mi]
+            str = m and m.text
+        end
+        if type(str) == "string" and str ~= "" then run("wl-copy", { "--", str }, function() end) end
+    end)
+    -- Something to ask about, from elsewhere in the shell (the launcher's clipboard command, a card on the Shelf): it waits as a chip above the
+    -- question and goes with the next one. It is never sent by itself: it may be a password.
+    -- Shared with the rest of the logic, which cannot hear this module's events: `ask_attach_from("Clipboard", text)`.
+    function ask_attach_from(src, t)
+        if type(t) ~= "string" then return end
+        t = t:gsub("^%s+", ""):gsub("%s+$", "")
+        if t == "" then return end
+        local note = ""
+        if #t > 20000 then t = t:sub(1, 20000); note = " (cut)" end
+        attach = t
+        local n = tostring(#t):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+        attach_label = (src ~= "" and src or "Text") .. " · " .. n .. " characters" .. note
+        text.ask_att_label = attach_label
+        fact.ask_att = #t
+        emit("ask_attached")
+    end
+    on("ask_attach", function()
+        local t, src = text.ask_attach_in, text.ask_attach_src
+        text.ask_attach_in = ""
+        ask_attach_from(src, t)
+    end)
+    on("ask_att_clear", function() attach = nil; fact.ask_att = 0 end)
     on("ask_pick", pick)
     on("ask_stop", stop)
     on("ask_new", function()
@@ -298,7 +374,8 @@ return function()
             if type(saved.history) == "table" then
                 for _, m in ipairs(saved.history) do
                     if type(m) == "table" and type(m.text) == "string" and (m.role == "user" or m.role == "assistant") then
-                        state.history[#state.history + 1] = { role = m.role, text = m.text, who = type(m.who) == "string" and m.who or nil }
+                        state.history[#state.history + 1] = { role = m.role, text = m.text, who = type(m.who) == "string" and m.who or nil,
+                                                               attach = type(m.attach) == "string" and m.attach or nil, alabel = type(m.alabel) == "string" and m.alabel or nil }
                     end
                 end
                 trim()

@@ -53,7 +53,7 @@ return function(key)
         proc = mine
     end
     local function showing()
-        return fact.desk_open == true and fact.desk_tab == 3
+        return fact.desk_open == true and fact.desk_tab == 4
     end
     -- Not started yet, or it could not run (pyte missing): opening the tab tries again, so installing it needs no restart.
     local function refresh()

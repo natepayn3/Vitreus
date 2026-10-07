@@ -66,20 +66,24 @@ layout all run in the renderer, and the logic only reports facts.
 * **Two layouts** — an *island* pill along the top, or a *frame*: a strip down the left edge with glass round the screen.
 * **Calendar** — month grid, reminders in plain words (`3:30pm Call mom`), and the weather for the week.
 * **Controls** — Wi-Fi, Bluetooth, brightness, volume with a per-app mixer, Do Not Disturb, Caffeine, screenshots and
-  screen recording, and power (lock, sleep, log out, restart, power off).
+  screen recording, and power (lock, sleep, log out, restart, power off). A screenshot comes up as a card with its picture:
+  open it, copy its text, ask about it, or delete it.
 * **Player** — cover art, a live spectrum, and your running windows.
 * **Launcher** (`SUPER + Space`) — apps, files, commands, emoji, clipboard history and wallpapers, with previews.
-* **Settings** (`SUPER + SHIFT + Space`) — wallpaper, glass, display, Hyprland, notifications, clock and a system monitor.
+* **Settings** (`SUPER + SHIFT + Space`) — wallpaper, theme, glass, display, Hyprland, notifications, clock and a system monitor.
 * **Wallpaper picker** (`SUPER + B`) — your wallpapers as a honeycomb of glass hexagons.
 * **Workspace overview** (`SUPER + TAB`) — a glass card per workspace; drag a window to move it.
-* **Desk** — a panel out of the right edge: Focus timer, Shelf, Pad (tasks and drawing), a terminal and Ask.
+* **Desk** — a panel out of the right edge: Focus timer, Shelf, Pad (tasks and drawing), a terminal, Ask, and Clip (your
+  clipboard history, with pins).
 * **Ask** — an AI chat in the Desk, with whichever assistants you have installed: Claude Code, Ollama (local models), Codex or
   Gemini. Answers stream in, you pick the assistant (and the Ollama model) in the panel, and the conversation is kept between sessions.
-  Claude runs as a plain chat, with no tools and nothing saved.
-* **Notifications** — history, plus rules and sounds for each app.
+  Claude runs as a plain chat, with no tools and nothing saved, and its five-hour and seven-day usage shows as two thin bars with
+  their reset times. Answers have a Copy button, and code comes in its own card. Send the clipboard, a Shelf card, a Clip entry or a
+  screenshot's text to Ask as an attachment.
+* **Notifications** — history, rules and sounds for each app, quiet hours, and silence while a window is fullscreen.
 * **Authentication** — a polkit agent drawn in the same glass.
 * **Lock screen**, **Night mode**, and a **desktop clock** drawn as glass.
-* **Iris** — Vitreus recolours itself from your wallpaper.
+* **Theme** — Iris recolours Vitreus from your wallpaper, or pick Tokyo Night, Catppuccin Mocha, Gruvbox, Nord, Rosé Pine or Dracula.
 
 ---
 
@@ -113,6 +117,7 @@ The packages `install.sh` installs (pacman, and the AUR for the last two):
 | `polkit`, `python-gobject` | the authentication dialog |
 | `python-pyte`, `ttf-space-mono-nerd` | the Desk's terminal |
 | `pipewire-audio`, `sound-theme-freedesktop` | notification sounds |
+| `tesseract`, `tesseract-data-eng` | the text of a screenshot |
 
 ---
 

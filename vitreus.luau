@@ -306,8 +306,30 @@ local dnd_until = 0                       -- the time a running timer ends, in s
 local dnd_len = 0                         -- how many minutes it was set for: which chip is lit
 local nt_hist = {}                        -- newest first: { app, title, body, t }
 
+-- Quiet hours and "silence while a window is fullscreen" (Settings > Notifications): Do Not Disturb that turns itself on. `DQ.active()` says whether either
+-- is holding notifications back right now; pressing the tile's pill while only they are `skip`s them until they would have ended.
+local DQ = { on = false, from = 22 * 60, to = 7 * 60, fullscreen = false, fs = false, skip = false }
+function DQ.clock(m)
+    local h = (m // 60) % 24
+    local h12 = h % 12
+    if h12 == 0 then h12 = 12 end
+    return string.format("%d:%02d %s", h12, m % 60, h < 12 and "AM" or "PM")
+end
+function DQ.quiet()
+    if not DQ.on or DQ.from == DQ.to then return false end
+    local t = os.date("*t")
+    local m = t.hour * 60 + t.min
+    if DQ.from < DQ.to then return m >= DQ.from and m < DQ.to end
+    return m >= DQ.from or m < DQ.to
+end
+function DQ.active()
+    local q, f = DQ.quiet(), DQ.fullscreen and DQ.fs
+    if not q and not f then DQ.skip = false end
+    return (q or f) and not DQ.skip
+end
 local function dnd_save()
-    pcall(sys.call, "files.write", "dnd.json", { manual = dnd_manual, ends = dnd_until, len = dnd_len })
+    pcall(sys.call, "files.write", "dnd.json", { manual = dnd_manual, ends = dnd_until, len = dnd_len,
+        quiet = { on = DQ.on, from = DQ.from, to = DQ.to, fullscreen = DQ.fullscreen } })
 end
 local function nt_save()
     pcall(sys.call, "files.write", "notification-history.json", { items = nt_hist })
@@ -346,16 +368,22 @@ local function dnd_refresh()
         dnd_save()
     end
     local was = dnd
-    dnd = dnd_manual or dnd_until > 0
+    dnd = dnd_manual or dnd_until > 0 or DQ.active()
     if dnd ~= was and NTR.sync then NTR.sync() end   -- an app's explanation says whether Do Not Disturb holds it back
     fact.dnd_on = dnd
     fact.dnd_len = dnd_until > 0 and dnd_len or 0
     if dnd_until > 0 then
         text.dnd_left = dnd_left_text() .. " left"
         text.nt_tile_sub = "Silenced · " .. dnd_left_text()
-    elseif dnd then
+    elseif dnd_manual then
         text.dnd_left = "On until turned off"
         text.nt_tile_sub = "Silenced"
+    elseif dnd and DQ.quiet() then
+        text.dnd_left = "Quiet hours until " .. DQ.clock(DQ.to)
+        text.nt_tile_sub = "Quiet until " .. DQ.clock(DQ.to)
+    elseif dnd then
+        text.dnd_left = "Fullscreen: silenced"
+        text.nt_tile_sub = "Silenced · fullscreen"
     else
         text.dnd_left = "Off"
         text.nt_tile_sub = #nt_hist > 0 and (#nt_hist .. " in history") or "All clear"
@@ -382,6 +410,12 @@ do
     local ok, saved = pcall(sys.ask, "files.read", "dnd.json", "json")
     if ok and type(saved) == "table" then
         dnd_manual = saved.manual == true
+        if type(saved.quiet) == "table" then
+            DQ.on = saved.quiet.on == true
+            DQ.fullscreen = saved.quiet.fullscreen == true
+            if type(saved.quiet.from) == "number" then DQ.from = saved.quiet.from % 1440 end
+            if type(saved.quiet.to) == "number" then DQ.to = saved.quiet.to % 1440 end
+        end
         if type(saved.ends) == "number" and saved.ends > os.time() then
             dnd_until = saved.ends
             dnd_len = type(saved.len) == "number" and saved.len or 0
@@ -397,11 +431,42 @@ dnd_refresh()
 on("togglednd", function()
     if dnd then
         dnd_manual, dnd_until, dnd_len = false, 0, 0
+        if DQ.active() then DQ.skip = true end            -- only quiet hours or a fullscreen window were holding: let notifications through until they would end
     else
         dnd_manual = true
     end
     dnd_save()
     dnd_refresh()
+end)
+
+-- The Notifications page's card: the schedule and the fullscreen switch, shown through facts (`nt_quiet`, `nt_fs`, and the two times as text).
+local function dq_sync()
+    fact.nt_quiet = DQ.on
+    fact.nt_fs = DQ.fullscreen
+    text.nt_qfrom_t = DQ.clock(DQ.from)
+    text.nt_qto_t = DQ.clock(DQ.to)
+end
+on("nt_q_toggle", function() DQ.on = not DQ.on; DQ.skip = false; dnd_save(); dq_sync(); dnd_refresh() end)
+on("nt_fs_toggle", function() DQ.fullscreen = not DQ.fullscreen; DQ.fs = false; DQ.skip = false; dnd_save(); dq_sync(); dnd_refresh() end)
+on("nt_q_step", function(k)        -- 0 start earlier, 1 start later, 2 end earlier, 3 end later: half an hour at a time
+    k = math.floor((tonumber(k) or 0) + 0.5)
+    if k == 0 then DQ.from = (DQ.from - 30) % 1440
+    elseif k == 1 then DQ.from = (DQ.from + 30) % 1440
+    elseif k == 2 then DQ.to = (DQ.to - 30) % 1440
+    elseif k == 3 then DQ.to = (DQ.to + 30) % 1440 end
+    DQ.skip = false
+    dnd_save(); dq_sync(); dnd_refresh()
+end)
+dq_sync()
+every(20000, dnd_refresh)                                   -- quiet hours begin and end by the clock
+-- A fullscreen window is asked of Hyprland (the `fullscreen` of the focused window is 2 for a real fullscreen), only while that switch is on.
+every(2500, function()
+    if not DQ.fullscreen then return end
+    run("hyprctl", { "activewindow", "-j" }, function(out)
+        local ok, j = pcall(json.decode, out or "")
+        local fs = ok and type(j) == "table" and (tonumber(j.fullscreen) or 0) >= 2
+        if fs ~= DQ.fs then DQ.fs = fs; dnd_refresh() end
+    end)
 end)
 -- A timer chip; pressing the one that is lit again cancels it.
 on("dnd_for", function(m)
@@ -1920,11 +1985,13 @@ end
 -- wallpaper (measured behind the Settings text on a light one: #263746 to #434D4C). So Iris is asked for a dark scheme for glass, and every
 -- colour that is read is held to 4.5:1 against a reference a little LIGHTER than that glass (the worst case for light text), moving only
 -- lighter. The accent counts as text: it labels the chosen page, the breadcrumb, the values. An alert only has to be seen: 3:1.
-local function apply_iris(json)
+local function apply_iris(json, raw)         -- `raw`: a named palette, whose accent is not pushed by the intensity
     local surface = json_hex(json, "surface") or "#1e202b"
     local bg = json_hex(json, "bg") or "#12131a"
     local glass = blend(surface, "#ffffff", 0.12)
-    local accent = ensure_contrast(intensity_accent(json_hex(json, "accent") or "#94a3b8", iris_cfg.intensity), glass, 4.5, 1)
+    local accent = json_hex(json, "accent") or "#94a3b8"
+    if not raw then accent = intensity_accent(accent, iris_cfg.intensity) end
+    accent = ensure_contrast(accent, glass, 4.5, 1)
     local fg = ensure_contrast(json_hex(json, "fg") or "#e6e6e6", glass, 4.5, 1)
     local dim = ensure_contrast(json_hex(json, "dim") or "#a0a4ab", glass, 4.5, 1)
     local red = ensure_contrast(json_hex(json, "red") or "#ef4444", glass, 3.0, 1)
@@ -2048,11 +2115,26 @@ local function check_wallpaper()
         if path and shown ~= iris_last_wp then
             iris_last_wp = shown
             wp_on_change(shown)
-            if iris_cfg.enabled then run_iris(path) end
+            if iris_cfg.enabled and not iris_cfg.preset then run_iris(path) end
         end
     end)
 end
 
+-- Named palettes (Settings > Theme): a preset's six colours go through the same legibility floor as Iris's (`apply_iris`, with no intensity push), and
+-- everything that follows the palette follows it: the shell, the lock screen, pleamar-wm's border, Hyprland's borders. `iris_cfg.preset` is its number
+-- (1 to 6) or nil for the wallpaper's colours; while one is chosen the wallpaper is not read. Order: bg, surface, fg, dim, accent, alert.
+iris_fx.presets = {
+    { "Tokyo Night",      "#1a1b26", "#24283b", "#c0caf5", "#787c99", "#7aa2f7", "#f7768e" },
+    { "Catppuccin Mocha", "#1e1e2e", "#313244", "#cdd6f4", "#9399b2", "#cba6f7", "#f38ba8" },
+    { "Gruvbox",          "#282828", "#3c3836", "#ebdbb2", "#a89984", "#fabd2f", "#fb4934" },
+    { "Nord",             "#2e3440", "#3b4252", "#eceff4", "#9aa5b8", "#88c0d0", "#bf616a" },
+    { "Rosé Pine",        "#191724", "#26233a", "#e0def4", "#908caa", "#ebbcba", "#eb6f92" },
+    { "Dracula",          "#282a36", "#44475a", "#f8f8f2", "#a0a6c0", "#bd93f9", "#ff5555" },
+}
+function iris_fx.preset_json(i)
+    local p = iris_fx.presets[i]
+    return p and string.format('{"bg":"%s","surface":"%s","fg":"%s","dim":"%s","accent":"%s","red":"%s"}', p[2], p[3], p[4], p[5], p[6], p[7]) or nil
+end
 do
     local ok, saved = pcall(sys.ask, "files.read", "iris.json", "json")
     if ok and type(saved) == "table" then
@@ -2060,25 +2142,66 @@ do
         if saved.intensity == "subtle" or saved.intensity == "bold" or saved.intensity == "medium" then
             iris_cfg.intensity = saved.intensity
         end
+        local pr = tonumber(saved.preset)
+        if pr and iris_fx.presets[math.floor(pr)] then iris_cfg.preset = math.floor(pr) end
     else
         pcall(sys.call, "files.write", "iris.json", iris_cfg)     -- so there is a file to edit
     end
 end
 do
-    local function show() fact.iris_on = iris_cfg.enabled end
-    local function save() pcall(sys.call, "files.write", "iris.json", { enabled = iris_cfg.enabled, intensity = iris_cfg.intensity }) end
+    local INTENSITIES = { "subtle", "medium", "bold" }
+    local function show()
+        fact.iris_on = iris_cfg.enabled and not iris_cfg.preset
+        fact.theme_sel = iris_cfg.preset or (iris_cfg.enabled and 0 or 7)       -- 0 the wallpaper's, 1 to 6 a named one, 7 monochrome
+        for k, name in ipairs(INTENSITIES) do if name == iris_cfg.intensity then fact.iris_int = k - 1 end end
+    end
+    local function save()
+        pcall(sys.call, "files.write", "iris.json", { enabled = iris_cfg.enabled, intensity = iris_cfg.intensity, preset = iris_cfg.preset })
+    end
+    local function follow_wallpaper()
+        if iris_last_wp then run_iris(iris_last_wp) else check_wallpaper() end
+    end
     show()
-    if not iris_cfg.enabled then iris_fx.apply_mono() end
-    -- The switch on the Wallpaper page. Off: greys at once. On: Iris is run on the wallpaper in use, and the colours come back.
+    if iris_cfg.preset then apply_iris(iris_fx.preset_json(iris_cfg.preset), true)
+    elseif not iris_cfg.enabled then iris_fx.apply_mono() end
+    -- The switch on the Wallpaper page. Off: greys at once. On: Iris is run on the wallpaper in use, and the colours come back (a named palette is
+    -- let go too: the switch says Iris is off while one is chosen, and turning it on is asking for the wallpaper's colours).
     on("iris_toggle", function()
-        iris_cfg.enabled = not iris_cfg.enabled
+        if iris_cfg.preset then
+            iris_cfg.preset, iris_cfg.enabled = nil, true
+        else
+            iris_cfg.enabled = not iris_cfg.enabled
+        end
         save()
         show()
-        if iris_cfg.enabled then
-            if iris_last_wp then run_iris(iris_last_wp) else check_wallpaper() end
-        else
+        if iris_cfg.enabled then follow_wallpaper() else iris_fx.apply_mono() end
+    end)
+    -- Settings > Theme: 0 the wallpaper's colours, 1 to 6 a named palette, 7 monochrome.
+    on("theme_pick", function(k)
+        k = math.floor((tonumber(k) or 0) + 0.5)
+        if k == 0 then
+            iris_cfg.preset, iris_cfg.enabled = nil, true
+            follow_wallpaper()
+        elseif k >= 1 and k <= #iris_fx.presets then
+            iris_cfg.preset, iris_cfg.enabled = k, true
+            apply_iris(iris_fx.preset_json(k), true)
+        elseif k == 7 then
+            iris_cfg.preset, iris_cfg.enabled = nil, false
             iris_fx.apply_mono()
+        else
+            return
         end
+        save()
+        show()
+    end)
+    -- How strongly the wallpaper's accent is pushed (Subtle, Medium, Bold): it was only a line in iris.json.
+    on("iris_int_set", function(k)
+        local name = INTENSITIES[math.floor((tonumber(k) or 1) + 0.5) + 1]
+        if not name then return end
+        iris_cfg.intensity = name
+        save()
+        show()
+        if iris_cfg.enabled and not iris_cfg.preset then follow_wallpaper() end
     end)
 end
 -- A wallpaper that Vitreus sets is known at once (see `wp_apply`); this is only for one changed from elsewhere, so it
@@ -2317,7 +2440,7 @@ local function wp_apply(path, how, started, hex)
         wp_on_change(path)
         -- The path is known: Iris starts now, while the fade plays, not when the watcher next notices the
         -- change. Marking it seen stops the watcher running it a second time.
-        if iris_cfg.enabled and iris_last_wp ~= path then
+        if iris_cfg.enabled and not iris_cfg.preset and iris_last_wp ~= path then
             iris_last_wp = path
             run_iris(src)
         end
@@ -4056,6 +4179,7 @@ end
         { "Workspace overview", "action", function() spawn('pleamar --say vitreus "emit ov_toggle"') end, "workspaces windows switch expose desktops" },
         { "Random wallpaper", "action", function() local f = wp_random_pick(); if f then wp_apply(f) end end, "shuffle background change surprise" },
         { "Lock session", "action", function() spawn('pleamar --say lockscreen "fact locked true"') end, "lockscreen lock screen secure away password" },
+        { "Settings: Theme", "open", open_settings("pg_theme"), "colours colors palette preset tokyo night catppuccin gruvbox nord rose pine dracula iris accent monochrome wallpaper" },
         { "Settings: Clock", "open", open_settings("pg_clock"), "desktop clock glass digits time wallpaper layout inline stacked staggered hero position corner size weight tint 12 24 hour" },
         { "Desktop clock: toggle", "action", function()
             run("pleamar", { "--say", "desktopclock", "get shown" }, function(out)
@@ -4063,6 +4187,14 @@ end
                 run("pleamar", { "--say", "desktopclock", "fact shown " .. (on and "false" or "true") }, function() end)
             end)
         end, "clock desktop glass digits time wallpaper show hide on off" },
+        { "Ask about the clipboard", "action", function()
+            -- The last thing copied goes to the Desk's Ask tab as an attachment, to be sent with whatever is typed there (never by itself).
+            run("cliphist", { "list" }, function(o)
+                local id, txt = (o or ""):match("^(%d+)\t([^\n]*)")
+                if not id or txt:find("^%[%[ binary data") then return end
+                clip_decode({ id = id }, function(t) ask_attach_from("Clipboard", t or "") end)
+            end)
+        end, "ai assistant claude ollama question explain paste copied text chat" },
         { "Suspend", "action", function() run("systemctl", { "suspend" }, function() end) end, "sleep standby" },
         { "Reload Hyprland", "action", function() run("hyprctl", { "reload" }, function() end) end, "restart config refresh compositor" },
     }
@@ -5334,6 +5466,69 @@ end)()
 -- focus: see logic/focus.luau
 require("logic/focus")()
 
+-- ── A screenshot, as a card ───────────────────────────────────────────────────────────────────────────
+-- Capture (logic/capture_power.luau) says `text shot_path <file>` and `emit shot_done` once a picture is taken. It comes up in the volume's and the
+-- notifications' drawer (low, out of the right frame) with a big thumbnail, its name, and Open / Copy text / Ask / Delete (the text ones only when
+-- tesseract is installed, `shot_ocr`). It waits like the volume does: a notification on screen goes back in the queue until the card has gone.
+do
+    local SHOT = { path = nil, n = 0, gen = 0 }
+    local function shot_hide()
+        if nt_queue.osd == "shot" then nt_queue.set_osd("none") end
+        nt_queue.hold = false
+        if nt_queue.pump then nt_queue.pump() end
+    end
+    local function quote(path) return "'" .. path:gsub("'", "'\\''") .. "'" end
+    run("which", { "tesseract" }, function(_, code) fact.shot_ocr = code == 0 end)
+    on("shot_done", function()
+        local path = text.shot_path
+        if type(path) ~= "string" or path == "" then return end
+        SHOT.path = path
+        with_dirs(function(d)
+            local out = d.cache .. "/shot.png"
+            run("mkdir", { "-p", d.cache }, function()
+                run("magick", { path .. "[0]", "-auto-orient", "-thumbnail", "394x222^", "-gravity", "center", "-extent", "394x222", out }, function(_, code)
+                    if code ~= 0 then
+                        -- no thumbnail: say it the plain way
+                        exec_on_desktop("notify-send -a Vitreus 'Screenshot copied and saved' " .. quote(path))
+                        return
+                    end
+                    SHOT.n = SHOT.n + 1
+                    text.shot_imgpath = out .. "?" .. SHOT.n
+                    text.shot_name = path:match("([^/]+)$") or path
+                    if nt_queue.osd == "notif" and nt_now and nt_now.n then
+                        table.insert(nt_queue, 1, nt_now.n)
+                        nt_now = nil
+                    end
+                    osd_gen = osd_gen + 1
+                    SHOT.gen = osd_gen
+                    nt_queue.hold = true
+                    fact.osd_kind = "shot"
+                    nt_queue.set_osd("shot")
+                    after(10000, function() if SHOT.gen == osd_gen then shot_hide() end end)
+                end)
+            end)
+        end)
+    end)
+    on("shot_close", function() osd_gen = osd_gen + 1; shot_hide() end)
+    on("shot_act", function(i)
+        local path = SHOT.path
+        if not path then return end
+        if i == 0 then
+            exec_on_desktop("xdg-open " .. quote(path))
+        elseif i == 1 then
+            exec_on_desktop("tesseract " .. quote(path) .. " stdout 2>/dev/null | wl-copy && notify-send -a Vitreus 'Text copied' 'The text of the screenshot is on the clipboard.'")
+        elseif i == 2 then
+            run("tesseract", { path, "stdout" }, function(out)
+                if type(out) == "string" and out:match("%S") then ask_attach_from("Screenshot text", out) end
+            end)
+        elseif i == 3 then
+            exec_on_desktop("rm -f " .. quote(path))
+        end
+        osd_gen = osd_gen + 1
+        shot_hide()
+    end)
+end
+
 -- shelf: see logic/shelf.luau
 require("logic/shelf")()
 
@@ -5348,3 +5543,5 @@ require("logic/term")(key)
 
 -- ask: see logic/ask.luau
 require("logic/ask")()
+-- clipboard history and pins, for the Desk's Clip tab: see logic/clipboard.luau
+require("logic/clipboard")()

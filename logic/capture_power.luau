@@ -15,12 +15,12 @@ return function(set_panel)
     end
 
     -- ── Screenshots ──────────────────────────────────────────────────────────────────────────────────────────────
-    -- Region (0) or the whole screen (1). The picture is kept in ~/Pictures/Screenshots and copied to the clipboard.
+    -- Region (0) or the whole screen (1). The picture is kept in ~/Pictures/Screenshots and copied to the clipboard, and comes up as a card (`shot_done`, in vitreus.luau).
     on("shot", function(mode)
         after_closed(function()
             local pick = (mode == 0) and 'g=$(slurp) || exit 0; grim -g "$g" "$f"' or 'grim "$f"'
             spawn(sh('d="$HOME/Pictures/Screenshots"; mkdir -p "$d"; f="$d/screenshot_$(date +%F_%H-%M-%S).png"; '
-                .. pick .. ' && wl-copy < "$f" && notify-send -a Vitreus "Screenshot copied and saved" "$f"'))
+                .. pick .. ' && wl-copy < "$f" && pleamar --say vitreus "text shot_path $f" && pleamar --say vitreus "emit shot_done"'))
         end)
     end)
 
