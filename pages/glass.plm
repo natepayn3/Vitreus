@@ -167,10 +167,14 @@ part Glass {
             //  Bend what is behind the glass: swaps the compositor's blur for real bending (it takes a screenshot of what is
             //  behind the bar while anything moves, so it costs more power).
             box { at: spx + 219 * pu, sby + 410 * pu; size: 438 * pu, 44 * pu; corner: 14 * pu; color: ink; opacity: veil }
-            text "Bend what's behind the glass" { at: floor(spx + 14 * pu + 0.5), floor(sby + 402 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
-            text "Real lens glass instead of blur. Uses more power." { at: floor(spx + 14 * pu + 0.5), floor(sby + 418 * pu + 0.5); anchor: left center; size: 12.5; color: faint; family: "Space Grotesk" }
+            box { at: spx + 219 * pu, sby + 410 * pu; size: 438 * pu, 44 * pu; corner: 14 * pu; color: alert; opacity: 13% + 12% * glass_bend_pill + 6% * glass_bend_hit.hover }
+            path { at: spx + 26 * pu, sby + 410 * pu; stroke: 1.8 * pu; color: alert; move 0, -9 * pu; line 10 * pu, 8 * pu; line -10 * pu, 8 * pu; line 0, -9 * pu }
+            path { at: spx + 26 * pu, sby + 410 * pu; stroke: 1.8 * pu; color: alert; move 0, -3 * pu; line 0, 2.5 * pu }
+            ellipse { at: spx + 26 * pu, sby + 413.5 * pu; radius: 1.1 * pu; color: alert }
+            text "Bend what's behind the glass" { at: floor(spx + 46 * pu + 0.5), floor(sby + 402 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            text "Real lens glass, not blur. Heavy GPU load." { at: floor(spx + 46 * pu + 0.5), floor(sby + 418 * pu + 0.5); anchor: left center; size: 12.5; weight: 600; color: alert; family: "Space Grotesk" }
             body {
-                color: mix(off, mint, clamp(glass_bend_pill, 0, 1))
+                color: mix(off, alert, clamp(glass_bend_pill, 0, 1))
                 box { at: spx + 405 * pu, sby + 410 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
             }
             box { at: spx + 397 * pu + glass_bend_pill * 16 * pu, sby + 410 * pu; size: (17 + 9 * clamp(4 * glass_bend_pill * (1 - glass_bend_pill), 0, 1)) * pu, (17 - 3 * clamp(4 * glass_bend_pill * (1 - glass_bend_pill), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * glass_bend_pill * (1 - glass_bend_pill), 0, 1)) * pu; color: ink }
