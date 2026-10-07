@@ -12,7 +12,8 @@
 
   <img src="assets/screenshots/demo.webp" alt="Vitreus: panels flowing out of the bar" height="340" />
   <img src="assets/screenshots/wallpaper-demo.webp" alt="The wallpaper picker: a honeycomb of glass hexagons, the one under the pointer swelling and tilting toward it" height="340" />
-  <br /><sub>Panels flowing out of the bar &nbsp;·&nbsp; the wallpaper picker (<code>SUPER + B</code>)</sub>
+  <img src="assets/screenshots/tour.webp" alt="A tour of Vitreus: Settings, the controls, the Desk, the terminal and the launcher" height="340" />
+  <br /><sub>Panels flowing out of the bar &nbsp;·&nbsp; the wallpaper picker (<code>SUPER + B</code>) &nbsp;·&nbsp; a tour</sub>
 
 </div>
 
