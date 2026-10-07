@@ -2253,8 +2253,15 @@ scene Vitreus {
     let dz.ey = vc + desk_oy
     //  What the glass is when the desk is scaled (about its top left corner, which `dsk_x0`, `dsk_y0` is): the contents are scaled by a group and take
     //  the unscaled shapes above for their clip, so the glass has its own. (`dz.s*` in the frame, `dz.i*` along the top.)
-    let dz.sex = dsk_x0 + (dz.ex - dsk_x0) * desk_s
-    let dz.sew = dz.gw * desk_s
+    //  Its right side is the exception: attached, it reaches into the frame, and that reach is not scaled with the rest (it would fall short of the contents).
+    let dz.sgl = dsk_x0 + (dz.gl - dsk_x0) * desk_s
+    let dz.sgr = mix(screen.width + 26 * cu * dz.lf, dsk_x0 + (dz.gl + (dsk_w + 13 * cu) * dz.lf - dsk_x0) * desk_s, dz.det)
+    let dz.sex = (dz.sgl + dz.sgr) / 2
+    let dz.sew = max(0.1, dz.sgr - dz.sgl)
+    //  The contents are clipped inside the scaled group, so their clip is that glass at unscaled size.
+    let dz.cgr = dsk_x0 + (dz.sgr - dsk_x0) / desk_s
+    let dz.cx = (dz.gl + dz.cgr) / 2
+    let dz.cw = max(0.1, dz.cgr - dz.gl)
     let dz.sey = dsk_y0 + (dz.ey - dsk_y0) * desk_s
     let dz.seh = dz.gh * desk_s
     //  Touching the frame anywhere melts into it the way the right edge does: each side that is near the frame's inner edge (`dz.d*` 0 against it, 1 once
