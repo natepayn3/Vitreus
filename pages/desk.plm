@@ -19,7 +19,7 @@ part Desk {
                 move: 0, (1 - fd0) * 12 * cu
             //  The tabs: one track, a thumb that slides to the one in use and stretches on the way.
             let dt_y   = dsk_y0 + 40 * cu
-            let dt_w   = (dsk_w - 72 * cu) / 4
+            let dt_w   = (dsk_w - 72 * cu) / 5
             let dt_cx  = dsk_xc - 18 * cu
             let dt_str = clamp(abs(desk_tab - desk_sel), 0, 2)
             box { at: dt_cx, dt_y; size: dsk_w - 72 * cu, 34 * cu; corner: 17 * cu; color: ink; opacity: veil }
@@ -27,12 +27,12 @@ part Desk {
                 color: mint
                 shadow: 0, 0, 10 * cu, 40%, mint
                 rim: 16%
-                box { at: dt_cx + (desk_sel - 1.5) * dt_w, dt_y; size: (dt_w - 8 * cu) + 10 * cu * dt_str, 26 * cu - 3 * cu * clamp(dt_str, 0, 1); corner: 10 * cu }
+                box { at: dt_cx + (desk_sel - 2) * dt_w, dt_y; size: (dt_w - 8 * cu) + 10 * cu * dt_str, 26 * cu - 3 * cu * clamp(dt_str, 0, 1); corner: 10 * cu }
             }
-            repeat i in 0..4 {
-                let tl  = dt_cx + (i - 1.5) * dt_w
+            repeat i in 0..5 {
+                let tl  = dt_cx + (i - 2) * dt_w
                 let tsl = clamp(1 - abs(desk_sel - i), 0, 1)
-                text pick(i, "Pad", "Shelf", "Focus", "Term") { at: floor(tl + 0.5), floor(dt_y + 0.5); anchor: center; align: center; size: 12.5; weight: 600; color: mix(ink, off, tsl); opacity: 62% + 38% * tsl + 30% * desk_tab_z.$i.hover; family: "Space Grotesk" }
+                text pick(i, "Pad", "Shelf", "Focus", "Term", "Ask") { at: floor(tl + 0.5), floor(dt_y + 0.5); anchor: center; align: center; size: 12.5; weight: 600; color: mix(ink, off, tsl); opacity: 62% + 38% * tsl + 30% * desk_tab_z.$i.hover; family: "Space Grotesk" }
                 zone box desk_tab_z.$i { at: tl, dt_y; size: dt_w, 34 * cu; cursor: pointer }
                 on press desk_tab_z.$i { desk_tab = i }
             }
@@ -419,6 +419,60 @@ part Desk {
                 on press ft_sw.0 { ft_dnd = not ft_dnd }
                 on press ft_sw.1 { ft_caf = not ft_caf }
                 }
+            }
+            //  Ask: a small chat with the assistants that are installed (logic/ask.luau). One text holds the whole conversation, wrapped to the card, and
+            //  scrolls under a clip; it follows the end while an answer comes in, until the wheel takes it back up.
+            group {
+                show: desk_tab == 4
+                opacity: fd1
+                move: 0, (1 - fd1) * 12 * cu
+                let ak_vh  = 248 * cu                                      // what the card shows of the conversation
+                let ak_max = max(0, ask_m.height - ak_vh)
+                //  The assistants: one chip each (dim while it is not installed) and a button for a new conversation.
+                repeat k in 0..4 {
+                    let ak_cx = dsk_x0 + (14 + 31 + k * 66) * cu
+                    let ak_on = if(ask_backend == k, 1, 0)
+                    box { at: ak_cx, dsk_y0 + 84 * cu; size: 62 * cu, 26 * cu; corner: 13 * cu; color: mix(ink, mint, ak_on); opacity: (8% + 16% * ak_on + 9% * ask_chip.$k.hover * (1 - ak_on)) * if(ask_have.$k, 1, 0.45) }
+                    text pick(k, "Claude", "Ollama", "Codex", "Gemini") { at: floor(ak_cx + 0.5), floor(dsk_y0 + 84 * cu + 0.5); anchor: center; align: center; size: 12.5; weight: 600; color: mix(ink, mint, ak_on); opacity: if(ask_have.$k, 100%, 40%); family: "Space Grotesk" }
+                    zone box ask_chip.$k { at: ak_cx, dsk_y0 + 84 * cu; size: 64 * cu, 28 * cu; cursor: pointer; active: ask_have.$k }
+                    on press ask_chip.$k { emit ask_pick(k) }
+                }
+                //  Under them, which one is answering (for Ollama, the model: tap it to try the next), and Stop while an answer is coming.
+                text ask_status { at: floor(dsk_x0 + 18 * cu + 0.5), floor(dsk_y0 + 109 * cu + 0.5); anchor: left center; size: 11.5; width: 250 * cu; lines: 1; color: mix(faint, mint, if(ask_backend == 1 and ask_nmodels > 1, ask_status_z.hover, 0)); family: "Space Grotesk" }
+                zone box ask_status_z { at: dsk_x0 + 14 * cu + 125 * cu, dsk_y0 + 109 * cu; size: 250 * cu, 18 * cu; cursor: pointer; active: ask_backend == 1 and ask_nmodels > 1 and not ask_busy }
+                on press ask_status_z { emit ask_cycle }
+                //  Clear: a plain text link at the end of the status row (it starts a new conversation). It takes Stop's place while nothing is being
+                //  answered, and waits, dim, while there is nothing to clear.
+                let ak_clr = if(ask_n > 0, 1, 0)
+                group {
+                    show: not ask_busy
+                    text "Clear" { at: floor(dsk_x0 + 316 * cu + 0.5), floor(dsk_y0 + 109 * cu + 0.5); anchor: right center; align: right; size: 12; weight: 500; color: mix(faint, mint, ask_new_z.hover * ak_clr); opacity: if(ask_n > 0, 100%, 40%); family: "Space Grotesk"; measure: ask_clr }
+                    box { at: dsk_x0 + 316 * cu - ask_clr.width / 2, dsk_y0 + 109 * cu + 7.5 * cu; size: ask_clr.width, 1 * cu; color: mint; opacity: 70% * ask_new_z.hover * ak_clr }
+                    zone box ask_new_z { at: dsk_x0 + 316 * cu - 20 * cu, dsk_y0 + 109 * cu; size: 40 * cu, 20 * cu; cursor: pointer; active: ask_n > 0; label: "Clear the conversation" }
+                    on press ask_new_z { emit ask_new }
+                }
+                group {
+                    show: ask_busy
+                    box { at: dsk_x0 + 294 * cu, dsk_y0 + 109 * cu; size: 44 * cu, 18 * cu; corner: 9 * cu; color: mix(ink, mint, ask_stop_z.hover); opacity: 10% + 14% * ask_stop_z.hover }
+                    text "Stop" { at: floor(dsk_x0 + 294 * cu + 0.5), floor(dsk_y0 + 109 * cu + 0.5); anchor: center; align: center; size: 11; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
+                    zone box ask_stop_z { at: dsk_x0 + 294 * cu, dsk_y0 + 109 * cu; size: 46 * cu, 20 * cu; cursor: pointer }
+                    on press ask_stop_z { emit ask_stop }
+                }
+                //  The conversation.
+                box { at: dsk_xc, dsk_y0 + 124 * cu + 134 * cu; size: 312 * cu, 268 * cu; corner: 16 * cu; color: ink; opacity: veil }
+                text "Ask something below" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 258 * cu + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: ask_n < 1 }
+                group {
+                    clip inset 0 box { at: dsk_xc, dsk_y0 + 258 * cu; size: 312 * cu, 268 * cu; corner: 16 * cu }
+                    zone box ask_wheel { at: dsk_xc, dsk_y0 + 258 * cu; size: 312 * cu, 268 * cu }
+                    on scroll ask_wheel { ask_scroll = clamp(ask_scroll - wheel * 48 * cu, 0, ak_max); ask_follow = ask_scroll > ak_max - 6 * cu }
+                    text ask_log { at: floor(dsk_x0 + 24 * cu + 0.5), floor(dsk_y0 + 134 * cu - ask_off + 0.5); anchor: left top; size: 13; width: 292 * cu; lines: 400; line_height: 1.25; color: ink; family: "Space Grotesk"; measure: ask_m }
+                }
+                //  The question.
+                let ak_y = dsk_y0 + 420 * cu
+                box { at: dsk_xc, ak_y; size: 312 * cu, 36 * cu; corner: 14 * cu; color: ink; opacity: veil + 4% * ask_zone.hover }
+                input ask_in { at: floor(dsk_xc - 156 * cu + 14 * cu + 0.5), floor(ak_y - 6.5 * cu + 0.5); width: 284 * cu; size: 13; color: ink; family: "Space Grotesk"; placeholder: "Ask something and press Enter" }
+                zone box ask_zone { at: dsk_xc, ak_y; size: 312 * cu, 36 * cu; cursor: text }
+                on press ask_zone { focus ask_in; desk_kb = true }
             }
             //  Term: the shell, in a dark card under the tabs. Each stretch of one colour is a text at its cell (and a box behind it when it
             //  has a background of its own); the cursor is a block while the terminal has the keyboard and an outline while it has not.

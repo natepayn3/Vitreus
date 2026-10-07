@@ -44,7 +44,7 @@ scene Vitreus {
     fact pal_alert_b = 0.2667
     surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "vitreus-term", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play", "ffmpeg" }
+                  run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "vitreus-term", "claude", "ollama", "codex", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play", "ffmpeg" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
     model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number }
@@ -2306,7 +2306,7 @@ scene Vitreus {
     //  stays open while the calendar, the controls, the volume or a notification come and go. It is drawn like the volume's and the title panel's
     //  drawers (`dz.*`: the same springs and shape) but with its own geometry, which does not depend on whichever of those is out.
     fact desk_open = false
-    fact desk_tab = 2                                      // 0 Pad, 1 Shelf, 2 Focus, 3 Term
+    fact desk_tab = 2                                      // 0 Pad, 1 Shelf, 2 Focus, 3 Term, 4 Ask
     prop desk_sel = 2 ~slide                               // which tab the thumb is on
     //  Carrying the desk: `desk_gx`, `desk_gy` is where it is being taken to (an offset from its place in the frame), `desk_ox`, `desk_oy` where it
     //  is, on a loose spring, so it trails the pointer like a drop and lands past its place when it is let go near it and snaps back.
@@ -2458,6 +2458,28 @@ scene Vitreus {
     event dr_undo ->
     event dr_clear ->
     text task_in = ""
+    //  The Ask tab (logic/ask.luau): which assistant, which of them are installed, the conversation as one text, and where it is scrolled.
+    fact ask_backend = 0                                   // 0 Claude, 1 Ollama, 2 Codex, 3 Gemini
+    repeat k in 0..4 { fact ask_have.$k = false }
+    fact ask_ok = false                                    // the chosen one can answer
+    fact ask_busy = false
+    fact ask_nmodels = 0                                   // how many Ollama models there are to choose from
+    fact ask_n = 0
+    text ask_in = ""
+    text ask_log = ""
+    text ask_status = ""
+    measure ask_m
+    measure ask_clr                                        // the width of "Clear", so its underline is exactly as long
+    event ask_pick ->
+    event ask_new ->
+    event ask_stop ->
+    event ask_cycle ->
+    fact ask_scroll = 0
+    fact ask_follow = true
+    prop ask_off = 0 ~calm
+    follow ask_off = ask_scroll
+    on change ask_m.height while ask_follow { ask_scroll = max(0, ask_m.height - 248 * cu) }
+    on change desk_open while not desk_open { ask_follow = true }
     event task_toggle ->
     event task_del ->
     event task_clear ->

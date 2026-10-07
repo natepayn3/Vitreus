@@ -5313,3 +5313,6 @@ require("logic/draw")()
 
 -- term: see logic/term.luau
 require("logic/term")(key)
+
+-- ask: see logic/ask.luau
+require("logic/ask")()
