@@ -1,6 +1,6 @@
 <div align="center">
 
-  <h1>VITREUS</h1>
+  <img src="assets/banner.jpeg" alt="VITREUS: a glass-themed desktop shell" width="100%" />
 
   <p><strong>A liquid-glass desktop shell: a bar, and panels that flow out of it.</strong></p>
 
