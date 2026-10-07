@@ -432,8 +432,19 @@ part Desk {
                 repeat k in 0..4 {
                     let ak_cx = dsk_x0 + (14 + 31 + k * 66) * cu
                     let ak_on = if(ask_backend == k, 1, 0)
-                    box { at: ak_cx, dsk_y0 + 84 * cu; size: 62 * cu, 26 * cu; corner: 13 * cu; color: mix(ink, mint, ak_on); opacity: (8% + 16% * ak_on + 9% * ask_chip.$k.hover * (1 - ak_on)) * if(ask_have.$k, 1, 0.45) }
-                    text pick(k, "Claude", "Ollama", "Codex", "Gemini") { at: floor(ak_cx + 0.5), floor(dsk_y0 + 84 * cu + 0.5); anchor: center; align: center; size: 12.5; weight: 600; color: mix(ink, mint, ak_on); opacity: if(ask_have.$k, 100%, 40%); family: "Space Grotesk" }
+                    box { at: ak_cx, dsk_y0 + 84 * cu; size: 62 * cu, 26 * cu; corner: 13 * cu; color: ink; opacity: (8% + 9% * ask_chip.$k.hover) * (1 - ak_on) * if(ask_have.$k, 1, 0.45) }
+                    //  The one in use is lit in the accent, the way the tabs' thumb is.
+                    group {
+                        show: ak_on > 0.5
+                        opacity: if(ask_have.$k, 100%, 45%)
+                        body {
+                            color: mint
+                            shadow: 0, 0, 10 * cu, 40%, mint
+                            rim: 16%
+                            box { at: ak_cx, dsk_y0 + 84 * cu; size: 62 * cu, 26 * cu; corner: 13 * cu }
+                        }
+                    }
+                    text pick(k, "Claude", "Ollama", "Codex", "Gemini") { at: floor(ak_cx + 0.5), floor(dsk_y0 + 84 * cu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; color: mix(ink, off, ak_on); opacity: if(ask_have.$k, 100%, 40%); family: "Space Grotesk" }
                     zone box ask_chip.$k { at: ak_cx, dsk_y0 + 84 * cu; size: 64 * cu, 28 * cu; cursor: pointer; active: ask_have.$k }
                     on press ask_chip.$k { emit ask_pick(k) }
                 }
