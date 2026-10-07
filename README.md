@@ -5,7 +5,7 @@
   <p><strong>A liquid-glass desktop shell: a bar, and panels that flow out of it.</strong></p>
 
   <p>
-    <a href="https://github.com/k4ditano/pleamar"><img src="https://img.shields.io/badge/pleamar-0.2-9ed6bd?style=for-the-badge" alt="pleamar" /></a>
+    <a href="https://github.com/k4ditano/pleamar"><img src="https://img.shields.io/badge/pleamar-required-9ed6bd?style=for-the-badge" alt="pleamar" /></a>
     <a href="https://hyprland.org"><img src="https://img.shields.io/badge/Hyprland-33CCFF?style=for-the-badge&logo=hyprland&logoColor=white" alt="Hyprland" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="MIT License" /></a>
   </p>
@@ -167,9 +167,7 @@ the text. It takes about half a second after a wallpaper change.
 
 ## 📦 Requirements
 
-* [**pleamar**](https://github.com/k4ditano/pleamar) 0.2.9 or newer — the runtime Vitreus is written for. (The lock
-  screen's choice of monitor, a shell that fills monitors taller than 1440 pixels, and a fix for a crash when a monitor
-  goes away all need 0.2.9. `pleamar-update` brings it up to date.)
+* [**pleamar**](https://github.com/k4ditano/pleamar) — the runtime Vitreus is written for.
 * A Wayland compositor with layer-shell. It is developed on **Hyprland**; the running-windows list uses `hyprctl`,
   so that part is Hyprland-only.
 * [**hyprsunset**](https://github.com/hyprwm/hyprsunset), on Hyprland — Hyprland's blue-light filter, which Night mode drives
@@ -309,7 +307,7 @@ start paints it from the first frame.
 | `wm-palette.default.plm` | pleamar-wm's stock border colour (copy to `wm-palette.plm`) |
 | `wave.wgsl` | the shader that bends the bar's glass on the beat |
 | `desktopclock/` | the desktop clock: digits of glass on the bottom layer |
-| `lockscreen/` | the lock screen, started with the desktop (pleamar 0.2.9 or newer); see its README |
+| `lockscreen/` | the lock screen, started with the desktop; see its README |
 | `wptrans/` | the wallpaper picker's hexagon dissolve, on the bottom layer |
 | `pleamar-wm/` | what makes Vitreus run on pleamar-wm; see its README |
 
