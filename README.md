@@ -166,21 +166,6 @@ text. It takes about half a second after a wallpaper change.
 
 ---
 
-## Known limits
-
-* awww forgets nothing it was told to show, but it only restores what it last displayed (`awww restore`, run at startup);
-  a wallpaper that was never applied through awww is not brought back.
-* The launcher's file search looks five folders deep in your home, skipping hidden folders. Clipboard history is only
-  as good as what fills `cliphist`; the launcher's apps come from the desktop files pleamar can see.
-* Settings > Hyprland and Display write Lua for Hyprland's Lua config; with a `hyprland.conf` they still change the
-  running session, but nothing is kept for the next start.
-* Bluetooth and Wi-Fi scans go through `bluetoothctl` and `nmcli`: pleamar's own scan calls answer without error but
-  nothing scans.
-* Wi-Fi rescans within about 15 seconds of the previous one are ignored by NetworkManager.
-* Do Not Disturb has a timer, but no quiet-hours schedule and no "silence while a window is fullscreen" trigger yet.
-
----
-
 ## 📄 License
 
 Vitreus is released under the [MIT License](LICENSE). It runs on [pleamar](https://github.com/k4ditano/pleamar), which
