@@ -75,39 +75,34 @@ layout all run in the renderer, and the logic only reports facts.
 
 ## 📦 Requirements
 
-* [**pleamar**](https://github.com/k4ditano/pleamar) — the runtime Vitreus is written for.
+* [**pleamar**](https://github.com/k4ditano/pleamar) — the runtime Vitreus is written for
 * A Wayland compositor with layer-shell, developed on **Hyprland**
-* [**hyprsunset**](https://github.com/hyprwm/hyprsunset), on Hyprland — drives Night mode
-* The **Space Grotesk** font.
+* The **Space Grotesk** font
 
-Optional, each enabling one thing:
+The packages `install.sh` installs (pacman, and the AUR for the last two):
 
-| Tool | Used for |
+| Package | Used for |
 | --- | --- |
-| `cava` | the bass pulse in the bar and the equalizer in the player |
-| `playerctl` | cover art for the player |
-| `awww` | the wallpaper picker, and Iris following your wallpaper |
-| `mpvpaper` (AUR) + `ffmpeg` | video wallpapers (mp4, webm) in the wallpaper picker: mpvpaper plays the video over awww, and ffmpeg takes the frame (kept in the cache) that Iris, the thumbnails and the lock screen read |
-| `iris` | theming from the wallpaper |
-| `imagemagick` | wallpaper thumbnails (cropped once, cached), and the launcher's picture previews |
-| `wl-clipboard` (`wl-copy`) | the launcher copying an emoji, a sum's answer or a clipboard entry |
-| `cliphist` | the launcher's clipboard search (`^`). Something has to fill it: `wl-paste --watch cliphist store` at startup |
-| `xdg-utils` (`xdg-open`) | the launcher opening a file |
-| `curl` | weather and remote cover art |
-| NetworkManager (`nmcli`) | Wi-Fi scanning |
-| BlueZ (`bluetoothctl`) | Bluetooth scanning |
+| `git`, `curl`, `fontconfig` | fetching Vitreus, weather and cover art, and the font |
+| `hyprsunset` | Night mode |
+| `awww` | the wallpaper picker |
+| `iris-colors` (AUR) | theming from the wallpaper |
+| `mpvpaper` (AUR), `ffmpeg` | video wallpapers |
+| `imagemagick` | wallpaper thumbnails and the launcher's picture previews |
+| `cava` | the bass pulse and the equalizer |
+| `playerctl` | the player and its cover art |
+| `networkmanager` | Wi-Fi |
+| `bluez`, `bluez-utils` | Bluetooth |
 | `brightnessctl` | the brightness slider |
-| `hypridle` + systemd | Caffeine |
-| `grim` + `slurp` + `wl-clipboard` | Capture's screenshots (a region is picked with `slurp`) |
-| `wf-recorder` + `slurp` | Capture's screen recording (video only, no audio) |
-| `power-profiles-daemon` (`powerprofilesctl`) | the power profile in Power |
-| `systemd` (`systemctl`, `loginctl`) | Power's sleep, restart, power off and log out |
-| `polkit` + `python-gobject` | the authentication dialog (`bin/vitreus-polkit-agent`, started by the shell; needs no other agent running) |
-| `python-pyte` + `ttf-space-mono-nerd` | the Desk's terminal (`bin/vitreus-term`; the font is Space Grotesk's monospaced sibling, with the Nerd Font icons prompts use) |
-| `pipewire-audio` (`pw-play`) + `sound-theme-freedesktop` | the sounds notifications make |
-| `pactl` (PipeWire or PulseAudio) | the per-app volume mixer |
-| `hyprctl` | running windows, Settings > Display and > Hyprland, and the launcher starting apps |
-| `notify-send` | calendar reminders |
+| `hypridle` | Caffeine |
+| `libnotify` | calendar reminders |
+| `xdg-user-dirs`, `xdg-utils` | finding your Pictures folder, opening files |
+| `wl-clipboard`, `cliphist` | the launcher's clipboard and copying |
+| `grim`, `slurp`, `wf-recorder` | screenshots and screen recording |
+| `power-profiles-daemon` | the power profile |
+| `polkit`, `python-gobject` | the authentication dialog |
+| `python-pyte`, `ttf-space-mono-nerd` | the Desk's terminal |
+| `pipewire-audio`, `sound-theme-freedesktop` | notification sounds |
 
 ---
 
@@ -168,30 +163,6 @@ Vitreus keeps its data in `~/.local/share/pleamar/vitreus`.
 
 Iris reads your wallpaper and Vitreus recolours itself, with a legibility floor on the
 text. It takes about half a second after a wallpaper change.
-
----
-
-## 🧩 Layout
-
-| File | |
-| --- | --- |
-| `vitreus.plm` | the scene: every shape, panel, spring and rule |
-| `pages/*.plm` | the scene's big pieces, each a `part` pulled in with `include` (the bar, the desk, the drawers, the overview, every Settings page): same scene, in more files |
-| `vitreus.luau` | the logic: services, scanning, weather, Iris, history, the launcher's searches — it only reports facts |
-| `logic/*.luau` | the logic's self-contained features (Term, Pad, Shelf, Focus, tray, night mode, updates…), each loaded with `require` and handed what it shares |
-| `hypr_vitreus.lua` | Hyprland key binds: `SUPER + Space` launcher, `SUPER + SHIFT + Space` Settings, `SUPER + L` lock |
-| `bin/vitreus-clipimg` | a helper for the launcher's clipboard pictures (thumbnail, copy back) |
-| `bin/vitreus-keep` | runs a scene from autostart and starts it again if it stops, while the session lasts |
-| `assets/emoji.json` | the emoji the launcher searches |
-| `install.sh` | installs, updates and removes Vitreus |
-| `palette-live.plm` | the shell's colours, as `rgb()` of the `pal_*` facts the logic sets |
-| `palette.default.plm` | the stock palette (copy to `palette.plm`, for the lock screen) |
-| `wm-palette.default.plm` | pleamar-wm's stock border colour (copy to `wm-palette.plm`) |
-| `wave.wgsl` | the shader that bends the bar's glass on the beat |
-| `desktopclock/` | the desktop clock: digits of glass on the bottom layer |
-| `lockscreen/` | the lock screen, started with the desktop; see its README |
-| `wptrans/` | the wallpaper picker's hexagon dissolve, on the bottom layer |
-| `pleamar-wm/` | what makes Vitreus run on pleamar-wm; see its README |
 
 ---
 
