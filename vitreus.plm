@@ -2482,11 +2482,24 @@ scene Vitreus {
     event ask_new ->
     event ask_stop ->
     event ask_cycle ->
+    //  Claude's plan usage (the five-hour and seven-day windows, 0 to 1, -1 until an answer has said), as two thin bars under the status row, and
+    //  when each resets. The bars take 33 off the conversation's card (`ask_dy`) while Claude is the one chosen and has said.
+    fact ask_u5 = -1
+    fact ask_u7 = -1
+    text ask_r5 = ""
+    text ask_r7 = ""
+    prop ask_us = 0 ~calm
+    follow ask_us = if(ask_backend == 0 and ask_u5 >= 0, 1, 0)
+    prop ask_f5 = 0 ~calm
+    prop ask_f7 = 0 ~calm
+    follow ask_f5 = max(0, ask_u5)
+    follow ask_f7 = max(0, ask_u7)
+    let ask_dy = 33 * cu * ask_us
     fact ask_scroll = 0
     fact ask_follow = true
     prop ask_off = 0 ~calm
     follow ask_off = ask_scroll
-    on change ask_m.height while ask_follow { ask_scroll = max(0, ask_m.height - 248 * cu) }
+    on change ask_m.height while ask_follow { ask_scroll = max(0, ask_m.height - (248 * cu - ask_dy)) }
     on change desk_open while not desk_open { ask_follow = true }
     event task_toggle ->
     event task_del ->

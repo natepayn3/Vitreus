@@ -12,6 +12,7 @@ return function()
 
     local have = { false, false, false, false }
     local state = { backend = 1, model = "", history = {} }   -- backend: 1 claude, 2 ollama, 3 codex, 4 gemini
+    local usage = nil                                 -- Claude's plan usage, as the last answer reported it: { u5, r5, u7, r7 } (fractions, and when each window resets)
     local models = {}
     local load_models                                 -- (below)
     local ollama_down = false                         -- `ollama list` could not talk to the server
@@ -22,7 +23,7 @@ return function()
         for _, m in ipairs(state.history) do
             if m.role ~= "note" then h[#h + 1] = { role = m.role, text = m.text, who = m.who } end
         end
-        pcall(sys.call, "files.write", "desk-ask.json", { backend = state.backend, model = state.model, history = h })
+        pcall(sys.call, "files.write", "desk-ask.json", { backend = state.backend, model = state.model, history = h, usage = usage })
     end
 
     local function status()
@@ -95,6 +96,34 @@ return function()
         end
     end
 
+    -- Claude says how full its plan windows are (the five-hour and the seven-day) with every answer, and when each one resets: the page draws them
+    -- as thin bars. A window whose reset time has passed is empty again, whatever was last said of it.
+    local function clock(t, day)
+        local f = day and "%a %I:%M %p" or "%I:%M %p"
+        return (os.date(f, t):gsub("^0", ""):gsub(" 0(%d:)", " %1"))
+    end
+    local function show_usage()
+        local now = os.time()
+        local function one(u, r, day, fu, ft)
+            if type(u) ~= "number" then fact[fu] = -1; text[ft] = ""; return end
+            if type(r) == "number" and r <= now then u = 0 end
+            fact[fu] = math.max(0, math.min(1, u))
+            text[ft] = type(r) == "number" and ((r <= now and "reset " or "resets ") .. clock(r, day or r - now > 20 * 3600)) or ""
+        end
+        one(usage and usage.u5, usage and usage.r5, false, "ask_u5", "ask_r5")
+        one(usage and usage.u7, usage and usage.r7, true, "ask_u7", "ask_r7")
+    end
+    local function take_usage(info)
+        local w = type(info) == "table" and info.unifiedWindows
+        if type(w) ~= "table" then return end
+        usage = usage or {}
+        local five, seven = w.five_hour, w.seven_day
+        if type(five) == "table" and tonumber(five.utilization) then usage.u5, usage.r5 = tonumber(five.utilization), tonumber(five.resetsAt) end
+        if type(seven) == "table" and tonumber(seven.utilization) then usage.u7, usage.r7 = tonumber(seven.utilization), tonumber(seven.resetsAt) end
+        show_usage()
+        save()
+    end
+
     -- The conversation as one prompt, for the programs that take a prompt and keep nothing: the last few messages, then the new one.
     local function prompt_for(msgs)
         local out = {}
@@ -118,6 +147,8 @@ return function()
                and type(d.event.delta) == "table" and d.event.delta.type == "text_delta" then
                 sawdelta = true
                 append(mine, d.event.delta.text)
+            elseif d.type == "rate_limit_event" then
+                take_usage(d.rate_limit_info)
             elseif d.type == "result" then
                 if d.is_error then fail(mine, tostring(d.result or "claude failed"))
                 elseif not sawdelta then append(mine, tostring(d.result or "")) end
@@ -263,6 +294,7 @@ return function()
         if ok and type(saved) == "table" then
             if type(saved.backend) == "number" and saved.backend >= 1 and saved.backend <= 4 then state.backend = math.floor(saved.backend) end
             if type(saved.model) == "string" then state.model = saved.model end
+            if type(saved.usage) == "table" then usage = { u5 = tonumber(saved.usage.u5), r5 = tonumber(saved.usage.r5), u7 = tonumber(saved.usage.u7), r7 = tonumber(saved.usage.r7) } end
             if type(saved.history) == "table" then
                 for _, m in ipairs(saved.history) do
                     if type(m) == "table" and type(m.text) == "string" and (m.role == "user" or m.role == "assistant") then
@@ -276,6 +308,8 @@ return function()
     fact.ask_backend = state.backend - 1
     render()
     status()
+    show_usage()
+    every(60000, show_usage)
     local waiting = #NAMES
     for i, name in ipairs(NAMES) do
         run("which", { name }, function(_, code)

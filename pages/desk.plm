@@ -426,7 +426,7 @@ part Desk {
                 show: desk_tab == 4
                 opacity: fd1
                 move: 0, (1 - fd1) * 12 * cu
-                let ak_vh  = 248 * cu                                      // what the card shows of the conversation
+                let ak_vh  = 248 * cu - ask_dy                             // what the card shows of the conversation
                 let ak_max = max(0, ask_m.height - ak_vh)
                 //  The assistants: one chip each (dim while it is not installed) and a button for a new conversation.
                 repeat k in 0..4 {
@@ -469,14 +469,33 @@ part Desk {
                     zone box ask_stop_z { at: dsk_x0 + 294 * cu, dsk_y0 + 109 * cu; size: 46 * cu, 20 * cu; cursor: pointer }
                     on press ask_stop_z { emit ask_stop }
                 }
-                //  The conversation.
-                box { at: dsk_xc, dsk_y0 + 124 * cu + 134 * cu; size: 312 * cu, 268 * cu; corner: 16 * cu; color: ink; opacity: veil }
-                text "Ask something below" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 258 * cu + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: ask_n < 1 }
+                //  Claude's plan usage: the five-hour and the seven-day window, each a thin bar that fills as it is used (amber as it nears full), with
+                //  the time it resets. What the last answer said, kept between starts (logic/ask.luau).
                 group {
-                    clip inset 0 box { at: dsk_xc, dsk_y0 + 258 * cu; size: 312 * cu, 268 * cu; corner: 16 * cu }
-                    zone box ask_wheel { at: dsk_xc, dsk_y0 + 258 * cu; size: 312 * cu, 268 * cu }
+                    show: ask_us > 0.02
+                    opacity: ask_us
+                    repeat k in 0..2 {
+                        let us_x = dsk_x0 + (14 + k * 162) * cu
+                        let us_w = 150 * cu
+                        let us_u = clamp(if(k == 0, ask_f5, ask_f7), 0, 1)
+                        let us_f = max(0.5 * cu, us_w * us_u)
+                        let us_p = floor(us_u * 100 + 0.5)
+                        text pick(k, "5-hour", "7-day") { at: floor(us_x + 0.5), floor(dsk_y0 + 127 * cu + 0.5); anchor: left center; size: 10.5; weight: 600; color: faint; family: "Space Grotesk" }
+                        text "{us_p}%" { at: floor(us_x + us_w + 0.5), floor(dsk_y0 + 127 * cu + 0.5); anchor: right center; align: right; size: 10.5; weight: 700; color: ink; opacity: 85%; family: "Space Grotesk" }
+                        box { at: us_x + us_w / 2, dsk_y0 + 136 * cu; size: us_w, 4 * cu; corner: 2 * cu; color: ink; opacity: 14% }
+                        box { at: us_x + us_f / 2, dsk_y0 + 136 * cu; size: us_f, 4 * cu; corner: 2 * cu; color: mix(mint, #ffa94d, clamp((us_u - 0.7) / 0.25, 0, 1)) }
+                        text ask_r5 { at: floor(us_x + 0.5), floor(dsk_y0 + 143.5 * cu + 0.5); anchor: left center; size: 10; color: faint; opacity: 90%; family: "Space Grotesk"; show: k == 0 }
+                        text ask_r7 { at: floor(us_x + 0.5), floor(dsk_y0 + 143.5 * cu + 0.5); anchor: left center; size: 10; color: faint; opacity: 90%; family: "Space Grotesk"; show: k == 1 }
+                    }
+                }
+                //  The conversation.
+                box { at: dsk_xc, dsk_y0 + 258 * cu + ask_dy / 2; size: 312 * cu, 268 * cu - ask_dy; corner: 16 * cu; color: ink; opacity: veil }
+                text "Ask something below" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 258 * cu + ask_dy / 2 + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: ask_n < 1 }
+                group {
+                    clip inset 0 box { at: dsk_xc, dsk_y0 + 258 * cu + ask_dy / 2; size: 312 * cu, 268 * cu - ask_dy; corner: 16 * cu }
+                    zone box ask_wheel { at: dsk_xc, dsk_y0 + 258 * cu + ask_dy / 2; size: 312 * cu, 268 * cu - ask_dy }
                     on scroll ask_wheel { ask_scroll = clamp(ask_scroll - wheel * 48 * cu, 0, ak_max); ask_follow = ask_scroll > ak_max - 6 * cu }
-                    text ask_log { at: floor(dsk_x0 + 24 * cu + 0.5), floor(dsk_y0 + 134 * cu - ask_off + 0.5); anchor: left top; size: 13; width: 292 * cu; lines: 400; line_height: 1.25; color: ink; family: "Space Grotesk"; measure: ask_m }
+                    text ask_log { at: floor(dsk_x0 + 24 * cu + 0.5), floor(dsk_y0 + 134 * cu + ask_dy - ask_off + 0.5); anchor: left top; size: 13; width: 292 * cu; lines: 400; line_height: 1.25; color: ink; family: "Space Grotesk"; measure: ask_m }
                 }
                 //  The question.
                 let ak_y = dsk_y0 + 420 * cu
