@@ -165,6 +165,18 @@ scene Vitreus {
     //  showing what it was showing.
     fact osd_kind: vol | note | shot = vol
     fact osd_on = false                                     // the volume / notification drawer is out: set by the logic; it is not a value of `panel`, so it shows beside Settings, the search, the desk...
+    //  The volume drawer holds up to two rows, one above the other: the volume and the brightness, each out for two seconds after it changes (the logic's
+    //  timers). With both, the drawer is as tall as both, so neither covers the other.
+    fact osd_v = false
+    fact osd_b = false
+    prop osd_vp = 0 ~calm
+    prop osd_bp = 0 ~calm
+    fact bright_now = 0                 // the brightness the row shows: from the keys at once (`bright_key`), or from the brightness service
+    prop bright_osd = 0 ~quick
+    follow bright_osd = bright_now
+    event bright_key ->                 // a brightness key: the new level, 0 to 1
+    follow osd_vp = if(osd_v, 1, 0)
+    follow osd_bp = if(osd_b, 1, 0)
     text nt_app = ""
     text nt_title = ""
     text nt_body = ""
@@ -2132,7 +2144,7 @@ scene Vitreus {
     let nt_bh = ntb.height / u
     let nt_content = if(nt_body_on, 39 + nt_th + nt_bh, 35 + nt_th)
     let nt_h = max(68, nt_content + if(nt_acts.count > 0, 34, 0) + 12)
-    follow osd_h = if(osd_kind == note, nt_h, if(osd_kind == shot, 248, 64))
+    follow osd_h = if(osd_kind == note, nt_h, if(osd_kind == shot, 248, if(osd_v and osd_b, 136, 64)))
     //  The settings panel: 620 wide. A header (36), then the sidebar and the page side by side (352).
     //  How tall the settings page in view is (unscaled): Wallpaper, Glass, Display.
     //  The Display page: its cards down to the profiles one, which is as tall as its rows (none: a line).

@@ -21,3 +21,10 @@ hl.bind("SUPER + B", hl.dsp.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --
 -- SUPER + TAB opens or closes the workspace overview.
 hl.unbind("SUPER + TAB")
 hl.bind("SUPER + TAB", hl.dsp.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --say vitreus \"emit ov_toggle\""))
+
+-- The brightness keys, again: the same brightnessctl step as hyprland.lua's, and then the new level told to the shell at once (as a share of the
+-- backlight's maximum), so its pop-up follows each press; the brightness service only looks every 700 ms.
+hl.unbind("XF86MonBrightnessUp")
+hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd([[PATH="$HOME/.local/bin:$PATH"; f=$(brightnessctl -e4 -n2 -m set 5%+ | awk -F, '{printf "%.4f", $3/$5}'); pleamar --say vitreus "emit bright_key $f"]]), { locked = true, repeating = true })
+hl.unbind("XF86MonBrightnessDown")
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd([[PATH="$HOME/.local/bin:$PATH"; f=$(brightnessctl -e4 -n2 -m set 5%- | awk -F, '{printf "%.4f", $3/$5}'); pleamar --say vitreus "emit bright_key $f"]]), { locked = true, repeating = true })

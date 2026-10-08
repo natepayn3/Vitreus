@@ -1393,31 +1393,59 @@ local function hide_osd(kind)
     if nt_queue.osd == (kind == "vol" and "volume" or "notif") then nt_queue.set_osd("none") end
 end
 
--- Volume: whenever the level or the mute changes with nothing else open.
+-- Volume and brightness: whenever one changes, its row comes out in the volume drawer for two seconds (each on its own timer; with both, the drawer
+-- holds both, one above the other). The drawer goes back once neither is out. The brightness has no row while the controls are open: their slider shows it.
+local lvl_gen = { v = 0, b = 0 }
+local function show_level(row)
+    if nt_queue.osd == "notif" and nt_now and nt_now.n then
+        -- The level comes first: the notification on screen goes back to the front of the queue and shows again once the level has gone.
+        table.insert(nt_queue, 1, nt_now.n)
+        nt_now = nil
+    end
+    osd_gen = osd_gen + 1
+    lvl_gen[row] = lvl_gen[row] + 1
+    local gen = lvl_gen[row]
+    nt_queue.hold = true            -- no notification is shown while a level is (see `pump`)
+    fact["osd_" .. row] = true
+    fact.osd_kind = "vol"
+    nt_queue.set_osd("volume")
+    after(2000, function()
+        if gen ~= lvl_gen[row] then return end
+        local other = row == "v" and "b" or "v"
+        if fact["osd_" .. other] then
+            fact["osd_" .. row] = false                     -- the other is still out: this row goes and the drawer shrinks to it
+            return
+        end
+        hide_osd("vol")
+        nt_queue.hold = false
+        if nt_queue.pump then nt_queue.pump() end           -- `pump` is declared further down
+        -- the row stays drawn while the drawer folds away, and goes once it is in
+        after(450, function() if gen == lvl_gen[row] then fact["osd_" .. row] = false end end)
+    end)
+end
 local last_vol, last_mute = nil, nil
 sys.watch("audio", function(a)
     local vol = math.floor((a.volume or 0) * 100 + 0.5)
     local mute = a.muted and true or false
     local changed = last_vol ~= nil and (vol ~= last_vol or mute ~= last_mute)
     last_vol, last_mute = vol, mute
-    if not changed then return end
-    if nt_queue.osd == "notif" and nt_now and nt_now.n then
-        -- The volume comes first: the notification on screen goes back to the front of the queue and shows again once the volume has gone.
-        table.insert(nt_queue, 1, nt_now.n)
-        nt_now = nil
-    end
-    osd_gen = osd_gen + 1
-    local gen = osd_gen
-    nt_queue.hold = true            -- no notification is shown while the volume is (see `pump`)
-    fact.osd_kind = "vol"
-    nt_queue.set_osd("volume")
-    after(2000, function()
-        if gen == osd_gen then
-            hide_osd("vol")
-            nt_queue.hold = false
-            if nt_queue.pump then nt_queue.pump() end      -- `pump` is declared further down
-        end
-    end)
+    if changed then show_level("v") end
+end)
+local last_bright = nil
+sys.watch("brightness", function(b)
+    if not b or not b.present then return end
+    local lv = math.floor((b.level or 0) * 100 + 0.5)
+    local changed = last_bright ~= nil and lv ~= last_bright
+    last_bright = lv
+    fact.bright_now = b.level or 0
+    if changed and fact.panel ~= "controls" then show_level("b") end
+end)
+-- A brightness key says the new level itself, at once (hypr_vitreus.lua): the row follows the key, and the service's later look finds nothing new.
+on("bright_key", function(f)
+    if type(f) ~= "number" then return end
+    fact.bright_now = math.max(0, math.min(1, f))
+    last_bright = math.floor(fact.bright_now * 100 + 0.5)
+    if fact.panel ~= "controls" then show_level("b") end
 end)
 
 -- Notifications: Vitreus is the notification server now, so this is where they arrive.

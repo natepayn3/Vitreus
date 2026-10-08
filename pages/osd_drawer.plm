@@ -20,9 +20,9 @@ part OsdDrawer {
 
         // ── the volume ──
         group {
-            opacity: okv
-            show: okv > 0.01
-            let vy = oy
+            opacity: okv * max(osd_vp, 1 - osd_bp)
+            show: okv > 0.01 and (osd_v or not osd_b)
+            let vy = ot + 32 * u                             // the top row (the plate's middle when it is the only one)
             let vtx = os.px - 128 * u                        // the face's tile
             box { at: vtx, vy; size: 44 * u, 44 * u; corner: 12 * u; color: ink; opacity: 6% }
             //  A little face on the slider: two eyes, and a mouth that opens
@@ -63,6 +63,40 @@ part OsdDrawer {
             box { at: clamp(tr0 + span, tr0 + 4 * u, tr0 + trw - 4 * u), vy; size: 6 * u, 26 * u; corner: 3 * u; color: ink }
             text number(audio.volume * 100, 0, "%") { at: floor(os.px + 116 * u + 0.5), floor(vy + 0.5); anchor: center; align: center; size: 21 * u; weight: 700; color: ink; family: "Space Grotesk"; show: not audio.muted }
             text "Muted" { at: floor(os.px + 116 * u + 0.5), floor(vy + 0.5); anchor: center; align: center; size: 21 * u; weight: 700; color: faint; family: "Space Grotesk"; show: audio.muted }
+        }
+
+        // ── the brightness: under the volume when both are out, alone in its place otherwise ──
+        group {
+            opacity: okv * osd_bp
+            show: okv > 0.01 and osd_b
+            let by = ot + (32 + 72 * osd_vp) * u
+            let btx = os.px - 128 * u                        // the sun's tile
+            box { at: btx, by; size: 44 * u, 44 * u; corner: 12 * u; color: ink; opacity: 6% }
+            //  A sun that turns slowly: a disc that grows with the level, and eight rays that lengthen with it and breathe.
+            ellipse { at: btx, by; radius: (4 + 2.5 * bright_osd) * u; color: mint }
+            ellipse { at: btx, by; radius: (8 + 4 * bright_osd + 1.5 * sin(time * 180)) * u; color: minthi; opacity: 12% + 10% * bright_osd }
+            repeat r in 0..8 {
+                let ang = r * 45 + time * 35
+                let r0 = (8 + 1.5 * bright_osd) * u
+                let r1 = r0 + (2.5 + 3.5 * bright_osd + 1.2 * sin(time * 200 + r * 90)) * u
+                line { from: btx + r0 * cos(ang), by + r0 * sin(ang); to: btx + r1 * cos(ang), by + r1 * sin(ang); width: 2.2 * u; color: mint; opacity: 55% + 45% * bright_osd }
+            }
+            //  The level as a row of beams: thin upright bars across as far as the brightness goes, taller and brighter towards the end, each shimmering as a
+            //  wave of light runs along them. The rest of the track is a faint line, and the same pill as the volume's marks the end, with a glow behind it.
+            let btr0 = os.px - 96 * u
+            let btrw = 170 * u
+            let bspan = btrw * clamp(bright_osd, 0, 1)
+            line { from: btr0, by; to: btr0 + btrw, by; width: 3 * u; color: ink; opacity: 10% }
+            repeat i in 0..34 {
+                let near = (i + 0.5) / 34
+                let bx = btr0 + near * bspan
+                let sh = 0.5 + 0.5 * sin(i * 40 - time * 260)
+                let bh = (4 + 16 * near * (0.4 + 0.6 * sh)) * u
+                line { from: bx, by - bh / 2; to: bx, by + bh / 2; width: 2.4 * u; color: mix(mint, minthi, sh * near); opacity: 30% + 70% * near }
+            }
+            ellipse { at: btr0 + bspan, by; radius: (9 + 2.5 * sin(time * 220)) * u; color: minthi; opacity: 22% * clamp(bright_osd * 8, 0, 1) }
+            box { at: clamp(btr0 + bspan, btr0 + 4 * u, btr0 + btrw - 4 * u), by; size: 6 * u, 26 * u; corner: 3 * u; color: ink }
+            text number(bright_now * 100, 0, "%") { at: floor(os.px + 116 * u + 0.5), floor(by + 0.5); anchor: center; align: center; size: 21 * u; weight: 700; color: ink; family: "Space Grotesk" }
         }
 
         // ── a notification ──
