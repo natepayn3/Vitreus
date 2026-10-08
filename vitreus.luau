@@ -3440,8 +3440,10 @@ local function wx_read(name)
     return nil
 end
 
+local wx_again = false                -- the place was changed while a fetch was out: ask again when it is back
 local function wx_done(ok)
     wx_busy = false
+    if wx_again then wx_again = false; wx_refresh_now() return end
     if not ok then after(60000, function() if not wx_busy then wx_refresh_now() end end) end
 end
 
@@ -3467,9 +3469,16 @@ function wx_refresh_now()
             local r = code == 0 and wx_read("wx-loc.json") or nil
             local lat, lon
             if r and loc ~= "" and type(r.results) == "table" and r.results[1] then
-                lat, lon = r.results[1].latitude, r.results[1].longitude
+                local g = r.results[1]
+                lat, lon = g.latitude, g.longitude
+                text.wx_name = tostring(g.name or loc) .. (g.admin1 and (", " .. g.admin1) or "") .. ((g.country_code and g.country_code ~= "US") and (", " .. g.country_code) or "")
             elseif r and loc == "" and r.success then
                 lat, lon = r.latitude, r.longitude
+                text.wx_name = "Automatic · " .. tostring(r.city or "by your IP")
+            elseif r and loc ~= "" then
+                text.wx_name = "Not found"
+                wx_done(true)              -- nothing to retry (a place that is not there stays not there), but a change made meanwhile is still asked for
+                return
             end
             if lat and lon then
                 wx_loc = { lat = lat, lon = lon }
@@ -3490,7 +3499,28 @@ do
         pcall(sys.call, "files.write", "weather-config.json", wx_cfg)   -- so there is a file to edit
     end
     wx_show(wx_read("wx.json"))          -- what was fetched last time, while the new answer is on its way
+    text.wx_in = wx_cfg.location
+    fact.wx_c = wx_cfg.units == "celsius"
 end
+local function wx_save() pcall(sys.call, "files.write", "weather-config.json", wx_cfg) end
+local function wx_apply(q)
+    wx_cfg.location = ((q or ""):gsub("^%s+", ""):gsub("%s+$", ""))
+    text.wx_in = wx_cfg.location
+    wx_save()
+    wx_loc = nil
+    text.wx_name = "Looking…"
+    if wx_busy then wx_again = true else wx_refresh_now() end
+end
+on("wx_set", function() wx_apply(text.wx_in) end)
+on("submit:wx_in", function() wx_apply(text.wx_in) end)
+on("wx_auto", function() wx_apply("") end)
+on("wx_units_set", function(i)
+    local c = i >= 0.5
+    wx_cfg.units = c and "celsius" or "fahrenheit"
+    fact.wx_c = c
+    wx_save()
+    if wx_busy then wx_again = true else wx_refresh_now() end
+end)
 wx_refresh_now()
 every(1800000, wx_refresh_now)           -- every half hour
 end
@@ -4181,6 +4211,7 @@ end
         { "Lock session", "action", function() spawn('pleamar --say lockscreen "fact locked true"') end, "lockscreen lock screen secure away password" },
         { "Settings: Theme", "open", open_settings("pg_theme"), "colours colors palette preset tokyo night catppuccin gruvbox nord rose pine dracula iris accent monochrome wallpaper" },
         { "Settings: Widgets", "open", open_settings("pg_clock"), "widgets clock system monitor desktop clock glass digits time wallpaper layout inline stacked staggered hero position corner size weight tint 12 24 hour" },
+        { "Settings: Weather location", "open", open_settings("pg_vpn"), "weather forecast location city zip code place celsius fahrenheit units vpn calendar temperature" },
         { "Desktop clock: toggle", "action", function()
             run("pleamar", { "--say", "desktopclock", "get shown" }, function(out)
                 local on = (out or ""):match("true") ~= nil

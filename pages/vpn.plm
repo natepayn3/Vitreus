@@ -5,7 +5,10 @@ part Vpn {
         group {
             show: set_pgv > 0.01
             opacity: set_pgv
-            let vpn.h = vpn.ab + 84 + vpn.fh + 44 + 12
+            let vpn.wt = vpn.ab + 84 + vpn.fh + 44 + 12       // the weather card, under the add card
+            let vpn.h = vpn.wt + 128 + 12
+            let wxcf0 = if(wx_c, 0, 1)
+            let wxcf1 = if(wx_c, 1, 0)
             let vpn.sc = clamp(vpn_scroll, 0, max(0, vpn.h - set.h))
             let vpn.off = floor(vpn.sc * pu + 0.5)
             clip box { at: spx + 224 * pu, sby + set.h / 2 * pu; size: 456 * pu, set.h * pu }
@@ -237,6 +240,33 @@ part Vpn {
             on press vpn_add_hit while vpn_mode == vpm_wg { emit vpn_add_wg }
             on press vpn_add_hit while vpn_mode == vpm_ovpn { emit vpn_add_ovpn }
             on press vpn_add_hit while vpn_mode == vpm_imp { emit vpn_import }
+            //  The weather's place (the calendar's strip): a city or a ZIP code typed here, found by name, so that the VPN's exit does not move it. Set, or Enter, looks it up.
+            box { at: spx + 219 * pu, sby + (vpn.wt + 64) * pu; size: 438 * pu, 128 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "WEATHER" { at: floor(spx + 14 * pu + 0.5), floor(sby + (vpn.wt + 18) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            text wx_name { at: floor(spx + 424 * pu + 0.5), floor(sby + (vpn.wt + 18) * pu + 0.5); anchor: right center; align: right; size: 13; weight: 600; width: 260 * pu; lines: 1; color: mint; family: "Space Grotesk" }
+            text "A city or ZIP code, typed here instead of found by IP, so a VPN does not move it" { at: floor(spx + 14 * pu + 0.5), floor(sby + (vpn.wt + 40) * pu + 0.5); anchor: left center; size: 12.5; width: 416 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            box { at: spx + 149 * pu, sby + (vpn.wt + 70) * pu; size: 270 * pu, 28 * pu; corner: 9 * pu; color: ink; opacity: 8% }
+            group {
+                show: (((vpn.wt + 70) * pu - vpn.off) > 14 * pu and ((vpn.wt + 70) * pu - vpn.off) < (set.h - 14) * pu)
+                input wx_in { at: floor(spx + 26 * pu + 0.5), floor(sby + (vpn.wt + 70) * pu - 6.5 * pu + 0.5); width: 250 * pu; size: 14; color: ink; family: "Space Grotesk"; placeholder: "City or ZIP code" }
+            }
+            box { at: spx + 322 * pu, sby + (vpn.wt + 70) * pu; size: 62 * pu, 28 * pu; corner: 9 * pu; color: mint; opacity: 18% + 8% * wx_set_hit.hover }
+            text "Set" { at: floor(spx + 322 * pu + 0.5), floor(sby + (vpn.wt + 70) * pu + 0.5); anchor: center; align: center; size: 13; weight: 700; width: 58 * pu; lines: 1; color: mint; family: "Space Grotesk" }
+            zone box wx_set_hit { at: spx + 322 * pu, sby + (vpn.wt + 70) * pu; size: 62 * pu, 28 * pu; corner: 9 * pu; cursor: pointer; active: (sby + (vpn.wt + 70) * pu) - vpn.off > sby and (sby + (vpn.wt + 70) * pu) - vpn.off < sby + set.h * pu }
+            on press wx_set_hit { emit wx_set }
+            box { at: spx + 393 * pu, sby + (vpn.wt + 70) * pu; size: 58 * pu, 28 * pu; corner: 9 * pu; color: ink; opacity: 8% + 6% * wx_auto_hit.hover }
+            text "Auto" { at: floor(spx + 393 * pu + 0.5), floor(sby + (vpn.wt + 70) * pu + 0.5); anchor: center; align: center; size: 13; weight: 700; width: 54 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            zone box wx_auto_hit { at: spx + 393 * pu, sby + (vpn.wt + 70) * pu; size: 58 * pu, 28 * pu; corner: 9 * pu; cursor: pointer; active: (sby + (vpn.wt + 70) * pu) - vpn.off > sby and (sby + (vpn.wt + 70) * pu) - vpn.off < sby + set.h * pu }
+            on press wx_auto_hit { emit wx_auto }
+            text "Units" { at: floor(spx + 14 * pu + 0.5), floor(sby + (vpn.wt + 104) * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: spx + 194 * pu, sby + (vpn.wt + 104) * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, wxcf0); opacity: 8% + 20% * wxcf0 + 6% * wx_u0.hover }
+            text "Fahrenheit" { at: floor(spx + 194 * pu + 0.5), floor(sby + (vpn.wt + 104) * pu + 0.5); anchor: center; align: center; size: 13; weight: 700; width: 84 * pu; lines: 1; color: mix(ink, mint, wxcf0); family: "Space Grotesk" }
+            zone box wx_u0 { at: spx + 194 * pu, sby + (vpn.wt + 104) * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + (vpn.wt + 104) * pu) - vpn.off > sby and (sby + (vpn.wt + 104) * pu) - vpn.off < sby + set.h * pu }
+            on press wx_u0 { emit wx_units_set(0) }
+            box { at: spx + 286 * pu, sby + (vpn.wt + 104) * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, wxcf1); opacity: 8% + 20% * wxcf1 + 6% * wx_u1.hover }
+            text "Celsius" { at: floor(spx + 286 * pu + 0.5), floor(sby + (vpn.wt + 104) * pu + 0.5); anchor: center; align: center; size: 13; weight: 700; width: 84 * pu; lines: 1; color: mix(ink, mint, wxcf1); family: "Space Grotesk" }
+            zone box wx_u1 { at: spx + 286 * pu, sby + (vpn.wt + 104) * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + (vpn.wt + 104) * pu) - vpn.off > sby and (sby + (vpn.wt + 104) * pu) - vpn.off < sby + set.h * pu }
+            on press wx_u1 { emit wx_units_set(1) }
             }
             let vpn.thh = set.h * set.h / vpn.h
             let vpn.thy = vpn.thh / 2 + vpn.sc / max(1, vpn.h - set.h) * (set.h - vpn.thh)
