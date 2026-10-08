@@ -2,6 +2,7 @@ language 0.1
 
 import "palette-live.plm"
 import "desktopclock/clockface.plm"
+import "desktopclock/clockface_styled.plm"
 
 //  Vitreus: a bar of liquid glass. The glass only blurs what is behind it (the
 //  compositor does it; `lens: false`, unless the Glass page turns bending on), and the panel is not stuck under the
@@ -1053,6 +1054,17 @@ scene Vitreus {
     //  The clock's hours, minutes and divider, each with a style of its own (Widgets page): the one picked (0 hours, 1 minutes, 2 divider) and its weight, size and tint
     //  as a step (0 to 4) of the lists in the logic.
     fact gl_sel = 0
+    //  What the clock scene holds for each part (the logic mirrors it), which the example clock in the Widgets page draws: a weight and a size (multipliers, 1 is the
+    //  normal one) and a tint (0 glass, 1 mint, 2 light, 3 rose, 4 grey) for the hours (`gh`), the minutes (`gm`) and the divider (`gs`).
+    fact ghw = 1
+    fact ghz = 1
+    fact ghc = 0
+    fact gmw = 1
+    fact gmz = 1
+    fact gmc = 0
+    fact gsw = 1
+    fact gsz = 1
+    fact gsc = 0
     fact gl_w = 2
     fact gl_z = 2
     fact gl_c = 0
@@ -2399,7 +2411,7 @@ scene Vitreus {
     let vpn.ab = vpn.pb + vpn.pbh + 12
     let vpn.fh = if(vpn_mode == vpm_wg, 180, if(vpn_mode == vpm_ovpn, 144, 276))
     let wm.h = 782                     // the Pleamar-WM page: to the bottom of its last card
-    let ck.h = 744                     // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
+    let ck.h = 826                     // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
     let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36

@@ -83,7 +83,17 @@ return function()
         end
         return best - 1
     end
+    -- the example clock in the page draws each part with its own style: the scene's facts follow
+    local function mirror()
+        for i = 0, 2 do
+            local n = gname(i)
+            fact["g" .. n .. "w"] = GP[i][1]
+            fact["g" .. n .. "z"] = GP[i][2]
+            fact["g" .. n .. "c"] = GP[i][3]
+        end
+    end
     local function show_sel()
+        mirror()
         local g = GP[fact.gl_sel] or { 1, 1, 0 }
         fact.gl_w = step(WS, g[1])
         fact.gl_z = step(ZS, g[2])
@@ -109,6 +119,7 @@ return function()
     local function set_glyph(slot, key, value)
         local i = fact.gl_sel
         GP[i][slot] = value
+        mirror()
         say("fact g" .. gname(i) .. key .. " " .. value)
     end
     on("gl_w_set", function(j) j = math.max(0, math.min(4, math.floor(j + 0.5))); fact.gl_w = j; set_glyph(1, "w", WS[j + 1]) end)

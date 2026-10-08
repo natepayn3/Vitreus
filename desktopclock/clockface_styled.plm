@@ -39,15 +39,15 @@ library ClockFaceStyled {
         let ox3 = (1 - z3) * 23 * k * m23
         let oy3 = (1 - z3) * 44 * k * m23
         let hi = if(d0 < 0, 0 - 38 * k, 0)        // no tens in the hour: what is left is still centred (in the layouts where that is the thing to centre)
-        let x0 = if(lay == 0, cx - 149 * k, if(lay == 1, cx - 61 * k + hi, if(lay == 2, cx - 13.8 * k, if(lay == 3, cx - 152 * k + hi, if(lay == 4, cx - 130 * k, cx - 61 * k + hi)))))
-        let x1 = if(lay == 0, x0 + 76 * k, if(lay == 1, x0 + 76 * k, if(lay == 2, x0, if(lay == 3, x0 + 76 * k, if(lay == 4, x0 + 76 * k, x0 + 76 * k)))))
-        let x2 = if(lay == 0, cx + 27 * k, if(lay == 1, cx - 61 * k, if(lay == 2, cx - 13.8 * k, if(lay == 3, x1 + 106 * k, if(lay == 4, cx + 8 * k, cx)))))
-        let x3 = if(lay == 0, x2 + 76 * k, if(lay == 1, x2 + 76 * k, if(lay == 2, x2, if(lay == 3, x2 + 76 * k, if(lay == 4, x2 + 76 * k, x2 + 38 * k)))))
-        let y0 = if(lay == 0, cy - 44 * k, if(lay == 1, cy - 111 * k, if(lay == 2, cy - 130.6 * k, if(lay == 3, cy - 44 * k, if(lay == 4, cy - 112 * k, cy - 84 * k)))))
-        let y1 = if(lay == 0, y0, if(lay == 1, y0, if(lay == 2, y0 + 64.8 * k, if(lay == 3, y0, if(lay == 4, y0, y0)))))
-        let y2 = if(lay == 0, y0, if(lay == 1, cy + 23 * k, if(lay == 2, y1 + 78.8 * k, if(lay == 3, y0, if(lay == 4, cy + 24 * k, cy + 40 * k)))))
-        let y3 = if(lay == 0, y2, if(lay == 1, y2, if(lay == 2, y2 + 64.8 * k, if(lay == 3, y2, if(lay == 4, y2, y2)))))
-        let ccx = (x1 + 46 * k + x2) / 2
+        let bx0 = if(lay == 0, cx - 149 * k, if(lay == 1, cx - 61 * k + hi, if(lay == 2, cx - 13.8 * k, if(lay == 3, cx - 152 * k + hi, if(lay == 4, cx - 130 * k, cx - 61 * k + hi)))))
+        let bx1 = if(lay == 0, bx0 + 76 * k, if(lay == 1, bx0 + 76 * k, if(lay == 2, bx0, if(lay == 3, bx0 + 76 * k, if(lay == 4, bx0 + 76 * k, bx0 + 76 * k)))))
+        let bx2 = if(lay == 0, cx + 27 * k, if(lay == 1, cx - 61 * k, if(lay == 2, cx - 13.8 * k, if(lay == 3, bx1 + 106 * k, if(lay == 4, cx + 8 * k, cx)))))
+        let bx3 = if(lay == 0, bx2 + 76 * k, if(lay == 1, bx2 + 76 * k, if(lay == 2, bx2, if(lay == 3, bx2 + 76 * k, if(lay == 4, bx2 + 76 * k, bx2 + 38 * k)))))
+        let by0 = if(lay == 0, cy - 44 * k, if(lay == 1, cy - 111 * k, if(lay == 2, cy - 130.6 * k, if(lay == 3, cy - 44 * k, if(lay == 4, cy - 112 * k, cy - 84 * k)))))
+        let by1 = if(lay == 0, by0, if(lay == 1, by0, if(lay == 2, by0 + 64.8 * k, if(lay == 3, by0, if(lay == 4, by0, by0)))))
+        let by2 = if(lay == 0, by0, if(lay == 1, cy + 23 * k, if(lay == 2, by1 + 78.8 * k, if(lay == 3, by0, if(lay == 4, cy + 24 * k, cy + 40 * k)))))
+        let by3 = if(lay == 0, by2, if(lay == 1, by2, if(lay == 2, by2 + 64.8 * k, if(lay == 3, by2, if(lay == 4, by2, by2)))))
+        let ccx = (bx1 + 46 * k + bx2) / 2
         let wts = wt * gsw
         let ks = k * gsz
         let cd = if(lay == 3, 0, 30000)            // the colon: only in the digital layout
@@ -55,8 +55,36 @@ library ClockFaceStyled {
         let bt = 6 * wts * ks
         let bw = if(lay == 0, bt, if(lay == 1, 122 * ks, if(lay == 2, 62 * ks, if(lay == 3, bt, if(lay == 4, bt, 122 * ks)))))
         let bh = if(lay == 0, 118 * ks, if(lay == 1, bt, if(lay == 2, bt, if(lay == 3, bt, if(lay == 4, bt, bt)))))
-        let bpy = if(lay == 5, cy + 22 * ks, cy)
+        let bpy = if(lay == 5, cy + 22 * k, cy)       // (the hero's line stays where it is when it grows: it grows in place, not towards the minutes)
         let bd = if(lay == 3 or lay == 4, 30000, 0)
+
+        //  Room for what grows. A bigger or bolder part grows round its own middle, so it needs more room than the layout gave it: how much each part grows
+        //  towards its neighbours (`ge_*` the hours', `me_*` the minutes', `dv` the divider's line, `dc` the colon's dots), and the parts are moved apart by that,
+        //  so that no part ever touches another. `_h` is sideways, `_v` up and down. Two digits of one part also keep apart (`sh*`, `sv*`).
+        let ge_h = max(0, 1.4 * k * m01 * (ghz * (23 + 6.5 * wt * ghw) - (23 + 6.5 * wt)))
+        let ge_v = max(0, 1.4 * k * m01 * (ghz * (44 + 6.5 * wt * ghw) - (44 + 6.5 * wt)))
+        let me_h = max(0, 1.4 * k * m23 * (gmz * (23 + 6.5 * wt * gmw) - (23 + 6.5 * wt)))
+        let me_v = max(0, 1.4 * k * m23 * (gmz * (44 + 6.5 * wt * gmw) - (44 + 6.5 * wt)))
+        let dv = max(0, 4.2 * wt * k * (gsw * gsz - 1))
+        let dc = max(0, 9.8 * wt * k * (gsw * gsz - 1))
+        let gap_h = if(lay == 2, 12, 30) * k
+        let gap_m = if(lay == 2, 12, if(lay == 5, 15, 30)) * k
+        let sh = if(lay == 2, 0, max(0, 2 * ge_h - 0.5 * gap_h))
+        let sm = if(lay == 2, 0, max(0, 2 * me_h - 0.5 * gap_m))
+        let svh = if(lay == 2, max(0, 2 * ge_v - 0.5 * gap_h), 0)
+        let svm = if(lay == 2, max(0, 2 * me_v - 0.5 * gap_m), 0)
+        let ghx = if(lay == 0 or lay == 4, 0 - (ge_h + dv + sh / 2), if(lay == 3, 0 - (ge_h + dc + sh / 2), 0))
+        let gmx = if(lay == 0 or lay == 4, me_h + dv + sm / 2, if(lay == 3, me_h + dc + sm / 2, 0))
+        let ghy = if(lay == 1 or lay == 4 or lay == 5 or lay == 2, 0 - (ge_v + dv), 0)
+        let gmy = if(lay == 1 or lay == 4 or lay == 5 or lay == 2, me_v + dv, 0)
+        let x0 = bx0 + ghx - sh / 2
+        let x1 = bx1 + ghx + sh / 2
+        let x2 = bx2 + gmx - sm / 2
+        let x3 = bx3 + gmx + sm / 2
+        let y1 = by1 + ghy
+        let y0 = by0 + ghy - svh
+        let y2 = by2 + gmy
+        let y3 = by3 + gmy + svm
         body {
             color: if(ci0 == 1, p_mint, if(ci0 == 2, p_ink, if(ci0 == 3, p_alert, if(ci0 == 4, p_faint, tint))))
             glass: gl
