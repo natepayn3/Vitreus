@@ -16,7 +16,8 @@ part Player {
             show: dm_mode == dmm_player
             opacity: f3
             move: 0, (1 - f3) * 12 * cu
-            let my = ck + (media_top + media_h / 2) * cu
+            let my = ck + (media_top + mix(20, 48, media_open)) * cu      // the song's row: the plate's middle at rest, its top part once it is a card
+            let mpc = ck + (media_top + media_h / 2) * cu                    // the plate's middle
             let ax = mdx - 96 * cu                     // the cover's centre
             let ny = my + 26 * cu                     // the controls' row
             let px = mdx - 30 * cu                     // previous
@@ -25,7 +26,7 @@ part Player {
             let sw = clamp(swap, 0, 1.12)
 
             //  The plate is exactly the volume plate: the same 8% veil and the same corners.
-            box { at: mdx, my; size: 288 * cu, media_h * cu; corner: 14 * cu; color: ink; opacity: veil }
+            box { at: mdx, mpc; size: 288 * cu, media_h * cu; corner: 14 * cu; color: ink; opacity: veil }
 
             //  Idle: a note, the way Wi-Fi and Bluetooth say their own name at rest.
             group {
@@ -102,6 +103,28 @@ part Player {
                     box { at: bx, my + 36 * cu - bh / 2; size: 7 * cu, bh; corner: 3.5 * cu; color: mix(mint, ink, spec.s.$i)
                           opacity: playf * (55% + 45% * spec.s.$i) }
                 }
+            }
+
+            //  The seek row: elapsed, a track filled as far as the song has gone with a knob at the end, and the length. Pressed or dragged
+            //  along, it follows the pointer and seeks where it is let go. A stream with no end has no bar, only how long it has played.
+            group {
+                opacity: media_open
+                show: media_open > 0.01
+                let sy = my + 54 * cu
+                let s0 = mdx - 96 * cu
+                let sw_ = 192 * cu
+                let sf = if(mp_drag, mp_df, mp_pf)
+                let hot = max(mp.seek.hover, if(mp_drag, 1, 0))
+                text mp_el { at: floor(mdx - 132 * cu + 0.5), floor(sy + 0.5); anchor: left center; size: 11.5; weight: 600; width: 34 * cu; lines: 1; color: faint; family: "Space Grotesk" }
+                text mp_tot { at: floor(mdx + 132 * cu + 0.5), floor(sy + 0.5); anchor: right center; align: right; size: 11.5; weight: 600; width: 34 * cu; lines: 1; color: faint; family: "Space Grotesk"; show: mp_len > 0 }
+                text "Live" { at: floor(mdx + 132 * cu + 0.5), floor(sy + 0.5); anchor: right center; align: right; size: 11.5; weight: 700; color: mint; family: "Space Grotesk"; show: mp_len <= 0 }
+                box { at: s0 + sw_ / 2, sy; size: sw_, (4 + 2 * hot) * cu; corner: 3 * cu; color: ink; opacity: 14%; show: mp_len > 0 }
+                box { at: s0 + max(sw_ * sf, 4 * cu) / 2, sy; size: max(sw_ * sf, 4 * cu), (4 + 2 * hot) * cu; corner: 3 * cu; color: mint; show: mp_len > 0 }
+                ellipse { at: s0 + sw_ * sf, sy; radius: (4.5 + 2.5 * hot) * cu; color: ink; show: mp_len > 0 }
+                zone box mp.seek { at: s0 + sw_ / 2, sy; size: sw_ + 16 * cu, 22 * cu; cursor: pointer; active: mp_len > 0 and media_open > 0.5 }
+                on press mp.seek { mp_drag = true; mp_df = clamp((pointer.x - s0) / sw_, 0, 1) }
+                on drag mp.seek { mp_df = clamp((pointer.x - s0) / sw_, 0, 1) }
+                on release mp.seek { mp_drag = false; mp_pos = mp_df * mp_len; mp_pf: mp_df ~0ms; emit mp_seek(mp_df) }      // it stays where it was let go: no glide back
             }
 
             //  A new song throws sparks off the cover.

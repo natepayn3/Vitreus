@@ -269,6 +269,51 @@ sys.watch("media", function(m)
         if not first then emit("trackchange") end
     end
 end)
+-- The seek row. MPRIS does not say where a song is as it plays, so while the player is open and something plays, `playerctl position` is read once
+-- a second; the length comes with the song. A seek goes to the same player (or, if the name the service gave is not one playerctl knows, to whichever is).
+local mp_player, mp_quiet = "", 0               -- `mp_quiet`: a seek was just asked for; readings wait, a player takes a moment to get there
+local function mp_clock(sec)
+    sec = math.max(0, math.floor((sec or 0) + 0.5))
+    local h, m, s2 = sec // 3600, (sec % 3600) // 60, sec % 60
+    if h > 0 then return string.format("%d:%02d:%02d", h, m, s2) end
+    return string.format("%d:%02d", m, s2)
+end
+local function mp_show(pos)
+    fact.mp_pos = pos
+    text.mp_el = mp_clock(pos)
+end
+local function mp_read()
+    if mp_player == "" or mp_quiet > 0 then return end
+    run("playerctl", { "-p", mp_player, "position" }, function(out, code)
+        local v = code == 0 and tonumber((tostring(out or "")):match("[%d%.]+")) or nil
+        if v then mp_show(v) return end
+        run("playerctl", { "position" }, function(out2, code2)
+            local w = code2 == 0 and tonumber((tostring(out2 or "")):match("[%d%.]+")) or nil
+            if w then mp_show(w) end
+        end)
+    end)
+end
+every(1000, function()
+    if fact.panel == "player" and fact.media_on and not fact.mp_drag then mp_read() end
+end)
+on("fact:panel", function(v) if v == "player" then mp_read() end end)
+sys.watch("media", function(m)
+    mp_player = m.player or ""
+    local len = tonumber(m.length) or 0
+    fact.mp_len = len
+    text.mp_tot = len > 0 and mp_clock(len) or ""
+end)
+on("mp_seek", function(f)
+    if type(f) ~= "number" or (fact.mp_len or 0) <= 0 or mp_player == "" then return end
+    local to = math.max(0, math.min(1, f)) * fact.mp_len
+    mp_show(to)                                            -- the bar stays where it was let go, not where the last reading had it
+    mp_quiet = mp_quiet + 1
+    after(1500, function() mp_quiet = math.max(0, mp_quiet - 1) end)
+    local secs = string.format("%.2f", to)
+    run("playerctl", { "-p", mp_player, "position", secs }, function(_, code)
+        if code ~= 0 then run("playerctl", { "position", secs }, function() end) end
+    end)
+end)
 on("mcmd", function(k)
     sys.call(k == 0 and "media.previous" or (k == 1 and "media.toggle" or "media.next"))
 end)

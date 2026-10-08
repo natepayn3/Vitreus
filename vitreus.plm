@@ -52,7 +52,7 @@ scene Vitreus {
     service clock as now { time: text = "--:--"; date: text }
     service audio { volume: number; muted: bool }
     service window as win { title: text; class: text }
-    service media { playing: bool; title: text; artist: text; player: text }
+    service media { playing: bool; title: text; artist: text; player: text; length: number }
     service brightness { present: bool; level: number }
     service battery as pwr { present: bool; percent: number; charging: bool }     // the bar is its gauge (see `batt_*`)
     service network as net { online: bool; wifi: bool; name: text; strength: number; networks: wifi_nets }
@@ -1368,6 +1368,17 @@ scene Vitreus {
     }
     follow mshow = if(media_on, 1, 0)
     follow media_open = if(media_on, 1, 0)
+    //  Where the song is: the logic reads it once a second while the player is open (MPRIS does not say it as it moves), and the bar follows on a
+    //  spring a second long, so it glides from one reading to the next. Dragging along the bar shows where the pointer is, and letting go seeks there.
+    fact mp_len = 0                     // seconds; 0 for a stream with no end
+    fact mp_pos = 0                     // seconds
+    text mp_el = ""                     // 1:42
+    text mp_tot = ""                    // 3:58
+    prop mp_pf = 0 ~1000ms
+    follow mp_pf = if(mp_len > 0, clamp(mp_pos / mp_len, 0, 1), 0)
+    fact mp_drag = false
+    fact mp_df = 0
+    event mp_seek ->                    // where to, 0 to 1
     follow playf = if(media.playing, 1, 0)
     on trackchange {
         swap: 0 ~16ms
@@ -2096,7 +2107,7 @@ scene Vitreus {
     let vol_bot    = vol_top + 64
     //  The player's plate is alone in its own panel now, at the top of it.
     let media_top  = 8
-    let media_h    = mix(40, 96, media_open)
+    let media_h    = mix(40, 124, media_open)   // the full card has the seek row under the song and the controls
     let media_bot  = media_top + media_h
     //  Either tile can grow past the stack into its own window - as tall as its
     //  list actually is (one open row taller, while one is), up to a ceiling
