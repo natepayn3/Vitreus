@@ -78,10 +78,32 @@ part Desk {
                 group {
                     opacity: fd2
                     move: 0, (1 - fd2) * 12 * cu
-                text "Nothing on the shelf yet" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 200 * cu + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: shelf_n < 1 }
+                text "Nothing on the shelf yet" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 200 * cu + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: shelf_n < 1 and not shelf_locked }
+                //  The locker: with the box ticked the shelf starts out shut and hides what is on it, until the login password is typed.
+                group {
+                    show: shelf_locked
+                    arc { at: dsk_xc, dsk_y0 + 146 * cu; radius: 11 * cu; span: 180deg; width: 3.6 * cu; color: ink; opacity: 85%; rotate: 0deg }
+                    box { at: dsk_xc, dsk_y0 + 166 * cu; size: 42 * cu, 30 * cu; corner: 9 * cu; color: ink; opacity: 85% }
+                    ellipse { at: dsk_xc, dsk_y0 + 164 * cu; radius: 3.6 * cu; color: deep }
+                    box { at: dsk_xc, dsk_y0 + 169 * cu; size: 2.6 * cu, 7 * cu; corner: 1.3 * cu; color: deep }
+                    text "Locked" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 202 * cu + 0.5); anchor: center; align: center; size: 15; weight: 700; color: ink; family: "Space Grotesk" }
+                    text shelf_locked_txt { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 220 * cu + 0.5); anchor: center; align: center; size: 12; color: faint; width: 280 * cu; lines: 1; family: "Space Grotesk" }
+                    box { at: dsk_xc - 36 * cu, dsk_y0 + 254 * cu; size: 180 * cu, 30 * cu; corner: 10 * cu; color: ink; opacity: 9% }
+                    input shelf_pw { at: floor(dsk_xc - 36 * cu - 90 * cu + 12 * cu + 0.5), floor(dsk_y0 + 254 * cu - 6.5 * cu + 0.5); width: 156 * cu; size: 13; color: ink; family: "Space Grotesk"; secret: true; placeholder: "Your password" }
+                    zone box shelf_pw_z { at: dsk_xc - 36 * cu, dsk_y0 + 254 * cu; size: 180 * cu, 30 * cu; corner: 10 * cu; cursor: text }
+                    on press shelf_pw_z { focus shelf_pw; desk_kb = true }
+                    box { at: dsk_xc + 92 * cu, dsk_y0 + 254 * cu; size: 64 * cu, 30 * cu; corner: 10 * cu; color: mint; opacity: 20% + 10% * shelf_unlock_z.hover }
+                    text "Unlock" { at: floor(dsk_xc + 92 * cu + 0.5), floor(dsk_y0 + 254 * cu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; color: mint; family: "Space Grotesk" }
+                    zone box shelf_unlock_z { at: dsk_xc + 92 * cu, dsk_y0 + 254 * cu; size: 64 * cu, 30 * cu; corner: 10 * cu; cursor: pointer; active: not shelf_authing }
+                    on press shelf_unlock_z { emit shelf_unlock }
+                    text "That is not the password" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 284 * cu + 0.5); anchor: center; align: center; size: 11.5; color: #ef4444; family: "Space Grotesk"; show: shelf_bad and not shelf_authing }
+                    text shelf_warn { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 304 * cu + 0.5); anchor: center; align: center; size: 10.5; color: #ef4444; opacity: 85%; width: 300 * cu; lines: 2; family: "Space Grotesk"; show: shelf_bad and not shelf_authing }
+                    text "Checking..." { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 284 * cu + 0.5); anchor: center; align: center; size: 11.5; color: faint; family: "Space Grotesk"; show: shelf_authing }
+                }
+                //  A grid of tiles, three across: a picture or a video fills its tile (its name along the foot), anything else shows what kind it is.
                 repeat k in 0..8 {
-                    let cx_ = dsk_xc + (mod(k, 2) - 0.5) * 158 * cu
-                    let cy_ = dsk_y0 + 132 * cu + floor(k / 2) * 50 * cu
+                    let cx_ = dsk_xc + (mod(k, 3) - 1) * 110 * cu
+                    let cy_ = dsk_y0 + (148 + floor(k / 3) * 102) * cu
                     group {
                         show: shelf.$k.has
                         opacity: 1 - clamp(shelf.$k.out, 0, 1)
@@ -90,19 +112,29 @@ part Desk {
                             color: ink
                             opacity: 8% + 9% * max(shelf_card.$k.hover, shelf_x.$k.hover)
                             rim: 14% + 14% * max(shelf_card.$k.hover, shelf_x.$k.hover)
-                            box { at: cx_, cy_; size: 150 * cu, 42 * cu; corner: 13 * cu }
+                            box { at: cx_, cy_; size: 104 * cu, 96 * cu; corner: 14 * cu }
                         }
-                        box { at: cx_ - 54 * cu, cy_; size: 30 * cu, 30 * cu; corner: 9 * cu; color: mint; opacity: 20% }
-                        text shelf.$k.tag { at: floor(cx_ - 54 * cu + 0.5), floor(cy_ + 0.5); anchor: center; align: center; size: 9.5; weight: 700; width: 28 * cu; lines: 1; color: mint; family: "Space Grotesk" }
-                        text shelf.$k.name { at: floor(cx_ - 34 * cu + 0.5), floor(cy_ + 0.5); anchor: left center; size: 11.5; weight: 600; width: 74 * cu; lines: 1; color: ink; opacity: 90%; family: "Space Grotesk" }
-                        zone box shelf_card.$k { at: cx_, cy_; size: 150 * cu, 42 * cu; corner: 13 * cu; cursor: pointer; carries: "{shelf.$k.path}" }
-                        ellipse { at: cx_ + 62 * cu, cy_ - 13 * cu; radius: 7 * cu; color: ink; opacity: 14% * shelf_x.$k.hover * max(shelf_card.$k.hover, shelf_x.$k.hover) }
-                        path { at: cx_ + 62 * cu, cy_ - 13 * cu; stroke: 1.4 * cu; color: ink; opacity: 85% * max(shelf_card.$k.hover, shelf_x.$k.hover); move -2.2 * cu, -2.2 * cu; line 2.2 * cu, 2.2 * cu }
-                        path { at: cx_ + 62 * cu, cy_ - 13 * cu; stroke: 1.4 * cu; color: ink; opacity: 85% * max(shelf_card.$k.hover, shelf_x.$k.hover); move 2.2 * cu, -2.2 * cu; line -2.2 * cu, 2.2 * cu }
-                        zone box shelf_x.$k { at: cx_ + 62 * cu, cy_ - 13 * cu; size: 18 * cu, 18 * cu; cursor: pointer }
-                        //  A text or a link can be asked about: a small Ask on the card's foot, while it is under the pointer.
-                        text "Ask" { at: cx_ + 50 * cu, cy_ + 13 * cu; anchor: center; align: center; size: 9.5; weight: 700; color: mint; opacity: 95% * max(shelf_card.$k.hover, shelf_ask.$k.hover); family: "Space Grotesk"; show: shelf.$k.askable }
-                        zone box shelf_ask.$k { at: cx_ + 50 * cu, cy_ + 13 * cu; size: 30 * cu, 16 * cu; cursor: pointer; active: shelf.$k.askable }
+                        group {
+                            show: shelf.$k.thumbed
+                            clip inset 0 box { at: cx_, cy_; size: 104 * cu, 96 * cu; corner: 14 * cu }
+                            image shelf.$k.im { at: cx_ - 52 * cu, cy_ - 52 * cu; size: 104 * cu, 104 * cu }
+                            box { at: cx_, cy_ + 37 * cu; size: 106 * cu, 24 * cu; color: deep; opacity: 62% }
+                        }
+                        box { at: cx_, cy_ - 12 * cu; size: 46 * cu, 46 * cu; corner: 13 * cu; color: mint; opacity: 20%; show: not shelf.$k.thumbed }
+                        text shelf.$k.tag { at: floor(cx_ + 0.5), floor(cy_ - 12 * cu + 0.5); anchor: center; align: center; size: 12; weight: 700; width: 44 * cu; lines: 1; color: mint; family: "Space Grotesk"; show: not shelf.$k.thumbed }
+                        text shelf.$k.name { at: floor(cx_ + 0.5), floor(cy_ + if(shelf.$k.thumbed, 37, 31) * cu + 0.5); anchor: center; align: center; size: 11; weight: 600; width: 94 * cu; lines: 1; color: ink; opacity: 92%; family: "Space Grotesk" }
+                        zone box shelf_card.$k { at: cx_, cy_; size: 104 * cu, 96 * cu; corner: 14 * cu; cursor: pointer; carries: "{shelf.$k.path}" }
+                        on press shelf_card.$k { shelf_px = pointer.x; shelf_py = pointer.y }
+                        on release shelf_card.$k while length(pointer.x - shelf_px, pointer.y - shelf_py) < 8 * cu { emit shelf_open(k) }
+                        //  The cross, top right, on a dark disc so that it shows on a picture too, while the tile is under the pointer.
+                        ellipse { at: cx_ + 40 * cu, cy_ - 34 * cu; radius: 10 * cu; color: deep; opacity: 60% * max(shelf_card.$k.hover, shelf_x.$k.hover) }
+                        path { at: cx_ + 40 * cu, cy_ - 34 * cu; stroke: 1.5 * cu; color: ink; opacity: 90% * max(shelf_card.$k.hover, shelf_x.$k.hover); move -2.8 * cu, -2.8 * cu; line 2.8 * cu, 2.8 * cu }
+                        path { at: cx_ + 40 * cu, cy_ - 34 * cu; stroke: 1.5 * cu; color: ink; opacity: 90% * max(shelf_card.$k.hover, shelf_x.$k.hover); move 2.8 * cu, -2.8 * cu; line -2.8 * cu, 2.8 * cu }
+                        zone box shelf_x.$k { at: cx_ + 40 * cu, cy_ - 34 * cu; size: 22 * cu, 22 * cu; cursor: pointer }
+                        //  A text or a link can be asked about: a small Ask in the top left corner, while the tile is under the pointer.
+                        box { at: cx_ - 36 * cu, cy_ - 34 * cu; size: 28 * cu, 16 * cu; corner: 8 * cu; color: deep; opacity: 55% * max(shelf_card.$k.hover, shelf_ask.$k.hover); show: shelf.$k.askable }
+                        text "Ask" { at: cx_ - 36 * cu, cy_ - 34 * cu; anchor: center; align: center; size: 9.5; weight: 700; color: mint; opacity: 95% * max(shelf_card.$k.hover, shelf_ask.$k.hover); family: "Space Grotesk"; show: shelf.$k.askable }
+                        zone box shelf_ask.$k { at: cx_ - 36 * cu, cy_ - 34 * cu; size: 30 * cu, 18 * cu; cursor: pointer; active: shelf.$k.askable }
                         on press shelf_ask.$k { emit shelf_ask(k) }
                         on press shelf_x.$k { emit shelf_del(k) }
                     }
@@ -111,6 +143,17 @@ part Desk {
                 group {
                     opacity: fd3
                     move: 0, (1 - fd3) * 12 * cu
+                //  The box that makes it a locker (only while it is open: to shut it off you open it first), and a Lock now beside it.
+                box { at: dsk_xc - 142 * cu, dsk_y0 + 421 * cu; size: 16 * cu, 16 * cu; corner: 5 * cu; color: mix(ink, mint, shelf_lock_f); opacity: 10% + 75% * shelf_lock_f; show: not shelf_locked }
+                box { at: dsk_xc - 142 * cu, dsk_y0 + 421 * cu; size: 16 * cu, 16 * cu; corner: 5 * cu; stroke: 1.3 * cu; color: mix(ink, mint, shelf_lock_f); opacity: 55%; show: not shelf_locked }
+                path { at: dsk_xc - 142 * cu, dsk_y0 + 421 * cu; stroke: 1.9 * cu; color: deep; opacity: shelf_lock_f; show: not shelf_locked; move -3.6 * cu, 0.3 * cu; line -1 * cu, 3 * cu; line 3.8 * cu, -3 * cu }
+                text "Lock with my password" { at: floor(dsk_xc - 129 * cu + 0.5), floor(dsk_y0 + 421 * cu + 0.5); anchor: left center; size: 11.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not shelf_locked }
+                zone box shelf_lockbox_z { at: dsk_xc - 84 * cu, dsk_y0 + 421 * cu; size: 150 * cu, 24 * cu; corner: 8 * cu; cursor: pointer; active: not shelf_locked }
+                on press shelf_lockbox_z { emit shelf_lock_toggle }
+                box { at: dsk_xc + 40 * cu, dsk_y0 + 421 * cu; size: 60 * cu, 26 * cu; corner: 11 * cu; color: ink; opacity: 8% + 10% * shelf_lock_now_z.hover; show: shelf_lock_on and not shelf_locked }
+                text "Lock now" { at: floor(dsk_xc + 40 * cu + 0.5), floor(dsk_y0 + 421 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: shelf_lock_on and not shelf_locked }
+                zone box shelf_lock_now_z { at: dsk_xc + 40 * cu, dsk_y0 + 421 * cu; size: 62 * cu, 28 * cu; corner: 12 * cu; cursor: pointer; active: shelf_lock_on and not shelf_locked }
+                on press shelf_lock_now_z { emit shelf_lock_now }
                 box { at: dsk_xc + 112 * cu, dsk_y0 + 421 * cu; size: 66 * cu, 26 * cu; corner: 11 * cu; color: ink; opacity: 8% + 10% * shelf_clear_b.hover; show: shelf_n > 0 }
                 text "Clear all" { at: floor(dsk_xc + 112 * cu + 0.5), floor(dsk_y0 + 421 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: shelf_n > 0 }
                 zone box shelf_clear_b { at: dsk_xc + 112 * cu, dsk_y0 + 421 * cu; size: 68 * cu, 28 * cu; corner: 12 * cu; cursor: pointer; active: shelf_n > 0 }

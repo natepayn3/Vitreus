@@ -43,7 +43,7 @@ scene Vitreus {
     fact pal_alert_g = 0.2667
     fact pal_alert_b = 0.2667
     surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) }
-    permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
+    permissions { services: "files", "files.write", "auth", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "vitreus-term", "claude", "ollama", "codex", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play", "ffmpeg", "tesseract" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
@@ -2535,6 +2535,9 @@ scene Vitreus {
         text shelf.$k.tag = ""
         fact shelf.$k.has = false
         fact shelf.$k.askable = false
+        text shelf.$k.thumb = ""                       // a picture of what it is (an image's, or a video's first moments), once the logic has made it
+        image shelf.$k.im = from shelf.$k.thumb, 104, 104
+        fact shelf.$k.thumbed = false
         //  The same for the shelf's cards: one that is dismissed slides off and fades, and the ones after it glide into its place.
         fact shelf.$k.gone = false
         prop shelf.$k.out = 0 ~180ms
@@ -2542,10 +2545,26 @@ scene Vitreus {
         prop shelf.$k.dy = 0 ~220ms
         on change shelf.$k.gone while shelf.$k.gone { shelf.$k.out: 1 ~180ms }
         on change shelf.$k.gone while not shelf.$k.gone { shelf.$k.out: 0 ~0ms }
-        on shelf_shifted(v) while k >= v { shelf.$k.dx: if(mod(k, 2) == 0, 158, -158) * cu ~0ms; shelf.$k.dy: if(mod(k, 2) == 0, 0, 50) * cu ~0ms; shelf.$k.dx: 0 ~220ms after 40ms; shelf.$k.dy: 0 ~220ms after 40ms }
+        on shelf_shifted(v) while k >= v { shelf.$k.dx: (mod(k + 1, 3) - mod(k, 3)) * 110 * cu ~0ms; shelf.$k.dy: (floor((k + 1) / 3) - floor(k / 3)) * 102 * cu ~0ms; shelf.$k.dx: 0 ~220ms after 40ms; shelf.$k.dy: 0 ~220ms after 40ms }
     }
     fact shelf_n = 0
+    //  The shelf as a locker: with the box ticked, what is on it stays hidden (the logic does not even put it in the scene) until your login password is given.
+    fact shelf_lock_on = false          // the box
+    fact shelf_locked = false           // shut now
+    text shelf_locked_txt = ""          // "3 things inside", while it is shut
+    text shelf_pw = ""                  // the field
+    fact shelf_authing = false
+    fact shelf_bad = false              // the last try was wrong
+    text shelf_warn = ""                // after two wrong tries: the system (faillock) locks password checks after the third, for everything that asks for it
+    prop shelf_lock_f = 0 ~quick
+    follow shelf_lock_f = if(shelf_lock_on, 1, 0)
+    event shelf_lock_toggle ->
+    event shelf_unlock ->
+    event shelf_lock_now ->
     event shelf_del ->
+    event shelf_open ->                 // a tile clicked (pressed and let go in place): open it with the default app, or copy a text
+    fact shelf_px = 0                   // where the press was, to tell a click from the start of a drag out
+    fact shelf_py = 0
     event shelf_clear ->
     event shelf_ask ->
     prop desk_drag = 0 ~120ms                               // 1 while something from another program is being carried over the desk

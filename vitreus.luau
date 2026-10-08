@@ -5577,7 +5577,7 @@ do
 end
 
 -- shelf: see logic/shelf.luau
-require("logic/shelf")()
+require("logic/shelf")(with_dirs)
 
 -- pad: see logic/pad.luau
 require("logic/pad")()
