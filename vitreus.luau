@@ -12,6 +12,10 @@ sys.watch("workspaces", function(w)
     for _, d in ipairs(w.list) do busy[d.id] = d.windows > 0 end
     for i = 1, 5 do fact["ws." .. i .. ".busy"] = busy[i] or false end
     fact["ws.active"] = w.active
+    -- No window on the workspace in view (one that is not in the list at all is empty too): see `ws_empty` in the scene.
+    local here = false
+    for _, d in ipairs(w.list) do if d.id == w.active and d.windows > 0 then here = true end end
+    fact.ws_empty = not here
     -- Going to a workspace answers whatever was asking for attention on it. (Globals: this chunk is at Luau's limit of locals.)
     if ws_urgent[w.active] then ws_urgent[w.active] = nil; fact["ws." .. w.active .. ".urgent"] = false end
 end)

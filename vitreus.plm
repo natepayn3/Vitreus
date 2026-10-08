@@ -42,7 +42,7 @@ scene Vitreus {
     fact pal_alert_r = 0.9373   // #ef4444
     fact pal_alert_g = 0.2667
     fact pal_alert_b = 0.2667
-    surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb }
+    surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) }
     permissions { services: "files", "files.write", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "vitreus-term", "claude", "ollama", "codex", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play", "ffmpeg", "tesseract" }
 
@@ -529,6 +529,10 @@ scene Vitreus {
     fact ws.active = 1
     repeat i in 1..6 { fact ws.$i.urgent = false }   // a window on that workspace asked for attention while it was out of view
     repeat i in 1..6 { fact ws.$i.busy = false }
+    //  Whether the workspace in view has no window. Hyprland takes the pointer away from a layer surface that does not hold the keyboard, on the first click, when there
+    //  is no window on the screen: it dropped the Desk's grip drag as it began (a slow drag that stayed over the panel was the only one that held). So with an empty
+    //  workspace the open Desk holds the keyboard (see the surface's rule), there being no window to take it from.
+    fact ws_empty = false
     event go ->
     event ov_go ->                     // a click on a workspace in the overview: it closes, then the switch
 
