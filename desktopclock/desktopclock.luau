@@ -6,12 +6,17 @@
 --   shown        whether the clock is on the desktop
 --   use_12_hour  12 or 24 hour clock
 --   size         the digits' height in pixels (100 to 340)
---   layout       0 pipe (12 | 34), 1 rule (a line between the hour and the minutes), 2 tower (a column), 3 capsule (12:34 in an outline), 4 slash, 5 hero
+--   layout       0 pipe (12 | 34), 1 rule (a line between the hour and the minutes), 2 tower (a column), 3 digital (12:34), 4 slash, 5 hero
 --   position     "top_left", "top", "top_right", "left", "center", "right", "bottom_left", "bottom" or "bottom_right"
 --   weight       the strokes: 0 thin, 1 regular, 2 bold
 --   clarity      the glass: 0 clear, 1 soft, 2 full
+--   glyphs       a style for the hours ("h"), the minutes ("m") and the divider ("s"): { w = weight multiplier, z = size multiplier, c = tint }, tint 0 the shell's glass,
+--                1 mint, 2 light, 3 rose, 4 grey. What is not there is the normal style (1, 1, 0)
 local POSITIONS = { top_left = true, top = true, top_right = true, left = true, center = true, right = true, bottom_left = true, bottom = true, bottom_right = true }
 local cfg = { shown = true, use_12_hour = true, size = 220, layout = 0, position = "center", weight = 1, clarity = 1 }
+local GL = { "h", "m", "s" }
+local glyphs = {}
+for _, g in ipairs(GL) do glyphs[g] = { w = 1, z = 1, c = 0 } end
 local function clampi(v, lo, hi) return math.max(lo, math.min(hi, math.floor(v + 0.5))) end
 do
     local ok, saved = pcall(sys.ask, "files.read", "desktopclock.json", "json")
@@ -24,11 +29,24 @@ do
         cfg.weight = clampi(cfg.weight, 0, 2)
         cfg.clarity = clampi(cfg.clarity, 0, 2)
         if not POSITIONS[cfg.position] then cfg.position = "center" end
+        if type(saved.glyphs) == "table" then
+            for _, g in ipairs(GL) do
+                local v = saved.glyphs[g]
+                if type(v) == "table" then
+                    if type(v.w) == "number" then glyphs[g].w = math.max(0.4, math.min(2, v.w)) end
+                    if type(v.z) == "number" then glyphs[g].z = math.max(0.5, math.min(1.5, v.z)) end
+                    if type(v.c) == "number" then glyphs[g].c = clampi(v.c, 0, 4) end
+                end
+            end
+        end
     elseif ok and saved == nil then
         pcall(sys.call, "files.write", "desktopclock.json", cfg)
     end
 end
-local function save() pcall(sys.call, "files.write", "desktopclock.json", cfg) end
+local function save()
+    cfg.glyphs = glyphs
+    pcall(sys.call, "files.write", "desktopclock.json", cfg)
+end
 
 fact.px = cfg.size
 fact.h12 = cfg.use_12_hour
@@ -37,6 +55,20 @@ fact.where = cfg.position
 fact.wti = cfg.weight
 fact.cli = cfg.clarity
 fact.shown = cfg.shown
+
+-- The glyph styles: a fact each (`ghw` is the hours' weight, `ghz` their size, `ghc` their tint; `gm…` the minutes', `gs…` the divider's), and all of them in `gpack`,
+-- "w,z,c;" for each glyph in order, so that the Settings page reads them at once.
+local function pack()
+    local parts = {}
+    for _, g in ipairs(GL) do parts[#parts + 1] = string.format("%.2f,%.2f,%d", glyphs[g].w, glyphs[g].z, glyphs[g].c) end
+    text.gpack = table.concat(parts, ";")
+end
+for _, g in ipairs(GL) do
+    fact["g" .. g .. "w"] = glyphs[g].w
+    fact["g" .. g .. "z"] = glyphs[g].z
+    fact["g" .. g .. "c"] = glyphs[g].c
+end
+pack()
 
 local last = nil
 local function show_time(c)
@@ -60,6 +92,22 @@ on("fact:lay", function(v) if type(v) == "number" then cfg.layout = clampi(v, 0,
 on("fact:where", function(v) if POSITIONS[v] then cfg.position = v; save() end end)
 on("fact:wti", function(v) if type(v) == "number" then cfg.weight = clampi(v, 0, 2); save() end end)
 on("fact:cli", function(v) if type(v) == "number" then cfg.clarity = clampi(v, 0, 2); save() end end)
+for _, g in ipairs(GL) do
+    on("fact:g" .. g .. "w", function(v) if type(v) == "number" then glyphs[g].w = math.max(0.4, math.min(2, v)); pack(); save() end end)
+    on("fact:g" .. g .. "z", function(v) if type(v) == "number" then glyphs[g].z = math.max(0.5, math.min(1.5, v)); pack(); save() end end)
+    on("fact:g" .. g .. "c", function(v) if type(v) == "number" then glyphs[g].c = clampi(v, 0, 4); pack(); save() end end)
+end
+on("fact:greset", function(v)
+    if v ~= 1 then return end
+    for _, g in ipairs(GL) do
+        glyphs[g] = { w = 1, z = 1, c = 0 }
+        fact["g" .. g .. "w"] = 1
+        fact["g" .. g .. "z"] = 1
+        fact["g" .. g .. "c"] = 0
+    end
+    pack(); save()
+    fact.greset = 0
+end)
 on("fact:h12", function(v)
     cfg.use_12_hour = v and true or false
     save()

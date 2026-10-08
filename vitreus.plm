@@ -978,7 +978,7 @@ scene Vitreus {
     //  Settings > Widgets (Clock first): the desktop clock is a scene of its own (desktopclock/), which keeps its settings in its own desktopclock.json. This page asks it
     //  for them when it opens (`ck_ok` is false when it does not answer, which is when it is not running) and tells it each change.
     fact ck_on = false
-    fact ck_lay = 0                    // the layout: 0 pipe, 1 rule, 2 tower, 3 capsule, 4 slash, 5 hero
+    fact ck_lay = 0                    // the layout: 0 pipe, 1 rule, 2 tower, 3 digital, 4 slash, 5 hero
     fact ck_pos = 4                    // where it sits, row by row: 0 top left, 1 top, 2 top right, 3 left, 4 centre, 5 right, 6 bottom left, 7 bottom, 8 bottom right
     fact ck_px = 220                   // the digits' height: 140, 220, 280 or 340
     fact ck_12h = true
@@ -996,6 +996,18 @@ scene Vitreus {
     event ck_pos_set ->                // 0 to 8, as above
     event ck_size_set ->               // 0 small, 1 medium, 2 large, 3 extra large
     event ck_12h_set ->                // 1 twelve hours, 0 twenty-four
+    //  The clock's hours, minutes and divider, each with a style of its own (Widgets page): the one picked (0 hours, 1 minutes, 2 divider) and its weight, size and tint
+    //  as a step (0 to 4) of the lists in the logic.
+    fact gl_sel = 0
+    fact gl_w = 2
+    fact gl_z = 2
+    fact gl_c = 0
+    event gl_pick ->
+    event gl_w_set ->
+    event gl_z_set ->
+    event gl_c_set ->
+    event gl_reset ->                  // the picked one back to the normal style
+    event gl_reset_all ->
     //  The desktop system monitor, further down the same page (the Widgets page): the same way, with its own scene (desktopsysmon/).
     fact sy_on = false
     fact sy_pos = 8                    // where it sits, row by row, as the clock's
@@ -2146,7 +2158,7 @@ scene Vitreus {
     let vpn.ab = vpn.pb + vpn.pbh + 12
     let vpn.fh = if(vpn_mode == vpm_wg, 180, if(vpn_mode == vpm_ovpn, 144, 276))
     let wm.h = 782                     // the Pleamar-WM page: to the bottom of its last card
-    let ck.h = 566                     // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
+    let ck.h = 744                     // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
     let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36

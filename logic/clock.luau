@@ -70,6 +70,64 @@ return function()
         if v then fact.ck_px = v; say("fact px " .. v) end
     end)
 
+    -- The clock's hours, minutes and divider: each has a weight and a size (a step of a list) and a tint. The Settings page works on the one picked
+    -- (`gl_sel`: 0 hours, 1 minutes, 2 divider); what the clock scene holds is read at once from its `gpack`, "w,z,c;" for each of the three.
+    local WS = { 0.6, 0.8, 1, 1.25, 1.5 }
+    local ZS = { 0.8, 0.9, 1, 1.1, 1.2 }
+    local GP = {}
+    for i = 0, 2 do GP[i] = { 1, 1, 0 } end
+    local function gname(i) return ({ [0] = "h", "m", "s" })[i] end
+    local function step(list, v)
+        local best, bd = 3, 1e9
+        for i, x in ipairs(list) do
+            local d = math.abs(x - v)
+            if d < bd then best, bd = i, d end
+        end
+        return best - 1
+    end
+    local function show_sel()
+        local g = GP[fact.gl_sel] or { 1, 1, 0 }
+        fact.gl_w = step(WS, g[1])
+        fact.gl_z = step(ZS, g[2])
+        fact.gl_c = math.max(0, math.min(4, math.floor(g[3] + 0.5)))
+    end
+    local function read_glyphs()
+        say("get gpack", function(out, code)
+            if code ~= 0 then return end
+            local i = 0
+            for w, z, c in trim(out):gmatch("([%d%.]+),([%d%.]+),(%d+)") do
+                if i <= 2 then GP[i] = { tonumber(w) or 1, tonumber(z) or 1, tonumber(c) or 0 } end
+                i = i + 1
+            end
+            show_sel()
+        end)
+    end
+    local refresh_clock = refresh
+    refresh = function() refresh_clock(); read_glyphs() end
+    on("gl_pick", function(i)
+        fact.gl_sel = math.max(0, math.min(2, math.floor(i + 0.5)))
+        show_sel()
+    end)
+    local function set_glyph(slot, key, value)
+        local i = fact.gl_sel
+        GP[i][slot] = value
+        say("fact g" .. gname(i) .. key .. " " .. value)
+    end
+    on("gl_w_set", function(j) j = math.max(0, math.min(4, math.floor(j + 0.5))); fact.gl_w = j; set_glyph(1, "w", WS[j + 1]) end)
+    on("gl_z_set", function(j) j = math.max(0, math.min(4, math.floor(j + 0.5))); fact.gl_z = j; set_glyph(2, "z", ZS[j + 1]) end)
+    on("gl_c_set", function(j) j = math.max(0, math.min(4, math.floor(j + 0.5))); fact.gl_c = j; set_glyph(3, "c", j) end)
+    on("gl_reset", function()
+        local i = fact.gl_sel
+        GP[i] = { 1, 1, 0 }
+        say("fact g" .. gname(i) .. "w 1"); say("fact g" .. gname(i) .. "z 1"); say("fact g" .. gname(i) .. "c 0")
+        show_sel()
+    end)
+    on("gl_reset_all", function()
+        for i = 0, 2 do GP[i] = { 1, 1, 0 } end
+        say("fact greset 1")
+        show_sel()
+    end)
+
     on("sy_toggle", function()
         local b = not fact.sy_on
         fact.sy_on = b

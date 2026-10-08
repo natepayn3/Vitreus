@@ -31,6 +31,24 @@ part Clock {
             let ckc0 = if(ck_cl == 0, 1, 0)
             let ckc1 = if(ck_cl == 1, 1, 0)
             let ckc2 = if(ck_cl == 2, 1, 0)
+            let gl_s0 = if(gl_sel == 0, 1, 0)
+            let gl_s1 = if(gl_sel == 1, 1, 0)
+            let gl_s2 = if(gl_sel == 2, 1, 0)
+            let gwb0f = if(gl_w == 0, 1, 0)
+            let gwb1f = if(gl_w == 1, 1, 0)
+            let gwb2f = if(gl_w == 2, 1, 0)
+            let gwb3f = if(gl_w == 3, 1, 0)
+            let gwb4f = if(gl_w == 4, 1, 0)
+            let gzb0f = if(gl_z == 0, 1, 0)
+            let gzb1f = if(gl_z == 1, 1, 0)
+            let gzb2f = if(gl_z == 2, 1, 0)
+            let gzb3f = if(gl_z == 3, 1, 0)
+            let gzb4f = if(gl_z == 4, 1, 0)
+            let gcb0f = if(gl_c == 0, 1, 0)
+            let gcb1f = if(gl_c == 1, 1, 0)
+            let gcb2f = if(gl_c == 2, 1, 0)
+            let gcb3f = if(gl_c == 3, 1, 0)
+            let gcb4f = if(gl_c == 4, 1, 0)
             let syc0 = if(sy_cl == 0, 1, 0)
             let syc1 = if(sy_cl == 1, 1, 0)
             let syc2 = if(sy_cl == 2, 1, 0)
@@ -74,7 +92,7 @@ part Clock {
             ClockFace(0.145 * pu, 3, 1, 2, 3, 4, spx + 256 * pu, sby + 125 * pu, mix(ink, mint, ckl3), 0, 0.5, 60% + 40% * ckl3, 1)
             zone box ck_l3 { at: spx + 256 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; cursor: pointer; active: (sby + 125 * pu) - ck.off > sby and (sby + 125 * pu) - ck.off < sby + set.h * pu }
             on press ck_l3 { emit ck_lay_set(3) }
-            text "Capsule" { at: floor(spx + 256 * pu + 0.5), floor(sby + 160 * pu + 0.5); anchor: center; size: 11.5; weight: 600; color: mix(faint, mint, ckl3); family: "Space Grotesk" }
+            text "Digital" { at: floor(spx + 256 * pu + 0.5), floor(sby + 160 * pu + 0.5); anchor: center; size: 11.5; weight: 600; color: mix(faint, mint, ckl3); family: "Space Grotesk" }
             box { at: spx + 326 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; color: mix(ink, mint, ckl4); opacity: 7% + 20% * ckl4 + 6% * ck_l4.hover }
             box { at: spx + 326 * pu, sby + 125 * pu; size: 64 * pu, 54 * pu; corner: 10 * pu; stroke: 1.3 * pu; color: mint; opacity: 75% * ckl4 }
             ClockFace(0.145 * pu, 4, 1, 2, 3, 4, spx + 326 * pu, sby + 125 * pu, mix(ink, mint, ckl4), 0, 0.5, 60% + 40% * ckl4, 1)
@@ -185,72 +203,160 @@ part Clock {
             zone box ck_c2 { at: spx + 378 * pu, sby + 344 * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 344 * pu) - ck.off > sby and (sby + 344 * pu) - ck.off < sby + set.h * pu }
             on press ck_c2 { emit ck_cl_set(2) }
 
+            //  The hours, the minutes and the divider of the desktop clock: each has its own weight, size and tint. A tile picks one; the rows change it. The scene keeps them
+            //  (desktopclock.json); the logic reads them when the page opens and tells it each change.
+            box { at: spx + 219 * pu, sby + 464 * pu; size: 438 * pu, 176 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "Digits" { at: floor(spx + 14 * pu + 0.5), floor(sby + 390 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: spx + 89 * pu, sby + 420 * pu; size: 122 * pu, 34 * pu; corner: 10 * pu; color: mix(ink, mint, gl_s0); opacity: 8% + 22% * gl_s0 + 6% * gl_t0.hover }
+            text "Hours" { at: floor(spx + 89 * pu + 0.5), floor(sby + 420 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 116 * pu; lines: 1; color: mix(ink, mint, gl_s0); family: "Space Grotesk" }
+            zone box gl_t0 { at: spx + 89 * pu, sby + 420 * pu; size: 122 * pu, 34 * pu; corner: 10 * pu; cursor: pointer; active: (sby + 420 * pu) - ck.off > sby and (sby + 420 * pu) - ck.off < sby + set.h * pu }
+            on press gl_t0 { emit gl_pick(0) }
+            box { at: spx + 219 * pu, sby + 420 * pu; size: 122 * pu, 34 * pu; corner: 10 * pu; color: mix(ink, mint, gl_s1); opacity: 8% + 22% * gl_s1 + 6% * gl_t1.hover }
+            text "Minutes" { at: floor(spx + 219 * pu + 0.5), floor(sby + 420 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 116 * pu; lines: 1; color: mix(ink, mint, gl_s1); family: "Space Grotesk" }
+            zone box gl_t1 { at: spx + 219 * pu, sby + 420 * pu; size: 122 * pu, 34 * pu; corner: 10 * pu; cursor: pointer; active: (sby + 420 * pu) - ck.off > sby and (sby + 420 * pu) - ck.off < sby + set.h * pu }
+            on press gl_t1 { emit gl_pick(1) }
+            box { at: spx + 349 * pu, sby + 420 * pu; size: 122 * pu, 34 * pu; corner: 10 * pu; color: mix(ink, mint, gl_s2); opacity: 8% + 22% * gl_s2 + 6% * gl_t2.hover }
+            text "Divider" { at: floor(spx + 349 * pu + 0.5), floor(sby + 420 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 116 * pu; lines: 1; color: mix(ink, mint, gl_s2); family: "Space Grotesk" }
+            zone box gl_t2 { at: spx + 349 * pu, sby + 420 * pu; size: 122 * pu, 34 * pu; corner: 10 * pu; cursor: pointer; active: (sby + 420 * pu) - ck.off > sby and (sby + 420 * pu) - ck.off < sby + set.h * pu }
+            on press gl_t2 { emit gl_pick(2) }
+            text "Weight" { at: floor(spx + 14 * pu + 0.5), floor(sby + 468 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: spx + 129 * pu, sby + 468 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, gwb0f); opacity: 8% + 20% * gwb0f + 6% * gwb0.hover }
+            text "Thin" { at: floor(spx + 129 * pu + 0.5), floor(sby + 468 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 54 * pu; lines: 1; color: mix(ink, mint, gwb0f); family: "Space Grotesk" }
+            zone box gwb0 { at: spx + 129 * pu, sby + 468 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 468 * pu) - ck.off > sby and (sby + 468 * pu) - ck.off < sby + set.h * pu }
+            on press gwb0 { emit gl_w_set(0) }
+            box { at: spx + 191 * pu, sby + 468 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, gwb1f); opacity: 8% + 20% * gwb1f + 6% * gwb1.hover }
+            text "Light" { at: floor(spx + 191 * pu + 0.5), floor(sby + 468 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 54 * pu; lines: 1; color: mix(ink, mint, gwb1f); family: "Space Grotesk" }
+            zone box gwb1 { at: spx + 191 * pu, sby + 468 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 468 * pu) - ck.off > sby and (sby + 468 * pu) - ck.off < sby + set.h * pu }
+            on press gwb1 { emit gl_w_set(1) }
+            box { at: spx + 253 * pu, sby + 468 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, gwb2f); opacity: 8% + 20% * gwb2f + 6% * gwb2.hover }
+            text "Normal" { at: floor(spx + 253 * pu + 0.5), floor(sby + 468 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 54 * pu; lines: 1; color: mix(ink, mint, gwb2f); family: "Space Grotesk" }
+            zone box gwb2 { at: spx + 253 * pu, sby + 468 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 468 * pu) - ck.off > sby and (sby + 468 * pu) - ck.off < sby + set.h * pu }
+            on press gwb2 { emit gl_w_set(2) }
+            box { at: spx + 315 * pu, sby + 468 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, gwb3f); opacity: 8% + 20% * gwb3f + 6% * gwb3.hover }
+            text "Bold" { at: floor(spx + 315 * pu + 0.5), floor(sby + 468 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 54 * pu; lines: 1; color: mix(ink, mint, gwb3f); family: "Space Grotesk" }
+            zone box gwb3 { at: spx + 315 * pu, sby + 468 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 468 * pu) - ck.off > sby and (sby + 468 * pu) - ck.off < sby + set.h * pu }
+            on press gwb3 { emit gl_w_set(3) }
+            box { at: spx + 377 * pu, sby + 468 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, gwb4f); opacity: 8% + 20% * gwb4f + 6% * gwb4.hover }
+            text "Heavy" { at: floor(spx + 377 * pu + 0.5), floor(sby + 468 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 54 * pu; lines: 1; color: mix(ink, mint, gwb4f); family: "Space Grotesk" }
+            zone box gwb4 { at: spx + 377 * pu, sby + 468 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 468 * pu) - ck.off > sby and (sby + 468 * pu) - ck.off < sby + set.h * pu }
+            on press gwb4 { emit gl_w_set(4) }
+            text "Size" { at: floor(spx + 14 * pu + 0.5), floor(sby + 500 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: spx + 129 * pu, sby + 500 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, gzb0f); opacity: 8% + 20% * gzb0f + 6% * gzb0.hover }
+            text "XS" { at: floor(spx + 129 * pu + 0.5), floor(sby + 500 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 54 * pu; lines: 1; color: mix(ink, mint, gzb0f); family: "Space Grotesk" }
+            zone box gzb0 { at: spx + 129 * pu, sby + 500 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 500 * pu) - ck.off > sby and (sby + 500 * pu) - ck.off < sby + set.h * pu }
+            on press gzb0 { emit gl_z_set(0) }
+            box { at: spx + 191 * pu, sby + 500 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, gzb1f); opacity: 8% + 20% * gzb1f + 6% * gzb1.hover }
+            text "S" { at: floor(spx + 191 * pu + 0.5), floor(sby + 500 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 54 * pu; lines: 1; color: mix(ink, mint, gzb1f); family: "Space Grotesk" }
+            zone box gzb1 { at: spx + 191 * pu, sby + 500 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 500 * pu) - ck.off > sby and (sby + 500 * pu) - ck.off < sby + set.h * pu }
+            on press gzb1 { emit gl_z_set(1) }
+            box { at: spx + 253 * pu, sby + 500 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, gzb2f); opacity: 8% + 20% * gzb2f + 6% * gzb2.hover }
+            text "M" { at: floor(spx + 253 * pu + 0.5), floor(sby + 500 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 54 * pu; lines: 1; color: mix(ink, mint, gzb2f); family: "Space Grotesk" }
+            zone box gzb2 { at: spx + 253 * pu, sby + 500 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 500 * pu) - ck.off > sby and (sby + 500 * pu) - ck.off < sby + set.h * pu }
+            on press gzb2 { emit gl_z_set(2) }
+            box { at: spx + 315 * pu, sby + 500 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, gzb3f); opacity: 8% + 20% * gzb3f + 6% * gzb3.hover }
+            text "L" { at: floor(spx + 315 * pu + 0.5), floor(sby + 500 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 54 * pu; lines: 1; color: mix(ink, mint, gzb3f); family: "Space Grotesk" }
+            zone box gzb3 { at: spx + 315 * pu, sby + 500 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 500 * pu) - ck.off > sby and (sby + 500 * pu) - ck.off < sby + set.h * pu }
+            on press gzb3 { emit gl_z_set(3) }
+            box { at: spx + 377 * pu, sby + 500 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, gzb4f); opacity: 8% + 20% * gzb4f + 6% * gzb4.hover }
+            text "XL" { at: floor(spx + 377 * pu + 0.5), floor(sby + 500 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 54 * pu; lines: 1; color: mix(ink, mint, gzb4f); family: "Space Grotesk" }
+            zone box gzb4 { at: spx + 377 * pu, sby + 500 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 500 * pu) - ck.off > sby and (sby + 500 * pu) - ck.off < sby + set.h * pu }
+            on press gzb4 { emit gl_z_set(4) }
+            text "Tint" { at: floor(spx + 14 * pu + 0.5), floor(sby + 532 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: spx + 129 * pu, sby + 532 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, gcb0f); opacity: 8% + 20% * gcb0f + 6% * gcb0.hover }
+            text "Glass" { at: floor(spx + 129 * pu + 0.5), floor(sby + 532 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 54 * pu; lines: 1; color: mix(ink, mint, gcb0f); family: "Space Grotesk" }
+            zone box gcb0 { at: spx + 129 * pu, sby + 532 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 532 * pu) - ck.off > sby and (sby + 532 * pu) - ck.off < sby + set.h * pu }
+            on press gcb0 { emit gl_c_set(0) }
+            box { at: spx + 191 * pu, sby + 532 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, gcb1f); opacity: 8% + 20% * gcb1f + 6% * gcb1.hover }
+            text "Mint" { at: floor(spx + 191 * pu + 0.5), floor(sby + 532 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 54 * pu; lines: 1; color: mix(ink, mint, gcb1f); family: "Space Grotesk" }
+            zone box gcb1 { at: spx + 191 * pu, sby + 532 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 532 * pu) - ck.off > sby and (sby + 532 * pu) - ck.off < sby + set.h * pu }
+            on press gcb1 { emit gl_c_set(1) }
+            box { at: spx + 253 * pu, sby + 532 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, gcb2f); opacity: 8% + 20% * gcb2f + 6% * gcb2.hover }
+            text "Light" { at: floor(spx + 253 * pu + 0.5), floor(sby + 532 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 54 * pu; lines: 1; color: mix(ink, mint, gcb2f); family: "Space Grotesk" }
+            zone box gcb2 { at: spx + 253 * pu, sby + 532 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 532 * pu) - ck.off > sby and (sby + 532 * pu) - ck.off < sby + set.h * pu }
+            on press gcb2 { emit gl_c_set(2) }
+            box { at: spx + 315 * pu, sby + 532 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, gcb3f); opacity: 8% + 20% * gcb3f + 6% * gcb3.hover }
+            text "Rose" { at: floor(spx + 315 * pu + 0.5), floor(sby + 532 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 54 * pu; lines: 1; color: mix(ink, mint, gcb3f); family: "Space Grotesk" }
+            zone box gcb3 { at: spx + 315 * pu, sby + 532 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 532 * pu) - ck.off > sby and (sby + 532 * pu) - ck.off < sby + set.h * pu }
+            on press gcb3 { emit gl_c_set(3) }
+            box { at: spx + 377 * pu, sby + 532 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, gcb4f); opacity: 8% + 20% * gcb4f + 6% * gcb4.hover }
+            text "Grey" { at: floor(spx + 377 * pu + 0.5), floor(sby + 532 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 54 * pu; lines: 1; color: mix(ink, mint, gcb4f); family: "Space Grotesk" }
+            zone box gcb4 { at: spx + 377 * pu, sby + 532 * pu; size: 58 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 532 * pu) - ck.off > sby and (sby + 532 * pu) - ck.off < sby + set.h * pu }
+            on press gcb4 { emit gl_c_set(4) }
+            box { at: spx + 318 * pu, sby + 390 * pu; size: 78 * pu, 22 * pu; corner: 8 * pu; color: ink; opacity: 8% + 6% * gl_rs1.hover }
+            text "Reset this" { at: floor(spx + 318 * pu + 0.5), floor(sby + 390 * pu + 0.5); anchor: center; align: center; size: 11.5; weight: 700; width: 74 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            zone box gl_rs1 { at: spx + 318 * pu, sby + 390 * pu; size: 78 * pu, 22 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 390 * pu) - ck.off > sby and (sby + 390 * pu) - ck.off < sby + set.h * pu }
+            on press gl_rs1 { emit gl_reset }
+            box { at: spx + 398 * pu, sby + 390 * pu; size: 58 * pu, 22 * pu; corner: 8 * pu; color: ink; opacity: 8% + 6% * gl_rs2.hover }
+            text "Reset all" { at: floor(spx + 398 * pu + 0.5), floor(sby + 390 * pu + 0.5); anchor: center; align: center; size: 11.5; weight: 700; width: 54 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            zone box gl_rs2 { at: spx + 398 * pu, sby + 390 * pu; size: 58 * pu, 22 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 390 * pu) - ck.off > sby and (sby + 390 * pu) - ck.off < sby + set.h * pu }
+            on press gl_rs2 { emit gl_reset_all }
+
             //  The desktop system monitor (desktopsysmon/): its switch, where it sits on a grid of the screen, and its glass. Like the clock, its scene keeps
             //  the settings (desktopsysmon.json); the logic asks it for them when the page opens and tells it each change.
-            box { at: spx + 219 * pu, sby + 402 * pu; size: 438 * pu, 56 * pu; corner: 14 * pu; color: ink; opacity: veil }
-            text "Desktop system monitor" { at: floor(spx + 14 * pu + 0.5), floor(sby + 392 * pu + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
-            text "Processor, memory, graphics and network on your wallpaper" { at: floor(spx + 14 * pu + 0.5), floor(sby + 412 * pu + 0.5); anchor: left center; size: 12.5; color: faint; show: sy_ok; family: "Space Grotesk" }
-            text "Not running: turn the switch on to start it" { at: floor(spx + 14 * pu + 0.5), floor(sby + 412 * pu + 0.5); anchor: left center; size: 12.5; color: faint; show: not sy_ok; family: "Space Grotesk" }
+            box { at: spx + 219 * pu, sby + 592 * pu; size: 438 * pu, 56 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "Desktop system monitor" { at: floor(spx + 14 * pu + 0.5), floor(sby + 582 * pu + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
+            text "Processor, memory, graphics and network on your wallpaper" { at: floor(spx + 14 * pu + 0.5), floor(sby + 602 * pu + 0.5); anchor: left center; size: 12.5; color: faint; show: sy_ok; family: "Space Grotesk" }
+            text "Not running: turn the switch on to start it" { at: floor(spx + 14 * pu + 0.5), floor(sby + 602 * pu + 0.5); anchor: left center; size: 12.5; color: faint; show: not sy_ok; family: "Space Grotesk" }
             body {
                 color: mix(off, mint, clamp(sy_pill, 0, 1))
-                box { at: spx + 405 * pu, sby + 402 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+                box { at: spx + 405 * pu, sby + 592 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
             }
-            box { at: spx + 397 * pu + sy_pill * 16 * pu, sby + 402 * pu; size: (17 + 9 * clamp(4 * sy_pill * (1 - sy_pill), 0, 1)) * pu, (17 - 3 * clamp(4 * sy_pill * (1 - sy_pill), 0, 1)) * pu; corner: 7 * pu; color: ink }
-            zone box sy_hit { at: spx + 405 * pu, sby + 402 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 402 * pu) - ck.off > sby and (sby + 402 * pu) - ck.off < sby + set.h * pu }
+            box { at: spx + 397 * pu + sy_pill * 16 * pu, sby + 592 * pu; size: (17 + 9 * clamp(4 * sy_pill * (1 - sy_pill), 0, 1)) * pu, (17 - 3 * clamp(4 * sy_pill * (1 - sy_pill), 0, 1)) * pu; corner: 7 * pu; color: ink }
+            zone box sy_hit { at: spx + 405 * pu, sby + 592 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 592 * pu) - ck.off > sby and (sby + 592 * pu) - ck.off < sby + set.h * pu }
             on press sy_hit { emit sy_toggle }
 
-            box { at: spx + 219 * pu, sby + 490 * pu; size: 438 * pu, 104 * pu; corner: 14 * pu; color: ink; opacity: veil }
-            text "Position" { at: floor(spx + 14 * pu + 0.5), floor(sby + 452 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: spx + 219 * pu, sby + 680 * pu; size: 438 * pu, 104 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            text "Position" { at: floor(spx + 14 * pu + 0.5), floor(sby + 642 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
             body {
                 color: deep
                 rim: 14%
-                box { at: spx + 74 * pu, sby + 498 * pu; size: 120 * pu, 66 * pu; corner: 7 * pu }
+                box { at: spx + 74 * pu, sby + 688 * pu; size: 120 * pu, 66 * pu; corner: 7 * pu }
             }
-            ellipse { at: spx + 34 * pu, sby + 476 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc0.hover }
-            zone box sy_pc0 { at: spx + 34 * pu, sby + 476 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 476 * pu) - ck.off > sby and (sby + 476 * pu) - ck.off < sby + set.h * pu }
+            ellipse { at: spx + 34 * pu, sby + 666 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc0.hover }
+            zone box sy_pc0 { at: spx + 34 * pu, sby + 666 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 666 * pu) - ck.off > sby and (sby + 666 * pu) - ck.off < sby + set.h * pu }
             on press sy_pc0 { emit sy_pos_set(0) }
-            ellipse { at: spx + 74 * pu, sby + 476 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc1.hover }
-            zone box sy_pc1 { at: spx + 74 * pu, sby + 476 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 476 * pu) - ck.off > sby and (sby + 476 * pu) - ck.off < sby + set.h * pu }
+            ellipse { at: spx + 74 * pu, sby + 666 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc1.hover }
+            zone box sy_pc1 { at: spx + 74 * pu, sby + 666 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 666 * pu) - ck.off > sby and (sby + 666 * pu) - ck.off < sby + set.h * pu }
             on press sy_pc1 { emit sy_pos_set(1) }
-            ellipse { at: spx + 114 * pu, sby + 476 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc2.hover }
-            zone box sy_pc2 { at: spx + 114 * pu, sby + 476 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 476 * pu) - ck.off > sby and (sby + 476 * pu) - ck.off < sby + set.h * pu }
+            ellipse { at: spx + 114 * pu, sby + 666 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc2.hover }
+            zone box sy_pc2 { at: spx + 114 * pu, sby + 666 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 666 * pu) - ck.off > sby and (sby + 666 * pu) - ck.off < sby + set.h * pu }
             on press sy_pc2 { emit sy_pos_set(2) }
-            ellipse { at: spx + 34 * pu, sby + 498 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc3.hover }
-            zone box sy_pc3 { at: spx + 34 * pu, sby + 498 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 498 * pu) - ck.off > sby and (sby + 498 * pu) - ck.off < sby + set.h * pu }
+            ellipse { at: spx + 34 * pu, sby + 688 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc3.hover }
+            zone box sy_pc3 { at: spx + 34 * pu, sby + 688 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 688 * pu) - ck.off > sby and (sby + 688 * pu) - ck.off < sby + set.h * pu }
             on press sy_pc3 { emit sy_pos_set(3) }
-            ellipse { at: spx + 74 * pu, sby + 498 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc4.hover }
-            zone box sy_pc4 { at: spx + 74 * pu, sby + 498 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 498 * pu) - ck.off > sby and (sby + 498 * pu) - ck.off < sby + set.h * pu }
+            ellipse { at: spx + 74 * pu, sby + 688 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc4.hover }
+            zone box sy_pc4 { at: spx + 74 * pu, sby + 688 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 688 * pu) - ck.off > sby and (sby + 688 * pu) - ck.off < sby + set.h * pu }
             on press sy_pc4 { emit sy_pos_set(4) }
-            ellipse { at: spx + 114 * pu, sby + 498 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc5.hover }
-            zone box sy_pc5 { at: spx + 114 * pu, sby + 498 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 498 * pu) - ck.off > sby and (sby + 498 * pu) - ck.off < sby + set.h * pu }
+            ellipse { at: spx + 114 * pu, sby + 688 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc5.hover }
+            zone box sy_pc5 { at: spx + 114 * pu, sby + 688 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 688 * pu) - ck.off > sby and (sby + 688 * pu) - ck.off < sby + set.h * pu }
             on press sy_pc5 { emit sy_pos_set(5) }
-            ellipse { at: spx + 34 * pu, sby + 520 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc6.hover }
-            zone box sy_pc6 { at: spx + 34 * pu, sby + 520 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 520 * pu) - ck.off > sby and (sby + 520 * pu) - ck.off < sby + set.h * pu }
+            ellipse { at: spx + 34 * pu, sby + 710 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc6.hover }
+            zone box sy_pc6 { at: spx + 34 * pu, sby + 710 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 710 * pu) - ck.off > sby and (sby + 710 * pu) - ck.off < sby + set.h * pu }
             on press sy_pc6 { emit sy_pos_set(6) }
-            ellipse { at: spx + 74 * pu, sby + 520 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc7.hover }
-            zone box sy_pc7 { at: spx + 74 * pu, sby + 520 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 520 * pu) - ck.off > sby and (sby + 520 * pu) - ck.off < sby + set.h * pu }
+            ellipse { at: spx + 74 * pu, sby + 710 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc7.hover }
+            zone box sy_pc7 { at: spx + 74 * pu, sby + 710 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 710 * pu) - ck.off > sby and (sby + 710 * pu) - ck.off < sby + set.h * pu }
             on press sy_pc7 { emit sy_pos_set(7) }
-            ellipse { at: spx + 114 * pu, sby + 520 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc8.hover }
-            zone box sy_pc8 { at: spx + 114 * pu, sby + 520 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 520 * pu) - ck.off > sby and (sby + 520 * pu) - ck.off < sby + set.h * pu }
+            ellipse { at: spx + 114 * pu, sby + 710 * pu; radius: 1.8 * pu; color: ink; opacity: 25% + 45% * sy_pc8.hover }
+            zone box sy_pc8 { at: spx + 114 * pu, sby + 710 * pu; size: 40 * pu, 22 * pu; cursor: pointer; active: (sby + 710 * pu) - ck.off > sby and (sby + 710 * pu) - ck.off < sby + set.h * pu }
             on press sy_pc8 { emit sy_pos_set(8) }
             body {
-                gradient: 0, sby + (498 + (sy_my - 1) * 22) * pu - 7 * pu to 0, sby + (498 + (sy_my - 1) * 22) * pu + 7 * pu, minthi, mintlo
+                gradient: 0, sby + (688 + (sy_my - 1) * 22) * pu - 7 * pu to 0, sby + (688 + (sy_my - 1) * 22) * pu + 7 * pu, minthi, mintlo
                 rim: 45%
                 shadow: 0, 0, 6 * pu, 30%, mint
-                box { at: spx + (74 + (sy_mx - 1) * 40) * pu, sby + (498 + (sy_my - 1) * 22) * pu; size: 28 * pu, 14 * pu; corner: 4 * pu }
+                box { at: spx + (74 + (sy_mx - 1) * 40) * pu, sby + (688 + (sy_my - 1) * 22) * pu; size: 28 * pu, 14 * pu; corner: 4 * pu }
             }
-            text "Glass" { at: floor(spx + 156 * pu + 0.5), floor(sby + 452 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
-            box { at: spx + 187 * pu, sby + 474 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, syc0); opacity: 8% + 20% * syc0 + 6% * sy_c0.hover }
-            text "Clear" { at: floor(spx + 187 * pu + 0.5), floor(sby + 474 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 58 * pu; lines: 1; color: mix(ink, mint, syc0); family: "Space Grotesk" }
-            zone box sy_c0 { at: spx + 187 * pu, sby + 474 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 474 * pu) - ck.off > sby and (sby + 474 * pu) - ck.off < sby + set.h * pu }
+            text "Glass" { at: floor(spx + 156 * pu + 0.5), floor(sby + 642 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            box { at: spx + 187 * pu, sby + 664 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, syc0); opacity: 8% + 20% * syc0 + 6% * sy_c0.hover }
+            text "Clear" { at: floor(spx + 187 * pu + 0.5), floor(sby + 664 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 58 * pu; lines: 1; color: mix(ink, mint, syc0); family: "Space Grotesk" }
+            zone box sy_c0 { at: spx + 187 * pu, sby + 664 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 664 * pu) - ck.off > sby and (sby + 664 * pu) - ck.off < sby + set.h * pu }
             on press sy_c0 { emit sy_cl_set(0) }
-            box { at: spx + 253 * pu, sby + 474 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, syc1); opacity: 8% + 20% * syc1 + 6% * sy_c1.hover }
-            text "Soft" { at: floor(spx + 253 * pu + 0.5), floor(sby + 474 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 58 * pu; lines: 1; color: mix(ink, mint, syc1); family: "Space Grotesk" }
-            zone box sy_c1 { at: spx + 253 * pu, sby + 474 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 474 * pu) - ck.off > sby and (sby + 474 * pu) - ck.off < sby + set.h * pu }
+            box { at: spx + 253 * pu, sby + 664 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, syc1); opacity: 8% + 20% * syc1 + 6% * sy_c1.hover }
+            text "Soft" { at: floor(spx + 253 * pu + 0.5), floor(sby + 664 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 58 * pu; lines: 1; color: mix(ink, mint, syc1); family: "Space Grotesk" }
+            zone box sy_c1 { at: spx + 253 * pu, sby + 664 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 664 * pu) - ck.off > sby and (sby + 664 * pu) - ck.off < sby + set.h * pu }
             on press sy_c1 { emit sy_cl_set(1) }
-            box { at: spx + 319 * pu, sby + 474 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, syc2); opacity: 8% + 20% * syc2 + 6% * sy_c2.hover }
-            text "Full" { at: floor(spx + 319 * pu + 0.5), floor(sby + 474 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 58 * pu; lines: 1; color: mix(ink, mint, syc2); family: "Space Grotesk" }
-            zone box sy_c2 { at: spx + 319 * pu, sby + 474 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 474 * pu) - ck.off > sby and (sby + 474 * pu) - ck.off < sby + set.h * pu }
+            box { at: spx + 319 * pu, sby + 664 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, syc2); opacity: 8% + 20% * syc2 + 6% * sy_c2.hover }
+            text "Full" { at: floor(spx + 319 * pu + 0.5), floor(sby + 664 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; width: 58 * pu; lines: 1; color: mix(ink, mint, syc2); family: "Space Grotesk" }
+            zone box sy_c2 { at: spx + 319 * pu, sby + 664 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 664 * pu) - ck.off > sby and (sby + 664 * pu) - ck.off < sby + set.h * pu }
             on press sy_c2 { emit sy_cl_set(2) }
 
             }

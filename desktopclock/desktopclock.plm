@@ -1,6 +1,7 @@
 language 0.1
 import "../palette.plm"
 import "clockface.plm"
+import "clockface_styled.plm"
 
 //  The desktop clock: the time in digits drawn as glass, on the bottom layer (above the wallpaper, under every window).
 //  Each digit is a single stroke (clockface.plm), and all of them are one body of glass: the light runs round their edges and the compositor
@@ -18,7 +19,7 @@ scene DesktopClock {
 
     fact where: top_left | top | top_right | left | center | right | bottom_left | bottom | bottom_right = center
     fact shown = false     // the logic sets it from desktopclock.json (so that `sh` follows it from nothing)
-    fact lay = 0           // 0 pipe, 1 rule, 2 tower, 3 capsule, 4 slash, 5 hero (see clockface.plm)
+    fact lay = 0           // 0 pipe, 1 rule, 2 tower, 3 digital, 4 slash, 5 hero (see clockface.plm)
     fact h12 = true        // a 12 hour clock (the logic turns it into the digits); the Settings page reads it
     fact d0 = -1           // the digits shown: -1 for none (the hour's tens, with a 12 hour clock, when the hour is below 10)
     fact d1 = 0
@@ -28,6 +29,19 @@ scene DesktopClock {
     fact wti = 1           // the strokes: 0 thin, 1 regular, 2 bold
     fact cli = 1           // the glass: 0 clear, 1 soft, 2 full
 
+    //  The style of the hours, the minutes and the divider (see clockface_styled.plm): a weight and a size (multipliers; 1 is the normal) and a tint (0 the glass, 1 mint, 2 light, 3 rose, 4 grey)
+    fact ghw = 1
+    fact ghz = 1
+    fact ghc = 0
+    fact gmw = 1
+    fact gmz = 1
+    fact gmc = 0
+    fact gsw = 1
+    fact gsz = 1
+    fact gsc = 0
+    fact greset = 0          // set to 1 by Settings: every glyph back to the normal style (the logic puts it back to 0)
+    text gpack = ""          // all of them in one line, for the Settings page to read at once: "w,z,c;" for the hours, the minutes and the divider
+
     prop sh = 0 ~calm
     follow sh = if(shown, 1, 0)
 
@@ -35,8 +49,8 @@ scene DesktopClock {
     let wt = if(wti == 0, 0.62, if(wti == 2, 1.4, 1))
     let clr = if(cli == 0, 55%, if(cli == 1, 80%, 100%))
     //  Where the middle of the face is, in the surface: the middle of it, or against the edge or corner it sits in (half the face, and its stroke).
-    let hw = (if(lay == 0, 149, if(lay == 1 or lay == 5, 61, if(lay == 2, 31, if(lay == 3, 190, 130)))) + 6.5 * wt) * k
-    let hh = (if(lay == 0, 59, if(lay == 1, 111, if(lay == 2, 131, if(lay == 3, 82, if(lay == 4, 112, 84))))) + 6.5 * wt) * k
+    let hw = (if(lay == 0, 149, if(lay == 1 or lay == 5, 61, if(lay == 2, 31, if(lay == 3, 152, 130)))) + 6.5 * wt) * k
+    let hh = (if(lay == 0, 59, if(lay == 1, 111, if(lay == 2, 131, if(lay == 3, 44, if(lay == 4, 112, 84))))) + 6.5 * wt) * k
     let isl = if(where == top_left or where == left or where == bottom_left, 1, 0)
     let isr = if(where == top_right or where == right or where == bottom_right, 1, 0)
     let ist = if(where == top_left or where == top or where == top_right, 1, 0)
@@ -44,5 +58,5 @@ scene DesktopClock {
     let fx = if(isl > 0.5, 40 + hw, if(isr > 0.5, 1500 - 40 - hw, 750))
     let fy = if(ist > 0.5, 40 + hh, if(isb > 0.5, 1100 - 40 - hh, 550))
 
-    ClockFace(k, lay, d0, d1, d2, d3, fx, fy, tint, 1, 0.4, sh * clr, wt)
+    ClockFaceStyled(k, lay, d0, d1, d2, d3, fx, fy, tint, 1, 0.4, sh * clr, wt, mint, ink, alert, faint)
 }
