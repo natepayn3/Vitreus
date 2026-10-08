@@ -270,6 +270,12 @@ def main():
             v = read("/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq" % i).strip()
             mhz.append(int(v) // 1000 if v.isdigit() else 0)
         rx = tx = 0
+        # The connection in use can change while this runs (the network comes up after login, a cable is plugged, Wi-Fi takes over), so it is looked up
+        # again every second; counting starts afresh on the new one.
+        cur = default_iface()
+        if cur != iface:
+            iface = cur
+            net0 = None
         net1 = net_counters(iface) if iface else None
         if net0 and net1:
             rx, tx = (net1[0] - net0[0]) / dt, (net1[1] - net0[1]) / dt
