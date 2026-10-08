@@ -120,6 +120,10 @@ if [ "$action" = uninstall ]; then
         run sed -i '/vitreus\/desktopclock\/desktopclock\.plm/d' "$autostart"
         say "removed the desktop clock's line from $autostart"
     fi
+    if [ -f "$autostart" ] && grep -q 'vitreus/desktopsysmon/desktopsysmon.plm' "$autostart"; then
+        run sed -i '/vitreus\/desktopsysmon\/desktopsysmon\.plm/d' "$autostart"
+        say "removed the desktop system monitor's line from $autostart"
+    fi
     hyprlua="$conf/hypr/hyprland.lua"
     if [ -f "$hyprlua" ] && grep -q '^-- >>> vitreus' "$hyprlua"; then
         run sed -i '/^-- >>> vitreus/,/^-- <<< vitreus/d' "$hyprlua"
@@ -414,6 +418,7 @@ line="vitreus-keep $dest/vitreus.plm \"\$HOME/.local/share/pleamar/vitreus/vitre
 lockline="vitreus-keep $dest/lockscreen/lockscreen.plm"
 transline="vitreus-keep $dest/wptrans/wptrans.plm"
 clockline="vitreus-keep $dest/desktopclock/desktopclock.plm"
+sysmonline="vitreus-keep $dest/desktopsysmon/desktopsysmon.plm"
 if $do_autostart; then
     # Lines from before the keeper started the scenes straight, once: they go through it now.
     if [ -f "$autostart" ] && grep -q "^pleamar --scene $dest/.*\.plm --no-hud\$" "$autostart"; then
@@ -450,6 +455,13 @@ if $do_autostart; then
     else
         if $dry; then echo "    would add to $autostart: $clockline"; else printf '%s\n' "$clockline" >> "$autostart"; fi
         say "the desktop clock starts with the desktop too (a line in $autostart); \"Desktop clock: toggle\" in the launcher turns it off"
+    fi
+    # The desktop system monitor (a small glass card on the bottom layer) is a scene of its own too; it starts hidden, and "Desktop system monitor: toggle" in the launcher shows it.
+    if [ -f "$autostart" ] && grep -q 'desktopsysmon/desktopsysmon.plm' "$autostart"; then
+        say "the desktop system monitor is already in $autostart"
+    else
+        if $dry; then echo "    would add to $autostart: $sysmonline"; else printf '%s\n' "$sysmonline" >> "$autostart"; fi
+        say "the desktop system monitor starts with the desktop too, hidden (a line in $autostart); \"Desktop system monitor: toggle\" in the launcher shows it"
     fi
 fi
 

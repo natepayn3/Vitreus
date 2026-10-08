@@ -968,7 +968,7 @@ scene Vitreus {
     fact lk_media = true
     fact lk_date: lkd_long | lkd_std | lkd_day | lkd_iso = lkd_long
     fact lk_ok = true
-    //  Settings > Clock: the desktop clock is a scene of its own (desktopclock/), which keeps its settings in its own desktopclock.json. This page asks it
+    //  Settings > Widgets (Clock first): the desktop clock is a scene of its own (desktopclock/), which keeps its settings in its own desktopclock.json. This page asks it
     //  for them when it opens (`ck_ok` is false when it does not answer, which is when it is not running) and tells it each change.
     fact ck_on = false
     fact ck_lay = 0                    // the layout: 0 pipe, 1 rule, 2 tower, 3 capsule, 4 slash, 5 hero
@@ -989,6 +989,23 @@ scene Vitreus {
     event ck_pos_set ->                // 0 to 8, as above
     event ck_size_set ->               // 0 small, 1 medium, 2 large, 3 extra large
     event ck_12h_set ->                // 1 twelve hours, 0 twenty-four
+    //  The desktop system monitor, further down the same page (the Widgets page): the same way, with its own scene (desktopsysmon/).
+    fact sy_on = false
+    fact sy_pos = 8                    // where it sits, row by row, as the clock's
+    fact sy_cl = 1                     // the glass: 0 clear, 1 soft, 2 full
+    fact sy_ok = true
+    prop sy_pill = 0 ~pop
+    follow sy_pill = if(sy_on, 1, 0)
+    prop sy_mx = 1 ~quick
+    prop sy_my = 1 ~quick
+    follow sy_mx = if(sy_pos == 0 or sy_pos == 3 or sy_pos == 6, 0, if(sy_pos == 2 or sy_pos == 5 or sy_pos == 8, 2, 1))
+    follow sy_my = if(sy_pos < 3, 0, if(sy_pos < 6, 1, 2))
+    event sy_toggle ->
+    event sy_pos_set ->                // 0 to 8
+    event sy_cl_set ->                 // 0 to 2
+    fact ck_scroll_to = 0              // the page scrolls like Lock screen's
+    prop ck_scroll = 0 ~quick
+    follow ck_scroll = ck_scroll_to
     event ck_wt_set ->
     event ck_cl_set ->
     prop lk_pill_am = 0 ~pop
@@ -1326,8 +1343,8 @@ scene Vitreus {
     follow mvis = if(mixer.count > 0 or vm_open, 1, 0)
     on launch_toggle { panel = if(panel == launch, none, launch) }
     on settings_toggle { panel = if(panel == settings, none, settings) }
-    on change panel { dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0 }
-    on change set_page { disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0; vpn_arm = -1; emit hy_refresh; emit wm_refresh }
+    on change panel { dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; ck_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0 }
+    on change set_page { disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; ck_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0; vpn_arm = -1; emit hy_refresh; emit wm_refresh }
     on change panel { tasks_watch = panel == player }
     on pick_out { dd_open = false }
     follow pulse = bass
@@ -2122,6 +2139,7 @@ scene Vitreus {
     let vpn.ab = vpn.pb + vpn.pbh + 12
     let vpn.fh = if(vpn_mode == vpm_wg, 180, if(vpn_mode == vpm_ovpn, 144, 276))
     let wm.h = 782                     // the Pleamar-WM page: to the bottom of its last card
+    let ck.h = 566                     // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
     let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36

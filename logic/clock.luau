@@ -1,4 +1,4 @@
--- Settings > Clock. The desktop clock is a scene of its own (desktopclock/) and keeps its settings in its own desktopclock.json: this page asks it for
+-- Settings > Widgets: first the desktop clock, then (below) the desktop system monitor. The desktop clock is a scene of its own (desktopclock/) and keeps its settings in its own desktopclock.json: this page asks it for
 -- them when it opens (`pleamar --say desktopclock "get ..."`) and tells it each change (`fact`), and it saves them. `ck_ok` is false when it does not
 -- answer, which is when it is not running; the switch then starts it.
 return function()
@@ -22,7 +22,18 @@ return function()
             say("get h12", function(o) fact.ck_12h = trim(o):match("true") ~= nil end)
         end)
     end
-    on("fact:set_page", function(v) if v == "pg_clock" then refresh() end end)
+    -- The desktop system monitor (desktopsysmon/) is the same: its own scene, asked when the page opens, told each change.
+    local function say_sy(cmd, fn) run("pleamar", { "--say", "desktopsysmon", cmd }, fn or function() end) end
+    local function refresh_sy()
+        say_sy("get shown", function(out, code)
+            if code ~= 0 then fact.sy_ok = false return end
+            fact.sy_ok = true
+            fact.sy_on = trim(out):match("true") ~= nil
+            say_sy("get cli", function(o) local n = tonumber(trim(o)); if n then fact.sy_cl = n end end)
+            say_sy("get where", function(o) local n = POS_BACK[trim(o)]; if n then fact.sy_pos = n end end)
+        end)
+    end
+    on("fact:set_page", function(v) if v == "pg_clock" then refresh(); refresh_sy() end end)
 
     on("ck_toggle", function()
         local b = not fact.ck_on
@@ -57,5 +68,26 @@ return function()
     on("ck_size_set", function(i)
         local v = SIZES[math.floor(i + 0.5) + 1]
         if v then fact.ck_px = v; say("fact px " .. v) end
+    end)
+
+    on("sy_toggle", function()
+        local b = not fact.sy_on
+        fact.sy_on = b
+        if fact.sy_ok then
+            say_sy("fact shown " .. tostring(b))
+        elseif b then
+            -- not running: start it, and show it once it is up
+            exec_on_desktop('pleamar --scene "$HOME/.config/pleamar/shells/vitreus/desktopsysmon/desktopsysmon.plm" --no-hud')
+            after(2500, function() say_sy("fact shown true"); refresh_sy() end)
+        end
+    end)
+    on("sy_pos_set", function(i)
+        local k = math.floor(i + 0.5)
+        if POS[k + 1] then fact.sy_pos = k; say_sy("fact where " .. POS[k + 1]) end
+    end)
+    on("sy_cl_set", function(i)
+        local v = math.max(0, math.min(2, math.floor(i + 0.5)))
+        fact.sy_cl = v
+        say_sy("fact cli " .. v)
     end)
 end

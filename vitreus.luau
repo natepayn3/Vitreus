@@ -4180,13 +4180,25 @@ end
         { "Random wallpaper", "action", function() local f = wp_random_pick(); if f then wp_apply(f) end end, "shuffle background change surprise" },
         { "Lock session", "action", function() spawn('pleamar --say lockscreen "fact locked true"') end, "lockscreen lock screen secure away password" },
         { "Settings: Theme", "open", open_settings("pg_theme"), "colours colors palette preset tokyo night catppuccin gruvbox nord rose pine dracula iris accent monochrome wallpaper" },
-        { "Settings: Clock", "open", open_settings("pg_clock"), "desktop clock glass digits time wallpaper layout inline stacked staggered hero position corner size weight tint 12 24 hour" },
+        { "Settings: Widgets", "open", open_settings("pg_clock"), "widgets clock system monitor desktop clock glass digits time wallpaper layout inline stacked staggered hero position corner size weight tint 12 24 hour" },
         { "Desktop clock: toggle", "action", function()
             run("pleamar", { "--say", "desktopclock", "get shown" }, function(out)
                 local on = (out or ""):match("true") ~= nil
                 run("pleamar", { "--say", "desktopclock", "fact shown " .. (on and "false" or "true") }, function() end)
             end)
         end, "clock desktop glass digits time wallpaper show hide on off" },
+        { "Desktop system monitor: toggle", "action", function()
+            -- A card on the desktop (desktopsysmon/) with its own scene: asked how it is, and started if it is not running.
+            run("pleamar", { "--say", "desktopsysmon", "get shown" }, function(out, code)
+                if code ~= 0 then
+                    exec_on_desktop('pleamar --scene "$HOME/.config/pleamar/shells/vitreus/desktopsysmon/desktopsysmon.plm" --no-hud')
+                    after(2500, function() run("pleamar", { "--say", "desktopsysmon", "fact shown true" }, function() end) end)
+                    return
+                end
+                local on = (out or ""):match("true") ~= nil
+                run("pleamar", { "--say", "desktopsysmon", "fact shown " .. (on and "false" or "true") }, function() end)
+            end)
+        end, "system monitor desktop widget card cpu memory gpu network show hide on off" },
         { "Ask about the clipboard", "action", function()
             -- The last thing copied goes to the Desk's Ask tab as an attachment, to be sent with whatever is typed there (never by itself).
             run("cliphist", { "list" }, function(o)
