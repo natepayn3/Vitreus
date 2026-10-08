@@ -73,21 +73,22 @@ return function(key, with_dirs)
 
     local function refresh()
         read_mons()
-        say("get cfg_monitor", function(o) lk_pref = trim(o):match("^[%w%._%-]+$") and trim(o) or "all"; show_mons() end)
-        say("get cfg_blur", function(out, code)
-            if code ~= 0 then fact.lk_ok = false return end
+        say_many("lockscreen", { "get cfg_monitor", "get cfg_blur", "get cfg_12h", "get cfg_ampm", "get cfg_media", "get cfg_date",
+            "get clock_px", "get cfg_secs", "get show_power", "get mask_style", "get mask_pal" }, function(r)
+            if not r then fact.lk_ok = false return end
+            lk_pref = trim(r[1]):match("^[%w%._%-]+$") and trim(r[1]) or "all"; show_mons()
             fact.lk_ok = true
-            local n = tonumber(trim(out))
+            local n = tonumber(trim(r[2]))
             if n then fact.lk_blur = n end
-            say("get cfg_12h", function(o) fact.lk_12h = trim(o):match("true") ~= nil end)
-            say("get cfg_ampm", function(o) fact.lk_ampm = trim(o):match("true") ~= nil end)
-            say("get cfg_media", function(o) fact.lk_media = trim(o):match("true") ~= nil end)
-            say("get cfg_date", function(o) fact.lk_date = DATE_FACT[trim(o)] or "lkd_long" end)
-            say("get clock_px", function(o) local n = tonumber(trim(o)); if n then fact.lk_px = n end end)
-            say("get cfg_secs", function(o) fact.lk_secs = trim(o):match("true") ~= nil end)
-            say("get show_power", function(o) fact.lk_power = trim(o):match("true") ~= nil end)
-            say("get mask_style", function(o) fact.lk_mask = MASK_BACK[trim(o)] or "lkm_shapes" end)
-            say("get mask_pal", function(o) fact.lk_pal = PAL_BACK[trim(o)] or "lkc_accent" end)
+            fact.lk_12h = trim(r[3]):match("true") ~= nil
+            fact.lk_ampm = trim(r[4]):match("true") ~= nil
+            fact.lk_media = trim(r[5]):match("true") ~= nil
+            fact.lk_date = DATE_FACT[trim(r[6])] or "lkd_long"
+            local px = tonumber(trim(r[7])); if px then fact.lk_px = px end
+            fact.lk_secs = trim(r[8]):match("true") ~= nil
+            fact.lk_power = trim(r[9]):match("true") ~= nil
+            fact.lk_mask = MASK_BACK[trim(r[10])] or "lkm_shapes"
+            fact.lk_pal = PAL_BACK[trim(r[11])] or "lkc_accent"
         end)
     end
     on("fact:set_page", function(v) if v == "pg_lock" then refresh() end end)

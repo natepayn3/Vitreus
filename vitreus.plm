@@ -1428,7 +1428,13 @@ scene Vitreus {
     on launch_toggle { panel = if(panel == launch, none, launch) }
     on settings_toggle { panel = if(panel == settings, none, settings) }
     on change panel { dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; ck_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0 }
-    on change set_page { disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; ck_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0; vpn_arm = -1; emit hy_refresh; emit wm_refresh }
+    on change set_page { disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; ck_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0; vpn_arm = -1 }
+    //  The Hyprland and Pleamar-WM pages read their settings from the system when they are shown, and only then: reading them on every page change
+    //  (a dozen commands and a couple of hundred fact writes) stalled the scene for half a second on each click anywhere in Settings.
+    on change set_page while set_page == pg_hypr { emit hy_refresh }
+    on change set_page while set_page == pg_wm { emit wm_refresh }
+    on change panel while panel == settings and set_page == pg_hypr { emit hy_refresh }
+    on change panel while panel == settings and set_page == pg_wm { emit wm_refresh }
     on change panel { tasks_watch = panel == player }
     on pick_out { dd_open = false }
     follow pulse = bass

@@ -24,6 +24,26 @@ end)
 -- program is started directly, in a session of its own. Either way it has ~/.local/bin on its PATH, which Hyprland's has not.
 on_hyprland = false                       -- (globals, not locals: this chunk is at Luau's limit of 200 locals)
 run("printenv", { "HYPRLAND_INSTANCE_SIGNATURE" }, function(out, code) on_hyprland = code == 0 and (out or "") ~= "" end)
+-- Asking one of our other scenes (the lock screen, the desktop clock and system monitor) for several of its values at once. `pleamar --say`
+-- answers one question per command, and starting a command from this shell costs about 30 ms, so a settings page that asked ten questions froze
+-- the shell for a third of a second each time it opened. A scene listens on a socket and answers one line per line it is sent, in order: one
+-- `socat` carries all the questions. `done` gets the answers (a list, in the order asked), or nothing when the scene does not answer.
+rt_dir = "/run/user/1000"
+run("printenv", { "XDG_RUNTIME_DIR" }, function(out, code) if code == 0 and (out or ""):match("%S") then rt_dir = (out:gsub("%s+$", "")) end end)
+function say_many(scene, cmds, done)
+    local got, finished, id = {}, false, nil
+    local function finish(ok)
+        if finished then return end
+        finished = true
+        if id then kill(id, "term") end
+        done(ok and got or nil)
+    end
+    id = spawn("socat", { "-t1", "-", "UNIX-CONNECT:" .. rt_dir .. "/pleamar/" .. scene .. ".sock" },
+        function(line) got[#got + 1] = line; if #got >= #cmds then finish(true) end end,
+        function() finish(false) end, { stdin = "open" })
+    write(id, table.concat(cmds, "\n") .. "\n")
+    after(2500, function() finish(false) end)
+end
 -- `hyprctl monitors -j`, shared. The bar's monitors, the scene's monitor height and the Display page's watch each started it on their own
 -- timer, every four or five seconds. A caller that can use an answer up to `max_age` seconds old gets the last one, and one already on
 -- its way is waited for instead of starting another; with 0 it is always asked again.
@@ -3956,7 +3976,10 @@ do
     local hy = { layout = 3, gaps = 5, round = 10, border = 3, blur = 3, passes = 1, resize = false, tear = false, anim = true, sens = 0, follow = 1, nat = false }
     local hy_dirty, hy_waiting = false, false
 
-    local function hy_show()
+    -- Reading the options answers twelve times, each answer used to write every fact again; they are written once, when the answers have settled.
+    local hy_dirty = false
+    local function hy_show_now()
+        hy_dirty = false
         fact.hy_layout = hy.layout
         fact.hy_gaps = hy.gaps
         fact.hy_round = hy.round
@@ -3973,6 +3996,11 @@ do
         text.hy_round_text = string.format("%d px", hy.round)
         text.hy_border_text = string.format("%d px", hy.border)
         text.hy_sens_text = string.format("%.2f", hy.sens)
+    end
+    local function hy_show()
+        if hy_dirty then return end
+        hy_dirty = true
+        after(80, hy_show_now)
     end
 
     local function b(v) return v and "true" or "false" end
@@ -4005,32 +4033,36 @@ do
         end)
     end
 
+    -- One `hyprctl --batch` for all twelve options, not twelve commands: starting a command from this shell costs about 30 ms each, so reading
+    -- them one by one froze the whole shell for half a second. Each answer is a line like `int: 3` (or `str:`, `float:`, `bool:`, `css gap data:`).
+    local HY_OPTS = { "general:layout", "general:gaps_in", "general:border_size", "decoration:rounding", "decoration:blur:size",
+        "decoration:blur:passes", "general:resize_on_border", "general:allow_tearing", "animations:enabled", "input:sensitivity",
+        "input:follow_mouse", "input:touchpad:natural_scroll" }
     local function hy_read()
-        local function opt(name, cb)
-            run("hyprctl", { "getoption", name, "-j" }, function(out, code)
-                if code ~= 0 then return end
-                local ok, j = pcall(json.decode, out or "")
-                if ok and type(j) == "table" then cb(j) end
-            end)
-        end
-        opt("general:layout", function(j)
-            for i, n in ipairs(LAYOUTS) do if n == j.str then hy.layout = i end end
+        local cmd = {}
+        for i, n in ipairs(HY_OPTS) do cmd[i] = "getoption " .. n end
+        run("hyprctl", { "--batch", table.concat(cmd, " ; ") }, function(out, code)
+            if code ~= 0 then return end
+            local vals = {}
+            for line in (out or ""):gmatch("[^\n]+") do
+                local k, v = line:match("^([%a ]+): (.*)$")
+                if k and k ~= "set" then vals[#vals + 1] = v end
+            end
+            if #vals < #HY_OPTS then return end
+            for i, n in ipairs(LAYOUTS) do if n == vals[1] then hy.layout = i end end
+            hy.gaps = tonumber(vals[2]:match("^(%d+)")) or hy.gaps
+            hy.border = tonumber(vals[3]) or hy.border
+            hy.round = tonumber(vals[4]) or hy.round
+            hy.blur = tonumber(vals[5]) or hy.blur
+            hy.passes = tonumber(vals[6]) or hy.passes
+            hy.resize = vals[7] == "true"
+            hy.tear = vals[8] == "true"
+            hy.anim = vals[9] == "true"
+            hy.sens = tonumber(vals[10]) or 0
+            hy.follow = tonumber(vals[11]) or 1
+            hy.nat = vals[12] == "true"
             hy_show()
         end)
-        opt("general:gaps_in", function(j)
-            local n = tonumber(tostring(j.css or ""):match("^(%d+)"))
-            if n then hy.gaps = n; hy_show() end
-        end)
-        opt("general:border_size", function(j) local n = tonumber(j.int); if n then hy.border = n; hy_show() end end)
-        opt("decoration:rounding", function(j) local n = tonumber(j.int); if n then hy.round = n; hy_show() end end)
-        opt("decoration:blur:size", function(j) local n = tonumber(j.int); if n then hy.blur = n; hy_show() end end)
-        opt("decoration:blur:passes", function(j) local n = tonumber(j.int); if n then hy.passes = n; hy_show() end end)
-        opt("general:resize_on_border", function(j) hy.resize = j.bool == true; hy_show() end)
-        opt("general:allow_tearing", function(j) hy.tear = j.bool == true; hy_show() end)
-        opt("animations:enabled", function(j) hy.anim = j.bool == true; hy_show() end)
-        opt("input:sensitivity", function(j) hy.sens = tonumber(j.float) or 0; hy_show() end)
-        opt("input:follow_mouse", function(j) hy.follow = tonumber(j.int) or 1; hy_show() end)
-        opt("input:touchpad:natural_scroll", function(j) hy.nat = j.bool == true; hy_show() end)
     end
 
     hy_show()
@@ -4165,6 +4197,8 @@ do
     end
 
     local function wm_read()
+        -- Pleamar-WM answers only when it is the window manager; on Hyprland each of these would start a command to get nothing back.
+        if on_hyprland then return end
         local function num(name, cb) wm_get(name, function(v) if v ~= nil then cb(v) end end) end
         num("gap", function(v) wm.gap = v end)
         num("ratio", function(v) wm.share = v end)

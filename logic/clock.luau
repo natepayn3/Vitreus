@@ -10,27 +10,25 @@ return function()
     local function trim(s) return ((s or ""):gsub("%s+$", "")) end
 
     local function refresh()
-        say("get shown", function(out, code)
-            if code ~= 0 then fact.ck_ok = false return end
+        say_many("desktopclock", { "get shown", "get lay", "get px", "get wti", "get cli", "get where", "get h12" }, function(r)
+            if not r then fact.ck_ok = false return end
             fact.ck_ok = true
-            fact.ck_on = trim(out):match("true") ~= nil
-            local function num(name, key, hi)
-                say("get " .. name, function(o) local n = tonumber(trim(o)); if n then fact[key] = n end end)
-            end
-            num("lay", "ck_lay"); num("px", "ck_px"); num("wti", "ck_wt"); num("cli", "ck_cl");
-            say("get where", function(o) local n = POS_BACK[trim(o)]; if n then fact.ck_pos = n end end)
-            say("get h12", function(o) fact.ck_12h = trim(o):match("true") ~= nil end)
+            fact.ck_on = trim(r[1]):match("true") ~= nil
+            local function num(i, key) local n = tonumber(trim(r[i])); if n then fact[key] = n end end
+            num(2, "ck_lay"); num(3, "ck_px"); num(4, "ck_wt"); num(5, "ck_cl")
+            local pos = POS_BACK[trim(r[6])]; if pos then fact.ck_pos = pos end
+            fact.ck_12h = trim(r[7]):match("true") ~= nil
         end)
     end
     -- The desktop system monitor (desktopsysmon/) is the same: its own scene, asked when the page opens, told each change.
     local function say_sy(cmd, fn) run("pleamar", { "--say", "desktopsysmon", cmd }, fn or function() end) end
     local function refresh_sy()
-        say_sy("get shown", function(out, code)
-            if code ~= 0 then fact.sy_ok = false return end
+        say_many("desktopsysmon", { "get shown", "get cli", "get where" }, function(r)
+            if not r then fact.sy_ok = false return end
             fact.sy_ok = true
-            fact.sy_on = trim(out):match("true") ~= nil
-            say_sy("get cli", function(o) local n = tonumber(trim(o)); if n then fact.sy_cl = n end end)
-            say_sy("get where", function(o) local n = POS_BACK[trim(o)]; if n then fact.sy_pos = n end end)
+            fact.sy_on = trim(r[1]):match("true") ~= nil
+            local n = tonumber(trim(r[2])); if n then fact.sy_cl = n end
+            local pos = POS_BACK[trim(r[3])]; if pos then fact.sy_pos = pos end
         end)
     end
     on("fact:set_page", function(v) if v == "pg_clock" then refresh(); refresh_sy() end end)
