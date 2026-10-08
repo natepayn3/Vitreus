@@ -77,17 +77,27 @@ part ControlsDrawer {
             //  name ends where the chevron starts, and the zone is measured from the name.
             //  Unseen copy with no width limit, only to know how wide the name really is.
             text outname { at: floor(pcx + 66 * cu + 0.5), floor(vol_cy - 14 * cu + 0.5); anchor: right center; size: 16; lines: 1; measure: outw; opacity: 0; family: "Space Grotesk" }
-            text outname { at: floor(pcx + 66 * cu + 0.5), floor(vol_cy - 14 * cu + 0.5); anchor: right center; align: right; size: 16; width: 130 * cu; lines: 1; color: faint; opacity: 65% + 35% * out_hit.hover; family: "Space Grotesk" }
+            text outname { at: floor(pcx + 66 * cu + 0.5), floor(vol_cy - 14 * cu + 0.5); anchor: right center; align: right; size: 16; width: 118 * cu; lines: 1; color: faint; opacity: 65% + 35% * out_hit.hover; family: "Space Grotesk" }
             //  The percentage is centred between the end of the track (pcx + 74) and the plate's edge (pcx + 158).
             text number(audio.volume * 100, 0, "%") { at: floor(pcx + 128 * cu + 0.5), floor(vol_cy - 14 * cu + 0.5); anchor: right center; size: 18.5; weight: 600; color: ink; family: "Space Grotesk"; show: not audio.muted }
             text "Muted" { at: floor(pcx + 128 * cu + 0.5), floor(vol_cy - 14 * cu + 0.5); anchor: right center; size: 18.5; weight: 600; color: faint; family: "Space Grotesk"; show: audio.muted }
             //  The output name is a button: it opens the list of outputs.
             path { at: pcx + 76 * cu, vol_cy - 14 * cu; stroke: 1.4 * cu; color: ink; opacity: 55% + 35% * out_hit.hover; move -3.5 * cu, -2 * cu; line 0, 2 * cu; line 3.5 * cu, -2 * cu }
-            let out.w = min(outw.width, 130 * cu) + 30 * cu
+            let out.w = min(outw.width, 118 * cu) + 30 * cu
             zone box out_hit { at: pcx + 86 * cu - out.w / 2, vol_cy - 14 * cu; size: out.w, 30 * cu; cursor: pointer }
             on press out_hit { toggle dd_open; vm_open = false }
             on press right out_hit { vm_open = not vm_open; dd_open = false }
             text "Volume" { at: floor(pcx - 128 * cu + 0.5), floor(vol_cy - 14 * cu + 0.5); anchor: left center; size: 16; color: faint; family: "Space Grotesk" }
+            //  The microphone, beside the word: a button that mutes it and unmutes it; red, with a slash, while it is muted.
+            let mbx = pcx - 76 * cu
+            let mby = vol_cy - 14 * cu
+            ellipse { at: mbx, mby; radius: 12 * cu; color: if(audio.input_muted, alert, ink); opacity: if(audio.input_muted, 18%, 0%) + 10% * mic_hit.hover }
+            box { at: mbx, mby - 2.5 * cu; size: 5.5 * cu, 9 * cu; corner: 2.75 * cu; color: if(audio.input_muted, alert, ink); opacity: if(audio.input_muted, 100%, 60% + 40% * mic_hit.hover) }
+            path { at: mbx, mby - 2.5 * cu; stroke: 1.3 * cu; color: if(audio.input_muted, alert, ink); opacity: if(audio.input_muted, 100%, 60% + 40% * mic_hit.hover); move -4.5 * cu, 0.5 * cu; curve 0, 6 * cu via -4.5 * cu, 6 * cu; curve 4.5 * cu, 0.5 * cu via 4.5 * cu, 6 * cu }
+            box { at: mbx, mby + 5.5 * cu; size: 1.3 * cu, 2.5 * cu; corner: 0.65 * cu; color: if(audio.input_muted, alert, ink); opacity: if(audio.input_muted, 100%, 60% + 40% * mic_hit.hover) }
+            path { at: mbx, mby; stroke: 1.6 * cu; color: alert; opacity: if(audio.input_muted, 100%, 0); move -6 * cu, -6.5 * cu; line 6 * cu, 6.5 * cu }
+            zone box mic_hit { at: mbx, mby; size: 26 * cu, 26 * cu; corner: 13 * cu; cursor: pointer }
+            on press mic_hit { emit mic_toggle }
         }
 
         //  The mixer: every app that is playing, each with a slider of its own, inside the volume card (which grows to hold

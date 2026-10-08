@@ -1440,7 +1440,7 @@ end
 
 -- Volume and brightness: whenever one changes, its row comes out in the volume drawer for two seconds (each on its own timer; with both, the drawer
 -- holds both, one above the other). The drawer goes back once neither is out. The brightness has no row while the controls are open: their slider shows it.
-local lvl_gen = { v = 0, b = 0 }
+local lvl_gen = { v = 0, b = 0, m = 0 }
 local function show_level(row)
     if nt_queue.osd == "notif" and nt_now and nt_now.n then
         -- The level comes first: the notification on screen goes back to the front of the queue and shows again once the level has gone.
@@ -1456,10 +1456,11 @@ local function show_level(row)
     nt_queue.set_osd("volume")
     after(2000, function()
         if gen ~= lvl_gen[row] then return end
-        local other = row == "v" and "b" or "v"
-        if fact["osd_" .. other] then
-            fact["osd_" .. row] = false                     -- the other is still out: this row goes and the drawer shrinks to it
-            return
+        for _, other in ipairs({ "v", "b", "m" }) do
+            if other ~= row and fact["osd_" .. other] then
+                fact["osd_" .. row] = false                 -- another is still out: this row goes and the drawer shrinks to the rest
+                return
+            end
         end
         hide_osd("vol")
         nt_queue.hold = false
@@ -1468,6 +1469,15 @@ local function show_level(row)
         after(450, function() if gen == lvl_gen[row] then fact["osd_" .. row] = false end end)
     end)
 end
+-- The microphone: its row comes out when it is muted or unmuted (the mic key, the controls' button, or anything else), and the button toggles it.
+local last_mic = nil
+sys.watch("audio", function(a)
+    local m = a.input_muted and true or false
+    local changed = last_mic ~= nil and m ~= last_mic
+    last_mic = m
+    if changed then show_level("m") end
+end)
+on("mic_toggle", function() sys.call("audio.input_mute") end)
 local last_vol, last_mute = nil, nil
 sys.watch("audio", function(a)
     local vol = math.floor((a.volume or 0) * 100 + 0.5)

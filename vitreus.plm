@@ -50,7 +50,7 @@ scene Vitreus {
     model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number }
 
     service clock as now { time: text = "--:--"; date: text }
-    service audio { volume: number; muted: bool }
+    service audio { volume: number; muted: bool; input_muted: bool }
     service window as win { title: text; class: text }
     service media { playing: bool; title: text; artist: text; player: text; length: number }
     service brightness { present: bool; level: number }
@@ -177,6 +177,10 @@ scene Vitreus {
     event bright_key ->                 // a brightness key: the new level, 0 to 1
     follow osd_vp = if(osd_v, 1, 0)
     follow osd_bp = if(osd_b, 1, 0)
+    fact osd_m = false                  // the microphone's row: out for two seconds after it is muted or unmuted, under the other two
+    prop osd_mp = 0 ~calm
+    follow osd_mp = if(osd_m, 1, 0)
+    event mic_toggle ->                 // the microphone button in the controls' volume card
     text nt_app = ""
     text nt_title = ""
     text nt_body = ""
@@ -2155,7 +2159,7 @@ scene Vitreus {
     let nt_bh = ntb.height / u
     let nt_content = if(nt_body_on, 39 + nt_th + nt_bh, 35 + nt_th)
     let nt_h = max(68, nt_content + if(nt_acts.count > 0, 34, 0) + 12)
-    follow osd_h = if(osd_kind == note, nt_h, if(osd_kind == shot, 248, if(osd_v and osd_b, 136, 64)))
+    follow osd_h = if(osd_kind == note, nt_h, if(osd_kind == shot, 248, 64 + 72 * max(0, if(osd_v, 1, 0) + if(osd_b, 1, 0) + if(osd_m, 1, 0) - 1)))
     //  The settings panel: 620 wide. A header (36), then the sidebar and the page side by side (352).
     //  How tall the settings page in view is (unscaled): Wallpaper, Glass, Display.
     //  The Display page: its cards down to the profiles one, which is as tall as its rows (none: a line).

@@ -20,8 +20,8 @@ part OsdDrawer {
 
         // ── the volume ──
         group {
-            opacity: okv * max(osd_vp, 1 - osd_bp)
-            show: okv > 0.01 and (osd_v or not osd_b)
+            opacity: okv * max(osd_vp, 1 - max(osd_bp, osd_mp))
+            show: okv > 0.01 and (osd_v or not (osd_b or osd_m))
             let vy = ot + 32 * u                             // the top row (the plate's middle when it is the only one)
             let vtx = os.px - 128 * u                        // the face's tile
             box { at: vtx, vy; size: 44 * u, 44 * u; corner: 12 * u; color: ink; opacity: 6% }
@@ -97,6 +97,22 @@ part OsdDrawer {
             ellipse { at: btr0 + bspan, by; radius: (9 + 2.5 * sin(time * 220)) * u; color: minthi; opacity: 22% * clamp(bright_osd * 8, 0, 1) }
             box { at: clamp(btr0 + bspan, btr0 + 4 * u, btr0 + btrw - 4 * u), by; size: 6 * u, 26 * u; corner: 3 * u; color: ink }
             text number(bright_now * 100, 0, "%") { at: floor(os.px + 116 * u + 0.5), floor(by + 0.5); anchor: center; align: center; size: 21 * u; weight: 700; color: ink; family: "Space Grotesk" }
+        }
+
+        // ── the microphone: muted or on, under whichever of the other two are out ──
+        group {
+            opacity: okv * osd_mp
+            show: okv > 0.01 and osd_m
+            let mcy = ot + (32 + 72 * osd_vp + 72 * osd_bp) * u
+            let mtx = os.px - 128 * u
+            box { at: mtx, mcy; size: 44 * u, 44 * u; corner: 12 * u; color: if(audio.input_muted, alert, mint); opacity: if(audio.input_muted, 16%, 14%) }
+            //  A microphone: its head, the cradle round it, and the stand; a slash through it while it is muted.
+            box { at: mtx, mcy - 4 * u; size: 9 * u, 15 * u; corner: 4.5 * u; color: if(audio.input_muted, faint, mint) }
+            path { at: mtx, mcy - 4 * u; stroke: 1.8 * u; color: if(audio.input_muted, faint, mint); move -7.5 * u, 1 * u; curve 0, 9.5 * u via -7.5 * u, 9.5 * u; curve 7.5 * u, 1 * u via 7.5 * u, 9.5 * u }
+            box { at: mtx, mcy + 9 * u; size: 1.8 * u, 4 * u; corner: 0.9 * u; color: if(audio.input_muted, faint, mint) }
+            path { at: mtx, mcy; stroke: 2.2 * u; color: alert; opacity: if(audio.input_muted, 100%, 0); move -9 * u, -10 * u; line 9 * u, 10 * u }
+            text "Microphone muted" { at: floor(os.px - 90 * u + 0.5), floor(mcy + 0.5); anchor: left center; size: 19 * u; weight: 700; color: ink; family: "Space Grotesk"; show: audio.input_muted }
+            text "Microphone on" { at: floor(os.px - 90 * u + 0.5), floor(mcy + 0.5); anchor: left center; size: 19 * u; weight: 700; color: mint; family: "Space Grotesk"; show: not audio.input_muted }
         }
 
         // ── a notification ──
