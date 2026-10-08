@@ -529,6 +529,8 @@ part ControlsDrawer {
                 arc { at: pcx + 112 * cu, ex_cy; radius: 6 * cu; span: 260deg; width: 1.8 * cu; color: mint }
             }
             on press wifi_scan_hit { emit wifi_scan }
+            //  Enter in the password field of the open row joins like its button does.
+            on submit wifi_pw while wifi_open_row >= 0 { emit wifi_join_go(wifi_open_row) }
             box { at: pcx, ex_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
             column wifi_list_col ~quick {
                 at: floor(pcx - 138 * cu + 0.5), floor(ex_top + 54 * cu + 0.5)
@@ -564,9 +566,18 @@ part ControlsDrawer {
                 arc { at: pcx + 112 * cu, ex2_cy; radius: 6 * cu; span: 260deg; width: 1.8 * cu; color: mint }
             }
             on press bt_scan_hit { emit bt_scan }
+            //  Enter in the name field of the open device renames it like its button does.
+            on submit bt_rename while bt_open_row >= 0 { emit bt_rename_go }
             box { at: pcx, ex2_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
+            //  This computer, as other devices see it, and the switch that lets them find it.
+            text bt_adapter { at: floor(pcx - 134 * cu + 0.5), floor(ex2_top + 56 * cu + 0.5); anchor: left center; size: 13; weight: 600; width: 120 * cu; lines: 1; color: ink; family: "Space Grotesk"; show: bt.powered }
+            text bt_adapter_addr { at: floor(pcx - 134 * cu + 0.5), floor(ex2_top + 71 * cu + 0.5); anchor: left center; size: 10.5; color: faint; family: "Space Grotesk"; show: bt.powered }
+            text "Discoverable" { at: floor(pcx + 96 * cu + 0.5), floor(ex2_top + 63 * cu + 0.5); anchor: right center; align: right; size: 12; color: if(bt_discoverable, mint, faint); family: "Space Grotesk"; show: bt.powered }
+            box { at: pcx + 117 * cu, ex2_top + 63 * cu; size: 34 * cu, 18 * cu; corner: 9 * cu; color: mix(ink, mint, bt_disc_t); opacity: 16% + 64% * bt_disc_t; show: bt.powered }
+            ellipse { at: pcx + (108 + 18 * bt_disc_t) * cu, ex2_top + 63 * cu; radius: 6.5 * cu; color: mix(ink, onmint, bt_disc_t); show: bt.powered }
+            box { at: pcx, ex2_top + 86 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
             column bt_list_col ~quick {
-                at: floor(pcx - 138 * cu + 0.5), floor(ex2_top + 54 * cu + 0.5)
+                at: floor(pcx - 138 * cu + 0.5), floor(ex2_top + 94 * cu + 0.5)
                 view: 276 * cu, list_view_h * cu
                 gap: 5
                 for d in bt_devices { BtRow(d, pick: bt_pick, forget: bt_forget) }
@@ -574,10 +585,13 @@ part ControlsDrawer {
             //  After the list, so they win where its rows have scrolled up under the header (a row's zone still takes the click there).
             zone box bt_back { at: pcx - 124 * cu, ex2_cy; size: 30 * cu, 30 * cu; cursor: pointer }
             zone box bt_scan_hit { at: pcx + 112 * cu, ex2_cy; size: 54 * cu, 26 * cu; corner: 13 * cu; cursor: pointer }
+            zone box bt_disc_hit { at: pcx + 70 * cu, ex2_top + 63 * cu; size: 130 * cu, 26 * cu; corner: 8 * cu; cursor: pointer; active: bt.powered; label: "Discoverable" }
+            on press bt_disc_hit { emit bt_disc_toggle }
             //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
-            box { from: pcx + 141 * cu, ex2_top + 54 * cu + bt_list_col.scroll / max(bt_list_col.content, 1) * (list_view_h * cu); size: 3 * cu, (list_view_h * cu) * (list_view_h * cu) / max(bt_list_col.content, list_view_h * cu); corner: 1.5 * cu; color: ink; opacity: if(bt_list_col.content > (list_view_h * cu) + 1, 35%, 0%) }
-            text "No devices found" { at: floor(pcx + 0.5), floor(ex2_top + 54 * cu + 15 * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: bt_devices.count < 1 and not bt_scanning }
-            text "Scanning…" { at: floor(pcx + 0.5), floor(ex2_top + 54 * cu + 15 * cu + 0.5); anchor: center; size: 14; color: mint; family: "Space Grotesk"; show: bt_devices.count < 1 and bt_scanning }
+            box { from: pcx + 141 * cu, ex2_top + 94 * cu + bt_list_col.scroll / max(bt_list_col.content, 1) * (list_view_h * cu); size: 3 * cu, (list_view_h * cu) * (list_view_h * cu) / max(bt_list_col.content, list_view_h * cu); corner: 1.5 * cu; color: ink; opacity: if(bt_list_col.content > (list_view_h * cu) + 1, 35%, 0%) }
+            text "No devices found" { at: floor(pcx + 0.5), floor(ex2_top + 94 * cu + 15 * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: bt_devices.count < 1 and not bt_scanning and bt.powered }
+            text "Bluetooth is off" { at: floor(pcx + 0.5), floor(ex2_top + 94 * cu + 15 * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: not bt.powered }
+            text "Scanning…" { at: floor(pcx + 0.5), floor(ex2_top + 94 * cu + 15 * cu + 0.5); anchor: center; size: 14; color: mint; family: "Space Grotesk"; show: bt_devices.count < 1 and bt_scanning }
         }
 
         //  The notifications window: Do Not Disturb (a toggle, and timer chips that count down), and under them

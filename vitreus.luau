@@ -686,6 +686,20 @@ local bt_scanning = false                 -- a scan is running (see `bt_scan` be
 -- rest, named ones alphabetically and the anonymous ones (BLE beacons, mostly, which are dozens) last, by
 -- address. Unpaired devices are only shown while a scan is running: BlueZ goes on reporting what walked past
 -- for minutes afterwards, and a stale list of strangers is worse than none.
+-- What a device is, from the icon name BlueZ gives it (or, failing that, its name): the glyph on its row.
+-- 0 generic, 1 headphones, 2 keyboard, 3 mouse, 4 phone, 5 game controller, 6 speaker, 7 computer
+local function bt_kind(icon, name)
+    local i = (icon or ""):lower()
+    local n = (name or ""):lower()
+    if i:find("headset") or i:find("headphone") or n:find("airpods") or n:find("buds") or n:find("headphone") or n:find("headset") then return 1 end
+    if i:find("keyboard") or n:find("keyboard") then return 2 end
+    if i:find("mouse") or i:find("tablet") or n:find("mouse") or n:find("trackpad") then return 3 end
+    if i:find("phone") then return 4 end
+    if i:find("gaming") or n:find("controller") or n:find("gamepad") then return 5 end
+    if i:find("audio") or i:find("speaker") or n:find("speaker") or n:find("soundbar") then return 6 end
+    if i:find("computer") or i:find("laptop") then return 7 end
+    return 0
+end
 local function bt_is_mac(n) return n:match("^%x%x[-:]%x%x[-:]%x%x[-:]%x%x[-:]%x%x[-:]%x%x$") ~= nil end
 
 -- What a tap has asked for and BlueZ has not answered yet, by address: connecting or disconnecting takes
@@ -695,6 +709,9 @@ local bt_pending = {}                     -- address -> { kind = 1 connecting | 
 local bt_gen = 0
 local bt_open_addr = nil                  -- the address of the row that is open: its index moves when the list re-sorts
 local bt_prof_refresh = function() end   -- the open device's audio profiles (set below)
+local bt_dev_refresh = function() end    -- the open device's trust and name, and this computer's own details (set below)
+
+local function pick_sec_name(sec) return sec == 1 and "CONNECTED" or (sec == 2 and "PAIRED" or "NEARBY") end
 
 local function bt_render()
     local b = bt_last
@@ -709,7 +726,7 @@ local function bt_render()
             local row = {
                 name = nm, address = d.address, paired = d.paired and true or false,
                 connected = d.connected and true or false, battery = d.battery or -1,
-                anon = bt_is_mac(nm), busy = 0,
+                anon = bt_is_mac(nm), busy = 0, hd = 0, kind = bt_kind(d.icon, nm),
             }
             local p = bt_pending[d.address]
             if p then
@@ -740,7 +757,25 @@ local function bt_render()
         if x.anon ~= y.anon then return not x.anon end
         return x.name:lower() < y.name:lower()
     end)
-    while #rows > 24 do table.remove(rows) end
+    while #rows > 22 do table.remove(rows) end
+    -- Sections: a heading row goes in front of each run (Connected, Paired, Nearby). It is a row of the list like the others,
+    -- so positions stay what the scene sends back; `hd` says which heading it is and a tap on it does nothing.
+    local with_heads, last_sec = {}, 0
+    for _, r in ipairs(rows) do
+        local sec = r.connected and 1 or (r.paired and 2 or 3)
+        if sec ~= last_sec then
+            last_sec = sec
+            with_heads[#with_heads + 1] = {
+                name = pick_sec_name(sec), address = "", paired = false, connected = false, battery = -1,
+                anon = false, busy = 0, hd = sec, kind = 0,
+            }
+        end
+        with_heads[#with_heads + 1] = r
+    end
+    rows = with_heads
+    local list_h = 0
+    for _, r in ipairs(rows) do list_h = list_h + (r.hd > 0 and 20 or 30) + 5 end
+    fact.bt_list_h = math.max(0, list_h - 5)
     local working = false
     for _, r in ipairs(rows) do if r.busy == 1 or r.busy == 2 then working = true end end
     fact.bt_working = working
@@ -749,7 +784,7 @@ local function bt_render()
     bt_list = rows
     local sig = {}
     for i, r in ipairs(rows) do
-        sig[i] = r.address .. "|" .. r.name .. "|" .. tostring(r.paired) .. "|" .. tostring(r.connected) .. "|" .. tostring(r.battery) .. "|" .. r.busy
+        sig[i] = r.hd .. "|" .. r.kind .. "|" .. r.address .. "|" .. r.name .. "|" .. tostring(r.paired) .. "|" .. tostring(r.connected) .. "|" .. tostring(r.battery) .. "|" .. r.busy
     end
     local joined = table.concat(sig, "\n")
     if joined ~= bt_sig then
@@ -764,6 +799,7 @@ local function bt_render()
             if at ~= fact.bt_open_row then fact.bt_open_row = at end
         end
         bt_prof_refresh()
+        bt_dev_refresh()
     end
 end
 
@@ -774,8 +810,10 @@ end)
 
 on("fact:bt_open_row", function(i)
     local d = i >= 0 and bt_list[i + 1] or nil
+    if d and d.hd > 0 then d = nil end
     bt_open_addr = d and d.address or nil
     bt_prof_refresh()
+    bt_dev_refresh()
 end)
 
 -- The audio profile of the open, connected device (High Fidelity, Headset, Off...). PipeWire keeps it on the device's card, so it is read with
@@ -874,6 +912,90 @@ every(3000, function()
 end)
 end
 
+-- What the open device lets you change (its name, and whether it may reconnect by itself) and what this computer shows
+-- of itself. BlueZ keeps "trusted" on the device: a trusted one may connect without asking, which is the auto-connect.
+-- A device's name is its Alias, set over D-Bus (`bluetoothctl` can only rename the adapter). Both are read when a row
+-- opens and when the list changes; the adapter every few seconds, since "discoverable" times out by itself.
+do
+local adapter = "hci0"
+local trusted = false
+local discoverable = false
+local rename_for = nil
+
+run("busctl", { "--system", "tree", "org.bluez", "--list" }, function(out, code)
+    if code ~= 0 then return end
+    for path in (out or ""):gmatch("[^\n]+") do
+        local a = path:match("^/org/bluez/(hci%d+)%s*$")
+        if a then adapter = a; return end
+    end
+end)
+
+local function adapter_refresh()
+    if not (bt_last and bt_last.powered) then return end
+    run("bluetoothctl", { "show" }, function(out, code)
+        if code ~= 0 then return end
+        out = out or ""
+        text.bt_adapter = out:match("\n%s*Alias: ([^\n]*)") or ""
+        text.bt_adapter_addr = out:match("Controller (%x%x:%x%x:%x%x:%x%x:%x%x:%x%x)") or ""
+        discoverable = out:match("\n%s*Discoverable: (%a+)") == "yes"
+        fact.bt_discoverable = discoverable
+    end)
+end
+
+bt_dev_refresh = function()
+    local addr = bt_open_addr
+    local dev
+    for _, r in ipairs(bt_list) do if r.address == addr then dev = r end end
+    if not addr or not dev or not (dev.paired or dev.connected) then
+        fact.bt_set_h = 0
+        rename_for = nil
+        return
+    end
+    fact.bt_set_h = 74
+    if rename_for ~= addr then
+        rename_for = addr
+        text.bt_rename = dev.name
+    end
+    run("bluetoothctl", { "info", addr }, function(out, code)
+        if code ~= 0 or bt_open_addr ~= addr then return end
+        trusted = (out or ""):match("Trusted: (%a+)") == "yes"
+        fact.bt_trusted = trusted
+    end)
+end
+
+on("bt_trust_toggle", function()
+    local addr = bt_open_addr
+    if not addr then return end
+    trusted = not trusted
+    fact.bt_trusted = trusted
+    run("bluetoothctl", { trusted and "trust" or "untrust", addr }, function() bt_dev_refresh() end)
+end)
+
+on("bt_rename_go", function()
+    local addr = bt_open_addr
+    local name = (text.bt_rename or ""):match("^%s*(.-)%s*$")
+    if not addr or name == "" then return end
+    local path = "/org/bluez/" .. adapter .. "/dev_" .. addr:gsub(":", "_")
+    run("busctl", { "--system", "set-property", "org.bluez", path, "org.bluez.Device1", "Alias", "s", name }, function() end)
+end)
+
+on("bt_disc_toggle", function()
+    local want = not discoverable
+    discoverable = want
+    fact.bt_discoverable = want
+    if want then
+        run("bluetoothctl", { "pairable", "on" }, function()
+            run("bluetoothctl", { "discoverable", "on" }, function() adapter_refresh() end)
+        end)
+    else
+        run("bluetoothctl", { "discoverable", "off" }, function() adapter_refresh() end)
+    end
+end)
+
+adapter_refresh()
+every(5000, adapter_refresh)
+end
+
 -- Asks BlueZ for something slow, and shows that it was asked. `kind` 1 connecting, 2 disconnecting. If BlueZ has
 -- not answered in twenty seconds the row says it could not, for three, and goes back to what it was.
 local function bt_ask(d, kind, call)
@@ -900,7 +1022,7 @@ end
 
 on("bt_pick", function(i)
     local d = bt_list[i + 1]
-    if not d or d.busy == 1 or d.busy == 2 then return end
+    if not d or d.hd > 0 or d.busy == 1 or d.busy == 2 then return end
     if d.connected then
         bt_ask(d, 2, "bluetooth.disconnect")
     else
@@ -910,7 +1032,7 @@ end)
 
 on("bt_forget", function(i)
     local d = bt_list[i + 1]
-    if not d then return end
+    if not d or d.hd > 0 then return end
     bt_pending[d.address] = nil
     sys.call("bluetooth.forget", d.address)
     fact.bt_open_row = -1
@@ -946,9 +1068,214 @@ on("wifi_scan", function()
         after(3500, function()
             wifi_scanning = false
             fact.wifi_scanning = false
+            emit("wifi_scan_done", 1)
         end)
     end)
 end)
+
+-- The Wi-Fi window's list is built here from `nmcli`, because the network service has no band, channel or speed. A network
+-- shows up once however many access points carry it (the one in use, else the strongest), sorted: in use, saved, then by
+-- signal. The one in use also gets its address details from `nmcli device show`. As with Bluetooth, the open row is
+-- remembered by name, since its position moves when the list re-sorts.
+do
+local WF = { rows = {}, sig = nil, open = nil, dev = nil, known = {}, busy = {}, gen = 0 }
+
+-- `nmcli -t` puts a backslash before a ":" or "\" inside a value
+local function nm_fields(line)
+    local f, cur, i = {}, "", 1
+    while i <= #line do
+        local c = line:sub(i, i)
+        if c == "\\" then cur = cur .. line:sub(i + 1, i + 1); i = i + 2
+        elseif c == ":" then f[#f + 1] = cur; cur = ""; i = i + 1
+        else cur = cur .. c; i = i + 1 end
+    end
+    f[#f + 1] = cur
+    return f
+end
+
+local function wf_security(s)
+    s = s or ""
+    if s == "" or s == "--" then return "Open" end
+    if s:find("WPA3") then return "WPA3" end
+    if s:find("WPA2") then return "WPA2" end
+    if s:find("WPA1") or s:find("WPA") then return "WPA" end
+    if s:find("WEP") then return "WEP" end
+    return s
+end
+
+local wf_details
+local function wf_show()
+    local open_row
+    for _, r in ipairs(WF.rows) do if r.ssid == WF.open then open_row = r end end
+    -- the details block under the connected network's buttons: six lines of 16 and a little air
+    fact.wifi_pf_h = (open_row and open_row.active) and 104 or 0
+    if open_row and open_row.active then wf_details() end
+end
+
+local function wf_render(rows)
+    for _, r in ipairs(rows) do
+        local b = WF.busy[r.ssid]
+        r.busy = 0
+        if b then
+            if (b.kind == 1 and r.active) or (b.kind == 2 and not r.active) then WF.busy[r.ssid] = nil
+            else r.busy = b.kind end
+        end
+    end
+    local parts = {}
+    for i, r in ipairs(rows) do
+        parts[i] = table.concat({ r.bands or "", r.ssid, tostring(r.active), tostring(r.known), tostring(r.secure), r.band, r.chan, r.rate, r.sec, r.busy, math.floor(r.strength * 20) }, "|")
+    end
+    local sig = table.concat(parts, "\n")
+    WF.rows = rows
+    if sig ~= WF.sig then
+        WF.sig = sig
+        model.wifi_nets = rows
+        if WF.open then
+            local at = -1
+            for i, r in ipairs(rows) do if r.ssid == WF.open then at = i - 1 end end
+            if at ~= fact.wifi_open_row then fact.wifi_open_row = at end
+        end
+    end
+    wf_show()
+end
+
+local function wf_refresh()
+    run("nmcli", { "-t", "-f", "NAME,TYPE", "connection", "show" }, function(out, code)
+        if code == 0 then
+            local known = {}
+            for line in (out or ""):gmatch("[^\n]+") do
+                local f = nm_fields(line)
+                if f[2] == "802-11-wireless" then known[f[1]] = true end
+            end
+            WF.known = known
+        end
+        run("nmcli", { "-t", "-f", "IN-USE,SSID,SIGNAL,FREQ,CHAN,RATE,SECURITY", "device", "wifi", "list" }, function(o2, c2)
+            if c2 ~= 0 then return end
+            local best, bandset = {}, {}
+            for line in (o2 or ""):gmatch("[^\n]+") do
+                local f = nm_fields(line)
+                local ssid = f[2] or ""
+                if ssid ~= "" then
+                    local mhz = tonumber((f[4] or ""):match("%d+")) or 0
+                    local row = {
+                        ssid = ssid, active = f[1] == "*", known = WF.known[ssid] == true,
+                        strength = (tonumber(f[3]) or 0) / 100,
+                        band = mhz >= 5925 and 6 or (mhz >= 4900 and 5 or (mhz > 0 and 2 or 0)),
+                        chan = tonumber(f[5]) or 0, rate = tonumber((f[6] or ""):match("%d+")) or 0,
+                        sec = wf_security(f[7]), busy = 0,
+                    }
+                    row.secure = row.sec ~= "Open"
+                    local old = best[ssid]
+                    bandset[ssid] = bandset[ssid] or {}
+                    bandset[ssid][row.band] = true
+                    if not old or (row.active and not old.active) or (not old.active and row.strength > old.strength) then
+                        best[ssid] = row
+                    end
+                end
+            end
+            local rows = {}
+            for _, r in pairs(best) do
+                -- a network on several bands says all of them; the details are those of the strongest access point
+                local names = {}
+                for _, b in ipairs({ 2, 5, 6 }) do
+                    if bandset[r.ssid][b] then names[#names + 1] = b == 2 and "2.4" or tostring(b) end
+                end
+                r.bands = #names > 0 and (table.concat(names, "/") .. " GHz") or ""
+                r.bandw = #names > 0 and math.floor(14 + 5.6 * #r.bands) or 0
+                rows[#rows + 1] = r
+            end
+            table.sort(rows, function(x, y)
+                if x.active ~= y.active then return x.active end
+                if x.known ~= y.known then return x.known end
+                if x.strength ~= y.strength then return x.strength > y.strength end
+                return x.ssid:lower() < y.ssid:lower()
+            end)
+            while #rows > 16 do table.remove(rows) end
+            wf_render(rows)
+        end)
+    end)
+end
+
+wf_details = function()
+    local function show(ip, gw, mac)
+        text.wf_ip, text.wf_gw, text.wf_mac = ip or "", gw or "", mac or ""
+    end
+    local function read(dev)
+        run("nmcli", { "-t", "-f", "IP4.ADDRESS,IP4.GATEWAY,GENERAL.HWADDR", "device", "show", dev }, function(out, code)
+            if code ~= 0 then return end
+            local ip, gw, mac
+            for line in (out or ""):gmatch("[^\n]+") do
+                local k, v = line:match("^([%w%.]+)[^:]*:(.*)$")
+                if k == "IP4.ADDRESS" and not ip then ip = (v:gsub("\\", ""):gsub("/%d+$", ""))
+                elseif k == "IP4.GATEWAY" then gw = v
+                elseif k == "GENERAL.HWADDR" then mac = (v:gsub("\\", "")) end
+            end
+            show(ip, gw, mac)
+        end)
+    end
+    if WF.dev then return read(WF.dev) end
+    run("nmcli", { "-t", "-f", "DEVICE,TYPE", "device" }, function(out)
+        for line in (out or ""):gmatch("[^\n]+") do
+            local f = nm_fields(line)
+            if f[2] == "wifi" then WF.dev = f[1]; return read(f[1]) end
+        end
+    end)
+end
+
+on("fact:wifi_open_row", function(i)
+    local r = i >= 0 and WF.rows[i + 1] or nil
+    WF.open = r and r.ssid or nil
+    wf_show()
+end)
+
+local function wf_ask(r, kind, call, ...)
+    WF.gen = WF.gen + 1
+    local gen = WF.gen
+    WF.busy[r.ssid] = { kind = kind, gen = gen }
+    wf_render(WF.rows)
+    sys.call(call, ...)
+    after(15000, function()
+        local b = WF.busy[r.ssid]
+        if b and b.gen == gen then
+            WF.busy[r.ssid] = nil
+            wf_refresh()
+        end
+    end)
+    after(3000, wf_refresh)
+end
+
+on("wifi_pick", function(i)
+    local r = WF.rows[math.floor(i + 0.5) + 1]
+    if not r or r.busy ~= 0 then return end
+    if r.active then wf_ask(r, 2, "network.disconnect")
+    else wf_ask(r, 1, "network.connect", r.ssid) end
+end)
+
+on("wifi_join_go", function(i)
+    local r = WF.rows[math.floor(i + 0.5) + 1]
+    local pw = text.wifi_pw
+    if not r or r.busy ~= 0 or not pw or pw == "" then return end
+    text.wifi_pw = ""
+    wf_ask(r, 1, "network.connect", r.ssid, pw)
+end)
+
+on("wifi_forget", function(i)
+    local r = WF.rows[math.floor(i + 0.5) + 1]
+    if not r then return end
+    sys.call("network.forget", r.ssid)
+    fact.wifi_open_row = -1
+    after(1500, wf_refresh)
+end)
+
+on("wifi_copy_ip", function()
+    local ip = text.wf_ip
+    if ip and ip ~= "" then run("wl-copy", { ip }, function() end) end
+end)
+
+sys.watch("network", function() wf_refresh() end)
+every(6000, wf_refresh)
+on("wifi_scan_done", wf_refresh)
+end
 
 -- Where the sound can go. PipeWire's names come with the whole card model in
 -- them, so they are only tidied (spaces); the scene truncates to fit its row.
