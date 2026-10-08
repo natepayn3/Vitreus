@@ -44,7 +44,7 @@ scene Vitreus {
     fact pal_alert_b = 0.2667
     surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) }
     permissions { services: "files", "files.write", "auth", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "git", "pleamar", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "vitreus-term", "claude", "ollama", "codex", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play", "ffmpeg", "tesseract" }
+                  run: "git", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "chmod", "wl-copy", "find", "vitreus-term", "claude", "ollama", "codex", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play", "ffmpeg", "tesseract" }
 
     model wifi_nets max 8 { ssid: text; strength: number; secure: bool; known: bool; active: bool }
     model bt_devices max 24 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number }
@@ -177,6 +177,13 @@ scene Vitreus {
     event bright_key ->                 // a brightness key: the new level, 0 to 1
     follow osd_vp = if(osd_v, 1, 0)
     follow osd_bp = if(osd_b, 1, 0)
+    //  The privacy lights (logic/privacy.luau; the screen's from Hyprland's events in vitreus.luau).
+    fact priv_mic = false
+    fact priv_cam = false
+    fact priv_scr = false
+    text priv_mic_who = ""
+    text priv_cam_who = ""
+    text priv_scr_who = ""
     fact osd_m = false                  // the microphone's row: out for two seconds after it is muted or unmuted, under the other two
     prop osd_mp = 0 ~calm
     follow osd_mp = if(osd_m, 1, 0)
@@ -897,6 +904,8 @@ scene Vitreus {
     follow bs.tray = if(bv.tray, 1, 0)
     follow trn = bartrays.count
     follow rcn = if(rec_on, 1, 0)
+    prop pvn = 0 ~calm                // the privacy lights' slots, the same way
+    follow pvn = if(priv_mic, 1, 0) + if(priv_cam, 1, 0) + if(priv_scr and not rec_on, 1, 0)
     repeat i in 0..8 {
         prop bcx.$i = 0 ~quick
         prop bcy.$i = 4 ~quick
@@ -1757,6 +1766,45 @@ scene Vitreus {
     }
 
     //  While a screen recording runs, a red dot rides the tray. Under the pointer it squares off into a stop button.
+    //  A privacy light on the bar, while something uses the microphone (kind 0, amber), the camera (1, green) or shares the screen (2, blue):
+    //  its icon on a soft glowing disc. Under the pointer, the apps doing it are named below it.
+    component BarPriv(kind: number) {
+        size: floor(18 * u + 0.5), floor(18 * u + 0.5)
+        let beat = 0.5 + 0.5 * sin(time * 160)
+        body {
+            color: if(kind == 0, #f59e0b, if(kind == 1, #22c55e, #60a5fa))
+            opacity: 22% + 10% * beat
+            shadow: 0, 0, (3 + 3 * beat) * u, 60%, if(kind == 0, #f59e0b, if(kind == 1, #22c55e, #60a5fa))
+            ellipse { at: 9 * u, 9 * u; radius: 9 * u }
+        }
+        //  microphone
+        group {
+            show: kind == 0
+            box { at: 9 * u, 7 * u; size: 5 * u, 8.5 * u; corner: 2.5 * u; color: if(kind == 0, #f59e0b, if(kind == 1, #22c55e, #60a5fa)) }
+            path { at: 9 * u, 7 * u; stroke: 1.3 * u; color: if(kind == 0, #f59e0b, if(kind == 1, #22c55e, #60a5fa)); move -4 * u, 0.5 * u; curve 0, 5.5 * u via -4 * u, 5.5 * u; curve 4 * u, 0.5 * u via 4 * u, 5.5 * u }
+            box { at: 9 * u, 13.8 * u; size: 1.3 * u, 2.2 * u; corner: 0.6 * u; color: if(kind == 0, #f59e0b, if(kind == 1, #22c55e, #60a5fa)) }
+        }
+        //  camera
+        group {
+            show: kind == 1
+            box { at: 7.6 * u, 9 * u; size: 9 * u, 7 * u; corner: 2 * u; color: if(kind == 0, #f59e0b, if(kind == 1, #22c55e, #60a5fa)) }
+            path { at: 12.5 * u, 9 * u; color: if(kind == 0, #f59e0b, if(kind == 1, #22c55e, #60a5fa)); move 0, -1.2 * u; line 3.2 * u, -3 * u; line 3.2 * u, 3 * u; line 0, 1.2 * u; close }
+        }
+        //  screen
+        group {
+            show: kind == 2
+            box { at: 9 * u, 7.8 * u; size: 11 * u, 7.6 * u; corner: 1.6 * u; stroke: 1.4 * u; color: if(kind == 0, #f59e0b, if(kind == 1, #22c55e, #60a5fa)) }
+            box { at: 9 * u, 13.6 * u; size: 6 * u, 1.4 * u; corner: 0.7 * u; color: if(kind == 0, #f59e0b, if(kind == 1, #22c55e, #60a5fa)) }
+        }
+        zone box touch { at: 9 * u, 9 * u; size: 22 * u, 26 * u }
+        text priv_mic_who { at: floor(9 * u + 0.5), floor(30 * u + 0.5); anchor: center; align: center; size: 12 * u; weight: 600; color: ink; family: "Space Grotesk"; opacity: touch.hover; show: lm < 0.5 and kind == 0 }
+        text priv_mic_who { at: floor(26 * u + 0.5), floor(9 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; color: ink; family: "Space Grotesk"; opacity: touch.hover; show: lm >= 0.5 and kind == 0 }
+        text priv_cam_who { at: floor(9 * u + 0.5), floor(30 * u + 0.5); anchor: center; align: center; size: 12 * u; weight: 600; color: ink; family: "Space Grotesk"; opacity: touch.hover; show: lm < 0.5 and kind == 1 }
+        text priv_cam_who { at: floor(26 * u + 0.5), floor(9 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; color: ink; family: "Space Grotesk"; opacity: touch.hover; show: lm >= 0.5 and kind == 1 }
+        text priv_scr_who { at: floor(9 * u + 0.5), floor(30 * u + 0.5); anchor: center; align: center; size: 12 * u; weight: 600; color: ink; family: "Space Grotesk"; opacity: touch.hover; show: lm < 0.5 and kind == 2 }
+        text priv_scr_who { at: floor(26 * u + 0.5), floor(9 * u + 0.5); anchor: left center; size: 12 * u; weight: 600; color: ink; family: "Space Grotesk"; opacity: touch.hover; show: lm >= 0.5 and kind == 2 }
+    }
+
     component BarRec(stop: event) {
         size: floor(18 * u + 0.5), floor(18 * u + 0.5)
         box { at: 9 * u, 9 * u; size: 26 * u, 26 * u; corner: 8 * u; color: ink; opacity: 14% * touch.hover }
@@ -1940,7 +1988,7 @@ scene Vitreus {
     on press right away_z { panel = none; wp_picker_open = false; ov_open = false }
     //  The tray's icons (the pinned apps, or all of them) are a piece of the bar like the others; the bar widens for them.
     let bar.gap = 12 * u
-    let tn = trn * bs.tray + rcn                      // what the tray piece holds: the icons (as far as the piece is shown) and the recording dot
+    let tn = trn * bs.tray + rcn + pvn                // what the tray piece holds: the icons (as far as the piece is shown), the recording dot and the privacy lights
     let fw.tray = max(0, tn * 24 - 6) * u               // icons 18 wide, 6 apart
     let vw.tray = fw.tray
     let bw.tray = fw.tray + bar.gap * min(1, tn)

@@ -1355,6 +1355,12 @@ function watch_urgent()
             spawn("socat", { "-u", "UNIX-CONNECT:" .. rt .. "/hypr/" .. sig .. "/.socket2.sock", "-" }, function(line)
                 local addr = line:match("^urgent>>(%x+)")
                 if addr then window_urgent(addr) end
+                -- the screen being shared or recorded through the portal (logic/privacy.luau has the rest of the privacy lights)
+                local sc = line:match("^screencast>>(%d)")
+                if sc then
+                    fact.priv_scr = sc == "1"
+                    text.priv_scr_who = sc == "1" and "Your screen is being shared" or ""
+                end
             end, function() after(3000, watch_urgent) end)
         end)
     end)
@@ -5658,6 +5664,9 @@ do
         shot_hide()
     end)
 end
+
+-- privacy lights: see logic/privacy.luau
+require("logic/privacy")()
 
 -- shelf: see logic/shelf.luau
 require("logic/shelf")(with_dirs)
