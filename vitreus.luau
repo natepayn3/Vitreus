@@ -1356,8 +1356,10 @@ function watch_urgent()
                 local addr = line:match("^urgent>>(%x+)")
                 if addr then window_urgent(addr) end
                 -- the screen being shared or recorded through the portal (logic/privacy.luau has the rest of the privacy lights)
-                local sc = line:match("^screencast>>(%d)")
-                if sc then
+                -- (Hyprland also says it for a photo of a patch of screen, "region": that is what the glass of this shell and any
+                -- screenshot tool take all the time, so only a whole monitor or window counts as sharing.)
+                local sc, what = line:match("^screencast>>(%d),(%a+)")
+                if sc and what ~= "region" then
                     fact.priv_scr = sc == "1"
                     text.priv_scr_who = sc == "1" and "Your screen is being shared" or ""
                 end
