@@ -5,11 +5,11 @@ part Sysmon {
         group {
             show: set_pgs > 0.01
             opacity: set_pgs
-            let sm.sc = clamp(sm_scroll, 0, max(0, sm.h - 456))
+            let sm.sc = clamp(sm_scroll, 0, max(0, sm.h - set.h))
             let sm.off = floor(sm.sc * pu + 0.5)        // whole pixels: text that is shifted by a fraction of one is resampled, and looks soft
-            clip box { at: spx + 224 * pu, sby + 228 * pu; size: 456 * pu, 456 * pu }
-            zone box sm_wheel { at: spx + 219 * pu, sby + 228 * pu; size: 446 * pu, 456 * pu }
-            on scroll sm_wheel { sm_scroll_to = clamp(sm_scroll_to - wheel * 44, 0, max(0, sm.h - 456)) }
+            clip box { at: spx + 224 * pu, sby + set.h / 2 * pu; size: 456 * pu, set.h * pu }
+            zone box sm_wheel { at: spx + 219 * pu, sby + set.h / 2 * pu; size: 446 * pu, set.h * pu }
+            on scroll sm_wheel { sm_scroll_to = clamp(sm_scroll_to - wheel * 44, 0, max(0, sm.h - set.h)) }
             group {
                 move: 0, -sm.off
             box { at: spx + 219 * pu, sby + 40 * pu; size: 438 * pu, 68 * pu; corner: 14 * pu; color: ink; opacity: veil }
@@ -182,12 +182,12 @@ part Sysmon {
                 text sm_proc.$r.mem_txt { at: floor(spx + 424 * pu + 0.5), floor(sby + ry * pu + 0.5); anchor: right center; align: right; size: 14; weight: 500; width: 50 * pu; lines: 1; color: faint; family: "Space Grotesk"; show: r < sm_proc.count }
             }
             }
-            let sm.thh = 456 * 456 / sm.h
-            let sm.thy = sm.thh / 2 + sm.sc / max(1, sm.h - 456) * (456 - sm.thh)
-            box { at: spx + 442 * pu, sby + 228 * pu; size: 3 * pu, 456 * pu; corner: 1.5 * pu; color: ink; opacity: 6% }
+            let sm.thh = set.h * set.h / sm.h
+            let sm.thy = sm.thh / 2 + sm.sc / max(1, sm.h - set.h) * (set.h - sm.thh)
+            box { at: spx + 442 * pu, sby + set.h / 2 * pu; size: 3 * pu, set.h * pu; corner: 1.5 * pu; color: ink; opacity: 6% }
             box { at: spx + 442 * pu, sby + sm.thy * pu; size: 3 * pu, sm.thh * pu; corner: 1.5 * pu; color: mint; opacity: 55% }
-            let sm.cue = clamp((sm.h - 456 - sm.sc) / 24, 0, 1)
-            let sm.cuey = sby + (456 - 26) * pu + 2.5 * pu * sin(time * 270)
+            let sm.cue = clamp((sm.h - set.h - sm.sc) / 24, 0, 1)
+            let sm.cuey = sby + (set.h - 26) * pu + 2.5 * pu * sin(time * 270)
             repeat i in 0..16 {
                 let fk = (i + 1) / 16
                 box { from: spx - 4 * pu, sby + (400 + i * 3.5) * pu; size: 448 * pu, 3.5 * pu + 0.5; color: deep; opacity: 45% * fk * fk * sm.cue }
@@ -197,11 +197,11 @@ part Sysmon {
             path { at: spx + 204 * pu, sm.cuey - 1 * pu; stroke: 1.6 * pu; color: mint; opacity: sm.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
             path { at: spx + 204 * pu, sm.cuey + 4 * pu; stroke: 1.6 * pu; color: mint; opacity: sm.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
             text "More" { at: floor(spx + 232 * pu + 0.5), floor(sm.cuey + 0.5); anchor: center; size: 15; weight: 700; color: ink; opacity: sm.cue; family: "Space Grotesk" }
-            zone box sm_cue_hit { at: spx + 224 * pu, sby + (456 - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: sm.cue > 0.5 }
-            on press sm_cue_hit { sm_scroll_to = clamp(sm_scroll_to + 342, 0, max(0, sm.h - 456)) }
-            zone box sm_bar_hit { at: spx + 442 * pu, sby + 228 * pu; size: 14 * pu, 456 * pu; cursor: pointer; active: sm.h > 456 }
-            on press sm_bar_hit { sm_scroll_to = clamp(((pointer.y - sby) / pu - sm.thh / 2) / max(1, 456 - sm.thh) * (sm.h - 456), 0, max(0, sm.h - 456)) }
-            on drag sm_bar_hit { sm_scroll_to = clamp(((pointer.y - sby) / pu - sm.thh / 2) / max(1, 456 - sm.thh) * (sm.h - 456), 0, max(0, sm.h - 456)) }
+            zone box sm_cue_hit { at: spx + 224 * pu, sby + (set.h - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: sm.cue > 0.5 }
+            on press sm_cue_hit { sm_scroll_to = clamp(sm_scroll_to + 342, 0, max(0, sm.h - set.h)) }
+            zone box sm_bar_hit { at: spx + 442 * pu, sby + set.h / 2 * pu; size: 14 * pu, set.h * pu; cursor: pointer; active: sm.h > set.h }
+            on press sm_bar_hit { sm_scroll_to = clamp(((pointer.y - sby) / pu - sm.thh / 2) / max(1, set.h - sm.thh) * (sm.h - set.h), 0, max(0, sm.h - set.h)) }
+            on drag sm_bar_hit { sm_scroll_to = clamp(((pointer.y - sby) / pu - sm.thh / 2) / max(1, set.h - sm.thh) * (sm.h - set.h), 0, max(0, sm.h - set.h)) }
         }
         //  ── System monitor page: END ──
 }

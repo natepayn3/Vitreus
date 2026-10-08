@@ -6,11 +6,11 @@ part Vpn {
             show: set_pgv > 0.01
             opacity: set_pgv
             let vpn.h = vpn.ab + 84 + vpn.fh + 44 + 12
-            let vpn.sc = clamp(vpn_scroll, 0, max(0, vpn.h - 456))
+            let vpn.sc = clamp(vpn_scroll, 0, max(0, vpn.h - set.h))
             let vpn.off = floor(vpn.sc * pu + 0.5)
-            clip box { at: spx + 224 * pu, sby + 228 * pu; size: 456 * pu, 456 * pu }
-            zone box vpn_wheel { at: spx + 219 * pu, sby + 228 * pu; size: 446 * pu, 456 * pu }
-            on scroll vpn_wheel while not (vpn_mode == vpm_imp and vpn_fmore and vpn_fwheel.hover) { vpn_scroll_to = clamp(vpn_scroll_to - wheel * 44, 0, max(0, vpn.h - 456)) }
+            clip box { at: spx + 224 * pu, sby + set.h / 2 * pu; size: 456 * pu, set.h * pu }
+            zone box vpn_wheel { at: spx + 219 * pu, sby + set.h / 2 * pu; size: 446 * pu, set.h * pu }
+            on scroll vpn_wheel while not (vpn_mode == vpm_imp and vpn_fmore and vpn_fwheel.hover) { vpn_scroll_to = clamp(vpn_scroll_to - wheel * 44, 0, max(0, vpn.h - set.h)) }
             group {
                 move: 0, -vpn.off
             box { at: spx + 219 * pu, sby + 42 * pu; size: 438 * pu, 68 * pu; corner: 14 * pu; color: ink; opacity: veil }
@@ -238,12 +238,12 @@ part Vpn {
             on press vpn_add_hit while vpn_mode == vpm_ovpn { emit vpn_add_ovpn }
             on press vpn_add_hit while vpn_mode == vpm_imp { emit vpn_import }
             }
-            let vpn.thh = 456 * 456 / vpn.h
-            let vpn.thy = vpn.thh / 2 + vpn.sc / max(1, vpn.h - 456) * (456 - vpn.thh)
-            box { at: spx + 442 * pu, sby + 228 * pu; size: 3 * pu, 456 * pu; corner: 1.5 * pu; color: ink; opacity: 6% }
+            let vpn.thh = set.h * set.h / vpn.h
+            let vpn.thy = vpn.thh / 2 + vpn.sc / max(1, vpn.h - set.h) * (set.h - vpn.thh)
+            box { at: spx + 442 * pu, sby + set.h / 2 * pu; size: 3 * pu, set.h * pu; corner: 1.5 * pu; color: ink; opacity: 6% }
             box { at: spx + 442 * pu, sby + vpn.thy * pu; size: 3 * pu, vpn.thh * pu; corner: 1.5 * pu; color: mint; opacity: 55% }
-            let vpn.cue = clamp((vpn.h - 456 - vpn.sc) / 24, 0, 1)
-            let vpn.cuey = sby + (456 - 26) * pu + 2.5 * pu * sin(time * 270)
+            let vpn.cue = clamp((vpn.h - set.h - vpn.sc) / 24, 0, 1)
+            let vpn.cuey = sby + (set.h - 26) * pu + 2.5 * pu * sin(time * 270)
             repeat i in 0..16 {
                 let fk = (i + 1) / 16
                 box { from: spx - 4 * pu, sby + (400 + i * 3.5) * pu; size: 448 * pu, 3.5 * pu + 0.5; color: deep; opacity: 45% * fk * fk * vpn.cue }
@@ -253,11 +253,11 @@ part Vpn {
             path { at: spx + 204 * pu, vpn.cuey - 1 * pu; stroke: 1.6 * pu; color: mint; opacity: vpn.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
             path { at: spx + 204 * pu, vpn.cuey + 4 * pu; stroke: 1.6 * pu; color: mint; opacity: vpn.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
             text "More" { at: floor(spx + 232 * pu + 0.5), floor(vpn.cuey + 0.5); anchor: center; size: 15; weight: 700; color: ink; opacity: vpn.cue; family: "Space Grotesk" }
-            zone box vpn_cue_hit { at: spx + 224 * pu, sby + (456 - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: vpn.cue > 0.5 }
-            on press vpn_cue_hit { vpn_scroll_to = clamp(vpn_scroll_to + 342, 0, max(0, vpn.h - 456)) }
-            zone box vpn_bar_hit { at: spx + 442 * pu, sby + 228 * pu; size: 14 * pu, 456 * pu; cursor: pointer; active: vpn.h > 456 }
-            on press vpn_bar_hit { vpn_scroll_to = clamp(((pointer.y - sby) / pu - vpn.thh / 2) / max(1, 456 - vpn.thh) * (vpn.h - 456), 0, max(0, vpn.h - 456)) }
-            on drag vpn_bar_hit { vpn_scroll_to = clamp(((pointer.y - sby) / pu - vpn.thh / 2) / max(1, 456 - vpn.thh) * (vpn.h - 456), 0, max(0, vpn.h - 456)) }
+            zone box vpn_cue_hit { at: spx + 224 * pu, sby + (set.h - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: vpn.cue > 0.5 }
+            on press vpn_cue_hit { vpn_scroll_to = clamp(vpn_scroll_to + 342, 0, max(0, vpn.h - set.h)) }
+            zone box vpn_bar_hit { at: spx + 442 * pu, sby + set.h / 2 * pu; size: 14 * pu, set.h * pu; cursor: pointer; active: vpn.h > set.h }
+            on press vpn_bar_hit { vpn_scroll_to = clamp(((pointer.y - sby) / pu - vpn.thh / 2) / max(1, set.h - vpn.thh) * (vpn.h - set.h), 0, max(0, vpn.h - set.h)) }
+            on drag vpn_bar_hit { vpn_scroll_to = clamp(((pointer.y - sby) / pu - vpn.thh / 2) / max(1, set.h - vpn.thh) * (vpn.h - set.h), 0, max(0, vpn.h - set.h)) }
         }
         //  ── VPN page: END ──
 }

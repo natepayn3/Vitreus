@@ -4,11 +4,11 @@ part Notifications {
         group {
             show: set_pgt > 0.01
             opacity: set_pgt
-            let nt.sc = clamp(nt_scroll, 0, max(0, nt.h - 456))
+            let nt.sc = clamp(nt_scroll, 0, max(0, nt.h - set.h))
             let nt.off = floor(nt.sc * pu + 0.5)
-            clip box { at: spx + 224 * pu, sby + 228 * pu; size: 456 * pu, 456 * pu }
-            zone box nt_wheel { at: spx + 219 * pu, sby + 228 * pu; size: 446 * pu, 456 * pu }
-            on scroll nt_wheel { nt_scroll_to = clamp(nt_scroll_to - wheel * 44, 0, max(0, nt.h - 456)) }
+            clip box { at: spx + 224 * pu, sby + set.h / 2 * pu; size: 456 * pu, set.h * pu }
+            zone box nt_wheel { at: spx + 219 * pu, sby + set.h / 2 * pu; size: 446 * pu, set.h * pu }
+            on scroll nt_wheel { nt_scroll_to = clamp(nt_scroll_to - wheel * 44, 0, max(0, nt.h - set.h)) }
             group {
                 move: 0, -nt.off
             //  Quiet hours: Do Not Disturb that turns itself on, by the clock, and while a window is fullscreen.
@@ -250,12 +250,12 @@ part Notifications {
             }
             }
             }
-            let nt.thh = 456 * 456 / nt.h
-            let nt.thy = nt.thh / 2 + nt.sc / max(1, nt.h - 456) * (456 - nt.thh)
-            box { at: spx + 442 * pu, sby + 228 * pu; size: 3 * pu, 456 * pu; corner: 1.5 * pu; color: ink; opacity: 6% }
+            let nt.thh = set.h * set.h / nt.h
+            let nt.thy = nt.thh / 2 + nt.sc / max(1, nt.h - set.h) * (set.h - nt.thh)
+            box { at: spx + 442 * pu, sby + set.h / 2 * pu; size: 3 * pu, set.h * pu; corner: 1.5 * pu; color: ink; opacity: 6% }
             box { at: spx + 442 * pu, sby + nt.thy * pu; size: 3 * pu, nt.thh * pu; corner: 1.5 * pu; color: mint; opacity: 55% }
-            let nt.cue = clamp((nt.h - 456 - nt.sc) / 24, 0, 1)
-            let nt.cuey = sby + (456 - 26) * pu + 2.5 * pu * sin(time * 270)
+            let nt.cue = clamp((nt.h - set.h - nt.sc) / 24, 0, 1)
+            let nt.cuey = sby + (set.h - 26) * pu + 2.5 * pu * sin(time * 270)
             repeat i in 0..16 {
                 let fk = (i + 1) / 16
                 box { from: spx - 4 * pu, sby + (400 + i * 3.5) * pu; size: 448 * pu, 3.5 * pu + 0.5; color: deep; opacity: 45% * fk * fk * nt.cue }
@@ -265,11 +265,11 @@ part Notifications {
             path { at: spx + 204 * pu, nt.cuey - 1 * pu; stroke: 1.6 * pu; color: mint; opacity: nt.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
             path { at: spx + 204 * pu, nt.cuey + 4 * pu; stroke: 1.6 * pu; color: mint; opacity: nt.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
             text "More" { at: floor(spx + 232 * pu + 0.5), floor(nt.cuey + 0.5); anchor: center; size: 15; weight: 700; color: ink; opacity: nt.cue; family: "Space Grotesk" }
-            zone box nt_cue_hit { at: spx + 224 * pu, sby + (456 - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: nt.cue > 0.5 }
-            on press nt_cue_hit { nt_scroll_to = clamp(nt_scroll_to + 342, 0, max(0, nt.h - 456)) }
-            zone box nt_bar_hit { at: spx + 442 * pu, sby + 228 * pu; size: 14 * pu, 456 * pu; cursor: pointer; active: nt.h > 456 }
-            on press nt_bar_hit { nt_scroll_to = clamp(((pointer.y - sby) / pu - nt.thh / 2) / max(1, 456 - nt.thh) * (nt.h - 456), 0, max(0, nt.h - 456)) }
-            on drag nt_bar_hit { nt_scroll_to = clamp(((pointer.y - sby) / pu - nt.thh / 2) / max(1, 456 - nt.thh) * (nt.h - 456), 0, max(0, nt.h - 456)) }
+            zone box nt_cue_hit { at: spx + 224 * pu, sby + (set.h - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: nt.cue > 0.5 }
+            on press nt_cue_hit { nt_scroll_to = clamp(nt_scroll_to + 342, 0, max(0, nt.h - set.h)) }
+            zone box nt_bar_hit { at: spx + 442 * pu, sby + set.h / 2 * pu; size: 14 * pu, set.h * pu; cursor: pointer; active: nt.h > set.h }
+            on press nt_bar_hit { nt_scroll_to = clamp(((pointer.y - sby) / pu - nt.thh / 2) / max(1, set.h - nt.thh) * (nt.h - set.h), 0, max(0, nt.h - set.h)) }
+            on drag nt_bar_hit { nt_scroll_to = clamp(((pointer.y - sby) / pu - nt.thh / 2) / max(1, set.h - nt.thh) * (nt.h - set.h), 0, max(0, nt.h - set.h)) }
         }
         //  ── Notifications page: END ──
 }

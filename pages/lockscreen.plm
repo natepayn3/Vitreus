@@ -2,11 +2,11 @@ part LockScreen {
         group {
             show: set_pgl > 0.01
             opacity: set_pgl
-            let lk.sc = clamp(lk_scroll, 0, max(0, lk.h - 456))
+            let lk.sc = clamp(lk_scroll, 0, max(0, lk.h - set.h))
             let lk.off = floor(lk.sc * pu + 0.5)        // whole pixels: text that is shifted by a fraction of one is resampled, and looks soft
-            clip box { at: spx + 224 * pu, sby + 228 * pu; size: 456 * pu, 456 * pu }
-            zone box lk_wheel { at: spx + 219 * pu, sby + 228 * pu; size: 446 * pu, 456 * pu }
-            on scroll lk_wheel { lk_scroll_to = clamp(lk_scroll_to - wheel * 44, 0, max(0, lk.h - 456)) }
+            clip box { at: spx + 224 * pu, sby + set.h / 2 * pu; size: 456 * pu, set.h * pu }
+            zone box lk_wheel { at: spx + 219 * pu, sby + set.h / 2 * pu; size: 446 * pu, set.h * pu }
+            on scroll lk_wheel { lk_scroll_to = clamp(lk_scroll_to - wheel * 44, 0, max(0, lk.h - set.h)) }
             group {
             move: 0, -lk.off
             let lkb0 = if(lk_blur < 27, 1, 0)
@@ -37,7 +37,7 @@ part LockScreen {
             //  Test lock: locks now, in the lock screen's safe mode, so Esc on an empty bar (or a minute) opens it. It is only a test of one lock.
             box { at: spx + 388 * pu, sby + 18 * pu; size: 90 * pu, 26 * pu; corner: 13 * pu; color: mint; opacity: 16% + 16% * lk_test_hit.hover }
             text "Test lock" { at: floor(spx + 388 * pu + 0.5), floor(sby + 18 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 84 * pu; lines: 1; color: mint; family: "Space Grotesk" }
-            zone box lk_test_hit { at: spx + 388 * pu, sby + 18 * pu; size: 90 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 18 * pu) - lk.off > sby and (sby + 18 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_test_hit { at: spx + 388 * pu, sby + 18 * pu; size: 90 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 18 * pu) - lk.off > sby and (sby + 18 * pu) - lk.off < sby + set.h * pu }
             on press lk_test_hit { emit lk_test }
             text "Type to see your glyphs. Enter pretends to unlock." { at: floor(spx + 14 * pu + 0.5), floor(sby + 35 * pu + 0.5); anchor: left center; size: 13.5; width: 260 * pu; lines: 1; color: faint; family: "Space Grotesk" }
             box { at: spx + 219 * pu, sby + 68 * pu; size: 410 * pu, 38 * pu; corner: 19 * pu; color: ink; opacity: 8% }
@@ -115,19 +115,19 @@ part LockScreen {
             text "Mask style" { at: floor(spx + 14 * pu + 0.5), floor(sby + 122 * pu + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
             box { at: spx + 62 * pu, sby + 152 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkm0); opacity: 8% + 20% * lkm0 + 6% * lk_m0.hover }
             text "Shapes" { at: floor(spx + 62 * pu + 0.5), floor(sby + 152 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 92 * pu; lines: 1; color: mix(ink, mint, lkm0); family: "Space Grotesk" }
-            zone box lk_m0 { at: spx + 62 * pu, sby + 152 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 152 * pu) - lk.off > sby and (sby + 152 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_m0 { at: spx + 62 * pu, sby + 152 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 152 * pu) - lk.off > sby and (sby + 152 * pu) - lk.off < sby + set.h * pu }
             on press lk_m0 { emit lk_mask_set(0) }
             box { at: spx + 164 * pu, sby + 152 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkm1); opacity: 8% + 20% * lkm1 + 6% * lk_m1.hover }
             text "Dots" { at: floor(spx + 164 * pu + 0.5), floor(sby + 152 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 92 * pu; lines: 1; color: mix(ink, mint, lkm1); family: "Space Grotesk" }
-            zone box lk_m1 { at: spx + 164 * pu, sby + 152 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 152 * pu) - lk.off > sby and (sby + 152 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_m1 { at: spx + 164 * pu, sby + 152 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 152 * pu) - lk.off > sby and (sby + 152 * pu) - lk.off < sby + set.h * pu }
             on press lk_m1 { emit lk_mask_set(1) }
             box { at: spx + 266 * pu, sby + 152 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkm2); opacity: 8% + 20% * lkm2 + 6% * lk_m2.hover }
             text "Asterisks" { at: floor(spx + 266 * pu + 0.5), floor(sby + 152 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 92 * pu; lines: 1; color: mix(ink, mint, lkm2); family: "Space Grotesk" }
-            zone box lk_m2 { at: spx + 266 * pu, sby + 152 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 152 * pu) - lk.off > sby and (sby + 152 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_m2 { at: spx + 266 * pu, sby + 152 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 152 * pu) - lk.off > sby and (sby + 152 * pu) - lk.off < sby + set.h * pu }
             on press lk_m2 { emit lk_mask_set(2) }
             box { at: spx + 368 * pu, sby + 152 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkm3); opacity: 8% + 20% * lkm3 + 6% * lk_m3.hover }
             text "Special" { at: floor(spx + 368 * pu + 0.5), floor(sby + 152 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 92 * pu; lines: 1; color: mix(ink, mint, lkm3); family: "Space Grotesk" }
-            zone box lk_m3 { at: spx + 368 * pu, sby + 152 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 152 * pu) - lk.off > sby and (sby + 152 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_m3 { at: spx + 368 * pu, sby + 152 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 152 * pu) - lk.off > sby and (sby + 152 * pu) - lk.off < sby + set.h * pu }
             on press lk_m3 { emit lk_mask_set(3) }
 
             //  Card three: the colours. Each character takes one of them at random.
@@ -135,27 +135,27 @@ part LockScreen {
             text "Colours" { at: floor(spx + 14 * pu + 0.5), floor(sby + 202 * pu + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
             box { at: spx + 52 * pu, sby + 232 * pu; size: 76 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkc0); opacity: 8% + 20% * lkc0 + 6% * lk_c0.hover }
             text "Vibrant" { at: floor(spx + 57 * pu + 0.5), floor(sby + 232 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 62 * pu; lines: 1; color: mix(ink, mint, lkc0); family: "Space Grotesk" }
-            zone box lk_c0 { at: spx + 52 * pu, sby + 232 * pu; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 232 * pu) - lk.off > sby and (sby + 232 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_c0 { at: spx + 52 * pu, sby + 232 * pu; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 232 * pu) - lk.off > sby and (sby + 232 * pu) - lk.off < sby + set.h * pu }
             on press lk_c0 { emit lk_pal_set(0) }
             ellipse { at: spx + 25.0 * pu, sby + 232 * pu; radius: 3.2 * pu; color: #00f0ff }
             box { at: spx + 134 * pu, sby + 232 * pu; size: 76 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkc1); opacity: 8% + 20% * lkc1 + 6% * lk_c1.hover }
             text "Accent" { at: floor(spx + 139 * pu + 0.5), floor(sby + 232 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 62 * pu; lines: 1; color: mix(ink, mint, lkc1); family: "Space Grotesk" }
-            zone box lk_c1 { at: spx + 134 * pu, sby + 232 * pu; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 232 * pu) - lk.off > sby and (sby + 232 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_c1 { at: spx + 134 * pu, sby + 232 * pu; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 232 * pu) - lk.off > sby and (sby + 232 * pu) - lk.off < sby + set.h * pu }
             on press lk_c1 { emit lk_pal_set(1) }
             ellipse { at: spx + 107.0 * pu, sby + 232 * pu; radius: 3.2 * pu; color: mint }
             box { at: spx + 216 * pu, sby + 232 * pu; size: 76 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkc2); opacity: 8% + 20% * lkc2 + 6% * lk_c2.hover }
             text "Neon" { at: floor(spx + 221 * pu + 0.5), floor(sby + 232 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 62 * pu; lines: 1; color: mix(ink, mint, lkc2); family: "Space Grotesk" }
-            zone box lk_c2 { at: spx + 216 * pu, sby + 232 * pu; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 232 * pu) - lk.off > sby and (sby + 232 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_c2 { at: spx + 216 * pu, sby + 232 * pu; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 232 * pu) - lk.off > sby and (sby + 232 * pu) - lk.off < sby + set.h * pu }
             on press lk_c2 { emit lk_pal_set(2) }
             ellipse { at: spx + 189.0 * pu, sby + 232 * pu; radius: 3.2 * pu; color: #ff0055 }
             box { at: spx + 298 * pu, sby + 232 * pu; size: 76 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkc3); opacity: 8% + 20% * lkc3 + 6% * lk_c3.hover }
             text "Pastel" { at: floor(spx + 303 * pu + 0.5), floor(sby + 232 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 62 * pu; lines: 1; color: mix(ink, mint, lkc3); family: "Space Grotesk" }
-            zone box lk_c3 { at: spx + 298 * pu, sby + 232 * pu; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 232 * pu) - lk.off > sby and (sby + 232 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_c3 { at: spx + 298 * pu, sby + 232 * pu; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 232 * pu) - lk.off > sby and (sby + 232 * pu) - lk.off < sby + set.h * pu }
             on press lk_c3 { emit lk_pal_set(3) }
             ellipse { at: spx + 271.0 * pu, sby + 232 * pu; radius: 3.2 * pu; color: #c4b5fd }
             box { at: spx + 380 * pu, sby + 232 * pu; size: 76 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkc4); opacity: 8% + 20% * lkc4 + 6% * lk_c4.hover }
             text "Mono" { at: floor(spx + 385 * pu + 0.5), floor(sby + 232 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 62 * pu; lines: 1; color: mix(ink, mint, lkc4); family: "Space Grotesk" }
-            zone box lk_c4 { at: spx + 380 * pu, sby + 232 * pu; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 232 * pu) - lk.off > sby and (sby + 232 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_c4 { at: spx + 380 * pu, sby + 232 * pu; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 232 * pu) - lk.off > sby and (sby + 232 * pu) - lk.off < sby + set.h * pu }
             on press lk_c4 { emit lk_pal_set(4) }
             ellipse { at: spx + 353.0 * pu, sby + 232 * pu; radius: 3.2 * pu; color: #ffffff }
 
@@ -165,15 +165,15 @@ part LockScreen {
             text "How soft the picture behind the lock is" { at: floor(spx + 14 * pu + 0.5), floor(sby + 301 * pu + 0.5); anchor: left center; size: 13.5; width: 230 * pu; lines: 1; color: faint; family: "Space Grotesk" }
             box { at: spx + 276 * pu, sby + 292 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkb0); opacity: 8% + 20% * lkb0 + 6% * lk_b0.hover }
             text "Light" { at: floor(spx + 276 * pu + 0.5), floor(sby + 292 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 52 * pu; lines: 1; color: mix(ink, mint, lkb0); family: "Space Grotesk" }
-            zone box lk_b0 { at: spx + 276 * pu, sby + 292 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 292 * pu) - lk.off > sby and (sby + 292 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_b0 { at: spx + 276 * pu, sby + 292 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 292 * pu) - lk.off > sby and (sby + 292 * pu) - lk.off < sby + set.h * pu }
             on press lk_b0 { emit lk_blur_set(0) }
             box { at: spx + 336 * pu, sby + 292 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkb1); opacity: 8% + 20% * lkb1 + 6% * lk_b1.hover }
             text "Medium" { at: floor(spx + 336 * pu + 0.5), floor(sby + 292 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 52 * pu; lines: 1; color: mix(ink, mint, lkb1); family: "Space Grotesk" }
-            zone box lk_b1 { at: spx + 336 * pu, sby + 292 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 292 * pu) - lk.off > sby and (sby + 292 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_b1 { at: spx + 336 * pu, sby + 292 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 292 * pu) - lk.off > sby and (sby + 292 * pu) - lk.off < sby + set.h * pu }
             on press lk_b1 { emit lk_blur_set(1) }
             box { at: spx + 396 * pu, sby + 292 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkb2); opacity: 8% + 20% * lkb2 + 6% * lk_b2.hover }
             text "Heavy" { at: floor(spx + 396 * pu + 0.5), floor(sby + 292 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 52 * pu; lines: 1; color: mix(ink, mint, lkb2); family: "Space Grotesk" }
-            zone box lk_b2 { at: spx + 396 * pu, sby + 292 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 292 * pu) - lk.off > sby and (sby + 292 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_b2 { at: spx + 396 * pu, sby + 292 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 292 * pu) - lk.off > sby and (sby + 292 * pu) - lk.off < sby + set.h * pu }
             on press lk_b2 { emit lk_blur_set(2) }
 
             //  Card five: the clock. The AM/PM pill only means something on a 12 hour clock.
@@ -182,11 +182,11 @@ part LockScreen {
             text "Time format" { at: floor(spx + 14 * pu + 0.5), floor(sby + 370 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
             box { at: spx + 321 * pu, sby + 370 * pu; size: 66 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkt12); opacity: 8% + 20% * lkt12 + 6% * lk_t12.hover }
             text "12-hour" { at: floor(spx + 321 * pu + 0.5), floor(sby + 370 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 62 * pu; lines: 1; color: mix(ink, mint, lkt12); family: "Space Grotesk" }
-            zone box lk_t12 { at: spx + 321 * pu, sby + 370 * pu; size: 66 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 370 * pu) - lk.off > sby and (sby + 370 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_t12 { at: spx + 321 * pu, sby + 370 * pu; size: 66 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 370 * pu) - lk.off > sby and (sby + 370 * pu) - lk.off < sby + set.h * pu }
             on press lk_t12 { emit lk_12h_set(1) }
             box { at: spx + 391 * pu, sby + 370 * pu; size: 66 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkt24); opacity: 8% + 20% * lkt24 + 6% * lk_t24.hover }
             text "24-hour" { at: floor(spx + 391 * pu + 0.5), floor(sby + 370 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 62 * pu; lines: 1; color: mix(ink, mint, lkt24); family: "Space Grotesk" }
-            zone box lk_t24 { at: spx + 391 * pu, sby + 370 * pu; size: 66 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 370 * pu) - lk.off > sby and (sby + 370 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_t24 { at: spx + 391 * pu, sby + 370 * pu; size: 66 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 370 * pu) - lk.off > sby and (sby + 370 * pu) - lk.off < sby + set.h * pu }
             on press lk_t24 { emit lk_12h_set(0) }
             group {
                 opacity: 40% + 60% * lkt12
@@ -197,7 +197,7 @@ part LockScreen {
                 box { at: spx + 405 * pu, sby + 404 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
             }
             box { at: spx + 397 * pu + lk_pill_am * 16 * pu, sby + 404 * pu; size: (17 + 9 * clamp(4 * lk_pill_am * (1 - lk_pill_am), 0, 1)) * pu, (17 - 3 * clamp(4 * lk_pill_am * (1 - lk_pill_am), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * lk_pill_am * (1 - lk_pill_am), 0, 1)) * pu; color: ink }
-            zone box lk_am_hit { at: spx + 405 * pu, sby + 404 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 404 * pu) - lk.off > sby and (sby + 404 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_am_hit { at: spx + 405 * pu, sby + 404 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 404 * pu) - lk.off > sby and (sby + 404 * pu) - lk.off < sby + set.h * pu }
             on press lk_am_hit { emit lk_ampm_toggle }
             text "Show seconds" { at: floor(spx + 14 * pu + 0.5), floor(sby + 438 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
             body {
@@ -205,20 +205,20 @@ part LockScreen {
                 box { at: spx + 405 * pu, sby + 438 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
             }
             box { at: spx + 397 * pu + lk_pill_sec * 16 * pu, sby + 438 * pu; size: (17 + 9 * clamp(4 * lk_pill_sec * (1 - lk_pill_sec), 0, 1)) * pu, (17 - 3 * clamp(4 * lk_pill_sec * (1 - lk_pill_sec), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * lk_pill_sec * (1 - lk_pill_sec), 0, 1)) * pu; color: ink }
-            zone box lk_sec_hit { at: spx + 405 * pu, sby + 438 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 438 * pu) - lk.off > sby and (sby + 438 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_sec_hit { at: spx + 405 * pu, sby + 438 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 438 * pu) - lk.off > sby and (sby + 438 * pu) - lk.off < sby + set.h * pu }
             on press lk_sec_hit { emit lk_secs_toggle }
             text "Clock size" { at: floor(spx + 14 * pu + 0.5), floor(sby + 472 * pu + 0.5); anchor: left center; size: 15; color: faint; family: "Space Grotesk" }
             box { at: spx + 298 * pu, sby + 472 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lksz0); opacity: 8% + 20% * lksz0 + 6% * lk_z0.hover }
             text "100" { at: floor(spx + 298 * pu + 0.5), floor(sby + 472 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 52 * pu; lines: 1; color: mix(ink, mint, lksz0); family: "Space Grotesk" }
-            zone box lk_z0 { at: spx + 298 * pu, sby + 472 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 472 * pu) - lk.off > sby and (sby + 472 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_z0 { at: spx + 298 * pu, sby + 472 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 472 * pu) - lk.off > sby and (sby + 472 * pu) - lk.off < sby + set.h * pu }
             on press lk_z0 { emit lk_size_set(0) }
             box { at: spx + 358 * pu, sby + 472 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lksz1); opacity: 8% + 20% * lksz1 + 6% * lk_z1.hover }
             text "150" { at: floor(spx + 358 * pu + 0.5), floor(sby + 472 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 52 * pu; lines: 1; color: mix(ink, mint, lksz1); family: "Space Grotesk" }
-            zone box lk_z1 { at: spx + 358 * pu, sby + 472 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 472 * pu) - lk.off > sby and (sby + 472 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_z1 { at: spx + 358 * pu, sby + 472 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 472 * pu) - lk.off > sby and (sby + 472 * pu) - lk.off < sby + set.h * pu }
             on press lk_z1 { emit lk_size_set(1) }
             box { at: spx + 418 * pu, sby + 472 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lksz2); opacity: 8% + 20% * lksz2 + 6% * lk_z2.hover }
             text "200" { at: floor(spx + 418 * pu + 0.5), floor(sby + 472 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 52 * pu; lines: 1; color: mix(ink, mint, lksz2); family: "Space Grotesk" }
-            zone box lk_z2 { at: spx + 418 * pu, sby + 472 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 472 * pu) - lk.off > sby and (sby + 472 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_z2 { at: spx + 418 * pu, sby + 472 * pu; size: 56 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 472 * pu) - lk.off > sby and (sby + 472 * pu) - lk.off < sby + set.h * pu }
             on press lk_z2 { emit lk_size_set(2) }
 
             //  Card six: the date.
@@ -226,19 +226,19 @@ part LockScreen {
             text "Date style" { at: floor(spx + 14 * pu + 0.5), floor(sby + 518 * pu + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
             box { at: spx + 62 * pu, sby + 552 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkd0); opacity: 8% + 20% * lkd0 + 6% * lk_d0.hover }
             text "Long" { at: floor(spx + 62 * pu + 0.5), floor(sby + 552 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 92 * pu; lines: 1; color: mix(ink, mint, lkd0); family: "Space Grotesk" }
-            zone box lk_d0 { at: spx + 62 * pu, sby + 552 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 552 * pu) - lk.off > sby and (sby + 552 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_d0 { at: spx + 62 * pu, sby + 552 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 552 * pu) - lk.off > sby and (sby + 552 * pu) - lk.off < sby + set.h * pu }
             on press lk_d0 { emit lk_date_set(0) }
             box { at: spx + 164 * pu, sby + 552 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkd1); opacity: 8% + 20% * lkd1 + 6% * lk_d1.hover }
             text "Standard" { at: floor(spx + 164 * pu + 0.5), floor(sby + 552 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 92 * pu; lines: 1; color: mix(ink, mint, lkd1); family: "Space Grotesk" }
-            zone box lk_d1 { at: spx + 164 * pu, sby + 552 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 552 * pu) - lk.off > sby and (sby + 552 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_d1 { at: spx + 164 * pu, sby + 552 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 552 * pu) - lk.off > sby and (sby + 552 * pu) - lk.off < sby + set.h * pu }
             on press lk_d1 { emit lk_date_set(1) }
             box { at: spx + 266 * pu, sby + 552 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkd2); opacity: 8% + 20% * lkd2 + 6% * lk_d2.hover }
             text "Day first" { at: floor(spx + 266 * pu + 0.5), floor(sby + 552 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 92 * pu; lines: 1; color: mix(ink, mint, lkd2); family: "Space Grotesk" }
-            zone box lk_d2 { at: spx + 266 * pu, sby + 552 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 552 * pu) - lk.off > sby and (sby + 552 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_d2 { at: spx + 266 * pu, sby + 552 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 552 * pu) - lk.off > sby and (sby + 552 * pu) - lk.off < sby + set.h * pu }
             on press lk_d2 { emit lk_date_set(2) }
             box { at: spx + 368 * pu, sby + 552 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, lkd3); opacity: 8% + 20% * lkd3 + 6% * lk_d3.hover }
             text "ISO 8601" { at: floor(spx + 368 * pu + 0.5), floor(sby + 552 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 92 * pu; lines: 1; color: mix(ink, mint, lkd3); family: "Space Grotesk" }
-            zone box lk_d3 { at: spx + 368 * pu, sby + 552 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 552 * pu) - lk.off > sby and (sby + 552 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_d3 { at: spx + 368 * pu, sby + 552 * pu; size: 96 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 552 * pu) - lk.off > sby and (sby + 552 * pu) - lk.off < sby + set.h * pu }
             on press lk_d3 { emit lk_date_set(3) }
 
             //  Card seven: the player under the password bar.
@@ -250,7 +250,7 @@ part LockScreen {
                 box { at: spx + 405 * pu, sby + 612 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
             }
             box { at: spx + 397 * pu + lk_pill_md * 16 * pu, sby + 612 * pu; size: (17 + 9 * clamp(4 * lk_pill_md * (1 - lk_pill_md), 0, 1)) * pu, (17 - 3 * clamp(4 * lk_pill_md * (1 - lk_pill_md), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * lk_pill_md * (1 - lk_pill_md), 0, 1)) * pu; color: ink }
-            zone box lk_md_hit { at: spx + 405 * pu, sby + 612 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 612 * pu) - lk.off > sby and (sby + 612 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_md_hit { at: spx + 405 * pu, sby + 612 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 612 * pu) - lk.off > sby and (sby + 612 * pu) - lk.off < sby + set.h * pu }
             on press lk_md_hit { emit lk_media_toggle }
 
             //  Card eight: the power buttons. Each is held for a second on the lock screen.
@@ -262,7 +262,7 @@ part LockScreen {
                 box { at: spx + 405 * pu, sby + 674 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
             }
             box { at: spx + 397 * pu + lk_pill_pw * 16 * pu, sby + 674 * pu; size: (17 + 9 * clamp(4 * lk_pill_pw * (1 - lk_pill_pw), 0, 1)) * pu, (17 - 3 * clamp(4 * lk_pill_pw * (1 - lk_pill_pw), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * lk_pill_pw * (1 - lk_pill_pw), 0, 1)) * pu; color: ink }
-            zone box lk_pw_hit { at: spx + 405 * pu, sby + 674 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 674 * pu) - lk.off > sby and (sby + 674 * pu) - lk.off < sby + 456 * pu }
+            zone box lk_pw_hit { at: spx + 405 * pu, sby + 674 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 674 * pu) - lk.off > sby and (sby + 674 * pu) - lk.off < sby + set.h * pu }
             on press lk_pw_hit { emit lk_power_toggle }
 
             //  Card nine: which monitor has the clock and the password bar. The others keep the wallpaper.
@@ -272,24 +272,24 @@ part LockScreen {
             let lkya = sby + 768 * pu
             box { at: spx + 14 * pu + 38 * pu, lkya; size: 76 * pu, 24 * pu; corner: 8 * pu; color: if(lk_mon == 0, mint, ink); opacity: 8% + 20% * if(lk_mon == 0, 1, 0) + 6% * lk_mn_all.hover }
             text "All" { at: floor(spx + 14 * pu + 38 * pu + 0.5), floor(lkya + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 70 * pu; lines: 1; color: if(lk_mon == 0, mint, ink); family: "Space Grotesk" }
-            zone box lk_mn_all { at: spx + 14 * pu + 38 * pu, lkya; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: lkya - lk.off > sby and lkya - lk.off < sby + 456 * pu }
+            zone box lk_mn_all { at: spx + 14 * pu + 38 * pu, lkya; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: lkya - lk.off > sby and lkya - lk.off < sby + set.h * pu }
             on press lk_mn_all { emit lk_mon_set(0) }
             repeat k in 0..4 {
                 let lkx = spx + 14 * pu + 38 * pu + (k + 1) * 82 * pu
                 box { at: lkx, lkya; size: 76 * pu, 24 * pu; corner: 8 * pu; color: if(lk_mon == k + 1, mint, ink); opacity: if(lk_m.$k.on, 8% + 20% * if(lk_mon == k + 1, 1, 0) + 6% * lk_mn.$k.hover, 0%) }
                 text lk_m.$k.name { at: floor(lkx + 0.5), floor(lkya + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: 70 * pu; lines: 1; color: if(lk_mon == k + 1, mint, ink); show: lk_m.$k.on; family: "Space Grotesk" }
-                zone box lk_mn.$k { at: lkx, lkya; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (lk_m.$k.on) and lkya - lk.off > sby and lkya - lk.off < sby + 456 * pu }
+                zone box lk_mn.$k { at: lkx, lkya; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (lk_m.$k.on) and lkya - lk.off > sby and lkya - lk.off < sby + set.h * pu }
                 on press lk_mn.$k { emit lk_mon_set(k + 1) }
             }
             text "The lock screen is not running: start it to change these" { at: floor(spx + 14 * pu + 0.5), floor(sby + 796 * pu + 0.5); anchor: left center; size: 13.5; width: 400 * pu; lines: 1; color: #ef4444; family: "Space Grotesk"; show: not lk_ok }
             }
 
-            let lk.thh = 456 * 456 / max(456, lk.h)
-            let lk.thy = lk.thh / 2 + lk.sc / max(1, lk.h - 456) * (456 - lk.thh)
-            box { at: spx + 442 * pu, sby + 228 * pu; size: 3 * pu, 456 * pu; corner: 1.5 * pu; color: ink; opacity: if(lk.h > 456, 6%, 0%) }
-            box { at: spx + 442 * pu, sby + lk.thy * pu; size: 3 * pu, lk.thh * pu; corner: 1.5 * pu; color: mint; opacity: if(lk.h > 456, 55%, 0%) }
-            let lk.cue = clamp((lk.h - 456 - lk.sc) / 24, 0, 1)
-            let lk.cuey = sby + (456 - 26) * pu + 2.5 * pu * sin(time * 270)
+            let lk.thh = set.h * set.h / max(set.h, lk.h)
+            let lk.thy = lk.thh / 2 + lk.sc / max(1, lk.h - set.h) * (set.h - lk.thh)
+            box { at: spx + 442 * pu, sby + set.h / 2 * pu; size: 3 * pu, set.h * pu; corner: 1.5 * pu; color: ink; opacity: if(lk.h > set.h, 6%, 0%) }
+            box { at: spx + 442 * pu, sby + lk.thy * pu; size: 3 * pu, lk.thh * pu; corner: 1.5 * pu; color: mint; opacity: if(lk.h > set.h, 55%, 0%) }
+            let lk.cue = clamp((lk.h - set.h - lk.sc) / 24, 0, 1)
+            let lk.cuey = sby + (set.h - 26) * pu + 2.5 * pu * sin(time * 270)
             repeat i in 0..16 {
                 let fk = (i + 1) / 16
                 box { from: spx - 4 * pu, sby + (400 + i * 3.5) * pu; size: 448 * pu, 3.5 * pu + 0.5; color: deep; opacity: 45% * fk * fk * lk.cue }
@@ -299,10 +299,10 @@ part LockScreen {
             path { at: spx + 204 * pu, lk.cuey - 1 * pu; stroke: 1.6 * pu; color: mint; opacity: lk.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
             path { at: spx + 204 * pu, lk.cuey + 4 * pu; stroke: 1.6 * pu; color: mint; opacity: lk.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
             text "More" { at: floor(spx + 232 * pu + 0.5), floor(lk.cuey + 0.5); anchor: center; size: 15; weight: 700; color: ink; opacity: lk.cue; family: "Space Grotesk" }
-            zone box lk_cue_hit { at: spx + 224 * pu, sby + (456 - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: lk.cue > 0.5 }
-            on press lk_cue_hit { lk_scroll_to = clamp(lk_scroll_to + 342, 0, max(0, lk.h - 456)) }
-            zone box lk_bar_hit { at: spx + 442 * pu, sby + 228 * pu; size: 14 * pu, 456 * pu; cursor: pointer; active: lk.h > 456 }
-            on press lk_bar_hit { lk_scroll_to = clamp(((pointer.y - sby) / pu - lk.thh / 2) / max(1, 456 - lk.thh) * (lk.h - 456), 0, max(0, lk.h - 456)) }
-            on drag lk_bar_hit { lk_scroll_to = clamp(((pointer.y - sby) / pu - lk.thh / 2) / max(1, 456 - lk.thh) * (lk.h - 456), 0, max(0, lk.h - 456)) }
+            zone box lk_cue_hit { at: spx + 224 * pu, sby + (set.h - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: lk.cue > 0.5 }
+            on press lk_cue_hit { lk_scroll_to = clamp(lk_scroll_to + 342, 0, max(0, lk.h - set.h)) }
+            zone box lk_bar_hit { at: spx + 442 * pu, sby + set.h / 2 * pu; size: 14 * pu, set.h * pu; cursor: pointer; active: lk.h > set.h }
+            on press lk_bar_hit { lk_scroll_to = clamp(((pointer.y - sby) / pu - lk.thh / 2) / max(1, set.h - lk.thh) * (lk.h - set.h), 0, max(0, lk.h - set.h)) }
+            on drag lk_bar_hit { lk_scroll_to = clamp(((pointer.y - sby) / pu - lk.thh / 2) / max(1, set.h - lk.thh) * (lk.h - set.h), 0, max(0, lk.h - set.h)) }
         }
 }

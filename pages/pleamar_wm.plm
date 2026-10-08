@@ -3,11 +3,11 @@ part PleamarWm {
         group {
             show: set_pgw > 0.01
             opacity: set_pgw
-            let wm.sc = clamp(wm_scroll, 0, max(0, wm.h - 456))
+            let wm.sc = clamp(wm_scroll, 0, max(0, wm.h - set.h))
             let wm.off = floor(wm.sc * pu + 0.5)        // whole pixels: text shifted by a fraction of one is resampled, and looks soft
-            clip box { at: spx + 224 * pu, sby + 228 * pu; size: 456 * pu, 456 * pu }
-            zone box wm_wheel { at: spx + 219 * pu, sby + 228 * pu; size: 446 * pu, 456 * pu }
-            on scroll wm_wheel { wm_scroll_to = clamp(wm_scroll_to - wheel * 44, 0, max(0, wm.h - 456)) }
+            clip box { at: spx + 224 * pu, sby + set.h / 2 * pu; size: 456 * pu, set.h * pu }
+            zone box wm_wheel { at: spx + 219 * pu, sby + set.h / 2 * pu; size: 446 * pu, set.h * pu }
+            on scroll wm_wheel { wm_scroll_to = clamp(wm_scroll_to - wheel * 44, 0, max(0, wm.h - set.h)) }
             group {
             move: 0, -wm.off
             let wsl.x0 = spx + 122 * pu
@@ -28,7 +28,7 @@ part PleamarWm {
                 let ly = sby + (42 + floor(i / 3) * 28) * pu
                 box { at: lx, ly; size: 84 * pu, 24 * pu; corner: 12 * pu; color: if(wm_layout == i, mint, ink); opacity: if(wm_layout == i, 24%, 8% + 10% * wm_lay_hit.$i.hover) }
                 text pick(i, "Lead left", "Columns", "Rows", "Grid", "Lead right") { at: floor(lx + 0.5), floor(ly + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 80 * pu; lines: 1; color: if(wm_layout == i, mint, ink); family: "Space Grotesk" }
-                zone box wm_lay_hit.$i { at: lx, ly; size: 86 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (ly) - sby - wm.off > 0 and (ly) - sby - wm.off < 456 * pu }
+                zone box wm_lay_hit.$i { at: lx, ly; size: 86 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (ly) - sby - wm.off > 0 and (ly) - sby - wm.off < set.h * pu }
                 on press wm_lay_hit.$i { emit wm_layout_set(i) }
             }
 
@@ -44,7 +44,7 @@ part PleamarWm {
                 }
             }
             text wm_share_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 104 * pu + 0.5); anchor: right center; size: 17.5; weight: 600; color: ink; family: "Space Grotesk" }
-            zone box wm_share_hit { at: wsl.x0 + wsl.w / 2, sby + 104 * pu; size: wsl.w + 24 * pu, 30 * pu; cursor: pointer; active: (sby + 104 * pu) - sby - wm.off > 0 and (sby + 104 * pu) - sby - wm.off < 456 * pu }
+            zone box wm_share_hit { at: wsl.x0 + wsl.w / 2, sby + 104 * pu; size: wsl.w + 24 * pu, 30 * pu; cursor: pointer; active: (sby + 104 * pu) - sby - wm.off > 0 and (sby + 104 * pu) - sby - wm.off < set.h * pu }
             on press wm_share_hit { emit wm_share_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
             on drag wm_share_hit { emit wm_share_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
 
@@ -60,7 +60,7 @@ part PleamarWm {
                 }
             }
             text wm_gap_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 136 * pu + 0.5); anchor: right center; size: 17.5; weight: 600; color: ink; family: "Space Grotesk" }
-            zone box wm_gap_hit { at: wsl.x0 + wsl.w / 2, sby + 136 * pu; size: wsl.w + 24 * pu, 30 * pu; cursor: pointer; active: (sby + 136 * pu) - sby - wm.off > 0 and (sby + 136 * pu) - sby - wm.off < 456 * pu }
+            zone box wm_gap_hit { at: wsl.x0 + wsl.w / 2, sby + 136 * pu; size: wsl.w + 24 * pu, 30 * pu; cursor: pointer; active: (sby + 136 * pu) - sby - wm.off > 0 and (sby + 136 * pu) - sby - wm.off < set.h * pu }
             on press wm_gap_hit { emit wm_gap_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
             on drag wm_gap_hit { emit wm_gap_set(clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
 
@@ -71,7 +71,7 @@ part PleamarWm {
                 box { at: spx + 405 * pu, sby + 170 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
             }
             box { at: spx + 397 * pu + wm_k0 * 16 * pu, sby + 170 * pu; size: (17 + 9 * clamp(4 * wm_k0 * (1 - wm_k0), 0, 1)) * pu, (17 - 3 * clamp(4 * wm_k0 * (1 - wm_k0), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * wm_k0 * (1 - wm_k0), 0, 1)) * pu; color: ink }
-            zone box wm_tg_hit.0 { at: spx + 219 * pu, sby + 170 * pu; size: 430 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: (sby + 170 * pu) - sby - wm.off > 0 and (sby + 170 * pu) - sby - wm.off < 456 * pu }
+            zone box wm_tg_hit.0 { at: spx + 219 * pu, sby + 170 * pu; size: 430 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: (sby + 170 * pu) - sby - wm.off > 0 and (sby + 170 * pu) - sby - wm.off < set.h * pu }
             on press wm_tg_hit.0 { emit wm_toggle(0) }
 
             //  Effects.
@@ -84,7 +84,7 @@ part PleamarWm {
                     box { at: spx + 405 * pu, ty; size: 38 * pu, 22 * pu; corner: 11 * pu }
                 }
                 box { at: spx + 397 * pu + tk * 16 * pu, ty; size: (17 + 9 * clamp(4 * tk * (1 - tk), 0, 1)) * pu, (17 - 3 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; color: ink }
-                zone box wm_tg_hit.$i { at: spx + 219 * pu, ty; size: 430 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: (ty) - sby - wm.off > 0 and (ty) - sby - wm.off < 456 * pu }
+                zone box wm_tg_hit.$i { at: spx + 219 * pu, ty; size: 430 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: (ty) - sby - wm.off > 0 and (ty) - sby - wm.off < set.h * pu }
                 on press wm_tg_hit.$i { emit wm_toggle(i) }
             }
 
@@ -103,7 +103,7 @@ part PleamarWm {
                     }
                 }
                 text pick(i, wm_ms_text, wm_ts_text, wm_idle_text) { at: floor(spx + 424 * pu + 0.5), floor(sy + 0.5); anchor: right center; size: 17.5; weight: 600; color: ink; family: "Space Grotesk" }
-                zone box wm_in_hit.$i { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w + 24 * pu, 30 * pu; cursor: pointer; active: (sy) - sby - wm.off > 0 and (sy) - sby - wm.off < 456 * pu }
+                zone box wm_in_hit.$i { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w + 24 * pu, 30 * pu; cursor: pointer; active: (sy) - sby - wm.off > 0 and (sy) - sby - wm.off < set.h * pu }
                 on press wm_in_hit.$i { emit wm_input_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
                 on drag wm_in_hit.$i { emit wm_input_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
             }
@@ -120,7 +120,7 @@ part PleamarWm {
                     box { at: spx + 405 * pu, ty; size: 38 * pu, 22 * pu; corner: 11 * pu }
                 }
                 box { at: spx + 397 * pu + tk * 16 * pu, ty; size: (17 + 9 * clamp(4 * tk * (1 - tk), 0, 1)) * pu, (17 - 3 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; color: ink }
-                zone box wm_tg_hit.$i { at: spx + 219 * pu, ty; size: 430 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: (ty) - sby - wm.off > 0 and (ty) - sby - wm.off < 456 * pu }
+                zone box wm_tg_hit.$i { at: spx + 219 * pu, ty; size: 430 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: (ty) - sby - wm.off > 0 and (ty) - sby - wm.off < set.h * pu }
                 on press wm_tg_hit.$i { emit wm_toggle(i) }
             }
 
@@ -141,7 +141,7 @@ part PleamarWm {
                     }
                 }
                 text pick(i, wm_bw_text, wm_ba_text, wm_rad_text, wm_shd_text, wm_tb_text, wm_tbo_text, wm_wa_text, wm_wi_text, wm_fr_text) { at: floor(spx + 424 * pu + 0.5), floor(sy + 0.5); anchor: right center; size: 17.5; weight: 600; color: ink; family: "Space Grotesk" }
-                zone box wm_st_hit.$i { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w + 24 * pu, 30 * pu; cursor: pointer; active: sy - sby - wm.off > 0 and sy - sby - wm.off < 456 * pu }
+                zone box wm_st_hit.$i { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w + 24 * pu, 30 * pu; cursor: pointer; active: sy - sby - wm.off > 0 and sy - sby - wm.off < set.h * pu }
                 on press wm_st_hit.$i { emit wm_style_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
                 on drag wm_st_hit.$i { emit wm_style_set(i * 10 + clamp((pointer.x - wsl.x0) / wsl.w, 0, 1)) }
             }
@@ -149,12 +149,12 @@ part PleamarWm {
 
             //  The scrollbar and the "More" cue, as on the Display page: a thumb as tall as the viewport is of the page, and a pill
             //  at the foot of the view while there is more below (pressing it scrolls a screenful down).
-            let wm.thh = 456 * 456 / max(456, wm.h)
-            let wm.thy = wm.thh / 2 + wm.sc / max(1, wm.h - 456) * (456 - wm.thh)
-            box { at: spx + 442 * pu, sby + 228 * pu; size: 3 * pu, 456 * pu; corner: 1.5 * pu; color: ink; opacity: if(wm.h > 456, 6%, 0%) }
-            box { at: spx + 442 * pu, sby + wm.thy * pu; size: 3 * pu, wm.thh * pu; corner: 1.5 * pu; color: mint; opacity: if(wm.h > 456, 55%, 0%) }
-            let wm.cue = clamp((wm.h - 456 - wm.sc) / 24, 0, 1)
-            let wm.cuey = sby + (456 - 26) * pu + 2.5 * pu * sin(time * 270)
+            let wm.thh = set.h * set.h / max(set.h, wm.h)
+            let wm.thy = wm.thh / 2 + wm.sc / max(1, wm.h - set.h) * (set.h - wm.thh)
+            box { at: spx + 442 * pu, sby + set.h / 2 * pu; size: 3 * pu, set.h * pu; corner: 1.5 * pu; color: ink; opacity: if(wm.h > set.h, 6%, 0%) }
+            box { at: spx + 442 * pu, sby + wm.thy * pu; size: 3 * pu, wm.thh * pu; corner: 1.5 * pu; color: mint; opacity: if(wm.h > set.h, 55%, 0%) }
+            let wm.cue = clamp((wm.h - set.h - wm.sc) / 24, 0, 1)
+            let wm.cuey = sby + (set.h - 26) * pu + 2.5 * pu * sin(time * 270)
             repeat i in 0..16 {
                 let fk = (i + 1) / 16
                 box { from: spx - 4 * pu, sby + (400 + i * 3.5) * pu; size: 448 * pu, 3.5 * pu + 0.5; color: deep; opacity: 45% * fk * fk * wm.cue }
@@ -164,10 +164,10 @@ part PleamarWm {
             path { at: spx + 204 * pu, wm.cuey - 1 * pu; stroke: 1.6 * pu; color: mint; opacity: wm.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
             path { at: spx + 204 * pu, wm.cuey + 4 * pu; stroke: 1.6 * pu; color: mint; opacity: wm.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
             text "More" { at: floor(spx + 232 * pu + 0.5), floor(wm.cuey + 0.5); anchor: center; size: 15; weight: 700; color: ink; opacity: wm.cue; family: "Space Grotesk" }
-            zone box wm_cue_hit { at: spx + 224 * pu, sby + (456 - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: wm.cue > 0.5 }
-            on press wm_cue_hit { wm_scroll_to = clamp(wm_scroll_to + 342, 0, max(0, wm.h - 456)) }
-            zone box wm_bar_hit { at: spx + 442 * pu, sby + 228 * pu; size: 14 * pu, 456 * pu; cursor: pointer; active: wm.h > 456 }
-            on press wm_bar_hit { wm_scroll_to = clamp(((pointer.y - sby) / pu - wm.thh / 2) / max(1, 456 - wm.thh) * (wm.h - 456), 0, max(0, wm.h - 456)) }
-            on drag wm_bar_hit { wm_scroll_to = clamp(((pointer.y - sby) / pu - wm.thh / 2) / max(1, 456 - wm.thh) * (wm.h - 456), 0, max(0, wm.h - 456)) }
+            zone box wm_cue_hit { at: spx + 224 * pu, sby + (set.h - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: wm.cue > 0.5 }
+            on press wm_cue_hit { wm_scroll_to = clamp(wm_scroll_to + 342, 0, max(0, wm.h - set.h)) }
+            zone box wm_bar_hit { at: spx + 442 * pu, sby + set.h / 2 * pu; size: 14 * pu, set.h * pu; cursor: pointer; active: wm.h > set.h }
+            on press wm_bar_hit { wm_scroll_to = clamp(((pointer.y - sby) / pu - wm.thh / 2) / max(1, set.h - wm.thh) * (wm.h - set.h), 0, max(0, wm.h - set.h)) }
+            on drag wm_bar_hit { wm_scroll_to = clamp(((pointer.y - sby) / pu - wm.thh / 2) / max(1, set.h - wm.thh) * (wm.h - set.h), 0, max(0, wm.h - set.h)) }
         }
 }
