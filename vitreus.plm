@@ -310,7 +310,6 @@ scene Vitreus {
     image lp_img = from lp_imgpath, 480, 320
     model lres max 6 { title: text; sub: text; desc: text; hasdesc: bool; glyph: text; sel: bool; hasicon: bool; deletable: bool; icon: image 35, 35 }
     event settings_toggle ->        // from a key bind (hypr_vitreus.lua): open or close Settings
-    event glass_reset ->
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
     //  panel's height, which follows the page).
     fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_night | pg_hypr | pg_about | pg_sys | pg_nt | pg_lock | pg_wm | pg_vpn | pg_clock | pg_theme = pg_wall
@@ -2513,7 +2512,7 @@ scene Vitreus {
     //  A fixed height, whatever the page: the panel used to follow the page in view (262 to 456), so it resized, and moved what hangs from it, with
     //  every click in the sidebar. A page taller than this scrolls inside it (they have their scroll thumb and "More" cue); a shorter one has
     //  empty glass at its foot. It never goes below the sidebar's last row.
-    let set.h = max(side.ab + 40, 456 + 64 * set_pg)
+    let set.h = max(side.ab + 40, 456)
     //  A held Power button counts its second on this clock, and a recording pulses on it, so they need it too.
     let need_clock = ((wifi_scanning or bt_scanning or bt_working or caf_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or nt_urgent)) or (set_pgd > 0.01 and disp.h > set.h) or rec_on
     spin time by if(need_clock, 1, 0)

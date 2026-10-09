@@ -3259,12 +3259,6 @@ on("glass_refr_set", function(t) glass.refr = glass.step(t, 2); glass_refresh();
 on("glass_disp_set", function(t) glass.disp = glass.step(t, 2.5); glass_refresh(); glass_save_soon() end)
 on("glass_obs_toggle", function() glass.obsidian = not glass.obsidian; glass_refresh(); glass_save_soon() end)
 on("glass_bend_toggle", function() glass.bend = not glass.bend; glass_refresh(); glass_save_soon() end)
-on("glass_reset", function()
-    glass.frost, glass.opacity, glass.rim, glass.refr, glass.disp, glass.bend, glass.obsidian = 1, 1, 1, 1, 1, false, false
-    if glass.set_blur then glass.set_blur(3, 1) end
-    glass_refresh()
-    glass_save_soon()
-end)
 
 -- ── Display ───────────────────────────────────────────────────────────────────────────────────────────
 -- The Display page of the settings: what Hyprland reports for each monitor (`hyprctl monitors -j`)
