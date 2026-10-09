@@ -3166,7 +3166,7 @@ wp_load()
 -- was), `refr` (how thick the glass is, 0 to 2) and `disp` (the rainbow at the edge, 0 to 2.5) only show when `bend` is on,
 -- which swaps the compositor's blur for glass that really bends what is behind it. The blur's own strength is Hyprland's, and
 -- lives in the Hyprland section below (it puts its setter in `glass.set_blur`).
-local glass = { frost = 1, opacity = 1, rim = 1, refr = 1, disp = 1, bend = false }
+local glass = { frost = 1, opacity = 1, rim = 1, refr = 1, disp = 1, bend = false, obsidian = false }
 local GLASS_OP_MIN = 0.3
 local glass_save_waiting = false
 
@@ -3179,6 +3179,7 @@ local function glass_refresh()
     fact.glass_refr = glass.refr
     fact.glass_disp = glass.disp
     fact.glass_bend = glass.bend
+    fact.glass_obs = glass.obsidian
     text.glass_rim_text = string.format("%d%%", math.floor(glass.rim * 100 + 0.5))
     text.glass_refr_text = string.format("%d%%", math.floor(glass.refr * 100 + 0.5))
     text.glass_disp_text = string.format("%d%%", math.floor(glass.disp * 100 + 0.5))
@@ -3188,7 +3189,7 @@ local function glass_save_soon()
     glass_save_waiting = true
     after(500, function()
         glass_save_waiting = false
-        pcall(sys.call, "files.write", "glass.json", { frost = glass.frost, opacity = glass.opacity, rim = glass.rim, refr = glass.refr, disp = glass.disp, bend = glass.bend })
+        pcall(sys.call, "files.write", "glass.json", { frost = glass.frost, opacity = glass.opacity, rim = glass.rim, refr = glass.refr, disp = glass.disp, bend = glass.bend, obsidian = glass.obsidian })
     end)
 end
 
@@ -3201,6 +3202,7 @@ do
         if type(saved.refr) == "number" then glass.refr = math.max(0, math.min(2, saved.refr)) end
         if type(saved.disp) == "number" then glass.disp = math.max(0, math.min(2.5, saved.disp)) end
         if type(saved.bend) == "boolean" then glass.bend = saved.bend end
+        if type(saved.obsidian) == "boolean" then glass.obsidian = saved.obsidian end
     end
     glass_refresh()
 end
@@ -3222,9 +3224,10 @@ function glass.step(t, top) return math.floor(math.max(0, math.min(1, t)) * top 
 on("glass_rim_set", function(t) glass.rim = glass.step(t, 2); glass_refresh(); glass_save_soon() end)
 on("glass_refr_set", function(t) glass.refr = glass.step(t, 2); glass_refresh(); glass_save_soon() end)
 on("glass_disp_set", function(t) glass.disp = glass.step(t, 2.5); glass_refresh(); glass_save_soon() end)
+on("glass_obs_toggle", function() glass.obsidian = not glass.obsidian; glass_refresh(); glass_save_soon() end)
 on("glass_bend_toggle", function() glass.bend = not glass.bend; glass_refresh(); glass_save_soon() end)
 on("glass_reset", function()
-    glass.frost, glass.opacity, glass.rim, glass.refr, glass.disp, glass.bend = 1, 1, 1, 1, 1, false
+    glass.frost, glass.opacity, glass.rim, glass.refr, glass.disp, glass.bend, glass.obsidian = 1, 1, 1, 1, 1, false, false
     if glass.set_blur then glass.set_blur(3, 1) end
     glass_refresh()
     glass_save_soon()

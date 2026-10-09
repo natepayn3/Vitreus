@@ -51,7 +51,9 @@ part SettingsPanel {
         on press set_x { panel = none }
 
         //  Sidebar: the sections, grouped. One so far.
-        box { at: sl + 75 * pu, sby + set.h / 2 * pu; size: 150 * pu, set.h * pu; corner: 14 * pu; color: ink; opacity: 4% }
+        //  Obsidian: the sidebar is a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+        body { color: mix(obsidian, ink, 4% * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: sl + 75 * pu, sby + set.h / 2 * pu; size: 150 * pu, set.h * pu; corner: 14 * pu } }
+        box { at: sl + 75 * pu, sby + set.h / 2 * pu; size: 150 * pu, set.h * pu; corner: 14 * pu; color: ink; opacity: 4% * (1 - obs) }
         text "VISUALS" { at: floor(sl + 14 * pu + 0.5), floor(sby + 18 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; opacity: 70%; family: "Space Grotesk" }
         //  The highlight's place is each page's own selection (a spring, 0 or 1) times its row, summed: a straight line from one row to the next.
         //  (Nested `mix`es bent it: the old row's value falling while the new one rises dragged it back towards the top row and down again.)
@@ -207,8 +209,12 @@ part SettingsPanel {
             show: set_pga > 0.01
             opacity: set_pga
 
-            box { at: spx + 219 * pu, sby + 70 * pu; size: 438 * pu, 140 * pu; corner: 14 * pu; color: ink; opacity: veil }
-            box { at: spx + 219 * pu, sby + 201 * pu; size: 438 * pu, 98 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 70 * pu; size: 438 * pu, 140 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + 70 * pu; size: 438 * pu, 140 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 201 * pu; size: 438 * pu, 98 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + 201 * pu; size: 438 * pu, 98 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             text "BUILD" { at: floor(spx + 14 * pu + 0.5), floor(sby + 13 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
             text "UPDATE" { at: floor(spx + 14 * pu + 0.5), floor(sby + 165 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
 

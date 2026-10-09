@@ -43,12 +43,21 @@ part Overview {
             body {
                 color: tint
                 glass: glass_frost
-                opacity: glass_op
+                opacity: glass_op * (1 - obs)
                 lens: glass_bend
                 refraction: glass_refr
                 dispersion: glass_disp
                 rim: 14% * glass_rim
                 shadow: 0, 14 * ovu, 36 * ovu, 45%, deep
+                show: obs < 0.996
+                box { at: ovc.x, ovc.top + 104 * ovu; size: 290 * ovu, 208 * ovu; corner: 18 * ovu }
+            }
+            body {
+                color: obsidian
+                rim: 0%
+                opacity: obs
+                shadow: 0, 14 * ovu, 42 * ovu, 55%, #000000
+                show: obs > 0.004
                 box { at: ovc.x, ovc.top + 104 * ovu; size: 290 * ovu, 208 * ovu; corner: 18 * ovu }
             }
             box { at: ovc.x, ovc.top + 104 * ovu; size: 290 * ovu, 208 * ovu; corner: 18 * ovu; color: mix(ink, mint, max(ovc.act, ovc.drop)); opacity: 6% + 9% * ovc.act + 14% * ovc.drop + 4% * ov_hz.$c.hover }

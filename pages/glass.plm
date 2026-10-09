@@ -11,35 +11,30 @@ part Glass {
             text "Glass" { at: floor(spx + 14 * pu + 0.5), floor(sby + 16 * pu + 0.5); anchor: left center; size: 17.5; weight: 700; color: ink; family: "Space Grotesk" }
             text "Changes apply right away." { at: floor(spx + 424 * pu + 0.5), floor(sby + 16 * pu + 0.5); anchor: right center; size: 13.5; color: faint; opacity: 80%; family: "Space Grotesk" }
 
-            //  Glass.
-            box { at: spx + 219 * pu, sby + 67 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: ink; opacity: veil }
-            text "Glass" { at: floor(spx + 14 * pu + 0.5), floor(sby + 51 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; opacity: 100%; family: "Space Grotesk" }
-            text "How frosted: 100% blurs what is behind, 0% is solid" { at: floor(spx + 14 * pu + 0.5), floor(sby + 66 * pu + 0.5); anchor: left center; size: 12.5; color: faint; opacity: 100%; family: "Space Grotesk" }
-            group {
-                opacity: 100%
-                body {
-                    color: deep
-                    rim: 9%
-                    box { at: gsl.x0 + gsl.w / 2, sby + 83 * pu; size: gsl.w, gh; corner: gh / 2 }
-                }
-                group {
-                    glow: 6 * pu, 50%, mint
-                    body {
-                        gradient: gsl.x0, 0 to gsl.x0 + gsl.w, 0, mintlo, mint 55%, minthi
-                        rim: 22%
-                        box { from: gsl.x0, sby + 83 * pu - gh / 2; size: max(0.1, gsl.w * clamp(glass_frost, 0, 1)), gh; corner: gh / 2 }
-                    }
-                }
+            //  Glass on or off. Off is a flat, solid obsidian, and everything below it is greyed out and stops answering.
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 67 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + 67 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pu, sby + 67 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: mint; opacity: 6% * glass_on_pill + 5% * glass_obs_hit.hover }
+            text "Glass" { at: floor(spx + 14 * pu + 0.5), floor(sby + 59 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            text "Off for a solid obsidian look, with no glass at all" { at: floor(spx + 14 * pu + 0.5), floor(sby + 75 * pu + 0.5); anchor: left center; size: 12.5; color: faint; family: "Space Grotesk" }
+            body {
+                color: mix(off, mint, clamp(glass_on_pill, 0, 1))
+                box { at: spx + 405 * pu, sby + 67 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
             }
-            text glass_frost_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 54 * pu + 0.5); anchor: right center; size: 18; weight: 600; color: ink; opacity: 100%; family: "Space Grotesk" }
-            zone box glass_hit0 { at: gsl.x0 + gsl.w / 2, sby + 83 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer }
-            on press glass_hit0 { emit glass_frost_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
-            on drag glass_hit0 { emit glass_frost_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
+            box { at: spx + 397 * pu + glass_on_pill * 16 * pu, sby + 67 * pu; size: (17 + 9 * clamp(4 * glass_on_pill * (1 - glass_on_pill), 0, 1)) * pu, (17 - 3 * clamp(4 * glass_on_pill * (1 - glass_on_pill), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * glass_on_pill * (1 - glass_on_pill), 0, 1)) * pu; color: ink }
+            zone box glass_obs_hit { at: spx + 219 * pu, sby + 67 * pu; size: 430 * pu, 46 * pu; corner: 14 * pu; cursor: pointer }
+            on press glass_obs_hit { emit glass_obs_toggle }
 
-            //  Opacity.
-            box { at: spx + 219 * pu, sby + 125 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: ink; opacity: veil }
-            text "Opacity" { at: floor(spx + 14 * pu + 0.5), floor(sby + 109 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; opacity: 100%; family: "Space Grotesk" }
-            text "How solid; the first 30% can't be picked, the glass would vanish" { at: floor(spx + 14 * pu + 0.5), floor(sby + 124 * pu + 0.5); anchor: left center; size: 12.5; color: faint; opacity: 100%; family: "Space Grotesk" }
+            //  Everything the glass is made of: greyed out while the glass is off.
+            group {
+                opacity: 1 - 0.65 * obs
+            //  Glass.
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 125 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + 125 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            text "Frost" { at: floor(spx + 14 * pu + 0.5), floor(sby + 109 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; opacity: 100%; family: "Space Grotesk" }
+            text "How frosted: 100% blurs what is behind, 0% is solid" { at: floor(spx + 14 * pu + 0.5), floor(sby + 124 * pu + 0.5); anchor: left center; size: 12.5; color: faint; opacity: 100%; family: "Space Grotesk" }
             group {
                 opacity: 100%
                 body {
@@ -52,22 +47,21 @@ part Glass {
                     body {
                         gradient: gsl.x0, 0 to gsl.x0 + gsl.w, 0, mintlo, mint 55%, minthi
                         rim: 22%
-                        box { from: gsl.x0, sby + 141 * pu - gh / 2; size: max(0.1, gsl.w * clamp(glass_op, 0, 1)), gh; corner: gh / 2 }
+                        box { from: gsl.x0, sby + 141 * pu - gh / 2; size: max(0.1, gsl.w * clamp(glass_frost, 0, 1)), gh; corner: gh / 2 }
                     }
                 }
             }
-            //  The first 30 % of this track cannot be picked: it is shaded, with a tick where the range starts.
-            box { from: gsl.x0, sby + 141 * pu - gh / 2; size: gsl.w * 0.3, gh; corner: gh / 2; color: #000000; opacity: 38% }
-            box { at: gsl.x0 + gsl.w * 0.3, sby + 141 * pu; size: 1.5 * pu, gh + 6 * pu; corner: 0.75 * pu; color: ink; opacity: 45% }
-            text glass_op_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 112 * pu + 0.5); anchor: right center; size: 18; weight: 600; color: ink; opacity: 100%; family: "Space Grotesk" }
-            zone box glass_hit1 { at: gsl.x0 + gsl.w / 2, sby + 141 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer }
-            on press glass_hit1 { emit glass_op_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
-            on drag glass_hit1 { emit glass_op_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
+            text glass_frost_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 112 * pu + 0.5); anchor: right center; size: 18; weight: 600; color: ink; opacity: 100%; family: "Space Grotesk" }
+            zone box glass_hit0 { at: gsl.x0 + gsl.w / 2, sby + 141 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: obs < 0.5 }
+            on press glass_hit0 { emit glass_frost_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
+            on drag glass_hit0 { emit glass_frost_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
 
-            //  Blur.
-            box { at: spx + 219 * pu, sby + 183 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: ink; opacity: veil }
-            text "Blur" { at: floor(spx + 14 * pu + 0.5), floor(sby + 167 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; opacity: 100%; family: "Space Grotesk" }
-            text "How strongly the screen behind is blurred (Hyprland's setting)" { at: floor(spx + 14 * pu + 0.5), floor(sby + 182 * pu + 0.5); anchor: left center; size: 12.5; color: faint; opacity: 100%; family: "Space Grotesk" }
+            //  Opacity.
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 183 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + 183 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            text "Opacity" { at: floor(spx + 14 * pu + 0.5), floor(sby + 167 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; opacity: 100%; family: "Space Grotesk" }
+            text "How solid; the first 30% can't be picked, the glass would vanish" { at: floor(spx + 14 * pu + 0.5), floor(sby + 182 * pu + 0.5); anchor: left center; size: 12.5; color: faint; opacity: 100%; family: "Space Grotesk" }
             group {
                 opacity: 100%
                 body {
@@ -80,19 +74,24 @@ part Glass {
                     body {
                         gradient: gsl.x0, 0 to gsl.x0 + gsl.w, 0, mintlo, mint 55%, minthi
                         rim: 22%
-                        box { from: gsl.x0, sby + 199 * pu - gh / 2; size: max(0.1, gsl.w * clamp((hy_blur - 1) / 19, 0, 1)), gh; corner: gh / 2 }
+                        box { from: gsl.x0, sby + 199 * pu - gh / 2; size: max(0.1, gsl.w * clamp(glass_op, 0, 1)), gh; corner: gh / 2 }
                     }
                 }
             }
-            text hy_blur_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 170 * pu + 0.5); anchor: right center; size: 18; weight: 600; color: ink; opacity: 100%; family: "Space Grotesk" }
-            zone box glass_hit2 { at: gsl.x0 + gsl.w / 2, sby + 199 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer }
-            on press glass_hit2 { emit glass_blur_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
-            on drag glass_hit2 { emit glass_blur_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
+            //  The first 30 % of this track cannot be picked: it is shaded, with a tick where the range starts.
+            box { from: gsl.x0, sby + 199 * pu - gh / 2; size: gsl.w * 0.3, gh; corner: gh / 2; color: #000000; opacity: 38% }
+            box { at: gsl.x0 + gsl.w * 0.3, sby + 199 * pu; size: 1.5 * pu, gh + 6 * pu; corner: 0.75 * pu; color: ink; opacity: 45% }
+            text glass_op_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 170 * pu + 0.5); anchor: right center; size: 18; weight: 600; color: ink; opacity: 100%; family: "Space Grotesk" }
+            zone box glass_hit1 { at: gsl.x0 + gsl.w / 2, sby + 199 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: obs < 0.5 }
+            on press glass_hit1 { emit glass_op_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
+            on drag glass_hit1 { emit glass_op_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
 
-            //  Edge light.
-            box { at: spx + 219 * pu, sby + 241 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: ink; opacity: veil }
-            text "Edge light" { at: floor(spx + 14 * pu + 0.5), floor(sby + 225 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; opacity: 100%; family: "Space Grotesk" }
-            text "How bright the light along the glass edge is" { at: floor(spx + 14 * pu + 0.5), floor(sby + 240 * pu + 0.5); anchor: left center; size: 12.5; color: faint; opacity: 100%; family: "Space Grotesk" }
+            //  Blur.
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 241 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + 241 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            text "Blur" { at: floor(spx + 14 * pu + 0.5), floor(sby + 225 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; opacity: 100%; family: "Space Grotesk" }
+            text "How strongly the screen behind is blurred (Hyprland's setting)" { at: floor(spx + 14 * pu + 0.5), floor(sby + 240 * pu + 0.5); anchor: left center; size: 12.5; color: faint; opacity: 100%; family: "Space Grotesk" }
             group {
                 opacity: 100%
                 body {
@@ -105,21 +104,23 @@ part Glass {
                     body {
                         gradient: gsl.x0, 0 to gsl.x0 + gsl.w, 0, mintlo, mint 55%, minthi
                         rim: 22%
-                        box { from: gsl.x0, sby + 257 * pu - gh / 2; size: max(0.1, gsl.w * clamp(glass_rim / 2, 0, 1)), gh; corner: gh / 2 }
+                        box { from: gsl.x0, sby + 257 * pu - gh / 2; size: max(0.1, gsl.w * clamp((hy_blur - 1) / 19, 0, 1)), gh; corner: gh / 2 }
                     }
                 }
             }
-            text glass_rim_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 228 * pu + 0.5); anchor: right center; size: 18; weight: 600; color: ink; opacity: 100%; family: "Space Grotesk" }
-            zone box glass_hit3 { at: gsl.x0 + gsl.w / 2, sby + 257 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer }
-            on press glass_hit3 { emit glass_rim_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
-            on drag glass_hit3 { emit glass_rim_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
+            text hy_blur_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 228 * pu + 0.5); anchor: right center; size: 18; weight: 600; color: ink; opacity: 100%; family: "Space Grotesk" }
+            zone box glass_hit2 { at: gsl.x0 + gsl.w / 2, sby + 257 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: obs < 0.5 }
+            on press glass_hit2 { emit glass_blur_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
+            on drag glass_hit2 { emit glass_blur_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
 
-            //  Edge thickness.
-            box { at: spx + 219 * pu, sby + 299 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: ink; opacity: veil }
-            text "Edge thickness" { at: floor(spx + 14 * pu + 0.5), floor(sby + 283 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" }
-            text "How much the edge bends what is behind it" { at: floor(spx + 14 * pu + 0.5), floor(sby + 298 * pu + 0.5); anchor: left center; size: 12.5; color: faint; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" }
+            //  Edge light.
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 299 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + 299 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            text "Edge light" { at: floor(spx + 14 * pu + 0.5), floor(sby + 283 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; opacity: 100%; family: "Space Grotesk" }
+            text "How bright the light along the glass edge is" { at: floor(spx + 14 * pu + 0.5), floor(sby + 298 * pu + 0.5); anchor: left center; size: 12.5; color: faint; opacity: 100%; family: "Space Grotesk" }
             group {
-                opacity: 100% * (0.35 + 0.65 * glass_bend_k)
+                opacity: 100%
                 body {
                     color: deep
                     rim: 9%
@@ -130,19 +131,21 @@ part Glass {
                     body {
                         gradient: gsl.x0, 0 to gsl.x0 + gsl.w, 0, mintlo, mint 55%, minthi
                         rim: 22%
-                        box { from: gsl.x0, sby + 315 * pu - gh / 2; size: max(0.1, gsl.w * clamp(glass_refr / 2, 0, 1)), gh; corner: gh / 2 }
+                        box { from: gsl.x0, sby + 315 * pu - gh / 2; size: max(0.1, gsl.w * clamp(glass_rim / 2, 0, 1)), gh; corner: gh / 2 }
                     }
                 }
             }
-            text glass_refr_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 286 * pu + 0.5); anchor: right center; size: 18; weight: 600; color: ink; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" }
-            zone box glass_hit4 { at: gsl.x0 + gsl.w / 2, sby + 315 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer }
-            on press glass_hit4 { emit glass_refr_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
-            on drag glass_hit4 { emit glass_refr_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
+            text glass_rim_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 286 * pu + 0.5); anchor: right center; size: 18; weight: 600; color: ink; opacity: 100%; family: "Space Grotesk" }
+            zone box glass_hit3 { at: gsl.x0 + gsl.w / 2, sby + 315 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: obs < 0.5 }
+            on press glass_hit3 { emit glass_rim_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
+            on drag glass_hit3 { emit glass_rim_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
 
-            //  Rainbow fringe.
-            box { at: spx + 219 * pu, sby + 357 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: ink; opacity: veil }
-            text "Rainbow fringe" { at: floor(spx + 14 * pu + 0.5), floor(sby + 341 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" }
-            text "How far red, green and blue split at the edge" { at: floor(spx + 14 * pu + 0.5), floor(sby + 356 * pu + 0.5); anchor: left center; size: 12.5; color: faint; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" }
+            //  Edge thickness.
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 357 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + 357 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            text "Edge thickness" { at: floor(spx + 14 * pu + 0.5), floor(sby + 341 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" }
+            text "How much the edge bends what is behind it" { at: floor(spx + 14 * pu + 0.5), floor(sby + 356 * pu + 0.5); anchor: left center; size: 12.5; color: faint; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" }
             group {
                 opacity: 100% * (0.35 + 0.65 * glass_bend_k)
                 body {
@@ -155,36 +158,67 @@ part Glass {
                     body {
                         gradient: gsl.x0, 0 to gsl.x0 + gsl.w, 0, mintlo, mint 55%, minthi
                         rim: 22%
-                        box { from: gsl.x0, sby + 373 * pu - gh / 2; size: max(0.1, gsl.w * clamp(glass_disp / 2.5, 0, 1)), gh; corner: gh / 2 }
+                        box { from: gsl.x0, sby + 373 * pu - gh / 2; size: max(0.1, gsl.w * clamp(glass_refr / 2, 0, 1)), gh; corner: gh / 2 }
                     }
                 }
             }
-            text glass_disp_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 344 * pu + 0.5); anchor: right center; size: 18; weight: 600; color: ink; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" }
-            zone box glass_hit5 { at: gsl.x0 + gsl.w / 2, sby + 373 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer }
+            text glass_refr_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 344 * pu + 0.5); anchor: right center; size: 18; weight: 600; color: ink; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" }
+            zone box glass_hit4 { at: gsl.x0 + gsl.w / 2, sby + 373 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: obs < 0.5 }
+            on press glass_hit4 { emit glass_refr_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
+            on drag glass_hit4 { emit glass_refr_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
+
+            //  Rainbow fringe.
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 415 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + 415 * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            text "Rainbow fringe" { at: floor(spx + 14 * pu + 0.5), floor(sby + 399 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" }
+            text "How far red, green and blue split at the edge" { at: floor(spx + 14 * pu + 0.5), floor(sby + 414 * pu + 0.5); anchor: left center; size: 12.5; color: faint; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" }
+            group {
+                opacity: 100% * (0.35 + 0.65 * glass_bend_k)
+                body {
+                    color: deep
+                    rim: 9%
+                    box { at: gsl.x0 + gsl.w / 2, sby + 431 * pu; size: gsl.w, gh; corner: gh / 2 }
+                }
+                group {
+                    glow: 6 * pu, 50%, mint
+                    body {
+                        gradient: gsl.x0, 0 to gsl.x0 + gsl.w, 0, mintlo, mint 55%, minthi
+                        rim: 22%
+                        box { from: gsl.x0, sby + 431 * pu - gh / 2; size: max(0.1, gsl.w * clamp(glass_disp / 2.5, 0, 1)), gh; corner: gh / 2 }
+                    }
+                }
+            }
+            text glass_disp_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 402 * pu + 0.5); anchor: right center; size: 18; weight: 600; color: ink; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" }
+            zone box glass_hit5 { at: gsl.x0 + gsl.w / 2, sby + 431 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: obs < 0.5 }
             on press glass_hit5 { emit glass_disp_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
             on drag glass_hit5 { emit glass_disp_set(clamp((pointer.x - gsl.x0) / gsl.w, 0, 1)) }
 
             //  Bend what is behind the glass: swaps the compositor's blur for real bending (it takes a screenshot of what is
             //  behind the bar while anything moves, so it costs more power).
-            box { at: spx + 219 * pu, sby + 410 * pu; size: 438 * pu, 44 * pu; corner: 14 * pu; color: ink; opacity: veil }
-            box { at: spx + 219 * pu, sby + 410 * pu; size: 438 * pu, 44 * pu; corner: 14 * pu; color: alert; opacity: 13% + 12% * glass_bend_pill + 6% * glass_bend_hit.hover }
-            path { at: spx + 26 * pu, sby + 410 * pu; stroke: 1.8 * pu; color: alert; move 0, -9 * pu; line 10 * pu, 8 * pu; line -10 * pu, 8 * pu; line 0, -9 * pu }
-            path { at: spx + 26 * pu, sby + 410 * pu; stroke: 1.8 * pu; color: alert; move 0, -3 * pu; line 0, 2.5 * pu }
-            ellipse { at: spx + 26 * pu, sby + 413.5 * pu; radius: 1.1 * pu; color: alert }
-            text "Bend what's behind the glass" { at: floor(spx + 46 * pu + 0.5), floor(sby + 402 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
-            text "Real lens glass, not blur. Heavy GPU load." { at: floor(spx + 46 * pu + 0.5), floor(sby + 418 * pu + 0.5); anchor: left center; size: 12.5; weight: 600; color: alert; family: "Space Grotesk" }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 468 * pu; size: 438 * pu, 44 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + 468 * pu; size: 438 * pu, 44 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pu, sby + 468 * pu; size: 438 * pu, 44 * pu; corner: 14 * pu; color: alert; opacity: 13% + 12% * glass_bend_pill + 6% * glass_bend_hit.hover }
+            path { at: spx + 26 * pu, sby + 468 * pu; stroke: 1.8 * pu; color: alert; move 0, -9 * pu; line 10 * pu, 8 * pu; line -10 * pu, 8 * pu; line 0, -9 * pu }
+            path { at: spx + 26 * pu, sby + 468 * pu; stroke: 1.8 * pu; color: alert; move 0, -3 * pu; line 0, 2.5 * pu }
+            ellipse { at: spx + 26 * pu, sby + 471.5 * pu; radius: 1.1 * pu; color: alert }
+            text "Bend what's behind the glass" { at: floor(spx + 46 * pu + 0.5), floor(sby + 460 * pu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
+            text "Real lens glass, not blur. Heavy GPU load." { at: floor(spx + 46 * pu + 0.5), floor(sby + 476 * pu + 0.5); anchor: left center; size: 12.5; weight: 600; color: alert; family: "Space Grotesk" }
             body {
                 color: mix(off, alert, clamp(glass_bend_pill, 0, 1))
-                box { at: spx + 405 * pu, sby + 410 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
+                box { at: spx + 405 * pu, sby + 468 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
             }
-            box { at: spx + 397 * pu + glass_bend_pill * 16 * pu, sby + 410 * pu; size: (17 + 9 * clamp(4 * glass_bend_pill * (1 - glass_bend_pill), 0, 1)) * pu, (17 - 3 * clamp(4 * glass_bend_pill * (1 - glass_bend_pill), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * glass_bend_pill * (1 - glass_bend_pill), 0, 1)) * pu; color: ink }
-            zone box glass_bend_hit { at: spx + 219 * pu, sby + 410 * pu; size: 430 * pu, 40 * pu; corner: 12 * pu; cursor: pointer }
+            box { at: spx + 397 * pu + glass_bend_pill * 16 * pu, sby + 468 * pu; size: (17 + 9 * clamp(4 * glass_bend_pill * (1 - glass_bend_pill), 0, 1)) * pu, (17 - 3 * clamp(4 * glass_bend_pill * (1 - glass_bend_pill), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * glass_bend_pill * (1 - glass_bend_pill), 0, 1)) * pu; color: ink }
+            zone box glass_bend_hit { at: spx + 219 * pu, sby + 468 * pu; size: 430 * pu, 40 * pu; corner: 12 * pu; cursor: pointer; active: obs < 0.5 }
             on press glass_bend_hit { emit glass_bend_toggle }
 
+            }
+
             //  Back to how it was.
-            box { at: spx + 370 * pu, sby + 450 * pu; size: 128 * pu, 26 * pu; corner: 13 * pu; color: ink; opacity: 8% + 10% * glass_reset_hit.hover }
-            text "Reset to defaults" { at: floor(spx + 370 * pu + 0.5), floor(sby + 450 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 124 * pu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
-            zone box glass_reset_hit { at: spx + 370 * pu, sby + 450 * pu; size: 130 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
+            box { at: spx + 370 * pu, sby + 508 * pu; size: 128 * pu, 26 * pu; corner: 13 * pu; color: ink; opacity: 8% + 10% * glass_reset_hit.hover }
+            text "Reset to defaults" { at: floor(spx + 370 * pu + 0.5), floor(sby + 508 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 124 * pu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
+            zone box glass_reset_hit { at: spx + 370 * pu, sby + 508 * pu; size: 130 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press glass_reset_hit { emit glass_reset }
         }
 }

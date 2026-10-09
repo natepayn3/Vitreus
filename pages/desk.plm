@@ -22,7 +22,9 @@ part Desk {
             let dt_w   = (dsk_w - 72 * cu) / 6
             let dt_cx  = dsk_xc - 18 * cu
             let dt_str = clamp(abs(desk_tab - desk_sel), 0, 2)
-            box { at: dt_cx, dt_y; size: dsk_w - 72 * cu, 34 * cu; corner: 17 * cu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: dt_cx, dt_y; size: dsk_w - 72 * cu, 34 * cu; corner: 17 * cu } }
+            box { at: dt_cx, dt_y; size: dsk_w - 72 * cu, 34 * cu; corner: 17 * cu; color: ink; opacity: (veil) * (1 - obs) }
             body {
                 color: mint
                 shadow: 0, 0, 10 * cu, 40%, mint
@@ -88,7 +90,9 @@ part Desk {
                     box { at: dsk_xc, dsk_y0 + 169 * cu; size: 2.6 * cu, 7 * cu; corner: 1.3 * cu; color: deep }
                     text "Locked" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 202 * cu + 0.5); anchor: center; align: center; size: 15; weight: 700; color: ink; family: "Space Grotesk" }
                     text shelf_locked_txt { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 220 * cu + 0.5); anchor: center; align: center; size: 12; color: faint; width: 280 * cu; lines: 1; family: "Space Grotesk" }
-                    box { at: dsk_xc - 36 * cu, dsk_y0 + 254 * cu; size: 180 * cu, 30 * cu; corner: 10 * cu; color: ink; opacity: 9% }
+                    //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+                    body { color: mix(obsidian, ink, (9%) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: dsk_xc - 36 * cu, dsk_y0 + 254 * cu; size: 180 * cu, 30 * cu; corner: 10 * cu } }
+                    box { at: dsk_xc - 36 * cu, dsk_y0 + 254 * cu; size: 180 * cu, 30 * cu; corner: 10 * cu; color: ink; opacity: (9%) * (1 - obs) }
                     input shelf_pw { at: floor(dsk_xc - 36 * cu - 90 * cu + 12 * cu + 0.5), floor(dsk_y0 + 254 * cu - 6.5 * cu + 0.5); width: 156 * cu; size: 13; color: ink; family: "Space Grotesk"; secret: true; placeholder: "Your password" }
                     zone box shelf_pw_z { at: dsk_xc - 36 * cu, dsk_y0 + 254 * cu; size: 180 * cu, 30 * cu; corner: 10 * cu; cursor: text }
                     on press shelf_pw_z { focus shelf_pw; desk_kb = true }
@@ -150,11 +154,15 @@ part Desk {
                 text "Lock with my password" { at: floor(dsk_xc - 129 * cu + 0.5), floor(dsk_y0 + 421 * cu + 0.5); anchor: left center; size: 11.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not shelf_locked }
                 zone box shelf_lockbox_z { at: dsk_xc - 84 * cu, dsk_y0 + 421 * cu; size: 150 * cu, 24 * cu; corner: 8 * cu; cursor: pointer; active: not shelf_locked }
                 on press shelf_lockbox_z { emit shelf_lock_toggle }
-                box { at: dsk_xc + 40 * cu, dsk_y0 + 421 * cu; size: 60 * cu, 26 * cu; corner: 11 * cu; color: ink; opacity: 8% + 10% * shelf_lock_now_z.hover; show: shelf_lock_on and not shelf_locked }
+                //  Obsidian: a solid plate a step lighter than the shell, in place of the veil.
+                body { color: mix(obsidian, ink, (8% + 10% * shelf_lock_now_z.hover) * 1.6); opacity: obs; show: obs > 0.004 and (shelf_lock_on and not shelf_locked); box { at: dsk_xc + 40 * cu, dsk_y0 + 421 * cu; size: 60 * cu, 26 * cu; corner: 11 * cu } }
+                box { at: dsk_xc + 40 * cu, dsk_y0 + 421 * cu; size: 60 * cu, 26 * cu; corner: 11 * cu; color: ink; opacity: (8% + 10% * shelf_lock_now_z.hover) * (1 - obs); show: shelf_lock_on and not shelf_locked }
                 text "Lock now" { at: floor(dsk_xc + 40 * cu + 0.5), floor(dsk_y0 + 421 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: shelf_lock_on and not shelf_locked }
                 zone box shelf_lock_now_z { at: dsk_xc + 40 * cu, dsk_y0 + 421 * cu; size: 62 * cu, 28 * cu; corner: 12 * cu; cursor: pointer; active: shelf_lock_on and not shelf_locked }
                 on press shelf_lock_now_z { emit shelf_lock_now }
-                box { at: dsk_xc + 112 * cu, dsk_y0 + 421 * cu; size: 66 * cu, 26 * cu; corner: 11 * cu; color: ink; opacity: 8% + 10% * shelf_clear_b.hover; show: shelf_n > 0 }
+                //  Obsidian: a solid plate a step lighter than the shell, in place of the veil.
+                body { color: mix(obsidian, ink, (8% + 10% * shelf_clear_b.hover) * 1.6); opacity: obs; show: obs > 0.004 and (shelf_n > 0); box { at: dsk_xc + 112 * cu, dsk_y0 + 421 * cu; size: 66 * cu, 26 * cu; corner: 11 * cu } }
+                box { at: dsk_xc + 112 * cu, dsk_y0 + 421 * cu; size: 66 * cu, 26 * cu; corner: 11 * cu; color: ink; opacity: (8% + 10% * shelf_clear_b.hover) * (1 - obs); show: shelf_n > 0 }
                 text "Clear all" { at: floor(dsk_xc + 112 * cu + 0.5), floor(dsk_y0 + 421 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: shelf_n > 0 }
                 zone box shelf_clear_b { at: dsk_xc + 112 * cu, dsk_y0 + 421 * cu; size: 68 * cu, 28 * cu; corner: 12 * cu; cursor: pointer; active: shelf_n > 0 }
                 on press shelf_clear_b { emit shelf_clear }
@@ -168,7 +176,9 @@ part Desk {
                 move: 0, (1 - fd1) * 12 * cu
                 let pm_y = dsk_y0 + 84 * cu
                 let pm_str = clamp(abs(pad_mode - pad_sel), 0, 1)
-                box { at: dsk_xc, pm_y; size: 168 * cu, 28 * cu; corner: 14 * cu; color: ink; opacity: veil }
+                //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+                body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: dsk_xc, pm_y; size: 168 * cu, 28 * cu; corner: 14 * cu } }
+                box { at: dsk_xc, pm_y; size: 168 * cu, 28 * cu; corner: 14 * cu; color: ink; opacity: (veil) * (1 - obs) }
                 body {
                     color: mint
                     shadow: 0, 0, 8 * cu, 38%, mint
@@ -267,7 +277,9 @@ part Desk {
                 opacity: fd2
                 move: 0, (1 - fd2) * 12 * cu
                 let tk_y = dsk_y0 + 128 * cu
-                box { at: dsk_xc, tk_y; size: dsk_w - 28 * cu, 36 * cu; corner: 14 * cu; color: ink; opacity: veil + 4% * task_zone.hover }
+                //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+                body { color: mix(obsidian, ink, (veil + 4% * task_zone.hover) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: dsk_xc, tk_y; size: dsk_w - 28 * cu, 36 * cu; corner: 14 * cu } }
+                box { at: dsk_xc, tk_y; size: dsk_w - 28 * cu, 36 * cu; corner: 14 * cu; color: ink; opacity: (veil + 4% * task_zone.hover) * (1 - obs) }
                 input task_in { at: floor(dsk_xc - (dsk_w - 28 * cu) / 2 + 14 * cu + 0.5), floor(tk_y - 6.5 * cu + 0.5); width: dsk_w - 70 * cu; size: 13; color: ink; family: "Space Grotesk"; placeholder: "Add a task and press Enter" }
                 zone box task_zone { at: dsk_xc, tk_y; size: dsk_w - 28 * cu, 36 * cu; cursor: text }
                 on press task_zone { focus task_in; desk_kb = true }
@@ -326,7 +338,9 @@ part Desk {
                 let fp_str = clamp(abs(if(ft_len == 15, 0, if(ft_len == 30, 1, if(ft_len == 45, 2, 3))) - ft_sel), 0, 3)
                 group {
                     opacity: 1 - 0.45 * fbusy
-                    box { at: dsk_xc, fp_y; size: fp_w * 4 + 4 * cu, 32 * cu; corner: 16 * cu; color: ink; opacity: veil }
+                    //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+                    body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: dsk_xc, fp_y; size: fp_w * 4 + 4 * cu, 32 * cu; corner: 16 * cu } }
+                    box { at: dsk_xc, fp_y; size: fp_w * 4 + 4 * cu, 32 * cu; corner: 16 * cu; color: ink; opacity: (veil) * (1 - obs) }
                     body {
                         color: mint
                         shadow: 0, 0, 9 * cu, 42%, mint
@@ -399,7 +413,9 @@ part Desk {
                 let sr0 = sx0 + 68 * cu
                 let sl0 = sr0 - sw0
                 let sk0 = sl0 + 11 * cu + sp0 * (sw0 - 22 * cu)
-                box { at: sx0, fs_y; size: 150 * cu, 34 * cu; corner: 13 * cu; color: ink; opacity: 7% + 5% * ft_sw.0.hover }
+                //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+                body { color: mix(obsidian, ink, (7% + 5% * ft_sw.0.hover) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: sx0, fs_y; size: 150 * cu, 34 * cu; corner: 13 * cu } }
+                box { at: sx0, fs_y; size: 150 * cu, 34 * cu; corner: 13 * cu; color: ink; opacity: (7% + 5% * ft_sw.0.hover) * (1 - obs) }
                 group {
                     opacity: 45% + 55% * clamp(sp0, 0, 1)
                     ellipse { at: (sx0 - 58 * cu), fs_y - 1 * cu; radius: 3 * cu; color: ink }
@@ -434,7 +450,9 @@ part Desk {
                 let sr1 = sx1 + 68 * cu
                 let sl1 = sr1 - sw1
                 let sk1 = sl1 + 11 * cu + sp1 * (sw1 - 22 * cu)
-                box { at: sx1, fs_y; size: 150 * cu, 34 * cu; corner: 13 * cu; color: ink; opacity: 7% + 5% * ft_sw.1.hover }
+                //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+                body { color: mix(obsidian, ink, (7% + 5% * ft_sw.1.hover) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: sx1, fs_y; size: 150 * cu, 34 * cu; corner: 13 * cu } }
+                box { at: sx1, fs_y; size: 150 * cu, 34 * cu; corner: 13 * cu; color: ink; opacity: (7% + 5% * ft_sw.1.hover) * (1 - obs) }
                 group {
                     opacity: 45% + 55% * clamp(sp1, 0, 1)
                     box { at: (sx1 - 58 * cu) - 0.8 * cu, fs_y + 0.5 * cu; size: 7 * cu, 6 * cu; corner: 1.8 * cu; color: ink }
@@ -478,7 +496,9 @@ part Desk {
                 repeat k in 0..4 {
                     let ak_cx = dsk_x0 + (14 + 31 + k * 66) * cu
                     let ak_on = if(ask_backend == k, 1, 0)
-                    box { at: ak_cx, dsk_y0 + 84 * cu; size: 62 * cu, 26 * cu; corner: 13 * cu; color: ink; opacity: (8% + 9% * ask_chip.$k.hover) * (1 - ak_on) * if(ask_have.$k, 1, 0.45) }
+                    //  Obsidian: a solid plate a step lighter than the shell, in place of the veil.
+                    body { color: mix(obsidian, ink, ((8% + 9% * ask_chip.$k.hover) * (1 - ak_on) * if(ask_have.$k, 1, 0.45)) * 1.6); opacity: obs; show: obs > 0.004; box { at: ak_cx, dsk_y0 + 84 * cu; size: 62 * cu, 26 * cu; corner: 13 * cu } }
+                    box { at: ak_cx, dsk_y0 + 84 * cu; size: 62 * cu, 26 * cu; corner: 13 * cu; color: ink; opacity: ((8% + 9% * ask_chip.$k.hover) * (1 - ak_on) * if(ask_have.$k, 1, 0.45)) * (1 - obs) }
                     //  The one in use is lit in the accent, the way the tabs' thumb is.
                     group {
                         show: ak_on > 0.5
@@ -535,7 +555,9 @@ part Desk {
                     }
                 }
                 //  The conversation.
-                box { at: dsk_xc, dsk_y0 + 258 * cu + (ask_dy - ask_db) / 2; size: 312 * cu, 268 * cu - ask_dy - ask_db; corner: 16 * cu; color: ink; opacity: veil }
+                //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+                body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: dsk_xc, dsk_y0 + 258 * cu + (ask_dy - ask_db) / 2; size: 312 * cu, 268 * cu - ask_dy - ask_db; corner: 16 * cu } }
+                box { at: dsk_xc, dsk_y0 + 258 * cu + (ask_dy - ask_db) / 2; size: 312 * cu, 268 * cu - ask_dy - ask_db; corner: 16 * cu; color: ink; opacity: (veil) * (1 - obs) }
                 text "Ask something below" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 258 * cu + (ask_dy - ask_db) / 2 + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: ask_n < 1 }
                 //  The conversation: rows as tall as their text, scrolled by the wheel or by dragging; it stays at the end while an answer comes in.
                 column ask_col {
@@ -561,7 +583,9 @@ part Desk {
                 }
                 //  The question.
                 let ak_y = dsk_y0 + 420 * cu
-                box { at: dsk_xc, ak_y; size: 312 * cu, 36 * cu; corner: 14 * cu; color: ink; opacity: veil + 4% * ask_zone.hover }
+                //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+                body { color: mix(obsidian, ink, (veil + 4% * ask_zone.hover) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: dsk_xc, ak_y; size: 312 * cu, 36 * cu; corner: 14 * cu } }
+                box { at: dsk_xc, ak_y; size: 312 * cu, 36 * cu; corner: 14 * cu; color: ink; opacity: (veil + 4% * ask_zone.hover) * (1 - obs) }
                 input ask_in { at: floor(dsk_xc - 156 * cu + 14 * cu + 0.5), floor(ak_y - 6.5 * cu + 0.5); width: 284 * cu; size: 13; color: ink; family: "Space Grotesk"; placeholder: "Ask something and press Enter" }
                 zone box ask_zone { at: dsk_xc, ak_y; size: 312 * cu, 36 * cu; cursor: text }
                 on press ask_zone { focus ask_in; desk_kb = true }

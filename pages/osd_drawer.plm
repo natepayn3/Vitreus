@@ -11,7 +11,9 @@ part OsdDrawer {
             scale: max(do.lf, 0.05)
         let oy = os.ck + (8 + osd_h / 2) * u                 // the plate's middle
         let ot = os.ck + 8 * u                               // and its top
-        box { at: os.px, oy; size: 316 * u, osd_h * u; corner: 14 * u; color: ink; opacity: veil }
+        //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+        body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * u, 7 * u, 40%, #000000; show: obs > 0.004; box { at: os.px, oy; size: 316 * u, osd_h * u; corner: 14 * u } }
+        box { at: os.px, oy; size: 316 * u, osd_h * u; corner: 14 * u; color: ink; opacity: (veil) * (1 - obs) }
         //  A press on the plate takes the drawer down (a notification is dismissed with it). Declared
         //  first, so the cross and the buttons above it win where they overlap.
         zone box os_hit { at: os.px, oy; size: 316 * u, osd_h * u; corner: 14 * u; cursor: pointer }

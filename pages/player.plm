@@ -26,7 +26,9 @@ part Player {
             let sw = clamp(swap, 0, 1.12)
 
             //  The plate is exactly the volume plate: the same 8% veil and the same corners.
-            box { at: mdx, mpc; size: 288 * cu, media_h * cu; corner: 14 * cu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: mdx, mpc; size: 288 * cu, media_h * cu; corner: 14 * cu } }
+            box { at: mdx, mpc; size: 288 * cu, media_h * cu; corner: 14 * cu; color: ink; opacity: (veil) * (1 - obs) }
 
             //  Idle: a note, the way Wi-Fi and Bluetooth say their own name at rest.
             group {
@@ -172,7 +174,9 @@ part Player {
             opacity: f3
             move: 0, (1 - f3) * 12 * cu
             let ty = ck + 34 * cu                           // the app plate's middle
-            box { at: mdx, ty; size: 288 * cu, 52 * cu; corner: 14 * cu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: mdx, ty; size: 288 * cu, 52 * cu; corner: 14 * cu } }
+            box { at: mdx, ty; size: 288 * cu, 52 * cu; corner: 14 * cu; color: ink; opacity: (veil) * (1 - obs) }
             image tm_icon { at: floor(mdx - 132 * cu + 0.5), floor(ty - 15 * cu + 0.5); size: floor(30 * cu + 0.5), floor(30 * cu + 0.5) }
             text tm_title { at: floor(mdx - 94 * cu + 0.5), floor(ty - 8 * cu + 0.5); anchor: left center; size: 15.5; weight: 700; width: 170 * cu; lines: 1; color: ink; family: "Space Grotesk" }
             text tm_sub { at: floor(mdx - 94 * cu + 0.5), floor(ty + 9 * cu + 0.5); anchor: left center; size: 12; width: 170 * cu; lines: 1; color: faint; family: "Space Grotesk" }

@@ -16,7 +16,9 @@ part Vpn {
             on scroll vpn_wheel while not (vpn_mode == vpm_imp and vpn_fmore and vpn_fwheel.hover) { vpn_scroll_to = clamp(vpn_scroll_to - wheel * 44, 0, max(0, vpn.h - set.h)) }
             group {
                 move: 0, -vpn.off
-            box { at: spx + 219 * pu, sby + 42 * pu; size: 438 * pu, 68 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 42 * pu; size: 438 * pu, 68 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + 42 * pu; size: 438 * pu, 68 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             box { at: spx + 36 * pu, sby + 42 * pu; size: 40 * pu, 40 * pu; corner: 12 * pu; color: if(vpn_on, mint, ink); opacity: if(vpn_on, 22%, 8%) }
             path { at: spx + 36 * pu, sby + 42 * pu; stroke: 1.8 * pu; color: if(vpn_on, mint, faint); move 0, -9 * pu; line 8 * pu, -6 * pu; line 8 * pu, 1 * pu; line 0, 10 * pu; line -8 * pu, 1 * pu; line -8 * pu, -6 * pu; close }
             path { at: spx + 36 * pu, sby + 43 * pu; stroke: 1.8 * pu; color: if(vpn_on, mint, faint); opacity: if(vpn_on, 100%, 0%); move -3.5 * pu, 0; line -1 * pu, 2.5 * pu; line 4 * pu, -3 * pu }
@@ -30,7 +32,9 @@ part Vpn {
             }
             zone box vpn_dn_hit { at: spx + 380 * pu, sby + 42 * pu; size: 98 * pu, 30 * pu; corner: 15 * pu; cursor: pointer; active: vpn_on and not vpn_busy }
             on press vpn_dn_hit { emit vpn_down }
-            box { at: spx + 219 * pu, sby + (vpn.pb + vpn.pbh / 2) * pu; size: 438 * pu, vpn.pbh * pu; corner: 14 * pu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + (vpn.pb + vpn.pbh / 2) * pu; size: 438 * pu, vpn.pbh * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + (vpn.pb + vpn.pbh / 2) * pu; size: 438 * pu, vpn.pbh * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             text "PROFILES" { at: floor(spx + 14 * pu + 0.5), floor(sby + (vpn.pb + 18) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
             box { at: spx + 424 * pu - 11 * pu, sby + (vpn.pb + 18) * pu; size: 22 * pu, 16 * pu; corner: 8 * pu; color: ink; opacity: 10% }
             text number(vpn_count, 0) { at: floor(spx + 413 * pu + 0.5), floor(sby + (vpn.pb + 18) * pu + 0.5); anchor: center; align: center; size: 12; weight: 700; color: ink; family: "Space Grotesk" }
@@ -55,7 +59,9 @@ part Vpn {
                 zone box vpn_x_hit.$i { at: spx + 419 * pu, sby + ry * pu; size: 22 * pu, 22 * pu; corner: 11 * pu; cursor: pointer; active: (vpn_r.$i.on and not vpn_busy) and (((ry) * pu - vpn.off) > 14 * pu and ((ry) * pu - vpn.off) < 440 * pu) }
                 on press vpn_x_hit.$i { emit vpn_arm_ask(i) }
             }
-            box { at: spx + 219 * pu, sby + (vpn.ab + (84 + vpn.fh + 44) / 2) * pu; size: 438 * pu, (84 + vpn.fh + 44) * pu; corner: 14 * pu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + (vpn.ab + (84 + vpn.fh + 44) / 2) * pu; size: 438 * pu, (84 + vpn.fh + 44) * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + (vpn.ab + (84 + vpn.fh + 44) / 2) * pu; size: 438 * pu, (84 + vpn.fh + 44) * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             text "ADD A PROFILE" { at: floor(spx + 14 * pu + 0.5), floor(sby + (vpn.ab + 20) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
             box { at: spx + 79.7 * pu, sby + (vpn.ab + 52) * pu; size: 131.3 * pu, 26 * pu; corner: 13 * pu; color: if(vpn_mode == vpm_wg, mint, ink); opacity: if(vpn_mode == vpm_wg, 24%, 8% + 9% * vpn_m0_hit.hover) }
             text "WireGuard" { at: floor(spx + 79.7 * pu + 0.5), floor(sby + (vpn.ab + 52) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; color: if(vpn_mode == vpm_wg, mint, ink); opacity: if(vpn_mode == vpm_wg, 100%, 85%); family: "Space Grotesk" }
@@ -241,7 +247,9 @@ part Vpn {
             on press vpn_add_hit while vpn_mode == vpm_ovpn { emit vpn_add_ovpn }
             on press vpn_add_hit while vpn_mode == vpm_imp { emit vpn_import }
             //  The weather's place (the calendar's strip): a city or a ZIP code typed here, found by name, so that the VPN's exit does not move it. Set, or Enter, looks it up.
-            box { at: spx + 219 * pu, sby + (vpn.wt + 64) * pu; size: 438 * pu, 128 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + (vpn.wt + 64) * pu; size: 438 * pu, 128 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + (vpn.wt + 64) * pu; size: 438 * pu, 128 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             text "WEATHER" { at: floor(spx + 14 * pu + 0.5), floor(sby + (vpn.wt + 18) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
             text wx_name { at: floor(spx + 424 * pu + 0.5), floor(sby + (vpn.wt + 18) * pu + 0.5); anchor: right center; align: right; size: 13; weight: 600; width: 260 * pu; lines: 1; color: mint; family: "Space Grotesk" }
             text "A city or ZIP code, typed here instead of found by IP, so a VPN does not move it" { at: floor(spx + 14 * pu + 0.5), floor(sby + (vpn.wt + 40) * pu + 0.5); anchor: left center; size: 12.5; width: 416 * pu; lines: 1; color: faint; family: "Space Grotesk" }

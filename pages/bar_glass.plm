@@ -6,55 +6,25 @@ part BarGlass {
         body {
             color: tint
             glass: glass_frost
-            opacity: glass_op
+            opacity: glass_op * (1 - obs)
             lens: glass_bend
             refraction: glass_refr
             dispersion: glass_disp
             rim: 10% * glass_rim + 14% * pv * glass_rim
             shine: pointer
             shadow: 0, 1 + 6 * drop + 3 * pv, 6 + 14 * drop + 8 * pv, 8% + 16% * drop + 8% * pv, deep
-            //  The bar is only the bar: it swells a little on the beat and nothing else. Every panel,
-            //  the calendar included, is a drawer of its own that drops from it, below.
-            box shell { at: mix(pcx, cx, lm), mix(bar.y0 + pop / 2, yo + lf.t / 2, lm); size: mix(bar.w + pv * 10 * u, screen.width, lm), mix(bar.h + pop, lf.t, lm); corner: mix(bar.rad, 0, lm) }
-            //  Down the left: the strip, and the frame's other two edges, plain rectangles. The inside corners are rounded by a ring: a rounded
-            //  rectangle drawn as an outline as thick as the frame, whose inner edge is the opening (its left side lies in the strip), so the corners
-            //  are exact curves and the glass's edge light runs round them unbroken. The ring has NO NAME on purpose: a named shape takes clicks across
-            //  its whole bounding box, and the ring's is the whole screen. The ring is 50 * u thicker than the frame, outwards, so that its outer curve is off
-            //  the screen: inside the screen it made a one-pixel speck of edge light at the corners. When the left layout is not in it is moved 30000 px away
-            //  (`show:` does not take it off the glass, and a ring thinned to a hair counts as a filled box and frosts the whole screen).
-            //  The strip's side of the drip (see `dj.*`): all melted into the strip and the drawers, so that the neck and the bulge are not drawn, they are
-            //  what the distances between the shapes make. Moved off the screen outside the left layout (`show:` does not take a shape off the glass).
-            ellipse { at: mix(lf.w, ccx, edg) + dj.px, mix(dj.y0, dj.ey, edg); radius: 30 * u; scale: mix(dj.sag / (30 * u), 1, edg), mix(1, dj.sag / (30 * u), edg); blend: 16 * u * clamp(dj.sag / (6 * u), 0, 1) }
-            ellipse { at: mix(lf.w, ccx - dj.ripx, edg) + dj.px, mix(dj.y0 - dj.ripx, dj.ey, edg); radius: 9 * u; scale: mix(max(dj.riph, 0.3) / (9 * u), 1, edg), mix(1, max(dj.riph, 0.3) / (9 * u), edg); blend: 8 * u * clamp(dj.riph / (3 * u), 0, 1) }
-            ellipse { at: mix(lf.w, ccx + dj.ripx, edg) + dj.px, mix(dj.y0 + dj.ripx, dj.ey, edg); radius: 9 * u; scale: mix(max(dj.riph, 0.3) / (9 * u), 1, edg), mix(1, max(dj.riph, 0.3) / (9 * u), edg); blend: 8 * u * clamp(dj.riph / (3 * u), 0, 1) }
-            ellipse { at: mix(lf.w + dj.stray * 0.7, ccx, edg) + dj.px, mix(dj.y0, dj.ey + dj.es * dj.stray * 0.7, edg); radius: max(dj.stray, 0.3); blend: 7 * u * clamp(dj.stray / (3 * u), 0, 1) }
-            box lf_left { at: lf.w * lm / 2, vc; size: lf.w * lm, vh; show: lm > 0.004 }
-            box lf_right { at: screen.width - lf.t * lm / 2, vc; size: lf.t * lm, vh; show: lm > 0.004 }
-            box lf_bottom { at: cx, vb - lf.t * lm / 2; size: screen.width, lf.t * lm; show: lm > 0.004 }
-            box { from: lf.w - (lf.t + 50 * u) / 2 + if(lm > 0.35, 0, 30000), yo + lf.t - (lf.t + 50 * u) / 2 + if(lm > 0.35, 0, 30000); size: screen.width - lf.t - lf.w + lf.t + 50 * u, vh - 2 * lf.t + lf.t + 50 * u; corner: 12 * u + (lf.t + 50 * u) / 2; stroke: lf.t * max(lm, 0.35) + 50 * u * lm }
-            //  The drawer is a second shape in the same glass. `blend` melts it into the bar, so where the
-            //  narrow drawer meets the wide bar there is a liquid neck, not a corner. It is only there
-            //  while it has size: a zero-size shape would leave a stray shadow behind.
-            box drawer { at: dk.ex, dk.ey; size: dk.ew * (1 + dj.stretch - 0.07 * dk.bell + 0.003 * wobble), dk.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dk.ew, dk.eh) / 2, 26 * u, clamp(dk0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * dk.bell) * u * min(1, dk0 * 4), mix(dj.neck, (16 + 20 * dk.bell) * u * min(1, dk0 * 4), att), lm); show: dk0 > 0.004 }
-            box cdrawer { at: dc.ex, dc.ey; size: dc.ew * (1 + dj.stretch - 0.07 * dc.bell + 0.003 * wobble), dc.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dc.ew, dc.eh) / 2, 26 * u, clamp(dc0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * dc.bell) * u * min(1, dc0 * 4) * (1 - dc.f * (1 - lm)), mix(dj.neck, (16 + 20 * dc.bell) * u * min(1, dc0 * 4) * (1 - dc.f * (1 - lm)), att), lm); show: dc0 > 0.004 }
-            box sdrawer { at: ds.ex, ds.ey; size: ds.ew * (1 + dj.stretch - 0.07 * ds.bell + 0.003 * wobble), ds.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(ds.ew, ds.eh) / 2, 26 * u, clamp(ds0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * ds.bell) * u * min(1, ds0 * 4), dj.neck, lm); show: ds0 > 0.004 }
-            box ldrawer { at: dl.ex, dl.ey; size: dl.ew * (1 + dj.stretch - 0.07 * dl.bell + 0.003 * wobble), dl.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dl.ew, dl.eh) / 2, 26 * u, clamp(dl0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * dl.bell) * u * min(1, dl0 * 4) * (1 - dl.f * (1 - lm)), dj.neck, lm); show: dl0 > 0.004 }
-            box odrawer { at: do.ex + if(lm > 0.5, 0, 30000), do.ey; size: do.ew * (1 + do.stretch - 0.07 * do.bell + 0.003 * wobble), do.eh * (1 - do.stretch * 0.5 - 0.002 * wobble); corner: mix(min(do.ew, do.eh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); blend: do.bl; show: do0 > 0.004 }
-            box mdrawer { at: dm.ex, dm.ey; size: dm.ew * (1 + dj.stretch - 0.07 * dm.bell + 0.003 * wobble), dm.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble); corner: mix(min(dm.ew, dm.eh) / 2, 26 * u, clamp(dm0 * 1.6 - 0.1, 0, 1)); blend: mix((16 + 20 * dm.bell) * u * min(1, dm0 * 4), mix(dj.neck, (16 + 20 * dm.bell) * u * min(1, dm0 * 4), att), lm); show: dm0 > 0.004 }
-            //  The notches, melted into the frame like the drawers: as tall as the frame while they are in it, and they grow out of it by `nt_vis_*`.
-            //  (Moved off the screen outside the Frame layout: `show:` does not take a shape off the glass.)
-            box { at: ccx + if(lm > 0.35, 0, 30000), yo + (lf.t + nt_d * nt_vis_t) / 2; size: nt_w, lf.t + nt_d * nt_vis_t; corner: 9 * cu; blend: 9 * u }
-            box { at: ccx + if(lm > 0.35, 0, 30000), vb - (lf.t + nt_d * nt_vis_b) / 2; size: nt_w, lf.t + nt_d * nt_vis_b; corner: 9 * cu; blend: 9 * u }
-            box { at: screen.width - (lf.t + nt_d * nt_vis_r) / 2 + if(lm > 0.35, 0, 30000), vc; size: lf.t + nt_d * nt_vis_r, nt_w; corner: 9 * cu; blend: 9 * u }
-            //  The title's small tab: `ptab_d` out of the strip's edge while the title is under the pointer. At rest it is off the screen,
-            //  not tucked into the strip: the glass melts shapes that are near each other, and a tucked tab would still bulge the edge.
-            box { at: lf.w - 6 * u + (6 * u + ptab_d * ptab_vis) / 2 + if(lm > 0.35 and ptab_vis > 0.01, 0, 30000), lv.tm; size: 6 * u + ptab_d * ptab_vis, ptab_h; corner: 5 * u; blend: 6 * u * ptab_vis }
-            //  The frame's side of the desk's liquid (see `dz.sag`): all melted into the frame and the desk, so what shows is what the distances make.
-            ellipse { at: screen.width - lf.t + dz.px, dz.fy; radius: 30 * u; scale: dz.sag / (30 * u), 1; blend: 16 * u * clamp(dz.sag / (6 * u), 0, 1) }
-            ellipse { at: screen.width - lf.t + dz.px, dz.fy - dz.ripx; radius: 9 * u; scale: max(dz.riph, 0.3) / (9 * u), 1; blend: 8 * u * clamp(dz.riph / (3 * u), 0, 1) }
-            ellipse { at: screen.width - lf.t + dz.px, dz.fy + dz.ripx; radius: 9 * u; scale: max(dz.riph, 0.3) / (9 * u), 1; blend: 8 * u * clamp(dz.riph / (3 * u), 0, 1) }
-            ellipse { at: screen.width - lf.t - dz.stray * 0.7 + dz.px, dz.fy; radius: max(dz.stray, 0.3); blend: 7 * u * clamp(dz.stray / (3 * u), 0, 1) }
-            box zdrawer { at: dz.fx + if(lm > 0.5, 0, 30000), dz.fcy; size: dz.fw * (1 + dz.stretch - 0.07 * dz.bell), dz.fh * (1 - dz.stretch * 0.5); corner: mix(min(dz.fw, dz.fh) / 2, 26 * u * desk_s, clamp(dz0 * 1.6 - 0.1, 0, 1)); blend: (16 + 20 * dz.bell) * u * min(1, dz0 * 4); show: dz0 > 0.004 }
+            show: obs < 0.996
+            include "bar_shapes.plm"
+        }
+        //  The same shapes again, as flat obsidian: a body with a literal `rim: 0%`, because a `rim` that is an expression keeps a hairline of
+        //  light on the edge even when it is worth zero.
+        body {
+            color: obsidian
+            rim: 0%
+            opacity: obs
+            shadow: 0, 3 + 6 * drop + 3 * pv, 14 + 14 * drop + 8 * pv, 30% + 16% * drop + 8% * pv, #000000
+            show: obs > 0.004
+            include "bar_shapes.plm"
         }
         //  The three dots on each tab (the volume card's hint), fading out as the panel they open comes out.
         group {

@@ -14,8 +14,12 @@ part PanelFrame {
         group {
             opacity: f1
             move: 0, (1 - f1) * 12 * cu + floor(68 * cu + 0.5)
-            box { at: pcx - 130 * cu, cy - 76 * cu; size: 166 * cu, 72 * cu; corner: 14 * cu; color: ink; opacity: veil }
-            box { at: pcx - 130 * cu, cy + 43 * cu; size: 166 * cu, 154 * cu; corner: 14 * cu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: pcx - 130 * cu, cy - 76 * cu; size: 166 * cu, 72 * cu; corner: 14 * cu } }
+            box { at: pcx - 130 * cu, cy - 76 * cu; size: 166 * cu, 72 * cu; corner: 14 * cu; color: ink; opacity: (veil) * (1 - obs) }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: pcx - 130 * cu, cy + 43 * cu; size: 166 * cu, 154 * cu; corner: 14 * cu } }
+            box { at: pcx - 130 * cu, cy + 43 * cu; size: 166 * cu, 154 * cu; corner: 14 * cu; color: ink; opacity: (veil) * (1 - obs) }
             //  The clock card: big numerals, the am/pm tucked small at their top-right in the accent, and under
             //  them, indented a little, the date as weekday | month day with the pipe in the accent.
             text clock_hm { at: floor(pcx - 201 * cu + 0.5), floor(cy - 88 * cu + 0.5); anchor: left center; size: 64.5; weight: 700; measure: hmw; color: ink; family: "Space Grotesk" }
@@ -46,7 +50,9 @@ part PanelFrame {
             let cal.gy = cy - 42 * cu                 // the middle of the first row
             group {
                 move: 0, floor(68 * cu + 0.5)        // the month sits 68 lower, under the weather strip (a whole number of pixels)
-            box { at: pcx + 86 * cu, cy + 4 * cu; size: 254 * cu, 232 * cu; corner: 14 * cu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: pcx + 86 * cu, cy + 4 * cu; size: 254 * cu, 232 * cu; corner: 14 * cu } }
+            box { at: pcx + 86 * cu, cy + 4 * cu; size: 254 * cu, 232 * cu; corner: 14 * cu; color: ink; opacity: (veil) * (1 - obs) }
             //  Month, and the three buttons that move it.
             text cal.month { at: floor(pcx - 30 * cu + 0.5), floor(cy - 92 * cu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" }
             path { at: pcx + 134 * cu, cy - 92 * cu; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * cal_prev_btn.hover; move 2.5 * cu, -5 * cu; line -2.5 * cu, 0; line 2.5 * cu, 5 * cu }
@@ -90,7 +96,9 @@ part PanelFrame {
             }
             }
             //  The weather, at the very top: what it is now, on the left, and the week, on the right.
-            box { at: pcx, cy - 82 * cu; size: 426 * cu, 60 * cu; corner: 14 * cu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: pcx, cy - 82 * cu; size: 426 * cu, 60 * cu; corner: 14 * cu } }
+            box { at: pcx, cy - 82 * cu; size: 426 * cu, 60 * cu; corner: 14 * cu; color: ink; opacity: (veil) * (1 - obs) }
             text "Loading weather…" { at: floor(pcx + 0.5), floor(cy - 82 * cu + 0.5); anchor: center; align: center; size: 13; width: 300 * cu; lines: 1; color: faint; family: "Space Grotesk"; show: not wx_ok }
             group {
                 show: wx_ok
@@ -110,7 +118,9 @@ part PanelFrame {
             }
 
             //  Writing one: the field, and a button. Enter saves it as well.
-            box { at: pcx, cy + 213 * cu; size: 426 * cu, 34 * cu; corner: 14 * cu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: pcx, cy + 213 * cu; size: 426 * cu, 34 * cu; corner: 14 * cu } }
+            box { at: pcx, cy + 213 * cu; size: 426 * cu, 34 * cu; corner: 14 * cu; color: ink; opacity: (veil) * (1 - obs) }
             ellipse { at: pcx - 201 * cu, cy + 213 * cu; radius: 4 * cu; color: mint; opacity: 85% }
             //  An input's `at` is not its middle: it is lifted 6.3 so its text sits on the row's centre.
             input cal_new { at: floor(pcx - 189 * cu + 0.5), floor(cy + 206.7 * cu + 0.5); width: 330 * cu; size: 15; color: ink; family: "Space Grotesk"

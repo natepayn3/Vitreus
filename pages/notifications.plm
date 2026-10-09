@@ -12,7 +12,9 @@ part Notifications {
             group {
                 move: 0, -nt.off
             //  Quiet hours: Do Not Disturb that turns itself on, by the clock, and while a window is fullscreen.
-            box { at: spx + 219 * pu, sby + 76 * pu; size: 438 * pu, 140 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 76 * pu; size: 438 * pu, 140 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + 76 * pu; size: 438 * pu, 140 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             text "QUIET HOURS" { at: floor(spx + 14 * pu + 0.5), floor(sby + 22 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
             text "Hold notifications back" { at: floor(spx + 14 * pu + 0.5), floor(sby + 43 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
             text "Between these times, every day (kept in the history)" { at: floor(spx + 14 * pu + 0.5), floor(sby + 59 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
@@ -56,7 +58,9 @@ part Notifications {
             on press ntq_hit1 { emit nt_fs_toggle }
             group {
                 move: 0, 146 * pu
-            box { at: spx + 219 * pu, sby + 122 * pu; size: 438 * pu, 232 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 122 * pu; size: 438 * pu, 232 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + 122 * pu; size: 438 * pu, 232 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             text "DELIVERY" { at: floor(spx + 14 * pu + 0.5), floor(sby + 22 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
             text "Play a sound" { at: floor(spx + 14 * pu + 0.5), floor(sby + 43 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
             text "When a notification is shown" { at: floor(spx + 14 * pu + 0.5), floor(sby + 59 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
@@ -113,7 +117,9 @@ part Notifications {
             text "Send a test notification" { at: floor(spx + 107 * pu + 0.5), floor(sby + 214 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 180 * pu; lines: 1; color: if(0, mint, ink); opacity: if(0, 100%, 85%); family: "Space Grotesk" }
             zone box nt_test_hit { at: spx + 107 * pu, sby + 214 * pu; size: 188 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nt_test_hit { emit nt_test }
-            box { at: spx + 219 * pu, sby + (246 + (552 - nt.ds) / 2) * pu; size: 438 * pu, (552 - nt.ds) * pu; corner: 14 * pu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + (246 + (552 - nt.ds) / 2) * pu; size: 438 * pu, (552 - nt.ds) * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + (246 + (552 - nt.ds) / 2) * pu; size: 438 * pu, (552 - nt.ds) * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             text "APPS" { at: floor(spx + 14 * pu + 0.5), floor(sby + 262 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
             text "Tap one to set its rules" { at: floor(spx + 424 * pu + 0.5), floor(sby + 262 * pu + 0.5); anchor: right center; size: 13; weight: 500; color: faint; family: "Space Grotesk"; align: right }
             text "Nothing has sent you a notification yet" { at: floor(spx + 219 * pu + 0.5), floor(sby + 316 * pu + 0.5); anchor: center center; size: 16; weight: 500; width: 360 * pu; lines: 1; color: faint; family: "Space Grotesk"; align: center; show: nta_count < 1 }
@@ -128,7 +134,9 @@ part Notifications {
             }
             group {
                 show: nta_sel >= 0
-            box { at: spx + 219 * pu, sby + (1034 - nt.ds) * pu; size: 438 * pu, 456 * pu; corner: 14 * pu; color: ink; opacity: veil }
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + (1034 - nt.ds) * pu; size: 438 * pu, 456 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + (1034 - nt.ds) * pu; size: 438 * pu, 456 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             text "RULES FOR" { at: floor(spx + 14 * pu + 0.5), floor(sby + (822 - nt.ds) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
             text nta_name { at: floor(spx + 82 * pu + 0.5), floor(sby + (822 - nt.ds) * pu + 0.5); anchor: left center; size: 17.5; weight: 700; width: 330 * pu; lines: 1; color: mint; family: "Space Grotesk" }
             text "Mute popups" { at: floor(spx + 14 * pu + 0.5), floor(sby + (847 - nt.ds) * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }

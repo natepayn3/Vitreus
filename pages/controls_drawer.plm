@@ -11,7 +11,9 @@ part ControlsDrawer {
             opacity: f5 * clamp(1 - expand0, 0, 1)
             move: 0, (1 - f5) * 12 * cu
             let vol_cy = ck + (vol_top + 32) * cu
-            box { at: pcx, vol_cy + (vp.h - 64) / 2 * cu; size: 288 * cu, vp.h * cu; corner: 14 * cu; color: ink; opacity: veil }
+            //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: pcx, vol_cy + (vp.h - 64) / 2 * cu; size: 288 * cu, vp.h * cu; corner: 14 * cu } }
+            box { at: pcx, vol_cy + (vp.h - 64) / 2 * cu; size: 288 * cu, vp.h * cu; corner: 14 * cu; color: ink; opacity: (veil) * (1 - obs) }
             //  ── the slider ──
             //  The track runs from `sl.x0` for `sl.w`; the pointer is turned into a volume
             //  against those two numbers, so they are written once.
@@ -123,7 +125,9 @@ part ControlsDrawer {
             opacity: f6 * mix(0.45, 1, brightness.present) * mix(0.45, 1, bright_avail) * clamp(1 - expand0, 0, 1)
             move: 0, (1 - f6) * 12 * cu
             let bcy = ck + (bright_top + 32) * cu
-            box { at: pcx, bcy; size: 288 * cu, 64 * cu; corner: 14 * cu; color: ink; opacity: veil }
+            //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: pcx, bcy; size: 288 * cu, 64 * cu; corner: 14 * cu } }
+            box { at: pcx, bcy; size: 288 * cu, 64 * cu; corner: 14 * cu; color: ink; opacity: (veil) * (1 - obs) }
             let bsl.x0 = pcx - 96 * cu
             let bsl.w = 222 * cu
             let bsy = bcy + 14 * cu
@@ -170,7 +174,9 @@ part ControlsDrawer {
             let tb2 = pcx + 21 * cu
             let tb3 = pcx + 118 * cu
 
-            box { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: veil }
+            //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu } }
+            box { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: (veil) * (1 - obs) }
             box { at: tb1 - 53 * cu, tile_cy - 14 * cu; size: 3 * cu, 6 * cu;  corner: 1.5 * cu; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 0.3, 0, 1), 30%) * (1 - wf_hold) }
             box { at: tb1 - 48 * cu, tile_cy - 16 * cu; size: 3 * cu, 10 * cu; corner: 1.5 * cu; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 0.65, 0, 1), 30%) * (1 - wf_hold) }
             box { at: tb1 - 43 * cu, tile_cy - 18 * cu; size: 3 * cu, 14 * cu; corner: 1.5 * cu; color: ink; opacity: if(on_wifi, 45% + 55% * clamp(net.strength / 1.0, 0, 1), 30%) * (1 - wf_hold) }
@@ -252,7 +258,9 @@ part ControlsDrawer {
             on release wifi_toggle_hit while not wf_held { emit togglewifi(not net.wifi) }
             on release wifi_toggle_hit { wf_press: 0; wf_hold: 0; wf_held = false }
 
-            box { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: veil }
+            //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu } }
+            box { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: (veil) * (1 - obs) }
             box { at: tb1 - 48 * cu, tile2_cy - 18 * cu; size: 2.4 * cu, 16 * cu; corner: 1.2 * cu; color: ink; opacity: 45% + 55% * bt_on }
             path { at: tb1 - 48 * cu, tile2_cy - 18 * cu; stroke: 1.5 * cu; color: ink; opacity: 45% + 55% * bt_on; move -4 * cu, -4 * cu; line 4 * cu, 4 * cu }
             path { at: tb1 - 48 * cu, tile2_cy - 18 * cu; stroke: 1.5 * cu; color: ink; opacity: 45% + 55% * bt_on; move 4 * cu, -4 * cu; line -4 * cu, 4 * cu }
@@ -319,7 +327,9 @@ part ControlsDrawer {
 
             //  Notifications (Do Not Disturb, with its own window) and Caffeine (the whole tile is its toggle), underneath.
 
-            box { at: tb3 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: veil + 6% * dnd_hit.hover }
+            //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
+            body { color: mix(obsidian, ink, (veil + 6% * dnd_hit.hover) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: tb3 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu } }
+            box { at: tb3 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: (veil + 6% * dnd_hit.hover) * (1 - obs) }
             //  A bell: dome, rim and clapper, struck through while it is on.
             group {
                 pivot: tb3 - 48 * cu, tile_cy - 18 * cu
@@ -398,7 +408,9 @@ part ControlsDrawer {
             //  machine with no hypridle, which is what the card would be stopping.
             group {
                 opacity: mix(0.45, 1, caf_avail)
-                box { at: tb2 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: veil + 6% * caf_hit.hover * caf_avail }
+                //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
+                body { color: mix(obsidian, ink, (veil + 6% * caf_hit.hover * caf_avail) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: tb2 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu } }
+                box { at: tb2 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: (veil + 6% * caf_hit.hover * caf_avail) * (1 - obs) }
                 group {
                     opacity: 45% + 55% * caf_pill
                     box { at: tb2 - 49 * cu, tile_cy - 16 * cu; size: 12 * cu, 10 * cu; corner: 3 * cu; color: ink }
@@ -481,7 +493,9 @@ part ControlsDrawer {
             //  Capture and Power: a third row. Capture's button starts and stops a recording; the rest of the tile opens its window
             //  (screenshots, and a recording of the whole screen). Power has no switch: the whole tile opens its window.
 
-            box { at: tb2 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: veil + 6% * cap_hit.hover }
+            //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
+            body { color: mix(obsidian, ink, (veil + 6% * cap_hit.hover) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: tb2 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu } }
+            box { at: tb2 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: (veil + 6% * cap_hit.hover) * (1 - obs) }
             box { at: tb2 - 48 * cu, tile2_cy - 17 * cu; size: 16 * cu, 12 * cu; corner: 3 * cu; stroke: 1.5 * cu; color: ink; opacity: 45% + 55% * rec_pill }
             ellipse { at: tb2 - 48 * cu, tile2_cy - 17 * cu; radius: 2.6 * cu; stroke: 1.4 * cu; color: ink; opacity: 45% + 55% * rec_pill }
             text "Capture" { at: floor(tb2 - 58 * cu + 0.5), floor(tile2_cy + 4 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
@@ -495,7 +509,9 @@ part ControlsDrawer {
             zone box cap_rec_hit { at: tb2 + 8 * cu, tile2_cy - 18 * cu; size: 34 * cu, 30 * cu; corner: 15 * cu; cursor: pointer }
             on press cap_rec_hit { emit rec_toggle }
 
-            box { at: tb3 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: veil + 6% * pow_hit.hover }
+            //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
+            body { color: mix(obsidian, ink, (veil + 6% * pow_hit.hover) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: tb3 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu } }
+            box { at: tb3 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: 14 * cu; color: ink; opacity: (veil + 6% * pow_hit.hover) * (1 - obs) }
             //  A power symbol: a ring open at the top, and the bar through the gap.
             path { at: tb3 - 48 * cu, tile2_cy - 17 * cu; stroke: 1.6 * cu; color: ink; opacity: 75%; move 3.73 * cu, -5.32 * cu; line 5.32 * cu, -3.73 * cu; line 6.28 * cu, -1.68 * cu; line 6.48 * cu, 0.57 * cu; line 5.89 * cu, 2.75 * cu; line 4.60 * cu, 4.60 * cu; line 2.75 * cu, 5.89 * cu; line 0.57 * cu, 6.48 * cu; line -1.68 * cu, 6.28 * cu; line -3.73 * cu, 5.32 * cu; line -5.32 * cu, 3.73 * cu; line -6.28 * cu, 1.68 * cu; line -6.48 * cu, -0.57 * cu; line -5.89 * cu, -2.75 * cu; line -4.60 * cu, -4.60 * cu }
             box { at: tb3 - 48 * cu, tile2_cy - 21.5 * cu; size: 1.6 * cu, 8 * cu; corner: 0.8 * cu; color: ink; opacity: 75% }
@@ -622,7 +638,9 @@ part ControlsDrawer {
             let ns_tw  = (38 + 11 * ns_str) * cu
             let ns_th  = (26 - 3 * clamp(ns_str, 0, 1) - 2 * dnd_press) * cu
             let ns_on  = clamp(dnd_pill, 0, 1)
-            box { at: pcx, ns_y; size: 264 * cu, 36 * cu; corner: 18 * cu; color: ink; opacity: veil }
+            //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: pcx, ns_y; size: 264 * cu, 36 * cu; corner: 18 * cu } }
+            box { at: pcx, ns_y; size: 264 * cu, 36 * cu; corner: 18 * cu; color: ink; opacity: (veil) * (1 - obs) }
             group {
                 clip inset 0 box { at: pcx, ns_y; size: 264 * cu, 36 * cu; corner: 18 * cu }
                 group {
@@ -698,7 +716,9 @@ part ControlsDrawer {
                 let cs_tw  = (34 + 11 * cs_str) * cu
                 let cs_th  = (26 - 3 * clamp(cs_str, 0, 1) - 2 * caf_press) * cu
                 let cs_on  = clamp(caf_pill, 0, 1)
-                box { at: pcx, cs_y; size: 266 * cu, 36 * cu; corner: 18 * cu; color: ink; opacity: veil }
+                //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
+                body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: pcx, cs_y; size: 266 * cu, 36 * cu; corner: 18 * cu } }
+                box { at: pcx, cs_y; size: 266 * cu, 36 * cu; corner: 18 * cu; color: ink; opacity: (veil) * (1 - obs) }
                 group {
                     clip inset 0 box { at: pcx, cs_y; size: 266 * cu, 36 * cu; corner: 18 * cu }
                     group {
