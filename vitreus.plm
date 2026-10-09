@@ -66,9 +66,10 @@ scene Vitreus {
     let wcol.alert = rgb(wcol_alert_r, wcol_alert_g, wcol_alert_b)
     surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) }
     permissions { services: "files", "files.write", "auth", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "git", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "claude", "ollama", "codex", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play", "ffmpeg", "tesseract" }
+                  run: "git", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "claude", "ollama", "codex", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play", "ffmpeg", "tesseract", "cat", "udevadm" }
 
     model wifi_nets max 16 { ssid: text; strength: number; secure: bool; known: bool; active: bool; band: number; bands: text; bandw: number; chan: number; rate: number; sec: text; busy: number }
+    model bat_devs max 6 { name: text; level: number }
     model bt_devices max 28 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number; hd: number; kind: number }
 
     service clock as now { time: text = "--:--"; date: text }
@@ -553,6 +554,8 @@ scene Vitreus {
     //  Bluetooth: how tall the list is (headings and rows, unscaled), what the open device lets you change (`bt_set_h`: its name
     //  and auto-connect, 0 when it is not paired), and this computer's own details.
     fact bt_list_h = 0
+    fact chg_now = false           // the charger is filling the battery (read by logic/charger.luau; the battery service is 20 s late)
+    fact bat_n = 0                 // connected devices that report a charge (the Power window lists them)
     fact bt_set_h = 0
     fact bt_trusted = false
     fact bt_discoverable = false
@@ -926,13 +929,13 @@ scene Vitreus {
     //  scene for that second and lets it sleep for the other four. A battery that says "charging" at 98 % or more is
     //  full and only being held there, so it does not glint.
     prop charge_sweep = 1 ~calm
-    every 5s while pwr.charging and pwr.percent < 98 { charge_sweep: 0 ~0ms; charge_sweep: 1 ~900ms after 40ms }
-    on change pwr.charging while pwr.charging and pwr.percent < 98 { charge_sweep: 0 ~0ms; charge_sweep: 1 ~900ms after 40ms }
+    every 5s while chg_now and pwr.percent < 98 { charge_sweep: 0 ~0ms; charge_sweep: 1 ~900ms after 40ms }
+    on change chg_now while chg_now and pwr.percent < 98 { charge_sweep: 0 ~0ms; charge_sweep: 1 ~900ms after 40ms }
     repeat i in 1..6 { prop wsh.$i = 0 ~quick }         // each workspace dot's hover, brought out of its `repeat`
     repeat i in 1..6 { prop wsp.$i = 0 ~pop }           // the same, on a spring that pops a little past: how much a hovered mark swells
     follow batt_fill = clamp(pwr.percent / 100, 0, 1)
     follow batt_on = if(pwr.present, 1, 0)
-    follow batt_low = if(pwr.percent < 20 and not pwr.charging, 1, 0)
+    follow batt_low = if(pwr.percent < 20 and not chg_now, 1, 0)
     prop rcn = 0 ~calm                // the recording dot's slot on the bar, 1 while a recording runs
     prop trn = 0 ~calm                // how many tray icons the bar holds, smoothly: the bar widens with it
     prop disp_auto_pill = 0 ~pop
@@ -1597,6 +1600,38 @@ scene Vitreus {
     }
 
     //  One row of the output dropdown: a dot if it is the current one, its name.
+    //  One battery in the Power window: a glass card that is its own gauge. A wash of colour fills it from the left as far as the
+    //  charge goes, with a bright edge where it stops; a cell glyph, the name and its state at the left, and the number big at the right.
+    //  Red under 20 % unless it is charging, and a glint crosses it with the charger (the same sweep as the bar's).
+    component BatCard(label: text, level: number, state: text, charging: bool) {
+        size: 276 * cu, floor(50 * cu + 0.5)
+        let lv = clamp(level, 0, 1)
+        let low = if(lv < 0.2 and charging == 0, 1, 0)
+        let tone = mix(mint, #e0655a, low)
+        box { from: 0, 0; size: 276 * cu, 50 * cu; corner: 15 * cu; color: ink; opacity: 8% }
+        group {
+            clip inset 0 box { from: 0, 0; size: 276 * cu, 50 * cu; corner: 15 * cu }
+            box { from: 0, 0; size: 276 * cu * lv, 50 * cu; color: tone; opacity: 22% }
+            //  The fill is edged like its divider: the card's own rounded outline, 2 px of it, cut off where the fill stops, so it follows the corners.
+            group {
+                show: lv > 0.02
+                clip inset 0 box { from: 0, 0; size: 276 * cu * lv, 50 * cu }
+                box { from: 1 * cu, 1 * cu; size: 274 * cu, 48 * cu; corner: 14 * cu; stroke: 2 * cu; color: tone; opacity: 70% }
+            }
+            box { from: 276 * cu * lv - 2 * cu, 0; size: 2 * cu, 50 * cu; color: tone; opacity: 70%; show: lv > 0.02 and lv < 0.99 }
+            box { from: (276 * charge_sweep - 40) * cu, 0; size: 40 * cu, 50 * cu; color: #ffffff; opacity: 10% * sin(clamp(charge_sweep, 0, 1) * 180); show: charging }
+        }
+        box { from: 0, 0; size: 276 * cu, 50 * cu; corner: 15 * cu; stroke: 1 * cu; color: ink; opacity: 10% }
+        box { at: 31 * cu, 25 * cu; size: 30 * cu, 15 * cu; corner: 4 * cu; stroke: 1.5 * cu; color: tone }
+        box { at: 48 * cu, 25 * cu; size: 2 * cu, 6 * cu; corner: 1 * cu; color: tone }
+        box { from: 18.5 * cu, 20 * cu; size: max(4, lv * 25) * cu, 10 * cu; corner: 2.4 * cu; color: tone; opacity: if(charging, 30%, 100%) }
+        //  The bolt while it charges: the accent, a little taller than the cell. The cell's own fill dims behind it so it reads.
+        path { at: 31 * cu, 25 * cu; color: tone; show: charging; move 2.9 * cu, -8.8 * cu; line -4.8 * cu, 1.6 * cu; line 0 * cu, 1.6 * cu; line -2.9 * cu, 8.8 * cu; line 4.8 * cu, -1.6 * cu; line 0 * cu, -1.6 * cu; close }
+        text label { at: floor(62 * cu + 0.5), floor(19 * cu + 0.5); anchor: left center; size: 13.5; weight: 600; width: 130 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+        text state { at: floor(62 * cu + 0.5), floor(35 * cu + 0.5); anchor: left center; size: 11; color: tone; opacity: 85%; family: "Space Grotesk" }
+        text number(lv * 100, 0, "%") { at: floor(262 * cu + 0.5), floor(25 * cu + 0.5); anchor: right center; size: 21; weight: 700; color: ink; family: "Space Grotesk" }
+    }
+
     component OutRow(f: record, pick: event) {
         size: 276 * cu, floor(28 * cu + 0.5)
         zone box touch { from: 0, 0; size: 276 * cu, 28 * cu; corner: 10 * cu; cursor: pointer; active: dd > 0.05 }
@@ -2461,7 +2496,10 @@ scene Vitreus {
     //  Bluetooth window has a strip of its own (this computer, and discoverable) above its list.
     let sub_min = vol_bot - tiles_top - 70
     //  The Capture and the Power windows are only as tall as they are (no minimum); the rest keep `sub_min`.
-    let sub_content = if(showing_sub == capview, 142, if(showing_sub == powview, 151, max(sub_min, if(showing_sub == cafview, 38, if(showing_sub == notifview, 60, if(showing_sub == btview, 40, 0)) + list_view_h))))
+    //  The Power window lists the battery levels (this computer, then each connected device that says) between the session tiles and the profile.
+    let bat_rows = (if(pwr.present, 1, 0)) + bat_n
+    let bat_h = if(bat_rows > 0, 20 + 56 * bat_rows, 0)
+    let sub_content = if(showing_sub == capview, 142, if(showing_sub == powview, 151 + bat_h, max(sub_min, if(showing_sub == cafview, 38, if(showing_sub == notifview, 60, if(showing_sub == btview, 40, 0)) + list_view_h))))
     let sub_bot = tiles_top + 54 + sub_content + 16
     //  The output list drops over what is under the volume row; with more than a couple of outputs
     //  it reaches past the drawer, so the drawer grows to hold it while it is open.

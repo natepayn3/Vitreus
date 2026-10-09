@@ -865,6 +865,13 @@ local function bt_render()
     for _, r in ipairs(rows) do if r.busy == 1 or r.busy == 2 then working = true end end
     fact.bt_working = working
     fact.bt_connected = name ~= ""
+    -- the Power window lists the charge of every connected device that reports one
+    local bats = {}
+    for _, r in ipairs(rows) do
+        if r.hd == 0 and r.connected and r.battery >= 0 and #bats < 6 then bats[#bats + 1] = { name = r.name, level = r.battery } end
+    end
+    fact.bat_n = #bats
+    model.bat_devs = bats
     text.bt_name = name
     bt_list = rows
     local sig = {}
@@ -6230,3 +6237,5 @@ require("logic/term")(key)
 require("logic/ask")()
 -- clipboard history and pins, for the Desk's Clip tab: see logic/clipboard.luau
 require("logic/clipboard")()
+-- the charger, read from the kernel instead of pleamar's 20 s battery poll: see logic/charger.luau
+require("logic/charger")()

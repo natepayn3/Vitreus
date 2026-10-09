@@ -970,29 +970,37 @@ part ControlsDrawer {
             on press pw_t4 { pw_s4 = time; pw_d4 = true }
             on release pw_t4 { pw_d4 = false }
             on hold pw_t4 for 1000ms { pw_d4 = false; emit pow_press(4) }
-            text "POWER PROFILE" { at: floor(pcx - 138 * cu + 0.5), floor(px_top + 142 * cu + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
+            //  The battery levels: this computer, then each connected device that reports a charge. Nothing at all with none.
+            text "BATTERY" { at: floor(pcx - 138 * cu + 0.5), floor(px_top + 142 * cu + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk"; show: bat_rows > 0 }
+            column bat_list {
+                at: floor(pcx - 138 * cu + 0.5), floor(px_top + 154 * cu + 0.5)
+                gap: 6 * cu
+                BatCard("This computer", pwr.percent / 100, pick(if(chg_now, 0, if(pwr.percent < 20, 1, 2)), "Charging", "Low", "On battery"), chg_now) { show: pwr.present }
+                for d in bat_devs { BatCard(d.name, d.level, "Connected", false) }
+            }
+            text "POWER PROFILE" { at: floor(pcx - 138 * cu + 0.5), floor(px_top + (142 + bat_h) * cu + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
             group { opacity: mix(0.45, 1, clamp(pow_prof + 1, 0, 1))
-                box { at: pcx, px_top + 176 * cu; size: 276 * cu, 46 * cu; corner: 16 * cu; color: ink; opacity: 8% }
+                box { at: pcx, px_top + (176 + bat_h) * cu; size: 276 * cu, 46 * cu; corner: 16 * cu; color: ink; opacity: 8% }
                 body {
                     color: mint
                     opacity: 24%
                     rim: 40%
                     shadow: 0, 2 * cu, 8 * cu, 25%, #000000
-                    box { at: pcx + (pow_th - 1) * 92 * cu, px_top + 176 * cu; size: (90 + 8 * abs(pow_th - if(pow_prof < 0, 1, pow_prof))) * cu, 40 * cu; corner: 14 * cu }
+                    box { at: pcx + (pow_th - 1) * 92 * cu, px_top + (176 + bat_h) * cu; size: (90 + 8 * abs(pow_th - if(pow_prof < 0, 1, pow_prof))) * cu, 40 * cu; corner: 14 * cu }
                 }
-                path { at: pcx + -92 * cu, px_top + 176 * cu - 8 * cu; stroke: 1.6 * cu; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); move -6.5 * cu, 6.5 * cu; curve 6.5 * cu, -6.5 * cu via -8 * cu, -6 * cu; curve -6.5 * cu, 6.5 * cu via 8 * cu, 6 * cu }
-                path { at: pcx + -92 * cu, px_top + 176 * cu - 8 * cu; stroke: 1.3 * cu; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); move -6.5 * cu, 6.5 * cu; line 1 * cu, -1 * cu }
-                text "Saver" { at: floor(pcx + -92 * cu + 0.5), floor(px_top + 176 * cu + 12 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 88 * cu; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); family: "Space Grotesk" }
-                zone box pw_p0 { at: pcx + -92 * cu, px_top + 176 * cu; size: 90 * cu, 44 * cu; corner: 15 * cu; cursor: pointer; active: pow_prof >= 0 }
+                path { at: pcx + -92 * cu, px_top + (176 + bat_h) * cu - 8 * cu; stroke: 1.6 * cu; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); move -6.5 * cu, 6.5 * cu; curve 6.5 * cu, -6.5 * cu via -8 * cu, -6 * cu; curve -6.5 * cu, 6.5 * cu via 8 * cu, 6 * cu }
+                path { at: pcx + -92 * cu, px_top + (176 + bat_h) * cu - 8 * cu; stroke: 1.3 * cu; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); move -6.5 * cu, 6.5 * cu; line 1 * cu, -1 * cu }
+                text "Saver" { at: floor(pcx + -92 * cu + 0.5), floor(px_top + (176 + bat_h) * cu + 12 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 88 * cu; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 0), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 0), 0, 1), pw_p0.hover); family: "Space Grotesk" }
+                zone box pw_p0 { at: pcx + -92 * cu, px_top + (176 + bat_h) * cu; size: 90 * cu, 44 * cu; corner: 15 * cu; cursor: pointer; active: pow_prof >= 0 }
                 on press pw_p0 { emit pow_prof_set(0) }
-                box { at: pcx + 0 * cu, px_top + 176 * cu - 8 * cu - 3 * cu; size: 13 * cu, 1.7 * cu; corner: 0.85 * cu; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover) }
-                box { at: pcx + 0 * cu, px_top + 176 * cu - 8 * cu + 3 * cu; size: 13 * cu, 1.7 * cu; corner: 0.85 * cu; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover) }
-                text "Balanced" { at: floor(pcx + 0 * cu + 0.5), floor(px_top + 176 * cu + 12 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 88 * cu; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover); family: "Space Grotesk" }
-                zone box pw_p1 { at: pcx + 0 * cu, px_top + 176 * cu; size: 90 * cu, 44 * cu; corner: 15 * cu; cursor: pointer; active: pow_prof >= 0 }
+                box { at: pcx + 0 * cu, px_top + (176 + bat_h) * cu - 8 * cu - 3 * cu; size: 13 * cu, 1.7 * cu; corner: 0.85 * cu; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover) }
+                box { at: pcx + 0 * cu, px_top + (176 + bat_h) * cu - 8 * cu + 3 * cu; size: 13 * cu, 1.7 * cu; corner: 0.85 * cu; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover) }
+                text "Balanced" { at: floor(pcx + 0 * cu + 0.5), floor(px_top + (176 + bat_h) * cu + 12 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 88 * cu; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 1), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 1), 0, 1), pw_p1.hover); family: "Space Grotesk" }
+                zone box pw_p1 { at: pcx + 0 * cu, px_top + (176 + bat_h) * cu; size: 90 * cu, 44 * cu; corner: 15 * cu; cursor: pointer; active: pow_prof >= 0 }
                 on press pw_p1 { emit pow_prof_set(1) }
-                path { at: pcx + 92 * cu, px_top + 176 * cu - 8 * cu; stroke: 1.5 * cu; color: mix(ink, mint, clamp(1 - abs(pow_th - 2), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 2), 0, 1), pw_p2.hover); move 1.5 * cu, -8.5 * cu; line -5 * cu, 1.5 * cu; line -0.6 * cu, 1.5 * cu; line -1.6 * cu, 8.5 * cu; line 5 * cu, -1.5 * cu; line 0.6 * cu, -1.5 * cu; line 1.5 * cu, -8.5 * cu }
-                text "Performance" { at: floor(pcx + 92 * cu + 0.5), floor(px_top + 176 * cu + 12 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 88 * cu; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 2), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 2), 0, 1), pw_p2.hover); family: "Space Grotesk" }
-                zone box pw_p2 { at: pcx + 92 * cu, px_top + 176 * cu; size: 90 * cu, 44 * cu; corner: 15 * cu; cursor: pointer; active: pow_prof >= 0 }
+                path { at: pcx + 92 * cu, px_top + (176 + bat_h) * cu - 8 * cu; stroke: 1.5 * cu; color: mix(ink, mint, clamp(1 - abs(pow_th - 2), 0, 1)); opacity: 55% + 45% * max(clamp(1 - abs(pow_th - 2), 0, 1), pw_p2.hover); move 1.5 * cu, -8.5 * cu; line -5 * cu, 1.5 * cu; line -0.6 * cu, 1.5 * cu; line -1.6 * cu, 8.5 * cu; line 5 * cu, -1.5 * cu; line 0.6 * cu, -1.5 * cu; line 1.5 * cu, -8.5 * cu }
+                text "Performance" { at: floor(pcx + 92 * cu + 0.5), floor(px_top + (176 + bat_h) * cu + 12 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 88 * cu; lines: 1; color: mix(ink, mint, clamp(1 - abs(pow_th - 2), 0, 1)); opacity: 60% + 40% * max(clamp(1 - abs(pow_th - 2), 0, 1), pw_p2.hover); family: "Space Grotesk" }
+                zone box pw_p2 { at: pcx + 92 * cu, px_top + (176 + bat_h) * cu; size: 90 * cu, 44 * cu; corner: 15 * cu; cursor: pointer; active: pow_prof >= 0 }
                 on press pw_p2 { emit pow_prof_set(2) }
             }
         }
