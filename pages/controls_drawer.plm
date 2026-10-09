@@ -621,8 +621,13 @@ part ControlsDrawer {
             zone box nt_back { at: pcx - 124 * cu, nx_cy; size: 30 * cu, 30 * cu; cursor: pointer }
             on press nt_back { panel_sub = none }
             text "NOTIFICATIONS" { at: floor(pcx - 102 * cu + 0.5), floor(nx_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
+            //  An envelope beside the title: sealed when there is nothing (or while Do Not Disturb is on), open with a letter coming up out of it
+            //  and the count when there is history, and it hops when something comes in.
+            Envelope(pcx + 0 * cu, nx_cy + 5.5 * cu * env_o - 3 * cu * env_pop, (0.8 + 0.12 * env_pop) * cu, env_o, 1, 55% + 45% * clamp(env_o + env_pop, 0, 1))
+            ellipse { at: pcx + 13.5 * cu, nx_cy - 4 * cu; radius: 6.5 * cu; color: mint; opacity: if(nt_hist.count > 0 and not dnd_on, 100%, 0%) }
+            text number(min(99, nt_hist.count), 0, "") { at: floor(pcx + 13.5 * cu + 0.5), floor(nx_cy - 4 * cu + 0.5); anchor: center; align: center; size: 9.5; weight: 700; width: 14 * cu; lines: 1; color: onmint; family: "Space Grotesk"; show: nt_hist.count > 0 and not dnd_on }
             //  Where it stands, beside the title: how long is left, or that it is on until turned off.
-            text dnd_left { at: floor(pcx + 78 * cu + 0.5), floor(nx_cy + 0.5); anchor: right center; align: right; size: 11.5; width: 92 * cu; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
+            text dnd_left { at: floor(pcx + 78 * cu + 0.5), floor(nx_cy + 0.5); anchor: right center; align: right; size: 11.5; width: 62 * cu; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
             box { at: pcx + 112 * cu, nx_cy; size: 52 * cu, 24 * cu; corner: 12 * cu; color: ink; opacity: 8% + 10% * nt_clear_hit.hover }
             text "Clear" { at: floor(pcx + 112 * cu + 0.5), floor(nx_cy + 0.5); anchor: center; size: 12.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
             zone box nt_clear_hit { at: pcx + 112 * cu, nx_cy; size: 54 * cu, 26 * cu; corner: 13 * cu; cursor: pointer }
@@ -686,7 +691,17 @@ part ControlsDrawer {
             }
             //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
             box { from: pcx + 141 * cu, nx_top + 114 * cu + nt_hist_col.scroll / max(nt_hist_col.content, 1) * (list_view_h * cu); size: 3 * cu, (list_view_h * cu) * (list_view_h * cu) / max(nt_hist_col.content, list_view_h * cu); corner: 1.5 * cu; color: ink; opacity: if(nt_hist_col.content > (list_view_h * cu) + 1, 35%, 0%) }
-            text "No notifications yet" { at: floor(pcx + 0.5), floor(nx_top + 114 * cu + 20 * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: nt_hist.count < 1 }
+            //  Nothing in the history: a big open, empty envelope that bobs a little over a soft glow.
+            group {
+                show: nt_hist.count < 1
+                let en_y = nx_top + 196 * cu + 1.5 * cu * sin(time * 100)
+                group {
+                    blur: 10 * cu
+                    ellipse { at: pcx, en_y; radius: 34 * cu; color: mint; opacity: 10% + 5% * (0.5 + 0.5 * sin(time * 100)) }
+                }
+                Envelope(pcx, en_y, 2.4 * cu, 1, 0, 100%)
+                text "All clear" { at: floor(pcx + 0.5), floor(nx_top + 243 * cu + 0.5); anchor: center; align: center; size: 14; weight: 600; color: faint; family: "Space Grotesk" }
+            }
         }
 
         //  The Caffeine window: the keep-awake switch and what state it is in, and timer chips. A chip keeps the

@@ -489,13 +489,13 @@ local function dnd_refresh()
         text.dnd_left = dnd_left_text() .. " left"
         text.nt_tile_sub = "Silenced · " .. dnd_left_text()
     elseif dnd_manual then
-        text.dnd_left = "On until turned off"
+        text.dnd_left = "Until turned off"
         text.nt_tile_sub = "Silenced"
     elseif dnd and DQ.quiet() then
-        text.dnd_left = "Quiet hours until " .. DQ.clock(DQ.to)
+        text.dnd_left = "Quiet until " .. DQ.clock(DQ.to)
         text.nt_tile_sub = "Quiet until " .. DQ.clock(DQ.to)
     elseif dnd then
-        text.dnd_left = "Fullscreen: silenced"
+        text.dnd_left = "Fullscreen"
         text.nt_tile_sub = "Silenced · fullscreen"
     else
         text.dnd_left = "Off"

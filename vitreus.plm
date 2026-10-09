@@ -623,6 +623,11 @@ scene Vitreus {
     follow glass_bend_pill = if(glass_bend, 1, 0)
     prop glass_on_pill = 1 ~pop       // the Glass switch on the Glass page (on = glass, off = obsidian), likewise
     follow glass_on_pill = if(glass_obs, 0, 1)
+    //  The notifications window's envelope: its flap is open while there is history and Do Not Disturb is off, and it hops when the history changes.
+    prop env_o = 0 ~pop
+    follow env_o = if(nt_hist.count > 0 and not dnd_on, 1, 0)
+    prop env_pop = 0 ~pop
+    on change nt_hist.count { env_pop: 1 ~0ms; env_pop: 0 ~450ms after 40ms }
     prop wifi_on = 0 ~pop         // the wifi toggle pill, popping past where it lands
     prop wifi_extra = 0 ~calm     // 0..1: whether a Wi-Fi row is open
     //  The Wi-Fi toggle's own motion: finger down, a press held long enough, the tile filling with colour, the ring from the touch.
@@ -1922,6 +1927,23 @@ scene Vitreus {
             color: ink
             shadow: 0, 2 * cu, 5 * cu, 26%
             box { at: skx, cy; size: skw, skh; corner: (8.5 - 2 * clamp(k, 0, 1) - 1.5 * sm) * cu }
+        }
+    }
+    //  An envelope, for the notifications: `o` how open its flap is (0 sealed, 1 open, a spring), `letter` 1 for a letter that comes up out of it, 0 for an
+    //  empty one, `op` how much of it shows. `s` is the size (26 * s wide). Flat parts only, so it is the same on glass and obsidian. Back to front: the
+    //  flap standing open behind, the back, the letter, the front with its V, and the flap lying shut over the V.
+    component Envelope(ex: number, ey: number, s: number, o: number, letter: number, op: number) {
+        group {
+            opacity: op
+            path { at: ex, ey; color: mix(ink, deep, 0.35); opacity: o; move -13 * s, -9 * s; line 0, -22 * s; line 13 * s, -9 * s; close }
+            box { at: ex, ey; size: 26 * s, 18 * s; corner: 3 * s; color: mix(ink, deep, 0.2) }
+            box { at: ex, ey + (2 - 12 * o) * s; size: 20 * s, 16 * s; corner: 1.8 * s; color: mint; opacity: 100% * letter * (0.25 + 0.75 * o) }
+            box { at: ex, ey + (2 - 12 * o) * s - 4 * s; size: 12 * s, 1.5 * s; corner: 0.75 * s; color: deep; opacity: 38% * letter * o }
+            box { at: ex, ey + (2 - 12 * o) * s - 0.5 * s; size: 9 * s, 1.5 * s; corner: 0.75 * s; color: deep; opacity: 38% * letter * o }
+            path { at: ex, ey; color: ink; move -13 * s, -9 * s; line 0, 3 * s; line 13 * s, -9 * s; line 13 * s, 0; line -13 * s, 0; close }
+            box { at: ex, ey + 3 * s; size: 26 * s, 12 * s; corner: 3 * s; color: ink }
+            path { at: ex, ey; color: ink; opacity: 1 - o; move -13 * s, -9 * s; line 13 * s, -9 * s; line 0, 3 * s; close }
+            path { at: ex, ey; stroke: 1.2 * s; color: deep; opacity: 40%; move -13 * s, -9 * s; line 0, 3 * s; line 13 * s, -9 * s }
         }
     }
     component LRow(t: record, pick: event, del: event) {
