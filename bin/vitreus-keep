@@ -18,7 +18,15 @@ name=$(basename "$P" .plm)
 run="${XDG_RUNTIME_DIR:-/tmp}"
 say() { printf 'vitreus-keep · %s · %s\n' "$name" "$*" >> "$L"; }
 running() { pgrep -f "^pleamar --scene $P( |\$)" > /dev/null; }
-alive() { [ -n "${WAYLAND_DISPLAY:-}" ] && [ -S "$run/$WAYLAND_DISPLAY" ] || [ -S "$WAYLAND_DISPLAY" ]; }
+# The display is there only if something answers on its socket: a compositor that has gone (pleamar-wm logged out of)
+# can leave the socket file behind, and then every start panics with NoCompositor.
+alive() {
+    [ -n "${WAYLAND_DISPLAY:-}" ] || return 1
+    case "$WAYLAND_DISPLAY" in /*) s="$WAYLAND_DISPLAY" ;; *) s="$run/$WAYLAND_DISPLAY" ;; esac
+    [ -S "$s" ] || return 1
+    command -v socat > /dev/null 2>&1 || return 0
+    socat -u OPEN:/dev/null "UNIX-CONNECT:$s" > /dev/null 2>&1
+}
 
 exec 9> "$run/vitreus-keep-$name.lock"
 flock -n 9 || exit 0
@@ -29,6 +37,7 @@ while :; do
         say "already running: left to whoever started it"
         exit 0
     fi
+    alive || exit 0
     started=$(date +%s)
     pleamar --scene "$P" --no-hud >> "$L" 2>&1 9>&-
     code=$?
