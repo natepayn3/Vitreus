@@ -52,10 +52,23 @@ part Overview {
                 show: obs < 0.996
                 box { at: ovc.x, ovc.top + 104 * ovu; size: 290 * ovu, 208 * ovu; corner: 18 * ovu }
             }
+            //  Blur behind the obsidian: a glass body asks the compositor for it (100 % glass at 34 %: the request needs glass x opacity of 30 % or more, and a more opaque layer would hide the blur), and the obsidian over it (60 % opaque while blur is on, solid when it is off) hides the glass's look.
+            body {
+                color: obsidian
+                glass: 100%
+                lens: false
+                rim: 0%
+                refraction: 0%
+                dispersion: 0%
+                shine: 9000, 9000
+                opacity: obs * 0.34
+                show: obs > 0.97
+                box { at: ovc.x, ovc.top + 104 * ovu; size: 290 * ovu, 208 * ovu; corner: 18 * ovu }
+            }
             body {
                 color: obsidian
                 rim: 0%
-                opacity: obs
+                opacity: obs * (1 - 0.4 * clamp(hy_blur, 0, 1))
                 shadow: 0, 14 * ovu, 42 * ovu, 55%, #000000
                 show: obs > 0.004
                 box { at: ovc.x, ovc.top + 104 * ovu; size: 290 * ovu, 208 * ovu; corner: 18 * ovu }

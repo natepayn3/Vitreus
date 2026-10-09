@@ -6,59 +6,59 @@ part Desk {
         //  The desk: a panel out of the right frame with tabs. What is drawn is laid out for the full size and the panel's shape uncovers it.
         group {
             show: dz0 > 0.02
-            clip inset 2 box { at: mix(dz.ix, dz.cx, lm), mix(dz.iy, dz.ey, lm); size: max(0.3, mix(dz.iw, dz.cw, lm)), max(0.3, mix(dz.ih, dz.gh, lm)); corner: 26 * cu }
+            clip inset 2 box { at: mix(dz.ix, dz.cx, lm), mix(dz.iy, dz.ey, lm); size: max(0.3, mix(dz.iw, dz.cw, lm)), max(0.3, mix(dz.ih, dz.gh, lm)); corner: 26 * du }
             //  What is inside grows with the drawer's shape (`dz.lf`), from the right frame's edge at the panel's middle, like the volume's.
             group {
-            pivot: mix(screen.width - 7.5 * cu, screen.width + 26 * cu, lm) + desk_ox, dz.ey
+            pivot: mix(screen.width - 7.5 * du, screen.width + 26 * du, lm) + desk_ox, dz.ey
             scale: max(dz.lf, 0.05)
             zone box desk_band { at: dsk_xc, dsk_y0 + dsk_h / 2; size: dsk_w, dsk_h }
             on leave desk_band { desk_kb = false }
             on enter desk_band while desk_tab == 4 and term_armed { desk_kb = true }
             group {
                 opacity: fd0
-                move: 0, (1 - fd0) * 12 * cu
+                move: 0, (1 - fd0) * 12 * du
             //  The tabs: one track, a thumb that slides to the one in use and stretches on the way.
-            let dt_y   = dsk_y0 + 40 * cu
-            let dt_w   = (dsk_w - 72 * cu) / 6
-            let dt_cx  = dsk_xc - 18 * cu
+            let dt_y   = dsk_y0 + 40 * du
+            let dt_w   = (dsk_w - 72 * du) / 6
+            let dt_cx  = dsk_xc - 18 * du
             let dt_str = clamp(abs(desk_tab - desk_sel), 0, 2)
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: dt_cx, dt_y; size: dsk_w - 72 * cu, 34 * cu; corner: 17 * cu } }
-            box { at: dt_cx, dt_y; size: dsk_w - 72 * cu, 34 * cu; corner: 17 * cu; color: ink; opacity: (veil) * (1 - obs) }
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * du, 7 * du, 40%, #000000; show: obs > 0.004; box { at: dt_cx, dt_y; size: dsk_w - 72 * du, 34 * du; corner: 17 * du } }
+            box { at: dt_cx, dt_y; size: dsk_w - 72 * du, 34 * du; corner: 17 * du; color: ink; opacity: (veil) * (1 - obs) }
             body {
                 color: mint
-                shadow: 0, 0, 10 * cu, 40%, mint
+                shadow: 0, 0, 10 * du, 40%, mint
                 rim: 16%
-                box { at: dt_cx + (desk_sel - 2.5) * dt_w, dt_y; size: (dt_w - 8 * cu) + 10 * cu * dt_str, 26 * cu - 3 * cu * clamp(dt_str, 0, 1); corner: 10 * cu }
+                box { at: dt_cx + (desk_sel - 2.5) * dt_w, dt_y; size: (dt_w - 8 * du) + 10 * du * dt_str, 26 * du - 3 * du * clamp(dt_str, 0, 1); corner: 10 * du }
             }
             repeat i in 0..6 {
                 let tl  = dt_cx + (i - 2.5) * dt_w
                 let tsl = clamp(1 - abs(desk_sel - i), 0, 1)
-                text pick(i, "Pad", "Shelf", "Clip", "Focus", "Term", "Ask") { at: floor(tl + 0.5), floor(dt_y + 0.5); anchor: center; align: center; size: 12.5; weight: 600; color: mix(ink, off, tsl); opacity: 62% + 38% * tsl + 30% * desk_tab_z.$i.hover; family: "Space Grotesk" }
-                zone box desk_tab_z.$i { at: tl, dt_y; size: dt_w, 34 * cu; cursor: pointer }
+                group { scale: rs; pivot: floor(tl + 0.5), floor(dt_y + 0.5); text pick(i, "Pad", "Shelf", "Clip", "Focus", "Term", "Ask") { at: floor(tl + 0.5), floor(dt_y + 0.5); anchor: center; align: center; size: 12.5; weight: 600; color: mix(ink, off, tsl); opacity: 62% + 38% * tsl + 30% * desk_tab_z.$i.hover; family: "Space Grotesk" } }
+                zone box desk_tab_z.$i { at: tl, dt_y; size: dt_w, 34 * du; cursor: pointer }
                 on press desk_tab_z.$i { desk_tab = i }
             }
 
             }
             //  Close: a small round button (the desk stays open when you click elsewhere, so you can pick up a file in another window and drop it here).
-            ellipse { at: dsk_xc + 143 * cu, dt_y; radius: 13 * cu; color: ink; opacity: 8% + 12% * desk_close_z.hover }
-            path { at: dsk_xc + 143 * cu, dt_y; stroke: 1.5 * cu; color: ink; opacity: 70% + 30% * desk_close_z.hover; move -3.4 * cu, -3.4 * cu; line 3.4 * cu, 3.4 * cu }
-            path { at: dsk_xc + 143 * cu, dt_y; stroke: 1.5 * cu; color: ink; opacity: 70% + 30% * desk_close_z.hover; move 3.4 * cu, -3.4 * cu; line -3.4 * cu, 3.4 * cu }
+            ellipse { at: dsk_xc + 143 * du, dt_y; radius: 13 * du; color: ink; opacity: 8% + 12% * desk_close_z.hover }
+            path { at: dsk_xc + 143 * du, dt_y; stroke: 1.5 * du; color: ink; opacity: 70% + 30% * desk_close_z.hover; move -3.4 * du, -3.4 * du; line 3.4 * du, 3.4 * du }
+            path { at: dsk_xc + 143 * du, dt_y; stroke: 1.5 * du; color: ink; opacity: 70% + 30% * desk_close_z.hover; move 3.4 * du, -3.4 * du; line -3.4 * du, 3.4 * du }
             //  The grip along the top: take the panel by it and pull it off the frame; let go near its place and it snaps back, further away it stays.
-            box { at: dsk_xc, dsk_y0 + 11 * cu; size: 34 * cu, 4 * cu; corner: 2 * cu; color: ink; opacity: 20% + 35% * max(desk_grip.hover, if(desk_hold, 1, 0)) }
-            zone box desk_grip { at: if(desk_hold, dsk_x0 + (desk_hx - dsk_x0) / desk_s, dsk_xc), if(desk_hold, dsk_y0 + (desk_hy - dsk_y0) / desk_s, dsk_y0 + 11 * cu); size: dsk_w - 46 * cu, 22 * cu; cursor: grab }       // between the corner handles, not under them
-            on press desk_grip { desk_rk = -1; desk_rhold = false; desk_bx = desk_gx; desk_by = desk_gy; desk_hx = dsk_x0 + (dsk_xc - dsk_x0) * desk_s; desk_hy = dsk_y0 + 11 * cu * desk_s; desk_hold = true }
+            box { at: dsk_xc, dsk_y0 + 11 * du; size: 34 * du, 4 * du; corner: 2 * du; color: ink; opacity: 20% + 35% * max(desk_grip.hover, if(desk_hold, 1, 0)) }
+            zone box desk_grip { at: if(desk_hold, dsk_x0 + (desk_hx - dsk_x0) / desk_s, dsk_xc), if(desk_hold, dsk_y0 + (desk_hy - dsk_y0) / desk_s, dsk_y0 + 11 * du); size: dsk_w - 46 * du, 22 * du; cursor: grab }       // between the corner handles, not under them
+            on press desk_grip { desk_rk = -1; desk_rhold = false; desk_bx = desk_gx; desk_by = desk_gy; desk_hx = dsk_x0 + (dsk_xc - dsk_x0) * desk_s; desk_hy = dsk_y0 + 11 * du * desk_s; desk_hold = true }
             on drag desk_grip while desk_hold and desk_rk < 0 { desk_gx = clamp(desk_bx + drag.dx, desk_xmin, dsk_w * (1 - desk_gs)); desk_gy = clamp(desk_by + drag.dy, desk_ymin, desk_ymax) }
-            on release desk_grip while length(desk_gx - dsk_w * (1 - desk_gs), desk_gy) < 80 * cu { desk_gx = 0; desk_gy = 0; desk_gs = 1 }
+            on release desk_grip while length(desk_gx - dsk_w * (1 - desk_gs), desk_gy) < 80 * du { desk_gx = 0; desk_gy = 0; desk_gs = 1 }
             on release desk_grip { desk_hold = false }
             //  The handles in the four corners (invisible; the cursor shows them), only once it is off the frame: pull one in to make the panel smaller, out to make it bigger again. The
             //  corner across from it stays where it is (`desk_fcx`, `desk_fcy`); the panel is moved as its size changes.
             repeat i in 0..4 {
                 let rz_sx = if(i == 1 or i == 3, 1, -1)                 // which corner: right or left, bottom or top
                 let rz_sy = if(i >= 2, 1, -1)
-                let rz_cx = dsk_x0 + if(rz_sx > 0, dsk_w - 7.5 * cu, 7.5 * cu)      // the glass is 6.5 wider than the contents each side (not taller): 14 in from its corner both ways
-                let rz_cy = dsk_y0 + if(rz_sy > 0, dsk_h - 14 * cu, 14 * cu)
-                zone box desk_resize.$i { at: if(desk_rk == i, dsk_x0 + (desk_qx - dsk_x0) / desk_s, rz_cx), if(desk_rk == i, dsk_y0 + (desk_qy - dsk_y0) / desk_s, rz_cy); size: 28 * cu, 28 * cu; cursor: grab; active: (dz.free > 0.5 and desk_rk < 0) or desk_rk == i }
+                let rz_cx = dsk_x0 + if(rz_sx > 0, dsk_w - 7.5 * du, 7.5 * du)      // the glass is 6.5 wider than the contents each side (not taller): 14 in from its corner both ways
+                let rz_cy = dsk_y0 + if(rz_sy > 0, dsk_h - 14 * du, 14 * du)
+                zone box desk_resize.$i { at: if(desk_rk == i, dsk_x0 + (desk_qx - dsk_x0) / desk_s, rz_cx), if(desk_rk == i, dsk_y0 + (desk_qy - dsk_y0) / desk_s, rz_cy); size: 28 * du, 28 * du; cursor: grab; active: (dz.free > 0.5 and desk_rk < 0) or desk_rk == i }
                 on press desk_resize.$i { desk_hold = false; desk_rk = i; desk_rhold = true; desk_bs = desk_gs; desk_qx = dsk_x0 + (rz_cx - dsk_x0) * desk_s; desk_qy = dsk_y0 + (rz_cy - dsk_y0) * desk_s; desk_fcx = dsk_hx0 + desk_gx + if(rz_sx > 0, 0, dsk_w * desk_gs); desk_fcy = dsk_hy0 + desk_gy + if(rz_sy > 0, 0, dsk_h * desk_gs) }
                 on drag desk_resize.$i while desk_rk == i {
                     desk_gs = clamp(desk_bs + (rz_sx * drag.dx + rz_sy * drag.dy) / (dsk_w + dsk_h), 0.5, max(0.5, min(1, min(if(rz_sx > 0, desk_xhi - desk_fcx, desk_fcx - desk_xlo) / dsk_w, if(rz_sy > 0, desk_yhi - desk_fcy, desk_fcy - desk_ylo) / dsk_h))))
@@ -67,78 +67,78 @@ part Desk {
                 }
                 on release desk_resize.$i { desk_rhold = false; desk_rk = -1 }
             }
-            zone box desk_close_z { at: dsk_xc + 143 * cu, dt_y; size: 28 * cu, 28 * cu; cursor: pointer }
+            zone box desk_close_z { at: dsk_xc + 143 * du, dt_y; size: 28 * du, 28 * du; cursor: pointer }
             on press desk_close_z { desk_open = false }
             //  Shelf: drop things on it, drag them back out anywhere.
             group {
                 show: desk_tab == 1
                 group {
                     opacity: fd1
-                    move: 0, (1 - fd1) * 12 * cu
-                text "Drag files, links or text into the panel to keep them here" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 86 * cu + 0.5); anchor: center; align: center; size: 11; color: faint; opacity: 90%; family: "Space Grotesk" }
+                    move: 0, (1 - fd1) * 12 * du
+                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(dsk_y0 + 86 * du + 0.5); text "Drag files, links or text into the panel to keep them here" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 86 * du + 0.5); anchor: center; align: center; size: 11; color: faint; opacity: 90%; family: "Space Grotesk" } }
                 }
                 group {
                     opacity: fd2
-                    move: 0, (1 - fd2) * 12 * cu
-                text "Nothing on the shelf yet" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 200 * cu + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: shelf_n < 1 and not shelf_locked }
+                    move: 0, (1 - fd2) * 12 * du
+                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(dsk_y0 + 200 * du + 0.5); text "Nothing on the shelf yet" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 200 * du + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: shelf_n < 1 and not shelf_locked } }
                 //  The locker: with the box ticked the shelf starts out shut and hides what is on it, until the login password is typed.
                 group {
                     show: shelf_locked
-                    arc { at: dsk_xc, dsk_y0 + 146 * cu; radius: 11 * cu; span: 180deg; width: 3.6 * cu; color: ink; opacity: 85%; rotate: 0deg }
-                    box { at: dsk_xc, dsk_y0 + 166 * cu; size: 42 * cu, 30 * cu; corner: 9 * cu; color: ink; opacity: 85% }
-                    ellipse { at: dsk_xc, dsk_y0 + 164 * cu; radius: 3.6 * cu; color: deep }
-                    box { at: dsk_xc, dsk_y0 + 169 * cu; size: 2.6 * cu, 7 * cu; corner: 1.3 * cu; color: deep }
-                    text "Locked" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 202 * cu + 0.5); anchor: center; align: center; size: 15; weight: 700; color: ink; family: "Space Grotesk" }
-                    text shelf_locked_txt { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 220 * cu + 0.5); anchor: center; align: center; size: 12; color: faint; width: 280 * cu; lines: 1; family: "Space Grotesk" }
+                    arc { at: dsk_xc, dsk_y0 + 146 * du; radius: 11 * du; span: 180deg; width: 3.6 * du; color: ink; opacity: 85%; rotate: 0deg }
+                    box { at: dsk_xc, dsk_y0 + 166 * du; size: 42 * du, 30 * du; corner: 9 * du; color: ink; opacity: 85% }
+                    ellipse { at: dsk_xc, dsk_y0 + 164 * du; radius: 3.6 * du; color: deep }
+                    box { at: dsk_xc, dsk_y0 + 169 * du; size: 2.6 * du, 7 * du; corner: 1.3 * du; color: deep }
+                    group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(dsk_y0 + 202 * du + 0.5); text "Locked" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 202 * du + 0.5); anchor: center; align: center; size: 15; weight: 700; color: ink; family: "Space Grotesk" } }
+                    group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(dsk_y0 + 220 * du + 0.5); text shelf_locked_txt { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 220 * du + 0.5); anchor: center; align: center; size: 12; color: faint; width: (280 * du) / rs; lines: 1; family: "Space Grotesk" } }
                     //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-                    body { color: mix(obsidian, ink, (9%) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: dsk_xc - 36 * cu, dsk_y0 + 254 * cu; size: 180 * cu, 30 * cu; corner: 10 * cu } }
-                    box { at: dsk_xc - 36 * cu, dsk_y0 + 254 * cu; size: 180 * cu, 30 * cu; corner: 10 * cu; color: ink; opacity: (9%) * (1 - obs) }
-                    input shelf_pw { at: floor(dsk_xc - 36 * cu - 90 * cu + 12 * cu + 0.5), floor(dsk_y0 + 254 * cu - 6.5 * cu + 0.5); width: 156 * cu; size: 13; color: ink; family: "Space Grotesk"; secret: true; placeholder: "Your password" }
-                    zone box shelf_pw_z { at: dsk_xc - 36 * cu, dsk_y0 + 254 * cu; size: 180 * cu, 30 * cu; corner: 10 * cu; cursor: text }
+                    body { color: mix(obsidian, ink, (9%) * 1.6); opacity: obs; shadow: 0, 2 * du, 7 * du, 40%, #000000; show: obs > 0.004; box { at: dsk_xc - 36 * du, dsk_y0 + 254 * du; size: 180 * du, 30 * du; corner: 10 * du } }
+                    box { at: dsk_xc - 36 * du, dsk_y0 + 254 * du; size: 180 * du, 30 * du; corner: 10 * du; color: ink; opacity: (9%) * (1 - obs) }
+                    input shelf_pw { at: floor(dsk_xc - 36 * du - 90 * du + 12 * du + 0.5), floor(dsk_y0 + 254 * du - 6.5 * du + 0.5); width: 156 * du; size: 13; color: ink; family: "Space Grotesk"; secret: true; placeholder: "Your password" }
+                    zone box shelf_pw_z { at: dsk_xc - 36 * du, dsk_y0 + 254 * du; size: 180 * du, 30 * du; corner: 10 * du; cursor: text }
                     on press shelf_pw_z { focus shelf_pw; desk_kb = true }
-                    box { at: dsk_xc + 92 * cu, dsk_y0 + 254 * cu; size: 64 * cu, 30 * cu; corner: 10 * cu; color: mint; opacity: 20% + 10% * shelf_unlock_z.hover }
-                    text "Unlock" { at: floor(dsk_xc + 92 * cu + 0.5), floor(dsk_y0 + 254 * cu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; color: mint; family: "Space Grotesk" }
-                    zone box shelf_unlock_z { at: dsk_xc + 92 * cu, dsk_y0 + 254 * cu; size: 64 * cu, 30 * cu; corner: 10 * cu; cursor: pointer; active: not shelf_authing }
+                    box { at: dsk_xc + 92 * du, dsk_y0 + 254 * du; size: 64 * du, 30 * du; corner: 10 * du; color: mint; opacity: 20% + 10% * shelf_unlock_z.hover }
+                    group { scale: rs; pivot: floor(dsk_xc + 92 * du + 0.5), floor(dsk_y0 + 254 * du + 0.5); text "Unlock" { at: floor(dsk_xc + 92 * du + 0.5), floor(dsk_y0 + 254 * du + 0.5); anchor: center; align: center; size: 12.5; weight: 700; color: mint; family: "Space Grotesk" } }
+                    zone box shelf_unlock_z { at: dsk_xc + 92 * du, dsk_y0 + 254 * du; size: 64 * du, 30 * du; corner: 10 * du; cursor: pointer; active: not shelf_authing }
                     on press shelf_unlock_z { emit shelf_unlock }
-                    text "That is not the password" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 284 * cu + 0.5); anchor: center; align: center; size: 11.5; color: #ef4444; family: "Space Grotesk"; show: shelf_bad and not shelf_authing }
-                    text shelf_warn { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 304 * cu + 0.5); anchor: center; align: center; size: 10.5; color: #ef4444; opacity: 85%; width: 300 * cu; lines: 2; family: "Space Grotesk"; show: shelf_bad and not shelf_authing }
-                    text "Checking..." { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 284 * cu + 0.5); anchor: center; align: center; size: 11.5; color: faint; family: "Space Grotesk"; show: shelf_authing }
+                    group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(dsk_y0 + 284 * du + 0.5); text "That is not the password" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 284 * du + 0.5); anchor: center; align: center; size: 11.5; color: #ef4444; family: "Space Grotesk"; show: shelf_bad and not shelf_authing } }
+                    group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(dsk_y0 + 304 * du + 0.5); text shelf_warn { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 304 * du + 0.5); anchor: center; align: center; size: 10.5; color: #ef4444; opacity: 85%; width: (300 * du) / rs; lines: 2; family: "Space Grotesk"; show: shelf_bad and not shelf_authing } }
+                    group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(dsk_y0 + 284 * du + 0.5); text "Checking..." { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 284 * du + 0.5); anchor: center; align: center; size: 11.5; color: faint; family: "Space Grotesk"; show: shelf_authing } }
                 }
                 //  A grid of tiles, three across: a picture or a video fills its tile (its name along the foot), anything else shows what kind it is.
                 repeat k in 0..8 {
-                    let cx_ = dsk_xc + (mod(k, 3) - 1) * 110 * cu
-                    let cy_ = dsk_y0 + (148 + floor(k / 3) * 102) * cu
+                    let cx_ = dsk_xc + (mod(k, 3) - 1) * 110 * du
+                    let cy_ = dsk_y0 + (148 + floor(k / 3) * 102) * du
                     group {
                         show: shelf.$k.has
                         opacity: 1 - clamp(shelf.$k.out, 0, 1)
-                        move: 70 * cu * shelf.$k.out + shelf.$k.dx, shelf.$k.dy
+                        move: 70 * du * shelf.$k.out + shelf.$k.dx, shelf.$k.dy
                         body {
                             color: ink
                             opacity: 8% + 9% * max(shelf_card.$k.hover, shelf_x.$k.hover)
                             rim: 14% + 14% * max(shelf_card.$k.hover, shelf_x.$k.hover)
-                            box { at: cx_, cy_; size: 104 * cu, 96 * cu; corner: 14 * cu }
+                            box { at: cx_, cy_; size: 104 * du, 96 * du; corner: 14 * du }
                         }
                         group {
                             show: shelf.$k.thumbed
-                            clip inset 0 box { at: cx_, cy_; size: 104 * cu, 96 * cu; corner: 14 * cu }
-                            image shelf.$k.im { at: cx_ - 52 * cu, cy_ - 52 * cu; size: 104 * cu, 104 * cu }
-                            box { at: cx_, cy_ + 37 * cu; size: 106 * cu, 24 * cu; color: deep; opacity: 62% }
+                            clip inset 0 box { at: cx_, cy_; size: 104 * du, 96 * du; corner: 14 * du }
+                            image shelf.$k.im { at: cx_ - 52 * du, cy_ - 52 * du; size: 104 * du, 104 * du }
+                            box { at: cx_, cy_ + 37 * du; size: 106 * du, 24 * du; color: deep; opacity: 62% }
                         }
-                        box { at: cx_, cy_ - 12 * cu; size: 46 * cu, 46 * cu; corner: 13 * cu; color: mint; opacity: 20%; show: not shelf.$k.thumbed }
-                        text shelf.$k.tag { at: floor(cx_ + 0.5), floor(cy_ - 12 * cu + 0.5); anchor: center; align: center; size: 12; weight: 700; width: 44 * cu; lines: 1; color: mint; family: "Space Grotesk"; show: not shelf.$k.thumbed }
-                        text shelf.$k.name { at: floor(cx_ + 0.5), floor(cy_ + if(shelf.$k.thumbed, 37, 31) * cu + 0.5); anchor: center; align: center; size: 11; weight: 600; width: 94 * cu; lines: 1; color: ink; opacity: 92%; family: "Space Grotesk" }
-                        zone box shelf_card.$k { at: cx_, cy_; size: 104 * cu, 96 * cu; corner: 14 * cu; cursor: pointer; carries: "{shelf.$k.path}" }
+                        box { at: cx_, cy_ - 12 * du; size: 46 * du, 46 * du; corner: 13 * du; color: mint; opacity: 20%; show: not shelf.$k.thumbed }
+                        group { scale: rs; pivot: floor(cx_ + 0.5), floor(cy_ - 12 * du + 0.5); text shelf.$k.tag { at: floor(cx_ + 0.5), floor(cy_ - 12 * du + 0.5); anchor: center; align: center; size: 12; weight: 700; width: (44 * du) / rs; lines: 1; color: mint; family: "Space Grotesk"; show: not shelf.$k.thumbed } }
+                        group { scale: rs; pivot: floor(cx_ + 0.5), floor(cy_ + if(shelf.$k.thumbed, 37, 31) * du + 0.5); text shelf.$k.name { at: floor(cx_ + 0.5), floor(cy_ + if(shelf.$k.thumbed, 37, 31) * du + 0.5); anchor: center; align: center; size: 11; weight: 600; width: (94 * du) / rs; lines: 1; color: ink; opacity: 92%; family: "Space Grotesk" } }
+                        zone box shelf_card.$k { at: cx_, cy_; size: 104 * du, 96 * du; corner: 14 * du; cursor: pointer; carries: "{shelf.$k.path}" }
                         on press shelf_card.$k { shelf_px = pointer.x; shelf_py = pointer.y }
-                        on release shelf_card.$k while length(pointer.x - shelf_px, pointer.y - shelf_py) < 8 * cu { emit shelf_open(k) }
+                        on release shelf_card.$k while length(pointer.x - shelf_px, pointer.y - shelf_py) < 8 * du { emit shelf_open(k) }
                         //  The cross, top right, on a dark disc so that it shows on a picture too, while the tile is under the pointer.
-                        ellipse { at: cx_ + 40 * cu, cy_ - 34 * cu; radius: 10 * cu; color: deep; opacity: 60% * max(shelf_card.$k.hover, shelf_x.$k.hover) }
-                        path { at: cx_ + 40 * cu, cy_ - 34 * cu; stroke: 1.5 * cu; color: ink; opacity: 90% * max(shelf_card.$k.hover, shelf_x.$k.hover); move -2.8 * cu, -2.8 * cu; line 2.8 * cu, 2.8 * cu }
-                        path { at: cx_ + 40 * cu, cy_ - 34 * cu; stroke: 1.5 * cu; color: ink; opacity: 90% * max(shelf_card.$k.hover, shelf_x.$k.hover); move 2.8 * cu, -2.8 * cu; line -2.8 * cu, 2.8 * cu }
-                        zone box shelf_x.$k { at: cx_ + 40 * cu, cy_ - 34 * cu; size: 22 * cu, 22 * cu; cursor: pointer }
+                        ellipse { at: cx_ + 40 * du, cy_ - 34 * du; radius: 10 * du; color: deep; opacity: 60% * max(shelf_card.$k.hover, shelf_x.$k.hover) }
+                        path { at: cx_ + 40 * du, cy_ - 34 * du; stroke: 1.5 * du; color: ink; opacity: 90% * max(shelf_card.$k.hover, shelf_x.$k.hover); move -2.8 * du, -2.8 * du; line 2.8 * du, 2.8 * du }
+                        path { at: cx_ + 40 * du, cy_ - 34 * du; stroke: 1.5 * du; color: ink; opacity: 90% * max(shelf_card.$k.hover, shelf_x.$k.hover); move 2.8 * du, -2.8 * du; line -2.8 * du, 2.8 * du }
+                        zone box shelf_x.$k { at: cx_ + 40 * du, cy_ - 34 * du; size: 22 * du, 22 * du; cursor: pointer }
                         //  A text or a link can be asked about: a small Ask in the top left corner, while the tile is under the pointer.
-                        box { at: cx_ - 36 * cu, cy_ - 34 * cu; size: 28 * cu, 16 * cu; corner: 8 * cu; color: deep; opacity: 55% * max(shelf_card.$k.hover, shelf_ask.$k.hover); show: shelf.$k.askable }
-                        text "Ask" { at: cx_ - 36 * cu, cy_ - 34 * cu; anchor: center; align: center; size: 9.5; weight: 700; color: mint; opacity: 95% * max(shelf_card.$k.hover, shelf_ask.$k.hover); family: "Space Grotesk"; show: shelf.$k.askable }
-                        zone box shelf_ask.$k { at: cx_ - 36 * cu, cy_ - 34 * cu; size: 30 * cu, 18 * cu; cursor: pointer; active: shelf.$k.askable }
+                        box { at: cx_ - 36 * du, cy_ - 34 * du; size: 28 * du, 16 * du; corner: 8 * du; color: deep; opacity: 55% * max(shelf_card.$k.hover, shelf_ask.$k.hover); show: shelf.$k.askable }
+                        group { scale: rs; pivot: cx_ - 36 * du, cy_ - 34 * du; text "Ask" { at: cx_ - 36 * du, cy_ - 34 * du; anchor: center; align: center; size: 9.5; weight: 700; color: mint; opacity: 95% * max(shelf_card.$k.hover, shelf_ask.$k.hover); family: "Space Grotesk"; show: shelf.$k.askable } }
+                        zone box shelf_ask.$k { at: cx_ - 36 * du, cy_ - 34 * du; size: 30 * du, 18 * du; cursor: pointer; active: shelf.$k.askable }
                         on press shelf_ask.$k { emit shelf_ask(k) }
                         on press shelf_x.$k { emit shelf_del(k) }
                     }
@@ -146,25 +146,25 @@ part Desk {
                 }
                 group {
                     opacity: fd3
-                    move: 0, (1 - fd3) * 12 * cu
+                    move: 0, (1 - fd3) * 12 * du
                 //  The box that makes it a locker (only while it is open: to shut it off you open it first), and a Lock now beside it.
-                box { at: dsk_xc - 142 * cu, dsk_y0 + 421 * cu; size: 16 * cu, 16 * cu; corner: 5 * cu; color: mix(ink, mint, shelf_lock_f); opacity: 10% + 75% * shelf_lock_f; show: not shelf_locked }
-                box { at: dsk_xc - 142 * cu, dsk_y0 + 421 * cu; size: 16 * cu, 16 * cu; corner: 5 * cu; stroke: 1.3 * cu; color: mix(ink, mint, shelf_lock_f); opacity: 55%; show: not shelf_locked }
-                path { at: dsk_xc - 142 * cu, dsk_y0 + 421 * cu; stroke: 1.9 * cu; color: deep; opacity: shelf_lock_f; show: not shelf_locked; move -3.6 * cu, 0.3 * cu; line -1 * cu, 3 * cu; line 3.8 * cu, -3 * cu }
-                text "Lock with my password" { at: floor(dsk_xc - 129 * cu + 0.5), floor(dsk_y0 + 421 * cu + 0.5); anchor: left center; size: 11.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not shelf_locked }
-                zone box shelf_lockbox_z { at: dsk_xc - 84 * cu, dsk_y0 + 421 * cu; size: 150 * cu, 24 * cu; corner: 8 * cu; cursor: pointer; active: not shelf_locked }
+                box { at: dsk_xc - 142 * du, dsk_y0 + 421 * du; size: 16 * du, 16 * du; corner: 5 * du; color: mix(ink, mint, shelf_lock_f); opacity: 10% + 75% * shelf_lock_f; show: not shelf_locked }
+                box { at: dsk_xc - 142 * du, dsk_y0 + 421 * du; size: 16 * du, 16 * du; corner: 5 * du; stroke: 1.3 * du; color: mix(ink, mint, shelf_lock_f); opacity: 55%; show: not shelf_locked }
+                path { at: dsk_xc - 142 * du, dsk_y0 + 421 * du; stroke: 1.9 * du; color: deep; opacity: shelf_lock_f; show: not shelf_locked; move -3.6 * du, 0.3 * du; line -1 * du, 3 * du; line 3.8 * du, -3 * du }
+                group { scale: rs; pivot: floor(dsk_xc - 129 * du + 0.5), floor(dsk_y0 + 421 * du + 0.5); text "Lock with my password" { at: floor(dsk_xc - 129 * du + 0.5), floor(dsk_y0 + 421 * du + 0.5); anchor: left center; size: 11.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not shelf_locked } }
+                zone box shelf_lockbox_z { at: dsk_xc - 84 * du, dsk_y0 + 421 * du; size: 150 * du, 24 * du; corner: 8 * du; cursor: pointer; active: not shelf_locked }
                 on press shelf_lockbox_z { emit shelf_lock_toggle }
                 //  Obsidian: a solid plate a step lighter than the shell, in place of the veil.
-                body { color: mix(obsidian, ink, (8% + 10% * shelf_lock_now_z.hover) * 1.6); opacity: obs; show: obs > 0.004 and (shelf_lock_on and not shelf_locked); box { at: dsk_xc + 40 * cu, dsk_y0 + 421 * cu; size: 60 * cu, 26 * cu; corner: 11 * cu } }
-                box { at: dsk_xc + 40 * cu, dsk_y0 + 421 * cu; size: 60 * cu, 26 * cu; corner: 11 * cu; color: ink; opacity: (8% + 10% * shelf_lock_now_z.hover) * (1 - obs); show: shelf_lock_on and not shelf_locked }
-                text "Lock now" { at: floor(dsk_xc + 40 * cu + 0.5), floor(dsk_y0 + 421 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: shelf_lock_on and not shelf_locked }
-                zone box shelf_lock_now_z { at: dsk_xc + 40 * cu, dsk_y0 + 421 * cu; size: 62 * cu, 28 * cu; corner: 12 * cu; cursor: pointer; active: shelf_lock_on and not shelf_locked }
+                body { color: mix(obsidian, ink, (8% + 10% * shelf_lock_now_z.hover) * 1.6); opacity: obs; show: obs > 0.004 and (shelf_lock_on and not shelf_locked); box { at: dsk_xc + 40 * du, dsk_y0 + 421 * du; size: 60 * du, 26 * du; corner: 11 * du } }
+                box { at: dsk_xc + 40 * du, dsk_y0 + 421 * du; size: 60 * du, 26 * du; corner: 11 * du; color: ink; opacity: (8% + 10% * shelf_lock_now_z.hover) * (1 - obs); show: shelf_lock_on and not shelf_locked }
+                group { scale: rs; pivot: floor(dsk_xc + 40 * du + 0.5), floor(dsk_y0 + 421 * du + 0.5); text "Lock now" { at: floor(dsk_xc + 40 * du + 0.5), floor(dsk_y0 + 421 * du + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: shelf_lock_on and not shelf_locked } }
+                zone box shelf_lock_now_z { at: dsk_xc + 40 * du, dsk_y0 + 421 * du; size: 62 * du, 28 * du; corner: 12 * du; cursor: pointer; active: shelf_lock_on and not shelf_locked }
                 on press shelf_lock_now_z { emit shelf_lock_now }
                 //  Obsidian: a solid plate a step lighter than the shell, in place of the veil.
-                body { color: mix(obsidian, ink, (8% + 10% * shelf_clear_b.hover) * 1.6); opacity: obs; show: obs > 0.004 and (shelf_n > 0); box { at: dsk_xc + 112 * cu, dsk_y0 + 421 * cu; size: 66 * cu, 26 * cu; corner: 11 * cu } }
-                box { at: dsk_xc + 112 * cu, dsk_y0 + 421 * cu; size: 66 * cu, 26 * cu; corner: 11 * cu; color: ink; opacity: (8% + 10% * shelf_clear_b.hover) * (1 - obs); show: shelf_n > 0 }
-                text "Clear all" { at: floor(dsk_xc + 112 * cu + 0.5), floor(dsk_y0 + 421 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: shelf_n > 0 }
-                zone box shelf_clear_b { at: dsk_xc + 112 * cu, dsk_y0 + 421 * cu; size: 68 * cu, 28 * cu; corner: 12 * cu; cursor: pointer; active: shelf_n > 0 }
+                body { color: mix(obsidian, ink, (8% + 10% * shelf_clear_b.hover) * 1.6); opacity: obs; show: obs > 0.004 and (shelf_n > 0); box { at: dsk_xc + 112 * du, dsk_y0 + 421 * du; size: 66 * du, 26 * du; corner: 11 * du } }
+                box { at: dsk_xc + 112 * du, dsk_y0 + 421 * du; size: 66 * du, 26 * du; corner: 11 * du; color: ink; opacity: (8% + 10% * shelf_clear_b.hover) * (1 - obs); show: shelf_n > 0 }
+                group { scale: rs; pivot: floor(dsk_xc + 112 * du + 0.5), floor(dsk_y0 + 421 * du + 0.5); text "Clear all" { at: floor(dsk_xc + 112 * du + 0.5), floor(dsk_y0 + 421 * du + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: shelf_n > 0 } }
+                zone box shelf_clear_b { at: dsk_xc + 112 * du, dsk_y0 + 421 * du; size: 68 * du, 28 * du; corner: 12 * du; cursor: pointer; active: shelf_n > 0 }
                 on press shelf_clear_b { emit shelf_clear }
                 }
             }
@@ -173,23 +173,23 @@ part Desk {
             group {
                 show: desk_tab == 0
                 opacity: fd1
-                move: 0, (1 - fd1) * 12 * cu
-                let pm_y = dsk_y0 + 84 * cu
+                move: 0, (1 - fd1) * 12 * du
+                let pm_y = dsk_y0 + 84 * du
                 let pm_str = clamp(abs(pad_mode - pad_sel), 0, 1)
                 //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-                body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: dsk_xc, pm_y; size: 168 * cu, 28 * cu; corner: 14 * cu } }
-                box { at: dsk_xc, pm_y; size: 168 * cu, 28 * cu; corner: 14 * cu; color: ink; opacity: (veil) * (1 - obs) }
+                body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * du, 7 * du, 40%, #000000; show: obs > 0.004; box { at: dsk_xc, pm_y; size: 168 * du, 28 * du; corner: 14 * du } }
+                box { at: dsk_xc, pm_y; size: 168 * du, 28 * du; corner: 14 * du; color: ink; opacity: (veil) * (1 - obs) }
                 body {
                     color: mint
-                    shadow: 0, 0, 8 * cu, 38%, mint
+                    shadow: 0, 0, 8 * du, 38%, mint
                     rim: 16%
-                    box { at: dsk_xc + (pad_sel - 0.5) * 82 * cu, pm_y; size: (74 + 8 * pm_str) * cu, 21 * cu; corner: 8.5 * cu }
+                    box { at: dsk_xc + (pad_sel - 0.5) * 82 * du, pm_y; size: (74 + 8 * pm_str) * du, 21 * du; corner: 8.5 * du }
                 }
                 repeat i in 0..2 {
-                    let pl_ = dsk_xc + (i - 0.5) * 82 * cu
+                    let pl_ = dsk_xc + (i - 0.5) * 82 * du
                     let psl_ = clamp(1 - abs(pad_sel - i), 0, 1)
-                    text pick(i, "Tasks", "Draw") { at: floor(pl_ + 0.5), floor(pm_y + 0.5); anchor: center; align: center; size: 12; weight: 600; color: mix(ink, off, psl_); opacity: 62% + 38% * psl_ + 30% * pad_mode_z.$i.hover; family: "Space Grotesk" }
-                    zone box pad_mode_z.$i { at: pl_, pm_y; size: 84 * cu, 28 * cu; cursor: pointer }
+                    group { scale: rs; pivot: floor(pl_ + 0.5), floor(pm_y + 0.5); text pick(i, "Tasks", "Draw") { at: floor(pl_ + 0.5), floor(pm_y + 0.5); anchor: center; align: center; size: 12; weight: 600; color: mix(ink, off, psl_); opacity: 62% + 38% * psl_ + 30% * pad_mode_z.$i.hover; family: "Space Grotesk" } }
+                    zone box pad_mode_z.$i { at: pl_, pm_y; size: 84 * du, 28 * du; cursor: pointer }
                     on press pad_mode_z.$i { pad_mode = i }
                 }
             }
@@ -197,77 +197,77 @@ part Desk {
             group {
                 show: desk_tab == 0 and pad_mode == 1
                 opacity: fd2
-                move: 0, (1 - fd2) * 12 * cu
-                let bd_x = dsk_xc - 156 * cu
-                let bd_y = dsk_y0 + 118 * cu
+                move: 0, (1 - fd2) * 12 * du
+                let bd_x = dsk_xc - 156 * du
+                let bd_y = dsk_y0 + 118 * du
                 body {
                     color: ink
                     opacity: 6%
                     rim: 18%
-                    box { at: dsk_xc, bd_y + 118 * cu; size: 312 * cu, 236 * cu; corner: 16 * cu }
+                    box { at: dsk_xc, bd_y + 118 * du; size: 312 * du, 236 * du; corner: 16 * du }
                 }
                 group {
-                    clip inset 0 box { at: dsk_xc, bd_y + 118 * cu; size: 312 * cu, 236 * cu; corner: 16 * cu }
+                    clip inset 0 box { at: dsk_xc, bd_y + 118 * du; size: 312 * du, 236 * du; corner: 16 * du }
                     for sg in dr_segs0 {
-                        line { from: bd_x + sg.x0 * cu / 2, bd_y + sg.y0 * cu / 2; to: bd_x + sg.x1 * cu / 2, bd_y + sg.y1 * cu / 2; width: (1.8 + 2.6 * sg.w) * cu; color: pick(sg.c, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb) }
+                        line { from: bd_x + sg.x0 * du / 2, bd_y + sg.y0 * du / 2; to: bd_x + sg.x1 * du / 2, bd_y + sg.y1 * du / 2; width: (1.8 + 2.6 * sg.w) * du; color: pick(sg.c, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb) }
                     }
                     for sg in dr_segs1 {
-                        line { from: bd_x + sg.x0 * cu / 2, bd_y + sg.y0 * cu / 2; to: bd_x + sg.x1 * cu / 2, bd_y + sg.y1 * cu / 2; width: (1.8 + 2.6 * sg.w) * cu; color: pick(sg.c, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb) }
+                        line { from: bd_x + sg.x0 * du / 2, bd_y + sg.y0 * du / 2; to: bd_x + sg.x1 * du / 2, bd_y + sg.y1 * du / 2; width: (1.8 + 2.6 * sg.w) * du; color: pick(sg.c, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb) }
                     }
                     for sg in dr_segs2 {
-                        line { from: bd_x + sg.x0 * cu / 2, bd_y + sg.y0 * cu / 2; to: bd_x + sg.x1 * cu / 2, bd_y + sg.y1 * cu / 2; width: (1.8 + 2.6 * sg.w) * cu; color: pick(sg.c, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb) }
+                        line { from: bd_x + sg.x0 * du / 2, bd_y + sg.y0 * du / 2; to: bd_x + sg.x1 * du / 2, bd_y + sg.y1 * du / 2; width: (1.8 + 2.6 * sg.w) * du; color: pick(sg.c, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb) }
                     }
-                    ellipse { at: dr_px, dr_py; radius: pick(dr_thick, 7, 12, 20) * cu; stroke: 1.4 * cu; color: ink; opacity: if(dr_held and dr_tool == 1, 85%, 0%) }
+                    ellipse { at: dr_px, dr_py; radius: pick(dr_thick, 7, 12, 20) * du; stroke: 1.4 * du; color: ink; opacity: if(dr_held and dr_tool == 1, 85%, 0%) }
                 }
-                zone box dr_pad { at: dsk_xc, bd_y + 118 * cu; size: 312 * cu, 236 * cu; cursor: pointer }
-                on press dr_pad { dr_held = true; dr_px = pointer.x; dr_py = pointer.y; emit dr_down(floor((pointer.x - bd_x) / cu * 2) * 1000 + floor((pointer.y - bd_y) / cu * 2)) }
-                on drag dr_pad { dr_px = pointer.x; dr_py = pointer.y; emit dr_pt(floor((pointer.x - bd_x) / cu * 2) * 1000 + floor((pointer.y - bd_y) / cu * 2)) }
+                zone box dr_pad { at: dsk_xc, bd_y + 118 * du; size: 312 * du, 236 * du; cursor: pointer }
+                on press dr_pad { dr_held = true; dr_px = pointer.x; dr_py = pointer.y; emit dr_down(floor((pointer.x - bd_x) / du * 2) * 1000 + floor((pointer.y - bd_y) / du * 2)) }
+                on drag dr_pad { dr_px = pointer.x; dr_py = pointer.y; emit dr_pt(floor((pointer.x - bd_x) / du * 2) * 1000 + floor((pointer.y - bd_y) / du * 2)) }
                 on release dr_pad { dr_held = false; emit dr_up }
                 //  The tools: a rainbow of eight pens on one row; two thicknesses, undo and clear on the next.
-                let tl_y = dsk_y0 + 380 * cu
-                let tl2_y = dsk_y0 + 420 * cu
+                let tl_y = dsk_y0 + 380 * du
+                let tl2_y = dsk_y0 + 420 * du
                 repeat i in 0..8 {
-                    let px_ = dsk_xc + (i - 3.5) * 37 * cu
-                    ellipse { at: px_, tl_y; radius: 9 * cu; color: pick(i, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb) }
-                    ellipse { at: px_, tl_y; radius: 13 * cu; stroke: 1.7 * cu; color: pick(i, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb); opacity: if(dr_col == i, 100%, 0%) }
-                    zone box dr_pen.$i { at: px_, tl_y; size: 34 * cu, 30 * cu; cursor: pointer }
+                    let px_ = dsk_xc + (i - 3.5) * 37 * du
+                    ellipse { at: px_, tl_y; radius: 9 * du; color: pick(i, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb) }
+                    ellipse { at: px_, tl_y; radius: 13 * du; stroke: 1.7 * du; color: pick(i, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb); opacity: if(dr_col == i, 100%, 0%) }
+                    zone box dr_pen.$i { at: px_, tl_y; size: 34 * du, 30 * du; cursor: pointer }
                     on press dr_pen.$i { dr_col = i; dr_tool = 0 }
                 }
                 repeat i in 0..3 {
-                    let tx_ = dsk_xc - 138 * cu + i * 26 * cu
-                    ellipse { at: tx_, tl2_y; radius: (2.2 + 2.2 * i) * cu; color: ink; opacity: if(dr_thick == i, 100%, 40%) }
-                    zone box dr_th.$i { at: tx_, tl2_y; size: 25 * cu, 28 * cu; cursor: pointer }
+                    let tx_ = dsk_xc - 138 * du + i * 26 * du
+                    ellipse { at: tx_, tl2_y; radius: (2.2 + 2.2 * i) * du; color: ink; opacity: if(dr_thick == i, 100%, 40%) }
+                    zone box dr_th.$i { at: tx_, tl2_y; size: 25 * du, 28 * du; cursor: pointer }
                     on press dr_th.$i { dr_thick = i }
                 }
                 //  The eraser takes out whatever of a stroke it passes over; it lights up while it is the tool.
                 body {
                     color: mix(ink, mint, dr_tool)
                     opacity: 9% + 10% * dr_eraser_b.hover + 16% * dr_tool
-                    shadow: 0, 0, 8 * cu * dr_tool, 40% * dr_tool, mint
+                    shadow: 0, 0, 8 * du * dr_tool, 40% * dr_tool, mint
                     rim: 22%
-                    box { at: dsk_xc - 22 * cu, tl2_y; size: 64 * cu, 28 * cu; corner: 11 * cu }
+                    box { at: dsk_xc - 22 * du, tl2_y; size: 64 * du, 28 * du; corner: 11 * du }
                 }
-                box { at: dsk_xc - 40 * cu, tl2_y; size: 13 * cu, 8 * cu; corner: 2 * cu; rotate: -35deg; color: ink; opacity: 85% }
-                text "Erase" { at: floor(dsk_xc - 18 * cu + 0.5), floor(tl2_y + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: mix(ink, mint, dr_tool); opacity: 90%; family: "Space Grotesk" }
-                zone box dr_eraser_b { at: dsk_xc - 22 * cu, tl2_y; size: 66 * cu, 30 * cu; corner: 12 * cu; cursor: pointer }
+                box { at: dsk_xc - 40 * du, tl2_y; size: 13 * du, 8 * du; corner: 2 * du; rotate: -35deg; color: ink; opacity: 85% }
+                group { scale: rs; pivot: floor(dsk_xc - 18 * du + 0.5), floor(tl2_y + 0.5); text "Erase" { at: floor(dsk_xc - 18 * du + 0.5), floor(tl2_y + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: mix(ink, mint, dr_tool); opacity: 90%; family: "Space Grotesk" } }
+                zone box dr_eraser_b { at: dsk_xc - 22 * du, tl2_y; size: 66 * du, 30 * du; corner: 12 * du; cursor: pointer }
                 on press dr_eraser_b { dr_tool = if(dr_tool == 1, 0, 1) }
                 body {
                     color: ink
                     opacity: 9% + 10% * dr_undo_b.hover
                     rim: 22%
-                    box { at: dsk_xc + 56 * cu, tl2_y; size: 56 * cu, 28 * cu; corner: 11 * cu }
+                    box { at: dsk_xc + 56 * du, tl2_y; size: 56 * du, 28 * du; corner: 11 * du }
                 }
-                text "Undo" { at: floor(dsk_xc + 56 * cu + 0.5), floor(tl2_y + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 88%; family: "Space Grotesk" }
-                zone box dr_undo_b { at: dsk_xc + 56 * cu, tl2_y; size: 58 * cu, 30 * cu; corner: 12 * cu; cursor: pointer }
+                group { scale: rs; pivot: floor(dsk_xc + 56 * du + 0.5), floor(tl2_y + 0.5); text "Undo" { at: floor(dsk_xc + 56 * du + 0.5), floor(tl2_y + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 88%; family: "Space Grotesk" } }
+                zone box dr_undo_b { at: dsk_xc + 56 * du, tl2_y; size: 58 * du, 30 * du; corner: 12 * du; cursor: pointer }
                 on press dr_undo_b { emit dr_undo }
                 body {
                     color: ink
                     opacity: 9% + 10% * dr_clear_b.hover
                     rim: 22%
-                    box { at: dsk_xc + 120 * cu, tl2_y; size: 56 * cu, 28 * cu; corner: 11 * cu }
+                    box { at: dsk_xc + 120 * du, tl2_y; size: 56 * du, 28 * du; corner: 11 * du }
                 }
-                text "Clear" { at: floor(dsk_xc + 120 * cu + 0.5), floor(tl2_y + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 88%; family: "Space Grotesk" }
-                zone box dr_clear_b { at: dsk_xc + 120 * cu, tl2_y; size: 58 * cu, 30 * cu; corner: 12 * cu; cursor: pointer }
+                group { scale: rs; pivot: floor(dsk_xc + 120 * du + 0.5), floor(tl2_y + 0.5); text "Clear" { at: floor(dsk_xc + 120 * du + 0.5), floor(tl2_y + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 88%; family: "Space Grotesk" } }
+                zone box dr_clear_b { at: dsk_xc + 120 * du, tl2_y; size: 58 * du, 30 * du; corner: 12 * du; cursor: pointer }
                 on press dr_clear_b { emit dr_clear }
             }
 
@@ -275,38 +275,38 @@ part Desk {
             group {
                 show: desk_tab == 0 and pad_mode == 0
                 opacity: fd2
-                move: 0, (1 - fd2) * 12 * cu
-                let tk_y = dsk_y0 + 128 * cu
+                move: 0, (1 - fd2) * 12 * du
+                let tk_y = dsk_y0 + 128 * du
                 //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-                body { color: mix(obsidian, ink, (veil + 4% * task_zone.hover) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: dsk_xc, tk_y; size: dsk_w - 28 * cu, 36 * cu; corner: 14 * cu } }
-                box { at: dsk_xc, tk_y; size: dsk_w - 28 * cu, 36 * cu; corner: 14 * cu; color: ink; opacity: (veil + 4% * task_zone.hover) * (1 - obs) }
-                input task_in { at: floor(dsk_xc - (dsk_w - 28 * cu) / 2 + 14 * cu + 0.5), floor(tk_y - 6.5 * cu + 0.5); width: dsk_w - 70 * cu; size: 13; color: ink; family: "Space Grotesk"; placeholder: "Add a task and press Enter" }
-                zone box task_zone { at: dsk_xc, tk_y; size: dsk_w - 28 * cu, 36 * cu; cursor: text }
+                body { color: mix(obsidian, ink, (veil + 4% * task_zone.hover) * 1.6); opacity: obs; shadow: 0, 2 * du, 7 * du, 40%, #000000; show: obs > 0.004; box { at: dsk_xc, tk_y; size: dsk_w - 28 * du, 36 * du; corner: 14 * du } }
+                box { at: dsk_xc, tk_y; size: dsk_w - 28 * du, 36 * du; corner: 14 * du; color: ink; opacity: (veil + 4% * task_zone.hover) * (1 - obs) }
+                input task_in { at: floor(dsk_xc - (dsk_w - 28 * du) / 2 + 14 * du + 0.5), floor(tk_y - 6.5 * du + 0.5); width: dsk_w - 70 * du; size: 13; color: ink; family: "Space Grotesk"; placeholder: "Add a task and press Enter" }
+                zone box task_zone { at: dsk_xc, tk_y; size: dsk_w - 28 * du, 36 * du; cursor: text }
                 on press task_zone { focus task_in; desk_kb = true }
-                text "Nothing to do. Nice." { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 260 * cu + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: task_n < 1 }
+                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(dsk_y0 + 260 * du + 0.5); text "Nothing to do. Nice." { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 260 * du + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: task_n < 1 } }
                 repeat k in 0..9 {
-                    let ty_ = dsk_y0 + 176 * cu + k * 29 * cu
+                    let ty_ = dsk_y0 + 176 * du + k * 29 * du
                     group {
                         show: task.$k.has
                         opacity: 1 - clamp(task.$k.out, 0, 1)
-                        move: 70 * cu * task.$k.out, task.$k.dy
-                        box { at: dsk_xc, ty_; size: dsk_w - 28 * cu, 28 * cu; corner: 11 * cu; color: ink; opacity: 5% * max(task_row.$k.hover, task_x.$k.hover) }
+                        move: 70 * du * task.$k.out, task.$k.dy
+                        box { at: dsk_xc, ty_; size: dsk_w - 28 * du, 28 * du; corner: 11 * du; color: ink; opacity: 5% * max(task_row.$k.hover, task_x.$k.hover) }
                         //  The check: a rounded square that fills and shows a tick.
                         body {
                             color: mix(ink, mint, clamp(task.$k.p, 0, 1))
                             opacity: 14% + 86% * clamp(task.$k.p, 0, 1)
                             rim: 22%
-                            box { at: dsk_xc - (dsk_w - 28 * cu) / 2 + 20 * cu, ty_; size: 17 * cu, 17 * cu; corner: 6 * cu }
+                            box { at: dsk_xc - (dsk_w - 28 * du) / 2 + 20 * du, ty_; size: 17 * du, 17 * du; corner: 6 * du }
                         }
-                        path { at: dsk_xc - (dsk_w - 28 * cu) / 2 + 20 * cu, ty_; stroke: 1.8 * cu; color: off; opacity: clamp(task.$k.p, 0, 1); move -3.6 * cu, 0.2 * cu; line -1.1 * cu, 2.8 * cu; line 3.8 * cu, -2.6 * cu }
-                        text task.$k.text { at: floor(dsk_xc - (dsk_w - 28 * cu) / 2 + 38 * cu + 0.5), floor(ty_ + 0.5); anchor: left center; size: 12.5; weight: 500; width: 226 * cu; lines: 1; color: ink; opacity: 92% - 52% * clamp(task.$k.p, 0, 1); family: "Space Grotesk" }
-                        zone box task_row.$k { at: dsk_xc, ty_; size: dsk_w - 28 * cu, 28 * cu; cursor: pointer }
+                        path { at: dsk_xc - (dsk_w - 28 * du) / 2 + 20 * du, ty_; stroke: 1.8 * du; color: off; opacity: clamp(task.$k.p, 0, 1); move -3.6 * du, 0.2 * du; line -1.1 * du, 2.8 * du; line 3.8 * du, -2.6 * du }
+                        group { scale: rs; pivot: floor(dsk_xc - (dsk_w - 28 * du) / 2 + 38 * du + 0.5), floor(ty_ + 0.5); text task.$k.text { at: floor(dsk_xc - (dsk_w - 28 * du) / 2 + 38 * du + 0.5), floor(ty_ + 0.5); anchor: left center; size: 12.5; weight: 500; width: (226 * du) / rs; lines: 1; color: ink; opacity: 92% - 52% * clamp(task.$k.p, 0, 1); family: "Space Grotesk" } }
+                        zone box task_row.$k { at: dsk_xc, ty_; size: dsk_w - 28 * du, 28 * du; cursor: pointer }
                         on press task_row.$k { emit task_toggle(k) }
                         //  The x: a round backdrop that grows under the pointer and shrinks and turns red under the finger, and a cross that turns.
-                        ellipse { at: dsk_xc + (dsk_w - 28 * cu) / 2 - 14 * cu, ty_; radius: 8 * cu; color: ink; opacity: 14% * task_x.$k.hover }
-                        path { at: dsk_xc + (dsk_w - 28 * cu) / 2 - 14 * cu, ty_; stroke: 1.4 * cu; color: ink; opacity: (60% + 40% * task_x.$k.hover) * max(task_row.$k.hover, task_x.$k.hover); move -2.6 * cu, -2.6 * cu; line 2.6 * cu, 2.6 * cu }
-                        path { at: dsk_xc + (dsk_w - 28 * cu) / 2 - 14 * cu, ty_; stroke: 1.4 * cu; color: ink; opacity: (60% + 40% * task_x.$k.hover) * max(task_row.$k.hover, task_x.$k.hover); move 2.6 * cu, -2.6 * cu; line -2.6 * cu, 2.6 * cu }
-                        zone box task_x.$k { at: dsk_xc + (dsk_w - 28 * cu) / 2 - 14 * cu, ty_; size: 22 * cu, 24 * cu; cursor: pointer }
+                        ellipse { at: dsk_xc + (dsk_w - 28 * du) / 2 - 14 * du, ty_; radius: 8 * du; color: ink; opacity: 14% * task_x.$k.hover }
+                        path { at: dsk_xc + (dsk_w - 28 * du) / 2 - 14 * du, ty_; stroke: 1.4 * du; color: ink; opacity: (60% + 40% * task_x.$k.hover) * max(task_row.$k.hover, task_x.$k.hover); move -2.6 * du, -2.6 * du; line 2.6 * du, 2.6 * du }
+                        path { at: dsk_xc + (dsk_w - 28 * du) / 2 - 14 * du, ty_; stroke: 1.4 * du; color: ink; opacity: (60% + 40% * task_x.$k.hover) * max(task_row.$k.hover, task_x.$k.hover); move 2.6 * du, -2.6 * du; line -2.6 * du, 2.6 * du }
+                        zone box task_x.$k { at: dsk_xc + (dsk_w - 28 * du) / 2 - 14 * du, ty_; size: 22 * du, 24 * du; cursor: pointer }
                         on press task_x.$k { emit task_del(k) }
                     }
                 }
@@ -315,78 +315,78 @@ part Desk {
             //  Focus: a ring that runs down, the length, start and reset, and what to do with the rest of the machine meanwhile.
             group {
                 show: desk_tab == 3
-                let fr_y = dsk_y0 + 188 * cu
-                let fp_y = dsk_y0 + 302 * cu
-                let fc_y = dsk_y0 + 363 * cu
-                let fs_y = dsk_y0 + 421 * cu
+                let fr_y = dsk_y0 + 188 * du
+                let fp_y = dsk_y0 + 302 * du
+                let fc_y = dsk_y0 + 363 * du
+                let fs_y = dsk_y0 + 421 * du
                 let fbusy = if(ft_state == 1 or ft_state == 2, 1, 0.0)
                 group {
                     opacity: fd1
-                    move: 0, (1 - fd1) * 12 * cu
-                ellipse { at: dsk_xc, fr_y; radius: 70 * cu; stroke: 8 * cu; color: ink; opacity: 9% }
-                arc { at: dsk_xc, fr_y; radius: 70 * cu; span: clamp(ft_ring, 0.002, 1) * 360deg; rotate: clamp(ft_ring, 0.002, 1) * 180deg; width: 16 * cu; color: mint; opacity: 14% }
-                arc { at: dsk_xc, fr_y; radius: 70 * cu; span: clamp(ft_ring, 0.002, 1) * 360deg; rotate: clamp(ft_ring, 0.002, 1) * 180deg; width: 8 * cu; color: mint; opacity: if(ft_state == 2, 45%, 100%) }
-                text ft_time { at: floor(dsk_xc + 0.5), floor(fr_y - 6 * cu + 0.5); anchor: center; align: center; size: 38; weight: 700; color: ink; family: "Space Grotesk" }
-                text pick(ft_state, "READY", "FOCUSING", "PAUSED", "DONE") { at: floor(dsk_xc + 0.5), floor(fr_y + 26 * cu + 0.5); anchor: center; align: center; size: 11; weight: 700; color: if(ft_state == 1, mint, faint); family: "Space Grotesk" }
+                    move: 0, (1 - fd1) * 12 * du
+                ellipse { at: dsk_xc, fr_y; radius: 70 * du; stroke: 8 * du; color: ink; opacity: 9% }
+                arc { at: dsk_xc, fr_y; radius: 70 * du; span: clamp(ft_ring, 0.002, 1) * 360deg; rotate: clamp(ft_ring, 0.002, 1) * 180deg; width: 16 * du; color: mint; opacity: 14% }
+                arc { at: dsk_xc, fr_y; radius: 70 * du; span: clamp(ft_ring, 0.002, 1) * 360deg; rotate: clamp(ft_ring, 0.002, 1) * 180deg; width: 8 * du; color: mint; opacity: if(ft_state == 2, 45%, 100%) }
+                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(fr_y - 6 * du + 0.5); text ft_time { at: floor(dsk_xc + 0.5), floor(fr_y - 6 * du + 0.5); anchor: center; align: center; size: 38; weight: 700; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(fr_y + 26 * du + 0.5); text pick(ft_state, "READY", "FOCUSING", "PAUSED", "DONE") { at: floor(dsk_xc + 0.5), floor(fr_y + 26 * du + 0.5); anchor: center; align: center; size: 11; weight: 700; color: if(ft_state == 1, mint, faint); family: "Space Grotesk" } }
 
                 }
                 group {
                     opacity: fd2
-                    move: 0, (1 - fd2) * 12 * cu
+                    move: 0, (1 - fd2) * 12 * du
                 //  How long: one track and a glowing thumb that slides and stretches, like the tabs; it dims while a timer runs.
-                let fp_w = 58 * cu
+                let fp_w = 58 * du
                 let fp_str = clamp(abs(if(ft_len == 15, 0, if(ft_len == 30, 1, if(ft_len == 45, 2, 3))) - ft_sel), 0, 3)
                 group {
                     opacity: 1 - 0.45 * fbusy
                     //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-                    body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: dsk_xc, fp_y; size: fp_w * 4 + 4 * cu, 32 * cu; corner: 16 * cu } }
-                    box { at: dsk_xc, fp_y; size: fp_w * 4 + 4 * cu, 32 * cu; corner: 16 * cu; color: ink; opacity: (veil) * (1 - obs) }
+                    body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * du, 7 * du, 40%, #000000; show: obs > 0.004; box { at: dsk_xc, fp_y; size: fp_w * 4 + 4 * du, 32 * du; corner: 16 * du } }
+                    box { at: dsk_xc, fp_y; size: fp_w * 4 + 4 * du, 32 * du; corner: 16 * du; color: ink; opacity: (veil) * (1 - obs) }
                     body {
                         color: mint
-                        shadow: 0, 0, 9 * cu, 42%, mint
+                        shadow: 0, 0, 9 * du, 42%, mint
                         rim: 16%
-                        box { at: dsk_xc + (ft_sel - 1.5) * fp_w, fp_y; size: fp_w - 6 * cu + 8 * cu * fp_str, 24 * cu - 3 * cu * clamp(fp_str, 0, 1); corner: 10 * cu }
+                        box { at: dsk_xc + (ft_sel - 1.5) * fp_w, fp_y; size: fp_w - 6 * du + 8 * du * fp_str, 24 * du - 3 * du * clamp(fp_str, 0, 1); corner: 10 * du }
                     }
                     repeat i in 0..4 {
                         let pl = dsk_xc + (i - 1.5) * fp_w
                         let psl = clamp(1 - abs(ft_sel - i), 0, 1)
-                        text pick(i, "15", "30", "45", "60") { at: floor(pl + 0.5), floor(fp_y + 0.5); anchor: center; align: center; size: 13; weight: 600; color: mix(ink, off, psl); opacity: 62% + 38% * psl + 30% * ft_chip.$i.hover; family: "Space Grotesk" }
-                        zone box ft_chip.$i { at: pl, fp_y; size: fp_w, 32 * cu; cursor: pointer; active: ft_state != 1 and ft_state != 2 }
+                        group { scale: rs; pivot: floor(pl + 0.5), floor(fp_y + 0.5); text pick(i, "15", "30", "45", "60") { at: floor(pl + 0.5), floor(fp_y + 0.5); anchor: center; align: center; size: 13; weight: 600; color: mix(ink, off, psl); opacity: 62% + 38% * psl + 30% * ft_chip.$i.hover; family: "Space Grotesk" } }
+                        zone box ft_chip.$i { at: pl, fp_y; size: fp_w, 32 * du; cursor: pointer; active: ft_state != 1 and ft_state != 2 }
                         on press ft_chip.$i { ft_len = pick(i, 15, 30, 45, 60); emit ft_set(pick(i, 15, 30, 45, 60)) }
                     }
                 }
-                text "minutes" { at: floor(dsk_xc + 0.5), floor(fp_y + 24 * cu + 0.5); anchor: center; align: center; size: 10; color: faint; opacity: 80%; family: "Space Grotesk" }
+                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(fp_y + 24 * du + 0.5); text "minutes" { at: floor(dsk_xc + 0.5), floor(fp_y + 24 * du + 0.5); anchor: center; align: center; size: 10; color: faint; opacity: 80%; family: "Space Grotesk" } }
 
                 }
                 group {
                     opacity: fd3
-                    move: 0, (1 - fd3) * 12 * cu
+                    move: 0, (1 - fd3) * 12 * du
                 //  Start / pause: a lit button with its own icon; it squishes under the finger and glows more under the pointer.
-                let fgw = (144 - 8 * ft_press) * cu
-                let fgh = (40 - 3 * ft_press) * cu
-                let fgx = dsk_xc - 38 * cu
+                let fgw = (144 - 8 * ft_press) * du
+                let fgh = (40 - 3 * ft_press) * du
+                let fgx = dsk_xc - 38 * du
                 body {
                     gradient: 0, fc_y - fgh / 2 to 0, fc_y + fgh / 2, minthi, mintlo
-                    shadow: 0, 0, (8 + 6 * ft_go.hover) * cu, 42% + 22% * ft_go.hover, mint
+                    shadow: 0, 0, (8 + 6 * ft_go.hover) * du, 42% + 22% * ft_go.hover, mint
                     rim: 20%
-                    box { at: fgx, fc_y; size: fgw, fgh; corner: 14 * cu }
+                    box { at: fgx, fc_y; size: fgw, fgh; corner: 14 * du }
                 }
-                path { at: fgx - 26 * cu, fc_y; color: off; opacity: if(ft_state == 1, 0, 0.85); move -3.4 * cu, -5 * cu; line 5.4 * cu, 0; line -3.4 * cu, 5 * cu; close }
-                box { at: fgx - 28.6 * cu, fc_y; size: 2.8 * cu, 10 * cu; corner: 1 * cu; color: off; opacity: if(ft_state == 1, 0.85, 0) }
-                box { at: fgx - 23.4 * cu, fc_y; size: 2.8 * cu, 10 * cu; corner: 1 * cu; color: off; opacity: if(ft_state == 1, 0.85, 0) }
-                text pick(ft_state, "Start", "Pause", "Resume", "Again") { at: floor(fgx + 8 * cu + 0.5), floor(fc_y + 0.5); anchor: center; align: center; size: 14; weight: 700; color: off; family: "Space Grotesk" }
-                zone box ft_go { at: fgx, fc_y; size: 146 * cu, 42 * cu; corner: 16 * cu; cursor: pointer }
+                path { at: fgx - 26 * du, fc_y; color: off; opacity: if(ft_state == 1, 0, 0.85); move -3.4 * du, -5 * du; line 5.4 * du, 0; line -3.4 * du, 5 * du; close }
+                box { at: fgx - 28.6 * du, fc_y; size: 2.8 * du, 10 * du; corner: 1 * du; color: off; opacity: if(ft_state == 1, 0.85, 0) }
+                box { at: fgx - 23.4 * du, fc_y; size: 2.8 * du, 10 * du; corner: 1 * du; color: off; opacity: if(ft_state == 1, 0.85, 0) }
+                group { scale: rs; pivot: floor(fgx + 8 * du + 0.5), floor(fc_y + 0.5); text pick(ft_state, "Start", "Pause", "Resume", "Again") { at: floor(fgx + 8 * du + 0.5), floor(fc_y + 0.5); anchor: center; align: center; size: 14; weight: 700; color: off; family: "Space Grotesk" } }
+                zone box ft_go { at: fgx, fc_y; size: 146 * du, 42 * du; corner: 16 * du; cursor: pointer }
                 //  Reset: glass, with a turning arrow.
-                let frx = dsk_xc + 80 * cu
+                let frx = dsk_xc + 80 * du
                 body {
                     color: ink
                     opacity: 9% + 10% * ft_reset_b.hover
                     rim: 24%
-                    box { at: frx, fc_y; size: (76 - 6 * ft_press) * cu, (40 - 3 * ft_press) * cu; corner: 14 * cu }
+                    box { at: frx, fc_y; size: (76 - 6 * ft_press) * du, (40 - 3 * ft_press) * du; corner: 14 * du }
                 }
-                arc { at: frx - 18 * cu, fc_y + 1 * cu; radius: 5.2 * cu; span: 270deg; rotate: 40deg + ft_reset_b.hover * 90deg; width: 1.5 * cu; color: ink; opacity: 85% }
-                text "Reset" { at: floor(frx + 8 * cu + 0.5), floor(fc_y + 0.5); anchor: center; align: center; size: 13; weight: 600; color: ink; opacity: 88%; family: "Space Grotesk" }
-                zone box ft_reset_b { at: frx, fc_y; size: 78 * cu, 42 * cu; corner: 16 * cu; cursor: pointer }
+                arc { at: frx - 18 * du, fc_y + 1 * du; radius: 5.2 * du; span: 270deg; rotate: 40deg + ft_reset_b.hover * 90deg; width: 1.5 * du; color: ink; opacity: 85% }
+                group { scale: rs; pivot: floor(frx + 8 * du + 0.5), floor(fc_y + 0.5); text "Reset" { at: floor(frx + 8 * du + 0.5), floor(fc_y + 0.5); anchor: center; align: center; size: 13; weight: 600; color: ink; opacity: 88%; family: "Space Grotesk" } }
+                zone box ft_reset_b { at: frx, fc_y; size: 78 * du, 42 * du; corner: 16 * du; cursor: pointer }
                 on press ft_go { ft_press: 1 }
                 on press ft_reset_b { ft_press: 1 }
                 on release ft_go { ft_press: 0 }
@@ -403,84 +403,84 @@ part Desk {
                 }
                 group {
                     opacity: fd4
-                    move: 0, (1 - fd4) * 12 * cu
+                    move: 0, (1 - fd4) * 12 * du
                 //  What it does to the rest of the machine: two cards with toggles.
                 //  Silence alerts: a card with a toggle like the tiles'.
-                let sx0 = dsk_xc + (0 - 0.5) * 158 * cu
+                let sx0 = dsk_xc + (0 - 0.5) * 158 * du
                 let sp0 = ft_dnd_p
                 let sm0 = clamp(4 * ft_dnd_p * (1 - ft_dnd_p), 0, 1)
-                let sw0 = (34 + 4 * sp0) * cu
-                let sr0 = sx0 + 68 * cu
+                let sw0 = (34 + 4 * sp0) * du
+                let sr0 = sx0 + 68 * du
                 let sl0 = sr0 - sw0
-                let sk0 = sl0 + 11 * cu + sp0 * (sw0 - 22 * cu)
+                let sk0 = sl0 + 11 * du + sp0 * (sw0 - 22 * du)
                 //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-                body { color: mix(obsidian, ink, (7% + 5% * ft_sw.0.hover) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: sx0, fs_y; size: 150 * cu, 34 * cu; corner: 13 * cu } }
-                box { at: sx0, fs_y; size: 150 * cu, 34 * cu; corner: 13 * cu; color: ink; opacity: (7% + 5% * ft_sw.0.hover) * (1 - obs) }
+                body { color: mix(obsidian, ink, (7% + 5% * ft_sw.0.hover) * 1.6); opacity: obs; shadow: 0, 2 * du, 7 * du, 40%, #000000; show: obs > 0.004; box { at: sx0, fs_y; size: 150 * du, 34 * du; corner: 13 * du } }
+                box { at: sx0, fs_y; size: 150 * du, 34 * du; corner: 13 * du; color: ink; opacity: (7% + 5% * ft_sw.0.hover) * (1 - obs) }
                 group {
                     opacity: 45% + 55% * clamp(sp0, 0, 1)
-                    ellipse { at: (sx0 - 58 * cu), fs_y - 1 * cu; radius: 3 * cu; color: ink }
-                    box { at: (sx0 - 58 * cu), fs_y + 2.2 * cu; size: 8 * cu, 1.8 * cu; corner: 0.9 * cu; color: ink }
-                    ellipse { at: (sx0 - 58 * cu), fs_y + 4 * cu; radius: 0.9 * cu; color: ink }
+                    ellipse { at: (sx0 - 58 * du), fs_y - 1 * du; radius: 3 * du; color: ink }
+                    box { at: (sx0 - 58 * du), fs_y + 2.2 * du; size: 8 * du, 1.8 * du; corner: 0.9 * du; color: ink }
+                    ellipse { at: (sx0 - 58 * du), fs_y + 4 * du; radius: 0.9 * du; color: ink }
                 }
-                text "Silence alerts" { at: floor(sx0 - 46 * cu + 0.5), floor(fs_y + 0.5); anchor: left center; size: 11.5; weight: 600; color: ink; opacity: 70% + 30% * clamp(sp0, 0, 1); family: "Space Grotesk" }
+                group { scale: rs; pivot: floor(sx0 - 46 * du + 0.5), floor(fs_y + 0.5); text "Silence alerts" { at: floor(sx0 - 46 * du + 0.5), floor(fs_y + 0.5); anchor: left center; size: 11.5; weight: 600; color: ink; opacity: 70% + 30% * clamp(sp0, 0, 1); family: "Space Grotesk" } }
                 body {
                     color: mix(off, mint, clamp(sp0, 0, 1))
-                    shadow: 0, 0, 10 * cu * sp0, 48% * sp0, mint
+                    shadow: 0, 0, 10 * du * sp0, 48% * sp0, mint
                     rim: 16% * sp0
-                    box { at: sr0 - sw0 / 2, fs_y; size: sw0, 22 * cu; corner: (11 - 2 * sp0) * cu }
+                    box { at: sr0 - sw0 / 2, fs_y; size: sw0, 22 * du; corner: (11 - 2 * sp0) * du }
                 }
                 body {
                     color: ink
-                    shadow: 0, 2 * cu, 5 * cu, 26%
-                    box { at: sk0, fs_y; size: (17 + 9 * sm0 + 4 * ft_press) * cu, (17 - 3 * sm0) * cu; corner: (8.5 - 2 * clamp(sp0, 0, 1) - 1.5 * sm0) * cu }
+                    shadow: 0, 2 * du, 5 * du, 26%
+                    box { at: sk0, fs_y; size: (17 + 9 * sm0 + 4 * ft_press) * du, (17 - 3 * sm0) * du; corner: (8.5 - 2 * clamp(sp0, 0, 1) - 1.5 * sm0) * du }
                 }
                 group {
                     opacity: glyph_a
-                    ellipse { at: sk0, fs_y - 1.2 * cu; radius: 3.4 * cu; color: off }
-                    box { at: sk0, fs_y + 2.2 * cu; size: 9 * cu, 2 * cu; corner: 1 * cu; color: off }
-                    ellipse { at: sk0, fs_y + 4.6 * cu; radius: 1 * cu; color: off }
+                    ellipse { at: sk0, fs_y - 1.2 * du; radius: 3.4 * du; color: off }
+                    box { at: sk0, fs_y + 2.2 * du; size: 9 * du, 2 * du; corner: 1 * du; color: off }
+                    ellipse { at: sk0, fs_y + 4.6 * du; radius: 1 * du; color: off }
                 }
-                line { from: sk0 - 5.5 * cu, fs_y - 5.5 * cu; to: sk0 + 5.5 * cu, fs_y + 5.5 * cu; width: 1.5 * cu; color: off; opacity: glyph_a * sp0 }
-                zone box ft_sw.0 { at: sx0, fs_y; size: 152 * cu, 36 * cu; corner: 14 * cu; cursor: pointer }
+                line { from: sk0 - 5.5 * du, fs_y - 5.5 * du; to: sk0 + 5.5 * du, fs_y + 5.5 * du; width: 1.5 * du; color: off; opacity: glyph_a * sp0 }
+                zone box ft_sw.0 { at: sx0, fs_y; size: 152 * du, 36 * du; corner: 14 * du; cursor: pointer }
                 //  Keep awake: a card with a toggle like the tiles'.
-                let sx1 = dsk_xc + (1 - 0.5) * 158 * cu
+                let sx1 = dsk_xc + (1 - 0.5) * 158 * du
                 let sp1 = ft_caf_p
                 let sm1 = clamp(4 * ft_caf_p * (1 - ft_caf_p), 0, 1)
-                let sw1 = (34 + 4 * sp1) * cu
-                let sr1 = sx1 + 68 * cu
+                let sw1 = (34 + 4 * sp1) * du
+                let sr1 = sx1 + 68 * du
                 let sl1 = sr1 - sw1
-                let sk1 = sl1 + 11 * cu + sp1 * (sw1 - 22 * cu)
+                let sk1 = sl1 + 11 * du + sp1 * (sw1 - 22 * du)
                 //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-                body { color: mix(obsidian, ink, (7% + 5% * ft_sw.1.hover) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: sx1, fs_y; size: 150 * cu, 34 * cu; corner: 13 * cu } }
-                box { at: sx1, fs_y; size: 150 * cu, 34 * cu; corner: 13 * cu; color: ink; opacity: (7% + 5% * ft_sw.1.hover) * (1 - obs) }
+                body { color: mix(obsidian, ink, (7% + 5% * ft_sw.1.hover) * 1.6); opacity: obs; shadow: 0, 2 * du, 7 * du, 40%, #000000; show: obs > 0.004; box { at: sx1, fs_y; size: 150 * du, 34 * du; corner: 13 * du } }
+                box { at: sx1, fs_y; size: 150 * du, 34 * du; corner: 13 * du; color: ink; opacity: (7% + 5% * ft_sw.1.hover) * (1 - obs) }
                 group {
                     opacity: 45% + 55% * clamp(sp1, 0, 1)
-                    box { at: (sx1 - 58 * cu) - 0.8 * cu, fs_y + 0.5 * cu; size: 7 * cu, 6 * cu; corner: 1.8 * cu; color: ink }
-                    ellipse { at: (sx1 - 58 * cu) + 3.4 * cu, fs_y + 0.5 * cu; radius: 1.9 * cu; stroke: 1.1 * cu; color: ink }
+                    box { at: (sx1 - 58 * du) - 0.8 * du, fs_y + 0.5 * du; size: 7 * du, 6 * du; corner: 1.8 * du; color: ink }
+                    ellipse { at: (sx1 - 58 * du) + 3.4 * du, fs_y + 0.5 * du; radius: 1.9 * du; stroke: 1.1 * du; color: ink }
                 }
-                text "Keep awake" { at: floor(sx1 - 46 * cu + 0.5), floor(fs_y + 0.5); anchor: left center; size: 11.5; weight: 600; color: ink; opacity: 70% + 30% * clamp(sp1, 0, 1); family: "Space Grotesk" }
+                group { scale: rs; pivot: floor(sx1 - 46 * du + 0.5), floor(fs_y + 0.5); text "Keep awake" { at: floor(sx1 - 46 * du + 0.5), floor(fs_y + 0.5); anchor: left center; size: 11.5; weight: 600; color: ink; opacity: 70% + 30% * clamp(sp1, 0, 1); family: "Space Grotesk" } }
                 body {
                     color: mix(off, mint, clamp(sp1, 0, 1))
-                    shadow: 0, 0, 10 * cu * sp1, 48% * sp1, mint
+                    shadow: 0, 0, 10 * du * sp1, 48% * sp1, mint
                     rim: 16% * sp1
-                    box { at: sr1 - sw1 / 2, fs_y; size: sw1, 22 * cu; corner: (11 - 2 * sp1) * cu }
+                    box { at: sr1 - sw1 / 2, fs_y; size: sw1, 22 * du; corner: (11 - 2 * sp1) * du }
                 }
                 body {
                     color: ink
-                    shadow: 0, 2 * cu, 5 * cu, 26%
-                    box { at: sk1, fs_y; size: (17 + 9 * sm1 + 4 * ft_press) * cu, (17 - 3 * sm1) * cu; corner: (8.5 - 2 * clamp(sp1, 0, 1) - 1.5 * sm1) * cu }
+                    shadow: 0, 2 * du, 5 * du, 26%
+                    box { at: sk1, fs_y; size: (17 + 9 * sm1 + 4 * ft_press) * du, (17 - 3 * sm1) * du; corner: (8.5 - 2 * clamp(sp1, 0, 1) - 1.5 * sm1) * du }
                 }
                 group {
                     opacity: glyph_a * sp1
-                    box { at: sk1 - 1 * cu, fs_y + 0.5 * cu; size: 8 * cu, 7 * cu; corner: 2 * cu; color: off }
-                    ellipse { at: sk1 + 4 * cu, fs_y + 0.5 * cu; radius: 2.2 * cu; stroke: 1.2 * cu; color: off }
+                    box { at: sk1 - 1 * du, fs_y + 0.5 * du; size: 8 * du, 7 * du; corner: 2 * du; color: off }
+                    ellipse { at: sk1 + 4 * du, fs_y + 0.5 * du; radius: 2.2 * du; stroke: 1.2 * du; color: off }
                 }
                 group {
                     opacity: glyph_a * (0.7 * (1 - clamp(sp1, 0, 1)))
-                    box { at: sk1 - 1 * cu, fs_y + 0.5 * cu; size: 8 * cu, 7 * cu; corner: 2 * cu; stroke: 1.1 * cu; color: off }
-                    ellipse { at: sk1 + 4 * cu, fs_y + 0.5 * cu; radius: 2.2 * cu; stroke: 1.1 * cu; color: off }
+                    box { at: sk1 - 1 * du, fs_y + 0.5 * du; size: 8 * du, 7 * du; corner: 2 * du; stroke: 1.1 * du; color: off }
+                    ellipse { at: sk1 + 4 * du, fs_y + 0.5 * du; radius: 2.2 * du; stroke: 1.1 * du; color: off }
                 }
-                zone box ft_sw.1 { at: sx1, fs_y; size: 152 * cu, 36 * cu; corner: 14 * cu; cursor: pointer }
+                zone box ft_sw.1 { at: sx1, fs_y; size: 152 * du, 36 * du; corner: 14 * du; cursor: pointer }
                 on press ft_sw.0 { ft_dnd = not ft_dnd }
                 on press ft_sw.1 { ft_caf = not ft_caf }
                 }
@@ -490,49 +490,49 @@ part Desk {
             group {
                 show: desk_tab == 5
                 opacity: fd1
-                move: 0, (1 - fd1) * 12 * cu
-                let ak_vh  = 248 * cu - ask_dy - ask_db                    // what the card shows of the conversation
+                move: 0, (1 - fd1) * 12 * du
+                let ak_vh  = 248 * du - ask_dy - ask_db                    // what the card shows of the conversation
                 //  The assistants: one chip each (dim while it is not installed) and a button for a new conversation.
                 repeat k in 0..4 {
-                    let ak_cx = dsk_x0 + (14 + 31 + k * 66) * cu
+                    let ak_cx = dsk_x0 + (14 + 31 + k * 66) * du
                     let ak_on = if(ask_backend == k, 1, 0)
                     //  Obsidian: a solid plate a step lighter than the shell, in place of the veil.
-                    body { color: mix(obsidian, ink, ((8% + 9% * ask_chip.$k.hover) * (1 - ak_on) * if(ask_have.$k, 1, 0.45)) * 1.6); opacity: obs; show: obs > 0.004; box { at: ak_cx, dsk_y0 + 84 * cu; size: 62 * cu, 26 * cu; corner: 13 * cu } }
-                    box { at: ak_cx, dsk_y0 + 84 * cu; size: 62 * cu, 26 * cu; corner: 13 * cu; color: ink; opacity: ((8% + 9% * ask_chip.$k.hover) * (1 - ak_on) * if(ask_have.$k, 1, 0.45)) * (1 - obs) }
+                    body { color: mix(obsidian, ink, ((8% + 9% * ask_chip.$k.hover) * (1 - ak_on) * if(ask_have.$k, 1, 0.45)) * 1.6); opacity: obs; show: obs > 0.004; box { at: ak_cx, dsk_y0 + 84 * du; size: 62 * du, 26 * du; corner: 13 * du } }
+                    box { at: ak_cx, dsk_y0 + 84 * du; size: 62 * du, 26 * du; corner: 13 * du; color: ink; opacity: ((8% + 9% * ask_chip.$k.hover) * (1 - ak_on) * if(ask_have.$k, 1, 0.45)) * (1 - obs) }
                     //  The one in use is lit in the accent, the way the tabs' thumb is.
                     group {
                         show: ak_on > 0.5
                         opacity: if(ask_have.$k, 100%, 45%)
                         body {
                             color: mint
-                            shadow: 0, 0, 10 * cu, 40%, mint
+                            shadow: 0, 0, 10 * du, 40%, mint
                             rim: 16%
-                            box { at: ak_cx, dsk_y0 + 84 * cu; size: 62 * cu, 26 * cu; corner: 13 * cu }
+                            box { at: ak_cx, dsk_y0 + 84 * du; size: 62 * du, 26 * du; corner: 13 * du }
                         }
                     }
-                    text pick(k, "Claude", "Ollama", "Codex", "Gemini") { at: floor(ak_cx + 0.5), floor(dsk_y0 + 84 * cu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; color: mix(ink, off, ak_on); opacity: if(ask_have.$k, 100%, 40%); family: "Space Grotesk" }
-                    zone box ask_chip.$k { at: ak_cx, dsk_y0 + 84 * cu; size: 64 * cu, 28 * cu; cursor: pointer; active: ask_have.$k }
+                    group { scale: rs; pivot: floor(ak_cx + 0.5), floor(dsk_y0 + 84 * du + 0.5); text pick(k, "Claude", "Ollama", "Codex", "Gemini") { at: floor(ak_cx + 0.5), floor(dsk_y0 + 84 * du + 0.5); anchor: center; align: center; size: 12.5; weight: 700; color: mix(ink, off, ak_on); opacity: if(ask_have.$k, 100%, 40%); family: "Space Grotesk" } }
+                    zone box ask_chip.$k { at: ak_cx, dsk_y0 + 84 * du; size: 64 * du, 28 * du; cursor: pointer; active: ask_have.$k }
                     on press ask_chip.$k { emit ask_pick(k) }
                 }
                 //  Under them, which one is answering (for Ollama, the model: tap it to try the next), and Stop while an answer is coming.
-                text ask_status { at: floor(dsk_x0 + 18 * cu + 0.5), floor(dsk_y0 + 109 * cu + 0.5); anchor: left center; size: 11.5; width: 250 * cu; lines: 1; color: mix(faint, mint, if(ask_backend == 1 and ask_nmodels > 1, ask_status_z.hover, 0)); family: "Space Grotesk" }
-                zone box ask_status_z { at: dsk_x0 + 14 * cu + 125 * cu, dsk_y0 + 109 * cu; size: 250 * cu, 18 * cu; cursor: pointer; active: ask_backend == 1 and ask_nmodels > 1 and not ask_busy }
+                group { scale: rs; pivot: floor(dsk_x0 + 18 * du + 0.5), floor(dsk_y0 + 109 * du + 0.5); text ask_status { at: floor(dsk_x0 + 18 * du + 0.5), floor(dsk_y0 + 109 * du + 0.5); anchor: left center; size: 11.5; width: (250 * du) / rs; lines: 1; color: mix(faint, mint, if(ask_backend == 1 and ask_nmodels > 1, ask_status_z.hover, 0)); family: "Space Grotesk" } }
+                zone box ask_status_z { at: dsk_x0 + 14 * du + 125 * du, dsk_y0 + 109 * du; size: 250 * du, 18 * du; cursor: pointer; active: ask_backend == 1 and ask_nmodels > 1 and not ask_busy }
                 on press ask_status_z { emit ask_cycle }
                 //  Clear: a plain text link at the end of the status row (it starts a new conversation). It takes Stop's place while nothing is being
                 //  answered, and waits, dim, while there is nothing to clear.
                 let ak_clr = if(ask_n > 0, 1, 0)
                 group {
                     show: not ask_busy
-                    text "Clear" { at: floor(dsk_x0 + 316 * cu + 0.5), floor(dsk_y0 + 109 * cu + 0.5); anchor: right center; align: right; size: 12; weight: 500; color: mix(faint, mint, ask_new_z.hover * ak_clr); opacity: if(ask_n > 0, 100%, 40%); family: "Space Grotesk"; measure: ask_clr }
-                    box { at: dsk_x0 + 316 * cu - ask_clr.width / 2, dsk_y0 + 109 * cu + 7.5 * cu; size: ask_clr.width, 1 * cu; color: mint; opacity: 70% * ask_new_z.hover * ak_clr }
-                    zone box ask_new_z { at: dsk_x0 + 316 * cu - 20 * cu, dsk_y0 + 109 * cu; size: 40 * cu, 20 * cu; cursor: pointer; active: ask_n > 0; label: "Clear the conversation" }
+                    text "Clear" { at: floor(dsk_x0 + 316 * du + 0.5), floor(dsk_y0 + 109 * du + 0.5); anchor: right center; align: right; size: 12; weight: 500; color: mix(faint, mint, ask_new_z.hover * ak_clr); opacity: if(ask_n > 0, 100%, 40%); family: "Space Grotesk"; measure: ask_clr }
+                    box { at: dsk_x0 + 316 * du - ask_clr.width / 2, dsk_y0 + 109 * du + 7.5 * du; size: ask_clr.width, 1 * du; color: mint; opacity: 70% * ask_new_z.hover * ak_clr }
+                    zone box ask_new_z { at: dsk_x0 + 316 * du - 20 * du, dsk_y0 + 109 * du; size: 40 * du, 20 * du; cursor: pointer; active: ask_n > 0; label: "Clear the conversation" }
                     on press ask_new_z { emit ask_new }
                 }
                 group {
                     show: ask_busy
-                    box { at: dsk_x0 + 294 * cu, dsk_y0 + 109 * cu; size: 44 * cu, 18 * cu; corner: 9 * cu; color: mix(ink, mint, ask_stop_z.hover); opacity: 10% + 14% * ask_stop_z.hover }
-                    text "Stop" { at: floor(dsk_x0 + 294 * cu + 0.5), floor(dsk_y0 + 109 * cu + 0.5); anchor: center; align: center; size: 11; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
-                    zone box ask_stop_z { at: dsk_x0 + 294 * cu, dsk_y0 + 109 * cu; size: 46 * cu, 20 * cu; cursor: pointer }
+                    box { at: dsk_x0 + 294 * du, dsk_y0 + 109 * du; size: 44 * du, 18 * du; corner: 9 * du; color: mix(ink, mint, ask_stop_z.hover); opacity: 10% + 14% * ask_stop_z.hover }
+                    group { scale: rs; pivot: floor(dsk_x0 + 294 * du + 0.5), floor(dsk_y0 + 109 * du + 0.5); text "Stop" { at: floor(dsk_x0 + 294 * du + 0.5), floor(dsk_y0 + 109 * du + 0.5); anchor: center; align: center; size: 11; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" } }
+                    zone box ask_stop_z { at: dsk_x0 + 294 * du, dsk_y0 + 109 * du; size: 46 * du, 20 * du; cursor: pointer }
                     on press ask_stop_z { emit ask_stop }
                 }
                 //  Claude's plan usage: the five-hour and the seven-day window, each a thin bar that fills as it is used (amber as it nears full), with
@@ -541,53 +541,53 @@ part Desk {
                     show: ask_us > 0.02
                     opacity: ask_us
                     repeat k in 0..2 {
-                        let us_x = dsk_x0 + (14 + k * 162) * cu
-                        let us_w = 150 * cu
+                        let us_x = dsk_x0 + (14 + k * 162) * du
+                        let us_w = 150 * du
                         let us_u = clamp(if(k == 0, ask_f5, ask_f7), 0, 1)
-                        let us_f = max(0.5 * cu, us_w * us_u)
+                        let us_f = max(0.5 * du, us_w * us_u)
                         let us_p = floor(us_u * 100 + 0.5)
-                        text pick(k, "5-hour", "7-day") { at: floor(us_x + 0.5), floor(dsk_y0 + 127 * cu + 0.5); anchor: left center; size: 10.5; weight: 600; color: faint; family: "Space Grotesk" }
-                        text "{us_p}%" { at: floor(us_x + us_w + 0.5), floor(dsk_y0 + 127 * cu + 0.5); anchor: right center; align: right; size: 10.5; weight: 700; color: ink; opacity: 85%; family: "Space Grotesk" }
-                        box { at: us_x + us_w / 2, dsk_y0 + 136 * cu; size: us_w, 4 * cu; corner: 2 * cu; color: ink; opacity: 14% }
-                        box { at: us_x + us_f / 2, dsk_y0 + 136 * cu; size: us_f, 4 * cu; corner: 2 * cu; color: mix(mint, #ffa94d, clamp((us_u - 0.7) / 0.25, 0, 1)) }
-                        text ask_r5 { at: floor(us_x + 0.5), floor(dsk_y0 + 143.5 * cu + 0.5); anchor: left center; size: 10; color: faint; opacity: 90%; family: "Space Grotesk"; show: k == 0 }
-                        text ask_r7 { at: floor(us_x + 0.5), floor(dsk_y0 + 143.5 * cu + 0.5); anchor: left center; size: 10; color: faint; opacity: 90%; family: "Space Grotesk"; show: k == 1 }
+                        group { scale: rs; pivot: floor(us_x + 0.5), floor(dsk_y0 + 127 * du + 0.5); text pick(k, "5-hour", "7-day") { at: floor(us_x + 0.5), floor(dsk_y0 + 127 * du + 0.5); anchor: left center; size: 10.5; weight: 600; color: faint; family: "Space Grotesk" } }
+                        group { scale: rs; pivot: floor(us_x + us_w + 0.5), floor(dsk_y0 + 127 * du + 0.5); text "{us_p}%" { at: floor(us_x + us_w + 0.5), floor(dsk_y0 + 127 * du + 0.5); anchor: right center; align: right; size: 10.5; weight: 700; color: ink; opacity: 85%; family: "Space Grotesk" } }
+                        box { at: us_x + us_w / 2, dsk_y0 + 136 * du; size: us_w, 4 * du; corner: 2 * du; color: ink; opacity: 14% }
+                        box { at: us_x + us_f / 2, dsk_y0 + 136 * du; size: us_f, 4 * du; corner: 2 * du; color: mix(mint, #ffa94d, clamp((us_u - 0.7) / 0.25, 0, 1)) }
+                        group { scale: rs; pivot: floor(us_x + 0.5), floor(dsk_y0 + 143.5 * du + 0.5); text ask_r5 { at: floor(us_x + 0.5), floor(dsk_y0 + 143.5 * du + 0.5); anchor: left center; size: 10; color: faint; opacity: 90%; family: "Space Grotesk"; show: k == 0 } }
+                        group { scale: rs; pivot: floor(us_x + 0.5), floor(dsk_y0 + 143.5 * du + 0.5); text ask_r7 { at: floor(us_x + 0.5), floor(dsk_y0 + 143.5 * du + 0.5); anchor: left center; size: 10; color: faint; opacity: 90%; family: "Space Grotesk"; show: k == 1 } }
                     }
                 }
                 //  The conversation.
                 //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-                body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: dsk_xc, dsk_y0 + 258 * cu + (ask_dy - ask_db) / 2; size: 312 * cu, 268 * cu - ask_dy - ask_db; corner: 16 * cu } }
-                box { at: dsk_xc, dsk_y0 + 258 * cu + (ask_dy - ask_db) / 2; size: 312 * cu, 268 * cu - ask_dy - ask_db; corner: 16 * cu; color: ink; opacity: (veil) * (1 - obs) }
-                text "Ask something below" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 258 * cu + (ask_dy - ask_db) / 2 + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: ask_n < 1 }
+                body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * du, 7 * du, 40%, #000000; show: obs > 0.004; box { at: dsk_xc, dsk_y0 + 258 * du + (ask_dy - ask_db) / 2; size: 312 * du, 268 * du - ask_dy - ask_db; corner: 16 * du } }
+                box { at: dsk_xc, dsk_y0 + 258 * du + (ask_dy - ask_db) / 2; size: 312 * du, 268 * du - ask_dy - ask_db; corner: 16 * du; color: ink; opacity: (veil) * (1 - obs) }
+                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(dsk_y0 + 258 * du + (ask_dy - ask_db) / 2 + 0.5); text "Ask something below" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 258 * du + (ask_dy - ask_db) / 2 + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: ask_n < 1 } }
                 //  The conversation: rows as tall as their text, scrolled by the wheel or by dragging; it stays at the end while an answer comes in.
                 column ask_col {
-                    at: dsk_x0 + 20 * cu, dsk_y0 + 124 * cu + ask_dy + 8 * cu
-                    view: 300 * cu, ak_vh - 16 * cu
+                    at: dsk_x0 + 20 * du, dsk_y0 + 124 * du + ask_dy + 8 * du
+                    view: 300 * du, ak_vh - 16 * du
                     gap: 6
                     for r in ask_rows { AskRow(r, copy: ask_copy) }
                 }
-                on change ask_col.content while ask_follow { ask_col.scroll: max(0, ask_col.content - (ak_vh - 16 * cu)) }
-                on change ask_col.scroll { ask_follow = ask_col.scroll >= ask_col.content - (ak_vh - 16 * cu) - 12 }
+                on change ask_col.content while ask_follow { ask_col.scroll: max(0, ask_col.content - (ak_vh - 16 * du)) }
+                on change ask_col.scroll { ask_follow = ask_col.scroll >= ask_col.content - (ak_vh - 16 * du) - 12 }
                 //  Something waiting to go with the next question (the clipboard, a card from the Shelf): a chip under the conversation, with a cross to drop it.
                 group {
                     show: ask_atts > 0.02
                     opacity: ask_atts
-                    let ac_y = dsk_y0 + 392 * cu - ask_db + 14 * cu
-                    box { at: dsk_xc, ac_y; size: 312 * cu, 22 * cu; corner: 11 * cu; color: mint; opacity: 16% }
-                    ellipse { at: dsk_x0 + 26 * cu, ac_y; radius: 3 * cu; color: mint }
-                    text ask_att_label { at: floor(dsk_x0 + 38 * cu + 0.5), floor(ac_y + 0.5); anchor: left center; size: 11; weight: 600; width: 250 * cu; lines: 1; color: ink; family: "Space Grotesk" }
-                    path { at: dsk_x0 + 316 * cu, ac_y; stroke: 1.4 * cu; color: ink; opacity: 55% + 45% * ask_att_x.hover; move -3 * cu, -3 * cu; line 3 * cu, 3 * cu }
-                    path { at: dsk_x0 + 316 * cu, ac_y; stroke: 1.4 * cu; color: ink; opacity: 55% + 45% * ask_att_x.hover; move 3 * cu, -3 * cu; line -3 * cu, 3 * cu }
-                    zone box ask_att_x { at: dsk_x0 + 316 * cu, ac_y; size: 24 * cu, 22 * cu; cursor: pointer; active: ask_att > 0; label: "Drop the attachment" }
+                    let ac_y = dsk_y0 + 392 * du - ask_db + 14 * du
+                    box { at: dsk_xc, ac_y; size: 312 * du, 22 * du; corner: 11 * du; color: mint; opacity: 16% }
+                    ellipse { at: dsk_x0 + 26 * du, ac_y; radius: 3 * du; color: mint }
+                    group { scale: rs; pivot: floor(dsk_x0 + 38 * du + 0.5), floor(ac_y + 0.5); text ask_att_label { at: floor(dsk_x0 + 38 * du + 0.5), floor(ac_y + 0.5); anchor: left center; size: 11; weight: 600; width: (250 * du) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+                    path { at: dsk_x0 + 316 * du, ac_y; stroke: 1.4 * du; color: ink; opacity: 55% + 45% * ask_att_x.hover; move -3 * du, -3 * du; line 3 * du, 3 * du }
+                    path { at: dsk_x0 + 316 * du, ac_y; stroke: 1.4 * du; color: ink; opacity: 55% + 45% * ask_att_x.hover; move 3 * du, -3 * du; line -3 * du, 3 * du }
+                    zone box ask_att_x { at: dsk_x0 + 316 * du, ac_y; size: 24 * du, 22 * du; cursor: pointer; active: ask_att > 0; label: "Drop the attachment" }
                     on press ask_att_x { emit ask_att_clear }
                 }
                 //  The question.
-                let ak_y = dsk_y0 + 420 * cu
+                let ak_y = dsk_y0 + 420 * du
                 //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-                body { color: mix(obsidian, ink, (veil + 4% * ask_zone.hover) * 1.6); opacity: obs; shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs > 0.004; box { at: dsk_xc, ak_y; size: 312 * cu, 36 * cu; corner: 14 * cu } }
-                box { at: dsk_xc, ak_y; size: 312 * cu, 36 * cu; corner: 14 * cu; color: ink; opacity: (veil + 4% * ask_zone.hover) * (1 - obs) }
-                input ask_in { at: floor(dsk_xc - 156 * cu + 14 * cu + 0.5), floor(ak_y - 6.5 * cu + 0.5); width: 284 * cu; size: 13; color: ink; family: "Space Grotesk"; placeholder: "Ask something and press Enter" }
-                zone box ask_zone { at: dsk_xc, ak_y; size: 312 * cu, 36 * cu; cursor: text }
+                body { color: mix(obsidian, ink, (veil + 4% * ask_zone.hover) * 1.6); opacity: obs; shadow: 0, 2 * du, 7 * du, 40%, #000000; show: obs > 0.004; box { at: dsk_xc, ak_y; size: 312 * du, 36 * du; corner: 14 * du } }
+                box { at: dsk_xc, ak_y; size: 312 * du, 36 * du; corner: 14 * du; color: ink; opacity: (veil + 4% * ask_zone.hover) * (1 - obs) }
+                input ask_in { at: floor(dsk_xc - 156 * du + 14 * du + 0.5), floor(ak_y - 6.5 * du + 0.5); width: 284 * du; size: 13; color: ink; family: "Space Grotesk"; placeholder: "Ask something and press Enter" }
+                zone box ask_zone { at: dsk_xc, ak_y; size: 312 * du, 36 * du; cursor: text }
                 on press ask_zone { focus ask_in; desk_kb = true }
             }
             //  Clip: the clipboard history (logic/clipboard.luau), pinned entries first. A row copies it again; its dot pins it, Ask sends it to the Ask tab as an
@@ -595,13 +595,13 @@ part Desk {
             group {
                 show: desk_tab == 2
                 opacity: fd1
-                move: 0, (1 - fd1) * 12 * cu
-                text "CLICK TO COPY  ·  DOT PINS  ·  ASK SENDS IT TO THE CHAT" { at: floor(dsk_x0 + 20 * cu + 0.5), floor(dsk_y0 + 84 * cu + 0.5); anchor: left center; size: 9.5; weight: 700; color: faint; opacity: 80%; family: "Space Grotesk"; show: not clip_flash }
-                text clip_msg { at: floor(dsk_x0 + 20 * cu + 0.5), floor(dsk_y0 + 84 * cu + 0.5); anchor: left center; size: 11; weight: 600; color: mint; family: "Space Grotesk"; show: clip_flash }
-                text "Nothing copied yet" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 200 * cu + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: clip_n < 1 }
+                move: 0, (1 - fd1) * 12 * du
+                group { scale: rs; pivot: floor(dsk_x0 + 20 * du + 0.5), floor(dsk_y0 + 84 * du + 0.5); text "CLICK TO COPY  ·  DOT PINS  ·  ASK SENDS IT TO THE CHAT" { at: floor(dsk_x0 + 20 * du + 0.5), floor(dsk_y0 + 84 * du + 0.5); anchor: left center; size: 9.5; weight: 700; color: faint; opacity: 80%; family: "Space Grotesk"; show: not clip_flash } }
+                group { scale: rs; pivot: floor(dsk_x0 + 20 * du + 0.5), floor(dsk_y0 + 84 * du + 0.5); text clip_msg { at: floor(dsk_x0 + 20 * du + 0.5), floor(dsk_y0 + 84 * du + 0.5); anchor: left center; size: 11; weight: 600; color: mint; family: "Space Grotesk"; show: clip_flash } }
+                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(dsk_y0 + 200 * du + 0.5); text "Nothing copied yet" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 200 * du + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: clip_n < 1 } }
                 column clip_col {
-                    at: dsk_x0 + 20 * cu, dsk_y0 + 98 * cu
-                    view: 300 * cu, 330 * cu
+                    at: dsk_x0 + 20 * du, dsk_y0 + 98 * du
+                    view: 300 * du, 330 * du
                     gap: 4
                     for r in clip_rows { ClipRow(r, copy: clip_copy, pin: clip_pin, ask: clip_ask, del: clip_del) }
                 }
@@ -611,38 +611,38 @@ part Desk {
             //  A press on the card gives it the keyboard; the wheel goes back through what has scrolled off the top.
             group {
                 show: desk_tab == 4
-                let tm_y0 = dsk_y0 + 66 * cu                    // the card, under the tabs
-                let tm_h  = dsk_h - 87 * cu                     // its bottom 21 above the desk's, where the Focus tab's last row ends
-                let tm_w  = dsk_w - 28 * cu
+                let tm_y0 = dsk_y0 + 66 * du                    // the card, under the tabs
+                let tm_h  = dsk_h - 87 * du                     // its bottom 21 above the desk's, where the Focus tab's last row ends
+                let tm_w  = dsk_w - 28 * du
                 let tm_cw = 11.75 * 0.612                       // a cell's width: Space Mono is 0.612 of its size wide, every glyph alike
                 let tm_gx = dsk_xc - 64 * tm_cw / 2             // the grid's left edge and the middle of its first row
                 let tm_gy = tm_y0 + (tm_h - 35 * 16) / 2 + 8
                 let tm_on = if(desk_kb, 1, 0)
                 group {
                     opacity: fd1
-                    move: 0, (1 - fd1) * 12 * cu
-                box { at: dsk_xc, tm_y0 + tm_h / 2; size: tm_w, tm_h; corner: 14 * cu; color: deep; opacity: 42% + 8% * tm_on }
-                box { at: dsk_xc, tm_y0 + tm_h / 2; size: tm_w, tm_h; corner: 14 * cu; stroke: 1.2; color: mint; opacity: 22% * tm_on }
-                zone box term_zone { at: dsk_xc, tm_y0 + tm_h / 2; size: tm_w, tm_h; corner: 14 * cu; cursor: text }
+                    move: 0, (1 - fd1) * 12 * du
+                box { at: dsk_xc, tm_y0 + tm_h / 2; size: tm_w, tm_h; corner: 14 * du; color: deep; opacity: 42% + 8% * tm_on }
+                box { at: dsk_xc, tm_y0 + tm_h / 2; size: tm_w, tm_h; corner: 14 * du; stroke: 1.2; color: mint; opacity: 22% * tm_on }
+                zone box term_zone { at: dsk_xc, tm_y0 + tm_h / 2; size: tm_w, tm_h; corner: 14 * du; cursor: text }
                 on press term_zone { desk_kb = true; term_armed = true; blur }
                 on scroll term_zone { emit term_scroll(wheel) }
                 for c in term_runs {
                     box { at: tm_gx + (c.x + c.n / 2) * tm_cw, tm_gy + c.y * 16; size: c.n * tm_cw, 16; color: rgb(c.br, c.bg, c.bb); show: c.hasbg }
-                    text c.t { at: tm_gx + c.x * tm_cw, tm_gy + c.y * 16; anchor: left center; size: 11.75; weight: 400; color: if(c.fg, rgb(c.r, c.g, c.b), ink); family: "SpaceMono Nerd Font"; show: not c.bold }
-                    text c.t { at: tm_gx + c.x * tm_cw, tm_gy + c.y * 16; anchor: left center; size: 11.75; weight: 700; color: if(c.fg, rgb(c.r, c.g, c.b), ink); family: "SpaceMono Nerd Font"; show: c.bold }
+                    group { scale: rs; pivot: tm_gx + c.x * tm_cw, tm_gy + c.y * 16; text c.t { at: tm_gx + c.x * tm_cw, tm_gy + c.y * 16; anchor: left center; size: 11.75; weight: 400; color: if(c.fg, rgb(c.r, c.g, c.b), ink); family: "SpaceMono Nerd Font"; show: not c.bold } }
+                    group { scale: rs; pivot: tm_gx + c.x * tm_cw, tm_gy + c.y * 16; text c.t { at: tm_gx + c.x * tm_cw, tm_gy + c.y * 16; anchor: left center; size: 11.75; weight: 700; color: if(c.fg, rgb(c.r, c.g, c.b), ink); family: "SpaceMono Nerd Font"; show: c.bold } }
                 }
                 box { at: tm_gx + (term_cx + 0.5) * tm_cw, tm_gy + term_cy * 16; size: tm_cw, 16; corner: 1.5; color: mint; opacity: 80%; show: term_cur and desk_kb }
                 box { at: tm_gx + (term_cx + 0.5) * tm_cw, tm_gy + term_cy * 16; size: tm_cw - 1, 15; corner: 1.5; stroke: 1; color: mint; opacity: 70%; show: term_cur and not desk_kb }
                 //  Scrolled back: a pill at the bottom says so, and how to come back.
                 group {
                     show: term_scrolled > 0
-                    box { at: dsk_xc, tm_y0 + tm_h - 22 * cu; size: 214 * cu, 26 * cu; corner: 13 * cu; color: mint; opacity: 90% }
-                    text "Scrolled back · type to return" { at: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h - 22 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: off; family: "Space Grotesk" }
+                    box { at: dsk_xc, tm_y0 + tm_h - 22 * du; size: 214 * du, 26 * du; corner: 13 * du; color: mint; opacity: 90% }
+                    group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h - 22 * du + 0.5); text "Scrolled back · type to return" { at: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h - 22 * du + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: off; family: "Space Grotesk" } }
                 }
                 //  Not running: the shell has ended, or the terminal cannot start (pyte missing).
-                text "The shell has ended" { at: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h / 2 - 12 * cu + 0.5); anchor: center; align: center; size: 15; weight: 600; color: ink; family: "Space Grotesk"; show: term_state == 2 }
-                text "Click here and press any key to start a new one" { at: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h / 2 + 12 * cu + 0.5); anchor: center; align: center; size: 12; color: faint; family: "Space Grotesk"; show: term_state == 2 }
-                text term_msg { at: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h / 2 + 0.5); anchor: center; align: center; size: 12.5; width: tm_w - 48 * cu; color: faint; family: "Space Grotesk"; show: term_state == 3 }
+                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h / 2 - 12 * du + 0.5); text "The shell has ended" { at: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h / 2 - 12 * du + 0.5); anchor: center; align: center; size: 15; weight: 600; color: ink; family: "Space Grotesk"; show: term_state == 2 } }
+                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h / 2 + 12 * du + 0.5); text "Click here and press any key to start a new one" { at: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h / 2 + 12 * du + 0.5); anchor: center; align: center; size: 12; color: faint; family: "Space Grotesk"; show: term_state == 2 } }
+                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h / 2 + 0.5); text term_msg { at: floor(dsk_xc + 0.5), floor(tm_y0 + tm_h / 2 + 0.5); anchor: center; align: center; size: 12.5; width: (tm_w - 48 * du) / rs; color: faint; family: "Space Grotesk"; show: term_state == 3 } }
                 }
             }
             //  Anything carried over the panel, on any tab, can be let go to keep it on the shelf. This is declared last so that, while a
@@ -653,14 +653,14 @@ part Desk {
                 body {
                     color: mint
                     opacity: 12%
-                    shadow: 0, 0, 12 * cu, 40%, mint
+                    shadow: 0, 0, 12 * du, 40%, mint
                     rim: 45%
-                    box { at: dsk_xc, dsk_y0 + dsk_h / 2; size: dsk_w - 12 * cu, dsk_h - 12 * cu; corner: 22 * cu }
+                    box { at: dsk_xc, dsk_y0 + dsk_h / 2; size: dsk_w - 12 * du, dsk_h - 12 * du; corner: 22 * du }
                 }
-                path { at: dsk_xc, dsk_y0 + dsk_h / 2 - 18 * cu; stroke: 2.4 * cu; color: mint; move 0, 14 * cu; line 0, -14 * cu }
-                path { at: dsk_xc, dsk_y0 + dsk_h / 2 - 18 * cu; stroke: 2.4 * cu; color: mint; move -9 * cu, -4 * cu; line 0, -14 * cu; line 9 * cu, -4 * cu }
-                text "Let go to keep it" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + dsk_h / 2 + 22 * cu + 0.5); anchor: center; align: center; size: 16; weight: 700; color: mint; family: "Space Grotesk" }
-                text "it goes on your shelf" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + dsk_h / 2 + 44 * cu + 0.5); anchor: center; align: center; size: 12; color: ink; opacity: 70%; family: "Space Grotesk" }
+                path { at: dsk_xc, dsk_y0 + dsk_h / 2 - 18 * du; stroke: 2.4 * du; color: mint; move 0, 14 * du; line 0, -14 * du }
+                path { at: dsk_xc, dsk_y0 + dsk_h / 2 - 18 * du; stroke: 2.4 * du; color: mint; move -9 * du, -4 * du; line 0, -14 * du; line 9 * du, -4 * du }
+                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(dsk_y0 + dsk_h / 2 + 22 * du + 0.5); text "Let go to keep it" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + dsk_h / 2 + 22 * du + 0.5); anchor: center; align: center; size: 16; weight: 700; color: mint; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(dsk_y0 + dsk_h / 2 + 44 * du + 0.5); text "it goes on your shelf" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + dsk_h / 2 + 44 * du + 0.5); anchor: center; align: center; size: 12; color: ink; opacity: 70%; family: "Space Grotesk" } }
                 zone box desk_drop { at: dsk_xc, dsk_y0 + dsk_h / 2; size: dsk_w, dsk_h; active: drag.over > 0.5 }
                 on drop desk_drop { desk_tab = 1; shelf_flash: 1 ~0ms; shelf_flash: 0 after 250ms }
             }

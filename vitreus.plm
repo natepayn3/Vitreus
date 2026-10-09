@@ -961,6 +961,8 @@ scene Vitreus {
     fact hy_nat = false
     //  Settings > Pleamar-WM: what the window manager has now (see the logic). The window manager's own facts are set live; the
     //  input lines go to session.conf and apply at the next login.
+    fact wm_hypr = false             // the session is Hyprland: the Hyprland page is in the Settings (set by the logic)
+    fact wm_pwm = false              // the session is pleamar-wm: the Pleamar-WM page is in the Settings
     fact wm_layout = 0
     fact wm_share = 0.56
     fact wm_gap = 12
@@ -1471,8 +1473,13 @@ scene Vitreus {
     //  the bar and a little air: 8 + bar.h + 6. Only along the top: down the left, the room is the windows' gaps
     //  (vitreus_colors.lua), and a reserve there as well would leave an empty strip beside the bar.
     let u = 1.35                    // (the icon models are declared at their size times this: 20 → 27, 22 → 30, 26 → 35)
+    //  The Settings, the launcher and the Desk follow the monitor's height: they are drawn to fit a 1350 px high screen, and a lower one shrinks them (a 1080 p one to 80 %),
+    //  down to 55 %. The geometry follows `pu` and `du`; a text's size is a literal number, so every text of those three panels is wrapped in a group that scales it by `rs`
+    //  about its own anchor point (and its `width:` is divided by `rs` to make up for it).
+    let rs = clamp(if(mon_h > 0, min(mon_h, screen.height), screen.height) / 1350, 0.55, 1)
     let cu = 1.5525                  // u * 1.15: the control center, the calendar and the player and tray are laid out 15% larger than the rest
-    let pu = 1.6875                  // u * 1.25: the Settings and the launcher are laid out 25% larger than the rest, at real size (not zoomed)
+    let du = 1.5525 * rs             // the Desk's own unit: cu (u * 1.15) at the scale of the screen
+    let pu = 1.6875 * rs             // u * 1.25: the Settings and the launcher are laid out 25% larger than the rest, at real size (not zoomed)
     //  One reminder of the chosen day: a circle to tick it off, its time, its words, a cross.
     component CalRow(e: record, tick: event, gone: event) {
         //  30 px tall at least, and as tall as its title needs: a reminder wraps onto more lines rather
@@ -1504,51 +1511,51 @@ scene Vitreus {
     //  One row of the Ask tab's conversation (logic/ask.luau cuts it): a message, or the prose or the code of an answer. The first row of a message has its
     //  name above it (and, on an answer, Copy); a piece of code is in a card of its own with its own Copy. As tall as its text needs.
     component AskRow(m: record, copy: event) {
-        size: 300 * cu, (if(m.first, 20, 0)) + if(m.kind == 2, 26 * cu + floor(cwrap.height + 0.5) + 12 * cu, floor(wrap.height + 0.5) + 6)
+        size: 300 * du, (if(m.first, 20, 0)) + if(m.kind == 2, 26 * du + floor(cwrap.height + 0.5) + 12 * du, floor(wrap.height + 0.5) + 6)
         let hh   = if(m.first, 20, 0)
         let ph   = floor(if(m.kind == 2, cwrap.height, wrap.height) + 0.5)
-        text m.who { at: 2, 10; anchor: left center; size: 11; weight: 700; color: if(m.kind == 0, faint, mint); opacity: 90%; family: "Space Grotesk"; show: m.first }
-        text "Copy" { at: 300 * cu - 2, 10; anchor: right center; align: right; size: 11; weight: 600; color: mix(faint, mint, hc.hover); family: "Space Grotesk"; show: m.first and m.kind == 1 }
-        zone box hc { at: 300 * cu - 22 * cu, 10; size: 44 * cu, 20; cursor: pointer; active: m.first and m.kind == 1 }
+        group { scale: rs; pivot: 2, 10; text m.who { at: 2, 10; anchor: left center; size: 11; weight: 700; color: if(m.kind == 0, faint, mint); opacity: 90%; family: "Space Grotesk"; show: m.first } }
+        group { scale: rs; pivot: 300 * du - 2, 10; text "Copy" { at: 300 * du - 2, 10; anchor: right center; align: right; size: 11; weight: 600; color: mix(faint, mint, hc.hover); family: "Space Grotesk"; show: m.first and m.kind == 1 } }
+        zone box hc { at: 300 * du - 22 * du, 10; size: 44 * du, 20; cursor: pointer; active: m.first and m.kind == 1 }
         on press hc { emit copy(m.index) }
         column wrap {
             at: 2, hh + 2
-            text m.body { size: 13; width: 292 * cu; lines: 400; line_height: 1.25; color: if(m.kind == 3, faint, ink); family: "Space Grotesk"; show: m.kind != 2 }
+            text m.body { size: 13; width: 292 * du; lines: 400; line_height: 1.25; color: if(m.kind == 3, faint, ink); family: "Space Grotesk"; show: m.kind != 2 }
         }
         group {
             show: m.kind == 2
             //  Obsidian: a solid plate a step lighter than the shell, in place of the veil.
-            body { color: mix(obsidian, ink, (11%) * 1.6); opacity: obs; show: obs > 0.004; box { from: 0, hh + 2; size: 300 * cu, 24 * cu + ph + 12 * cu - 2; corner: 10 * cu } }
-            box { from: 0, hh + 2; size: 300 * cu, 24 * cu + ph + 12 * cu - 2; corner: 10 * cu; color: ink; opacity: (11%) * (1 - obs) }
-            text m.lang { at: 10 * cu, hh + 2 + 12 * cu; anchor: left center; size: 10; weight: 600; color: faint; family: "Space Grotesk" }
-            text "Copy" { at: 300 * cu - 10 * cu, hh + 2 + 12 * cu; anchor: right center; align: right; size: 11; weight: 600; color: mix(faint, mint, cc.hover); family: "Space Grotesk" }
-            zone box cc { at: 300 * cu - 26 * cu, hh + 2 + 12 * cu; size: 52 * cu, 22 * cu; cursor: pointer }
+            body { color: mix(obsidian, ink, (11%) * 1.6); opacity: obs; show: obs > 0.004; box { from: 0, hh + 2; size: 300 * du, 24 * du + ph + 12 * du - 2; corner: 10 * du } }
+            box { from: 0, hh + 2; size: 300 * du, 24 * du + ph + 12 * du - 2; corner: 10 * du; color: ink; opacity: (11%) * (1 - obs) }
+            group { scale: rs; pivot: 10 * du, hh + 2 + 12 * du; text m.lang { at: 10 * du, hh + 2 + 12 * du; anchor: left center; size: 10; weight: 600; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: 300 * du - 10 * du, hh + 2 + 12 * du; text "Copy" { at: 300 * du - 10 * du, hh + 2 + 12 * du; anchor: right center; align: right; size: 11; weight: 600; color: mix(faint, mint, cc.hover); family: "Space Grotesk" } }
+            zone box cc { at: 300 * du - 26 * du, hh + 2 + 12 * du; size: 52 * du, 22 * du; cursor: pointer }
             on press cc { emit copy(m.index) }
         }
         column cwrap {
-            at: 10 * cu, hh + 2 + 24 * cu
-            text m.body { size: 11.5; width: 280 * cu; lines: 400; line_height: 1.2; color: ink; family: "SpaceMono Nerd Font"; show: m.kind == 2 }
+            at: 10 * du, hh + 2 + 24 * du
+            text m.body { size: 11.5; width: 280 * du; lines: 400; line_height: 1.2; color: ink; family: "SpaceMono Nerd Font"; show: m.kind == 2 }
         }
     }
 
     //  One row of the Desk's Clip tab: a dot (filled when pinned), the text, Ask, and a cross. Pressing the row copies it again.
     component ClipRow(c: record, copy: event, pin: event, ask: event, del: event) {
-        size: 300 * cu, 34 * cu
-        zone box touch { from: 0, 0; size: 300 * cu, 34 * cu; corner: 11 * cu; cursor: pointer }
+        size: 300 * du, 34 * du
+        zone box touch { from: 0, 0; size: 300 * du, 34 * du; corner: 11 * du; cursor: pointer }
         //  Obsidian: a solid plate a step lighter than the shell, in place of the veil.
-        body { color: mix(obsidian, ink, (7% + 7% * touch.hover) * 1.6); opacity: obs; show: obs > 0.004; box { from: 0, 0; size: 300 * cu, 34 * cu; corner: 11 * cu } }
-        box { from: 0, 0; size: 300 * cu, 34 * cu; corner: 11 * cu; color: ink; opacity: (7% + 7% * touch.hover) * (1 - obs) }
-        ellipse { at: 15 * cu, 17 * cu; radius: 4.5 * cu; stroke: 1.4 * cu; color: mint; opacity: if(c.image, 0, 70% + 30% * pin_z.hover) }
-        ellipse { at: 15 * cu, 17 * cu; radius: 4.5 * cu; color: mint; opacity: if(c.pinned, 100%, 0) }
-        text "IMG" { at: 15 * cu, 17 * cu; anchor: center; align: center; size: 8.5; weight: 700; color: mint; family: "Space Grotesk"; show: c.image }
-        text c.label { at: floor(30 * cu + 0.5), floor(17 * cu + 0.5); anchor: left center; size: 12; width: if(c.image, 210 * cu, 190 * cu); lines: 1; color: ink; opacity: 92%; family: "Space Grotesk" }
-        text "Ask" { at: 238 * cu, 17 * cu; anchor: center; align: center; size: 10.5; weight: 700; color: mix(faint, mint, ask_z.hover); family: "Space Grotesk"; show: not c.image }
-        line { from: 276 * cu, 17 * cu - 3 * cu; to: 282 * cu, 17 * cu + 3 * cu; width: 1.4 * cu; color: ink; opacity: 28% + 62% * del_z.hover }
-        line { from: 282 * cu, 17 * cu - 3 * cu; to: 276 * cu, 17 * cu + 3 * cu; width: 1.4 * cu; color: ink; opacity: 28% + 62% * del_z.hover }
+        body { color: mix(obsidian, ink, (7% + 7% * touch.hover) * 1.6); opacity: obs; show: obs > 0.004; box { from: 0, 0; size: 300 * du, 34 * du; corner: 11 * du } }
+        box { from: 0, 0; size: 300 * du, 34 * du; corner: 11 * du; color: ink; opacity: (7% + 7% * touch.hover) * (1 - obs) }
+        ellipse { at: 15 * du, 17 * du; radius: 4.5 * du; stroke: 1.4 * du; color: mint; opacity: if(c.image, 0, 70% + 30% * pin_z.hover) }
+        ellipse { at: 15 * du, 17 * du; radius: 4.5 * du; color: mint; opacity: if(c.pinned, 100%, 0) }
+        group { scale: rs; pivot: 15 * du, 17 * du; text "IMG" { at: 15 * du, 17 * du; anchor: center; align: center; size: 8.5; weight: 700; color: mint; family: "Space Grotesk"; show: c.image } }
+        group { scale: rs; pivot: floor(30 * du + 0.5), floor(17 * du + 0.5); text c.label { at: floor(30 * du + 0.5), floor(17 * du + 0.5); anchor: left center; size: 12; width: (if(c.image, 210 * du, 190 * du)) / rs; lines: 1; color: ink; opacity: 92%; family: "Space Grotesk" } }
+        group { scale: rs; pivot: 238 * du, 17 * du; text "Ask" { at: 238 * du, 17 * du; anchor: center; align: center; size: 10.5; weight: 700; color: mix(faint, mint, ask_z.hover); family: "Space Grotesk"; show: not c.image } }
+        line { from: 276 * du, 17 * du - 3 * du; to: 282 * du, 17 * du + 3 * du; width: 1.4 * du; color: ink; opacity: 28% + 62% * del_z.hover }
+        line { from: 282 * du, 17 * du - 3 * du; to: 276 * du, 17 * du + 3 * du; width: 1.4 * du; color: ink; opacity: 28% + 62% * del_z.hover }
         on press touch { emit copy(c.index) }
-        zone box pin_z { at: 15 * cu, 17 * cu; size: 24 * cu, 30 * cu; cursor: pointer; active: not c.image }
-        zone box ask_z { at: 238 * cu, 17 * cu; size: 30 * cu, 30 * cu; cursor: pointer; active: not c.image }
-        zone box del_z { at: 279 * cu, 17 * cu; size: 24 * cu, 30 * cu; cursor: pointer }
+        zone box pin_z { at: 15 * du, 17 * du; size: 24 * du, 30 * du; cursor: pointer; active: not c.image }
+        zone box ask_z { at: 238 * du, 17 * du; size: 30 * du, 30 * du; cursor: pointer; active: not c.image }
+        zone box del_z { at: 279 * du, 17 * du; size: 24 * du, 30 * du; cursor: pointer }
         on press pin_z { emit pin(c.index) }
         on press ask_z { emit ask(c.index) }
         on press del_z { emit del(c.index) }
@@ -1884,10 +1891,10 @@ scene Vitreus {
         box { from: 0, 0; size: lw, 40 * pu; corner: 14 * pu; color: if(t.sel, mint, ink); opacity: (if(t.sel, 20%, 4%) + 8% * touch.hover) * (1 - obs) }
         image t.icon { at: floor(10 * pu + 0.5), floor(7 * pu + 0.5); size: floor(26 * pu + 0.5), floor(26 * pu + 0.5); show: t.hasicon }
         ellipse { at: 23 * pu, 20 * pu; radius: 13 * pu; color: mint; opacity: 16%; show: not t.hasicon }
-        text t.glyph { at: floor(23 * pu + 0.5), floor(20 * pu + 0.5); anchor: center; align: center; size: 17.5; weight: 700; width: 26 * pu; lines: 1; color: mint; family: "Space Grotesk"; show: not t.hasicon }
-        text t.title { at: floor(48 * pu + 0.5), floor(if(t.hasdesc, 14, 20) * pu + 0.5); anchor: left center; size: 18; weight: 600; width: lw - (58 + 96 * (1 - lpv) + if(t.deletable, 24, 0)) * pu; lines: 1; color: if(t.sel, mint, ink); family: "Space Grotesk" }
-        text t.desc { at: floor(48 * pu + 0.5), floor(29 * pu + 0.5); anchor: left center; size: 13.5; width: lw - 62 * pu; lines: 1; color: faint; family: "Space Grotesk"; show: t.hasdesc }
-        text t.sub { at: floor(lw - 10 * pu + 0.5), floor(20 * pu + 0.5); anchor: right center; align: right; size: 14; width: 90 * pu; lines: 1; color: faint; opacity: (1 - lpv) * (1 - rm); family: "Space Grotesk" }
+        group { scale: rs; pivot: floor(23 * pu + 0.5), floor(20 * pu + 0.5); text t.glyph { at: floor(23 * pu + 0.5), floor(20 * pu + 0.5); anchor: center; align: center; size: 17.5; weight: 700; width: (26 * pu) / rs; lines: 1; color: mint; family: "Space Grotesk"; show: not t.hasicon } }
+        group { scale: rs; pivot: floor(48 * pu + 0.5), floor(if(t.hasdesc, 14, 20) * pu + 0.5); text t.title { at: floor(48 * pu + 0.5), floor(if(t.hasdesc, 14, 20) * pu + 0.5); anchor: left center; size: 18; weight: 600; width: (lw - (58 + 96 * (1 - lpv) + if(t.deletable, 24, 0)) * pu) / rs; lines: 1; color: if(t.sel, mint, ink); family: "Space Grotesk" } }
+        group { scale: rs; pivot: floor(48 * pu + 0.5), floor(29 * pu + 0.5); text t.desc { at: floor(48 * pu + 0.5), floor(29 * pu + 0.5); anchor: left center; size: 13.5; width: (lw - 62 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk"; show: t.hasdesc } }
+        group { scale: rs; pivot: floor(lw - 10 * pu + 0.5), floor(20 * pu + 0.5); text t.sub { at: floor(lw - 10 * pu + 0.5), floor(20 * pu + 0.5); anchor: right center; align: right; size: 14; width: (90 * pu) / rs; lines: 1; color: faint; opacity: (1 - lpv) * (1 - rm); family: "Space Grotesk" } }
         on press touch { emit pick(t.index) }
         //  The clipboard's rows can be removed: a small cross where the kind ("text", "image") is, while the row is under the pointer or chosen
         //  (Shift + Delete does the same for the chosen one). Declared last, so a press on it is its own and does not paste the row.
@@ -2160,8 +2167,8 @@ scene Vitreus {
     let edg = if(lp_k == 1 or lp_k == 2, 1, 0)                      // Settings rises out of the bottom frame's middle, the launcher lowers out of the top frame's: not from the strip
     let dsl = max(0, dtrav * 1.3 - 0.3)
     let ku = if(lp_k == 1 or lp_k == 2, pu, if(lp_k == 9 or (lp_k >= 3 and lp_k <= 6), cu, u))                      // the unit of the panel that is open: the Settings and the launcher are larger
-    let dsk_w = 340 * cu                                   // the desk's width and height, once out
-    let dsk_h = 460 * cu
+    let dsk_w = 340 * du                                   // the desk's width and height, once out
+    let dsk_h = 460 * du
     let lp.gx0 = lf.x
     let lp.gxf = ccx - (pw_x / 2 + 6.5) * ku
     let lp.xl = mix(lp.gx0 + (lp.gxf - lp.gx0) * dsl, lf.x, att)
@@ -2411,8 +2418,8 @@ scene Vitreus {
     let side.ck = 202                  // the Clock row: after Night mode (170)
     let side.th = 234                  // the Theme row: the last of Visuals
     let side.hy = 290
-    let side.wm = side.hy + 32
-    let side.mon = side.wm + 32
+    let side.wm = side.hy + if(wm_hypr, 32, 0)             // the Hyprland row is only there on Hyprland, and the Pleamar-WM one only under pleamar-wm
+    let side.mon = side.wm + if(wm_pwm, 32, 0)
     let side.nt = side.mon + 32
     let side.lk = side.nt + 32
     let side.vpn = side.lk + 32
@@ -2600,7 +2607,7 @@ scene Vitreus {
     //  The desk's drawer: the volume's out of the right frame, with its own size (see `do.*`).
     //  The desk: out of the right frame, in the middle of it (the Frame layout); or, in the Island layout, hanging from the top right corner of the
     //  screen, its first row level with the bar's, from the icon that opens it. `dsk_*` is where its contents are laid out, once out.
-    let dsk_ri = mix(14 * cu, lf.t, lm)                        // the gap between the panel and the screen's right edge
+    let dsk_ri = mix(14 * du, lf.t, lm)                        // the gap between the panel and the screen's right edge
     //  It can be pulled off its place by the grip along its top (`desk_ox`, `desk_oy`: how far it is from where it sits attached) and put back
     //  by dragging it near that place again. `dsk_h*` is that place, `dsk_x0`, `dsk_y0` where it is: everything in it is laid out from them.
     let dsk_hx0 = screen.width - dsk_ri - dsk_w                // its inner left edge, attached
@@ -2609,21 +2616,21 @@ scene Vitreus {
     let dsk_xc = dsk_x0 + dsk_w / 2
     let dsk_y0 = dsk_hy0 + desk_oy
     //  How far it can be carried: against the frame's inner edge on every side (8 from the screen's edge along the top), and no further right than home.
-    let desk_xlo = lf.w * lm + 8 * cu * (1 - lm)
-    let desk_ylo = yo + lf.t * lm + 8 * cu * (1 - lm)
-    let desk_yhi = vb - lf.t * lm - 8 * cu * (1 - lm)
+    let desk_xlo = lf.w * lm + 8 * du * (1 - lm)
+    let desk_ylo = yo + lf.t * lm + 8 * du * (1 - lm)
+    let desk_yhi = vb - lf.t * lm - 8 * du * (1 - lm)
     let desk_xhi = screen.width - dsk_ri
     let desk_xmin = -(dsk_hx0 - desk_xlo)
     let desk_ymin = -(dsk_hy0 - desk_ylo)
     let desk_ymax = desk_yhi - dsk_hy0 - dsk_h * desk_s
     let desk_smax = max(0.5, min(1, min((desk_yhi - dsk_y0) / dsk_h, (desk_xhi - dsk_x0) / dsk_w)))     // how big it can be made where it is
     let dz.lf = min(1, dz0 * 1.6) + max(0, dz0 - 1) * 0.6
-    let dz.rt = dsk_ri + dsk_w + 32.5 * cu
+    let dz.rt = dsk_ri + dsk_w + 32.5 * du
     //  Pulled off the frame, the glass stays joined to it by a neck that stretches (the blend of its shape in the frame's glass) while its far side
     //  lets go of the frame: `dz.det` is 0 until it has been pulled a little way and 1 once it is a panel of its own, 6.5 wider than its contents all round.
-    let dz.det = clamp((abs(desk_ox + (desk_s - 1) * dsk_w) - 14 * cu) / (50 * cu), 0, 1) * lm
-    let dz.gl = screen.width + 26 * cu * dz.lf - max(0.1, dz.rt * dz.lf) + desk_ox
-    let dz.gr = mix(screen.width + 26 * cu * dz.lf, dz.gl + (dsk_w + 13 * cu) * dz.lf, dz.det)
+    let dz.det = clamp((abs(desk_ox + (desk_s - 1) * dsk_w) - 14 * du) / (50 * du), 0, 1) * lm
+    let dz.gl = screen.width + 26 * du * dz.lf - max(0.1, dz.rt * dz.lf) + desk_ox
+    let dz.gr = mix(screen.width + 26 * du * dz.lf, dz.gl + (dsk_w + 13 * du) * dz.lf, dz.det)
     let dz.gw = max(0.1, dz.gr - dz.gl)
     let dz.gh = dsk_h * dz.lf
     let dz.ex = (dz.gl + dz.gr) / 2
@@ -2633,7 +2640,7 @@ scene Vitreus {
     let dz.ripx = (12 + 90 * dprip) * u
     let dz.riph = 20 * u * (1 - dprip) * clamp(dprip * 6, 0, 1) * lm
     let dz.stray = 10 * u * dpstray * lm
-    let dz.act = if(lm > 0.5 and desk_open and (abs(desk_ox + (desk_s - 1) * dsk_w) > 4 * cu or dprip < 0.98 or dpstray > 0.01 or abs(dbounce) > 0.2), 1, 0)
+    let dz.act = if(lm > 0.5 and desk_open and (abs(desk_ox + (desk_s - 1) * dsk_w) > 4 * du or dprip < 0.98 or dpstray > 0.01 or abs(dbounce) > 0.2), 1, 0)
     let dz.px = if(dz.act > 0.5, 0, 30000)
     let dz.fy = mix(vc + desk_oy, desk_ry, dz.det)       // along the frame: where the neck is, then where it broke
     let dz.ey = vc + desk_oy
@@ -2641,7 +2648,7 @@ scene Vitreus {
     //  the unscaled shapes above for their clip, so the glass has its own. (`dz.s*` in the frame, `dz.i*` along the top.)
     //  Its right side is the exception: attached, it reaches into the frame, and that reach is not scaled with the rest (it would fall short of the contents).
     let dz.sgl = dsk_x0 + (dz.gl - dsk_x0) * desk_s
-    let dz.sgr = mix(screen.width + 26 * cu * dz.lf, dsk_x0 + (dz.gl + (dsk_w + 13 * cu) * dz.lf - dsk_x0) * desk_s, dz.det)
+    let dz.sgr = mix(screen.width + 26 * du * dz.lf, dsk_x0 + (dz.gl + (dsk_w + 13 * du) * dz.lf - dsk_x0) * desk_s, dz.det)
     let dz.sex = (dz.sgl + dz.sgr) / 2
     let dz.sew = max(0.1, dz.sgr - dz.sgl)
     //  The contents are clipped inside the scaled group, so their clip is that glass at unscaled size.
@@ -2652,22 +2659,22 @@ scene Vitreus {
     let dz.seh = dz.gh * desk_s
     //  Touching the frame anywhere melts into it the way the right edge does: each side that is near the frame's inner edge (`dz.d*` 0 against it, 1 once
     //  it is 64 away) reaches into the frame instead of ending, and the blend makes the wings. The right side is `dz.det` (above).
-    let dz.dl = clamp((dsk_x0 - desk_xlo - 14 * cu) / (50 * cu), 0, 1)
-    let dz.dt = clamp((dsk_y0 - desk_ylo - 14 * cu) / (50 * cu), 0, 1)
-    let dz.db = clamp((desk_yhi - dsk_y0 - dsk_h * desk_s - 14 * cu) / (50 * cu), 0, 1)
-    let dz.fl = mix(-26 * cu, dz.sex - dz.sew / 2, dz.dl)
+    let dz.dl = clamp((dsk_x0 - desk_xlo - 14 * du) / (50 * du), 0, 1)
+    let dz.dt = clamp((dsk_y0 - desk_ylo - 14 * du) / (50 * du), 0, 1)
+    let dz.db = clamp((desk_yhi - dsk_y0 - dsk_h * desk_s - 14 * du) / (50 * du), 0, 1)
+    let dz.fl = mix(-26 * du, dz.sex - dz.sew / 2, dz.dl)
     let dz.fr = dz.sex + dz.sew / 2
-    let dz.ft = mix(yo - 26 * cu, dz.sey - dz.seh / 2, dz.dt)
-    let dz.fb = mix(vb + 26 * cu, dz.sey + dz.seh / 2, dz.db)
+    let dz.ft = mix(yo - 26 * du, dz.sey - dz.seh / 2, dz.dt)
+    let dz.fb = mix(vb + 26 * du, dz.sey + dz.seh / 2, dz.db)
     let dz.fx = (dz.fl + dz.fr) / 2
     let dz.fw = max(0.1, dz.fr - dz.fl)
     let dz.fcy = (dz.ft + dz.fb) / 2
     let dz.fh = max(0.1, dz.fb - dz.ft)
     let dz.free = max(dz.det, clamp((1 - desk_s) * 20, 0, 1))         // off the frame, or smaller than it was: the corner handles are there
     //  Along the top it is wholly on screen and centred, as in the left layout: its right edge 7.5 in from the screen's, all four corners show.
-    let dz.iw = (dsk_w + 13 * cu) * dz.lf
+    let dz.iw = (dsk_w + 13 * du) * dz.lf
     let dz.ih = dsk_h * dz.lf
-    let dz.ix = screen.width - 7.5 * cu - dz.iw / 2 + desk_ox
+    let dz.ix = screen.width - 7.5 * du - dz.iw / 2 + desk_ox
     let dz.iy = vc + desk_oy
     let dz.six = dsk_x0 + (dz.ix - dsk_x0) * desk_s
     let dz.siw = dz.iw * desk_s
@@ -2757,7 +2764,7 @@ scene Vitreus {
     on change desk_open while not desk_open { desk_kb = false; term_armed = false }
     //  Settings and the launcher are wide (316.5 * pu each side of the middle), so on a smaller screen they reach the desk's side and the two glasses
     //  melt into each other. Whichever of the two was opened last stays; the other one goes.
-    let desk_clash = if(lm > 0.5 and ccx + 316.5 * pu > dsk_hx0 - 8 * cu, 1, 0)
+    let desk_clash = if(lm > 0.5 and ccx + 316.5 * pu > dsk_hx0 - 8 * du, 1, 0)
     on change desk_open while desk_open and desk_clash > 0.5 and (panel == settings or panel == launch) { panel = none }
     on change panel while (panel == settings or panel == launch) and desk_open and desk_clash > 0.5 { desk_open = false }
     //  The terminal follows the mouse, as Hyprland's windows do here: once it has been clicked, the pointer coming back over the desk
@@ -2810,7 +2817,7 @@ scene Vitreus {
         prop shelf.$k.dy = 0 ~220ms
         on change shelf.$k.gone while shelf.$k.gone { shelf.$k.out: 1 ~180ms }
         on change shelf.$k.gone while not shelf.$k.gone { shelf.$k.out: 0 ~0ms }
-        on shelf_shifted(v) while k >= v { shelf.$k.dx: (mod(k + 1, 3) - mod(k, 3)) * 110 * cu ~0ms; shelf.$k.dy: (floor((k + 1) / 3) - floor(k / 3)) * 102 * cu ~0ms; shelf.$k.dx: 0 ~220ms after 40ms; shelf.$k.dy: 0 ~220ms after 40ms }
+        on shelf_shifted(v) while k >= v { shelf.$k.dx: (mod(k + 1, 3) - mod(k, 3)) * 110 * du ~0ms; shelf.$k.dy: (floor((k + 1) / 3) - floor(k / 3)) * 102 * du ~0ms; shelf.$k.dx: 0 ~220ms after 40ms; shelf.$k.dy: 0 ~220ms after 40ms }
     }
     fact shelf_n = 0
     //  The shelf as a locker: with the box ticked, what is on it stays hidden (the logic does not even put it in the scene) until your login password is given.
@@ -2849,7 +2856,7 @@ scene Vitreus {
         prop task.$k.dy = 0 ~220ms
         on change task.$k.gone while task.$k.gone { task.$k.out: 1 ~180ms }
         on change task.$k.gone while not task.$k.gone { task.$k.out: 0 ~0ms }
-        on task_shifted(v) while k >= v { task.$k.dy: 29 * cu ~0ms; task.$k.dy: 0 ~220ms after 40ms }
+        on task_shifted(v) while k >= v { task.$k.dy: 29 * du ~0ms; task.$k.dy: 0 ~220ms after 40ms }
     }
     fact task_n = 0
     //  The drawing board in the Pad tab: the logic keeps the strokes as short segments (half units, from the board's corner) and gives
@@ -2917,10 +2924,10 @@ scene Vitreus {
     prop ask_f7 = 0 ~calm
     follow ask_f5 = max(0, ask_u5)
     follow ask_f7 = max(0, ask_u7)
-    let ask_dy = 33 * cu * ask_us
+    let ask_dy = 33 * du * ask_us
     prop ask_atts = 0 ~calm
     follow ask_atts = if(ask_att > 0, 1, 0)
-    let ask_db = 26 * cu * ask_atts                          // and 26 off its foot while something waits to go with the next question
+    let ask_db = 26 * du * ask_atts                          // and 26 off its foot while something waits to go with the next question
     on ask_attached { desk_open = true; desk_tab = 5; focus ask_in; desk_kb = true }
     fact ask_follow = true                                   // the conversation follows its end while an answer comes in, until the wheel takes it back up
     on change desk_open while not desk_open { ask_follow = true }
@@ -2982,10 +2989,24 @@ scene Vitreus {
             box { at: do.ix + if(lm < 0.5 and do0 > 0.004, 0, 30000), do.ey; size: do.iw * (1 + do.stretch - 0.07 * do.bell + 0.003 * wobble), do.eh * (1 - do.stretch * 0.5 - 0.002 * wobble); corner: mix(min(do.ew, do.eh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); show: do0 > 0.004 }
             box { at: dz.six + if(lm < 0.5 and dz0 > 0.004, 0, 30000), dz.siy; size: dz.siw * (1 + dz.stretch - 0.07 * dz.bell), dz.sih * (1 - dz.stretch * 0.5); corner: mix(min(dz.siw, dz.sih) / 2, 26 * u * desk_s, clamp(dz0 * 1.6 - 0.1, 0, 1)); show: dz0 > 0.004 }
         }
+        //  Blur behind the obsidian: a glass body asks the compositor for it (100 % glass at 34 %: the request needs glass x opacity of 30 % or more, and a more opaque layer would hide the blur), and the obsidian over it (60 % opaque while blur is on, solid when it is off) hides the glass's look.
+        body {
+            color: obsidian
+            glass: 100%
+            lens: false
+            rim: 0%
+            refraction: 0%
+            dispersion: 0%
+            shine: 9000, 9000
+            opacity: obs * 0.34
+            show: obs > 0.97
+            box { at: do.ix + if(lm < 0.5 and do0 > 0.004, 0, 30000), do.ey; size: do.iw * (1 + do.stretch - 0.07 * do.bell + 0.003 * wobble), do.eh * (1 - do.stretch * 0.5 - 0.002 * wobble); corner: mix(min(do.ew, do.eh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); show: do0 > 0.004 }
+            box { at: dz.six + if(lm < 0.5 and dz0 > 0.004, 0, 30000), dz.siy; size: dz.siw * (1 + dz.stretch - 0.07 * dz.bell), dz.sih * (1 - dz.stretch * 0.5); corner: mix(min(dz.siw, dz.sih) / 2, 26 * u * desk_s, clamp(dz0 * 1.6 - 0.1, 0, 1)); show: dz0 > 0.004 }
+        }
         body {
             color: obsidian
             rim: 0%
-            opacity: obs
+            opacity: obs * (1 - 0.4 * clamp(hy_blur, 0, 1))
             shadow: 0, 7, 24, 38%, #000000
             show: obs > 0.004
             box { at: do.ix + if(lm < 0.5 and do0 > 0.004, 0, 30000), do.ey; size: do.iw * (1 + do.stretch - 0.07 * do.bell + 0.003 * wobble), do.eh * (1 - do.stretch * 0.5 - 0.002 * wobble); corner: mix(min(do.ew, do.eh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); show: do0 > 0.004 }
@@ -3086,9 +3107,9 @@ scene Vitreus {
         repeat i in 0..4 {
             box { at: lx + 16 * pu + (mod(i, 2) - 0.5) * 8.5 * pu, lhy + (floor(i / 2) - 0.5) * 8.5 * pu; size: 6.5 * pu, 6.5 * pu; corner: 2 * pu; color: mint }
         }
-        text "SEARCH" { at: floor(lx + 40 * pu + 0.5), floor(lhy + 0.5); anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" }
+        group { scale: rs; pivot: floor(lx + 40 * pu + 0.5), floor(lhy + 0.5); text "SEARCH" { at: floor(lx + 40 * pu + 0.5), floor(lhy + 0.5); anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" } }
         box { at: lx + 168 * pu, lhy; size: 100 * pu, 22 * pu; corner: 11 * pu; color: ink; opacity: 6% }
-        text lmode { at: floor(lx + 168 * pu + 0.5), floor(lhy + 0.5); anchor: center; align: center; size: 13; weight: 700; width: 90 * pu; lines: 1; color: mint; family: "Space Grotesk" }
+        group { scale: rs; pivot: floor(lx + 168 * pu + 0.5), floor(lhy + 0.5); text lmode { at: floor(lx + 168 * pu + 0.5), floor(lhy + 0.5); anchor: center; align: center; size: 13; weight: 700; width: (90 * pu) / rs; lines: 1; color: mint; family: "Space Grotesk" } }
         ellipse { at: lx + 414 * pu, lhy; radius: 13 * pu; color: ink; opacity: 5% + 10% * launch_x.hover }
         line { from: lx + 409.5 * pu, lhy - 4.5 * pu; to: lx + 418.5 * pu, lhy + 4.5 * pu; width: 1.5 * pu; color: ink; opacity: 60% + 40% * launch_x.hover }
         line { from: lx + 418.5 * pu, lhy - 4.5 * pu; to: lx + 409.5 * pu, lhy + 4.5 * pu; width: 1.5 * pu; color: ink; opacity: 60% + 40% * launch_x.hover }
@@ -3110,10 +3131,10 @@ scene Vitreus {
         repeat i in 0..5 {
             let hc = lx + (i + 0.5) * 86 * pu                   // the cell's middle
             let hy = ly + 54 * pu
-            let hx = floor(hc - (12 * pu + pick(i, lhw0.width, lhw1.width, lhw2.width, lhw3.width, lhw4.width)) / 2 + 0.5)   // where the pair starts
+            let hx = floor(hc - (12 * pu + rs * pick(i, lhw0.width, lhw1.width, lhw2.width, lhw3.width, lhw4.width)) / 2 + 0.5)   // where the pair starts
             box { at: hc, hy; size: 82 * pu, 18 * pu; corner: 9 * pu; color: ink; opacity: 8% * lhint_hit.$i.hover }
-            text pick(i, "#", ">", ":", "^", "~") { at: hx, floor(hy + 0.5); anchor: left center; size: 15; weight: 700; color: mint; family: "Space Grotesk" }
-            text pick(i, "files", "commands", "emoji", "clipboard", "wallpapers") { at: hx + floor(12 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: hx, floor(hy + 0.5); text pick(i, "#", ">", ":", "^", "~") { at: hx, floor(hy + 0.5); anchor: left center; size: 15; weight: 700; color: mint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: hx + floor(12 * pu + 0.5), floor(hy + 0.5); text pick(i, "files", "commands", "emoji", "clipboard", "wallpapers") { at: hx + floor(12 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 13; color: faint; family: "Space Grotesk" } }
             line { from: lx + i * 86 * pu, hy - 5 * pu; to: lx + i * 86 * pu, hy + 5 * pu; width: 1 * pu; color: ink; opacity: 18%; show: i > 0 }
             zone box lhint_hit.$i { at: hc, hy; size: 84 * pu, 18 * pu; corner: 9 * pu; cursor: pointer }
             on press lhint_hit.$i { emit launch_hint(i) }
@@ -3127,7 +3148,7 @@ scene Vitreus {
             gap: floor(4 * pu + 0.5)
             for r in lres { LRow(r, pick: launch_pick, del: launch_del) }
         }
-        text lmsg { at: floor(lx + lw / 2 + 0.5), floor(lry + 20 * pu + 0.5); anchor: center; align: center; size: 16; color: faint; width: lw - 16 * pu; lines: 2; family: "Space Grotesk"; show: lcount < 1 }
+        group { scale: rs; pivot: floor(lx + lw / 2 + 0.5), floor(lry + 20 * pu + 0.5); text lmsg { at: floor(lx + lw / 2 + 0.5), floor(lry + 20 * pu + 0.5); anchor: center; align: center; size: 16; color: faint; width: (lw - 16 * pu) / rs; lines: 2; family: "Space Grotesk"; show: lcount < 1 } }
 
         //  The preview.
         group {
@@ -3135,7 +3156,7 @@ scene Vitreus {
             show: lpv > 0.01
             body { color: mix(obsidian, ink, 5% * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { from: lpx, lry; size: lpw, lph; corner: 14 * pu } }
             box { from: lpx, lry; size: lpw, lph; corner: 14 * pu; color: ink; opacity: 5% * (1 - obs) }
-            text lp_kind { at: floor(lpx + 10 * pu + 0.5), floor(lry + 14 * pu + 0.5); anchor: left center; size: 12; weight: 700; width: lpw - 20 * pu; lines: 1; color: mint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(lpx + 10 * pu + 0.5), floor(lry + 14 * pu + 0.5); text lp_kind { at: floor(lpx + 10 * pu + 0.5), floor(lry + 14 * pu + 0.5); anchor: left center; size: 12; weight: 700; width: (lpw - 20 * pu) / rs; lines: 1; color: mint; family: "Space Grotesk" } }
             group {
                 show: lp_img_on
                 clip inset 0 box { at: lpx + lpw / 2, lry + 28 * pu + (lpw - 20 * pu) / 3; size: lpw - 20 * pu, (lpw - 20 * pu) * 2 / 3; corner: 8 * pu }
@@ -3143,17 +3164,17 @@ scene Vitreus {
                 image lp_img { at: lpx + 10 * pu, lry + 28 * pu; size: lpw - 20 * pu, (lpw - 20 * pu) * 2 / 3 }
             }
             let lpy = lry + 28 * pu + if(lp_img_on, (lpw - 20 * pu) * 2 / 3 + 8 * pu, 0)
-            text lp_title { at: floor(lpx + 10 * pu + 0.5), floor(lpy + 8 * pu + 0.5); anchor: left center; size: 16; weight: 700; width: lpw - 20 * pu; lines: 1; color: ink; family: "Space Grotesk" }
-            text lp_path { at: floor(lpx + 10 * pu + 0.5), floor(lpy + 24 * pu + 0.5); anchor: left center; size: 13; width: lpw - 20 * pu; lines: 1; color: faint; family: "Space Grotesk" }
-            text lp_body { at: floor(lpx + 10 * pu + 0.5), floor(lpy + 40 * pu + 0.5); anchor: left top; size: 15; width: lpw - 20 * pu; lines: 9; color: ink; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(lpx + 10 * pu + 0.5), floor(lpy + 8 * pu + 0.5); text lp_title { at: floor(lpx + 10 * pu + 0.5), floor(lpy + 8 * pu + 0.5); anchor: left center; size: 16; weight: 700; width: (lpw - 20 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(lpx + 10 * pu + 0.5), floor(lpy + 24 * pu + 0.5); text lp_path { at: floor(lpx + 10 * pu + 0.5), floor(lpy + 24 * pu + 0.5); anchor: left center; size: 13; width: (lpw - 20 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(lpx + 10 * pu + 0.5), floor(lpy + 40 * pu + 0.5); text lp_body { at: floor(lpx + 10 * pu + 0.5), floor(lpy + 40 * pu + 0.5); anchor: left top; size: 15; width: (lpw - 20 * pu) / rs; lines: 9; color: ink; family: "Space Grotesk" } }
             repeat i in 0..4 {
                 let ky = lpy + 44 * pu + i * 16 * pu
-                text pick(i, lp_k1, lp_k2, lp_k3, lp_k4) { at: floor(lpx + 10 * pu + 0.5), floor(ky + 0.5); anchor: left center; size: 13.5; width: 50 * pu; lines: 1; color: faint; family: "Space Grotesk" }
-                text pick(i, lp_v1, lp_v2, lp_v3, lp_v4) { at: floor(lpx + 60 * pu + 0.5), floor(ky + 0.5); anchor: left center; size: 13.5; width: lpw - 70 * pu; lines: 1; color: ink; family: "Space Grotesk" }
+                group { scale: rs; pivot: floor(lpx + 10 * pu + 0.5), floor(ky + 0.5); text pick(i, lp_k1, lp_k2, lp_k3, lp_k4) { at: floor(lpx + 10 * pu + 0.5), floor(ky + 0.5); anchor: left center; size: 13.5; width: (50 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(lpx + 60 * pu + 0.5), floor(ky + 0.5); text pick(i, lp_v1, lp_v2, lp_v3, lp_v4) { at: floor(lpx + 60 * pu + 0.5), floor(ky + 0.5); anchor: left center; size: 13.5; width: (lpw - 70 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
             }
         }
-        text "↑↓ move   ·   Enter open   ·   Esc close" { at: floor(lx + 6 * pu + 0.5), floor(lry + (lr * 44 + 4 + 9) * pu + 0.5); anchor: left center; size: 13.5; color: faint; opacity: 70%; family: "Space Grotesk" }
-        text lfoot { at: floor(lx + 424 * pu + 0.5), floor(lry + (lr * 44 + 4 + 9) * pu + 0.5); anchor: right center; align: right; size: 13.5; width: 120 * pu; lines: 1; color: faint; opacity: 70%; family: "Space Grotesk" }
+        group { scale: rs; pivot: floor(lx + 6 * pu + 0.5), floor(lry + (lr * 44 + 4 + 9) * pu + 0.5); text "↑↓ move   ·   Enter open   ·   Esc close" { at: floor(lx + 6 * pu + 0.5), floor(lry + (lr * 44 + 4 + 9) * pu + 0.5); anchor: left center; size: 13.5; color: faint; opacity: 70%; family: "Space Grotesk" } }
+        group { scale: rs; pivot: floor(lx + 424 * pu + 0.5), floor(lry + (lr * 44 + 4 + 9) * pu + 0.5); text lfoot { at: floor(lx + 424 * pu + 0.5), floor(lry + (lr * 44 + 4 + 9) * pu + 0.5); anchor: right center; align: right; size: 13.5; width: (120 * pu) / rs; lines: 1; color: faint; opacity: 70%; family: "Space Grotesk" } }
     }
 
     include "pages/settings_panel.plm"
@@ -3310,10 +3331,23 @@ scene Vitreus {
             show: obs < 0.996
             box { at: pk.x, pk.cy; size: 400 * u, 256 * u; corner: 26 * u }
         }
+        //  Blur behind the obsidian: a glass body asks the compositor for it (100 % glass at 34 %: the request needs glass x opacity of 30 % or more, and a more opaque layer would hide the blur), and the obsidian over it (60 % opaque while blur is on, solid when it is off) hides the glass's look.
+        body {
+            color: obsidian
+            glass: 100%
+            lens: false
+            rim: 0%
+            refraction: 0%
+            dispersion: 0%
+            shine: 9000, 9000
+            opacity: obs * 0.34
+            show: obs > 0.97
+            box { at: pk.x, pk.cy; size: 400 * u, 256 * u; corner: 26 * u }
+        }
         body {
             color: obsidian
             rim: 0%
-            opacity: obs
+            opacity: obs * (1 - 0.4 * clamp(hy_blur, 0, 1))
             shadow: 0, 18 * u, 60 * u, 55%, #000000
             show: obs > 0.004
             box { at: pk.x, pk.cy; size: 400 * u, 256 * u; corner: 26 * u }

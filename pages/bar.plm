@@ -7,7 +7,7 @@ part Bar {
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
             body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 88 * pu; size: 438 * pu, 124 * pu; corner: 14 * pu } }
             box { at: spx + 219 * pu, sby + 88 * pu; size: 438 * pu, 124 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            text "SHOW THE BAR ON" { at: floor(spx + 14 * pu + 0.5), floor(sby + 13 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 13 * pu + 0.5); text "SHOW THE BAR ON" { at: floor(spx + 14 * pu + 0.5), floor(sby + 13 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" } }
 
             //  All monitors: two small screens, each with the bar across its top.
             let bax = spx + 52 * pu
@@ -19,8 +19,8 @@ part Bar {
                 box { at: bkx, sby + 60 * pu; size: 16 * pu, 11 * pu; corner: 2 * pu; stroke: 1.2 * pu; color: mix(ink, mint, balit) }
                 box { at: bkx, sby + 56.6 * pu; size: 11 * pu, 1.8 * pu; corner: 0.9 * pu; color: mix(ink, mint, balit) }
             }
-            text "All" { at: floor(bax + 0.5), floor(sby + 82 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 70 * pu; lines: 1; color: mix(ink, mint, balit); family: "Space Grotesk" }
-            text "every monitor" { at: floor(bax + 0.5), floor(sby + 95 * pu + 0.5); anchor: center; align: center; size: 12; width: 70 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(bax + 0.5), floor(sby + 82 * pu + 0.5); text "All" { at: floor(bax + 0.5), floor(sby + 82 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: (70 * pu) / rs; lines: 1; color: mix(ink, mint, balit); family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(bax + 0.5), floor(sby + 95 * pu + 0.5); text "every monitor" { at: floor(bax + 0.5), floor(sby + 95 * pu + 0.5); anchor: center; align: center; size: 12; width: (70 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             zone box bar_all_hit { at: bax, sby + 76 * pu; size: 76 * pu, 64 * pu; corner: 12 * pu; cursor: pointer }
             on press bar_all_hit { emit bar_pick_scr(-1) }
 
@@ -34,20 +34,20 @@ part Bar {
                     box { at: bmx, sby + 76 * pu; size: 76 * pu, 64 * pu; corner: 12 * pu; stroke: 1.5 * pu; color: mint; opacity: bmlit * 100% }
                     box { at: bmx, sby + 60 * pu; size: 18 * pu, 12 * pu; corner: 2 * pu; stroke: 1.2 * pu; color: mix(ink, mint, bmlit) }
                     box { at: bmx, sby + 56.2 * pu; size: 12 * pu, 1.8 * pu; corner: 0.9 * pu; color: mix(ink, mint, bmlit) }
-                    text bar_m.$i.name { at: floor(bmx + 0.5), floor(sby + 82 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 70 * pu; lines: 1; color: mix(ink, mint, bmlit); family: "Space Grotesk" }
-                    text bar_m.$i.sub { at: floor(bmx + 0.5), floor(sby + 95 * pu + 0.5); anchor: center; align: center; size: 12; width: 70 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+                    group { scale: rs; pivot: floor(bmx + 0.5), floor(sby + 82 * pu + 0.5); text bar_m.$i.name { at: floor(bmx + 0.5), floor(sby + 82 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: (70 * pu) / rs; lines: 1; color: mix(ink, mint, bmlit); family: "Space Grotesk" } }
+                    group { scale: rs; pivot: floor(bmx + 0.5), floor(sby + 95 * pu + 0.5); text bar_m.$i.sub { at: floor(bmx + 0.5), floor(sby + 95 * pu + 0.5); anchor: center; align: center; size: 12; width: (70 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
                     zone box bar_m_hit.$i { at: bmx, sby + 76 * pu; size: 76 * pu, 64 * pu; corner: 12 * pu; cursor: pointer }
                     on press bar_m_hit.$i { emit bar_pick_scr(i) }
                 }
             }
-            text "Changing this restarts the bar for a moment." { at: floor(spx + 14 * pu + 0.5), floor(sby + 121 * pu + 0.5); anchor: left center; size: 13.5; width: 410 * pu; lines: 1; color: faint; family: "Space Grotesk" }
-            text bar_msg { at: floor(spx + 14 * pu + 0.5), floor(sby + 136 * pu + 0.5); anchor: left center; size: 13.5; width: 410 * pu; lines: 1; color: mint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 121 * pu + 0.5); text "Changing this restarts the bar for a moment." { at: floor(spx + 14 * pu + 0.5), floor(sby + 121 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 136 * pu + 0.5); text bar_msg { at: floor(spx + 14 * pu + 0.5), floor(sby + 136 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pu) / rs; lines: 1; color: mint; family: "Space Grotesk" } }
 
             //  ── Where the bar is: along the top (the default), or down the left edge with a frame round the screen ──
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
             body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 360 * pu; size: 438 * pu, 96 * pu; corner: 14 * pu } }
             box { at: spx + 219 * pu, sby + 360 * pu; size: 438 * pu, 96 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            text "BAR POSITION" { at: floor(spx + 14 * pu + 0.5), floor(sby + 322 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 322 * pu + 0.5); text "BAR POSITION" { at: floor(spx + 14 * pu + 0.5), floor(sby + 322 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" } }
             repeat k in 0..2 {
                 let bpx = spx + (52 + k * 83) * pu
                 let bpy = sby + 369 * pu
@@ -59,12 +59,12 @@ part Bar {
                 box { at: bpx, bpy - 21 * pu; size: 28 * pu, 3.2 * pu; corner: 1.6 * pu; color: mix(ink, mint, bplit); show: k == 0 }
                 box { at: bpx - 14 * pu, bpy - 12 * pu; size: 3.6 * pu, 20 * pu; corner: 1.8 * pu; color: mix(ink, mint, bplit); show: k == 1 }
                 box { at: bpx + 2 * pu, bpy - 12 * pu; size: 28 * pu, 17 * pu; corner: 3 * pu; stroke: 0.9 * pu; color: mix(ink, mint, bplit); opacity: 60%; show: k == 1 }
-                text pick(k, "Island", "Frame") { at: floor(bpx + 0.5), floor(bpy + 13 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: 70 * pu; lines: 1; color: mix(ink, mint, bplit); family: "Space Grotesk" }
-                text pick(k, "along the top", "with a frame") { at: floor(bpx + 0.5), floor(bpy + 26 * pu + 0.5); anchor: center; align: center; size: 12; width: 70 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+                group { scale: rs; pivot: floor(bpx + 0.5), floor(bpy + 13 * pu + 0.5); text pick(k, "Island", "Frame") { at: floor(bpx + 0.5), floor(bpy + 13 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: (70 * pu) / rs; lines: 1; color: mix(ink, mint, bplit); family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(bpx + 0.5), floor(bpy + 26 * pu + 0.5); text pick(k, "along the top", "with a frame") { at: floor(bpx + 0.5), floor(bpy + 26 * pu + 0.5); anchor: center; align: center; size: 12; width: (70 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
                 zone box bar_pos_hit.$k { at: bpx, bpy; size: 76 * pu, 64 * pu; corner: 12 * pu; cursor: pointer }
                 on press bar_pos_hit.$k { emit bar_pick_pos(k) }
             }
-            text "It moves at once; windows make room for the strip." { at: floor(spx + 14 * pu + 0.5), floor(sby + 418 * pu + 0.5); anchor: left center; size: 13.5; width: 410 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 418 * pu + 0.5); text "It moves at once; windows make room for the strip." { at: floor(spx + 14 * pu + 0.5), floor(sby + 418 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
 
             //  ── The Island's layout: a small copy of the bar, and under it a tray for the pieces that are hidden. The Frame has a fixed one (see the end). ──
             //  Drag a piece along the bar to move it, or down into the tray to hide it (all but the settings gear,
@@ -77,9 +77,9 @@ part Bar {
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
             body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 244 * pu; size: 438 * pu, 132 * pu; corner: 14 * pu } }
             box { at: spx + 219 * pu, sby + 244 * pu; size: 438 * pu, 132 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            text "ISLAND LAYOUT" { at: floor(spx + 14 * pu + 0.5), floor(sby + 166 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 166 * pu + 0.5); text "ISLAND LAYOUT" { at: floor(spx + 14 * pu + 0.5), floor(sby + 166 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" } }
             box { at: spx + 400 * pu, sby + 166 * pu; size: 48 * pu, 20 * pu; corner: 10 * pu; color: ink; opacity: 8% + 10% * blay_reset_hit.hover }
-            text "Reset" { at: floor(spx + 400 * pu + 0.5), floor(sby + 166 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 600; width: 44 * pu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 400 * pu + 0.5), floor(sby + 166 * pu + 0.5); text "Reset" { at: floor(spx + 400 * pu + 0.5), floor(sby + 166 * pu + 0.5); anchor: center; align: center; size: 13.5; weight: 600; width: (44 * pu) / rs; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" } }
             zone box blay_reset_hit { at: spx + 400 * pu, sby + 166 * pu; size: 50 * pu, 22 * pu; corner: 11 * pu; cursor: pointer; active: bar_anchor == top }
             on press blay_reset_hit { emit bar_lay_reset }
             //  The small bar, and the tray: lit while the dragged piece would land in it.
@@ -87,8 +87,8 @@ part Bar {
             box { from: mbx, mby; size: 410 * pu, 36 * pu; corner: 12 * pu; stroke: 1 * pu; color: mix(ink, mint, if(bdrag >= 0 and not bdrop_tray, 1, 0)); opacity: if(bdrag >= 0 and not bdrop_tray, 60%, 14%) }
             box { from: mbx, mby + 52 * pu; size: 410 * pu, 36 * pu; corner: 12 * pu; color: ink; opacity: 3% }
             box { from: mbx, mby + 52 * pu; size: 410 * pu, 36 * pu; corner: 12 * pu; stroke: 1 * pu; color: mix(ink, mint, if(bdrop_tray, 1, 0)); opacity: if(bdrag >= 0 and bdrop_tray, 60%, 10%) }
-            text "Hidden: drag a piece here to take it off the bar" { at: floor(mbx + 205 * pu + 0.5), floor(mby + 70 * pu + 0.5); anchor: center; align: center; size: 13.5; width: 400 * pu; lines: 1; color: faint; opacity: if(btray_n < 1 and not bdrop_tray, 70%, 0%); family: "Space Grotesk" }
-            text "Drag a piece along the bar to move it. The window title stretches: what is left of it hugs the left end." { at: floor(spx + 14 * pu + 0.5), floor(sby + 296 * pu + 0.5); anchor: left center; size: 13; width: 410 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(mbx + 205 * pu + 0.5), floor(mby + 70 * pu + 0.5); text "Hidden: drag a piece here to take it off the bar" { at: floor(mbx + 205 * pu + 0.5), floor(mby + 70 * pu + 0.5); anchor: center; align: center; size: 13.5; width: (400 * pu) / rs; lines: 1; color: faint; opacity: if(btray_n < 1 and not bdrop_tray, 70%, 0%); family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 296 * pu + 0.5); text "Drag a piece along the bar to move it. The window title stretches: what is left of it hugs the left end." { at: floor(spx + 14 * pu + 0.5), floor(sby + 296 * pu + 0.5); anchor: left center; size: 13; width: (410 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
 
             //  The drag is followed by a zone that stays still, under the chips: a drag reaches every zone that was
             //  under the press, and one that moves itself (a chip following the pointer) loses it at the first jump.
@@ -125,7 +125,7 @@ part Bar {
                     box { at: ccx + 7 * pu, ccy; size: 3.5 * pu, 3.5 * pu; corner: 1.75 * pu; color: ink2; opacity: 60% }
                     box { at: ccx + 14 * pu, ccy; size: 3.5 * pu, 3.5 * pu; corner: 1.75 * pu; color: ink2; opacity: 60% }
                 }
-                text "Window title" { at: floor(ccx + 0.5), floor(ccy + 0.5); anchor: center; align: center; size: 14; weight: 600; width: max(10 * pu, chw - 12 * pu); lines: 1; color: ink2; opacity: 85%; show: i == 1; family: "Space Grotesk" }
+                group { scale: rs; pivot: floor(ccx + 0.5), floor(ccy + 0.5); text "Window title" { at: floor(ccx + 0.5), floor(ccy + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (max(10 * pu, chw - 12 * pu)) / rs; lines: 1; color: ink2; opacity: 85%; show: i == 1; family: "Space Grotesk" } }
                 group {
                     show: i == 2
                     path { at: ccx - 12 * pu, ccy; color: ink2; move 2.5 * pu, -3 * pu; line -2 * pu, 0; line 2.5 * pu, 3 * pu; close }
@@ -161,7 +161,7 @@ part Bar {
                     ellipse { at: ccx, ccy; radius: 3 * pu; color: ink2 }
                     ellipse { at: ccx + 9 * pu, ccy; radius: 3 * pu; color: ink2 }
                 }
-                text "4:20" { at: floor(ccx + 0.5), floor(ccy + 0.5); anchor: center; align: center; size: 17.5; weight: 700; width: chw; lines: 1; color: mix(mint, ink, 0.25); show: i == 6; family: "Space Grotesk" }
+                group { scale: rs; pivot: floor(ccx + 0.5), floor(ccy + 0.5); text "4:20" { at: floor(ccx + 0.5), floor(ccy + 0.5); anchor: center; align: center; size: 17.5; weight: 700; width: (chw) / rs; lines: 1; color: mix(mint, ink, 0.25); show: i == 6; family: "Space Grotesk" } }
               }
             }
             }
@@ -170,8 +170,8 @@ part Bar {
             group {
                 opacity: clamp(bar_lm, 0, 1)
                 show: bar_lm > 0.01
-                text "The Frame layout cannot be adjusted" { at: floor(spx + 219 * pu + 0.5), floor(sby + 224 * pu + 0.5); anchor: center; align: center; size: 16; weight: 700; width: 420 * pu; lines: 1; color: ink; family: "Space Grotesk" }
-                text "Its pieces have fixed places. Switch to Island to rearrange the bar." { at: floor(spx + 219 * pu + 0.5), floor(sby + 246 * pu + 0.5); anchor: center; align: center; size: 13.5; width: 420 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+                group { scale: rs; pivot: floor(spx + 219 * pu + 0.5), floor(sby + 224 * pu + 0.5); text "The Frame layout cannot be adjusted" { at: floor(spx + 219 * pu + 0.5), floor(sby + 224 * pu + 0.5); anchor: center; align: center; size: 16; weight: 700; width: (420 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 219 * pu + 0.5), floor(sby + 246 * pu + 0.5); text "Its pieces have fixed places. Switch to Island to rearrange the bar." { at: floor(spx + 219 * pu + 0.5), floor(sby + 246 * pu + 0.5); anchor: center; align: center; size: 13.5; width: (420 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             }
         }
 }

@@ -15,9 +15,9 @@ part Notifications {
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
             body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 76 * pu; size: 438 * pu, 140 * pu; corner: 14 * pu } }
             box { at: spx + 219 * pu, sby + 76 * pu; size: 438 * pu, 140 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            text "QUIET HOURS" { at: floor(spx + 14 * pu + 0.5), floor(sby + 22 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
-            text "Hold notifications back" { at: floor(spx + 14 * pu + 0.5), floor(sby + 43 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
-            text "Between these times, every day (kept in the history)" { at: floor(spx + 14 * pu + 0.5), floor(sby + 59 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 22 * pu + 0.5); text "QUIET HOURS" { at: floor(spx + 14 * pu + 0.5), floor(sby + 22 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 43 * pu + 0.5); text "Hold notifications back" { at: floor(spx + 14 * pu + 0.5), floor(sby + 43 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: (340 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 59 * pu + 0.5); text "Between these times, every day (kept in the history)" { at: floor(spx + 14 * pu + 0.5), floor(sby + 59 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: (340 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             body {
                 color: mix(off, mint, clamp(ntq0, 0, 1))
                 box { at: spx + 405 * pu, sby + 50 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
@@ -25,7 +25,7 @@ part Notifications {
             box { at: spx + 397 * pu + ntq0 * 16 * pu, sby + 50 * pu; size: (17 + 9 * clamp(4 * ntq0 * (1 - ntq0), 0, 1)) * pu, (17 - 3 * clamp(4 * ntq0 * (1 - ntq0), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * ntq0 * (1 - ntq0), 0, 1)) * pu; color: ink }
             zone box ntq_hit0 { at: spx + 219 * pu, sby + 50 * pu; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
             on press ntq_hit0 { emit nt_q_toggle }
-            text "From" { at: floor(spx + 14 * pu + 0.5), floor(sby + 86 * pu + 0.5); anchor: left center; size: 14; weight: 600; color: faint; opacity: 70% + 30% * clamp(ntq0, 0, 1); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 86 * pu + 0.5); text "From" { at: floor(spx + 14 * pu + 0.5), floor(sby + 86 * pu + 0.5); anchor: left center; size: 14; weight: 600; color: faint; opacity: 70% + 30% * clamp(ntq0, 0, 1); family: "Space Grotesk" } }
             box { at: spx + 78 * pu, sby + 86 * pu; size: 24 * pu, 22 * pu; corner: 11 * pu; color: ink; opacity: 8% + 10% * ntq_fm.hover }
             line { from: spx + 74 * pu, sby + 86 * pu; to: spx + 82 * pu, sby + 86 * pu; width: 1.5 * pu; color: ink; opacity: 85% }
             zone box ntq_fm { at: spx + 78 * pu, sby + 86 * pu; size: 28 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
@@ -35,8 +35,8 @@ part Notifications {
             line { from: spx + 178 * pu, sby + 82 * pu; to: spx + 178 * pu, sby + 90 * pu; width: 1.5 * pu; color: ink; opacity: 85% }
             zone box ntq_fp { at: spx + 178 * pu, sby + 86 * pu; size: 28 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
             on press ntq_fp { emit nt_q_step(1) }
-            text nt_qfrom_t { at: floor(spx + 128 * pu + 0.5), floor(sby + 86 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; color: ink; opacity: 55% + 45% * clamp(ntq0, 0, 1); family: "Space Grotesk" }
-            text "To" { at: floor(spx + 226 * pu + 0.5), floor(sby + 86 * pu + 0.5); anchor: left center; size: 14; weight: 600; color: faint; opacity: 70% + 30% * clamp(ntq0, 0, 1); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 128 * pu + 0.5), floor(sby + 86 * pu + 0.5); text nt_qfrom_t { at: floor(spx + 128 * pu + 0.5), floor(sby + 86 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; color: ink; opacity: 55% + 45% * clamp(ntq0, 0, 1); family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 226 * pu + 0.5), floor(sby + 86 * pu + 0.5); text "To" { at: floor(spx + 226 * pu + 0.5), floor(sby + 86 * pu + 0.5); anchor: left center; size: 14; weight: 600; color: faint; opacity: 70% + 30% * clamp(ntq0, 0, 1); family: "Space Grotesk" } }
             box { at: spx + 268 * pu, sby + 86 * pu; size: 24 * pu, 22 * pu; corner: 11 * pu; color: ink; opacity: 8% + 10% * ntq_tm.hover }
             line { from: spx + 264 * pu, sby + 86 * pu; to: spx + 272 * pu, sby + 86 * pu; width: 1.5 * pu; color: ink; opacity: 85% }
             zone box ntq_tm { at: spx + 268 * pu, sby + 86 * pu; size: 28 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
@@ -46,9 +46,9 @@ part Notifications {
             line { from: spx + 368 * pu, sby + 82 * pu; to: spx + 368 * pu, sby + 90 * pu; width: 1.5 * pu; color: ink; opacity: 85% }
             zone box ntq_tp { at: spx + 368 * pu, sby + 86 * pu; size: 28 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
             on press ntq_tp { emit nt_q_step(3) }
-            text nt_qto_t { at: floor(spx + 318 * pu + 0.5), floor(sby + 86 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; color: ink; opacity: 55% + 45% * clamp(ntq0, 0, 1); family: "Space Grotesk" }
-            text "Silence while a window is fullscreen" { at: floor(spx + 14 * pu + 0.5), floor(sby + 112 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
-            text "A game, a video or a presentation: nothing pops up over it" { at: floor(spx + 14 * pu + 0.5), floor(sby + 128 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 318 * pu + 0.5), floor(sby + 86 * pu + 0.5); text nt_qto_t { at: floor(spx + 318 * pu + 0.5), floor(sby + 86 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; color: ink; opacity: 55% + 45% * clamp(ntq0, 0, 1); family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 112 * pu + 0.5); text "Silence while a window is fullscreen" { at: floor(spx + 14 * pu + 0.5), floor(sby + 112 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: (340 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 128 * pu + 0.5); text "A game, a video or a presentation: nothing pops up over it" { at: floor(spx + 14 * pu + 0.5), floor(sby + 128 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: (340 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             body {
                 color: mix(off, mint, clamp(ntq1, 0, 1))
                 box { at: spx + 405 * pu, sby + 119 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
@@ -61,9 +61,9 @@ part Notifications {
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
             body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 122 * pu; size: 438 * pu, 232 * pu; corner: 14 * pu } }
             box { at: spx + 219 * pu, sby + 122 * pu; size: 438 * pu, 232 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            text "DELIVERY" { at: floor(spx + 14 * pu + 0.5), floor(sby + 22 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
-            text "Play a sound" { at: floor(spx + 14 * pu + 0.5), floor(sby + 43 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
-            text "When a notification is shown" { at: floor(spx + 14 * pu + 0.5), floor(sby + 59 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 22 * pu + 0.5); text "DELIVERY" { at: floor(spx + 14 * pu + 0.5), floor(sby + 22 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 43 * pu + 0.5); text "Play a sound" { at: floor(spx + 14 * pu + 0.5), floor(sby + 43 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: (340 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 59 * pu + 0.5); text "When a notification is shown" { at: floor(spx + 14 * pu + 0.5), floor(sby + 59 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: (340 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             body {
                 color: mix(off, mint, clamp(ntk0, 0, 1))
                 box { at: spx + 405 * pu, sby + 50 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
@@ -71,8 +71,8 @@ part Notifications {
             box { at: spx + 397 * pu + ntk0 * 16 * pu, sby + 50 * pu; size: (17 + 9 * clamp(4 * ntk0 * (1 - ntk0), 0, 1)) * pu, (17 - 3 * clamp(4 * ntk0 * (1 - ntk0), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * ntk0 * (1 - ntk0), 0, 1)) * pu; color: ink }
             zone box ntg_snd_hit { at: spx + 219 * pu, sby + 50 * pu; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
             on press ntg_snd_hit { emit ntg_flag(0) }
-            text "Let critical ones through Do Not Disturb" { at: floor(spx + 14 * pu + 0.5), floor(sby + 81 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
-            text "A low battery, a build that broke: the ones you would want" { at: floor(spx + 14 * pu + 0.5), floor(sby + 97 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 81 * pu + 0.5); text "Let critical ones through Do Not Disturb" { at: floor(spx + 14 * pu + 0.5), floor(sby + 81 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: (340 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 97 * pu + 0.5); text "A low battery, a build that broke: the ones you would want" { at: floor(spx + 14 * pu + 0.5), floor(sby + 97 * pu + 0.5); anchor: left center; size: 13; weight: 500; width: (340 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             body {
                 color: mix(off, mint, clamp(ntk1, 0, 1))
                 box { at: spx + 405 * pu, sby + 88 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
@@ -80,55 +80,55 @@ part Notifications {
             box { at: spx + 397 * pu + ntk1 * 16 * pu, sby + 88 * pu; size: (17 + 9 * clamp(4 * ntk1 * (1 - ntk1), 0, 1)) * pu, (17 - 3 * clamp(4 * ntk1 * (1 - ntk1), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * ntk1 * (1 - ntk1), 0, 1)) * pu; color: ink }
             zone box ntg_crit_hit { at: spx + 219 * pu, sby + 88 * pu; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
             on press ntg_crit_hit { emit ntg_flag(1) }
-            text "DEFAULT SOUND" { at: floor(spx + 14 * pu + 0.5), floor(sby + 122 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 122 * pu + 0.5); text "DEFAULT SOUND" { at: floor(spx + 14 * pu + 0.5), floor(sby + 122 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" } }
             box { at: spx + 63 * pu, sby + 146 * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; color: if(ntg_snd == 0, mint, ink); opacity: if(ntg_snd == 0, 24%, 8% + 9% * ntg_s0.hover) }
-            text "Message" { at: floor(spx + 63 * pu + 0.5), floor(sby + 146 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 92 * pu; lines: 1; color: if(ntg_snd == 0, mint, ink); opacity: if(ntg_snd == 0, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 63 * pu + 0.5), floor(sby + 146 * pu + 0.5); text "Message" { at: floor(spx + 63 * pu + 0.5), floor(sby + 146 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (92 * pu) / rs; lines: 1; color: if(ntg_snd == 0, mint, ink); opacity: if(ntg_snd == 0, 100%, 85%); family: "Space Grotesk" } }
             zone box ntg_s0 { at: spx + 63 * pu, sby + 146 * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press ntg_s0 { emit ntg_sound(0) }
             box { at: spx + 167.5 * pu, sby + 146 * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; color: if(ntg_snd == 1, mint, ink); opacity: if(ntg_snd == 1, 24%, 8% + 9% * ntg_s1.hover) }
-            text "Soft" { at: floor(spx + 167.5 * pu + 0.5), floor(sby + 146 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 92 * pu; lines: 1; color: if(ntg_snd == 1, mint, ink); opacity: if(ntg_snd == 1, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 167.5 * pu + 0.5), floor(sby + 146 * pu + 0.5); text "Soft" { at: floor(spx + 167.5 * pu + 0.5), floor(sby + 146 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (92 * pu) / rs; lines: 1; color: if(ntg_snd == 1, mint, ink); opacity: if(ntg_snd == 1, 100%, 85%); family: "Space Grotesk" } }
             zone box ntg_s1 { at: spx + 167.5 * pu, sby + 146 * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press ntg_s1 { emit ntg_sound(1) }
             box { at: spx + 272 * pu, sby + 146 * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; color: if(ntg_snd == 2, mint, ink); opacity: if(ntg_snd == 2, 24%, 8% + 9% * ntg_s2.hover) }
-            text "Bell" { at: floor(spx + 272 * pu + 0.5), floor(sby + 146 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 92 * pu; lines: 1; color: if(ntg_snd == 2, mint, ink); opacity: if(ntg_snd == 2, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 272 * pu + 0.5), floor(sby + 146 * pu + 0.5); text "Bell" { at: floor(spx + 272 * pu + 0.5), floor(sby + 146 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (92 * pu) / rs; lines: 1; color: if(ntg_snd == 2, mint, ink); opacity: if(ntg_snd == 2, 100%, 85%); family: "Space Grotesk" } }
             zone box ntg_s2 { at: spx + 272 * pu, sby + 146 * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press ntg_s2 { emit ntg_sound(2) }
             box { at: spx + 376.5 * pu, sby + 146 * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; color: if(ntg_snd == 3, mint, ink); opacity: if(ntg_snd == 3, 24%, 8% + 9% * ntg_s3.hover) }
-            text "Info" { at: floor(spx + 376.5 * pu + 0.5), floor(sby + 146 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 92 * pu; lines: 1; color: if(ntg_snd == 3, mint, ink); opacity: if(ntg_snd == 3, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 376.5 * pu + 0.5), floor(sby + 146 * pu + 0.5); text "Info" { at: floor(spx + 376.5 * pu + 0.5), floor(sby + 146 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (92 * pu) / rs; lines: 1; color: if(ntg_snd == 3, mint, ink); opacity: if(ntg_snd == 3, 100%, 85%); family: "Space Grotesk" } }
             zone box ntg_s3 { at: spx + 376.5 * pu, sby + 146 * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press ntg_s3 { emit ntg_sound(3) }
             box { at: spx + 63 * pu, sby + 178 * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; color: if(ntg_snd == 4, mint, ink); opacity: if(ntg_snd == 4, 24%, 8% + 9% * ntg_s4.hover) }
-            text "Done" { at: floor(spx + 63 * pu + 0.5), floor(sby + 178 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 92 * pu; lines: 1; color: if(ntg_snd == 4, mint, ink); opacity: if(ntg_snd == 4, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 63 * pu + 0.5), floor(sby + 178 * pu + 0.5); text "Done" { at: floor(spx + 63 * pu + 0.5), floor(sby + 178 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (92 * pu) / rs; lines: 1; color: if(ntg_snd == 4, mint, ink); opacity: if(ntg_snd == 4, 100%, 85%); family: "Space Grotesk" } }
             zone box ntg_s4 { at: spx + 63 * pu, sby + 178 * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press ntg_s4 { emit ntg_sound(4) }
             box { at: spx + 167.5 * pu, sby + 178 * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; color: if(ntg_snd == 5, mint, ink); opacity: if(ntg_snd == 5, 24%, 8% + 9% * ntg_s5.hover) }
-            text "Device" { at: floor(spx + 167.5 * pu + 0.5), floor(sby + 178 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 92 * pu; lines: 1; color: if(ntg_snd == 5, mint, ink); opacity: if(ntg_snd == 5, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 167.5 * pu + 0.5), floor(sby + 178 * pu + 0.5); text "Device" { at: floor(spx + 167.5 * pu + 0.5), floor(sby + 178 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (92 * pu) / rs; lines: 1; color: if(ntg_snd == 5, mint, ink); opacity: if(ntg_snd == 5, 100%, 85%); family: "Space Grotesk" } }
             zone box ntg_s5 { at: spx + 167.5 * pu, sby + 178 * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press ntg_s5 { emit ntg_sound(5) }
             box { at: spx + 272 * pu, sby + 178 * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; color: if(ntg_snd == 6, mint, ink); opacity: if(ntg_snd == 6, 24%, 8% + 9% * ntg_s6.hover) }
-            text "Alarm" { at: floor(spx + 272 * pu + 0.5), floor(sby + 178 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 92 * pu; lines: 1; color: if(ntg_snd == 6, mint, ink); opacity: if(ntg_snd == 6, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 272 * pu + 0.5), floor(sby + 178 * pu + 0.5); text "Alarm" { at: floor(spx + 272 * pu + 0.5), floor(sby + 178 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (92 * pu) / rs; lines: 1; color: if(ntg_snd == 6, mint, ink); opacity: if(ntg_snd == 6, 100%, 85%); family: "Space Grotesk" } }
             zone box ntg_s6 { at: spx + 272 * pu, sby + 178 * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press ntg_s6 { emit ntg_sound(6) }
             box { at: spx + 376.5 * pu, sby + 178 * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; color: if(ntg_snd == 7, mint, ink); opacity: if(ntg_snd == 7, 24%, 8% + 9% * ntg_s7.hover) }
-            text "Warning" { at: floor(spx + 376.5 * pu + 0.5), floor(sby + 178 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 92 * pu; lines: 1; color: if(ntg_snd == 7, mint, ink); opacity: if(ntg_snd == 7, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 376.5 * pu + 0.5), floor(sby + 178 * pu + 0.5); text "Warning" { at: floor(spx + 376.5 * pu + 0.5), floor(sby + 178 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (92 * pu) / rs; lines: 1; color: if(ntg_snd == 7, mint, ink); opacity: if(ntg_snd == 7, 100%, 85%); family: "Space Grotesk" } }
             zone box ntg_s7 { at: spx + 376.5 * pu, sby + 178 * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press ntg_s7 { emit ntg_sound(7) }
             box { at: spx + 107 * pu, sby + 214 * pu; size: 186 * pu, 26 * pu; corner: 13 * pu; color: if(0, mint, ink); opacity: if(0, 24%, 8% + 9% * nt_test_hit.hover) }
-            text "Send a test notification" { at: floor(spx + 107 * pu + 0.5), floor(sby + 214 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 180 * pu; lines: 1; color: if(0, mint, ink); opacity: if(0, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 107 * pu + 0.5), floor(sby + 214 * pu + 0.5); text "Send a test notification" { at: floor(spx + 107 * pu + 0.5), floor(sby + 214 * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (180 * pu) / rs; lines: 1; color: if(0, mint, ink); opacity: if(0, 100%, 85%); family: "Space Grotesk" } }
             zone box nt_test_hit { at: spx + 107 * pu, sby + 214 * pu; size: 188 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nt_test_hit { emit nt_test }
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
             body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + (246 + (552 - nt.ds) / 2) * pu; size: 438 * pu, (552 - nt.ds) * pu; corner: 14 * pu } }
             box { at: spx + 219 * pu, sby + (246 + (552 - nt.ds) / 2) * pu; size: 438 * pu, (552 - nt.ds) * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            text "APPS" { at: floor(spx + 14 * pu + 0.5), floor(sby + 262 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
-            text "Tap one to set its rules" { at: floor(spx + 424 * pu + 0.5), floor(sby + 262 * pu + 0.5); anchor: right center; size: 13; weight: 500; color: faint; family: "Space Grotesk"; align: right }
-            text "Nothing has sent you a notification yet" { at: floor(spx + 219 * pu + 0.5), floor(sby + 316 * pu + 0.5); anchor: center center; size: 16; weight: 500; width: 360 * pu; lines: 1; color: faint; family: "Space Grotesk"; align: center; show: nta_count < 1 }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 262 * pu + 0.5); text "APPS" { at: floor(spx + 14 * pu + 0.5), floor(sby + 262 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 262 * pu + 0.5); text "Tap one to set its rules" { at: floor(spx + 424 * pu + 0.5), floor(sby + 262 * pu + 0.5); anchor: right center; size: 13; weight: 500; color: faint; family: "Space Grotesk"; align: right } }
+            group { scale: rs; pivot: floor(spx + 219 * pu + 0.5), floor(sby + 316 * pu + 0.5); text "Nothing has sent you a notification yet" { at: floor(spx + 219 * pu + 0.5), floor(sby + 316 * pu + 0.5); anchor: center center; size: 16; weight: 500; width: (360 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk"; align: center; show: nta_count < 1 } }
             repeat r in 0..14 {
                 let ry = 286 + r * 36
                 box { at: spx + 219 * pu, sby + ry * pu; size: 420 * pu, 32 * pu; corner: 12 * pu; color: if(nta_sel == r, mint, ink); opacity: if(nta_sel == r, 18%, 5% + 7% * nta_row.$r.hover); show: r < nta_count }
                 ellipse { at: spx + 26 * pu, sby + ry * pu; radius: 3.2 * pu; color: mint; opacity: if(nta_apps.$r.rule, 100%, 0%); show: r < nta_count }
-                text nta_apps.$r.name { at: floor(spx + 40 * pu + 0.5), floor(sby + ry * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 230 * pu; lines: 1; color: if(nta_sel == r, mint, ink); family: "Space Grotesk"; show: r < nta_count }
-                text nta_apps.$r.info { at: floor(spx + 420 * pu + 0.5), floor(sby + ry * pu + 0.5); anchor: right center; align: right; size: 13.5; width: 150 * pu; lines: 1; color: faint; family: "Space Grotesk"; show: r < nta_count }
+                group { scale: rs; pivot: floor(spx + 40 * pu + 0.5), floor(sby + ry * pu + 0.5); text nta_apps.$r.name { at: floor(spx + 40 * pu + 0.5), floor(sby + ry * pu + 0.5); anchor: left center; size: 16; weight: 600; width: (230 * pu) / rs; lines: 1; color: if(nta_sel == r, mint, ink); family: "Space Grotesk"; show: r < nta_count } }
+                group { scale: rs; pivot: floor(spx + 420 * pu + 0.5), floor(sby + ry * pu + 0.5); text nta_apps.$r.info { at: floor(spx + 420 * pu + 0.5), floor(sby + ry * pu + 0.5); anchor: right center; align: right; size: 13.5; width: (150 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk"; show: r < nta_count } }
                 zone box nta_row.$r { at: spx + 219 * pu, sby + ry * pu; size: 422 * pu, 34 * pu; corner: 13 * pu; cursor: pointer; active: r < nta_count }
                 on press nta_row.$r { emit nta_pick(r) }
             }
@@ -137,10 +137,10 @@ part Notifications {
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
             body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + (1034 - nt.ds) * pu; size: 438 * pu, 456 * pu; corner: 14 * pu } }
             box { at: spx + 219 * pu, sby + (1034 - nt.ds) * pu; size: 438 * pu, 456 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            text "RULES FOR" { at: floor(spx + 14 * pu + 0.5), floor(sby + (822 - nt.ds) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
-            text nta_name { at: floor(spx + 82 * pu + 0.5), floor(sby + (822 - nt.ds) * pu + 0.5); anchor: left center; size: 17.5; weight: 700; width: 330 * pu; lines: 1; color: mint; family: "Space Grotesk" }
-            text "Mute popups" { at: floor(spx + 14 * pu + 0.5), floor(sby + (847 - nt.ds) * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
-            text "Still kept in the history" { at: floor(spx + 14 * pu + 0.5), floor(sby + (863 - nt.ds) * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (822 - nt.ds) * pu + 0.5); text "RULES FOR" { at: floor(spx + 14 * pu + 0.5), floor(sby + (822 - nt.ds) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 82 * pu + 0.5), floor(sby + (822 - nt.ds) * pu + 0.5); text nta_name { at: floor(spx + 82 * pu + 0.5), floor(sby + (822 - nt.ds) * pu + 0.5); anchor: left center; size: 17.5; weight: 700; width: (330 * pu) / rs; lines: 1; color: mint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (847 - nt.ds) * pu + 0.5); text "Mute popups" { at: floor(spx + 14 * pu + 0.5), floor(sby + (847 - nt.ds) * pu + 0.5); anchor: left center; size: 16; weight: 600; width: (340 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (863 - nt.ds) * pu + 0.5); text "Still kept in the history" { at: floor(spx + 14 * pu + 0.5), floor(sby + (863 - nt.ds) * pu + 0.5); anchor: left center; size: 13; weight: 500; width: (340 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             body {
                 color: mix(off, mint, clamp(ntk2, 0, 1))
                 box { at: spx + 405 * pu, sby + (854 - nt.ds) * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
@@ -148,8 +148,8 @@ part Notifications {
             box { at: spx + 397 * pu + ntk2 * 16 * pu, sby + (854 - nt.ds) * pu; size: (17 + 9 * clamp(4 * ntk2 * (1 - ntk2), 0, 1)) * pu, (17 - 3 * clamp(4 * ntk2 * (1 - ntk2), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * ntk2 * (1 - ntk2), 0, 1)) * pu; color: ink }
             zone box nta_mute_hit { at: spx + 219 * pu, sby + (854 - nt.ds) * pu; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
             on press nta_mute_hit { emit nta_flag(0) }
-            text "Silent" { at: floor(spx + 14 * pu + 0.5), floor(sby + (881 - nt.ds) * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
-            text "Shown, but with no sound" { at: floor(spx + 14 * pu + 0.5), floor(sby + (897 - nt.ds) * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (881 - nt.ds) * pu + 0.5); text "Silent" { at: floor(spx + 14 * pu + 0.5), floor(sby + (881 - nt.ds) * pu + 0.5); anchor: left center; size: 16; weight: 600; width: (340 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (897 - nt.ds) * pu + 0.5); text "Shown, but with no sound" { at: floor(spx + 14 * pu + 0.5), floor(sby + (897 - nt.ds) * pu + 0.5); anchor: left center; size: 13; weight: 500; width: (340 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             body {
                 color: mix(off, mint, clamp(ntk3, 0, 1))
                 box { at: spx + 405 * pu, sby + (888 - nt.ds) * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
@@ -157,8 +157,8 @@ part Notifications {
             box { at: spx + 397 * pu + ntk3 * 16 * pu, sby + (888 - nt.ds) * pu; size: (17 + 9 * clamp(4 * ntk3 * (1 - ntk3), 0, 1)) * pu, (17 - 3 * clamp(4 * ntk3 * (1 - ntk3), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * ntk3 * (1 - ntk3), 0, 1)) * pu; color: ink }
             zone box nta_silent_hit { at: spx + 219 * pu, sby + (888 - nt.ds) * pu; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
             on press nta_silent_hit { emit nta_flag(1) }
-            text "Ignore Do Not Disturb" { at: floor(spx + 14 * pu + 0.5), floor(sby + (915 - nt.ds) * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
-            text "Shows, and sounds, even while it is on" { at: floor(spx + 14 * pu + 0.5), floor(sby + (931 - nt.ds) * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (915 - nt.ds) * pu + 0.5); text "Ignore Do Not Disturb" { at: floor(spx + 14 * pu + 0.5), floor(sby + (915 - nt.ds) * pu + 0.5); anchor: left center; size: 16; weight: 600; width: (340 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (931 - nt.ds) * pu + 0.5); text "Shows, and sounds, even while it is on" { at: floor(spx + 14 * pu + 0.5), floor(sby + (931 - nt.ds) * pu + 0.5); anchor: left center; size: 13; weight: 500; width: (340 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             body {
                 color: mix(off, mint, clamp(ntk4, 0, 1))
                 box { at: spx + 405 * pu, sby + (922 - nt.ds) * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
@@ -166,8 +166,8 @@ part Notifications {
             box { at: spx + 397 * pu + ntk4 * 16 * pu, sby + (922 - nt.ds) * pu; size: (17 + 9 * clamp(4 * ntk4 * (1 - ntk4), 0, 1)) * pu, (17 - 3 * clamp(4 * ntk4 * (1 - ntk4), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * ntk4 * (1 - ntk4), 0, 1)) * pu; color: ink }
             zone box nta_bypass_hit { at: spx + 219 * pu, sby + (922 - nt.ds) * pu; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
             on press nta_bypass_hit { emit nta_flag(2) }
-            text "Keep out of the history" { at: floor(spx + 14 * pu + 0.5), floor(sby + (949 - nt.ds) * pu + 0.5); anchor: left center; size: 16; weight: 600; width: 340 * pu; lines: 1; color: ink; family: "Space Grotesk" }
-            text "No popup, no sound, no record" { at: floor(spx + 14 * pu + 0.5), floor(sby + (965 - nt.ds) * pu + 0.5); anchor: left center; size: 13; weight: 500; width: 340 * pu; lines: 1; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (949 - nt.ds) * pu + 0.5); text "Keep out of the history" { at: floor(spx + 14 * pu + 0.5), floor(sby + (949 - nt.ds) * pu + 0.5); anchor: left center; size: 16; weight: 600; width: (340 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (965 - nt.ds) * pu + 0.5); text "No popup, no sound, no record" { at: floor(spx + 14 * pu + 0.5), floor(sby + (965 - nt.ds) * pu + 0.5); anchor: left center; size: 13; weight: 500; width: (340 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             body {
                 color: mix(off, mint, clamp(ntk5, 0, 1))
                 box { at: spx + 405 * pu, sby + (956 - nt.ds) * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
@@ -175,84 +175,84 @@ part Notifications {
             box { at: spx + 397 * pu + ntk5 * 16 * pu, sby + (956 - nt.ds) * pu; size: (17 + 9 * clamp(4 * ntk5 * (1 - ntk5), 0, 1)) * pu, (17 - 3 * clamp(4 * ntk5 * (1 - ntk5), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * ntk5 * (1 - ntk5), 0, 1)) * pu; color: ink }
             zone box nta_hide_hit { at: spx + 219 * pu, sby + (956 - nt.ds) * pu; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
             on press nta_hide_hit { emit nta_flag(3) }
-            text "URGENCY" { at: floor(spx + 14 * pu + 0.5), floor(sby + (992 - nt.ds) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (992 - nt.ds) * pu + 0.5); text "URGENCY" { at: floor(spx + 14 * pu + 0.5), floor(sby + (992 - nt.ds) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" } }
             box { at: spx + 63 * pu, sby + (1012 - nt.ds) * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; color: if(nta_urg == 0, mint, ink); opacity: if(nta_urg == 0, 24%, 8% + 9% * nta_u0.hover) }
-            text "As sent" { at: floor(spx + 63 * pu + 0.5), floor(sby + (1012 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 92 * pu; lines: 1; color: if(nta_urg == 0, mint, ink); opacity: if(nta_urg == 0, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 63 * pu + 0.5), floor(sby + (1012 - nt.ds) * pu + 0.5); text "As sent" { at: floor(spx + 63 * pu + 0.5), floor(sby + (1012 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (92 * pu) / rs; lines: 1; color: if(nta_urg == 0, mint, ink); opacity: if(nta_urg == 0, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_u0 { at: spx + 63 * pu, sby + (1012 - nt.ds) * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_u0 { emit nta_urgency(0) }
             box { at: spx + 167.5 * pu, sby + (1012 - nt.ds) * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; color: if(nta_urg == 1, mint, ink); opacity: if(nta_urg == 1, 24%, 8% + 9% * nta_u1.hover) }
-            text "Low" { at: floor(spx + 167.5 * pu + 0.5), floor(sby + (1012 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 92 * pu; lines: 1; color: if(nta_urg == 1, mint, ink); opacity: if(nta_urg == 1, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 167.5 * pu + 0.5), floor(sby + (1012 - nt.ds) * pu + 0.5); text "Low" { at: floor(spx + 167.5 * pu + 0.5), floor(sby + (1012 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (92 * pu) / rs; lines: 1; color: if(nta_urg == 1, mint, ink); opacity: if(nta_urg == 1, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_u1 { at: spx + 167.5 * pu, sby + (1012 - nt.ds) * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_u1 { emit nta_urgency(1) }
             box { at: spx + 272 * pu, sby + (1012 - nt.ds) * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; color: if(nta_urg == 2, mint, ink); opacity: if(nta_urg == 2, 24%, 8% + 9% * nta_u2.hover) }
-            text "Normal" { at: floor(spx + 272 * pu + 0.5), floor(sby + (1012 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 92 * pu; lines: 1; color: if(nta_urg == 2, mint, ink); opacity: if(nta_urg == 2, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 272 * pu + 0.5), floor(sby + (1012 - nt.ds) * pu + 0.5); text "Normal" { at: floor(spx + 272 * pu + 0.5), floor(sby + (1012 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (92 * pu) / rs; lines: 1; color: if(nta_urg == 2, mint, ink); opacity: if(nta_urg == 2, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_u2 { at: spx + 272 * pu, sby + (1012 - nt.ds) * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_u2 { emit nta_urgency(2) }
             box { at: spx + 376.5 * pu, sby + (1012 - nt.ds) * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; color: if(nta_urg == 3, mint, ink); opacity: if(nta_urg == 3, 24%, 8% + 9% * nta_u3.hover) }
-            text "Critical" { at: floor(spx + 376.5 * pu + 0.5), floor(sby + (1012 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 92 * pu; lines: 1; color: if(nta_urg == 3, mint, ink); opacity: if(nta_urg == 3, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 376.5 * pu + 0.5), floor(sby + (1012 - nt.ds) * pu + 0.5); text "Critical" { at: floor(spx + 376.5 * pu + 0.5), floor(sby + (1012 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (92 * pu) / rs; lines: 1; color: if(nta_urg == 3, mint, ink); opacity: if(nta_urg == 3, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_u3 { at: spx + 376.5 * pu, sby + (1012 - nt.ds) * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_u3 { emit nta_urgency(3) }
-            text "STAYS ON SCREEN" { at: floor(spx + 14 * pu + 0.5), floor(sby + (1046 - nt.ds) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (1046 - nt.ds) * pu + 0.5); text "STAYS ON SCREEN" { at: floor(spx + 14 * pu + 0.5), floor(sby + (1046 - nt.ds) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" } }
             box { at: spx + 52 * pu, sby + (1066 - nt.ds) * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: if(nta_to == 0, mint, ink); opacity: if(nta_to == 0, 24%, 8% + 9% * nta_t0.hover) }
-            text "Usual" { at: floor(spx + 52 * pu + 0.5), floor(sby + (1066 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 72 * pu; lines: 1; color: if(nta_to == 0, mint, ink); opacity: if(nta_to == 0, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 52 * pu + 0.5), floor(sby + (1066 - nt.ds) * pu + 0.5); text "Usual" { at: floor(spx + 52 * pu + 0.5), floor(sby + (1066 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(nta_to == 0, mint, ink); opacity: if(nta_to == 0, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_t0 { at: spx + 52 * pu, sby + (1066 - nt.ds) * pu; size: 80 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_t0 { emit nta_timeout(0) }
             box { at: spx + 135.5 * pu, sby + (1066 - nt.ds) * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: if(nta_to == 1, mint, ink); opacity: if(nta_to == 1, 24%, 8% + 9% * nta_t1.hover) }
-            text "4 s" { at: floor(spx + 135.5 * pu + 0.5), floor(sby + (1066 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 72 * pu; lines: 1; color: if(nta_to == 1, mint, ink); opacity: if(nta_to == 1, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 135.5 * pu + 0.5), floor(sby + (1066 - nt.ds) * pu + 0.5); text "4 s" { at: floor(spx + 135.5 * pu + 0.5), floor(sby + (1066 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(nta_to == 1, mint, ink); opacity: if(nta_to == 1, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_t1 { at: spx + 135.5 * pu, sby + (1066 - nt.ds) * pu; size: 80 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_t1 { emit nta_timeout(1) }
             box { at: spx + 219 * pu, sby + (1066 - nt.ds) * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: if(nta_to == 2, mint, ink); opacity: if(nta_to == 2, 24%, 8% + 9% * nta_t2.hover) }
-            text "8 s" { at: floor(spx + 219 * pu + 0.5), floor(sby + (1066 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 72 * pu; lines: 1; color: if(nta_to == 2, mint, ink); opacity: if(nta_to == 2, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 219 * pu + 0.5), floor(sby + (1066 - nt.ds) * pu + 0.5); text "8 s" { at: floor(spx + 219 * pu + 0.5), floor(sby + (1066 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(nta_to == 2, mint, ink); opacity: if(nta_to == 2, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_t2 { at: spx + 219 * pu, sby + (1066 - nt.ds) * pu; size: 80 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_t2 { emit nta_timeout(2) }
             box { at: spx + 302.5 * pu, sby + (1066 - nt.ds) * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: if(nta_to == 3, mint, ink); opacity: if(nta_to == 3, 24%, 8% + 9% * nta_t3.hover) }
-            text "15 s" { at: floor(spx + 302.5 * pu + 0.5), floor(sby + (1066 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 72 * pu; lines: 1; color: if(nta_to == 3, mint, ink); opacity: if(nta_to == 3, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 302.5 * pu + 0.5), floor(sby + (1066 - nt.ds) * pu + 0.5); text "15 s" { at: floor(spx + 302.5 * pu + 0.5), floor(sby + (1066 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(nta_to == 3, mint, ink); opacity: if(nta_to == 3, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_t3 { at: spx + 302.5 * pu, sby + (1066 - nt.ds) * pu; size: 80 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_t3 { emit nta_timeout(3) }
             box { at: spx + 386 * pu, sby + (1066 - nt.ds) * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: if(nta_to == 4, mint, ink); opacity: if(nta_to == 4, 24%, 8% + 9% * nta_t4.hover) }
-            text "Until closed" { at: floor(spx + 386 * pu + 0.5), floor(sby + (1066 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 72 * pu; lines: 1; color: if(nta_to == 4, mint, ink); opacity: if(nta_to == 4, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 386 * pu + 0.5), floor(sby + (1066 - nt.ds) * pu + 0.5); text "Until closed" { at: floor(spx + 386 * pu + 0.5), floor(sby + (1066 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(nta_to == 4, mint, ink); opacity: if(nta_to == 4, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_t4 { at: spx + 386 * pu, sby + (1066 - nt.ds) * pu; size: 80 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_t4 { emit nta_timeout(4) }
-            text "SOUND" { at: floor(spx + 14 * pu + 0.5), floor(sby + (1100 - nt.ds) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (1100 - nt.ds) * pu + 0.5); text "SOUND" { at: floor(spx + 14 * pu + 0.5), floor(sby + (1100 - nt.ds) * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" } }
             box { at: spx + 52 * pu, sby + (1120 - nt.ds) * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: if(nta_snd == 0, mint, ink); opacity: if(nta_snd == 0, 24%, 8% + 9% * nta_s0.hover) }
-            text "Default" { at: floor(spx + 52 * pu + 0.5), floor(sby + (1120 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 72 * pu; lines: 1; color: if(nta_snd == 0, mint, ink); opacity: if(nta_snd == 0, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 52 * pu + 0.5), floor(sby + (1120 - nt.ds) * pu + 0.5); text "Default" { at: floor(spx + 52 * pu + 0.5), floor(sby + (1120 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(nta_snd == 0, mint, ink); opacity: if(nta_snd == 0, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_s0 { at: spx + 52 * pu, sby + (1120 - nt.ds) * pu; size: 80 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_s0 { emit nta_sound(0) }
             box { at: spx + 135.5 * pu, sby + (1120 - nt.ds) * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: if(nta_snd == 1, mint, ink); opacity: if(nta_snd == 1, 24%, 8% + 9% * nta_s1.hover) }
-            text "Message" { at: floor(spx + 135.5 * pu + 0.5), floor(sby + (1120 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 72 * pu; lines: 1; color: if(nta_snd == 1, mint, ink); opacity: if(nta_snd == 1, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 135.5 * pu + 0.5), floor(sby + (1120 - nt.ds) * pu + 0.5); text "Message" { at: floor(spx + 135.5 * pu + 0.5), floor(sby + (1120 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(nta_snd == 1, mint, ink); opacity: if(nta_snd == 1, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_s1 { at: spx + 135.5 * pu, sby + (1120 - nt.ds) * pu; size: 80 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_s1 { emit nta_sound(1) }
             box { at: spx + 219 * pu, sby + (1120 - nt.ds) * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: if(nta_snd == 2, mint, ink); opacity: if(nta_snd == 2, 24%, 8% + 9% * nta_s2.hover) }
-            text "Soft" { at: floor(spx + 219 * pu + 0.5), floor(sby + (1120 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 72 * pu; lines: 1; color: if(nta_snd == 2, mint, ink); opacity: if(nta_snd == 2, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 219 * pu + 0.5), floor(sby + (1120 - nt.ds) * pu + 0.5); text "Soft" { at: floor(spx + 219 * pu + 0.5), floor(sby + (1120 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(nta_snd == 2, mint, ink); opacity: if(nta_snd == 2, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_s2 { at: spx + 219 * pu, sby + (1120 - nt.ds) * pu; size: 80 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_s2 { emit nta_sound(2) }
             box { at: spx + 302.5 * pu, sby + (1120 - nt.ds) * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: if(nta_snd == 3, mint, ink); opacity: if(nta_snd == 3, 24%, 8% + 9% * nta_s3.hover) }
-            text "Bell" { at: floor(spx + 302.5 * pu + 0.5), floor(sby + (1120 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 72 * pu; lines: 1; color: if(nta_snd == 3, mint, ink); opacity: if(nta_snd == 3, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 302.5 * pu + 0.5), floor(sby + (1120 - nt.ds) * pu + 0.5); text "Bell" { at: floor(spx + 302.5 * pu + 0.5), floor(sby + (1120 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(nta_snd == 3, mint, ink); opacity: if(nta_snd == 3, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_s3 { at: spx + 302.5 * pu, sby + (1120 - nt.ds) * pu; size: 80 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_s3 { emit nta_sound(3) }
             box { at: spx + 386 * pu, sby + (1120 - nt.ds) * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: if(nta_snd == 4, mint, ink); opacity: if(nta_snd == 4, 24%, 8% + 9% * nta_s4.hover) }
-            text "Info" { at: floor(spx + 386 * pu + 0.5), floor(sby + (1120 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 72 * pu; lines: 1; color: if(nta_snd == 4, mint, ink); opacity: if(nta_snd == 4, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 386 * pu + 0.5), floor(sby + (1120 - nt.ds) * pu + 0.5); text "Info" { at: floor(spx + 386 * pu + 0.5), floor(sby + (1120 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(nta_snd == 4, mint, ink); opacity: if(nta_snd == 4, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_s4 { at: spx + 386 * pu, sby + (1120 - nt.ds) * pu; size: 80 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_s4 { emit nta_sound(4) }
             box { at: spx + 52 * pu, sby + (1152 - nt.ds) * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: if(nta_snd == 5, mint, ink); opacity: if(nta_snd == 5, 24%, 8% + 9% * nta_s5.hover) }
-            text "Done" { at: floor(spx + 52 * pu + 0.5), floor(sby + (1152 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 72 * pu; lines: 1; color: if(nta_snd == 5, mint, ink); opacity: if(nta_snd == 5, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 52 * pu + 0.5), floor(sby + (1152 - nt.ds) * pu + 0.5); text "Done" { at: floor(spx + 52 * pu + 0.5), floor(sby + (1152 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(nta_snd == 5, mint, ink); opacity: if(nta_snd == 5, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_s5 { at: spx + 52 * pu, sby + (1152 - nt.ds) * pu; size: 80 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_s5 { emit nta_sound(5) }
             box { at: spx + 135.5 * pu, sby + (1152 - nt.ds) * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: if(nta_snd == 6, mint, ink); opacity: if(nta_snd == 6, 24%, 8% + 9% * nta_s6.hover) }
-            text "Device" { at: floor(spx + 135.5 * pu + 0.5), floor(sby + (1152 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 72 * pu; lines: 1; color: if(nta_snd == 6, mint, ink); opacity: if(nta_snd == 6, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 135.5 * pu + 0.5), floor(sby + (1152 - nt.ds) * pu + 0.5); text "Device" { at: floor(spx + 135.5 * pu + 0.5), floor(sby + (1152 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(nta_snd == 6, mint, ink); opacity: if(nta_snd == 6, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_s6 { at: spx + 135.5 * pu, sby + (1152 - nt.ds) * pu; size: 80 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_s6 { emit nta_sound(6) }
             box { at: spx + 219 * pu, sby + (1152 - nt.ds) * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: if(nta_snd == 7, mint, ink); opacity: if(nta_snd == 7, 24%, 8% + 9% * nta_s7.hover) }
-            text "Alarm" { at: floor(spx + 219 * pu + 0.5), floor(sby + (1152 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 72 * pu; lines: 1; color: if(nta_snd == 7, mint, ink); opacity: if(nta_snd == 7, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 219 * pu + 0.5), floor(sby + (1152 - nt.ds) * pu + 0.5); text "Alarm" { at: floor(spx + 219 * pu + 0.5), floor(sby + (1152 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(nta_snd == 7, mint, ink); opacity: if(nta_snd == 7, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_s7 { at: spx + 219 * pu, sby + (1152 - nt.ds) * pu; size: 80 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_s7 { emit nta_sound(7) }
             box { at: spx + 302.5 * pu, sby + (1152 - nt.ds) * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: if(nta_snd == 8, mint, ink); opacity: if(nta_snd == 8, 24%, 8% + 9% * nta_s8.hover) }
-            text "Warning" { at: floor(spx + 302.5 * pu + 0.5), floor(sby + (1152 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 72 * pu; lines: 1; color: if(nta_snd == 8, mint, ink); opacity: if(nta_snd == 8, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 302.5 * pu + 0.5), floor(sby + (1152 - nt.ds) * pu + 0.5); text "Warning" { at: floor(spx + 302.5 * pu + 0.5), floor(sby + (1152 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(nta_snd == 8, mint, ink); opacity: if(nta_snd == 8, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_s8 { at: spx + 302.5 * pu, sby + (1152 - nt.ds) * pu; size: 80 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
             on press nta_s8 { emit nta_sound(8) }
-            text nta_explain { at: floor(spx + 14 * pu + 0.5), floor(sby + (1178 - nt.ds) * pu + 0.5); anchor: left top; size: 14; width: 410 * pu; lines: 3; color: faint; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (1178 - nt.ds) * pu + 0.5); text nta_explain { at: floor(spx + 14 * pu + 0.5), floor(sby + (1178 - nt.ds) * pu + 0.5); anchor: left top; size: 14; width: (410 * pu) / rs; lines: 3; color: faint; family: "Space Grotesk" } }
             box { at: spx + 79 * pu, sby + (1238 - nt.ds) * pu; size: 130 * pu, 26 * pu; corner: 13 * pu; color: if(0, mint, ink); opacity: if(0, 24%, 8% + 9% * nta_reset_hit.hover) }
-            text "Reset to defaults" { at: floor(spx + 79 * pu + 0.5), floor(sby + (1238 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 124 * pu; lines: 1; color: if(0, mint, ink); opacity: if(0, 100%, 85%); family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 79 * pu + 0.5), floor(sby + (1238 - nt.ds) * pu + 0.5); text "Reset to defaults" { at: floor(spx + 79 * pu + 0.5), floor(sby + (1238 - nt.ds) * pu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: (124 * pu) / rs; lines: 1; color: if(0, mint, ink); opacity: if(0, 100%, 85%); family: "Space Grotesk" } }
             zone box nta_reset_hit { at: spx + 79 * pu, sby + (1238 - nt.ds) * pu; size: 132 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: nta_has_rule }
             on press nta_reset_hit { emit nta_reset }
             }
@@ -272,7 +272,7 @@ part Notifications {
             box { at: spx + 224 * pu, nt.cuey; size: 76 * pu, 26 * pu; corner: 13 * pu; color: mint; opacity: (10% + 14% * nt_cue_hit.hover) * nt.cue }
             path { at: spx + 204 * pu, nt.cuey - 1 * pu; stroke: 1.6 * pu; color: mint; opacity: nt.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
             path { at: spx + 204 * pu, nt.cuey + 4 * pu; stroke: 1.6 * pu; color: mint; opacity: nt.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
-            text "More" { at: floor(spx + 232 * pu + 0.5), floor(nt.cuey + 0.5); anchor: center; size: 15; weight: 700; color: ink; opacity: nt.cue; family: "Space Grotesk" }
+            group { scale: rs; pivot: floor(spx + 232 * pu + 0.5), floor(nt.cuey + 0.5); text "More" { at: floor(spx + 232 * pu + 0.5), floor(nt.cuey + 0.5); anchor: center; size: 15; weight: 700; color: ink; opacity: nt.cue; family: "Space Grotesk" } }
             zone box nt_cue_hit { at: spx + 224 * pu, sby + (set.h - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: nt.cue > 0.5 }
             on press nt_cue_hit { nt_scroll_to = clamp(nt_scroll_to + 342, 0, max(0, nt.h - set.h)) }
             zone box nt_bar_hit { at: spx + 442 * pu, sby + set.h / 2 * pu; size: 14 * pu, set.h * pu; cursor: pointer; active: nt.h > set.h }

@@ -23,7 +23,12 @@ end)
 -- compositor; Hyprland's environment says whether this is Hyprland. On any other desktop (pleamar-wm) there is no such command, and the
 -- program is started directly, in a session of its own. Either way it has ~/.local/bin on its PATH, which Hyprland's has not.
 on_hyprland = false                       -- (globals, not locals: this chunk is at Luau's limit of 200 locals)
-run("printenv", { "HYPRLAND_INSTANCE_SIGNATURE" }, function(out, code) on_hyprland = code == 0 and (out or "") ~= "" end)
+run("printenv", { "HYPRLAND_INSTANCE_SIGNATURE" }, function(out, code)
+    on_hyprland = code == 0 and (out or "") ~= ""
+    -- The Settings show the Hyprland page on Hyprland and the Pleamar-WM one anywhere else (as the rest of this file takes it: no Hyprland means pleamar-wm).
+    fact.wm_hypr = on_hyprland
+    fact.wm_pwm = not on_hyprland
+end)
 -- Asking one of our other scenes (the lock screen, the desktop clock and system monitor) for several of its values at once. `pleamar --say`
 -- answers one question per command, and starting a command from this shell costs about 30 ms, so a settings page that asked ten questions froze
 -- the shell for a third of a second each time it opened. A scene listens on a socket and answers one line per line it is sent, in order: one
@@ -4043,7 +4048,7 @@ end
 -- written to vitreus_hypr.lua, which hyprland.lua loads after hypr_style.lua (the installer adds the line, also to an older install) so it wins on the next start.
 do
     local LAYOUTS = { "dwindle", "master", "scrolling" }
-    local hy = { layout = 3, gaps = 5, round = 10, border = 3, blur = 3, passes = 1, resize = false, tear = false, anim = true, sens = 0, follow = 1, nat = false }
+    local hy = { layout = 3, gaps = 5, round = 10, border = 3, blur = 3, blur_on = true, passes = 1, resize = false, tear = false, anim = true, sens = 0, follow = 1, nat = false }
     local hy_dirty, hy_waiting = false, false
 
     -- Reading the options answers twelve times, each answer used to write every fact again; they are written once, when the answers have settled.
@@ -4054,8 +4059,8 @@ do
         fact.hy_gaps = hy.gaps
         fact.hy_round = hy.round
         fact.hy_border = hy.border
-        fact.hy_blur = hy.blur
-        text.hy_blur_text = string.format("%d", hy.blur)
+        fact.hy_blur = hy.blur_on and hy.blur or 0
+        text.hy_blur_text = hy.blur_on and string.format("%d", hy.blur) or "Off"
         fact.hy_resize = hy.resize
         fact.hy_tear = hy.tear
         fact.hy_anim = hy.anim
@@ -4077,8 +4082,8 @@ do
     local function hy_code()
         return string.format(
             "hl.config({ general = { gaps_in = %d, border_size = %d, layout = \"%s\", resize_on_border = %s, allow_tearing = %s }, " ..
-            "decoration = { rounding = %d, blur = { size = %d, passes = %d } }, animations = { enabled = %s }, input = { sensitivity = %.2f, follow_mouse = %d, touchpad = { natural_scroll = %s } } })",
-            hy.gaps, hy.border, LAYOUTS[hy.layout], b(hy.resize), b(hy.tear), hy.round, hy.blur, hy.passes, b(hy.anim), hy.sens, hy.follow, b(hy.nat))
+            "decoration = { rounding = %d, blur = { enabled = %s, size = %d, passes = %d } }, animations = { enabled = %s }, input = { sensitivity = %.2f, follow_mouse = %d, touchpad = { natural_scroll = %s } } })",
+            hy.gaps, hy.border, LAYOUTS[hy.layout], b(hy.resize), b(hy.tear), hy.round, b(hy.blur_on), hy.blur, hy.passes, b(hy.anim), hy.sens, hy.follow, b(hy.nat))
     end
 
     local function hy_write_file()
@@ -4107,7 +4112,7 @@ do
     -- them one by one froze the whole shell for half a second. Each answer is a line like `int: 3` (or `str:`, `float:`, `bool:`, `css gap data:`).
     local HY_OPTS = { "general:layout", "general:gaps_in", "general:border_size", "decoration:rounding", "decoration:blur:size",
         "decoration:blur:passes", "general:resize_on_border", "general:allow_tearing", "animations:enabled", "input:sensitivity",
-        "input:follow_mouse", "input:touchpad:natural_scroll" }
+        "input:follow_mouse", "input:touchpad:natural_scroll", "decoration:blur:enabled" }
     local function hy_read()
         local cmd = {}
         for i, n in ipairs(HY_OPTS) do cmd[i] = "getoption " .. n end
@@ -4131,6 +4136,7 @@ do
             hy.sens = tonumber(vals[10]) or 0
             hy.follow = tonumber(vals[11]) or 1
             hy.nat = vals[12] == "true"
+            hy.blur_on = vals[13] ~= "false"
             hy_show()
         end)
     end
@@ -4146,14 +4152,17 @@ do
         hy.sens = math.floor((math.max(0, math.min(1, t)) * 2 - 1) * 20 + 0.5) / 20
         hy_changed()
     end)
-    -- The blur behind the glass, from the Glass page: its size, 1 to 20, and more passes as it grows so a big blur stays smooth.
+    -- The blur behind the shell, from the Glass page: its size, 1 to 20, and more passes as it grows so a big blur stays smooth. 0 is off
+    -- (Hyprland's `blur.enabled`; the size is kept at 1 so that turning it back on is a plain step up).
     local function set_blur(size, passes)
-        hy.blur = math.max(1, math.min(20, math.floor(size + 0.5)))
+        local v = math.max(0, math.min(20, math.floor(size + 0.5)))
+        hy.blur_on = v > 0
+        hy.blur = math.max(1, v)
         hy.passes = passes or (1 + math.floor((hy.blur - 1) / 6))
         hy_changed()
     end
     glass.set_blur = set_blur
-    on("glass_blur_set", function(t) set_blur(1 + math.max(0, math.min(1, t)) * 19) end)
+    on("glass_blur_set", function(t) set_blur(math.max(0, math.min(1, t)) * 20) end)
     on("hy_follow_set", function(i) hy.follow = math.max(0, math.min(3, math.floor(i + 0.5))); hy_changed() end)
     on("hy_toggle", function(k)
         k = math.floor(k + 0.5)
