@@ -80,6 +80,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
                     return
                 end
                 B.file = to
+                bar_mon.name = to
                 run("setsid", { "-f", "sh", "-c", RESTART, "sh", plm, d.data .. "/vitreus.log" }, function() end)
             end)
         end)
@@ -140,6 +141,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
             local v = (out or ""):match("screens:%s*(.-)%s*;")
             if v == nil then return end
             B.file = v:match('^"([^"]+)"') or "all"
+            bar_mon.name = B.file
             if B.pref == nil then B.pref = B.file end
             show()
             publish()

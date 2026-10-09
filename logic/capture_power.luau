@@ -84,8 +84,11 @@ return function(set_panel)
         elseif i == 2 then
             -- Leave through the compositor, so the session ends by itself and SDDM gets its helper back and shows the login screen again.
             -- (`loginctl terminate-user` kills SDDM's own helper along with the session: SDDM calls that a crash and shows nothing.)
-            if on_hyprland then run("hyprctl", { "dispatch", "hl.dsp.exit()" }, function() end)
-            else run("pkill", { "-TERM", "-x", "pleamar-wm" }, function() end) end
+            -- Asked now, not read from `on_hyprland`: the sandbox keeps a global's value from when the file loaded (false, before `printenv` answered).
+            run("printenv", { "HYPRLAND_INSTANCE_SIGNATURE" }, function(out, code)
+                if code == 0 and (out or "") ~= "" then run("hyprctl", { "dispatch", "hl.dsp.exit()" }, function() end)
+                else run("pkill", { "-TERM", "-x", "pleamar-wm" }, function() end) end
+            end)
         elseif i == 3 then run("systemctl", { "reboot" }, function() end)
         elseif i == 4 then run("systemctl", { "poweroff" }, function() end) end
     end

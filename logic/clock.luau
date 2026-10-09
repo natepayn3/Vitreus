@@ -36,13 +36,16 @@ return function()
     on("ck_toggle", function()
         local b = not fact.ck_on
         fact.ck_on = b
-        if fact.ck_ok then
-            say("fact shown " .. tostring(b))
-        elseif b then
-            -- not running: start it, and once it is up read what it holds
-            exec_on_desktop('pleamar --scene "$HOME/.config/pleamar/shells/vitreus/desktopclock/desktopclock.plm" --no-hud')
-            after(2500, refresh)
-        end
+        -- Just tell it. Only when it does not answer at all (no scene running) is one started: asking `ck_ok` here started a second
+        -- clock on top of the first whenever the page had not read the first yet (a reload, a page left open).
+        say("fact shown " .. tostring(b), function(_, code)
+            if code ~= 0 and b then
+                exec_on_desktop('pleamar --scene "$HOME/.config/pleamar/shells/vitreus/desktopclock/desktopclock.plm" --no-hud')
+                after(2500, refresh)
+            else
+                refresh()
+            end
+        end)
     end)
     local function pick(event, key, remote, hi)
         on(event, function(i)
@@ -140,13 +143,14 @@ return function()
     on("sy_toggle", function()
         local b = not fact.sy_on
         fact.sy_on = b
-        if fact.sy_ok then
-            say_sy("fact shown " .. tostring(b))
-        elseif b then
-            -- not running: start it, and show it once it is up
-            exec_on_desktop('pleamar --scene "$HOME/.config/pleamar/shells/vitreus/desktopsysmon/desktopsysmon.plm" --no-hud')
-            after(2500, function() say_sy("fact shown true"); refresh_sy() end)
-        end
+        say_sy("fact shown " .. tostring(b), function(_, code)
+            if code ~= 0 and b then
+                exec_on_desktop('pleamar --scene "$HOME/.config/pleamar/shells/vitreus/desktopsysmon/desktopsysmon.plm" --no-hud')
+                after(2500, function() say_sy("fact shown true"); refresh_sy() end)
+            else
+                refresh_sy()
+            end
+        end)
     end)
     on("sy_pos_set", function(i)
         local k = math.floor(i + 0.5)

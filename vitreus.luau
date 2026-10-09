@@ -24,25 +24,41 @@ end)
 -- program is started directly, in a session of its own. Either way it has ~/.local/bin on its PATH, which Hyprland's has not.
 on_hyprland = false                       -- (globals, not locals: this chunk is at Luau's limit of 200 locals)
 run("printenv", { "HYPRLAND_INSTANCE_SIGNATURE" }, function(out, code) on_hyprland = code == 0 and (out or "") ~= "" end)
+-- `on_wm` (the bar reserves its own strip) only on positive evidence that this is pleamar-wm: its display is called `pleamar-N`. Hyprland takes priority, so a failed
+-- question leaves it false and the bar exactly as it was.
+run("printenv", { "WAYLAND_DISPLAY" }, function(out, code) fact.on_wm = code == 0 and (out or ""):match("^pleamar") ~= nil end)
 -- Asking one of our other scenes (the lock screen, the desktop clock and system monitor) for several of its values at once. `pleamar --say`
 -- answers one question per command, and starting a command from this shell costs about 30 ms, so a settings page that asked ten questions froze
 -- the shell for a third of a second each time it opened. A scene listens on a socket and answers one line per line it is sent, in order: one
 -- `socat` carries all the questions. `done` gets the answers (a list, in the order asked), or nothing when the scene does not answer.
 rt_dir = "/run/user/1000"
 run("printenv", { "XDG_RUNTIME_DIR" }, function(out, code) if code == 0 and (out or ""):match("%S") then rt_dir = (out:gsub("%s+$", "")) end end)
+-- Where the other scenes' sockets are: `pleamar` on Hyprland, and `pleamar-<display>` under pleamar-wm (WAYLAND_DISPLAY is `pleamar-1` there). The
+-- old folder is still there after a Hyprland session, with sockets nobody listens on. A table, asked once: a global would keep its value from load.
+sock_dir = { dir = nil }
+function with_sock_dir(fn)
+    if sock_dir.dir then return fn(sock_dir.dir) end
+    run("printenv", { "WAYLAND_DISPLAY" }, function(out, code)
+        local d = (out or ""):gsub("%s+$", "")
+        sock_dir.dir = rt_dir .. ((code == 0 and d:match("^pleamar")) and ("/pleamar-" .. d) or "/pleamar")
+        fn(sock_dir.dir)
+    end)
+end
 function say_many(scene, cmds, done)
-    local got, finished, id = {}, false, nil
-    local function finish(ok)
-        if finished then return end
-        finished = true
-        if id then kill(id, "term") end
-        done(ok and got or nil)
-    end
-    id = spawn("socat", { "-t1", "-", "UNIX-CONNECT:" .. rt_dir .. "/pleamar/" .. scene .. ".sock" },
-        function(line) got[#got + 1] = line; if #got >= #cmds then finish(true) end end,
-        function() finish(false) end, { stdin = "open" })
-    write(id, table.concat(cmds, "\n") .. "\n")
-    after(2500, function() finish(false) end)
+    with_sock_dir(function(dir)
+        local got, finished, id = {}, false, nil
+        local function finish(ok)
+            if finished then return end
+            finished = true
+            if id then kill(id, "term") end
+            done(ok and got or nil)
+        end
+        id = spawn("socat", { "-t1", "-", "UNIX-CONNECT:" .. dir .. "/" .. scene .. ".sock" },
+            function(line) got[#got + 1] = line; if #got >= #cmds then finish(true) end end,
+            function() finish(false) end, { stdin = "open" })
+        write(id, table.concat(cmds, "\n") .. "\n")
+        after(2500, function() finish(false) end)
+    end)
 end
 -- `hyprctl monitors -j`, shared. The bar's monitors, the scene's monitor height and the Display page's watch each started it on their own
 -- timer, every four or five seconds. A caller that can use an answer up to `max_age` seconds old gets the last one, and one already on
@@ -72,21 +88,38 @@ end
 -- Under pleamar-wm there is no `workspaces` service (it comes from Hyprland); the window manager is a scene, so its workspaces are asked of
 -- it over its socket: which one is shown, and which one each window is on.
 function wm_get(name, done) run("pleamar", { "--say", "wm", "get " .. name }, function(out) done(tonumber((out or ""):match("%-?[%d.]+")) or ((out or ""):match("true") and 1) or ((out or ""):match("false") and 0) or nil) end) end
+bar_mon = { name = nil }                 -- the monitor the bar is on ("all" for every one), set by logic/bar_monitors.luau
 function wm_workspaces()
-    wm_get("win.shown.0", function(shown)
-        if shown then fact["ws.active"] = shown end
-        -- Windows take slots 0 to 5 (`win.count` is only the ones on the shown workspace).
-        local busy, left = {}, 6
-        for i = 0, 5 do
-            wm_get("win." .. i .. ".open", function(open)
-                local function done(w)
-                    if w then busy[w] = true end
-                    left = left - 1
-                    if left == 0 then for k = 1, 5 do fact["ws." .. k .. ".busy"] = busy[k] or false end end
-                end
-                if open == 1 then wm_get("win." .. i .. ".workspace", done) else done(nil) end
-            end)
+    -- One connection for every question (`say_many`): a `pleamar --say` process for each one, ten times a second, was what made the shell stutter.
+    -- The workspace shown is per monitor: the bar's own, which is the one named in its `screens:` (the order of pleamar-wm's monitors is
+    -- the order `hyprctl monitors` gives them: "Monitor DP-2 (ID 1)"), or the one the pointer is on when the bar is on all of them.
+    local cmds = { "get mon", "get win.shown.0", "get win.shown.1", "get win.shown.2", "get win.shown.3" }
+    for i = 0, 5 do cmds[#cmds + 1] = "get win." .. i .. ".open" end
+    for i = 0, 5 do cmds[#cmds + 1] = "get win." .. i .. ".workspace" end
+    hypr_monitors(30, function(mons)
+        local name = bar_mon.name
+        local idx = nil
+        if name and name ~= "all" and mons then
+            idx = tonumber(mons:match("Monitor " .. name:gsub("%-", "%%-") .. " %\(ID (%d+)%\)"))
         end
+        say_many("wm", cmds, function(r)
+            if not r then return end
+            local n = idx or tonumber((r[1] or ""):match("%d+")) or 0
+            local shown = tonumber((r[2 + n] or ""):match("%-?[%d.]+"))
+            if shown and fact["ws.active"] ~= shown then fact["ws.active"] = shown end
+            -- Windows take slots 0 to 5 (`win.count` is only the ones on the shown workspace).
+            local busy = {}
+            for i = 0, 5 do
+                if (r[6 + i] or ""):match("true") then
+                    local w = tonumber((r[12 + i] or ""):match("%-?[%d.]+"))
+                    if w then busy[w] = true end
+                end
+            end
+            for k = 1, 5 do
+                local v = busy[k] or false
+                if fact["ws." .. k .. ".busy"] ~= v then fact["ws." .. k .. ".busy"] = v end
+            end
+        end)
     end)
 end
 after(1500, function()
@@ -1582,9 +1615,9 @@ local function parse_clients(out)
 end
 
 -- Under pleamar-wm the list comes from its scene: every slot (0 to 15) that is open, with its title, program, workspace and focus.
+-- Two connections in all (`say_many`): which slots are open, then the four things about each open one.
 function refresh_tasks_wm()
-    local slots, left = {}, 16
-    local function finish()
+    local function finish(slots)
         local list = {}
         for i = 0, 15 do if slots[i] then list[#list + 1] = slots[i] end end
         table.sort(list, function(a, b)
@@ -1607,29 +1640,32 @@ function refresh_tasks_wm()
             model.tasks = rows
         end
     end
-    local function raw(name, cb) run("pleamar", { "--say", "wm", "get " .. name }, function(out) cb((out or ""):gsub("%s+$", "")) end) end
-    for i = 0, 15 do
-        raw("win." .. i .. ".open", function(open)
-            if open ~= "true" then left = left - 1; if left == 0 then finish() end; return end
-            local w = { slot = i }
-            raw("win." .. i .. ".title", function(t)
-                w.title = t
-                raw("win." .. i .. ".app", function(a)
-                    w.app = a
-                    raw("win." .. i .. ".workspace", function(ws)
-                        w.wsn = tonumber(ws) or 0
-                        raw("win." .. i .. ".focused", function(f)
-                            w.active = f == "true"
-                            if w.title == "" then w.title = w.app ~= "" and w.app or "Window" end
-                            slots[i] = w
-                            left = left - 1
-                            if left == 0 then finish() end
-                        end)
-                    end)
-                end)
-            end)
+    local first = {}
+    for i = 0, 15 do first[#first + 1] = "get win." .. i .. ".open" end
+    say_many("wm", first, function(r)
+        if not r then return end
+        local open, cmds = {}, {}
+        for i = 0, 15 do
+            if (r[i + 1] or ""):match("true") then
+                open[#open + 1] = i
+                for _, f in ipairs({ "title", "app", "workspace", "focused" }) do cmds[#cmds + 1] = "get win." .. i .. "." .. f end
+            end
+        end
+        if #open == 0 then return finish({}) end
+        say_many("wm", cmds, function(d)
+            if not d then return end
+            local slots = {}
+            for n, i in ipairs(open) do
+                local base = (n - 1) * 4
+                local w = { slot = i, title = (d[base + 1] or ""):gsub("%s+$", ""), app = (d[base + 2] or ""):gsub("%s+$", "") }
+                w.wsn = tonumber(d[base + 3]) or 0
+                w.active = (d[base + 4] or ""):match("true") ~= nil
+                if w.title == "" then w.title = w.app ~= "" and w.app or "Window" end
+                slots[i] = w
+            end
+            finish(slots)
         end)
-    end
+    end)
 end
 
 local function refresh_tasks()
@@ -3204,6 +3240,7 @@ local disp_draft = {}                     -- name -> { res, hz, x, y, scale, tra
 local disp_saved = {}                     -- name -> the spec last kept, for monitors that are not connected now too
 local disp_profiles = {}                  -- { name, key, mons = { name -> spec } }
 local disp_auto = true
+local disp_ro = false                     -- under pleamar-wm: what the monitors are is shown, and it cannot be changed from here (session.conf says it)
 local disp_sel = 1
 local disp_key_seen = nil                 -- the set of connected displays the last time it was looked at
 local disp_trial = 0                      -- seconds left of a change on trial; 0 for none
@@ -3439,6 +3476,23 @@ local function disp_read(done, max_age)
     hypr_monitors(max_age or 0, function(out, code)
         if code ~= 0 or not out then return done and done() end
         local ok, list = pcall(json.decode, out)
+        if (not ok or type(list) ~= "table") and out:find("^Monitor ") then
+            -- pleamar-wm's `hyprctl monitors` is text: "Monitor DP-2 (ID 1):", "2560x1440@164.83 at 1440x747", "scale: 1.00" (sizes already turned by the
+            -- rotation, no list of modes). Shown as it is, and read-only (disp_ro): that desktop's monitors are said in ~/.config/pleamar/session.conf.
+            list = {}
+            for name, body in (out .. "\n\n"):gmatch("Monitor (%S+) %(ID %d+%):\n(.-)\n\n") do
+                local w, h, hz, x, y = body:match("(%d+)x(%d+)@([%d%.]+) at (%-?%d+)x(%-?%d+)")
+                if w then
+                    list[#list + 1] = { name = name, description = "pleamar-wm: change it in ~/.config/pleamar/session.conf", width = tonumber(w), height = tonumber(h),
+                        refreshRate = tonumber(hz), x = tonumber(x), y = tonumber(y), scale = tonumber(body:match("scale:%s*([%d.]+)")) or 1, transform = 0,
+                        availableModes = { string.format("%sx%s@%sHz", w, h, hz) } }
+                end
+            end
+            if #list == 0 then return done and done() end
+            ok, disp_ro = true, true
+        else
+            disp_ro = false
+        end
         if not ok or type(list) ~= "table" then return done and done() end
         local mons = {}
         for _, j in ipairs(list) do
@@ -3550,6 +3604,7 @@ local function disp_revert()
 end
 
 local function disp_apply()
+    if disp_ro then return end
     if disp_trial > 0 then return end
     local specs = {}
     -- every position is measured from the top left of the whole arrangement
@@ -3603,6 +3658,7 @@ end)
 
 -- ── the page's events ──
 local function disp_edit(fn)
+    if disp_ro then return end
     local m = disp_mons[disp_sel]
     if not m then return end
     fn(m, disp_draft[m.name])
@@ -3630,6 +3686,7 @@ on("disp_pick_hz", function(i)
 end)
 on("disp_pick_scale", function(i) disp_edit(function(_, d) d.scale = DISP_SCALES[i + 1] or d.scale end) end)
 on("disp_rot_mon", function(i)
+    if disp_ro then return end
     local m = disp_mons[i + 1]
     if not m then return end
     disp_sel = i + 1
@@ -3651,6 +3708,7 @@ on("disp_refresh", function() disp_read() end)
 -- Dragging a monitor on the canvas: the page says where the pointer is (canvas units, in `fact.disp_px/py`) when it
 -- grabs a box and as it moves; the box keeps the distance it was grabbed at, and snaps to the edges of the others.
 on("disp_grab", function()
+    if disp_ro then return end
     local i = fact.disp_grab_i + 1
     local m = disp_mons[i]
     if not m or not disp_grab_origin then return end
@@ -3689,6 +3747,7 @@ end)
 on("disp_drop", function() disp_grab = nil end)
 -- Buttons over the canvas: side by side, or the two swapped.
 on("disp_arrange", function()
+    if disp_ro then return end
     local x = 0
     for _, m in ipairs(disp_mons) do
         local d = disp_draft[m.name]
@@ -3699,6 +3758,7 @@ on("disp_arrange", function()
     disp_render()
 end)
 on("disp_swap", function()
+    if disp_ro then return end
     -- the order left to right, turned round, and packed side by side again
     if #disp_mons < 2 then return end
     local order = {}
@@ -3740,6 +3800,7 @@ on("disp_profile_save", function()
     text.disp_msg = "Saved “" .. name .. "”."
 end)
 on("disp_profile_apply", function(i)
+    if disp_ro then return end
     local p = disp_profiles[i + 1]
     if not p then return end
     for name, spec in pairs(p.mons) do
@@ -4199,22 +4260,35 @@ do
     local function wm_read()
         -- Pleamar-WM answers only when it is the window manager; on Hyprland each of these would start a command to get nothing back.
         if on_hyprland then return end
-        local function num(name, cb) wm_get(name, function(v) if v ~= nil then cb(v) end end) end
-        num("gap", function(v) wm.gap = v end)
-        num("ratio", function(v) wm.share = v end)
-        num("lay.0", function(v) wm.layout = v end)
-        num("free.0", function(v) wm.free = v == 1 end)
-        num("rain", function(v) wm.rain = v == 1 end)
-        num("snow", function(v) wm.snow = v == 1 end)
-        num("bw", function(v) wm.bw = v end)
-        num("ba", function(v) wm.ba = v end)
-        num("rad", function(v) wm.rad = v end)
-        num("shd", function(v) wm.shd = v end)
-        num("tb", function(v) wm.tb = v end)
-        num("tbo", function(v) wm.tbo = v end)
-        num("wo_a", function(v) wm.wa = v end)
-        num("wo_i", function(v) wm.wi = v end)
-        num("fr", function(v) wm.fr = v end)
+        -- One connection for all of them (`say_many`): a `pleamar --say` program for each of these fifteen made the page stall when it opened.
+        local names = { "gap", "ratio", "lay.0", "free.0", "rain", "snow", "bw", "ba", "rad", "shd", "tb", "tbo", "wo_a", "wo_i", "fr" }
+        local cmds = {}
+        for i, n in ipairs(names) do cmds[i] = "get " .. n end
+        say_many("wm", cmds, function(r)
+            if not r then return end
+            local function val(i)
+                local out = r[i] or ""
+                return tonumber(out:match("%-?[%d.]+")) or (out:match("true") and 1) or (out:match("false") and 0) or nil
+            end
+            local v = {}
+            for i = 1, #names do v[i] = val(i) end
+            if v[1] then wm.gap = v[1] end
+            if v[2] then wm.share = v[2] end
+            if v[3] then wm.layout = v[3] end
+            if v[4] then wm.free = v[4] == 1 end
+            if v[5] then wm.rain = v[5] == 1 end
+            if v[6] then wm.snow = v[6] == 1 end
+            if v[7] then wm.bw = v[7] end
+            if v[8] then wm.ba = v[8] end
+            if v[9] then wm.rad = v[9] end
+            if v[10] then wm.shd = v[10] end
+            if v[11] then wm.tb = v[11] end
+            if v[12] then wm.tbo = v[12] end
+            if v[13] then wm.wa = v[13] end
+            if v[14] then wm.wi = v[14] end
+            if v[15] then wm.fr = v[15] end
+            wm_show()
+        end)
         conf_path(function(path)
             run("grep", { "-E", "^(pointer|touchpad|idle) ", path }, function(out)
                 for line in (out or ""):gmatch("[^\n]+") do
