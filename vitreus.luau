@@ -3189,7 +3189,14 @@ local function glass_refresh()
     text.glass_refr_text = string.format("%d%%", math.floor(glass.refr * 100 + 0.5))
     text.glass_disp_text = string.format("%d%%", math.floor(glass.disp * 100 + 0.5))
 end
+-- The desktop clock and system monitor are scenes of their own: they are told when the glass goes off or on (they ask for it themselves when they start).
+function glass.push_obs()
+    local v = glass.obsidian and "true" or "false"
+    run("pleamar", { "--say", "desktopclock", "fact obs " .. v }, function() end)
+    run("pleamar", { "--say", "desktopsysmon", "fact obs " .. v }, function() end)
+end
 local function glass_save_soon()
+    glass.push_obs()
     if glass_save_waiting then return end
     glass_save_waiting = true
     after(500, function()

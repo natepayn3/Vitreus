@@ -153,3 +153,13 @@ refresh()
 on("fact:shown", function(v) cfg.shown = v and true or false; save(); refresh(); if cfg.shown and not aur_checked then check_aur() end end)
 on("fact:where", function(v) if POSITIONS[v] then cfg.position = v; save() end end)
 on("fact:cli", function(v) if type(v) == "number" then cfg.clarity = clampi(v, 0, 2); save() end end)
+
+-- Whether Vitreus has its glass off (then this is flat obsidian): asked of it when this starts (it says so itself when it changes), and again a
+-- few seconds in, for when Vitreus starts after this does.
+local function ask_obs()
+    run("pleamar", { "--say", "vitreus", "get glass_obs" }, function(out, code)
+        if code == 0 and out then fact.obs = out:match("true") ~= nil end
+    end)
+end
+ask_obs()
+after(4000, ask_obs)

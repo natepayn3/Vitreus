@@ -72,11 +72,7 @@ part PleamarWm {
 
             //  Free-floating windows, as on Windows or KDE.
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 170 * pu + 0.5); text "Free-floating windows" { at: floor(spx + 14 * pu + 0.5), floor(sby + 170 * pu + 0.5); anchor: left center; size: 15.5; weight: 600; color: ink; family: "Space Grotesk" } }
-            body {
-                color: mix(off, mint, clamp(wm_k0, 0, 1))
-                box { at: spx + 405 * pu, sby + 170 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
-            }
-            box { at: spx + 397 * pu + wm_k0 * 16 * pu, sby + 170 * pu; size: (17 + 9 * clamp(4 * wm_k0 * (1 - wm_k0), 0, 1)) * pu, (17 - 3 * clamp(4 * wm_k0 * (1 - wm_k0), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * wm_k0 * (1 - wm_k0), 0, 1)) * pu; color: ink }
+            SettingsSwitch(spx + 424 * pu, sby + 170 * pu, wm_k0, wm_tg_hit.0.pressed, mint)
             zone box wm_tg_hit.0 { at: spx + 219 * pu, sby + 170 * pu; size: 430 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: (sby + 170 * pu) - sby - wm.off > 0 and (sby + 170 * pu) - sby - wm.off < set.h * pu }
             on press wm_tg_hit.0 { emit wm_toggle(0) }
 
@@ -85,11 +81,7 @@ part PleamarWm {
                 let ty = sby + (234 + (i - 1) * 30) * pu
                 let tk = pick(i - 1, wm_k1, wm_k2)
                 group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(ty + 0.5); text pick(i - 1, "Rain on the glass", "Snow") { at: floor(spx + 14 * pu + 0.5), floor(ty + 0.5); anchor: left center; size: 15.5; weight: 600; color: ink; family: "Space Grotesk" } }
-                body {
-                    color: mix(off, mint, clamp(tk, 0, 1))
-                    box { at: spx + 405 * pu, ty; size: 38 * pu, 22 * pu; corner: 11 * pu }
-                }
-                box { at: spx + 397 * pu + tk * 16 * pu, ty; size: (17 + 9 * clamp(4 * tk * (1 - tk), 0, 1)) * pu, (17 - 3 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; color: ink }
+                SettingsSwitch(spx + 424 * pu, ty, tk, wm_tg_hit.$i.pressed, mint)
                 zone box wm_tg_hit.$i { at: spx + 219 * pu, ty; size: 430 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: (ty) - sby - wm.off > 0 and (ty) - sby - wm.off < set.h * pu }
                 on press wm_tg_hit.$i { emit wm_toggle(i) }
             }
@@ -121,11 +113,7 @@ part PleamarWm {
                 let ty = sby + (320 + i * 30) * pu
                 let tk = pick(i - 3, wm_k3, wm_k4)
                 group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(ty + 0.5); text pick(i - 3, "Natural scroll (touchpad)", "Tap to click (touchpad)") { at: floor(spx + 14 * pu + 0.5), floor(ty + 0.5); anchor: left center; size: 15.5; weight: 600; color: ink; family: "Space Grotesk" } }
-                body {
-                    color: mix(off, mint, clamp(tk, 0, 1))
-                    box { at: spx + 405 * pu, ty; size: 38 * pu, 22 * pu; corner: 11 * pu }
-                }
-                box { at: spx + 397 * pu + tk * 16 * pu, ty; size: (17 + 9 * clamp(4 * tk * (1 - tk), 0, 1)) * pu, (17 - 3 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; color: ink }
+                SettingsSwitch(spx + 424 * pu, ty, tk, wm_tg_hit.$i.pressed, mint)
                 zone box wm_tg_hit.$i { at: spx + 219 * pu, ty; size: 430 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: (ty) - sby - wm.off > 0 and (ty) - sby - wm.off < set.h * pu }
                 on press wm_tg_hit.$i { emit wm_toggle(i) }
             }

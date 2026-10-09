@@ -13,7 +13,7 @@ scene DesktopSysmon {
 
     permissions {
         services: "files", "files.write"
-        run: "vitreus-sysmon", "sh"
+        run: "vitreus-sysmon", "sh", "pleamar"
     }
 
     fact where: top_left | top | top_right | left | center | right | bottom_left | bottom | bottom_right = bottom_right
@@ -45,6 +45,9 @@ scene DesktopSysmon {
 
     prop sh = 0 ~calm
     follow sh = if(shown, 1, 0)
+    fact obs = false        // Vitreus has its glass off: the card is flat obsidian (Vitreus says so with `fact obs true`)
+    prop ob = 0 ~calm
+    follow ob = if(obs, 1, 0)
     prop cpu_p = 0 ~calm
     prop mem_p = 0 ~calm
     prop gpu_p = 0 ~calm
@@ -70,7 +73,20 @@ scene DesktopSysmon {
             rim: 70%
             shine: 0, 0
             shadow: 0, 6, 18, 30%
-            opacity: sh * clr
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            arc { at: g0, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg }
+            arc { at: g1, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg }
+            arc { at: g2, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg; show: gpu_on }
+            box { at: 200, 206; size: 340, 2.4; corner: 1.2 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shapes as a flat, dark piece.
+        body {
+            color: mix(tint, #000000, 0.7)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
             arc { at: g0, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg }
             arc { at: g1, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg }
             arc { at: g2, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg; show: gpu_on }

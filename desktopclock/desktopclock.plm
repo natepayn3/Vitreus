@@ -13,7 +13,7 @@ import "clockface_styled.plm"
 scene DesktopClock {
     surface { size: 1500, 1100; anchor: where; margin: 40; level: bottom; screens: all; reserve: -1 }
 
-    permissions { services: "clock", "files", "files.write" }
+    permissions { services: "clock", "files", "files.write"; run: "pleamar" }
 
     service clock as now { hour: number }
 
@@ -44,6 +44,9 @@ scene DesktopClock {
 
     prop sh = 0 ~calm
     follow sh = if(shown, 1, 0)
+    fact obs = false        // Vitreus has its glass off: the digits are flat obsidian (Vitreus says so with `fact obs true`)
+    prop ob = 0 ~calm
+    follow ob = if(obs, 1, 0)
 
     let k = px / 88
     let wt = if(wti == 0, 0.62, if(wti == 2, 1.4, 1))
@@ -58,5 +61,5 @@ scene DesktopClock {
     let fx = if(isl > 0.5, 40 + hw, if(isr > 0.5, 1500 - 40 - hw, 750))
     let fy = if(ist > 0.5, 40 + hh, if(isb > 0.5, 1100 - 40 - hh, 550))
 
-    ClockFaceStyled(k, lay, d0, d1, d2, d3, fx, fy, tint, 1, 0.4, sh * clr, wt, mint, ink, alert, faint)
+    ClockFaceStyled(k, lay, d0, d1, d2, d3, fx, fy, tint, 1, 0.4, sh * clr, wt, mint, ink, alert, faint, ob)
 }

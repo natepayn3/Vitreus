@@ -39,11 +39,7 @@ part Clock {
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 24 * pu + 0.5); text "Desktop clock" { at: floor(spx + 14 * pu + 0.5), floor(sby + 24 * pu + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 44 * pu + 0.5); text "Digits of glass on your wallpaper, under the windows" { at: floor(spx + 14 * pu + 0.5), floor(sby + 44 * pu + 0.5); anchor: left center; size: 12.5; color: faint; show: ck_ok; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 44 * pu + 0.5); text "Not running: turn the switch on to start it" { at: floor(spx + 14 * pu + 0.5), floor(sby + 44 * pu + 0.5); anchor: left center; size: 12.5; color: faint; show: not ck_ok; family: "Space Grotesk" } }
-            body {
-                color: mix(off, mint, clamp(ck_pill, 0, 1))
-                box { at: spx + 405 * pu, sby + 34 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
-            }
-            box { at: spx + 397 * pu + ck_pill * 16 * pu, sby + 34 * pu; size: (17 + 9 * clamp(4 * ck_pill * (1 - ck_pill), 0, 1)) * pu, (17 - 3 * clamp(4 * ck_pill * (1 - ck_pill), 0, 1)) * pu; corner: 7 * pu; color: ink }
+            SettingsSwitch(spx + 424 * pu, sby + 34 * pu, ck_pill, ck_hit.pressed, mint)
             zone box ck_hit { at: spx + 405 * pu, sby + 34 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 34 * pu) - ck.off > sby and (sby + 34 * pu) - ck.off < sby + set.h * pu }
             on press ck_hit { emit ck_toggle }
 
@@ -69,7 +65,7 @@ part Clock {
             let pv.k  = min(min(1.1, 196 / pv.hw), 60 / pv.hh) * pu
             let pv.cx = spx + 219 * pu
             let pv.cy = sby + 142 * pu
-            ClockFaceStyled(pv.k, ck_lay, 1, 0, 4, 3, pv.cx, pv.cy, mix(ink, deep, 0.35), 0, 0.5, 100%, pv.wt, mint, ink, alert, faint)
+            ClockFaceStyled(pv.k, ck_lay, 1, 0, 4, 3, pv.cx, pv.cy, mix(ink, deep, 0.35), 0, 0.5, 100%, pv.wt, mint, ink, alert, faint, 0)
             //  Where each part is, for this layout (in the face's own units, from its middle): the hours, the minutes and the divider, each a middle and a size.
             let pr0x = pick(ck_lay, -88 - u.geh - u.dv, 0, 0, -91 - u.geh - u.dc, -69 - u.geh - u.dv, 0)
             let pr0y = pick(ck_lay, 0, -67 - u.gev - u.dv, -71.8 - u.gev - u.dv - u.gev / 2, 0, -68 - u.gev - u.dv, -40 - u.gev - u.dv)
@@ -266,11 +262,7 @@ part Clock {
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 664 * pu + 0.5); text "Desktop system monitor" { at: floor(spx + 14 * pu + 0.5), floor(sby + 664 * pu + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 684 * pu + 0.5); text "Processor, memory, graphics and network on your wallpaper" { at: floor(spx + 14 * pu + 0.5), floor(sby + 684 * pu + 0.5); anchor: left center; size: 12.5; color: faint; show: sy_ok; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 684 * pu + 0.5); text "Not running: turn the switch on to start it" { at: floor(spx + 14 * pu + 0.5), floor(sby + 684 * pu + 0.5); anchor: left center; size: 12.5; color: faint; show: not sy_ok; family: "Space Grotesk" } }
-            body {
-                color: mix(off, mint, clamp(sy_pill, 0, 1))
-                box { at: spx + 405 * pu, sby + 674 * pu; size: 38 * pu, 22 * pu; corner: 11 * pu }
-            }
-            box { at: spx + 397 * pu + sy_pill * 16 * pu, sby + 674 * pu; size: (17 + 9 * clamp(4 * sy_pill * (1 - sy_pill), 0, 1)) * pu, (17 - 3 * clamp(4 * sy_pill * (1 - sy_pill), 0, 1)) * pu; corner: 7 * pu; color: ink }
+            SettingsSwitch(spx + 424 * pu, sby + 674 * pu, sy_pill, sy_hit.pressed, mint)
             zone box sy_hit { at: spx + 405 * pu, sby + 674 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 674 * pu) - ck.off > sby and (sby + 674 * pu) - ck.off < sby + set.h * pu }
             on press sy_hit { emit sy_toggle }
 

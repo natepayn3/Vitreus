@@ -113,11 +113,7 @@ part Hyprland {
                 let tk = pick(i, hy_k0, hy_k1, hy_k2, hy_k3)
                 group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(ty - 6 * pu + 0.5); text pick(i, "Resize from border", "Allow screen tearing", "Window manager animations", "Natural scroll (touchpad)") { at: floor(spx + 14 * pu + 0.5), floor(ty - 6 * pu + 0.5); anchor: left center; size: 15.5; weight: 600; color: ink; family: "Space Grotesk" } }
                 group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(ty + 8 * pu + 0.5); text pick(i, "Grab a window's edge anywhere to resize it", "Lets opted-in fullscreen apps skip vsync", "Hyprland's own window and workspace motion", "Reverses the touchpad's scroll direction") { at: floor(spx + 14 * pu + 0.5), floor(ty + 8 * pu + 0.5); anchor: left center; size: 13; color: faint; family: "Space Grotesk" } }
-                body {
-                    color: mix(off, mint, clamp(tk, 0, 1))
-                    box { at: spx + 405 * pu, ty; size: 38 * pu, 22 * pu; corner: 11 * pu }
-                }
-                box { at: spx + 397 * pu + tk * 16 * pu, ty; size: (17 + 9 * clamp(4 * tk * (1 - tk), 0, 1)) * pu, (17 - 3 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; corner: (8.5 - 1.5 * clamp(4 * tk * (1 - tk), 0, 1)) * pu; color: ink }
+                SettingsSwitch(spx + 424 * pu, ty, tk, hy_tg_hit.$i.pressed, mint)
                 zone box hy_tg_hit.$i { at: spx + 219 * pu, ty; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
                 on press hy_tg_hit.$i { emit hy_toggle(i) }
             }

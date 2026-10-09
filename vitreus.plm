@@ -1881,6 +1881,44 @@ scene Vitreus {
     //  A result of the launcher: an icon (or a letter where there is none), its name, and a line of detail.
     //  Its width is the rows' width (`lw`): narrower where a preview sits beside the rows, and then it has no detail line.
     let lw = mix(430, 238, lpv) * pu
+    //  The switch of the Settings, drawn exactly like the Control Center's (the Notifications tile's, say) without the little icon on the knob: a track that is
+    //  a dark hollow off and raised and lit from inside on, a solid knob that swells while it moves and under the finger, and the light that travels with it.
+    //  `rx` is the track's right edge, `cy` its middle, `k` how on it is (0 to 1, a spring), `press` how pressed (the row's zone `.pressed`), `acc` the colour on.
+    component SettingsSwitch(rx: number, cy: number, k: number, press: number, acc: color) {
+        let sm = clamp(4 * k * (1 - k), 0, 1)             // how much it is moving (0 at rest, 1 half way)
+        let sw = (34 + 4 * k) * cu
+        let scx = rx - sw / 2
+        let sl = scx - sw / 2
+        let skx = sl + 11 * cu + k * (sw - 22 * cu)
+        let skw = (17 + 9 * sm + 7 * press) * cu
+        let skh = (17 - 3 * sm - 2 * press) * cu
+        body {
+            color: mix(off, acc, clamp(k, 0, 1))
+            shadow: 0, 0, 10 * cu * k, 48% * k, acc
+            rim: 16% * k
+            box { at: scx, cy; size: sw, 22 * cu; corner: (11 - 2 * k) * cu }
+        }
+        group {
+            clip inset 0 box { at: scx, cy; size: sw, 22 * cu; corner: (11 - 2 * k) * cu }
+            group {
+                blur: 3 * cu
+                box { from: sl - 6 * cu, cy - 18 * cu; size: sw + 12 * cu, 9 * cu; color: #000000; opacity: 55% * (1 - k) }
+            }
+            box { from: sl, cy + 9.5 * cu; size: sw, 1.5 * cu; color: ink; opacity: 12% * (1 - k) }
+            group {
+                blur: 5 * cu
+                ellipse { at: skx, cy; radius: (6 + 8 * k + 4 * sm) * cu; color: ink; opacity: 22% * k + 28% * sm }
+            }
+            repeat i in 0..8 {
+                box { at: sl + (4.5 + 5 * i - (k - 0.5) * 9) * cu, cy; size: 1.2 * cu, 9 * cu; corner: 0.6 * cu; color: ink; opacity: 24% * sm }
+            }
+        }
+        body {
+            color: ink
+            shadow: 0, 2 * cu, 5 * cu, 26%
+            box { at: skx, cy; size: skw, skh; corner: (8.5 - 2 * clamp(k, 0, 1) - 1.5 * sm) * cu }
+        }
+    }
     component LRow(t: record, pick: event, del: event) {
         size: lw, 40 * pu
         //  How much the remove button shows (see the end of the row).
