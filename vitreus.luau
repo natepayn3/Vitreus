@@ -24,9 +24,6 @@ end)
 -- program is started directly, in a session of its own. Either way it has ~/.local/bin on its PATH, which Hyprland's has not.
 on_hyprland = false                       -- (globals, not locals: this chunk is at Luau's limit of 200 locals)
 run("printenv", { "HYPRLAND_INSTANCE_SIGNATURE" }, function(out, code) on_hyprland = code == 0 and (out or "") ~= "" end)
--- `on_wm` (the bar reserves its own strip) only on positive evidence that this is pleamar-wm: its display is called `pleamar-N`. Hyprland takes priority, so a failed
--- question leaves it false and the bar exactly as it was.
-run("printenv", { "WAYLAND_DISPLAY" }, function(out, code) fact.on_wm = code == 0 and (out or ""):match("^pleamar") ~= nil end)
 -- Asking one of our other scenes (the lock screen, the desktop clock and system monitor) for several of its values at once. `pleamar --say`
 -- answers one question per command, and starting a command from this shell costs about 30 ms, so a settings page that asked ten questions froze
 -- the shell for a third of a second each time it opened. A scene listens on a socket and answers one line per line it is sent, in order: one
@@ -42,6 +39,15 @@ function with_sock_dir(fn)
         local d = (out or ""):gsub("%s+$", "")
         sock_dir.dir = rt_dir .. ((code == 0 and d:match("^pleamar")) and ("/pleamar-" .. d) or "/pleamar")
         fn(sock_dir.dir)
+    end)
+end
+-- Commands that get no answer (`fact x y`): all down one connection, which is let go a moment after.
+function say_batch(scene, cmds)
+    if #cmds == 0 then return end
+    with_sock_dir(function(dir)
+        local id = spawn("socat", { "-t1", "-", "UNIX-CONNECT:" .. dir .. "/" .. scene .. ".sock" }, function() end, function() end, { stdin = "open" })
+        write(id, table.concat(cmds, "\n") .. "\n")
+        after(500, function() kill(id, "term") end)
     end)
 end
 function say_many(scene, cmds, done)
@@ -4201,7 +4207,43 @@ do
         text.wm_idle_text = string.format("%d min", inp.idle)
     end
 
+    -- The room the shell's frame keeps round the bar's monitor, which pleamar-wm keeps the windows out of (its `fr.MONITOR.EDGE`; Hyprland has the
+    -- same in `gaps_out`, see `iris_fx.gaps_code`): with the bar on the left, 24 px on the top, right and bottom and 76 on the left, from the edge of
+    -- the screen; none on a monitor without the bar, or with the bar on top. The window manager puts its gap on top of whatever is set, so that gap is taken off.
+    local FRAME_ROOM = { top = 24, right = 24, bottom = 24, left = 76 }
+    local EDGES = { "top", "right", "bottom", "left" }
+    function wm_frame_sync()
+        if on_hyprland then return end
+        hypr_monitors(30, function(mons)
+            if not mons then return end
+            local names = {}
+            for name, id in mons:gmatch("Monitor (%S+) %(ID (%d+)%)") do names[tonumber(id)] = name end
+            local framed = fact.bar_anchor == "left" and bar_mon.name ~= nil
+            local want, cmds = {}, {}
+            for id = 0, 3 do
+                local has = framed and names[id] ~= nil and (bar_mon.name == "all" or bar_mon.name == names[id])
+                for _, e in ipairs(EDGES) do
+                    want[#want + 1] = has and math.max(0, FRAME_ROOM[e] - wm.gap) or 0
+                    cmds[#cmds + 1] = "get fr." .. id .. "." .. e
+                end
+            end
+            say_many("wm", cmds, function(r)
+                if not r then return end
+                local out, k = {}, 0
+                for id = 0, 3 do
+                    for _, e in ipairs(EDGES) do
+                        k = k + 1
+                        if tonumber((r[k] or ""):match("%-?[%d.]+")) ~= want[k] then out[#out + 1] = "fact fr." .. id .. "." .. e .. " " .. want[k] end
+                    end
+                end
+                say_batch("wm", out)
+            end)
+        end)
+    end
+
     local function wm_send()
+        local cmds = {}
+        local function say(line) cmds[#cmds + 1] = line end
         say("fact gap " .. wm.gap)
         say("fact ratio " .. wm.share)
         for m = 0, 3 do
@@ -4219,6 +4261,8 @@ do
         say("fact wo_a " .. wm.wa)
         say("fact wo_i " .. wm.wi)
         say("fact fr " .. wm.fr)
+        say_batch("wm", cmds)
+        wm_frame_sync()
     end
 
     local function wm_save()
@@ -4341,6 +4385,7 @@ do
         wm_get("gap", function(v)
             if v ~= nil and v ~= wm.gap then wm_send() end
         end)
+        wm_frame_sync()
     end)
 
     on("wm_layout_set", function(i) wm.layout = math.max(0, math.min(4, math.floor(i + 0.5))); wm_changed() end)

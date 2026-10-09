@@ -154,6 +154,25 @@ scene Session {
     let focus_at = max(pick(max(win.focus, 0), win.0.rank, win.1.rank, win.2.rank, win.3.rank, win.4.rank, win.5.rank, win.6.rank, win.7.rank, win.8.rank, win.9.rank, win.10.rank, win.11.rank, win.12.rank, win.13.rank, win.14.rank, win.15.rank), 0)
     let all = max(win.count, 1)
 
+    // ── the room the shell's frame keeps round a monitor, beyond what programs' bars reserve (Vitreus sets it: its glass frame and its strip on the
+    // left; 0 for a monitor with none). The windows stay this far from the edge, and the gap is on top of it. `fr.MONITOR.EDGE`, in pixels.
+    fact fr.0.top = 0
+    fact fr.0.right = 0
+    fact fr.0.bottom = 0
+    fact fr.0.left = 0
+    fact fr.1.top = 0
+    fact fr.1.right = 0
+    fact fr.1.bottom = 0
+    fact fr.1.left = 0
+    fact fr.2.top = 0
+    fact fr.2.right = 0
+    fact fr.2.bottom = 0
+    fact fr.2.left = 0
+    fact fr.3.top = 0
+    fact fr.3.right = 0
+    fact fr.3.bottom = 0
+    fact fr.3.left = 0
+
     // ── the layouts, one for each monitor: 0 a leader on the left and the
     // rest stacked on the right, 1 columns, 2 rows, 3 a grid, 4 the leader
     // on the right. Carrying a window, a strip of them appears at the top of
@@ -181,7 +200,7 @@ scene Session {
     fact sizing = -1
     let lay.here = pick(mon, lay.0, lay.1, lay.2, lay.3)
     let strip.x = pick(mon, screen.0.width, screen.1.width, screen.2.width, screen.3.width) / 2 - 5 * 60 / 2
-    let strip.y = pick(mon, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + 6
+    let strip.y = pick(mon, (win.reserved.0.top + fr.0.top), (win.reserved.1.top + fr.1.top), (win.reserved.2.top + fr.2.top), (win.reserved.3.top + fr.3.top)) + 6
     // (Only over a tiled monitor: a free one has no layout to pick.)
     let on.strip = dragging >= 0 and pick(mon, free.0, free.1, free.2, free.3) < 0.5 and mouse.y >= strip.y and mouse.y < strip.y + 44 and mouse.x >= strip.x and mouse.x < strip.x + 5 * 60
     let picked = if(on.strip, floor((mouse.x - strip.x) / 60), -1)
@@ -244,9 +263,9 @@ scene Session {
                 color: #0c0e10
                 rim: 8%
                 shadow: 0, 8, 24, 45%
-                box { at: W / 2, pick(s, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + 58; size: 64, 44; corner: 22 }
+                box { at: W / 2, pick(s, (win.reserved.0.top + fr.0.top), (win.reserved.1.top + fr.1.top), (win.reserved.2.top + fr.2.top), (win.reserved.3.top + fr.3.top)) + 58; size: 64, 44; corner: 22 }
             }
-            text number(win.shown.$s, 0) { at: W / 2, pick(s, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + 58; anchor: center; size: 20; weight: 700; color: mint }
+            text number(win.shown.$s, 0) { at: W / 2, pick(s, (win.reserved.0.top + fr.0.top), (win.reserved.1.top + fr.1.top), (win.reserved.2.top + fr.2.top), (win.reserved.3.top + fr.3.top)) + 58; anchor: center; size: 20; weight: 700; color: mint }
         }
     }
 
@@ -369,10 +388,10 @@ scene Session {
         let p = max(win.$i.place, 0)
         let L = pick(sc, lay.0, lay.1, lay.2, lay.3)
         // ── where it goes, in its monitor's layout ──
-        let Ws = pick(sc, screen.0.width, screen.1.width, screen.2.width, screen.3.width) - pick(sc, win.reserved.0.left, win.reserved.1.left, win.reserved.2.left, win.reserved.3.left) - pick(sc, win.reserved.0.right, win.reserved.1.right, win.reserved.2.right, win.reserved.3.right)
-        let Hs = pick(sc, screen.0.height, screen.1.height, screen.2.height, screen.3.height) - pick(sc, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) - pick(sc, win.reserved.0.bottom, win.reserved.1.bottom, win.reserved.2.bottom, win.reserved.3.bottom)
-        let x0 = pick(sc, win.reserved.0.left, win.reserved.1.left, win.reserved.2.left, win.reserved.3.left)
-        let y0 = pick(sc, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + bar
+        let Ws = pick(sc, screen.0.width, screen.1.width, screen.2.width, screen.3.width) - pick(sc, (win.reserved.0.left + fr.0.left), (win.reserved.1.left + fr.1.left), (win.reserved.2.left + fr.2.left), (win.reserved.3.left + fr.3.left)) - pick(sc, (win.reserved.0.right + fr.0.right), (win.reserved.1.right + fr.1.right), (win.reserved.2.right + fr.2.right), (win.reserved.3.right + fr.3.right))
+        let Hs = pick(sc, screen.0.height, screen.1.height, screen.2.height, screen.3.height) - pick(sc, (win.reserved.0.top + fr.0.top), (win.reserved.1.top + fr.1.top), (win.reserved.2.top + fr.2.top), (win.reserved.3.top + fr.3.top)) - pick(sc, (win.reserved.0.bottom + fr.0.bottom), (win.reserved.1.bottom + fr.1.bottom), (win.reserved.2.bottom + fr.2.bottom), (win.reserved.3.bottom + fr.3.bottom))
+        let x0 = pick(sc, (win.reserved.0.left + fr.0.left), (win.reserved.1.left + fr.1.left), (win.reserved.2.left + fr.2.left), (win.reserved.3.left + fr.3.left))
+        let y0 = pick(sc, (win.reserved.0.top + fr.0.top), (win.reserved.1.top + fr.1.top), (win.reserved.2.top + fr.2.top), (win.reserved.3.top + fr.3.top)) + bar
         let ah = Hs - bar - gap
         let lw = if(n < 1.5, Ws - 2 * gap, (Ws - 3 * gap) * ratio)
         let sw = Ws - 3 * gap - lw
@@ -402,10 +421,10 @@ scene Session {
         let n.shown = max(if(crossing and not xswap and sc == mon, n + 1, if(crossing and not xswap and sc == dsc, n - 1, n)), 1)
         let p.shown = if(dragging == i and promoted, 0, if(promoted, p + (p < dplace), if(swaps and not crossing, dplace, if(xswap, p, if(crossing and sc == mon, p + if(leads, 1, ordD < ord.me), if(crossing and sc == dsc, p - (ord.me > ordD), p))))))
         let L.shown = if(dragging >= 0 and picked >= 0 and sc == mon, picked, L)
-        let Wsv = pick(sc, screen.0.width, screen.1.width, screen.2.width, screen.3.width) - pick(sc, win.reserved.0.left, win.reserved.1.left, win.reserved.2.left, win.reserved.3.left) - pick(sc, win.reserved.0.right, win.reserved.1.right, win.reserved.2.right, win.reserved.3.right)
-        let Hsv = pick(sc, screen.0.height, screen.1.height, screen.2.height, screen.3.height) - pick(sc, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) - pick(sc, win.reserved.0.bottom, win.reserved.1.bottom, win.reserved.2.bottom, win.reserved.3.bottom)
-        let x0v = pick(sc, win.reserved.0.left, win.reserved.1.left, win.reserved.2.left, win.reserved.3.left)
-        let y0v = pick(sc, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + bar
+        let Wsv = pick(sc, screen.0.width, screen.1.width, screen.2.width, screen.3.width) - pick(sc, (win.reserved.0.left + fr.0.left), (win.reserved.1.left + fr.1.left), (win.reserved.2.left + fr.2.left), (win.reserved.3.left + fr.3.left)) - pick(sc, (win.reserved.0.right + fr.0.right), (win.reserved.1.right + fr.1.right), (win.reserved.2.right + fr.2.right), (win.reserved.3.right + fr.3.right))
+        let Hsv = pick(sc, screen.0.height, screen.1.height, screen.2.height, screen.3.height) - pick(sc, (win.reserved.0.top + fr.0.top), (win.reserved.1.top + fr.1.top), (win.reserved.2.top + fr.2.top), (win.reserved.3.top + fr.3.top)) - pick(sc, (win.reserved.0.bottom + fr.0.bottom), (win.reserved.1.bottom + fr.1.bottom), (win.reserved.2.bottom + fr.2.bottom), (win.reserved.3.bottom + fr.3.bottom))
+        let x0v = pick(sc, (win.reserved.0.left + fr.0.left), (win.reserved.1.left + fr.1.left), (win.reserved.2.left + fr.2.left), (win.reserved.3.left + fr.3.left))
+        let y0v = pick(sc, (win.reserved.0.top + fr.0.top), (win.reserved.1.top + fr.1.top), (win.reserved.2.top + fr.2.top), (win.reserved.3.top + fr.3.top)) + bar
         let ahv = Hsv - bar - gap
         let lwv = if(n.shown < 1.5, Wsv - 2 * gap, (Wsv - 3 * gap) * ratio)
         let swv = Wsv - 3 * gap - lwv
@@ -420,10 +439,10 @@ scene Session {
         let twv = pick(L.shown, if(p.shown < 0.5, lwv, swv), cwv, Wsv - 2 * gap, gwv, if(p.shown < 0.5, lwv, swv))
         let thv = pick(L.shown, if(p.shown < 0.5, ahv, shv), ahv, rhv, ghv, if(p.shown < 0.5, ahv, shv))
         // Where the carried one would land on the other monitor.
-        let Wsg = pick(mon, screen.0.width, screen.1.width, screen.2.width, screen.3.width) - pick(mon, win.reserved.0.left, win.reserved.1.left, win.reserved.2.left, win.reserved.3.left) - pick(mon, win.reserved.0.right, win.reserved.1.right, win.reserved.2.right, win.reserved.3.right)
-        let Hsg = pick(mon, screen.0.height, screen.1.height, screen.2.height, screen.3.height) - pick(mon, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) - pick(mon, win.reserved.0.bottom, win.reserved.1.bottom, win.reserved.2.bottom, win.reserved.3.bottom)
-        let x0g = pick(mon, win.reserved.0.left, win.reserved.1.left, win.reserved.2.left, win.reserved.3.left)
-        let y0g = pick(mon, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + bar
+        let Wsg = pick(mon, screen.0.width, screen.1.width, screen.2.width, screen.3.width) - pick(mon, (win.reserved.0.left + fr.0.left), (win.reserved.1.left + fr.1.left), (win.reserved.2.left + fr.2.left), (win.reserved.3.left + fr.3.left)) - pick(mon, (win.reserved.0.right + fr.0.right), (win.reserved.1.right + fr.1.right), (win.reserved.2.right + fr.2.right), (win.reserved.3.right + fr.3.right))
+        let Hsg = pick(mon, screen.0.height, screen.1.height, screen.2.height, screen.3.height) - pick(mon, (win.reserved.0.top + fr.0.top), (win.reserved.1.top + fr.1.top), (win.reserved.2.top + fr.2.top), (win.reserved.3.top + fr.3.top)) - pick(mon, (win.reserved.0.bottom + fr.0.bottom), (win.reserved.1.bottom + fr.1.bottom), (win.reserved.2.bottom + fr.2.bottom), (win.reserved.3.bottom + fr.3.bottom))
+        let x0g = pick(mon, (win.reserved.0.left + fr.0.left), (win.reserved.1.left + fr.1.left), (win.reserved.2.left + fr.2.left), (win.reserved.3.left + fr.3.left))
+        let y0g = pick(mon, (win.reserved.0.top + fr.0.top), (win.reserved.1.top + fr.1.top), (win.reserved.2.top + fr.2.top), (win.reserved.3.top + fr.3.top)) + bar
         let ahg = Hsg - bar - gap
         let lwg = if(landing.n < 1.5, Wsg - 2 * gap, (Wsg - 3 * gap) * ratio)
         let swg = Wsg - 3 * gap - lwg
@@ -445,8 +464,8 @@ scene Session {
         let cell.h = (ah - 40 - (rows - 1) * 30) / rows
         // ── and at a glance: in a grid, each one keeping its shape ──
         let s = min(cell.w / tw, cell.h / th)
-        let ox = pick(sc, win.reserved.0.left, win.reserved.1.left, win.reserved.2.left, win.reserved.3.left) + 40 + mod(p, cols) * (cell.w + 30) + (cell.w - tw * s) / 2
-        let oy = pick(sc, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + bar + 20 + floor(p / cols) * (cell.h + 30) + (cell.h - th * s) / 2
+        let ox = pick(sc, (win.reserved.0.left + fr.0.left), (win.reserved.1.left + fr.1.left), (win.reserved.2.left + fr.2.left), (win.reserved.3.left + fr.3.left)) + 40 + mod(p, cols) * (cell.w + 30) + (cell.w - tw * s) / 2
+        let oy = pick(sc, (win.reserved.0.top + fr.0.top), (win.reserved.1.top + fr.1.top), (win.reserved.2.top + fr.2.top), (win.reserved.3.top + fr.3.top)) + bar + 20 + floor(p / cols) * (cell.h + 30) + (cell.h - th * s) / 2
 
         // ── free: where it was left, as big as it was made (all of the
         // monitor, maximized) ──
@@ -468,7 +487,7 @@ scene Session {
         let fgw = if(maxed.$i, Ws - 2 * gap, min(fw.$i, Ws - 2 * gap))
         let fgh = if(maxed.$i, ah, min(fh.$i, ah))
         let fgx = if(maxed.$i, x0 + gap, clamp(fx.$i, x0 + 160 - fgw, x0 + Ws - 160))
-        let fgy = if(maxed.$i, y0, clamp(fy.$i, pick(sc, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top), y0 + ah - tb - 40))
+        let fgy = if(maxed.$i, y0, clamp(fy.$i, pick(sc, (win.reserved.0.top + fr.0.top), (win.reserved.1.top + fr.1.top), (win.reserved.2.top + fr.2.top), (win.reserved.3.top + fr.3.top)), y0 + ah - tb - 40))
         // Put away, it stays where it was (the others close up without it),
         // and flies from there into Marea's island.
         fact mx.$i = 0
@@ -810,11 +829,11 @@ scene Session {
         // (Right there, at once: nothing to glide to.)
         on release title.$i while pick(mon, free.0, free.1, free.2, free.3) > 0.5 and picked < 0 {
             fx.$i = mouse.x - grab.x
-            fy.$i = max(mouse.y - grab.y, pick(mon, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top))
+            fy.$i = max(mouse.y - grab.y, pick(mon, (win.reserved.0.top + fr.0.top), (win.reserved.1.top + fr.1.top), (win.reserved.2.top + fr.2.top), (win.reserved.3.top + fr.3.top)))
             fsc.$i = mon
             maxed.$i = 0
             x.$i: mouse.x - grab.x ~0ms
-            y.$i: max(mouse.y - grab.y, pick(mon, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top)) ~0ms
+            y.$i: max(mouse.y - grab.y, pick(mon, (win.reserved.0.top + fr.0.top), (win.reserved.1.top + fr.1.top), (win.reserved.2.top + fr.2.top), (win.reserved.3.top + fr.3.top))) ~0ms
             dx.$i: 0 ~0ms
             dy.$i: 0 ~0ms
         }
@@ -1048,7 +1067,7 @@ scene Session {
     prop share.in = 0 ~160ms
     follow share.in = if(sharing, 1, 0)
     repeat s in 0..4 {
-        let band.y = pick(s, win.reserved.0.top, win.reserved.1.top, win.reserved.2.top, win.reserved.3.top) + 52
+        let band.y = pick(s, (win.reserved.0.top + fr.0.top), (win.reserved.1.top + fr.1.top), (win.reserved.2.top + fr.2.top), (win.reserved.3.top + fr.3.top)) + 52
         let band.w = if(share.screens, 560, 420)
         prop screen_glow.$s = 0 ~140ms
         prop cancel_glow.$s = 0 ~140ms

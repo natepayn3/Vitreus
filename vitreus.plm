@@ -43,7 +43,7 @@ scene Vitreus {
     fact pal_alert_r = 0.9373   // #ef4444
     fact pal_alert_g = 0.2667
     fact pal_alert_b = 0.2667
-    surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top or on_wm; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) }
+    surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 68 while bar_anchor == top; screens: all; keyboard: exclusive while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) }
     permissions { services: "files", "files.write", "auth", "clock", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "claude", "ollama", "codex", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "pw-play", "ffmpeg", "tesseract" }
 
@@ -315,7 +315,6 @@ scene Vitreus {
     //  vitreus.luau). The surface's anchor follows it; `bar_lm` is how far over to the left it has got, and the panels still hang from the top
     //  edge, `lp_w` wide (the one last opened), their left edge by the strip.
     fact bar_anchor: top | left = top
-    fact on_wm = false             // true under pleamar-wm: there the bar on the left has to reserve its own strip (Hyprland leaves it with gaps_out, vitreus_colors.lua)
     //  Down the left a panel never turns into another: asking for one while another is open closes the open one first, and the new one
     //  opens when it has gone (see the rule after `lp.top`). `pcur` is the panel as the rule last saw it, `pending` the one that is waiting.
     fact pcur: none | calendar | controls | player | volume | notif | settings | launch | tray = none
