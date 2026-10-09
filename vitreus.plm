@@ -1600,6 +1600,48 @@ scene Vitreus {
     }
 
     //  One row of the output dropdown: a dot if it is the current one, its name.
+    //  A button of the Capture window: a glass plate that lifts and warms to the accent under the pointer and sinks a little when pressed,
+    //  an icon in a round badge that lights up, the name and, under it, what happens to the result. `kind` 0 is a region, 1 the whole screen;
+    //  `rec` 1 puts the recording dot on the icon. Pressing it says `go(arg)`.
+    component CapBtn(label: text, note: text, kind: number, rec: number, go: event, arg: number) {
+        size: 134 * cu, floor(52 * cu + 0.5)
+        group {
+            scale: 1 - 0.035 * touch.pressed
+            pivot: 67 * cu, 26 * cu
+            body {
+                color: mix(ink, mint, touch.hover)
+                opacity: 8% + 14% * touch.hover
+                rim: 14% + 26% * touch.hover
+                shadow: 0, 2 * cu * touch.hover, 9 * cu * touch.hover, 30% * touch.hover, #000000
+                box { from: 0, 0; size: 134 * cu, 52 * cu; corner: 14 * cu }
+            }
+            group {
+                blur: 8 * cu
+                ellipse { at: 28 * cu, 26 * cu; radius: 15 * cu; color: mint; opacity: 40% * touch.hover }
+            }
+            ellipse { at: 28 * cu, 26 * cu; radius: 17 * cu; color: mix(ink, mint, touch.hover); opacity: 10% + 18% * touch.hover }
+            ellipse { at: 28 * cu, 26 * cu; radius: 17 * cu; stroke: 1 * cu; color: mint; opacity: 45% * touch.hover }
+            group {
+                show: kind == 0
+                path { at: 28 * cu, 26 * cu; stroke: 1.7 * cu; color: mix(ink, mint, touch.hover); move -7 * cu, -3 * cu; line -7 * cu, -7 * cu; line -3 * cu, -7 * cu }
+                path { at: 28 * cu, 26 * cu; stroke: 1.7 * cu; color: mix(ink, mint, touch.hover); move -7 * cu, 3 * cu; line -7 * cu, 7 * cu; line -3 * cu, 7 * cu }
+                path { at: 28 * cu, 26 * cu; stroke: 1.7 * cu; color: mix(ink, mint, touch.hover); move 7 * cu, -3 * cu; line 7 * cu, -7 * cu; line 3 * cu, -7 * cu }
+                path { at: 28 * cu, 26 * cu; stroke: 1.7 * cu; color: mix(ink, mint, touch.hover); move 7 * cu, 3 * cu; line 7 * cu, 7 * cu; line 3 * cu, 7 * cu }
+                ellipse { at: 28 * cu, 26 * cu; radius: 1.6 * cu; color: mix(ink, mint, touch.hover) }
+            }
+            group {
+                show: kind == 1
+                box { at: 28 * cu, 25 * cu; size: 17 * cu, 11.5 * cu; corner: 2.5 * cu; stroke: 1.7 * cu; color: mix(ink, mint, touch.hover) }
+                path { at: 28 * cu, 26 * cu; stroke: 1.7 * cu; color: mix(ink, mint, touch.hover); move -3 * cu, 7.5 * cu; line 3 * cu, 7.5 * cu }
+            }
+            ellipse { at: 38 * cu, 16 * cu; radius: 3 * cu; color: mint; show: rec == 1 }
+            text label { at: floor(54 * cu + 0.5), floor(21 * cu + 0.5); anchor: left center; size: 14; weight: 600; width: 76 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+            text note { at: floor(54 * cu + 0.5), floor(36 * cu + 0.5); anchor: left center; size: 10.5; width: 76 * cu; lines: 1; color: mix(faint, mint, touch.hover); family: "Space Grotesk" }
+        }
+        zone box touch { from: 0, 0; size: 134 * cu, 52 * cu; corner: 14 * cu; cursor: pointer }
+        on press touch { emit go(arg) }
+    }
+
     //  One battery in the Power window: a glass card that is its own gauge. A wash of colour fills it from the left as far as the
     //  charge goes, with a bright edge where it stops; a cell glyph, the name and its state at the left, and the number big at the right.
     //  Red under 20 % unless it is charging, and a glint crosses it with the charger (the same sweep as the bar's).
