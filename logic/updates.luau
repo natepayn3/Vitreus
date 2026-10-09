@@ -5,7 +5,8 @@
 -- scene afresh. ssh is told not to ask for anything, so a fetch that needs a passphrase fails instead of hanging.
 return function(key, with_dirs)
     local A = { busy = false, dir = nil, src = nil, shell_behind = 0, pl_behind = 0 }
-    local PL_REPOS = { "pleamar", "pleamar-wm", "marea-plm" }
+    -- pleamar's source folders that matter to this shell: pleamar itself, and pleamar-wm only while it is the session in use. (The
+    -- installer, `pleamar-update`, also keeps Marea's source, another shell: nothing of Vitreus's to be told about.)
     local RESTART = [[
 P="$1"; L="$2"
 export PATH="$HOME/.local/bin:$PATH"
@@ -107,8 +108,9 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
                     else msg = n == 1 and "1 shell update available." or (n .. " shell updates available.") end
                     -- Then pleamar itself: its source folders, fetched and counted the same way.
                     A.pl_behind = 0
+                    local repos = { "pleamar" }
                     local function repo(i)
-                        local r = PL_REPOS[i]
+                        local r = repos[i]
                         if not r then
                             local total = A.shell_behind + A.pl_behind
                             fact.about_behind = total
@@ -128,7 +130,10 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
                             end)
                         end)
                     end
-                    repo(1)
+                    run("pgrep", { "-x", "pleamar-wm" }, function(_, c)
+                        if c == 0 then repos[#repos + 1] = "pleamar-wm" end
+                        repo(1)
+                    end)
                 end)
             end)
         end)
