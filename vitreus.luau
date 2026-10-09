@@ -2495,7 +2495,7 @@ end
 -- wallpaper (measured behind the Settings text on a light one: #263746 to #434D4C). So Iris is asked for a dark scheme for glass, and every
 -- colour that is read is held to 4.5:1 against a reference a little LIGHTER than that glass (the worst case for light text), moving only
 -- lighter. The accent counts as text: it labels the chosen page, the breadcrumb, the values. An alert only has to be seen: 3:1.
-local function apply_iris(json, raw)         -- `raw`: a named palette, whose accent is not pushed by the intensity
+local function iris_palette(json, raw)       -- `raw`: a named palette, whose accent is not pushed by the intensity
     local surface = json_hex(json, "surface") or "#1e202b"
     local bg = json_hex(json, "bg") or "#12131a"
     local glass = blend(surface, "#ffffff", 0.12)
@@ -2505,7 +2505,29 @@ local function apply_iris(json, raw)         -- `raw`: a named palette, whose ac
     local fg = ensure_contrast(json_hex(json, "fg") or "#e6e6e6", glass, 4.5, 1)
     local dim = ensure_contrast(json_hex(json, "dim") or "#a0a4ab", glass, 4.5, 1)
     local red = ensure_contrast(json_hex(json, "red") or "#ef4444", glass, 3.0, 1)
-    iris_fx.apply_palette(iris_fx.build_palette(bg, surface, fg, dim, accent, red))
+    return iris_fx.build_palette(bg, surface, fg, dim, accent, red)
+end
+local function apply_iris(json, raw) iris_fx.apply_palette(iris_palette(json, raw)) end
+
+-- The wallpaper's colours as Iris reads them, kept apart from the palette in use: the first card of Settings > Theme shows these whichever
+-- theme is chosen (so it does not follow a named palette, or the greys). Five of the palette's colours, as facts, and in iris-card.json so
+-- that a start has them from its first frame.
+local CARD_KEYS = { "tint", "panel", "ink", "mint", "alert" }
+local function set_card(pal)
+    for _, k in ipairs(CARD_KEYS) do
+        local r, g, b = hex_to_rgb(pal[k])
+        fact["wcol_" .. k .. "_r"], fact["wcol_" .. k .. "_g"], fact["wcol_" .. k .. "_b"] = r, g, b
+    end
+end
+do
+    local ok, saved = pcall(sys.ask, "files.read", "iris-card.json", "json")
+    if ok and type(saved) == "table" then
+        local whole = true
+        for _, k in ipairs(CARD_KEYS) do
+            if type(saved[k]) ~= "string" or not saved[k]:match("^#%x%x%x%x%x%x$") then whole = false end
+        end
+        if whole then set_card(saved) end
+    end
 end
 
 -- With Iris off the shell is monochrome: neutral greys, and no hue anywhere but the red of an alert (a low battery, a failed
@@ -2514,12 +2536,20 @@ function iris_fx.apply_mono()
     iris_fx.apply_palette(iris_fx.build_palette("#161616", "#232323", "#ececec", "#9c9c9c", "#d6d6d6", "#ef4444"))
 end
 
-local function run_iris(path)
-    -- Dark, and for glass (`--glass` adjusts the background for transparency): see apply_iris.
+local function run_iris(path, card_only)
+    -- Dark, and for glass (`--glass` adjusts the background for transparency): see apply_iris. `card_only`: only the Theme card's colours
+    -- are updated, the shell keeps the palette it has (a named one, or the greys).
     run("iris", { "--json-only", "--dark", "1", "--glass", path }, function(out, code)
         if code ~= 0 or not out then return end
         local json = out:match("%b{}")
-        if json and json_hex(json, "bg") then apply_iris(json) end
+        if json and json_hex(json, "bg") then
+            local pal = iris_palette(json)
+            set_card(pal)
+            local keep = {}
+            for _, k in ipairs(CARD_KEYS) do keep[k] = pal[k] end
+            pcall(sys.call, "files.write", "iris-card.json", keep)
+            if not card_only then iris_fx.apply_palette(pal) end
+        end
     end)
 end
 
@@ -2625,7 +2655,7 @@ local function check_wallpaper()
         if path and shown ~= iris_last_wp then
             iris_last_wp = shown
             wp_on_change(shown)
-            if iris_cfg.enabled and not iris_cfg.preset then run_iris(path) end
+            run_iris(path, not (iris_cfg.enabled and not iris_cfg.preset))
         end
     end)
 end
@@ -2711,7 +2741,7 @@ do
         iris_cfg.intensity = name
         save()
         show()
-        if iris_cfg.enabled and not iris_cfg.preset then follow_wallpaper() end
+        if iris_cfg.enabled and not iris_cfg.preset then follow_wallpaper() elseif iris_last_wp then run_iris(iris_last_wp, true) end
     end)
 end
 -- A wallpaper that Vitreus sets is known at once (see `wp_apply`); this is only for one changed from elsewhere, so it
@@ -2950,9 +2980,9 @@ local function wp_apply(path, how, started, hex)
         wp_on_change(path)
         -- The path is known: Iris starts now, while the fade plays, not when the watcher next notices the
         -- change. Marking it seen stops the watcher running it a second time.
-        if iris_cfg.enabled and not iris_cfg.preset and iris_last_wp ~= path then
+        if iris_last_wp ~= path then
             iris_last_wp = path
-            run_iris(src)
+            run_iris(src, not (iris_cfg.enabled and not iris_cfg.preset))      -- a named palette or the greys: only the Theme card follows
         end
     end)
 end
