@@ -702,15 +702,53 @@ part ControlsDrawer {
             text "CAFFEINE" { at: floor(pcx - 102 * cu + 0.5), floor(kx_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
             box { at: pcx, kx_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
 
-            //  Where it stands, up beside the title: how long is left, or that it is on until turned off.
-            text caf_left { at: floor(pcx + 134 * cu + 0.5), floor(kx_cy + 0.5); anchor: right center; align: right; size: 12.5; width: 150 * cu; lines: 1; color: if(caf_on, mint, faint); family: "Space Grotesk" }
+            //  The hero: a cup that steams inside a ring. The ring is the timer: what is left of it, with a bright head, or a full one that
+            //  breathes when Caffeine is on until turned off. The time left (or On, or Off) is beside it in big words.
+            let cf_x = pcx - 66 * cu
+            let cf_y = kx_top + 128 * cu
+            let cf_r = 44 * cu
+            let cf_p = 0.5 + 0.5 * sin(time * 130)                // a slow breath
+            group {
+                opacity: mix(0.45, 1, caf_avail)
+                group {
+                    blur: 16 * cu
+                    ellipse { at: cf_x, cf_y; radius: (36 + 6 * cf_p) * cu; color: mint; opacity: caf_pill * (22% + 12% * cf_p) }
+                }
+                ellipse { at: cf_x, cf_y; radius: cf_r; stroke: 5 * cu; color: ink; opacity: 10% }
+                let cf_s = if(caf_len > 0, max(0.004, caf_fr), 1)
+                group {
+                    glow: 7 * cu, 55%, mint
+                    arc { at: cf_x, cf_y; radius: cf_r; span: cf_s * 360deg; width: 5 * cu; rotate: cf_s * 180deg; color: mint; opacity: caf_pill * if(caf_len > 0, 100%, 55% + 35% * cf_p) }
+                }
+                group {
+                    opacity: 55% + 45% * caf_pill
+                    move: 0, -5 * cu
+                    ellipse { at: cf_x + 13.5 * cu, cf_y + 7 * cu; radius: 6.5 * cu; stroke: 3 * cu; color: ink }
+                    box { at: cf_x, cf_y + 22.5 * cu; size: 40 * cu, 3.5 * cu; corner: 1.75 * cu; color: ink; opacity: 70% }
+                    box { at: cf_x - 2 * cu, cf_y + 8 * cu; size: 28 * cu, 24 * cu; corner: 9 * cu; color: ink }
+                    box { at: cf_x - 2 * cu, cf_y - 2.5 * cu; size: 22 * cu, 3 * cu; corner: 1.5 * cu; color: mix(deep, mint, 0.55 * caf_pill) }
+                }
+                group {
+                    blur: 2.5 * cu
+                    particles steam {
+                        at: cf_x - 2 * cu, cf_y - 13 * cu; count: 24
+                        life: 1.8s .. 3.2s; speed: 9 .. 20
+                        direction: -90deg; spread: 16deg; gravity: 0, -4
+                        size: 5, 15; colors: ink; opacity: 70%, 0%
+                        shape: dot; emit: caf_on
+                    }
+                }
+                text caf_big { at: floor(pcx + 58 * cu + 0.5), floor(cf_y - 10 * cu + 0.5); anchor: center; align: center; size: 36; weight: 700; width: 130 * cu; lines: 1; color: mix(faint, mint, caf_pill); family: "Space Grotesk" }
+                text caf_small { at: floor(pcx + 58 * cu + 0.5), floor(cf_y + 20 * cu + 0.5); anchor: center; align: center; size: 12.5; width: 112 * cu; lines: 2; color: faint; family: "Space Grotesk" }
+            }
+
 
             group {
                 opacity: mix(0.45, 1, caf_avail)
                 //  One control for all of it: seven stops, Off and then how long. The thumb sits on the one in use and glows when
                 //  Caffeine is on (grey on Off); it slides to a new stop, stretching like liquid on the way. The label under it turns
                 //  dark. Pressing the lit stop again, or Off, turns it off; a ring leaves the touch.
-                let cs_y   = kx_top + 70 * cu
+                let cs_y   = kx_top + 226 * cu
                 let cs_str = clamp(abs(caf_sel_t - caf_sel), 0, 3)
                 let cs_tx  = pcx + (caf_sel - 3) * 38 * cu
                 let cs_tw  = (34 + 11 * cs_str) * cu

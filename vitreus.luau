@@ -632,12 +632,21 @@ local function caf_refresh()
     if caf_on and caf_until > 0 then
         text.caf_left = caf_left_text() .. " left"
         text.caf_tile_sub = "Awake · " .. caf_left_text()
+        text.caf_big = caf_left_text()
+        text.caf_small = "left until it may sleep"
+        fact.caf_frac = (caf_len > 0) and math.min(1, math.max(0, (caf_until - os.time()) / (caf_len * 60))) or 0
     elseif caf_on then
         text.caf_left = "On until turned off"
         text.caf_tile_sub = "Awake"
+        text.caf_big = "On"
+        text.caf_small = "awake until you turn it off"
+        fact.caf_frac = 0
     else
         text.caf_left = "Off"
         text.caf_tile_sub = "Off"
+        text.caf_big = "Off"
+        text.caf_small = "the screen may sleep"
+        fact.caf_frac = 0
     end
 end
 

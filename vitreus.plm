@@ -562,6 +562,11 @@ scene Vitreus {
     event nt_hist_del ->           // a history row's cross, by position
     fact caf_len = 0               // minutes of the Caffeine timer that is running (which chip is lit), 0 for none
     text caf_left = ""             // the Caffeine window's row: 23:41 left, On until turned off, Off
+    text caf_big = "Off"            // the Caffeine window's big words: the time left, On or Off
+    text caf_small = ""             // and the small line under them
+    fact caf_frac = 0              // how much of a running timer is left, 1 to 0
+    prop caf_fr = 0 ~1000ms
+    follow caf_fr = caf_frac
     text caf_tile_sub = ""         // the tile's second line while a timer runs: Awake · 23:41
     event togglecaf ->
     event caf_for ->               // a timer chip: minutes, or 0 for until it is turned off
@@ -2408,7 +2413,8 @@ scene Vitreus {
     //  included), so the drawer keeps one height from one window to the next; a longer list grows it past that. The
     //  Bluetooth window has a strip of its own (this computer, and discoverable) above its list.
     let sub_min = vol_bot - tiles_top - 70
-    let sub_content = max(sub_min, if(showing_sub == cafview, 38, if(showing_sub == capview, 142, if(showing_sub == powview, 151, if(showing_sub == notifview, 60, if(showing_sub == btview, 40, 0)) + list_view_h))))
+    //  The Capture and the Power windows are only as tall as they are (no minimum); the rest keep `sub_min`.
+    let sub_content = if(showing_sub == capview, 142, if(showing_sub == powview, 151, max(sub_min, if(showing_sub == cafview, 38, if(showing_sub == notifview, 60, if(showing_sub == btview, 40, 0)) + list_view_h))))
     let sub_bot = tiles_top + 54 + sub_content + 16
     //  The output list drops over what is under the volume row; with more than a couple of outputs
     //  it reaches past the drawer, so the drawer grows to hold it while it is open.
