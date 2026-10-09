@@ -168,11 +168,58 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         end
         busy(true, "Updating…")
         if A.shell_behind <= 0 then return pleamar_then_restart() end
-        git({ "pull", "--ff-only", "--quiet" }, function(_, code)
-            if code ~= 0 then
-                return busy(false, "Couldn't update: something of yours is in the way. Try `git pull` in the shell's folder.")
+        -- Which monitors show the bar and the lock screen is kept in the `screens:` line of each scene (the Bar and Lock
+        -- screen pages write it, and the choice itself is in bar.json / the lock screen's settings). A line changed that way
+        -- is a change of the working tree, and git will not pull over a file it finds changed. So the stock lines are put
+        -- back for the pull and the chosen ones written again after it, which is what install.sh does too.
+        local BAR_FILE, LOCK_FILE = "/vitreus.plm", "/lockscreen/lockscreen.plm"
+        local function screens_in(src, which)
+            for line in (src or ""):gmatch("[^\n]+") do
+                if which == "bar" then
+                    if line:match("^    surface {") then return line:match("screens:%s*([^;]*);") end
+                else
+                    local v = line:match("^        screens:%s*(.-)%s*$")
+                    if v then return v end
+                end
             end
-            pleamar_then_restart()
+        end
+        local function plausible(v) return type(v) == "string" and v ~= "" and v:match('^[%w%._%-", ]+$') ~= nil end
+        local function write_screens(bar, lock, cb)
+            local steps = {}
+            if plausible(bar) then
+                steps[#steps + 1] = { "-i", "-E", "/^    surface \\{/s/screens: [^;]*;/screens: " .. bar .. ";/", A.dir .. BAR_FILE }
+            end
+            if plausible(lock) then
+                steps[#steps + 1] = { "-i", "-E", "/^        screens: /s/screens: .*/screens: " .. lock .. "/", A.dir .. LOCK_FILE }
+            end
+            local function nxt(i)
+                if not steps[i] then return cb() end
+                run("sed", steps[i], function() nxt(i + 1) end)
+            end
+            nxt(1)
+        end
+        local function read_file(rel, cb) run("grep", { "-s", "", A.dir .. rel }, function(out) cb(out or "") end) end
+        read_file(BAR_FILE, function(bar_now)
+            read_file(LOCK_FILE, function(lock_now)
+                git({ "show", "HEAD:vitreus.plm" }, function(bar_head)
+                    git({ "show", "HEAD:lockscreen/lockscreen.plm" }, function(lock_head)
+                        local bar_mine, lock_mine = screens_in(bar_now, "bar"), screens_in(lock_now, "lock")
+                        local bar_stock, lock_stock = screens_in(bar_head, "bar"), screens_in(lock_head, "lock")
+                        local bar_changed = bar_mine ~= nil and bar_stock ~= nil and bar_mine ~= bar_stock
+                        local lock_changed = lock_mine ~= nil and lock_stock ~= nil and lock_mine ~= lock_stock
+                        write_screens(bar_changed and bar_stock or nil, lock_changed and lock_stock or nil, function()
+                            git({ "pull", "--ff-only", "--quiet" }, function(_, code)
+                                write_screens(bar_changed and bar_mine or nil, lock_changed and lock_mine or nil, function()
+                                    if code ~= 0 then
+                                        return busy(false, "Couldn't update: something of yours is in the way. Try `git pull` in the shell's folder.")
+                                    end
+                                    pleamar_then_restart()
+                                end)
+                            end)
+                        end)
+                    end)
+                end)
+            end)
         end)
     end)
 
