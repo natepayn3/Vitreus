@@ -28,3 +28,12 @@ hl.unbind("XF86MonBrightnessUp")
 hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd([[PATH="$HOME/.local/bin:$PATH"; f=$(brightnessctl -e4 -n2 -m set 5%+ | awk -F, '{printf "%.4f", $3/$5}'); pleamar --say vitreus "emit bright_key $f"]]), { locked = true, repeating = true })
 hl.unbind("XF86MonBrightnessDown")
 hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd([[PATH="$HOME/.local/bin:$PATH"; f=$(brightnessctl -e4 -n2 -m set 5%- | awk -F, '{printf "%.4f", $3/$5}'); pleamar --say vitreus "emit bright_key $f"]]), { locked = true, repeating = true })
+
+-- What starts with the session: pleamar runs ~/.config/pleamar/autostart (the Vitreus scene, lock screen and desktop widgets), and the
+-- daemons the shell relies on (wallpaper, idle lock, clipboard history). Hyprland's PATH has no ~/.local/bin, hence the export.
+hl.on("hyprland.start", function ()
+    hl.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --autostart")
+    hl.exec_cmd("hypridle")
+    hl.exec_cmd("awww-daemon")
+    hl.exec_cmd("wl-paste --watch cliphist store")
+end)
