@@ -485,21 +485,33 @@ local function dnd_refresh()
     if dnd ~= was and NTR.sync then NTR.sync() end   -- an app's explanation says whether Do Not Disturb holds it back
     fact.dnd_on = dnd
     fact.dnd_len = dnd_until > 0 and dnd_len or 0
+    fact.dnd_frac = 0
     if dnd_until > 0 then
         text.dnd_left = dnd_left_text() .. " left"
         text.nt_tile_sub = "Silenced · " .. dnd_left_text()
+        text.dnd_big = dnd_left_text()
+        text.dnd_small = "left, notifications silenced"
+        if dnd_len > 0 then fact.dnd_frac = math.min(1, math.max(0, (dnd_until - os.time()) / (dnd_len * 60))) end
     elseif dnd_manual then
         text.dnd_left = "Until turned off"
         text.nt_tile_sub = "Silenced"
+        text.dnd_big = "On"
+        text.dnd_small = "silenced until you turn it off"
     elseif dnd and DQ.quiet() then
         text.dnd_left = "Quiet until " .. DQ.clock(DQ.to)
         text.nt_tile_sub = "Quiet until " .. DQ.clock(DQ.to)
+        text.dnd_big = "Quiet"
+        text.dnd_small = "quiet hours until " .. DQ.clock(DQ.to)
     elseif dnd then
         text.dnd_left = "Fullscreen"
         text.nt_tile_sub = "Silenced · fullscreen"
+        text.dnd_big = "Quiet"
+        text.dnd_small = "silenced while a window is fullscreen"
     else
         text.dnd_left = "Off"
         text.nt_tile_sub = #nt_hist > 0 and (#nt_hist .. " in history") or "All clear"
+        text.dnd_big = "Off"
+        text.dnd_small = "notifications come through"
     end
 end
 

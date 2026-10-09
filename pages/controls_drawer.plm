@@ -691,16 +691,25 @@ part ControlsDrawer {
             }
             //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
             box { from: pcx + 141 * cu, nx_top + 114 * cu + nt_hist_col.scroll / max(nt_hist_col.content, 1) * (list_view_h * cu); size: 3 * cu, (list_view_h * cu) * (list_view_h * cu) / max(nt_hist_col.content, list_view_h * cu); corner: 1.5 * cu; color: ink; opacity: if(nt_hist_col.content > (list_view_h * cu) + 1, 35%, 0%) }
-            //  Nothing in the history: a big open, empty envelope that bobs a little over a soft glow.
+            //  The main envelope, while there is nothing in the history: open and empty, bobbing over a soft glow ("All clear"), and while Do Not Disturb is on
+            //  sealed, with three sleepers drifting up, and the glow turned mint ("Silenced"). It moves between the two the way the switch does.
             group {
                 show: nt_hist.count < 1
                 let en_y = nx_top + 196 * cu + 1.5 * cu * sin(time * 100)
+                let en_on = clamp(dnd_pill, 0, 1)   // Do Not Disturb, as a spring
                 group {
                     blur: 10 * cu
-                    ellipse { at: pcx, en_y; radius: 34 * cu; color: mint; opacity: 10% + 5% * (0.5 + 0.5 * sin(time * 100)) }
+                    ellipse { at: pcx, en_y; radius: 34 * cu; color: mint; opacity: 10% + 5% * (0.5 + 0.5 * sin(time * 100)) + en_on * 14% }
                 }
-                Envelope(pcx, en_y, 2.4 * cu, 1, 0, 100%)
-                text "All clear" { at: floor(pcx + 0.5), floor(nx_top + 243 * cu + 0.5); anchor: center; align: center; size: 14; weight: 600; color: faint; family: "Space Grotesk" }
+                Envelope(pcx, en_y, 2.4 * cu, 1 - en_on, 0, 100%)
+                let ne0 = fract(time * 0.38)
+                let ne1 = fract(time * 0.38 + 0.33)
+                let ne2 = fract(time * 0.38 + 0.66)
+                text "z" { at: pcx + (30 + ne0 * 10) * cu, en_y - (14 + ne0 * 34) * cu; anchor: center; size: 11; weight: 700; color: mint; opacity: en_on * 85% * sin(ne0 * 180) }
+                text "z" { at: pcx + (30 + ne1 * 10) * cu, en_y - (14 + ne1 * 34) * cu; anchor: center; size: 14; weight: 700; color: mint; opacity: en_on * 85% * sin(ne1 * 180) }
+                text "z" { at: pcx + (30 + ne2 * 10) * cu, en_y - (14 + ne2 * 34) * cu; anchor: center; size: 17; weight: 700; color: mint; opacity: en_on * 85% * sin(ne2 * 180) }
+                text "All clear" { at: floor(pcx + 0.5), floor(nx_top + 240 * cu + 0.5); anchor: center; align: center; size: 14; weight: 600; color: faint; opacity: 1 - en_on; family: "Space Grotesk" }
+                text "Silenced" { at: floor(pcx + 0.5), floor(nx_top + 240 * cu + 0.5); anchor: center; align: center; size: 14; weight: 600; color: mint; opacity: en_on; family: "Space Grotesk" }
             }
         }
 
