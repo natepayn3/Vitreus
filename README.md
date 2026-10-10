@@ -76,7 +76,7 @@ layout all run in the renderer, and the logic only reports facts.
 * **Settings** (`SUPER + SHIFT + Space`) — wallpaper, theme, glass, display, Hyprland, notifications, clock and a system monitor.
 * **Wallpaper picker** (`SUPER + B`) — your wallpapers as a honeycomb of glass hexagons.
 * **Workspace overview** (`SUPER + TAB`) — a glass card per workspace; drag a window to move it.
-* **Desk** — a panel out of the right edge: Focus timer, Shelf, Pad (tasks and drawing), a terminal, Ask, and Clip (your
+* **Desk** (`SUPER + D`) — a panel out of the right edge: Focus timer, Shelf, Pad (tasks and drawing), a terminal, Ask, and Clip (your
   clipboard history, with pins).
 * **Ask** — an AI chat in the Desk, with whichever assistants you have installed: Claude Code, Ollama (local models), Codex or
   Gemini. Answers stream in, you pick the assistant (and the Ollama model) in the panel, and the conversation is kept between sessions.
