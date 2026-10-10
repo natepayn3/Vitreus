@@ -2159,7 +2159,11 @@ scene Vitreus {
     component BarTray(t: record, click: event, menu: event) {
         size: floor(18 * u + 0.5), floor(18 * u + 0.5)
         box { at: 9 * u, 9 * u; size: 26 * u, 26 * u; corner: 8 * u; color: ink; opacity: 14% * touch.hover * bs.tray }
-        image t.icon { at: 0, 0; size: floor(18 * u + 0.5), floor(18 * u + 0.5); opacity: (78% + 22% * touch.hover) * bs.tray }
+        group {
+            pivot: 9 * u, 9 * u
+            scale: 1 + 0.14 * touch.hover
+            image t.icon { at: 0, 0; size: floor(18 * u + 0.5), floor(18 * u + 0.5); opacity: (78% + 22% * touch.hover) * bs.tray }
+        }
         zone box touch { at: 9 * u, 9 * u; size: 24 * u, 30 * u; cursor: pointer; active: bs.tray > 0.5 }
         on press touch { emit click(t.index) }
         on press right touch { emit menu(t.index) }
@@ -3257,20 +3261,28 @@ scene Vitreus {
     //  the hour, oversized; the minutes with their colon, in the accent, the two digits tucked 3 px over each
     //  other (the colon is left clear: overlapped it disappears); and, at the edge, a small column: the day
     //  stacked tight over a dim am/pm, centred on each other.
-    text bar_date { at: floor(clock.r - clock.col / 2 + 0.5), floor(bar.y - 8 + 0.5); anchor: center; size: 11; weight: 700; measure: cdw; color: faint; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text bar_ap { at: floor(clock.r - clock.col / 2 + 0.5), floor(bar.y + 7 + 0.5); anchor: center; size: 14; weight: 600; measure: caw; color: faint; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text clock_mm { at: floor(clock.r - clock.col - 3 + 0.5), floor(bar.y + 3 + 0.5); anchor: right center; size: 26; weight: 700; measure: cmw; letter_move: 3 * ((letters - 1 - letter) - if(letter == 0, 1, 0)), 0; color: mint; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text clock_h { at: floor(clock.r - clock.col - cmw.width + 0.5), floor(bar.y + 0.5); anchor: right center; size: 40; weight: 700; measure: chw; color: ink; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    group {
+        pivot: at.clock, bar.y
+        scale: 1 + 0.08 * bar_hit.hover
+        text bar_date { at: floor(clock.r - clock.col / 2 + 0.5), floor(bar.y - 8 + 0.5); anchor: center; size: 11; weight: 700; measure: cdw; color: faint; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        text bar_ap { at: floor(clock.r - clock.col / 2 + 0.5), floor(bar.y + 7 + 0.5); anchor: center; size: 14; weight: 600; measure: caw; color: faint; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        text clock_mm { at: floor(clock.r - clock.col - 3 + 0.5), floor(bar.y + 3 + 0.5); anchor: right center; size: 26; weight: 700; measure: cmw; letter_move: 3 * ((letters - 1 - letter) - if(letter == 0, 1, 0)), 0; color: mint; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        text clock_h { at: floor(clock.r - clock.col - cmw.width + 0.5), floor(bar.y + 0.5); anchor: right center; size: 40; weight: 700; measure: chw; color: ink; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    }
     //  Down the left the clock is stacked in the strip: the hour, the minutes under it in the accent, and the am/pm.
-    text clock_h { at: floor(lf.x - 5 * u + 0.5), floor(lv.clk + 0.5); anchor: center; align: center; size: 30; weight: 700; gradient: 0, lv.clk - 18 * u to 0, lv.clk + 33 * u, minthi, mint 55%, mintlo; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text clock_mn { at: floor(lf.x - 5 * u + 0.5), floor(lv.clk + 28 * u + 0.5); anchor: center; align: center; size: 17; weight: 700; gradient: 0, lv.clk - 18 * u to 0, lv.clk + 33 * u, minthi, mint 55%, mintlo; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    box { at: lf.x - 5 * u, lv.clk + 16.5 * u; size: 18 * u, 1.8 * u; corner: 0.9 * u; color: mint; opacity: 65% * bs.clock * lm }   // the rule under the hour
-    //  am/pm: two letters one over the other, on the right, level with the rule (the hour and the minutes are moved left to make room).
-    text bar_ap1 { at: floor(lf.x + 12.5 * u + 0.5), floor(lv.clk + 11.9 * u + 0.5); anchor: center; align: center; size: 11; weight: 700; color: mint; opacity: bs.clock * lm; family: "Space Grotesk" }
-    text "m" { at: floor(lf.x + 12.5 * u + 0.5), floor(lv.clk + 21.1 * u + 0.5); anchor: center; align: center; size: 11; weight: 700; color: mint; opacity: bs.clock * lm; family: "Space Grotesk" }
-    //  Under them the day of the week and the date.
-    text bar_date { at: floor(lf.x + 5 * u + 0.5), floor(lv.clk + 41 * u + 0.5); anchor: center; align: center; size: 11; weight: 700; color: faint; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-    text date_md { at: floor(lf.x + 0.5), floor(lv.clk + 55 * u + 0.5); anchor: center; align: center; size: 14; weight: 700; color: ink; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    group {
+        pivot: lf.x, lv.clk + 28 * u
+        scale: 1 + 0.08 * bar_hit.hover
+        text clock_h { at: floor(lf.x - 5 * u + 0.5), floor(lv.clk + 0.5); anchor: center; align: center; size: 30; weight: 700; gradient: 0, lv.clk - 18 * u to 0, lv.clk + 33 * u, minthi, mint 55%, mintlo; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        text clock_mn { at: floor(lf.x - 5 * u + 0.5), floor(lv.clk + 28 * u + 0.5); anchor: center; align: center; size: 17; weight: 700; gradient: 0, lv.clk - 18 * u to 0, lv.clk + 33 * u, minthi, mint 55%, mintlo; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        box { at: lf.x - 5 * u, lv.clk + 16.5 * u; size: 18 * u, 1.8 * u; corner: 0.9 * u; color: mint; opacity: 65% * bs.clock * lm }   // the rule under the hour
+        //  am/pm: two letters one over the other, on the right, level with the rule (the hour and the minutes are moved left to make room).
+        text bar_ap1 { at: floor(lf.x + 12.5 * u + 0.5), floor(lv.clk + 11.9 * u + 0.5); anchor: center; align: center; size: 11; weight: 700; color: mint; opacity: bs.clock * lm; family: "Space Grotesk" }
+        text "m" { at: floor(lf.x + 12.5 * u + 0.5), floor(lv.clk + 21.1 * u + 0.5); anchor: center; align: center; size: 11; weight: 700; color: mint; opacity: bs.clock * lm; family: "Space Grotesk" }
+        //  Under them the day of the week and the date.
+        text bar_date { at: floor(lf.x + 5 * u + 0.5), floor(lv.clk + 41 * u + 0.5); anchor: center; align: center; size: 11; weight: 700; color: faint; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        text date_md { at: floor(lf.x + 0.5), floor(lv.clk + 55 * u + 0.5); anchor: center; align: center; size: 14; weight: 700; color: ink; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+    }
     //  The window title down the left: the app, and under it (to its right once turned) the title, turned a quarter anticlockwise so that it reads
     //  from the foot up, each centred on the strip's middle line and on the stretch `lv.tm` and cut with an ellipsis where that ends.
     group {
