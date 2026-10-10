@@ -1,0 +1,160 @@
+part MediaFloat {
+    //  The player's card. It lives in the player's panel (the top of it, above the running windows) until it is taken by hand and pulled out:
+    //  then it floats over the desktop on glass of its own, wherever it is put, until it is dropped back on the open panel or put back with its
+    //  pin. With nothing playing there is no card at all. `mfl` is 0 in the panel and 1 floating, `mf.cx`, `mf.cy` is where its middle is.
+    //  Docked it is clipped to the drawer's shape and grows with it, as the rest of the panel; floating, neither.
+    //  Held, the clip is the whole screen: the panel's would take the grab zone away the moment the pointer left it, upwards first.
+    let mfc = max(clamp(mfl, 0, 1), if(mf_hold, 1, 0))
+    group {
+        clip inset 2 box { at: mix(mix(pcx, dm.gx, lm), screen.width / 2, mfc), mix(mix(bar.y + dm.hh / 2, lp.cy, lm), vc, mfc); size: mix(mix(dm.w, dm.gw, lm), screen.width + 200, mfc), mix(mix(dm.hh, dm.gh, lm), screen.height + 200, mfc); corner: mix(26 * cu, 0, mfc) }
+        group {
+            pivot: lp.xl, lp.cy
+            scale: mix(mix(1, max(dm.lf, 0.05), lm * att), 1, mfl)
+        group {
+            show: mf.vis > 0.01
+            opacity: mf.vis
+            pivot: mf.cx, mf.cy
+            scale: mf.k
+            move: 0, (1 - f3) * 12 * cu * (1 - mfl)
+            let my = floor(mf.cy - 24 * cu + 0.5)                    // the song's row (the cover's middle)
+            let ax = floor(mf.cx - 96 * cu + 0.5)                    // the cover's centre
+            let ny = floor(my + 58 * cu + 0.5)                       // the controls' row: under the cover
+            let px = floor(ax - 30.1 * cu + 0.5)                        // previous
+            let cxp = ax                                // play
+            let nx = floor(ax + 30.1 * cu + 0.5)                        // next
+            let sw = clamp(swap, 0, 1.12)
+
+            //  The plate it has in the panel: the volume plate's veil. Floating, the glass under it is its plate.
+            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs * (1 - mfl); shadow: 0, 2 * cu, 7 * cu, 40%, #000000; show: obs * (1 - mfl) > 0.004; box { at: mf.cx, mf.cy; size: 288 * cu, 148 * cu; corner: 14 * cu } }
+            box { at: mf.cx, mf.cy; size: 288 * cu, 148 * cu; corner: 14 * cu; color: ink; opacity: (veil) * (1 - obs) * (1 - mfl) }
+
+            //  Take it by anywhere that is not a button, and pull it off the panel; let go over the open panel and it goes back. While it is held its zone is the
+            //  whole screen: the surface's input region is only what has a zone, so with no panel open a drag would be lost where the card is not. The buttons and the seek bar are declared after it, so they win.
+            zone box mf_grab { at: if(mf_hold, mf.zx, mf.cx), if(mf_hold, mf.zy, mf.cy); size: if(mf_hold, mf.zw, 288 * cu), if(mf_hold, mf.zh, 148 * cu); cursor: grab; active: mf.vis > 0.5; label: "Move the player" }
+            on press mf_grab { mf_bx = mf.cx; mf_by = mf.cy; mf_hx = mf.cx; mf_hy = mf.cy; mf_gx = mf.cx; mf_gy = mf.cy; mf_hold = true }
+            on press mf_grab while not mf_out { mf_px: mf.cx ~0ms; mf_py: mf.cy ~0ms }
+            on drag mf_grab while mf_hold { mf_gx = clamp(mf_bx + drag.dx, desk_xlo + 154 * cu * mf_gs, desk_xhi - 154 * cu * mf_gs); mf_gy = clamp(mf_by + drag.dy, desk_ylo + 84 * cu * mf_gs, desk_yhi - 84 * cu * mf_gs) }
+            on drag mf_grab while mf_hold and not mf_out and length(drag.dx, drag.dy) > 16 * cu { mf_out = true }
+            on release mf_grab while mf_out and panel == player and abs(pointer.x - dm.ex) < dm.ew / 2 and abs(pointer.y - dm.ey) < dm.eh / 2 { mf_out = false }
+            on release mf_grab { mf_hold = false }
+            //  The handles in the four corners (invisible; the cursor shows them), only while it floats: pull one in to make the card smaller, out to make it bigger. The corner
+            //  across from it stays where it is. They are declared before the pin and the buttons, so those win where they overlap.
+            repeat i in 0..4 {
+                let rz_sx = if(i == 1 or i == 3, 1, -1)
+                let rz_sy = if(i >= 2, 1, -1)
+                zone box mf_resize.$i { at: if(mf_rk == i, mf.zx, mf.cx + rz_sx * 140 * cu), if(mf_rk == i, mf.zy, mf.cy + rz_sy * 70 * cu); size: if(mf_rk == i, mf.zw, 28 * cu), if(mf_rk == i, mf.zh, 28 * cu); cursor: grab; active: (mfl > 0.5 and mf_rk < 0 and mf.vis > 0.5) or mf_rk == i; label: "Resize the player" }
+                on press mf_resize.$i { mf_hold = false; mf_rk = i; mf_bs = mf_gs; mf_fcx = mf_gx - rz_sx * 154 * cu * mf_gs; mf_fcy = mf_gy - rz_sy * 84 * cu * mf_gs }
+                on drag mf_resize.$i while mf_rk == i {
+                    mf_gs = clamp(mf_bs + (rz_sx * drag.dx + rz_sy * drag.dy) / (476 * cu), 0.5, max(0.5, min(1.6, min(if(rz_sx > 0, desk_xhi - mf_fcx, mf_fcx - desk_xlo) / (308 * cu), if(rz_sy > 0, desk_yhi - mf_fcy, mf_fcy - desk_ylo) / (168 * cu)))))
+                    mf_gx = mf_fcx + rz_sx * 154 * cu * mf_gs
+                    mf_gy = mf_fcy + rz_sy * 84 * cu * mf_gs
+                }
+                on release mf_resize.$i { mf_rk = -1 }
+            }
+            //  Floating it shows a small grip along its top, and a pin that puts it back in the panel.
+            box { at: mf.cx, mf.cy - 69 * cu; size: 34 * cu, 4 * cu; corner: 2 * cu; color: ink; opacity: mfl * (20% + 35% * max(mf_grab.hover, if(mf_hold, 1, 0))) }
+            group {
+                show: mfl > 0.05
+                opacity: mfl
+                ellipse { at: mf.cx + 128 * cu, mf.cy - 63 * cu; radius: 8 * cu; color: ink; opacity: 8% + 14% * mf_pin.hover }
+                ellipse { at: mf.cx + 128 * cu, mf.cy - 65 * cu; radius: 2.6 * cu; stroke: 1.2 * cu; color: ink; opacity: 70% + 30% * mf_pin.hover }
+                line { from: mf.cx + 128 * cu, mf.cy - 62.4 * cu; to: mf.cx + 128 * cu, mf.cy - 58 * cu; width: 1.2 * cu; color: ink; opacity: 70% + 30% * mf_pin.hover }
+                zone box mf_pin { at: mf.cx + 128 * cu, mf.cy - 63 * cu; size: 20 * cu, 20 * cu; corner: 10 * cu; cursor: pointer; active: mfl > 0.5; label: "Put the player back in its panel" }
+                on press mf_pin { mf_out = false; panel = player }
+            }
+
+            //  Playing, or paused with something loaded: the full card.
+            group {
+
+                //  No cover yet: a tile with a note on it.
+                group {
+                    show: not art_on
+                    body {
+                        gradient: ax - 36 * cu, my - 36 * cu to ax + 36 * cu, my + 36 * cu, off, deep
+                        rim: 14%
+                        box { at: ax, my; size: 72 * cu, 72 * cu; corner: 15 * cu }
+                    }
+                    ellipse { at: ax - 6 * cu, my + 11 * cu; radius: 6.5 * cu; color: ink; opacity: 75% }
+                    box { at: ax + 1.5 * cu, my - 4 * cu; size: 3 * cu, 30 * cu; corner: 1.5 * cu; color: ink; opacity: 75% }
+                    path { at: ax, my; stroke: 3 * cu; color: ink; opacity: 75%; move 3 * cu, -19 * cu; curve 15 * cu, -6 * cu via 13 * cu, -17 * cu }
+                }
+
+                //  The cover, in a rounded tile.
+                group {
+                    glow: 12 * cu, 60%
+                    saturation: 0.3 + 0.7 * playf
+                    pivot: ax, my
+                    scale: (0.7 + 0.3 * sw) * (1 + 0.05 * pulse * playf)
+                    rotate: (1 - sw) * -12deg
+                    opacity: art_on
+                    group {
+                        clip inset 0 box { at: ax, my; size: 72 * cu, 72 * cu; corner: 15 * cu }
+                        image art { at: ax - 36 * cu, my - 36 * cu; size: 72 * cu, 72 * cu }
+                    }
+                }
+
+                text media.title { at: floor(mf.cx - 50 * cu + 0.5), floor(my - 24 * cu + 0.5); anchor: left center; size: 16.5; weight: 700; width: 186 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+                text media.artist { at: floor(mf.cx - 50 * cu + 0.5), floor(my - 6 * cu + 0.5); anchor: left center; size: 14; width: 186 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk" }
+
+                //  previous
+                box { at: px - 5 * cu, ny; size: 1.8 * cu, 9.6 * cu; corner: 0.9 * cu; color: ink; opacity: 75% + 25% * mp.prev.hover }
+                path { at: px, ny; color: ink; opacity: 75% + 25% * mp.prev.hover; move 4 * cu, -4.8 * cu; line -3.6 * cu, 0; line 4 * cu, 4.8 * cu; close }
+                //  play / pause: a white disc with the mark cut out of it
+                ellipse { at: cxp, ny; radius: (11.5 + 1.2 * mp.play.hover) * cu; color: ink; opacity: 95% }
+                path { at: cxp, ny; color: onmint; show: not media.playing; move -3 * cu, -6 * cu; line 6 * cu, 0; line -3 * cu, 6 * cu; close }
+                box { at: cxp - 3 * cu, ny; size: 3 * cu, 10.5 * cu; corner: 1.2 * cu; color: onmint; show: media.playing }
+                box { at: cxp + 3 * cu, ny; size: 3 * cu, 10.5 * cu; corner: 1.2 * cu; color: onmint; show: media.playing }
+                //  next
+                path { at: nx, ny; color: ink; opacity: 75% + 25% * mp.next.hover; move -4 * cu, -4.8 * cu; line 3.6 * cu, 0; line -4 * cu, 4.8 * cu; close }
+                box { at: nx + 5 * cu, ny; size: 1.8 * cu, 9.6 * cu; corner: 0.9 * cu; color: ink; opacity: 75% + 25% * mp.next.hover }
+
+                zone box mp.prev { at: px, ny; size: 26 * cu, 30 * cu; cursor: pointer }
+                zone box mp.play { at: cxp, ny; size: 30 * cu, 30 * cu; cursor: pointer }
+                zone box mp.next { at: nx, ny; size: 26 * cu, 30 * cu; cursor: pointer }
+                on press mp.prev { emit mcmd(0) }
+                on press mp.play { emit mcmd(1) }
+                on press mp.next { emit mcmd(2) }
+
+                //  The spectrum: 24 bars standing on a centre line to the right of the cover, beside the controls, mirrored about it with the
+                //  lower half shorter and fainter (a reflection). The lows are on the left; the highs, which cava reports smaller, get a little
+                //  more gain. Each bar goes from the accent to white as it rises, and the whole is under a soft glow. Silent, it is a row of dots.
+                group {
+                    let vx = mf.cx - 50 * cu                      // the left edge
+                    let vy = my + 38 * cu                         // the centre line
+                    repeat i in 0..24 {
+                        let lvl = clamp(spec.s.$i * (0.8 + 0.7 * i / 23), 0, 1)
+                        let bh  = (1.5 + 31 * lvl) * cu
+                        let bx  = vx + (i + 0.5) * 7.6 * cu
+                        box { at: bx, vy - bh / 2; size: 4.2 * cu, bh; corner: 2.1 * cu; color: mix(mint, ink, lvl * 0.85); opacity: (0.35 + 0.65 * playf) * (45% + 55% * lvl) }
+                        box { at: bx, vy + bh * 0.28 + 2 * cu; size: 4.2 * cu, bh * 0.56; corner: 2.1 * cu; color: mint; opacity: playf * lvl * 28% }
+                    }
+                }
+            }
+
+            //  The seek row: elapsed, a track filled as far as the song has gone with a knob at the end, and the length. Pressed or dragged
+            //  along, it follows the pointer and seeks where it is let go. A stream with no end has no bar, only how long it has played.
+            group {
+                let sy = my + 84 * cu
+                let s0 = mf.cx - 96 * cu
+                let sw_ = 192 * cu
+                let sf = if(mp_drag, mp_df, mp_pf)
+                let hot = max(mp.seek.hover, if(mp_drag, 1, 0))
+                text mp_el { at: floor(mf.cx - 132 * cu + 0.5), floor(sy + 0.5); anchor: left center; size: 11.5; weight: 600; width: 34 * cu; lines: 1; color: faint; family: "Space Grotesk" }
+                text mp_tot { at: floor(mf.cx + 132 * cu + 0.5), floor(sy + 0.5); anchor: right center; align: right; size: 11.5; weight: 600; width: 34 * cu; lines: 1; color: faint; family: "Space Grotesk"; show: mp_len > 0 }
+                text "Live" { at: floor(mf.cx + 132 * cu + 0.5), floor(sy + 0.5); anchor: right center; align: right; size: 11.5; weight: 700; color: mint; family: "Space Grotesk"; show: mp_len <= 0 }
+                box { at: s0 + sw_ / 2, sy; size: sw_, (4 + 2 * hot) * cu; corner: 3 * cu; color: ink; opacity: 14%; show: mp_len > 0 }
+                box { at: s0 + max(sw_ * sf, 4 * cu) / 2, sy; size: max(sw_ * sf, 4 * cu), (4 + 2 * hot) * cu; corner: 3 * cu; color: mint; show: mp_len > 0 }
+                ellipse { at: s0 + sw_ * sf, sy; radius: (4.5 + 2.5 * hot) * cu; color: ink; show: mp_len > 0 }
+                zone box mp.seek { at: s0 + sw_ / 2, sy; size: sw_ + 16 * cu, 22 * cu; cursor: pointer; active: mp_len > 0 and media_open > 0.5 }
+                on press mp.seek { mp_drag = true; mp_df = clamp((pointer.x - s0) / sw_, 0, 1) }
+                on drag mp.seek { mp_df = clamp((pointer.x - s0) / sw_, 0, 1) }
+                on release mp.seek { mp_drag = false; mp_pos = mp_df * mp_len; mp_pf: mp_df ~0ms; emit mp_seek(mp_df) }      // it stays where it was let go: no glide back
+            }
+
+            //  A new song throws sparks off the cover.
+            particles { at: ax, my; count: 36; life: 0.5s .. 1.0s; speed: 70 .. 170; direction: 0deg; spread: 360deg; gravity: 0, 40; drag: 1.2; size: 3.5, 1; colors: mint, ink; shape: spark; burst: trackchange }
+        }
+        }
+    }
+}

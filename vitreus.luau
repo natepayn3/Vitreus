@@ -170,12 +170,13 @@ sys.watch("clock", function(c)
 end)
 
 -- The player: whether there is one, and what the three buttons do.
--- cava listens to what is playing and prints one line per frame: six bars, 0..1000.
--- It only runs while something plays, and the bass is the mean of the low two.
+-- cava listens to what is playing and prints one line per frame: 24 bars, 0..1000.
+-- It only runs while something plays, and the bass is the mean of the low three.
 local cava = nil
 local last = 0
 local spec_last = {}
-local watching = false      -- the player's panel is open: the only time the equalizer is worth feeding
+local watching = false      -- the player's panel is open: when the equalizer is worth feeding (or while its card floats, `eq_float`)
+function eq_float() return fact.mf_out == true or fact.mf_out == 1 end    -- the media card is floating on the desktop (a global: this chunk is at Luau's limit of locals)
 
 -- cava wants its config as a file. It is kept here rather than in a file next to the scene, so
 -- nothing depends on where Vitreus is installed: it is written into the scene's own data folder (where
@@ -184,7 +185,7 @@ local watching = false      -- the player's panel is open: the only time the equ
 -- `os.getenv`, so the environment is asked of the system once. A player that starts before the
 -- answer arrives waits for it.
 local CAVA_CONF = table.concat({
-    "[general]", "bars = 6", "framerate = 30",
+    "[general]", "bars = 24", "framerate = 30",
     "[input]", "method = pipewire",
     "[output]", "method = raw", "raw_target = /dev/stdout", "data_format = ascii",
     "ascii_max_range = 1000", "bar_delimiter = 59", "frame_delimiter = 10",
@@ -219,10 +220,10 @@ listen = function()
         local b = {}
         for v in string.gmatch(line, "(%d+);") do b[#b + 1] = tonumber(v) / 1000 end
         if #b < 2 then return end
-        local bass = math.min(1, (b[1] + b[2]) / 2)
+        local bass = math.min(1, (b[1] + b[2] + (b[3] or 0)) / 3)
         -- the equalizer in the media card: only worth sending while that panel is showing
-        if watching then
-            for i = 1, 6 do
+        if watching or eq_float() then
+            for i = 1, 24 do
                 local v = math.min(1, b[i] or 0)
                 if math.abs(v - (spec_last[i] or 0)) > 0.02 then
                     spec_last[i] = v
@@ -246,7 +247,7 @@ local function hush()
     if cava then kill(cava, "term"); cava = nil end
     last = 0
     fact.bass = 0
-    for i = 1, 6 do spec_last[i] = 0; fact["spec." .. (i - 1)] = 0 end
+    for i = 1, 24 do spec_last[i] = 0; fact["spec." .. (i - 1)] = 0 end
 end
 
 -- cava only runs while what it feeds is on screen: the bar's swell on the beat, which only the Island layout
@@ -255,7 +256,7 @@ end
 -- monitor's rate for as long as music played. (Globals: this chunk is at Luau's limit of locals.)
 cava_playing = false
 function cava_want()
-    if cava_playing and (fact.bar_anchor == "top" or watching) then listen() else hush() end
+    if cava_playing and (fact.bar_anchor == "top" or watching or eq_float()) then listen() else hush() end
 end
 
 -- The cover. Every player publishes it the same way (MPRIS `mpris:artUrl`), and
@@ -274,9 +275,23 @@ local function unpercent(s)
     return (s:gsub("%%(%x%x)", function(h) return string.char(tonumber(h, 16)) end))
 end
 
+-- The cover is drawn in a square tile and a picture is fitted inside its cell, so a wide one (a video's thumbnail, most
+-- of them) would leave empty bands above and below: crop it to its middle square first.
+local art_seq = 0
 local function show_art(path)
-    text.arturl = path
-    fact.art_on = path ~= ""
+    art_seq = art_seq + 1
+    local mine = art_seq
+    if path == "" then
+        text.arturl = ""
+        fact.art_on = false
+        return
+    end
+    local sq = "/tmp/vitreus-art-" .. hash(path) .. "-sq.png"
+    run("magick", { path .. "[0]", "-gravity", "center", "-crop", "1:1", "+repage", "-resize", "256x256", sq }, function(_, code)
+        if mine ~= art_seq then return end
+        text.arturl = code == 0 and sq or path
+        fact.art_on = true
+    end)
 end
 
 local function use_art(url)
@@ -358,9 +373,13 @@ local function mp_read()
     end)
 end
 every(1000, function()
-    if fact.panel == "player" and fact.media_on and not fact.mp_drag then mp_read() end
+    if (fact.panel == "player" or fact.mf_out) and fact.media_on and not fact.mp_drag then mp_read() end
 end)
 on("fact:panel", function(v) if v == "player" then mp_read() end end)
+on("fact:mf_out", function(v)
+    if eq_float() then mp_read() end
+    cava_want()
+end)
 sys.watch("media", function(m)
     mp_player = m.player or ""
     local len = tonumber(m.length) or 0

@@ -143,9 +143,9 @@ scene Vitreus {
     fact panel: none | calendar | controls | player | volume | notif | settings | launch | tray | desk = none
     fact media_on = false          // is there a player at all
     fact bass = 0
-    //  The six bars cava reports, 0..1 each, for the equalizer in the media card. Each one
+    //  The 24 bars cava reports, 0..1 each, for the equalizer in the media card. Each one
     //  has its own quick spring, so they rise and fall smoothly instead of stepping.
-    repeat i in 0..6 {
+    repeat i in 0..24 {
         fact spec.$i = 0
         prop spec.s.$i = 0 ~quick
         follow spec.s.$i = spec.$i
@@ -701,7 +701,34 @@ scene Vitreus {
     prop bt_pf = 0 ~calm          // the room its audio profiles take, once open
     prop bt_sel  = 0 ~calm        // which row, as a position: slides from one row to the next
     prop bt_on   = 0 ~pop         // the bluetooth toggle pill, popping past where it lands
-    prop media_open = 0 ~drip      // the media plate: a sliver with nothing playing, a full card with something to show
+    prop media_open = 0 ~drip      // the media card: there while a player exists (nothing at all with none)
+    //  The media card can be pulled off its panel and floated about the desktop (pages/media_float.plm): `mf_out` is whether it is, `mf_gx`, `mf_gy` where
+    //  its middle is being taken to, `mf_px`, `mf_py` where it is, on a loose spring; `mfl` is 0 in the panel and 1 floating.
+    fact mf_out = false
+    fact mf_gx = 0
+    fact mf_gy = 0
+    fact mf_bx = 0                 // where it was when it was grabbed
+    fact mf_by = 0
+    fact mf_hold = false           // it is held: its grab zone stays where it was pressed
+    fact mf_hx = 0
+    fact mf_hy = 0
+    spring mf_sp = 300, 20
+    prop mf_px = 0 ~mf_sp
+    prop mf_py = 0 ~mf_sp
+    //  Floating, it can be made smaller or bigger by a handle in each corner, as the desk's: `mf_gs` is the scale it is going to, `mf_s` where it is (0.5 to 1.6,
+    //  about the corner across from the one held, which stays where it is: `mf_fcx`, `mf_fcy`). Put back in the panel it is full size again.
+    fact mf_gs = 1
+    fact mf_bs = 1                 // the scale when a handle was pressed
+    fact mf_rk = -1                // which corner's handle is held (0 top left, 1 top right, 2 bottom left, 3 bottom right)
+    fact mf_fcx = 0
+    fact mf_fcy = 0
+    prop mf_s = 1 ~mf_sp
+    follow mf_s = mf_gs
+    on change mf_out while not mf_out { mf_gs = 1; mf_rk = -1; mf_hold = false }
+    follow mf_px = mf_gx
+    follow mf_py = mf_gy
+    prop mfl = 0 ~drip
+    follow mfl = if(mf_out, 1, 0)
     //  Each panel has its own amount, 0 shut .. 1 open. Each one is a drawer that comes out of the
     //  bar and melts into it; the calendar is as wide as the bar, the others are narrower.
     prop dc    = 0 ~drip
@@ -2563,7 +2590,8 @@ scene Vitreus {
     let vol_bot    = vol_top + 64
     //  The player's plate is alone in its own panel now, at the top of it.
     let media_top  = 8
-    let media_h    = mix(40, 124, media_open)   // the full card has the seek row under the song and the controls
+    let mdk        = media_open * (1 - clamp(mfl, 0, 1))   // how much of the card is in the panel: none with nothing playing, none while it is floating
+    let media_h    = 148 * mdk                  // the full card has the seek row under the song and the controls
     let media_bot  = media_top + media_h
     //  Either tile can grow past the stack into its own window - as tall as its
     //  list actually is (one open row taller, while one is), up to a ceiling
@@ -2672,7 +2700,7 @@ scene Vitreus {
     let dm.w = (120 + 192 * (min(1, dm0 * 1.6) + max(0, dm0 - 1) * 0.6)) * cu
     //  Under the player's plate, the running windows and then the tray apps, each a header and rows, scrolling past a few.
     let task_rows = min(max(1, tasks.count), 6)
-    let tasks_top = media_bot + 8
+    let tasks_top = media_bot + 8 * mdk
     let tasks_list = tasks_top
     let tasks_bot = tasks_list + task_rows * 40 - 4
     let tray_rows = min(trays.count, 3)
@@ -2696,11 +2724,14 @@ scene Vitreus {
     //  Where it settles, as drawn (`ty`): Settings low, the launcher high, a good way from the middle, and clear of the frame; then back to the panel's
     //  own coordinates (the contents are scaled about the middle of the screen).
     let lp.ty = if(lp_k == 1, min(vc + 190 * u, vb - lf.t - 24 * u - lp.hd / 2), max(vc - 210 * u, yo + lf.t + 24 * u + lp.hd / 2))
-    let lp.yf = if(lp_k == 1 or lp_k == 2, lp.ty, if(lp_k == 3 or lp_k == 4 or lp_k == 5 or lp_k == 6, clamp(lp.btn, yo + lf.t + 24 * u + lp.hd / 2, vb - lf.t - 24 * u - lp.hd / 2), if(lp_k == 7, vb - lf.t - 24 * u - lp.hd / 2, if(lp_k == 8, yo + lf.t + 24 * u + lp.hd / 2, vc))))
+    let lp.yf = if(lp_k == 1 or lp_k == 2, lp.ty, if(lp_k == 3 or lp_k == 4, clamp(lp.btn, yo + lf.t + 24 * u + lp.hd / 2, vb - lf.t - lp.hd / 2), if(lp_k == 5 or lp_k == 6, clamp(lp.btn, yo + lf.t + 24 * u + lp.hd / 2, vb - lf.t - 24 * u - lp.hd / 2), if(lp_k == 7, vb - lf.t - 24 * u - lp.hd / 2, if(lp_k == 8, yo + lf.t + 24 * u + lp.hd / 2, vc)))))
     let lp.sy0 = if(lp_k > 6, lp.yf, lp.btn)
     let lp.gy0 = if(att > 0.5, lp.yf, lp.btn)
     let lp.cy = lp.gy0 + (lp.yf - lp.gy0) * dsl
+    //  The controls and the calendar can sit against the bottom frame, and melt into it; the others keep 24 off it.
     let lp.top = lp.cy - lp.hd / 2
+    //  Sitting on the bottom frame the glass reaches 14 into it, so the two are one piece and not two edges side by side (the content stays where it was).
+    let lp.ext = 14 * u * lm * clamp((lp.cy + lp.hd / 2 - (vb - lf.t - 14 * u)) / (14 * u), 0, 1)
     follow pw_y = lp.top
     on change panel {
         pq_sw = lm > 0.5 and pcur != none and panel != none and panel != pcur
@@ -2754,9 +2785,9 @@ scene Vitreus {
     let dk.gh = (((content_bot + 16) * cu) + lp.dd + max(0, sag)) * dk.lf
     let dk.gx = mix(lp.xl + dk.gw / 2, ccx, edg)
     let dk.ew = mix(dk.w, dk.gw, lm)
-    let dk.eh = mix(dk.hh, dk.gh, lm)
+    let dk.eh = mix(dk.hh, dk.gh + if(lp_k == 3, lp.ext * dk.lf, 0), lm)
     let dk.ex = mix(pcx, dk.gx, lm)
-    let dk.ey = mix(bar.y + dk.hh / 2, lp.cy, lm)
+    let dk.ey = mix(bar.y + dk.hh / 2, lp.cy + if(lp_k == 3, lp.ext * dk.lf, 0) / 2, lm)
     let dc.gl = mix(min(dtrav, dc0), dc0, att)
     let dc.lf = mix(min(1, dc0 * 1.6) + max(0, dc0 - 1) * 0.6, min(1, dc.gl * 1.6) + max(0, dc.gl - 1) * 0.6, lm)
     let dc.rt = mix(2 * (225 + 6.5) * cu, (lf.w - lf.x) + 463 * cu, att)
@@ -2764,9 +2795,9 @@ scene Vitreus {
     let dc.gh = ((373 * cu) + lp.dd + max(0, sag)) * dc.lf
     let dc.gx = mix(lp.xl + dc.gw / 2, ccx, edg)
     let dc.ew = mix(dc.w, dc.gw, lm)
-    let dc.eh = mix((bar.y + dc.hh - dc.top), dc.gh, lm)
+    let dc.eh = mix((bar.y + dc.hh - dc.top), dc.gh + if(lp_k == 4, lp.ext * dc.lf, 0), lm)
     let dc.ex = mix(pcx, dc.gx, lm)
-    let dc.ey = mix((dc.top + bar.y + dc.hh) / 2, lp.cy, lm)
+    let dc.ey = mix((dc.top + bar.y + dc.hh) / 2, lp.cy + if(lp_k == 4, lp.ext * dc.lf, 0) / 2, lm)
     let ds.gl = min(dtrav, ds0)
     let ds.lf = mix(min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6, min(1, ds.gl * 1.6) + max(0, ds.gl - 1) * 0.6, lm)
     let ds.rt = 2 * (310 + 6.5) * pu
@@ -2807,7 +2838,7 @@ scene Vitreus {
     let do.ey = os.cy
     let do.iw = max(0.1, 352 * u * do.lf)                       // along the top the panel is wholly on screen (the right frame's 8 in from the edge), so its corners are all rounded
     let do.ix = screen.width - lf.t - do.iw / 2
-    let do.bl = (16 + 20 * do.bell) * u * min(1, do0 * 4)         // how much the drawer melts into what it joins
+    let do.bl = (26 + 20 * do.bell) * u * min(1, do0 * 4)         // how much the drawer melts into what it joins
     let do.stretch = clamp(vel(do) * 0.07, 0, 0.5)
     let dm.gl = mix(min(dtrav, dm0), dm0, att)
     let dm.lf = mix(min(1, dm0 * 1.6) + max(0, dm0 - 1) * 0.6, min(1, dm.gl * 1.6) + max(0, dm.gl - 1) * 0.6, lm)
@@ -3190,6 +3221,34 @@ scene Vitreus {
     //  bar and the drawer is only as tall as its two plates and their margins.
     let ck = cy - 127 * ku
 
+    //  The media card's middle: its place in the panel (the card's full height, whatever the panel is doing), or where it floats; and how much of it shows.
+    let mf.cx = mix(mdx, mf_px, mfl)
+    let mf.cy = mix(ck + (media_top + 74) * cu, mf_py, mfl)
+    let mf.k  = mix(1, mf_s, clamp(mfl, 0, 1))                  // its scale
+    //  A zone that is the whole screen once the card is scaled about its middle (while it is held, so the drag is not lost where there is no zone).
+    let mf.zx = mf.cx + (screen.width / 2 - mf.cx) / mf.k
+    let mf.zy = mf.cy + (vc - mf.cy) / mf.k
+    let mf.zw = screen.width / mf.k
+    let mf.zh = screen.height / mf.k
+    //  In the Frame layout its glass is the frame's own, as the desk's (`dz.f*`): each side that is near the frame's inner edge (`mf.d*` 0 against it, 1 once it is
+    //  64 away) reaches into the frame instead of ending, and the blend makes the wings. Far from the frame it is a plain rounded card. (Along the top, the
+    //  island layout, it has glass of its own, below.)
+    let mf.g  = clamp(mfl, 0, 1) * media_open                        // how much of its glass there is
+    let mf.hw = 154 * cu * mf.k
+    let mf.hh = 84 * cu * mf.k
+    let mf.dl = clamp((mf.cx - mf.hw - desk_xlo - 14 * u) / (50 * u), 0, 1)
+    let mf.dr = clamp((desk_xhi - mf.cx - mf.hw - 14 * u) / (50 * u), 0, 1)
+    let mf.dt = clamp((mf.cy - mf.hh - desk_ylo - 14 * u) / (50 * u), 0, 1)
+    let mf.db = clamp((desk_yhi - mf.cy - mf.hh - 14 * u) / (50 * u), 0, 1)
+    let mf.fl = mix(-26 * u, mf.cx - mf.hw, mf.dl)
+    let mf.fr = mix(screen.width + 26 * u, mf.cx + mf.hw, mf.dr)
+    let mf.ft = mix(yo - 26 * u, mf.cy - mf.hh, mf.dt)
+    let mf.fb = mix(vb + 26 * u, mf.cy + mf.hh, mf.db)
+    let mf.fx = (mf.fl + mf.fr) / 2
+    let mf.fw = max(0.1, mf.fr - mf.fl)
+    let mf.fcy = (mf.ft + mf.fb) / 2
+    let mf.fh = max(0.1, mf.fb - mf.ft)
+    let mf.vis = media_open * mix(if(dm_mode == dmm_player, f3, 0), 1, clamp(mfl, 0, 1))
     include "pages/bar_glass.plm"
     //  Along the top the volume's and the notification's glass is its own, outside the group above: that group is bent by the bar's wave, which the music drives,
     //  and these panels are not part of the bar. (In the left layout the shape stays in the main glass, where it joins the right frame.)
@@ -3207,6 +3266,7 @@ scene Vitreus {
             show: obs < 0.996
             box { at: do.ix + if(lm < 0.5 and do0 > 0.004, 0, 30000), do.ey; size: do.iw * (1 + do.stretch - 0.07 * do.bell + 0.003 * wobble), do.eh * (1 - do.stretch * 0.5 - 0.002 * wobble); corner: mix(min(do.ew, do.eh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); show: do0 > 0.004 }
             box { at: dz.six + if(lm < 0.5 and dz0 > 0.004, 0, 30000), dz.siy; size: dz.siw * (1 + dz.stretch - 0.07 * dz.bell), dz.sih * (1 - dz.stretch * 0.5); corner: mix(min(dz.siw, dz.sih) / 2, 26 * u * desk_s, clamp(dz0 * 1.6 - 0.1, 0, 1)); show: dz0 > 0.004 }
+            box { at: mf.cx + if(lm < 0.5 and mfl > 0.01 and media_open > 0.01, 0, 30000), mf.cy; size: max(0.3, 308 * cu * clamp(mfl, 0, 1) * media_open * mf_s), max(0.3, 168 * cu * clamp(mfl, 0, 1) * media_open * mf_s); corner: 26 * cu; show: mfl > 0.01 and media_open > 0.01 }
         }
         //  Blur behind the obsidian: a glass body asks the compositor for it (100 % glass at 34 %: the request needs glass x opacity of 30 % or more, and a more opaque layer would hide the blur), and the obsidian over it (60 % opaque while blur is on, solid when it is off) hides the glass's look.
         body {
@@ -3221,6 +3281,7 @@ scene Vitreus {
             show: obs > 0.97
             box { at: do.ix + if(lm < 0.5 and do0 > 0.004, 0, 30000), do.ey; size: do.iw * (1 + do.stretch - 0.07 * do.bell + 0.003 * wobble), do.eh * (1 - do.stretch * 0.5 - 0.002 * wobble); corner: mix(min(do.ew, do.eh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); show: do0 > 0.004 }
             box { at: dz.six + if(lm < 0.5 and dz0 > 0.004, 0, 30000), dz.siy; size: dz.siw * (1 + dz.stretch - 0.07 * dz.bell), dz.sih * (1 - dz.stretch * 0.5); corner: mix(min(dz.siw, dz.sih) / 2, 26 * u * desk_s, clamp(dz0 * 1.6 - 0.1, 0, 1)); show: dz0 > 0.004 }
+            box { at: mf.cx + if(lm < 0.5 and mfl > 0.01 and media_open > 0.01, 0, 30000), mf.cy; size: max(0.3, 308 * cu * clamp(mfl, 0, 1) * media_open * mf_s), max(0.3, 168 * cu * clamp(mfl, 0, 1) * media_open * mf_s); corner: 26 * cu; show: mfl > 0.01 and media_open > 0.01 }
         }
         body {
             color: obsidian
@@ -3230,6 +3291,7 @@ scene Vitreus {
             show: obs > 0.004
             box { at: do.ix + if(lm < 0.5 and do0 > 0.004, 0, 30000), do.ey; size: do.iw * (1 + do.stretch - 0.07 * do.bell + 0.003 * wobble), do.eh * (1 - do.stretch * 0.5 - 0.002 * wobble); corner: mix(min(do.ew, do.eh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); show: do0 > 0.004 }
             box { at: dz.six + if(lm < 0.5 and dz0 > 0.004, 0, 30000), dz.siy; size: dz.siw * (1 + dz.stretch - 0.07 * dz.bell), dz.sih * (1 - dz.stretch * 0.5); corner: mix(min(dz.siw, dz.sih) / 2, 26 * u * desk_s, clamp(dz0 * 1.6 - 0.1, 0, 1)); show: dz0 > 0.004 }
+            box { at: mf.cx + if(lm < 0.5 and mfl > 0.01 and media_open > 0.01, 0, 30000), mf.cy; size: max(0.3, 308 * cu * clamp(mfl, 0, 1) * media_open * mf_s), max(0.3, 168 * cu * clamp(mfl, 0, 1) * media_open * mf_s); corner: 26 * cu; show: mfl > 0.01 and media_open > 0.01 }
         }
     }
     //  The desk's contents (and its tab and opener): drawn after the island's glass above, so the glass is under them and not over them.
@@ -3313,6 +3375,7 @@ scene Vitreus {
     include "pages/panel_frame.plm"
     include "pages/controls_drawer.plm"
     include "pages/player.plm"
+    include "pages/media_float.plm"
     //  ── the launcher ──
     //  A search field over its results. What is typed picks the kind of search: apps, or after a first
     //  character `#` files, `>` commands, `:` emoji, `^` the clipboard, `~` wallpapers; and a sum is answered. The
