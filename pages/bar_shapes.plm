@@ -31,6 +31,11 @@ part BarShapes {
             box { at: ccx + if(lm > 0.35, 0, 30000), yo + (lf.t + nt_d * nt_vis_t) / 2; size: nt_w, lf.t + nt_d * nt_vis_t; corner: 9 * cu; blend: 9 * u }
             box { at: ccx + if(lm > 0.35, 0, 30000), vb - (lf.t + nt_d * nt_vis_b) / 2; size: nt_w, lf.t + nt_d * nt_vis_b; corner: 9 * cu; blend: 9 * u }
             box { at: screen.width - (lf.t + nt_d * nt_vis_r) / 2 + if(lm > 0.35, 0, 30000), vc; size: lf.t + nt_d * nt_vis_r, nt_w; corner: 9 * cu; blend: 9 * u }
+            //  The title's small tab: `ptab_d` out of the strip's edge while the title is under the pointer. At rest it is off the screen,
+            //  not tucked into the strip: the glass melts shapes that are near each other, and a tucked tab would still bulge the edge.
+            box { at: lf.w - 6 * u + (6 * u + ptab_d * ptab_vis) / 2 + if(lm > 0.35 and ptab_vis > 0.01, 0, 30000), lv.tm; size: 6 * u + ptab_d * ptab_vis, ptab_h; corner: 5 * u; blend: 6 * u * ptab_vis }
+            //  Along the top it hangs from the pill's bottom edge instead, under the title button.
+            box { at: ptab_ix + if(lm < 0.65 and ptab_vis > 0.01, 0, 30000), bar.y + bar.h / 2 - 6 * u + (6 * u + ptab_d * ptab_vis) / 2; size: ptab_iw, 6 * u + ptab_d * ptab_vis; corner: 5 * u; blend: 6 * u * ptab_vis }
             //  The title's panel's ripple (see `tprip`): the two crests run out along the strip's edge from the panel, as a drop's do. Off the screen when it is not running.
             ellipse { at: lf.w + if(tq.act > 0.5, 0, 30000), lp.cy - tq.x; radius: 9 * u; scale: tq.h / (9 * u), 1; blend: 8 * u * clamp(tq.h / (3 * u), 0, 1) }
             ellipse { at: lf.w + if(tq.act > 0.5, 0, 30000), lp.cy + tq.x; radius: 9 * u; scale: tq.h / (9 * u), 1; blend: 8 * u * clamp(tq.h / (3 * u), 0, 1) }
