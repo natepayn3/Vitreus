@@ -492,26 +492,30 @@ part Desk {
                 opacity: fd1
                 move: 0, (1 - fd1) * 12 * du
                 let ak_vh  = 248 * du - ask_dy - ask_db                    // what the card shows of the conversation
-                //  The assistants: one chip each (dim while it is not installed) and a button for a new conversation.
+                //  The assistants, in one control like the notifications' Do Not Disturb bar: a plate with four stops and a thumb that
+                //  slides (and stretches a little) to the one in use. Dim while one is not installed.
+                let ak_cx0 = dsk_x0 + 146 * du
+                let ak_cy  = dsk_y0 + 84 * du
+                let ak_str = clamp(abs(ask_backend - ask_sel), 0, 3)
+                let ak_tx  = ak_cx0 + (ask_sel - 1.5) * 66 * du
+                let ak_tw  = (58 + 11 * ak_str) * du
+                let ak_th  = (24 - 3 * clamp(ak_str, 0, 1)) * du
+                body { color: mix(obsidian, ink, veil * 1.6); opacity: obs; shadow: 0, 2 * du, 7 * du, 40%, #000000; show: obs > 0.004; box { at: ak_cx0, ak_cy; size: 264 * du, 30 * du; corner: 15 * du } }
+                box { at: ak_cx0, ak_cy; size: 264 * du, 30 * du; corner: 15 * du; color: ink; opacity: veil * (1 - obs) }
+                repeat k in 0..3 {
+                    box { at: ak_cx0 + (k - 1) * 66 * du, ak_cy; size: 1 * du, 10 * du; corner: 0.5 * du; color: ink; opacity: 12% }
+                }
+                body {
+                    color: mint
+                    shadow: 0, 0, 10 * du, 48%, mint
+                    rim: 16%
+                    box { at: ak_tx, ak_cy; size: ak_tw, ak_th; corner: 10 * du }
+                }
                 repeat k in 0..4 {
-                    let ak_cx = dsk_x0 + (14 + 31 + k * 66) * du
-                    let ak_on = if(ask_backend == k, 1, 0)
-                    //  Obsidian: a solid plate a step lighter than the shell, in place of the veil.
-                    body { color: mix(obsidian, ink, ((8% + 9% * ask_chip.$k.hover) * (1 - ak_on) * if(ask_have.$k, 1, 0.45)) * 1.6); opacity: obs; show: obs > 0.004; box { at: ak_cx, dsk_y0 + 84 * du; size: 62 * du, 26 * du; corner: 13 * du } }
-                    box { at: ak_cx, dsk_y0 + 84 * du; size: 62 * du, 26 * du; corner: 13 * du; color: ink; opacity: ((8% + 9% * ask_chip.$k.hover) * (1 - ak_on) * if(ask_have.$k, 1, 0.45)) * (1 - obs) }
-                    //  The one in use is lit in the accent, the way the tabs' thumb is.
-                    group {
-                        show: ak_on > 0.5
-                        opacity: if(ask_have.$k, 100%, 45%)
-                        body {
-                            color: mint
-                            shadow: 0, 0, 10 * du, 40%, mint
-                            rim: 16%
-                            box { at: ak_cx, dsk_y0 + 84 * du; size: 62 * du, 26 * du; corner: 13 * du }
-                        }
-                    }
-                    group { scale: rs; pivot: floor(ak_cx + 0.5), floor(dsk_y0 + 84 * du + 0.5); text pick(k, "Claude", "Ollama", "Codex", "Gemini") { at: floor(ak_cx + 0.5), floor(dsk_y0 + 84 * du + 0.5); anchor: center; align: center; size: 12.5; weight: 700; color: mix(ink, off, ak_on); opacity: if(ask_have.$k, 100%, 40%); family: "Space Grotesk" } }
-                    zone box ask_chip.$k { at: ak_cx, dsk_y0 + 84 * du; size: 64 * du, 28 * du; cursor: pointer; active: ask_have.$k }
+                    let ak_cx = ak_cx0 + (k - 1.5) * 66 * du
+                    let ak_on = clamp(1 - abs(ask_sel - k), 0, 1)
+                    group { scale: rs; pivot: floor(ak_cx + 0.5), floor(ak_cy + 0.5); text pick(k, "Claude", "Ollama", "Codex", "Gemini") { at: floor(ak_cx + 0.5), floor(ak_cy + 0.5); anchor: center; align: center; size: 12.5; weight: 600; color: mix(ink, off, ak_on); opacity: if(ask_have.$k, 62% + 38% * ak_on + 30% * ask_chip.$k.hover, 35%); family: "Space Grotesk" } }
+                    zone box ask_chip.$k { at: ak_cx, ak_cy; size: 66 * du, 30 * du; cursor: pointer; active: ask_have.$k; label: pick(k, "Claude", "Ollama", "Codex", "Gemini") }
                     on press ask_chip.$k { emit ask_pick(k) }
                 }
                 //  Under them, which one is answering (for Ollama, the model: tap it to try the next), and Stop while an answer is coming.
