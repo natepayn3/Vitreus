@@ -798,6 +798,14 @@ part ControlsDrawer {
             zone box qx_back { at: pcx - 124 * cu, qx_cy; size: 30 * cu, 30 * cu; cursor: pointer }
             on press qx_back { panel_sub = none }
             text "CAPTURE" { at: floor(pcx - 102 * cu + 0.5), floor(qx_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
+            //  Whether a recording takes the microphone too, in the header: the Settings' switch, with its word beside it. Out while one runs.
+            group {
+                show: not rec_on
+                text "MIC" { at: floor(pcx + 88 * cu + 0.5), floor(qx_cy + 0.5); anchor: right center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
+                SettingsSwitch(pcx + 138 * cu, qx_cy, rec_mic_pill, rec_mic_hit.pressed, mint)
+                zone box rec_mic_hit { at: pcx + 106 * cu, qx_cy; size: 80 * cu, 30 * cu; corner: 10 * cu; cursor: pointer; label: "Record microphone" }
+                on press rec_mic_hit { emit rec_mic_toggle }
+            }
             box { at: pcx, qx_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
             text "SCREENSHOT" { at: floor(pcx - 138 * cu + 0.5), floor(qx_top + 62 * cu + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
             row cap_shots {

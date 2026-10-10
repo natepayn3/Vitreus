@@ -604,6 +604,8 @@ scene Vitreus {
     //  Capture and Power, the third row of tiles: screenshots and screen recording, the session and the power profile.
     fact rec_on = false            // wf-recorder is running
     text rec_time = ""             // how long, 1:23
+    fact rec_mic = false           // a recording takes the microphone too (the default input), set from the Capture window
+    event rec_mic_toggle ->
     fact pow_prof = -1             // 0 power saver, 1 balanced, 2 performance, -1 no power-profiles-daemon
     event shot ->                  // 0 a region, 1 the whole screen
     event rec_start ->             // the same
@@ -1099,6 +1101,8 @@ scene Vitreus {
     text night_end_text = "6:00 AM"
     text night_status = "Off"
     prop night_pill = 0 ~pop
+    prop rec_mic_pill = 0 ~pop
+    follow rec_mic_pill = if(rec_mic, 1, 0)
     prop night_auto_pill = 0 ~pop
     follow night_pill = if(night_on, 1, 0)
     follow night_auto_pill = if(night_auto, 1, 0)
