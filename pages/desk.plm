@@ -17,7 +17,8 @@ part Desk {
             group {
                 opacity: fd0
                 move: 0, (1 - fd0) * 12 * du
-            //  The tabs: one track, a thumb that slides to the one in use and stretches on the way.
+            //  The tabs: one track like the notifications' bar, with a divider between stops, and a thumb that slides to the one in use
+            //  and stretches on the way.
             let dt_y   = dsk_y0 + 40 * du
             let dt_w   = (dsk_w - 72 * du) / 6
             let dt_cx  = dsk_xc - 18 * du
@@ -25,9 +26,15 @@ part Desk {
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
             body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * du, 7 * du, 40%, #000000; show: obs > 0.004; box { at: dt_cx, dt_y; size: dsk_w - 72 * du, 34 * du; corner: 17 * du } }
             box { at: dt_cx, dt_y; size: dsk_w - 72 * du, 34 * du; corner: 17 * du; color: ink; opacity: (veil) * (1 - obs) }
+            group {
+                clip inset 0 box { at: dt_cx, dt_y; size: dsk_w - 72 * du, 34 * du; corner: 17 * du }
+                repeat i in 0..5 {
+                    box { at: dt_cx + (i - 2) * dt_w, dt_y; size: 1 * du, 10 * du; corner: 0.5 * du; color: ink; opacity: 12% }
+                }
+            }
             body {
                 color: mint
-                shadow: 0, 0, 10 * du, 40%, mint
+                shadow: 0, 0, 10 * du, 48%, mint
                 rim: 16%
                 box { at: dt_cx + (desk_sel - 2.5) * dt_w, dt_y; size: (dt_w - 8 * du) + 10 * du * dt_str, 26 * du - 3 * du * clamp(dt_str, 0, 1); corner: 10 * du }
             }
@@ -494,7 +501,7 @@ part Desk {
                 let ak_vh  = 248 * du - ask_dy - ask_db                    // what the card shows of the conversation
                 //  The assistants, in one control like the notifications' Do Not Disturb bar: a plate with four stops and a thumb that
                 //  slides (and stretches a little) to the one in use. Dim while one is not installed.
-                let ak_cx0 = dsk_x0 + 146 * du
+                let ak_cx0 = dsk_xc
                 let ak_cy  = dsk_y0 + 84 * du
                 let ak_str = clamp(abs(ask_backend - ask_sel), 0, 3)
                 let ak_tx  = ak_cx0 + (ask_sel - 1.5) * 66 * du
@@ -502,8 +509,11 @@ part Desk {
                 let ak_th  = (24 - 3 * clamp(ak_str, 0, 1)) * du
                 body { color: mix(obsidian, ink, veil * 1.6); opacity: obs; shadow: 0, 2 * du, 7 * du, 40%, #000000; show: obs > 0.004; box { at: ak_cx0, ak_cy; size: 264 * du, 30 * du; corner: 15 * du } }
                 box { at: ak_cx0, ak_cy; size: 264 * du, 30 * du; corner: 15 * du; color: ink; opacity: veil * (1 - obs) }
-                repeat k in 0..3 {
-                    box { at: ak_cx0 + (k - 1) * 66 * du, ak_cy; size: 1 * du, 10 * du; corner: 0.5 * du; color: ink; opacity: 12% }
+                group {
+                    clip inset 0 box { at: ak_cx0, ak_cy; size: 264 * du, 30 * du; corner: 15 * du }
+                    repeat k in 0..3 {
+                        box { at: ak_cx0 + (k - 1) * 66 * du, ak_cy; size: 1 * du, 10 * du; corner: 0.5 * du; color: ink; opacity: 12% }
+                    }
                 }
                 body {
                     color: mint
