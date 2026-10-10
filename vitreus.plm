@@ -3220,10 +3220,12 @@ scene Vitreus {
     //  saying "this opens", only a few pixels. It tucks back in when the player's panel comes out of the same place.
     let ptab_h = max(52 * cu, lv.span)             // as long as what can be clicked (`pl_btn_z`): the title text only, not the player's buttons
     let ptab_d = 5 * u                                     // how far out it comes
+    //  Along the top the same tab hangs from the pill's bottom edge, under the title button (`win_hit`): as wide as the title, or a short stub when there is none.
+    let ptab_iw = clamp(max(clsw.width, titw.width) + 12 * u, 52 * u, max(52 * u, win.w - 12 * u))
+    let ptab_ix = mix(win.x + win.w / 2, win.x - 6 * u + ptab_iw / 2, clamp(max(clsw.width, titw.width) / (6 * u), 0, 1))
     prop ptab_vis = 0 ~calm                        // the same spring as the edge notches (`nt_vis_*`)
     prop ptab_hold = 0 ~280ms                      // the notches' short wait before coming out, and grace before going back
-    follow ptab_hold = if(pl_btn_z.hover > 0.5 and panel != player, 1, 0)
-    follow ptab_vis = if(ptab_hold > 0.3, 1, 0)
+        follow ptab_vis = if(ptab_hold > 0.3, 1, 0)
     on change dm > 0.5 while dm > 0.5 and panel == player { lp_k = 6; lp_w = 312 }
     //  Where the contents hang from: the panel's old middle, so they keep their
     //  place when the panel grows to make room for the player.
