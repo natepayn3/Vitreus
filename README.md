@@ -93,7 +93,7 @@ layout all run in the renderer, and the logic only reports facts.
 ## 📦 Requirements
 
 * [**pleamar**](https://github.com/k4ditano/pleamar) — the runtime Vitreus is written for
-* A Wayland compositor with layer-shell, developed on **Hyprland**
+* **Hyprland** or **pleamar-wm**
 * The **Space Grotesk** font
 
 The packages `install.sh` installs (pacman, and the AUR for the last two):
