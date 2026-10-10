@@ -19,6 +19,9 @@
       <td align="center"><img src="assets/screenshots/tour.webp" alt="A tour of Vitreus: Settings, the controls, the Desk, the terminal and the launcher" height="280" /><br /><sub>A tour</sub></td>
       <td align="center"><img src="assets/screenshots/desk.webp" alt="The Desk: dragged off the edge, resized, and running the Focus timer" height="280" /><br /><sub>The Desk</sub></td>
     </tr>
+  <tr>
+    <td align="center" colspan="2"><img src="assets/screenshots/lockscreen.webp" alt="The lock screen: the desktop blurs away, a glass clock and password field appear, and a wrong password flashes red" height="280" /><br /><sub>The lock screen</sub></td>
+  </tr>
   </table>
 
 </div>
@@ -56,9 +59,6 @@ layout all run in the renderer, and the logic only reports facts.
   <tr>
     <td align="center"><img src="assets/screenshots/system-tray.webp" alt="A tray app's menu" /><br /><sub><b>System tray</b> — an app's own menu, drawn in the shell's glass</sub></td>
     <td align="center"><img src="assets/screenshots/settings-about.webp" alt="Settings, About page" /><br /><sub><b>Settings</b> — the About page shows the build and updates the shell</sub></td>
-  </tr>
-  <tr>
-    <td align="center" colspan="2"><img src="assets/screenshots/lockscreen.webp" alt="The lock screen: the desktop blurs away, a glass clock and password field appear, and a wrong password flashes red" /><br /><sub><b>Lock screen</b> — a wrong password flashes red; the right one lets the desktop back</sub></td>
   </tr>
 </table>
 
