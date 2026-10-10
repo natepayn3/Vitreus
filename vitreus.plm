@@ -2784,9 +2784,11 @@ scene Vitreus {
     let dk.gw = max(0.1, dk.rt * dk.lf)
     let dk.gh = (((content_bot + 16) * cu) + lp.dd + max(0, sag)) * dk.lf
     let dk.gx = mix(lp.xl + dk.gw / 2, ccx, edg)
-    let dk.ew = mix(dk.w, dk.gw, lm)
+    //  Close to the right frame the glass reaches into that too (as at the bottom, `lp.ext`), so the panel's corner is the frame's.
+    let dk.er = if(lp_k == 3, 14 * u * lm * clamp((dk.gx + dk.gw / 2 - (screen.width - lf.t - 14 * u)) / (14 * u), 0, 1), 0) * dk.lf
+    let dk.ew = mix(dk.w, dk.gw + dk.er, lm)
     let dk.eh = mix(dk.hh, dk.gh + if(lp_k == 3, lp.ext * dk.lf, 0), lm)
-    let dk.ex = mix(pcx, dk.gx, lm)
+    let dk.ex = mix(pcx, dk.gx + dk.er / 2, lm)
     let dk.ey = mix(bar.y + dk.hh / 2, lp.cy + if(lp_k == 3, lp.ext * dk.lf, 0) / 2, lm)
     let dc.gl = mix(min(dtrav, dc0), dc0, att)
     let dc.lf = mix(min(1, dc0 * 1.6) + max(0, dc0 - 1) * 0.6, min(1, dc.gl * 1.6) + max(0, dc.gl - 1) * 0.6, lm)
@@ -2794,9 +2796,10 @@ scene Vitreus {
     let dc.gw = max(0.1, dc.rt * dc.lf)
     let dc.gh = ((373 * cu) + lp.dd + max(0, sag)) * dc.lf
     let dc.gx = mix(lp.xl + dc.gw / 2, ccx, edg)
-    let dc.ew = mix(dc.w, dc.gw, lm)
+    let dc.er = if(lp_k == 4, 14 * u * lm * clamp((dc.gx + dc.gw / 2 - (screen.width - lf.t - 14 * u)) / (14 * u), 0, 1), 0) * dc.lf
+    let dc.ew = mix(dc.w, dc.gw + dc.er, lm)
     let dc.eh = mix((bar.y + dc.hh - dc.top), dc.gh + if(lp_k == 4, lp.ext * dc.lf, 0), lm)
-    let dc.ex = mix(pcx, dc.gx, lm)
+    let dc.ex = mix(pcx, dc.gx + dc.er / 2, lm)
     let dc.ey = mix((dc.top + bar.y + dc.hh) / 2, lp.cy + if(lp_k == 4, lp.ext * dc.lf, 0) / 2, lm)
     let ds.gl = min(dtrav, ds0)
     let ds.lf = mix(min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6, min(1, ds.gl * 1.6) + max(0, ds.gl - 1) * 0.6, lm)
