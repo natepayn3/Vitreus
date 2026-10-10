@@ -121,13 +121,13 @@ part MediaFloat {
                 //  more gain. Each bar goes from the accent to white as it rises, and the whole is under a soft glow. Silent, it is a row of dots.
                 group {
                     let vx = mf.cx - 50 * cu                      // the left edge
-                    let vy = my + 38 * cu                         // the centre line
+                    let mfs_y = my + 38 * cu                         // the centre line
                     repeat i in 0..24 {
                         let lvl = clamp(spec.s.$i * (0.8 + 0.7 * i / 23), 0, 1)
                         let bh  = (1.5 + 31 * lvl) * cu
                         let bx  = vx + (i + 0.5) * 7.6 * cu
-                        box { at: bx, vy - bh / 2; size: 4.2 * cu, bh; corner: 2.1 * cu; color: mix(mint, ink, lvl * 0.85); opacity: (0.35 + 0.65 * playf) * (45% + 55% * lvl) }
-                        box { at: bx, vy + bh * 0.28 + 2 * cu; size: 4.2 * cu, bh * 0.56; corner: 2.1 * cu; color: mint; opacity: playf * lvl * 28% }
+                        box { at: bx, mfs_y - bh / 2; size: 4.2 * cu, bh; corner: 2.1 * cu; color: mix(mint, ink, lvl * 0.85); opacity: (0.35 + 0.65 * playf) * (45% + 55% * lvl) }
+                        box { at: bx, mfs_y + bh * 0.28 + 2 * cu; size: 4.2 * cu, bh * 0.56; corner: 2.1 * cu; color: mint; opacity: playf * lvl * 28% }
                     }
                 }
             }
@@ -135,18 +135,18 @@ part MediaFloat {
             //  The seek row: elapsed, a track filled as far as the song has gone with a knob at the end, and the length. Pressed or dragged
             //  along, it follows the pointer and seeks where it is let go. A stream with no end has no bar, only how long it has played.
             group {
-                let sy = my + 84 * cu
+                let mfk_y = my + 84 * cu
                 let s0 = mf.cx - 96 * cu
                 let sw_ = 192 * cu
                 let sf = if(mp_drag, mp_df, mp_pf)
-                let hot = max(mp.seek.hover, if(mp_drag, 1, 0))
-                text mp_el { at: floor(mf.cx - 132 * cu + 0.5), floor(sy + 0.5); anchor: left center; size: 11.5; weight: 600; width: 34 * cu; lines: 1; color: faint; family: "Space Grotesk" }
-                text mp_tot { at: floor(mf.cx + 132 * cu + 0.5), floor(sy + 0.5); anchor: right center; align: right; size: 11.5; weight: 600; width: 34 * cu; lines: 1; color: faint; family: "Space Grotesk"; show: mp_len > 0 }
-                text "Live" { at: floor(mf.cx + 132 * cu + 0.5), floor(sy + 0.5); anchor: right center; align: right; size: 11.5; weight: 700; color: mint; family: "Space Grotesk"; show: mp_len <= 0 }
-                box { at: s0 + sw_ / 2, sy; size: sw_, (4 + 2 * hot) * cu; corner: 3 * cu; color: ink; opacity: 14%; show: mp_len > 0 }
-                box { at: s0 + max(sw_ * sf, 4 * cu) / 2, sy; size: max(sw_ * sf, 4 * cu), (4 + 2 * hot) * cu; corner: 3 * cu; color: mint; show: mp_len > 0 }
-                ellipse { at: s0 + sw_ * sf, sy; radius: (4.5 + 2.5 * hot) * cu; color: ink; show: mp_len > 0 }
-                zone box mp.seek { at: s0 + sw_ / 2, sy; size: sw_ + 16 * cu, 22 * cu; cursor: pointer; active: mp_len > 0 and media_open > 0.5 }
+                let mfk_hot = max(mp.seek.hover, if(mp_drag, 1, 0))
+                text mp_el { at: floor(mf.cx - 132 * cu + 0.5), floor(mfk_y + 0.5); anchor: left center; size: 11.5; weight: 600; width: 34 * cu; lines: 1; color: faint; family: "Space Grotesk" }
+                text mp_tot { at: floor(mf.cx + 132 * cu + 0.5), floor(mfk_y + 0.5); anchor: right center; align: right; size: 11.5; weight: 600; width: 34 * cu; lines: 1; color: faint; family: "Space Grotesk"; show: mp_len > 0 }
+                text "Live" { at: floor(mf.cx + 132 * cu + 0.5), floor(mfk_y + 0.5); anchor: right center; align: right; size: 11.5; weight: 700; color: mint; family: "Space Grotesk"; show: mp_len <= 0 }
+                box { at: s0 + sw_ / 2, mfk_y; size: sw_, (4 + 2 * mfk_hot) * cu; corner: 3 * cu; color: ink; opacity: 14%; show: mp_len > 0 }
+                box { at: s0 + max(sw_ * sf, 4 * cu) / 2, mfk_y; size: max(sw_ * sf, 4 * cu), (4 + 2 * mfk_hot) * cu; corner: 3 * cu; color: mint; show: mp_len > 0 }
+                ellipse { at: s0 + sw_ * sf, mfk_y; radius: (4.5 + 2.5 * mfk_hot) * cu; color: ink; show: mp_len > 0 }
+                zone box mp.seek { at: s0 + sw_ / 2, mfk_y; size: sw_ + 16 * cu, 22 * cu; cursor: pointer; active: mp_len > 0 and media_open > 0.5 }
                 on press mp.seek { mp_drag = true; mp_df = clamp((pointer.x - s0) / sw_, 0, 1) }
                 on drag mp.seek { mp_df = clamp((pointer.x - s0) / sw_, 0, 1) }
                 on release mp.seek { mp_drag = false; mp_pos = mp_df * mp_len; mp_pf: mp_df ~0ms; emit mp_seek(mp_df) }      // it stays where it was let go: no glide back

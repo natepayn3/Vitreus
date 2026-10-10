@@ -252,17 +252,19 @@ scene Vitreus {
     fact wp_filter = -1
     //  The glass of the bar and every drawer: how much of the glass effect it has (tint, edge light, and the blur
     //  the compositor puts behind it), and how opaque it is. Set from the Glass page of the settings.
-    fact glass_frost = 1
     fact glass_op = 1
-    text glass_frost_text = "100%"
     text glass_op_text = "100%"
-    event glass_frost_set ->        // the Glass slider: 0..1 along its track
     //  The rest of the Glass page: the edge light (a multiplier, 0 to 2), and, only while the glass bends what is behind
     //  it (`glass_bend`), how thick it is (0 to 2) and the rainbow at its edge (0 to 2.5). The blur is Hyprland's (`hy_blur`).
     fact glass_rim = 1
     fact glass_refr = 1
     fact glass_disp = 1
     fact glass_bend = false
+    fact glass_clear = 1             // pleamar's `frost:` (0.2.35): 0 clear glass, 1 frosted inside the bevel; only the glass that bends has it
+    fact glass_auto = false          // `frost: auto`: frosted only where what is behind is busy
+    text glass_clear_text = "100%"
+    event glass_clear_set ->
+    event glass_auto_toggle ->
     //  Glass switched off (`glass_obs`): the same bar and drawers, but a flat, solid obsidian instead of glass. `obs` is 0 glass, 1 obsidian, and travels between them.
     fact glass_obs = false
     prop obs = 0 ~calm
@@ -650,6 +652,8 @@ scene Vitreus {
     prop f7    = 0 ~780ms          // fifth: bluetooth
     prop glass_bend_pill = 0 ~pop    // the Glass page's lens switch, popping past where it lands
     follow glass_bend_pill = if(glass_bend, 1, 0)
+    prop glass_auto_pill = 0 ~pop     // the Glass page's auto-frost switch
+    follow glass_auto_pill = if(glass_auto, 1, 0)
     prop glass_on_pill = 1 ~pop       // the Glass switch on the Glass page (on = glass, off = obsidian), likewise
     follow glass_on_pill = if(glass_obs, 0, 1)
     //  The notifications window's envelope: its flap is open while there is history and Do Not Disturb is off, and it hops when the history changes.
@@ -1209,6 +1213,9 @@ scene Vitreus {
     }
     event lk_mon_set ->
     event lk_test ->                   // lock now, as a test: Esc or a minute opens it
+    fact gl_scroll_to = 0              // the Glass page scrolls like the Lock screen's
+    prop gl_scroll = 0 ~quick
+    follow gl_scroll = gl_scroll_to
     fact lk_scroll_to = 0              // the page scrolls like System monitor's
     prop lk_scroll = 0 ~quick
     follow lk_scroll = lk_scroll_to
@@ -1515,8 +1522,8 @@ scene Vitreus {
     follow mvis = if(mixer.count > 0 or vm_open, 1, 0)
     on launch_toggle { panel = if(panel == launch, none, launch) }
     on settings_toggle { panel = if(panel == settings, none, settings) }
-    on change panel { dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; ck_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0 }
-    on change set_page { disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; ck_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0; vpn_arm = -1 }
+    on change panel { dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; gl_scroll_to = 0; ck_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0 }
+    on change set_page { disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; gl_scroll_to = 0; ck_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0; vpn_arm = -1 }
     //  The Hyprland and Pleamar-WM pages read their settings from the system when they are shown, and only then: reading them on every page change
     //  (a dozen commands and a couple of hundred fact writes) stalled the scene for half a second on each click anywhere in Settings.
     on change set_page while set_page == pg_hypr { emit hy_refresh }
@@ -2678,6 +2685,7 @@ scene Vitreus {
     let vpn.fh = if(vpn_mode == vpm_wg, 180, if(vpn_mode == vpm_ovpn, 144, 276))
     let wm.h = 782                     // the Pleamar-WM page: to the bottom of its last card
     let ck.h = 826                     // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
+    let gl.h = 554                     // the Glass page: to the bottom of its last card
     let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36
@@ -3258,15 +3266,33 @@ scene Vitreus {
     group {
         body {
             color: tint
-            glass: glass_frost
+            glass: 100%
             opacity: glass_op * (1 - obs)
             lens: glass_bend
+            frost: glass_clear
             refraction: glass_refr
             dispersion: glass_disp
             rim: 10% * glass_rim
             shine: pointer
             shadow: 0, 7, 20, 24%, deep
-            show: obs < 0.996
+            show: obs < 0.996 and not glass_auto
+            box { at: do.ix + if(lm < 0.5 and do0 > 0.004, 0, 30000), do.ey; size: do.iw * (1 + do.stretch - 0.07 * do.bell + 0.003 * wobble), do.eh * (1 - do.stretch * 0.5 - 0.002 * wobble); corner: mix(min(do.ew, do.eh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); show: do0 > 0.004 }
+            box { at: dz.six + if(lm < 0.5 and dz0 > 0.004, 0, 30000), dz.siy; size: dz.siw * (1 + dz.stretch - 0.07 * dz.bell), dz.sih * (1 - dz.stretch * 0.5); corner: mix(min(dz.siw, dz.sih) / 2, 26 * u * desk_s, clamp(dz0 * 1.6 - 0.1, 0, 1)); show: dz0 > 0.004 }
+            box { at: mf.cx + if(lm < 0.5 and mfl > 0.01 and media_open > 0.01, 0, 30000), mf.cy; size: max(0.3, 308 * cu * clamp(mfl, 0, 1) * media_open * mf_s), max(0.3, 168 * cu * clamp(mfl, 0, 1) * media_open * mf_s); corner: 26 * cu; show: mfl > 0.01 and media_open > 0.01 }
+        }
+        //  The same glass with `frost: auto` (frosted only where what is behind is busy): `frost:` cannot take `auto` from an expression, so it is a body of its own.
+        body {
+            color: tint
+            glass: 100%
+            opacity: glass_op * (1 - obs)
+            lens: glass_bend
+            frost: auto
+            refraction: glass_refr
+            dispersion: glass_disp
+            rim: 10% * glass_rim
+            shine: pointer
+            shadow: 0, 7, 20, 24%, deep
+            show: obs < 0.996 and glass_auto
             box { at: do.ix + if(lm < 0.5 and do0 > 0.004, 0, 30000), do.ey; size: do.iw * (1 + do.stretch - 0.07 * do.bell + 0.003 * wobble), do.eh * (1 - do.stretch * 0.5 - 0.002 * wobble); corner: mix(min(do.ew, do.eh) / 2, 26 * u, clamp(do0 * 1.6 - 0.1, 0, 1)); show: do0 > 0.004 }
             box { at: dz.six + if(lm < 0.5 and dz0 > 0.004, 0, 30000), dz.siy; size: dz.siw * (1 + dz.stretch - 0.07 * dz.bell), dz.sih * (1 - dz.stretch * 0.5); corner: mix(min(dz.siw, dz.sih) / 2, 26 * u * desk_s, clamp(dz0 * 1.6 - 0.1, 0, 1)); show: dz0 > 0.004 }
             box { at: mf.cx + if(lm < 0.5 and mfl > 0.01 and media_open > 0.01, 0, 30000), mf.cy; size: max(0.3, 308 * cu * clamp(mfl, 0, 1) * media_open * mf_s), max(0.3, 168 * cu * clamp(mfl, 0, 1) * media_open * mf_s); corner: 26 * cu; show: mfl > 0.01 and media_open > 0.01 }
@@ -3614,14 +3640,29 @@ scene Vitreus {
         zone box pk_block { at: cx, screen.height / 2; size: screen.width, screen.height; cursor: pointer }
         body {
             color: tint
-            glass: glass_frost
+            glass: 100%
             opacity: glass_op * (1 - obs)
             lens: glass_bend
+            frost: glass_clear
             refraction: glass_refr
             dispersion: glass_disp
             rim: 14% * glass_rim
             shadow: 0, 18 * u, 50 * u, 45%, deep
-            show: obs < 0.996
+            show: obs < 0.996 and not glass_auto
+            box { at: pk.x, pk.cy; size: 400 * u, 256 * u; corner: 26 * u }
+        }
+        //  The same glass with `frost: auto` (frosted only where what is behind is busy): `frost:` cannot take `auto` from an expression, so it is a body of its own.
+        body {
+            color: tint
+            glass: 100%
+            opacity: glass_op * (1 - obs)
+            lens: glass_bend
+            frost: auto
+            refraction: glass_refr
+            dispersion: glass_disp
+            rim: 14% * glass_rim
+            shadow: 0, 18 * u, 50 * u, 45%, deep
+            show: obs < 0.996 and glass_auto
             box { at: pk.x, pk.cy; size: 400 * u, 256 * u; corner: 26 * u }
         }
         //  Blur behind the obsidian: a glass body asks the compositor for it (100 % glass at 34 %: the request needs glass x opacity of 30 % or more, and a more opaque layer would hide the blur), and the obsidian over it (60 % opaque while blur is on, solid when it is off) hides the glass's look.

@@ -3239,28 +3239,29 @@ end)
 wp_load()
 
 -- ── glass ─────────────────────────────────────────────────────────────────────────────────────────────
--- The Glass page's two sliders. `frost` is how much of the glass effect the bar and the drawers have (their
--- tint, the edge light, and whether the compositor is asked to blur what is behind: below 30 % it is not; at 0
--- they are solid); `opacity` is how solid they are, from 30 % to 100 % (its track is 0 to 100 %, the first 30 %
--- of it shaded). Both are numbers from 0 to 1 that the
+-- The Glass page's `opacity`: how solid the bar and the drawers are, from 30 % to 100 % (its track is 0 to 100 %, the first 30 %
+-- of it shaded; below 30 % no blur is asked of the compositor). It is a number from 0 to 1 that the
 -- scene reads, kept in `glass.json` a moment after the last change so a drag does not write a file per pixel.
 -- Four more, all of them multipliers or switches the scene reads: `rim` (how bright the light along the edge is, 0 to 2, 1 as it
 -- was), `refr` (how thick the glass is, 0 to 2) and `disp` (the rainbow at the edge, 0 to 2.5) only show when `bend` is on,
 -- which swaps the compositor's blur for glass that really bends what is behind it. The blur's own strength is Hyprland's, and
 -- lives in the Hyprland section below (it puts its setter in `glass.set_blur`).
-local glass = { frost = 1, opacity = 1, rim = 1, refr = 1, disp = 1, bend = false, obsidian = false }
+-- `clear` (0 clear glass .. 1 frosted, pleamar's `frost:`) and `auto` (frost only where what is behind is busy) are the glass that bends's own
+-- frost, and only show with `bend`. (There was once a "glass amount" slider, the scene's `glass:`: it overlapped Opacity and the Glass switch, and is always 100 % now.)
+local glass = { opacity = 1, rim = 1, refr = 1, disp = 1, bend = false, obsidian = false, clear = 1, auto = false }
 local GLASS_OP_MIN = 0.3
 local glass_save_waiting = false
 
 local function glass_refresh()
-    fact.glass_frost = glass.frost
     fact.glass_op = glass.opacity
-    text.glass_frost_text = string.format("%d%%", math.floor(glass.frost * 100 + 0.5))
     text.glass_op_text = string.format("%d%%", math.floor(glass.opacity * 100 + 0.5))
     fact.glass_rim = glass.rim
     fact.glass_refr = glass.refr
     fact.glass_disp = glass.disp
     fact.glass_bend = glass.bend
+    fact.glass_clear = glass.clear
+    fact.glass_auto = glass.auto
+    text.glass_clear_text = string.format("%d%%", math.floor(glass.clear * 100 + 0.5))
     fact.glass_obs = glass.obsidian
     text.glass_rim_text = string.format("%d%%", math.floor(glass.rim * 100 + 0.5))
     text.glass_refr_text = string.format("%d%%", math.floor(glass.refr * 100 + 0.5))
@@ -3278,29 +3279,25 @@ local function glass_save_soon()
     glass_save_waiting = true
     after(500, function()
         glass_save_waiting = false
-        pcall(sys.call, "files.write", "glass.json", { frost = glass.frost, opacity = glass.opacity, rim = glass.rim, refr = glass.refr, disp = glass.disp, bend = glass.bend, obsidian = glass.obsidian })
+        pcall(sys.call, "files.write", "glass.json", { opacity = glass.opacity, rim = glass.rim, refr = glass.refr, disp = glass.disp, bend = glass.bend, obsidian = glass.obsidian, clear = glass.clear, auto = glass.auto })
     end)
 end
 
 do
     local ok, saved = pcall(sys.ask, "files.read", "glass.json", "json")
     if ok and type(saved) == "table" then
-        if type(saved.frost) == "number" then glass.frost = math.max(0, math.min(1, saved.frost)) end
         if type(saved.opacity) == "number" then glass.opacity = math.max(GLASS_OP_MIN, math.min(1, saved.opacity)) end
         if type(saved.rim) == "number" then glass.rim = math.max(0, math.min(2, saved.rim)) end
         if type(saved.refr) == "number" then glass.refr = math.max(0, math.min(2, saved.refr)) end
         if type(saved.disp) == "number" then glass.disp = math.max(0, math.min(2.5, saved.disp)) end
         if type(saved.bend) == "boolean" then glass.bend = saved.bend end
         if type(saved.obsidian) == "boolean" then glass.obsidian = saved.obsidian end
+        if type(saved.clear) == "number" then glass.clear = math.max(0, math.min(1, saved.clear)) end
+        if type(saved.auto) == "boolean" then glass.auto = saved.auto end
     end
     glass_refresh()
 end
 
-on("glass_frost_set", function(t)
-    glass.frost = math.floor(math.max(0, math.min(1, t)) * 100 + 0.5) / 100
-    glass_refresh()
-    glass_save_soon()
-end)
 on("glass_op_set", function(t)
     -- the track is 0 to 100 %, like the Glass one; a press in the shaded first 30 % gives the least it can be
     local v = math.max(GLASS_OP_MIN, math.min(1, t))
@@ -3315,6 +3312,8 @@ on("glass_refr_set", function(t) glass.refr = glass.step(t, 2); glass_refresh();
 on("glass_disp_set", function(t) glass.disp = glass.step(t, 2.5); glass_refresh(); glass_save_soon() end)
 on("glass_obs_toggle", function() glass.obsidian = not glass.obsidian; glass_refresh(); glass_save_soon() end)
 on("glass_bend_toggle", function() glass.bend = not glass.bend; glass_refresh(); glass_save_soon() end)
+on("glass_clear_set", function(t) glass.clear = glass.step(t, 1); glass_refresh(); glass_save_soon() end)
+on("glass_auto_toggle", function() glass.auto = not glass.auto; glass_refresh(); glass_save_soon() end)
 
 -- ── Display ───────────────────────────────────────────────────────────────────────────────────────────
 -- The Display page of the settings: what Hyprland reports for each monitor (`hyprctl monitors -j`)

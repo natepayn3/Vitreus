@@ -5,15 +5,31 @@ part BarGlass {
         // ── the liquid ───────────────────────────────────────────────
         body {
             color: tint
-            glass: glass_frost
+            glass: 100%
             opacity: glass_op * (1 - obs)
             lens: glass_bend
+            frost: glass_clear
             refraction: glass_refr
             dispersion: glass_disp
             rim: 10% * glass_rim + 14% * pv * glass_rim
             shine: pointer
             shadow: 0, 1 + 6 * drop + 3 * pv, 6 + 14 * drop + 8 * pv, 8% + 16% * drop + 8% * pv, deep
-            show: obs < 0.996
+            show: obs < 0.996 and not glass_auto
+            include "bar_shapes.plm"
+        }
+        //  The same glass with `frost: auto` (frosted only where what is behind is busy): `frost:` cannot take `auto` from an expression, so it is a body of its own.
+        body {
+            color: tint
+            glass: 100%
+            opacity: glass_op * (1 - obs)
+            lens: glass_bend
+            frost: auto
+            refraction: glass_refr
+            dispersion: glass_disp
+            rim: 10% * glass_rim + 14% * pv * glass_rim
+            shine: pointer
+            shadow: 0, 1 + 6 * drop + 3 * pv, 6 + 14 * drop + 8 * pv, 8% + 16% * drop + 8% * pv, deep
+            show: obs < 0.996 and glass_auto
             include "bar_shapes.plm"
         }
         //  The same shapes again, as flat obsidian: a body with a literal `rim: 0%`, because a `rim` that is an expression keeps a hairline of
