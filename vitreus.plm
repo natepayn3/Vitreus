@@ -3216,16 +3216,14 @@ scene Vitreus {
     //  At least as long as an edge notch (`nt_w`), so a short title ("Signal") is still easy to find and to hit, and an empty workspace (no title at all) still opens the list of windows.
     zone box pl_btn_z { at: lf.w / 2, lv.tm; size: lf.w, max(52 * cu, lv.span); cursor: pointer; active: lm > 0.5 and bv.title }
     on press pl_btn_z { panel = if(panel == player, none, player) }
-    //  A small tab out of the strip's right edge beside the title, while the pointer is on it: the edge notches' way of
-    //  saying "this opens", only a few pixels. It tucks back in when the player's panel comes out of the same place.
-    let ptab_h = max(52 * cu, lv.span)             // as long as what can be clicked (`pl_btn_z`): the title text only, not the player's buttons
-    let ptab_d = 5 * u                                     // how far out it comes
-    //  Along the top the same tab hangs from the pill's bottom edge, under the title button (`win_hit`): as wide as the title, or a short stub when there is none.
-    let ptab_iw = clamp(max(clsw.width, titw.width) + 12 * u, 52 * u, max(52 * u, win.w - 12 * u))
-    let ptab_ix = mix(win.x + win.w / 2, win.x - 6 * u + ptab_iw / 2, clamp(max(clsw.width, titw.width) / (6 * u), 0, 1))
-    prop ptab_vis = 0 ~calm                        // the same spring as the edge notches (`nt_vis_*`)
-    prop ptab_hold = 0 ~280ms                      // the notches' short wait before coming out, and grace before going back
-        follow ptab_vis = if(ptab_hold > 0.3, 1, 0)
+    //  The title's panel (the player, the tray's menu) is joined to the strip, so the drop's ripple (`prip`, scaled by `1 - att`) skips it. It has its own, the same
+    //  crests (size, speed, time) as the Settings' and the launcher's: when it has come out and when it has gone back in. Frame layout only, like theirs.
+    prop tprip = 1 ~1100ms
+    on change dm > 0.84 while dm > 0.84 and lm > 0.5 { tprip: 0 ~16ms; tprip: 1 ~1100ms after 30ms }
+    on change dm < 0.06 while dm < 0.06 and lm > 0.5 { tprip: 0 ~16ms; tprip: 1 ~900ms after 30ms }
+    let tq.x = (12 + 90 * tprip) * u
+    let tq.h = max(20 * u * (1 - tprip) * clamp(tprip * 6, 0, 1) * lm, 0.3)
+    let tq.act = if(lm > 0.5 and tprip < 0.98, 1, 0)
     on change dm > 0.5 while dm > 0.5 and panel == player { lp_k = 6; lp_w = 312 }
     //  Where the contents hang from: the panel's old middle, so they keep their
     //  place when the panel grows to make room for the player.
