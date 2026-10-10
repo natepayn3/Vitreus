@@ -614,9 +614,10 @@ part Desk {
                 let tm_y0 = dsk_y0 + 66 * du                    // the card, under the tabs
                 let tm_h  = dsk_h - 87 * du                     // its bottom 21 above the desk's, where the Focus tab's last row ends
                 let tm_w  = dsk_w - 28 * du
-                let tm_cw = 11.75 * 0.612                       // a cell's width: Space Mono is 0.612 of its size wide, every glyph alike
+                let tm_ch = 16 * rs                              // a cell's height
+                let tm_cw = 11.75 * 0.612 * rs                  // a cell's width: Space Mono is 0.612 of its size wide, every glyph alike
                 let tm_gx = dsk_xc - 64 * tm_cw / 2             // the grid's left edge and the middle of its first row
-                let tm_gy = tm_y0 + (tm_h - 35 * 16) / 2 + 8
+                let tm_gy = tm_y0 + (tm_h - 35 * tm_ch) / 2 + tm_ch / 2
                 let tm_on = if(desk_kb, 1, 0)
                 group {
                     opacity: fd1
@@ -627,12 +628,12 @@ part Desk {
                 on press term_zone { desk_kb = true; term_armed = true; blur }
                 on scroll term_zone { emit term_scroll(wheel) }
                 for c in term_runs {
-                    box { at: tm_gx + (c.x + c.n / 2) * tm_cw, tm_gy + c.y * 16; size: c.n * tm_cw, 16; color: rgb(c.br, c.bg, c.bb); show: c.hasbg }
-                    group { scale: rs; pivot: tm_gx + c.x * tm_cw, tm_gy + c.y * 16; text c.t { at: tm_gx + c.x * tm_cw, tm_gy + c.y * 16; anchor: left center; size: 11.75; weight: 400; color: if(c.fg, rgb(c.r, c.g, c.b), ink); family: "SpaceMono Nerd Font"; show: not c.bold } }
-                    group { scale: rs; pivot: tm_gx + c.x * tm_cw, tm_gy + c.y * 16; text c.t { at: tm_gx + c.x * tm_cw, tm_gy + c.y * 16; anchor: left center; size: 11.75; weight: 700; color: if(c.fg, rgb(c.r, c.g, c.b), ink); family: "SpaceMono Nerd Font"; show: c.bold } }
+                    box { at: tm_gx + (c.x + c.n / 2) * tm_cw, tm_gy + c.y * tm_ch; size: c.n * tm_cw, tm_ch; color: rgb(c.br, c.bg, c.bb); show: c.hasbg }
+                    group { scale: rs; pivot: tm_gx + c.x * tm_cw, tm_gy + c.y * tm_ch; text c.t { at: tm_gx + c.x * tm_cw, tm_gy + c.y * tm_ch; anchor: left center; size: 11.75; weight: 400; color: if(c.fg, rgb(c.r, c.g, c.b), ink); family: "SpaceMono Nerd Font"; show: not c.bold } }
+                    group { scale: rs; pivot: tm_gx + c.x * tm_cw, tm_gy + c.y * tm_ch; text c.t { at: tm_gx + c.x * tm_cw, tm_gy + c.y * tm_ch; anchor: left center; size: 11.75; weight: 700; color: if(c.fg, rgb(c.r, c.g, c.b), ink); family: "SpaceMono Nerd Font"; show: c.bold } }
                 }
-                box { at: tm_gx + (term_cx + 0.5) * tm_cw, tm_gy + term_cy * 16; size: tm_cw, 16; corner: 1.5; color: mint; opacity: 80%; show: term_cur and desk_kb }
-                box { at: tm_gx + (term_cx + 0.5) * tm_cw, tm_gy + term_cy * 16; size: tm_cw - 1, 15; corner: 1.5; stroke: 1; color: mint; opacity: 70%; show: term_cur and not desk_kb }
+                box { at: tm_gx + (term_cx + 0.5) * tm_cw, tm_gy + term_cy * tm_ch; size: tm_cw, tm_ch; corner: 1.5; color: mint; opacity: 80%; show: term_cur and desk_kb }
+                box { at: tm_gx + (term_cx + 0.5) * tm_cw, tm_gy + term_cy * tm_ch; size: tm_cw - 1, tm_ch - 1; corner: 1.5; stroke: 1; color: mint; opacity: 70%; show: term_cur and not desk_kb }
                 //  Scrolled back: a pill at the bottom says so, and how to come back.
                 group {
                     show: term_scrolled > 0
