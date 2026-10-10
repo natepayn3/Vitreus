@@ -1686,6 +1686,45 @@ scene Vitreus {
         on press touch { emit pick(f.index) }
     }
 
+    //  The Scan button of the Wi-Fi and Bluetooth windows, one for both. At rest a pill with a glyph (kind 0 the
+    //  Wi-Fi arcs, 1 the Bluetooth rune); a tap pops it. While `scanning` it narrows to a round mint button, the glyph
+    //  breathes and rings ripple out of it; when the scan ends a tick flashes before the glyph comes back.
+    //  It draws where cx, cy say and its zone is declared where the copy is, so the copy goes after the list.
+    component ScanButton(cx: number, cy: number, scanning: bool, kind: number, go: event, name: text) {
+        prop run = 0 ~calm
+        prop grow = 0 ~pop
+        prop ok = 0 ~quick
+        follow run = if(scanning, 1, 0)
+        on change scanning while not scanning { ok: 1 ~80ms; ok: 0 ~700ms after 900ms }
+        let w = (44 - 16 * run + 4 * grow) * cu
+        let gl = 1 - ok
+        //  Rings, three of them a third of a cycle apart: out from the button, fading as they go.
+        repeat i in 0..3 {
+            let ph = fract(time * 0.8 + i / 3)
+            ellipse { at: cx, cy; radius: (10 + 10 * ph) * cu; stroke: 1.3 * cu; color: mint; opacity: 45% * (1 - ph) * run; show: run > 0.02 }
+        }
+        box { at: cx, cy; size: w, 24 * cu; corner: 12 * cu; color: mix(ink, mint, run); opacity: 8% + 10% * hit.hover + 14% * run + 10% * ok }
+        //  Wi-Fi: a dot and three arcs that light one after the other while it searches.
+        group {
+            show: kind == 0
+            opacity: gl
+            ellipse { at: cx, cy + 4.5 * cu; radius: 1.1 * cu; color: mix(ink, mint, run); opacity: 85% }
+            repeat i in 0..3 {
+                arc { at: cx, cy + 4.5 * cu; radius: (3.6 + 2.8 * i) * cu; span: 90deg; width: 1.5 * cu; color: mix(ink, mint, run); opacity: mix(85%, 25% + 75% * clamp(sin(time * 6 - i * 1.1), 0, 1), run) }
+            }
+        }
+        //  Bluetooth: the rune, pulsing while it searches.
+        path {
+            show: kind == 1
+            at: cx, cy; stroke: 1.5 * cu; color: mix(ink, mint, run)
+            opacity: gl * mix(85%, 55% + 45% * sin(time * 6), run)
+            move -3.2 * cu, -3.2 * cu; line 3.2 * cu, 3.2 * cu; line 0, 6.4 * cu; line 0, -6.4 * cu; line 3.2 * cu, -3.2 * cu; line -3.2 * cu, 3.2 * cu
+        }
+        path { at: cx, cy; stroke: 1.8 * cu; color: mint; opacity: ok; move -3.6 * cu, 0; line -1 * cu, 2.8 * cu; line 3.8 * cu, -3 * cu }
+        zone box hit { at: cx, cy; size: 54 * cu, 26 * cu; corner: 13 * cu; cursor: pointer; label: name }
+        on press hit { grow: 1 ~40ms; grow: 0 ~pop after 90ms; emit go }
+    }
+
     //  One row of the Wi-Fi window: a dot if it's the one in use, its name, and
     //  what tapping it means right now. A secured network no password is known
     //  for yet opens the join field instead of trying to connect outright.

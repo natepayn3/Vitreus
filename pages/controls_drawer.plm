@@ -535,16 +535,6 @@ part ControlsDrawer {
             path { at: pcx - 124 * cu, ex_cy; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * wifi_back.hover; move 4 * cu, -6 * cu; line -4 * cu, 0; line 4 * cu, 6 * cu }
             on press wifi_back { panel_sub = none }
             text "WI-FI" { at: floor(pcx - 102 * cu + 0.5), floor(ex_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
-            box { at: pcx + 112 * cu, ex_cy; size: 52 * cu, 24 * cu; corner: 12 * cu; color: if(wifi_scanning, mint, ink); opacity: if(wifi_scanning, 22%, 8% + 10% * wifi_scan_hit.hover) }
-            text "Scan" { at: floor(pcx + 112 * cu + 0.5), floor(ex_cy + 0.5); anchor: center; size: 12.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not wifi_scanning }
-            //  While it runs: a ring turning where the word was, and the list says so.
-            group {
-                show: wifi_scanning
-                pivot: pcx + 112 * cu, ex_cy
-                rotate: time * 420deg
-                arc { at: pcx + 112 * cu, ex_cy; radius: 6 * cu; span: 260deg; width: 1.8 * cu; color: mint }
-            }
-            on press wifi_scan_hit { emit wifi_scan }
             //  Enter in the password field of the open row joins like its button does.
             on submit wifi_pw while wifi_open_row >= 0 { emit wifi_join_go(wifi_open_row) }
             box { at: pcx, ex_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
@@ -556,7 +546,7 @@ part ControlsDrawer {
             }
             //  After the list, so they win where its rows have scrolled up under the header (a row's zone still takes the click there).
             zone box wifi_back { at: pcx - 124 * cu, ex_cy; size: 30 * cu, 30 * cu; cursor: pointer }
-            zone box wifi_scan_hit { at: pcx + 112 * cu, ex_cy; size: 54 * cu, 26 * cu; corner: 13 * cu; cursor: pointer }
+            ScanButton(pcx + 112 * cu, ex_cy, wifi_scanning, 0, wifi_scan, "Scan Wi-Fi")
             //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
             box { from: pcx + 141 * cu, ex_top + 54 * cu + wifi_list_col.scroll / max(wifi_list_col.content, 1) * (list_view_h * cu); size: 3 * cu, (list_view_h * cu) * (list_view_h * cu) / max(wifi_list_col.content, list_view_h * cu); corner: 1.5 * cu; color: ink; opacity: if(wifi_list_col.content > (list_view_h * cu) + 1, 35%, 0%) }
             text "No networks in range" { at: floor(pcx + 0.5), floor(ex_top + 54 * cu + 15 * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: wifi_nets.count < 1 and not wifi_scanning }
@@ -572,16 +562,6 @@ part ControlsDrawer {
             path { at: pcx - 124 * cu, ex2_cy; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * bt_back.hover; move 4 * cu, -6 * cu; line -4 * cu, 0; line 4 * cu, 6 * cu }
             on press bt_back { panel_sub = none }
             text "BLUETOOTH" { at: floor(pcx - 102 * cu + 0.5), floor(ex2_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
-            box { at: pcx + 112 * cu, ex2_cy; size: 52 * cu, 24 * cu; corner: 12 * cu; color: if(bt_scanning, mint, ink); opacity: if(bt_scanning, 22%, 8% + 10% * bt_scan_hit.hover) }
-            text "Scan" { at: floor(pcx + 112 * cu + 0.5), floor(ex2_cy + 0.5); anchor: center; size: 12.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk"; show: not bt_scanning }
-            //  While it runs: a ring turning where the word was, and the list says so.
-            group {
-                show: bt_scanning
-                pivot: pcx + 112 * cu, ex2_cy
-                rotate: time * 420deg
-                arc { at: pcx + 112 * cu, ex2_cy; radius: 6 * cu; span: 260deg; width: 1.8 * cu; color: mint }
-            }
-            on press bt_scan_hit { emit bt_scan }
             //  Enter in the name field of the open device renames it like its button does.
             on submit bt_rename while bt_open_row >= 0 { emit bt_rename_go }
             box { at: pcx, ex2_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
@@ -600,7 +580,7 @@ part ControlsDrawer {
             }
             //  After the list, so they win where its rows have scrolled up under the header (a row's zone still takes the click there).
             zone box bt_back { at: pcx - 124 * cu, ex2_cy; size: 30 * cu, 30 * cu; cursor: pointer }
-            zone box bt_scan_hit { at: pcx + 112 * cu, ex2_cy; size: 54 * cu, 26 * cu; corner: 13 * cu; cursor: pointer }
+            ScanButton(pcx + 112 * cu, ex2_cy, bt_scanning, 1, bt_scan, "Scan Bluetooth")
             zone box bt_disc_hit { at: pcx + 70 * cu, ex2_top + 63 * cu; size: 130 * cu, 26 * cu; corner: 8 * cu; cursor: pointer; active: bt.powered; label: "Discoverable" }
             on press bt_disc_hit { emit bt_disc_toggle }
             //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
