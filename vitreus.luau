@@ -6288,6 +6288,6 @@ require("logic/term")(key)
 -- ask: see logic/ask.luau
 require("logic/ask")()
 -- clipboard history and pins, for the Desk's Clip tab: see logic/clipboard.luau
-require("logic/clipboard")()
+require("logic/clipboard")(with_dirs)
 -- the charger, read from the kernel instead of pleamar's 20 s battery poll: see logic/charger.luau
 require("logic/charger")()

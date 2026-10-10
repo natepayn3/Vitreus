@@ -1,19 +1,33 @@
 #!/bin/sh
 # Helper for the Vitreus launcher's clipboard search: pictures cannot go through the logic's `run` (its output is
 # text), so this does the piping. It needs cliphist and ImageMagick (thumbnail), or wl-copy (copy).
-#   vitreus-clipimg thumb ID OUT.png    a 480x320 picture of clipboard entry ID, padded to that size
+#   vitreus-clipimg thumb ID OUT.png [WxH]   a picture of clipboard entry ID, padded to that size (480x320 if none)
 #   vitreus-clipimg copy ID             put entry ID back on the clipboard as it was
+#   vitreus-clipimg save ID OUT         write entry ID to a file, as it is (a pinned picture)
+#   vitreus-clipimg thumbfile FILE OUT [WxH]   the same picture as `thumb`, from a file
+#   vitreus-clipimg copyfile FILE [TYPE]       put a file's bytes on the clipboard (TYPE image/png if none)
 set -eu
 mode="${1:?mode}"
 id="${2:?id}"
 case "$mode" in
     thumb)
         out="${3:?output file}"
+        size="${4:-480x320}"
         printf '%s\t\n' "$id" | cliphist decode |
-            magick - -auto-orient -thumbnail 480x320 -background none -gravity center -extent 480x320 "$out"
+            magick - -auto-orient -thumbnail "$size" -background none -gravity center -extent "$size" "$out"
         ;;
     copy)
         printf '%s\t\n' "$id" | cliphist decode | wl-copy --type "${3:-image/png}"
         ;;
-    *) echo "vitreus-clipimg: thumb or copy" >&2; exit 2 ;;
+    save)
+        printf '%s\t\n' "$id" | cliphist decode > "${3:?output file}"
+        ;;
+    thumbfile)
+        size="${4:-480x320}"
+        magick "$id[0]" -auto-orient -thumbnail "$size" -background none -gravity center -extent "$size" "${3:?output file}"
+        ;;
+    copyfile)
+        wl-copy --type "${3:-image/png}" < "$id"
+        ;;
+    *) echo "vitreus-clipimg: thumb, copy, save, thumbfile or copyfile" >&2; exit 2 ;;
 esac

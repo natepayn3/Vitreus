@@ -1616,22 +1616,26 @@ scene Vitreus {
 
     //  One row of the Desk's Clip tab: a dot (filled when pinned), the text, Ask, and a cross. Pressing the row copies it again.
     component ClipRow(c: record, copy: event, pin: event, ask: event, del: event) {
-        size: 300 * du, 34 * du
-        zone box touch { from: 0, 0; size: 300 * du, 34 * du; corner: 11 * du; cursor: pointer }
+        //  A picture's row is taller: its thumbnail, then what it is (format and size in pixels) over its weight.
+        size: 300 * du, (if(c.image, 52, 34) * du)
+        zone box touch { from: 0, 0; size: 300 * du, (if(c.image, 52, 34) * du); corner: 11 * du; cursor: pointer }
         //  Obsidian: a solid plate a step lighter than the shell, in place of the veil.
-        body { color: mix(obsidian, ink, (7% + 7% * touch.hover) * 1.6); opacity: obs; show: obs > 0.004; box { from: 0, 0; size: 300 * du, 34 * du; corner: 11 * du } }
-        box { from: 0, 0; size: 300 * du, 34 * du; corner: 11 * du; color: ink; opacity: (7% + 7% * touch.hover) * (1 - obs) }
-        ellipse { at: 15 * du, 17 * du; radius: 4.5 * du; stroke: 1.4 * du; color: mint; opacity: if(c.image, 0, 70% + 30% * pin_z.hover) }
-        ellipse { at: 15 * du, 17 * du; radius: 4.5 * du; color: mint; opacity: if(c.pinned, 100%, 0) }
-        group { scale: rs; pivot: 15 * du, 17 * du; text "IMG" { at: 15 * du, 17 * du; anchor: center; align: center; size: 8.5; weight: 700; color: mint; family: "Space Grotesk"; show: c.image } }
-        group { scale: rs; pivot: floor(30 * du + 0.5), floor(17 * du + 0.5); text c.label { at: floor(30 * du + 0.5), floor(17 * du + 0.5); anchor: left center; size: 12; width: (if(c.image, 210 * du, 190 * du)) / rs; lines: 1; color: ink; opacity: 92%; family: "Space Grotesk" } }
-        group { scale: rs; pivot: 238 * du, 17 * du; text "Ask" { at: 238 * du, 17 * du; anchor: center; align: center; size: 10.5; weight: 700; color: mix(faint, mint, ask_z.hover); family: "Space Grotesk"; show: not c.image } }
-        line { from: 276 * du, 17 * du - 3 * du; to: 282 * du, 17 * du + 3 * du; width: 1.4 * du; color: ink; opacity: 28% + 62% * del_z.hover }
-        line { from: 282 * du, 17 * du - 3 * du; to: 276 * du, 17 * du + 3 * du; width: 1.4 * du; color: ink; opacity: 28% + 62% * del_z.hover }
+        body { color: mix(obsidian, ink, (7% + 7% * touch.hover) * 1.6); opacity: obs; show: obs > 0.004; box { from: 0, 0; size: 300 * du, (if(c.image, 52, 34) * du); corner: 11 * du } }
+        box { from: 0, 0; size: 300 * du, (if(c.image, 52, 34) * du); corner: 11 * du; color: ink; opacity: (7% + 7% * touch.hover) * (1 - obs) }
+        ellipse { at: 15 * du, (if(c.image, 26, 17) * du); radius: 4.5 * du; stroke: 1.4 * du; color: mint; opacity: 70% + 30% * pin_z.hover }
+        ellipse { at: 15 * du, (if(c.image, 26, 17) * du); radius: 4.5 * du; color: mint; opacity: if(c.pinned, 100%, 0) }
+        box { at: 61 * du, (if(c.image, 26, 17) * du); size: 62 * du, 42 * du; corner: 8 * du; color: deep; opacity: 40%; show: c.image }
+        group { clip inset 0 box { at: 61 * du, (if(c.image, 26, 17) * du); size: 62 * du, 42 * du; corner: 8 * du }; image c.thumb { at: 30 * du, (if(c.image, 26, 17) * du) - 21 * du; size: 62 * du, 42 * du; show: c.hasthumb } }
+        group { scale: rs; pivot: 61 * du, (if(c.image, 26, 17) * du); text "IMG" { at: 61 * du, (if(c.image, 26, 17) * du); anchor: center; align: center; size: 8.5; weight: 700; color: mint; family: "Space Grotesk"; show: c.image and not c.hasthumb } }
+        group { scale: rs; pivot: floor((if(c.image, 100, 30) * du) + 0.5), floor((if(c.image, 26, 17) * du) - if(c.image, 8 * du, 0) + 0.5); text c.label { at: floor((if(c.image, 100, 30) * du) + 0.5), floor((if(c.image, 26, 17) * du) - if(c.image, 8 * du, 0) + 0.5); anchor: left center; size: 12; width: (if(c.image, 168, 190) * du) / rs; lines: 1; color: ink; opacity: 92%; family: "Space Grotesk" } }
+        group { scale: rs; pivot: floor((if(c.image, 100, 30) * du) + 0.5), floor((if(c.image, 26, 17) * du) + 9 * du + 0.5); text c.sub { at: floor((if(c.image, 100, 30) * du) + 0.5), floor((if(c.image, 26, 17) * du) + 9 * du + 0.5); anchor: left center; size: 10.5; width: (if(c.image, 168, 190) * du) / rs; lines: 1; color: faint; family: "Space Grotesk"; show: c.image } }
+        group { scale: rs; pivot: 238 * du, (if(c.image, 26, 17) * du); text "Ask" { at: 238 * du, (if(c.image, 26, 17) * du); anchor: center; align: center; size: 10.5; weight: 700; color: mix(faint, mint, ask_z.hover); family: "Space Grotesk"; show: not c.image } }
+        line { from: 276 * du, (if(c.image, 26, 17) * du) - 3 * du; to: 282 * du, (if(c.image, 26, 17) * du) + 3 * du; width: 1.4 * du; color: ink; opacity: 28% + 62% * del_z.hover }
+        line { from: 282 * du, (if(c.image, 26, 17) * du) - 3 * du; to: 276 * du, (if(c.image, 26, 17) * du) + 3 * du; width: 1.4 * du; color: ink; opacity: 28% + 62% * del_z.hover }
         on press touch { emit copy(c.index) }
-        zone box pin_z { at: 15 * du, 17 * du; size: 24 * du, 30 * du; cursor: pointer; active: not c.image }
-        zone box ask_z { at: 238 * du, 17 * du; size: 30 * du, 30 * du; cursor: pointer; active: not c.image }
-        zone box del_z { at: 279 * du, 17 * du; size: 24 * du, 30 * du; cursor: pointer }
+        zone box pin_z { at: 15 * du, (if(c.image, 26, 17) * du); size: 24 * du, 30 * du; cursor: pointer }
+        zone box ask_z { at: 238 * du, (if(c.image, 26, 17) * du); size: 30 * du, 30 * du; cursor: pointer; active: not c.image }
+        zone box del_z { at: 279 * du, (if(c.image, 26, 17) * du); size: 24 * du, 30 * du; cursor: pointer }
         on press pin_z { emit pin(c.index) }
         on press ask_z { emit ask(c.index) }
         on press del_z { emit del(c.index) }
@@ -3154,14 +3158,16 @@ scene Vitreus {
     model ask_rows max 60 { kind: number; who: text; body: text; lang: text; first: bool }     // 0 you, 1 answer, 2 code, 3 note
     event ask_copy ->
     //  The Clip tab (logic/clipboard.luau): the clipboard history, pinned entries first.
-    model clip_rows max 48 { label: text; pinned: bool; image: bool }
+    model clip_rows max 48 { label: text; sub: text; pinned: bool; image: bool; hasthumb: bool; thumb: image 96, 64 }
     event clip_copy ->
     event clip_pin ->
     event clip_ask ->
     event clip_del ->
     event clip_refresh ->
+    event clip_clear ->
     fact clip_n = 0
     text clip_msg = ""
+    fact clip_confirm = false                                 // the Clear control has been pressed once and asks again
     fact clip_flash = false                                   // `clip_msg` is showing (a moment, after a copy)
     event ask_attach ->                                       // something to ask about, from elsewhere: `ask_attach_in` is the text, `ask_attach_src` what it is
     event ask_att_clear ->

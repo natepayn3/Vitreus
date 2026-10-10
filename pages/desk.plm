@@ -612,6 +612,17 @@ part Desk {
                 move: 0, (1 - fd1) * 12 * du
                 group { scale: rs; pivot: floor(dsk_x0 + 20 * du + 0.5), floor(dsk_y0 + 84 * du + 0.5); text "CLICK TO COPY  ·  DOT PINS  ·  ASK SENDS IT TO THE CHAT" { at: floor(dsk_x0 + 20 * du + 0.5), floor(dsk_y0 + 84 * du + 0.5); anchor: left center; size: 9.5; weight: 700; color: faint; opacity: 80%; family: "Space Grotesk"; show: not clip_flash } }
                 group { scale: rs; pivot: floor(dsk_x0 + 20 * du + 0.5), floor(dsk_y0 + 84 * du + 0.5); text clip_msg { at: floor(dsk_x0 + 20 * du + 0.5), floor(dsk_y0 + 84 * du + 0.5); anchor: left center; size: 11; weight: 600; color: mint; family: "Space Grotesk"; show: clip_flash } }
+                //  Clear: empties the history (what is pinned stays). A button, not a caption: the first press asks again (it turns red and wider), and it goes back by itself
+                //  after a few seconds. Dimmed while there is nothing to clear.
+                let cl_w = mix(64, 92, if(clip_confirm, 1, 0)) * du
+                let cl_x = dsk_x0 + 320 * du - cl_w / 2
+                let cl_y = dsk_y0 + 84 * du
+                box { at: cl_x, cl_y; size: cl_w, 24 * du; corner: 12 * du; color: if(clip_confirm, alert, mint); opacity: (if(clip_n > 0, 14%, 5%) + 16% * clip_clear_z.hover) }
+                box { at: cl_x, cl_y; size: cl_w, 24 * du; corner: 12 * du; stroke: 1.2; color: if(clip_confirm, alert, mint); opacity: if(clip_n > 0, 70%, 25%) }
+                group { scale: rs; pivot: floor(cl_x + 0.5), floor(cl_y + 0.5); text "Clear" { at: floor(cl_x + 0.5), floor(cl_y + 0.5); anchor: center; align: center; size: 12; weight: 700; color: mint; opacity: if(clip_n > 0, 100%, 35%); family: "Space Grotesk"; show: not clip_confirm } }
+                group { scale: rs; pivot: floor(cl_x + 0.5), floor(cl_y + 0.5); text "Clear all?" { at: floor(cl_x + 0.5), floor(cl_y + 0.5); anchor: center; align: center; size: 12; weight: 700; color: alert; family: "Space Grotesk"; show: clip_confirm } }
+                zone box clip_clear_z { at: cl_x, cl_y; size: cl_w, 24 * du; corner: 12 * du; cursor: pointer; active: clip_n > 0 }
+                on press clip_clear_z { emit clip_clear }
                 group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(dsk_y0 + 200 * du + 0.5); text "Nothing copied yet" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 200 * du + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: clip_n < 1 } }
                 column clip_col {
                     at: dsk_x0 + 20 * du, dsk_y0 + 98 * du
