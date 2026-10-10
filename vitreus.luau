@@ -5598,6 +5598,7 @@ end)()
     end)
     after(4000, function() capture_soon(0) end)
     on("ov_toggle", function()
+        if not on_hyprland then return end          -- pleamar-wm has its own overview (Super+Tab)
         if fact.ov_open then
             fact.ov_open = false
             open = false
@@ -5688,6 +5689,38 @@ end)()
         return string.format("%dm", m)
     end
 
+    -- The network card's lines under the graph: the connection (and its signal), the Bluetooth adapter and what is connected to it, and the
+    -- address of the interface the traffic goes over. The first two are told by the services; the address is asked of nmcli when the interface changes.
+    local LK = { kind = "none", name = "", strength = 0, bt = nil, iface = nil }
+    local function link_show()
+        text.sm_link = LK.kind == "wifi" and ((LK.name ~= "" and LK.name or "Wi-Fi") .. string.format("  ·  %d%%", LK.strength))
+            or LK.kind == "wired" and "Wired  ·  connected" or "Not connected"
+        local b = LK.bt
+        if not b or b.present == false then text.sm_bt = "No adapter"
+        elseif not b.powered then text.sm_bt = "Off"
+        else
+            local names = {}
+            for _, dv in ipairs(b.devices or {}) do if dv.connected then names[#names + 1] = dv.name or dv.address end end
+            text.sm_bt = #names > 0 and table.concat(names, ", ") or "On  ·  nothing connected"
+        end
+    end
+    sys.watch("network", function(n)
+        LK.kind, LK.name, LK.strength = n.kind or "none", n.name or "", math.floor((n.strength or 0) + 0.5)
+        link_show()
+    end)
+    sys.watch("bluetooth", function(b) LK.bt = b; link_show() end)
+    local function ip_read(iface)
+        text.sm_ip = ""
+        if not iface or iface == "" then return end
+        run("nmcli", { "-t", "-f", "IP4.ADDRESS", "device", "show", iface }, function(out, code)
+            if code ~= 0 or iface ~= LK.iface then return end
+            for line in (out or ""):gmatch("[^\n]+") do
+                local v = line:match("^IP4%.ADDRESS[^:]*:(.*)$")
+                if v then text.sm_ip = (v:gsub("\\", ""):gsub("/%d+$", "")) return end
+            end
+        end)
+    end
+
     local function on_line(line)
         local ok, d = pcall(json.decode, line)
         if not ok or type(d) ~= "table" or not d.cpu then return end
@@ -5748,6 +5781,7 @@ end)()
         -- the network and the drives
         local nt = d.net or {}
         text.sm_iface = nt.iface or ""
+        if nt.iface ~= LK.iface then LK.iface = nt.iface; ip_read(nt.iface) end
         text.sm_rx_txt = rate(nt.rx)
         text.sm_tx_txt = rate(nt.tx)
         text.sm_rx_total = size(nt.rx_total) .. " received"
