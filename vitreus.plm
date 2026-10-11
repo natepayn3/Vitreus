@@ -1307,6 +1307,16 @@ scene Vitreus {
     follow wp_pgp = wp_pg
     model wp_cards max 15 { img: image 96, 216; ix: number; cur: bool; ok: bool }        // the narrow strip of each wallpaper in the row (a tall crop of its middle)
     model wp_big max 2 { img: image 768, 432; ix: number; cur: bool; ok: bool }           // the picture of the one in focus, and of the one that has just left focus (so it can shrink)
+    text wp_hex_info = ""                    // the same, for the hexagon the pointer is on
+    fact wp_hex_cr = 0.5
+    fact wp_hex_cg = 0.8
+    fact wp_hex_cb = 0.7
+    prop wp_hr = 0.5 ~calm
+    prop wp_hg = 0.8 ~calm
+    prop wp_hb = 0.7 ~calm
+    follow wp_hr = wp_hex_cr
+    follow wp_hg = wp_hex_cg
+    follow wp_hb = wp_hex_cb
     text wp_card_info = ""                    // 3840 × 2160  ·  2.4 MB  ·  PNG  ·  41 of 137
     fact wp_card_cr = 0.5                     // the accent of the one in focus, from the wallpaper's own colour (0 to 1)
     fact wp_card_cg = 0.8
@@ -1325,6 +1335,48 @@ scene Vitreus {
     fact wp_card_rip = 0                      // counts the cards kept: each one sets off the ripple
     prop wp_crip = 1 ~900ms                   // the card's ripple, as the island bar's when a panel closes: 0 just born, 1 gone
     on change wp_card_rip while wp_card_rip > 0 { wp_crip: 0 ~16ms; wp_crip: 1 ~900ms after 30ms }
+    //  The cards' entrance: the same spring as Search and Settings drop on (`drip`, underdamped, so each card overshoots where it lands and settles back, as a drop does). One for
+    //  each step away from the focused card, started a little after the one before it; they run from 0 to 1 when the picker opens on the cards or the swipe from the hexagons arrives.
+    prop wp_ce0 = 0 ~drip
+    prop wp_ce1 = 0 ~drip
+    prop wp_ce2 = 0 ~drip
+    prop wp_ce3 = 0 ~drip
+    prop wp_ce4 = 0 ~drip
+    prop wp_ce5 = 0 ~drip
+    prop wp_ce6 = 0 ~drip
+    prop wp_ce7 = 0 ~drip
+    on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce0: 0 ~16ms; wp_ce0: 1 after 40ms }
+    on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce0: 0 ~16ms; wp_ce0: 1 after 40ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce0: 0 ~200ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce0: 0 ~250ms }
+    on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce1: 0 ~16ms; wp_ce1: 1 after 85ms }
+    on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce1: 0 ~16ms; wp_ce1: 1 after 85ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce1: 0 ~200ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce1: 0 ~250ms }
+    on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce2: 0 ~16ms; wp_ce2: 1 after 130ms }
+    on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce2: 0 ~16ms; wp_ce2: 1 after 130ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce2: 0 ~200ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce2: 0 ~250ms }
+    on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce3: 0 ~16ms; wp_ce3: 1 after 175ms }
+    on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce3: 0 ~16ms; wp_ce3: 1 after 175ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce3: 0 ~200ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce3: 0 ~250ms }
+    on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce4: 0 ~16ms; wp_ce4: 1 after 220ms }
+    on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce4: 0 ~16ms; wp_ce4: 1 after 220ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce4: 0 ~200ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce4: 0 ~250ms }
+    on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce5: 0 ~16ms; wp_ce5: 1 after 265ms }
+    on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce5: 0 ~16ms; wp_ce5: 1 after 265ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce5: 0 ~200ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce5: 0 ~250ms }
+    on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce6: 0 ~16ms; wp_ce6: 1 after 310ms }
+    on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce6: 0 ~16ms; wp_ce6: 1 after 310ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce6: 0 ~200ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce6: 0 ~250ms }
+    on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce7: 0 ~16ms; wp_ce7: 1 after 355ms }
+    on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce7: 0 ~16ms; wp_ce7: 1 after 355ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce7: 0 ~200ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce7: 0 ~250ms }
     event wp_card_step ->                     // -1 or 1
     event wp_card_go ->                       // a card pressed, by its place in the list
     event wp_card_pick ->                     // keep this one
@@ -3662,18 +3714,16 @@ scene Vitreus {
     //  off) and the ring next to it shrinks a little. The hovered one grows on its own spring (`gt`). `sg` is how far this reaches.
     let g.K = 0.55 * clamp(wp_picker_hs, 0, 1.1)
     let g.sg = 1.5 * g.w
-    let g.foot = 0.8 * g.R + 64                      // what the foot line takes below the hexagons: the hovered one in the last row swells down over 0.7 of a radius, and the line goes under that
+    let g.foot = 0.8 * g.R + 80                      // what the foot line takes below the hexagons: the hovered one in the last row swells down over 0.7 of a radius, and the line goes under that
     let g.y0 = yo + (vh - g.gh - g.foot) / 2          // centred on the screen
 
     group {
         show: wp_picker_show > 0.01
         opacity: wp_picker_show * wp_picker_veil
-        //  Behind the tiles, a plain dark sheet over the whole surface (a shape, not a glass body: those were what made the picker slow), so that
-        //  nothing of what is under shows through.
-        //  On the cards page there is no sheet: the wallpaper changes live under it, so it has to be seen. Only a soft shade rises from the foot, for the cards and their words.
-        box { at: screen.width / 2, screen.height / 2; size: screen.width, screen.height; color: #05070d; opacity: 88% * (1 - wp_pgp) }
+        //  No sheet over the screen, on either page (the cards change the wallpaper live under them, and it has to be seen): only a soft shade rises from the foot, for the
+        //  words, the same on both.
         repeat k in 0..8 {
-            box { from: 0, yo + vh - 420 + k * 52.5; size: screen.width, 53; color: #05070d; opacity: (k + 1) * 9% * clamp(wp_pgp * 2 - 0.4, 0, 1) }
+            box { from: 0, yo + vh - 420 + k * 52.5; size: screen.width, 53; color: #05070d; opacity: (k + 1) * 9% }
         }
         //  Where the pointer is on the hovered tile, for its tilt: a grid of invisible zones laid over it, 7 across and 8 down, each of which
         //  notes the pointer as it comes in. The tile's shader cannot be told (a group's shader is not given the pointer), and reading `cursor`
@@ -3742,8 +3792,10 @@ scene Vitreus {
 
         //  The foot: the name of the one under the pointer, or a line of help; and Random.
         let fy = g.y0 + g.gh + g.foot - 22
-        text wp_picker_hero_name { at: floor(cx + g.pgx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 23; weight: 700; width: 900; lines: 1; color: #ffffff; family: "Space Grotesk"; show: wp_picker_hot >= 0 }
-        text "Pick a wallpaper  ·  Tab for the cards  ·  Esc or a click outside closes" { at: floor(cx + g.pgx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 18; color: #ffffff; opacity: 55%; family: "Space Grotesk"; show: wp_picker_hot < 0 and wp_picker.count > 0 }
+        //  The words are the cards' words: the name in the wallpaper's own accent (24, bold), and under it what it is (14), in the same faces and sizes.
+        text wp_picker_hero_name { at: floor(cx + g.pgx + 0.5), floor(fy - 6 + 0.5); anchor: center; align: center; size: 24; weight: 700; width: 900; lines: 1; color: rgb(wp_hr, wp_hg, wp_hb); family: "Space Grotesk"; show: wp_picker_hot >= 0 }
+        text wp_hex_info { at: floor(cx + g.pgx + 0.5), floor(fy + 22 + 0.5); anchor: center; align: center; size: 14; weight: 500; width: 900; lines: 1; color: #ffffff; opacity: 80%; family: "Space Grotesk"; show: wp_picker_hot >= 0 }
+        text "Pick a wallpaper  ·  Tab for the cards  ·  Esc or a click outside closes" { at: floor(cx + g.pgx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 13; color: #ffffff; opacity: 45%; family: "Space Grotesk"; show: wp_picker_hot < 0 and wp_picker.count > 0 }
         text wp_picker_status { at: floor(cx + g.pgx + 0.5), floor(yo + vh / 2 + 0.5); anchor: center; align: center; size: 16; weight: 600; width: 600; lines: 1; color: #ffffff; opacity: 70%; family: "Space Grotesk"; show: wp_picker.count < 1 }
 
         //  ── the cards ────────────────────────────────────────────────
@@ -3775,7 +3827,7 @@ scene Vitreus {
             let sw.x = wc.cxm + (i - 5.5) * 28
             let sw.y = wc.yb + wc.ext + 30                          // under the card's panel
             let sw.lit = if(wp_filter == i, 1, 0)
-            let sw.a = clamp(wp_pgp * 3, 0, 1)
+            let sw.a = clamp(wp_ce3 * 1.6, 0, 1)
             box { at: sw.x, sw.y; size: 18 + 4 * sw.lit, 18 + 4 * sw.lit; corner: 5; color: pick(i, #e53935, #fb8c00, #fdd835, #43a047, #00acc1, #1e88e5, #8e24aa, #ec407a, #6d4c41, #f5f5f5, #9e9e9e, #212121); opacity: sw.a }
             box { at: sw.x, sw.y; size: 18 + 4 * sw.lit, 18 + 4 * sw.lit; corner: 5; stroke: 1; color: #000000; opacity: 35% * sw.a }
             box { at: sw.x, sw.y; size: 26, 26; corner: 7; stroke: 2; color: wc.acc; opacity: sw.lit * sw.a }
@@ -3785,14 +3837,19 @@ scene Vitreus {
         repeat s in 0..15 {
             let wc.d = wp_cards.$s.ix - wp_cpos
             let wc.e = 1 - min(1, abs(wc.d))
+            //  The cards come in one after another, from the focused one outwards (as the hexagons do in order): each drops into place from well below, growing from half size, on the same spring as the panels: it overshoots as it lands. It follows the picker
+            //  opening and the swipe from the hexagons alike (the lesser of the two).
+            let wc.rk = min(7, floor(abs(wc.d) + 0.5))
+            let wc.ep = pick(wc.rk, wp_ce0, wp_ce1, wp_ce2, wp_ce3, wp_ce4, wp_ce5, wp_ce6, wp_ce7)      // the drop's own spring: it goes past 1 and comes back
+            let wc.en = clamp(wc.ep * 1.6, 0, 1)
             //  An accordion: the further from the focus, the smaller the slice (full size beside it, then a step smaller, then a smaller one still), and the row bunches up with it.
             let wc.f = 1 - 0.15 * clamp(abs(wc.d) - 1, 0, 1) - 0.15 * clamp(abs(wc.d) - 2, 0, 1)
             let wc.x1 = clamp(abs(wc.d) - 1, 0, 1)
             let wc.x2 = clamp(abs(wc.d) - 2, 0, 1)
             let wc.fx = wc.x1 * (1 - 0.075 * wc.x1) + wc.x2 * (0.85 - 0.075 * wc.x2) + 0.7 * max(abs(wc.d) - 3, 0)
             let wc.k = wc.sk * wc.f
-            let wc.w = mix(wc.sw * wc.f, wc.W, wc.e)
-            let wc.h = mix(wc.sh * wc.f, wc.H, wc.e)
+            let wc.w = mix(wc.sw * wc.f, wc.W, wc.e) * (0.5 + 0.5 * wc.ep)
+            let wc.h = mix(wc.sh * wc.f, wc.H, wc.e) * (0.5 + 0.5 * wc.ep)
             let wc.l = if(wc.d < -1, wc.cxm - wc.W / 2 - wc.gap - wc.fx * 0.72 * wc.sw - wc.w, if(wc.d < 0, wc.cxm - wc.W / 2 + wc.d * wc.step, mix(wc.cxm - wc.W / 2, wc.cxm + wc.W / 2 + wc.gap, min(wc.d, 1)) + wc.fx * 0.72 * wc.sw))
             //  Every card has the same rounded corners, focused or not.
             let wc.r = 18
@@ -3800,8 +3857,8 @@ scene Vitreus {
             let wc.nx = -wc.k / wc.ln
             let wc.ny = wc.h / wc.ln
             let wc.brx = wc.w - wc.k
-            let wc.t = wc.yc + wc.ext / 2 * (1 - wc.e) - wc.h / 2
-            let wc.a = clamp(8 - abs(wc.d), 0, 1) * clamp(wp_pgp * 3, 0, 1)
+            let wc.t = wc.yc + wc.ext / 2 * (1 - wc.e) - wc.h / 2 + (1 - wc.ep) * 170
+            let wc.a = clamp(8 - abs(wc.d), 0, 1) * clamp(wp_pgp * 3, 0, 1) * wc.en
             group {
                 show: wp_cards.$s.ok and wc.a > 0.01 and wp_pgp > 0.01
                 //  The fade goes on each shape (see the hexagons): a group with an opacity is a layer of its own, and there are only sixty-four a frame.
@@ -3819,17 +3876,22 @@ scene Vitreus {
         repeat b in 0..2 {
             let wb.d = wp_big.$b.ix - wp_cpos
             let wb.e = 1 - min(1, abs(wb.d))
+            //  The cards come in one after another, from the focused one outwards (as the hexagons do in order): each drops into place from well below, growing from half size, on the same spring as the panels: it overshoots as it lands. It follows the picker
+            //  opening and the swipe from the hexagons alike (the lesser of the two).
+            let wb.rk = min(7, floor(abs(wb.d) + 0.5))
+            let wb.ep = pick(wb.rk, wp_ce0, wp_ce1, wp_ce2, wp_ce3, wp_ce4, wp_ce5, wp_ce6, wp_ce7)      // the drop's own spring: it goes past 1 and comes back
+            let wb.en = clamp(wb.ep * 1.6, 0, 1)
             //  An accordion: the further from the focus, the smaller the slice (full size beside it, then a step smaller, then a smaller one still), and the row bunches up with it.
             let wb.f = 1 - 0.15 * clamp(abs(wb.d) - 1, 0, 1) - 0.15 * clamp(abs(wb.d) - 2, 0, 1)
             let wb.x1 = clamp(abs(wb.d) - 1, 0, 1)
             let wb.x2 = clamp(abs(wb.d) - 2, 0, 1)
             let wb.fx = wb.x1 * (1 - 0.075 * wb.x1) + wb.x2 * (0.85 - 0.075 * wb.x2) + 0.7 * max(abs(wb.d) - 3, 0)
             let wb.k = wc.sk * wb.f
-            let wb.w = mix(wc.sw * wb.f, wc.W, wb.e)
-            let wb.h = mix(wc.sh * wb.f, wc.H, wb.e)
+            let wb.w = mix(wc.sw * wb.f, wc.W, wb.e) * (0.5 + 0.5 * wb.ep)
+            let wb.h = mix(wc.sh * wb.f, wc.H, wb.e) * (0.5 + 0.5 * wb.ep)
             let wb.l = if(wb.d < -1, wc.cxm - wc.W / 2 - wc.gap - wb.fx * 0.72 * wc.sw - wb.w, if(wb.d < 0, wc.cxm - wc.W / 2 + wb.d * wc.step, mix(wc.cxm - wc.W / 2, wc.cxm + wc.W / 2 + wc.gap, min(wb.d, 1)) + wb.fx * 0.72 * wc.sw))
-            let wb.t = wc.yc + wc.ext / 2 * (1 - wb.e) - wb.h / 2
-            let wb.a = clamp(8 - abs(wb.d), 0, 1) * clamp(wp_pgp * 3, 0, 1)
+            let wb.t = wc.yc + wc.ext / 2 * (1 - wb.e) - wb.h / 2 + (1 - wb.ep) * 170
+            let wb.a = clamp(8 - abs(wb.d), 0, 1) * clamp(wp_pgp * 3, 0, 1) * wb.en
             //  The focused card has a dark panel hanging under its picture (its name and what it is), and rounded corners. Its sides go on slanting at the same angle.
             let wb.ext = wc.ext * wb.e
             let wb.H = wb.h + wb.ext

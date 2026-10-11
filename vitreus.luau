@@ -2588,10 +2588,10 @@ local function run_iris(path, card_only)
 end
 
 -- ── Video wallpapers ─────────────────────────────────────────────────────────────────────────────────
--- A video (mp4, webm) is played by mpvpaper, over awww's wallpaper. awww is given a frame of the video (the poster, taken a second in
+-- A video (mp4, webm, mov) is played by mpvpaper, over awww's wallpaper. awww is given a frame of the video (the poster, taken a second in
 -- by ffmpeg and kept in the cache) so that everything which reads "the wallpaper" as a picture still can: Iris, the thumbnails, the colour
 -- filter, the hexagon dissolve and the lock screen. What awww says it shows is then mapped back to the video (`wpv.from_poster`).
-wpv = { exts = { mp4 = true, webm = true }, frames = nil, dir = nil, cur = nil, next = nil, busy = {} }   -- `dir`: the wallpaper folder
+wpv = { exts = { mp4 = true, webm = true, mov = true }, frames = nil, dir = nil, cur = nil, next = nil, busy = {} }   -- `dir`: the wallpaper folder
 
 function wpv.is(f)
     local ext = f and f:match("%.(%w+)$")
@@ -5345,8 +5345,7 @@ require("logic/nightmode")(with_dirs)
     local function set_name(i)
         local f = G.files and G.files[i + 1]
         if not f then return end
-        text.wp_picker_hero_name = name_of(f)
-        fact.wp_picker_hero_cur = f == wp_cur
+        fact.wp_picker_hero_cur = f == wp_cur         -- (the name and its description are written by `describe`, below)
     end
     on("fact:wp_picker_hot", function(v) if type(v) == "number" and v >= 0 then set_name(math.floor(v + 0.5)) end end)
 
@@ -5515,33 +5514,62 @@ require("logic/nightmode")(with_dirs)
         local m = v - c
         return r + m, g + m, b + m
     end
-    local function card_focus(f, ix, n)
+    -- Where a description goes: the cards' words under the focused card, or the hexagons' under the one the pointer is on (the same words, the same accent). `still`
+    -- says the thing described is still the one in view when a slow answer comes back; `pos` and `n` its place in the list and the length of it.
+    local DEST_CARD = { name = "wp_card_name", info = "wp_card_info", r = "wp_card_cr", g = "wp_card_cg", b = "wp_card_cb",
+        still = function(f) return C.list and C.list[C.sel + 1] == f end, pos = function() return C.sel + 1 end, n = function() return #(C.list or {}) end }
+    local DEST_HEX = { name = "wp_picker_hero_name", info = "wp_hex_info", r = "wp_hex_cr", g = "wp_hex_cg", b = "wp_hex_cb",
+        still = function(f) local h = tonumber(fact.wp_picker_hot); return h ~= nil and h >= 0 and G.files ~= nil and G.files[math.floor(h + 0.5) + 1] == f end,
+        pos = function() return math.floor((tonumber(fact.wp_picker_hot) or 0) + 0.5) + 1 end, n = function() return #(G.files or {}) end }
+    local function describe(f, ix, n, dest)
         local d = G.data[f]
         if d then
             local r, g, b = hsv_rgb(d.h, 0.35 + 0.4 * math.min(1, d.s * 1.5), 0.95)
-            fact.wp_card_cr, fact.wp_card_cg, fact.wp_card_cb = r, g, b
+            fact[dest.r], fact[dest.g], fact[dest.b] = r, g, b
         end
-        text.wp_card_name = stem(f)
+        text[dest.name] = stem(f)
         local ext = (name_of(f):match("%.(%w+)$") or ""):upper()
         local pos = string.format("%d of %d", ix + 1, n)
         local have = C.info[f]
-        if have then text.wp_card_info = have .. pos; return end
-        text.wp_card_info = (ext ~= "" and ext .. "  ·  " or "") .. pos
-        if wpv.is(f) then return end
-        local tok = C.tok
-        run("magick", { "identify", "-ping", "-format", "%w %h", f .. "[0]" }, function(out, code)
-            local w, h = (out or ""):match("(%d+)%s+(%d+)")
+        if have then text[dest.info] = have .. pos; return end
+        text[dest.info] = (ext ~= "" and ext .. "  ·  " or "") .. pos
+        local function done(parts)
+            C.info[f] = #parts > 0 and (table.concat(parts, "  ·  ") .. "  ·  ") or ""
+            if dest.still(f) then text[dest.info] = C.info[f] .. string.format("%d of %d", dest.pos(), dest.n()) end
+        end
+        local function weight(parts, fn)
             run("stat", { "-L", "-c", "%s", f }, function(sz)
                 local bytes = tonumber((sz or ""):match("%d+"))
-                local parts = {}
-                if w then parts[#parts + 1] = w .. " × " .. h end
                 if bytes then parts[#parts + 1] = bytes >= 1048576 and string.format("%.1f MB", bytes / 1048576) or string.format("%d KB", math.floor(bytes / 1024 + 0.5)) end
-                if ext ~= "" then parts[#parts + 1] = ext end
-                C.info[f] = #parts > 0 and (table.concat(parts, "  ·  ") .. "  ·  ") or ""
-                if C.list and C.list[C.sel + 1] == f then text.wp_card_info = C.info[f] .. string.format("%d of %d", C.sel + 1, #C.list) end
+                fn()
             end)
+        end
+        if wpv.is(f) then
+            -- A video: its size on the screen and how long it runs (ffprobe), and its weight.
+            run("ffprobe", { "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration", "-of", "default=nw=1", f }, function(out)
+                local w, h, dur = (out or ""):match("width=(%d+)"), (out or ""):match("height=(%d+)"), tonumber((out or ""):match("duration=([%d%.]+)"))
+                local parts = { "VIDEO" }
+                if w and h then parts[#parts + 1] = w .. " × " .. h end
+                if dur then parts[#parts + 1] = string.format("%d:%02d", math.floor(dur / 60), math.floor(dur % 60)) end
+                weight(parts, function() parts[#parts + 1] = ext; done(parts) end)
+            end)
+            return
+        end
+        run("magick", { "identify", "-ping", "-format", "%w %h", f .. "[0]" }, function(out)
+            local w, h = (out or ""):match("(%d+)%s+(%d+)")
+            local parts = {}
+            if w then parts[#parts + 1] = w .. " × " .. h end
+            weight(parts, function() if ext ~= "" then parts[#parts + 1] = ext end; done(parts) end)
         end)
     end
+    local function card_focus(f, ix, n) describe(f, ix, n, DEST_CARD) end
+    -- The pointer on a hexagon: the same description of that wallpaper under the hexagons.
+    on("fact:wp_picker_hot", function(v)
+        if type(v) ~= "number" or v < 0 then return end
+        local ix = math.floor(v + 0.5)
+        local f = G.files and G.files[ix + 1]
+        if f then describe(f, ix, #G.files, DEST_HEX) end
+    end)
     -- The focus's big picture: into the slot that is not the one it just left, made if it is not yet (and shown when it is).
     local function card_big(f, ix, instant)
         local last = C.big[C.flip == 0 and 1 or 2]
@@ -5572,8 +5600,14 @@ require("logic/nightmode")(with_dirs)
         after(170, function()
             if t ~= C.tok or not fact.wp_picker_open then return end
             local f = C.list and C.list[C.sel + 1]
-            if not f or f == wp_prev.shown or wpv.is(f) or wpv.is(wp_prev.orig or "") then return end
+            if not f or f == wp_prev.shown then return end
             wp_prev.on, wp_prev.shown = true, f
+            -- A video in use plays over awww's picture (mpvpaper), so nothing tried through awww could be seen: it is stopped for as long as the cards are in use (put
+            -- back, or the kept one started, when the picker closes). A video card is tried as its poster, a still frame of it.
+            if wpv.cur and not wp_prev.stopped then
+                wp_prev.stopped = true
+                exec_on_desktop("pkill -x mpvpaper")
+            end
             wp_apply(f, { "--transition-type", "fade", "--transition-duration", "0.35", "--transition-fps", "60" }, nil, nil, true)
         end)
     end
@@ -5614,7 +5648,7 @@ require("logic/nightmode")(with_dirs)
         end)
     end)
     local function cards_open()
-        wp_prev.orig, wp_prev.shown, wp_prev.on, wp_prev.touched, wp_prev.cancel = wp_cur, nil, false, false, false
+        wp_prev.orig, wp_prev.shown, wp_prev.on, wp_prev.touched, wp_prev.cancel, wp_prev.stopped = wp_cur, nil, false, false, false, false
         C.closing = false
         card_list()
         C.sel = 0
@@ -5634,12 +5668,14 @@ require("logic/nightmode")(with_dirs)
     local function cards_close()
         C.tok = C.tok + 1                    -- a try still waiting for its moment is dropped
         local touched, cancel, orig = wp_prev.touched, wp_prev.cancel, wp_prev.orig
-        wp_prev.touched, wp_prev.cancel = false, false
+        wp_prev.touched, wp_prev.cancel, wp_prev.stopped = false, false, false
         if touched then
             local target = cancel and orig or (C.list and C.list[C.sel + 1])
             local function done() wp_prev.on, wp_prev.shown = false, nil end
-            if target and not (cancel and wpv.is(target)) then       -- (a video that was playing was never covered, so there is nothing to put back)
-                wp_apply(target, { "--transition-type", "fade", "--transition-duration", "0.35", "--transition-fps", "60" }, done, nil, cancel)
+            -- Not quiet even for putting the old one back: that starts its video again if it was one (the colours are not worked out twice: it is the one they were
+            -- worked out for, and `iris_last_wp` still says so).
+            if target then
+                wp_apply(target, { "--transition-type", "fade", "--transition-duration", "0.35", "--transition-fps", "60" }, done, nil, false)
             else
                 done()
             end
