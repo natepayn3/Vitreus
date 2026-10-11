@@ -1811,6 +1811,19 @@ function watch_urgent()
         end)
     end)
 end
+-- The desktop's own scenes (the right-click menu on the wallpaper and the stickers, which live under the windows, and the webcam, which lives over them) are programs of their own, since a scene has one layer. They are
+-- not in the autostart file: this starts whichever of them is not running, once, a few seconds after the shell does. (The clock and the system monitor are started by the
+-- autostart file, as before.)
+after(4000, function()
+    if not on_hyprland then return end
+    for _, dir in ipairs({ "desktopmenu", "desktopnotes", "webcam" }) do
+        run("pgrep", { "-f", dir .. "/" .. dir .. ".plm" }, function(_, code)
+            if code ~= 0 then
+                exec_on_desktop('pleamar --scene "$HOME/.config/pleamar/shells/vitreus/' .. dir .. '/' .. dir .. '.plm" --no-hud')
+            end
+        end)
+    end
+end)
 after(2000, function()
     if not on_hyprland then return end
     watch_urgent()
@@ -3287,6 +3300,8 @@ function glass.push_obs()
     local v = glass.obsidian and "true" or "false"
     run("pleamar", { "--say", "desktopclock", "fact obs " .. v }, function() end)
     run("pleamar", { "--say", "desktopsysmon", "fact obs " .. v }, function() end)
+    run("pleamar", { "--say", "desktopnotes", "fact obs " .. v }, function() end)
+    run("pleamar", { "--say", "desktopmenu", "fact obs " .. v }, function() end)
 end
 local function glass_save_soon()
     glass.push_obs()
@@ -4536,8 +4551,8 @@ end
     local schedule_preview_fwd
     local S = { desc = {}, apps = {}, res = {}, sel = 1, start = 1, last = nil, seq = 0, counts = {}, emoji = nil, clip = nil }
     local ROWS = 6
-    local MODES = { ["#"] = "files", [">"] = "commands", [":"] = "emoji", ["^"] = "clipboard", ["~"] = "wallpapers" }
-    local LABEL = { apps = "Apps", calc = "Calc", files = "Files", commands = "Commands", emoji = "Emoji", clipboard = "Clipboard", wallpapers = "Wallpapers" }
+    local MODES = { ["#"] = "files", [">"] = "commands", [":"] = "emoji", ["^"] = "clipboard", ["~"] = "wallpapers", ["@"] = "windows", ["?"] = "web", ["!"] = "web", ["$"] = "snippets", ["="] = "calc" }
+    local LABEL = { apps = "Apps", calc = "Calc", files = "Files", commands = "Commands", emoji = "Emoji", clipboard = "Clipboard", wallpapers = "Wallpapers", windows = "Windows", web = "Web", snippets = "Snippets" }
     local HINT = {
         apps = "Search apps…  # files  > commands  : emoji  ^ clipboard  ~ wallpapers",
     }
@@ -4863,6 +4878,49 @@ end
                  run = function() run("wl-copy", { "--", str }, function() end) end }
     end
 
+    -- A card on the desktop with its own scene: asked how it is, started if it is not running, and shown or put away. (The desktop's right-click menu, desktopmenu/, says
+    -- these over `pleamar --say`; the clock is already running, as it starts with the desktop.)
+    local function toggle_scene(name, dir)
+        run("pleamar", { "--say", name, "get shown" }, function(out, code)
+            if code ~= 0 then
+                exec_on_desktop('pleamar --scene "$HOME/.config/pleamar/shells/vitreus/' .. dir .. '/' .. dir .. '.plm" --no-hud')
+                after(2500, function() run("pleamar", { "--say", name, "fact shown true" }, function() end) end)
+                return
+            end
+            local on = (out or ""):match("true") ~= nil
+            run("pleamar", { "--say", name, "fact shown " .. (on and "false" or "true") }, function() end)
+        end)
+    end
+    on("cam_toggle", function() toggle_scene("webcam", "webcam") end)
+    -- A new sticky note: the sticker scene is started if it is not running, then asked for one where the menu said (or the middle).
+    local function new_sticker(mon, x, y)
+        local function send()
+            run("pleamar", { "--say", "desktopnotes", "fact shown true" }, function()
+                run("pleamar", { "--say", "desktopnotes", "fact nmon " .. mon }, function()
+                    run("pleamar", { "--say", "desktopnotes", "fact nx " .. x }, function()
+                        run("pleamar", { "--say", "desktopnotes", "fact ny " .. y }, function()
+                            run("pleamar", { "--say", "desktopnotes", "emit note_new" }, function() end)
+                        end)
+                    end)
+                end)
+            end)
+        end
+        run("pleamar", { "--say", "desktopnotes", "get shown" }, function(_, code)
+            if code ~= 0 then
+                exec_on_desktop('pleamar --scene "$HOME/.config/pleamar/shells/vitreus/desktopnotes/desktopnotes.plm" --no-hud')
+                after(2500, send)
+            else
+                send()
+            end
+        end)
+    end
+    on("sticky_new", function()
+        new_sticker(math.floor((tonumber(fact.sn_mon) or 0) + 0.5), math.floor(tonumber(fact.sn_x) or -1), math.floor(tonumber(fact.sn_y) or -1))
+        fact.sn_mon, fact.sn_x, fact.sn_y = 0, -1, -1
+    end)
+    on("dclock_toggle", function() toggle_scene("desktopclock", "desktopclock") end)
+    on("dsys_toggle", function() toggle_scene("desktopsysmon", "desktopsysmon") end)
+
     -- ── commands ──
     local function open_settings(page)
         return function() fact.set_page = page; set_panel("settings"); return true end
@@ -4909,6 +4967,15 @@ end
                 run("pleamar", { "--say", "desktopsysmon", "fact shown " .. (on and "false" or "true") }, function() end)
             end)
         end, "system monitor desktop widget card cpu memory gpu network show hide on off" },
+        { "Webcam: toggle", "action", function() spawn('pleamar --say vitreus "emit cam_toggle"') end, "webcam camera self view mirror face round window record screen show hide on off" },
+        { "Webcam: mirror on/off", "action", function() spawn('pleamar --say webcam "emit cam_mirror"') end, "webcam camera mirror flip self view" },
+        { "Desktop menu: start", "action", function()
+            -- The right-click menu on the wallpaper (desktopmenu/) is a scene of its own; this starts it for this session if it is not running (it is in the autostart file after an install).
+            run("pleamar", { "--say", "desktopmenu", "get open" }, function(_, code)
+                if code ~= 0 then exec_on_desktop('pleamar --scene "$HOME/.config/pleamar/shells/vitreus/desktopmenu/desktopmenu.plm" --no-hud') end
+            end)
+        end, "desktop menu right click context wallpaper start" },
+        { "Sticky note: new", "action", function() spawn('pleamar --say vitreus "emit sticky_new"') end, "sticky note sticker new add notes desktop paper write" },
         { "Ask about the clipboard", "action", function()
             -- The last thing copied goes to the Desk's Ask tab as an attachment, to be sent with whatever is typed there (never by itself).
             run("cliphist", { "list" }, function(o)
@@ -5050,6 +5117,229 @@ end
         end)
     end
 
+    local function urlenc(s) return (tostring(s):gsub("[^%w%-_%.~]", function(c) return string.format("%%%02X", c:byte()) end)) end
+    -- ── units and percentages ──
+    -- "5 km to mi", "20 c in f", "2 gb to mib", "15% of 80": worked out here, with nothing to install.
+    local UNIT, TEMP = {}, { c = true, f = true, k = true }
+    do
+        local function add(dim, factor, names) for n in names:gmatch("%S+") do UNIT[n] = { dim = dim, f = factor } end end
+        add("len", 1, "m meter meters metre metres"); add("len", 1000, "km kilometer kilometers kilometre kilometres")
+        add("len", 0.01, "cm centimeter centimeters"); add("len", 0.001, "mm millimeter millimeters"); add("len", 1e-6, "um micron microns")
+        add("len", 1609.344, "mi mile miles"); add("len", 0.9144, "yd yard yards"); add("len", 0.3048, "ft foot feet")
+        add("len", 0.0254, "in inch inches"); add("len", 1852, "nmi")
+        add("mass", 1, "kg kilogram kilograms kilo kilos"); add("mass", 0.001, "g gram grams"); add("mass", 1e-6, "mg milligram milligrams")
+        add("mass", 0.45359237, "lb lbs pound pounds"); add("mass", 0.028349523, "oz ounce ounces"); add("mass", 1000, "t tonne tonnes")
+        add("mass", 6.35029318, "st stone")
+        add("vol", 1, "l liter liters litre litres"); add("vol", 0.001, "ml milliliter milliliters"); add("vol", 3.785411784, "gal gallon gallons")
+        add("vol", 0.946352946, "qt quart quarts"); add("vol", 0.473176473, "pt pint pints"); add("vol", 0.2365882365, "cup cups")
+        add("vol", 0.0295735296, "floz"); add("vol", 0.0147867648, "tbsp"); add("vol", 0.00492892159, "tsp")
+        add("data", 1, "b byte bytes"); add("data", 0.125, "bit bits"); add("data", 1e3, "kb kilobyte kilobytes"); add("data", 1e6, "mb megabyte megabytes")
+        add("data", 1e9, "gb gigabyte gigabytes"); add("data", 1e12, "tb terabyte terabytes"); add("data", 1024, "kib"); add("data", 1048576, "mib")
+        add("data", 1073741824, "gib"); add("data", 1099511627776, "tib")
+        add("time", 1, "s sec secs second seconds"); add("time", 0.001, "ms millisecond milliseconds"); add("time", 60, "min mins minute minutes")
+        add("time", 3600, "h hr hrs hour hours"); add("time", 86400, "d day days"); add("time", 604800, "wk week weeks"); add("time", 31557600, "yr year years")
+        add("speed", 1, "m/s mps"); add("speed", 0.277777778, "km/h kph kmh"); add("speed", 0.44704, "mph"); add("speed", 0.514444444, "kn knot knots")
+        add("speed", 0.3048, "ft/s")
+        add("area", 1, "m2 sqm"); add("area", 1e6, "km2"); add("area", 1e-4, "cm2"); add("area", 1e4, "ha hectare hectares")
+        add("area", 4046.8564224, "acre acres"); add("area", 0.09290304, "ft2 sqft"); add("area", 0.00064516, "in2 sqin"); add("area", 2589988.11, "mi2 sqmi")
+    end
+    local function num_str(v)
+        local str = string.format("%.6g", v)
+        return str
+    end
+    local function to_kelvin(v, u) if u == "c" then return v + 273.15 elseif u == "f" then return (v - 32) * 5 / 9 + 273.15 end return v end
+    local function from_kelvin(v, u) if u == "c" then return v - 273.15 elseif u == "f" then return (v - 273.15) * 9 / 5 + 32 end return v end
+    local function try_units(q)
+        local s = q:lower():gsub(",", ""):gsub("°", "")
+        -- a percentage: "15% of 80"
+        local p, of = s:match("^([%d%.]+)%s*%%%s*of%s+([%d%.]+)$")
+        if not p then p, of = s:match("^([%d%.]+)%s*percent%s+of%s+([%d%.]+)$") end
+        if p and tonumber(p) and tonumber(of) then
+            local str = num_str(tonumber(p) * tonumber(of) / 100)
+            return { title = "= " .. str, sub = p .. "% of " .. of .. " · Enter copies", glyph = "%",
+                     run = function() run("wl-copy", { "--", str }, function() end) end }
+        end
+        local n, a, b = s:match("^(%-?[%d%.]+)%s*([%a/%d]+)%s+to%s+([%a/%d]+)$")
+        if not n then n, a, b = s:match("^(%-?[%d%.]+)%s*([%a/%d]+)%s+in%s+([%a/%d]+)$") end
+        if not n then n, a, b = s:match("^(%-?[%d%.]+)%s*([%a/%d]+)%s+as%s+([%a/%d]+)$") end
+        if not n then return nil end
+        local v = tonumber(n)
+        if not v then return nil end
+        local out
+        if TEMP[a] and TEMP[b] then
+            out = from_kelvin(to_kelvin(v, a), b)
+        else
+            local ua, ub = UNIT[a], UNIT[b]
+            if not ua or not ub or ua.dim ~= ub.dim then return nil end
+            out = v * ua.f / ub.f
+        end
+        local str = num_str(out)
+        return { title = "= " .. str .. " " .. b, sub = n .. " " .. a .. " → " .. b .. " · Enter copies", glyph = "=",
+                 run = function() run("wl-copy", { "--", str }, function() end) end }
+    end
+
+    -- ── the web ──
+    -- `?` then what to look for, or `!bang` first: the bang says where (!yt, !gh, !w, !aw …); with none it is DuckDuckGo.
+    local BANGS = {
+        { "g", "Google", "https://www.google.com/search?q=%s" }, { "ddg", "DuckDuckGo", "https://duckduckgo.com/?q=%s" },
+        { "yt", "YouTube", "https://www.youtube.com/results?search_query=%s" }, { "gh", "GitHub", "https://github.com/search?q=%s" },
+        { "w", "Wikipedia", "https://en.wikipedia.org/w/index.php?search=%s" }, { "aw", "Arch Wiki", "https://wiki.archlinux.org/index.php?search=%s" },
+        { "aur", "AUR", "https://aur.archlinux.org/packages?K=%s" }, { "pkg", "Arch packages", "https://archlinux.org/packages/?q=%s" },
+        { "so", "Stack Overflow", "https://stackoverflow.com/search?q=%s" }, { "r", "Reddit", "https://www.reddit.com/search/?q=%s" },
+        { "maps", "Maps", "https://www.openstreetmap.org/search?query=%s" }, { "imdb", "IMDb", "https://www.imdb.com/find/?q=%s" },
+        { "npm", "npm", "https://www.npmjs.com/search?q=%s" }, { "crates", "crates.io", "https://crates.io/search?q=%s" },
+        { "mdn", "MDN", "https://developer.mozilla.org/en-US/search?q=%s" }, { "amazon", "Amazon", "https://www.amazon.com/s?k=%s" },
+        { "tr", "Translate", "https://translate.google.com/?sl=auto&tl=en&text=%s&op=translate" },
+        { "img", "Images", "https://duckduckgo.com/?q=%s&iax=images&ia=images" }, { "wa", "Wolfram Alpha", "https://www.wolframalpha.com/input?i=%s" },
+        { "hn", "Hacker News", "https://hn.algolia.com/?q=%s" }, { "sp", "Spotify", "https://open.spotify.com/search/%s" },
+    }
+    local BANG = {}
+    for _, b in ipairs(BANGS) do BANG[b[1]] = b end
+    BANG.wiki, BANG.youtube, BANG.google, BANG.github = BANG.w, BANG.yt, BANG.g, BANG.gh
+    local function open_url(url) return function() spawn("xdg-open '" .. url:gsub("'", "'\\''") .. "'") end end
+    local function search_web(raw, seq, done)
+        local q = trim(raw)
+        local bang, rest = q:match("^!(%S+)%s*(.*)$")
+        local site = BANG[bang or "ddg"]
+        if bang and not site then rest, site = q, BANG.ddg; bang = nil end       -- "!" and nothing known after it: a plain search
+        rest = trim(rest or q)
+        local out = {}
+        if rest == "" then
+            -- nothing to look for yet: the places one can ask
+            for _, b in ipairs(BANGS) do
+                out[#out + 1] = { title = "!" .. b[1] .. "  " .. b[2], sub = "Type !" .. b[1] .. " then what to look for", glyph = "!",
+                                  run = function() text.lq = "!" .. b[1] .. " "; focus("lq"); return true end }
+            end
+            return done(out)
+        end
+        local looks_url = rest:match("^https?://%S+$") or (not rest:find("%s") and rest:match("^[%w%-]+%.[%a][%w%.%-/%?=&#_%%]*$"))
+        if looks_url and not bang then
+            local u = rest:match("^https?://") and rest or ("https://" .. rest)
+            out[#out + 1] = { title = "Open " .. rest, sub = u, glyph = "W", run = open_url(u) }
+        end
+        local u = string.format(site[3], urlenc(rest))
+        out[#out + 1] = { title = "Search " .. site[2] .. " for “" .. rest .. "”", sub = "Enter opens the results in the browser", glyph = "?", run = open_url(u) }
+        if not bang then
+            for _, b in ipairs({ BANG.g, BANG.yt, BANG.w }) do
+                out[#out + 1] = { title = b[2] .. " for “" .. rest .. "”", sub = "!" .. b[1], glyph = "?", run = open_url(string.format(b[3], urlenc(rest))) }
+            end
+        end
+        done(out)
+        -- DuckDuckGo's instant answer (a definition, a calculation, a summary), if it has one: put first when it comes.
+        after(350, function()
+            if seq ~= S.seq then return end
+            run("curl", { "-s", "-m", "4", "https://api.duckduckgo.com/?format=json&no_html=1&skip_disambig=1&q=" .. urlenc(rest) }, function(body, code)
+                if seq ~= S.seq or code ~= 0 or not body then return end
+                local ok, j = pcall(json.decode, body)
+                if not ok or type(j) ~= "table" then return end
+                local ans = (j.Answer and j.Answer ~= "") and j.Answer or ((j.AbstractText and j.AbstractText ~= "") and j.AbstractText or nil)
+                if not ans then return end
+                local url = (j.AbstractURL and j.AbstractURL ~= "") and j.AbstractURL or u
+                local row = { title = (j.Heading and j.Heading ~= "" and j.Heading or "Answer"), sub = ans:sub(1, 160), desc = ans, glyph = "i", run = open_url(url) }
+                table.insert(out, 1, row)
+                done(out)
+            end)
+        end)
+    end
+
+    -- ── open windows ──
+    local function window_rows(q, limit, fn)
+        run("hyprctl", { "clients" }, function(out, code)
+            if code ~= 0 or not out then return fn({}) end
+            local list = {}
+            local ql = q:lower()
+            for _, w in ipairs(parse_clients(out)) do
+                local class, title = w.class or "", w.title or ""
+                local ws = (w.workspace or ""):match("%((.-)%)") or (w.workspace or ""):match("^(-?%d+)") or ""
+                if class ~= "" and (ql == "" or (title .. " " .. class .. " " .. ws):lower():find(ql, 1, true)) then
+                    local cl = class:lower()
+                    list[#list + 1] = { addr = w.addr, order = (w.focusHistoryID == "0") and -1 or (tonumber(w.focusHistoryID) or 99),
+                        row = { title = title ~= "" and title or class, sub = class .. "  ·  workspace " .. ws, glyph = "W", icon = apps_by_class[cl] or cl,
+                                run = function() focus_window(w.addr) end } }
+                end
+            end
+            table.sort(list, function(a, b) return a.order < b.order end)
+            local rows = {}
+            for i, e in ipairs(list) do if i > limit then break end rows[#rows + 1] = e.row end
+            fn(rows)
+        end)
+    end
+
+    -- ── snippets and quicklinks ──
+    -- `snippets.json` in the shell's data folder (made with a few examples the first time): "snippets" are text to copy ({date}, {time}, {clipboard}, {uuid} are filled in),
+    -- "links" are searches, each with a keyword: `$gh pleamar` opens its url with {query} replaced.
+    local SN = { data = nil, path = nil }
+    local SN_DEFAULT = {
+        snippets = {
+            { name = "Today's date", text = "{date}" },
+            { name = "Time now", text = "{time}" },
+            { name = "Date and time", text = "{date} {time}" },
+            { name = "New UUID", text = "{uuid}" },
+            { name = "Clipboard, as it is", text = "{clipboard}" },
+        },
+        links = {
+            { name = "GitHub search", keyword = "gh", url = "https://github.com/search?q={query}" },
+            { name = "YouTube search", keyword = "yt", url = "https://www.youtube.com/results?search_query={query}" },
+            { name = "Arch Wiki", keyword = "aw", url = "https://wiki.archlinux.org/index.php?search={query}" },
+        },
+    }
+    local function snippets_load(fn)
+        if SN.data then return fn(SN.data) end
+        with_dirs(function(d)
+            SN.path = d.data .. "/snippets.json"
+            local ok, saved = pcall(sys.ask, "files.read", "snippets.json", "json")
+            if ok and type(saved) == "table" and (type(saved.snippets) == "table" or type(saved.links) == "table") then
+                SN.data = { snippets = saved.snippets or {}, links = saved.links or {} }
+            else
+                SN.data = SN_DEFAULT
+                pcall(sys.call, "files.write", "snippets.json", SN_DEFAULT)
+            end
+            fn(SN.data)
+        end)
+    end
+    local function expand(textv, fn)
+        local function fill(clip, uuid)
+            local out = textv:gsub("{date}", os.date("%Y-%m-%d")):gsub("{time}", os.date("%H:%M")):gsub("{datetime}", os.date("%Y-%m-%d %H:%M"))
+            out = out:gsub("{clipboard}", function() return clip or "" end):gsub("{uuid}", function() return uuid or "" end)
+            fn(out)
+        end
+        local function with_uuid(clip)
+            if textv:find("{uuid}", 1, true) then
+                run("cat", { "/proc/sys/kernel/random/uuid" }, function(u) fill(clip, (u or ""):gsub("%s+$", "")) end)
+            else fill(clip, nil) end
+        end
+        if textv:find("{clipboard}", 1, true) then
+            run("wl-paste", { "-n" }, function(c) with_uuid(c or "") end)
+        else with_uuid(nil) end
+    end
+    local function search_snippets(q, done)
+        snippets_load(function(data)
+            local out = {}
+            local kw, rest = q:match("^(%S+)%s+(.+)$")
+            for _, l in ipairs(data.links or {}) do
+                if kw and l.keyword and kw:lower() == l.keyword:lower() and l.url then
+                    out[#out + 1] = { title = (l.name or l.keyword) .. ": " .. rest, sub = "Enter opens it", glyph = "$", run = open_url((l.url:gsub("{query}", urlenc(rest)))) }
+                end
+            end
+            local ql = q:lower()
+            for _, sn in ipairs(data.snippets or {}) do
+                local name, body = sn.name or "", sn.text or ""
+                if ql == "" or name:lower():find(ql, 1, true) or body:lower():find(ql, 1, true) then
+                    out[#out + 1] = { title = name, sub = (body:gsub("%s+", " ")):sub(1, 70) .. "  ·  Enter copies", glyph = "$",
+                                      run = function() expand(body, function(t) run("wl-copy", { "--", t }, function() end) end) end }
+                end
+            end
+            for _, l in ipairs(data.links or {}) do
+                if (not kw or not out[1]) and (ql == "" or (l.name or ""):lower():find(ql, 1, true) or (l.keyword or ""):lower():find(ql, 1, true)) then
+                    out[#out + 1] = { title = (l.name or l.keyword or "Link"), sub = "$" .. (l.keyword or "") .. " then what to look for", glyph = "$",
+                                      run = function() text.lq = "$" .. (l.keyword or "") .. " "; focus("lq"); return true end }
+                end
+            end
+            out[#out + 1] = { title = "Edit snippets…", sub = SN.path or "snippets.json", glyph = "+", run = function() if SN.path then spawn("xdg-open '" .. SN.path .. "'") end end }
+            done(out)
+        end)
+    end
+
     -- ── what is typed → what is shown ──
     local function search()
         local raw = lq()
@@ -5059,19 +5349,37 @@ end
         local first = raw:sub(1, 1)
         local mode = MODES[first] or "apps"
         local q = trim(MODES[first] and raw:sub(2) or raw)
+        if first == "!" then q = trim(raw) end            -- a bang is part of what is said: "!yt lofi"
         S.mode = mode
         local function done(list, msg) if seq == S.seq then show(list, msg) end end
         if mode == "apps" then
-            local c = try_calc(q)
+            local c = try_units(q) or try_calc(q)
             local list = search_apps(q)
             if c then table.insert(list, 1, c); mode = "calc" end
             text.lmode = LABEL[mode]
             fact.lp_on = false
-            return done(list)
+            done(list)
+            -- open windows that match, a few, after the apps (they come from Hyprland a moment later)
+            if #q >= 2 and not c then
+                window_rows(q, 3, function(rows)
+                    if seq ~= S.seq or #rows == 0 then return end
+                    local all = {}
+                    for _, r in ipairs(list) do all[#all + 1] = r end
+                    for _, r in ipairs(rows) do all[#all + 1] = r end
+                    show(all)
+                end)
+            end
+            return
         end
         text.lmode = LABEL[mode]
         fact.lp_on = (mode == "files" or mode == "clipboard" or mode == "wallpapers")
-        if mode == "commands" then done(search_commands(q))
+        if mode == "calc" then
+            local c = try_units(q) or try_calc(q)
+            done(c and { c } or {}, "Type a sum, a conversion (5 km to mi, 20 c to f) or a percentage (15% of 80)")
+        elseif mode == "web" then search_web(q, seq, done)
+        elseif mode == "windows" then window_rows(q, 30, function(rows) done(rows, "No open window matches") end)
+        elseif mode == "snippets" then search_snippets(q, done)
+        elseif mode == "commands" then done(search_commands(q))
         elseif mode == "wallpapers" then done(search_wallpapers(q))
         elseif mode == "emoji" then search_emoji(q, done)
         elseif mode == "clipboard" then search_clip(q, done)
@@ -5136,7 +5444,7 @@ end
     on("launch_pick", function(i) run_result(S.res[S.start + math.floor(i + 0.5)]) end)
     on("launch_run", function() run_result(S.res[S.sel]) end)
     on("launch_hint", function(i)
-        text.lq = ({ "#", ">", ":", "^", "~" })[math.floor(i + 0.5) + 1] or ""
+        text.lq = ({ "#", ">", ":", "^", "~", "@", "?", "$", "=" })[math.floor(i + 0.5) + 1] or ""
         focus("lq")
     end)
 end)()

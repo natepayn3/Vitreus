@@ -1,0 +1,161 @@
+language 0.1
+import "../palette.plm"
+
+//  The webcam: your own face in a round pane of glass over the desktop (and over your windows), for as long as it is on; a recording catches it. Take it by its body and drag it
+//  anywhere (onto another monitor too); pull one of the four handles on its edge, at the diagonals, to make it smaller or bigger, as the Desk's corners do: the corner across from
+//  the handle stays where it is, and the pane's size follows the pull (`gs`, half to twice the size it starts at). The handles are not drawn; the cursor shows them: the diagonal arrows on a handle, the open hand over the body.
+//
+//  The picture is the camera's frames, which `ffmpeg` writes over one file in the runtime folder about fifteen times a second while it is on (see webcam.luau), and which the scene
+//  loads again each time (`cam_path` with a new number after the `?`). The camera is only open while it is on, and it starts off every session.
+//
+//  Turn it on or off with   pleamar --say webcam "fact shown true"   (or false); "Webcam: toggle" in the launcher and the desktop's right-click menu do it, and start the scene if it is
+//  not running. Where it is and how big are kept in webcam.json, in ~/.local/share/pleamar/webcam.
+
+scene Webcam {
+    surface { size: full, full; anchor: top_left; margin: 0; level: top; screens: each; reserve: -1 }
+
+    permissions { services: "files", "files.write"; run: "ffmpeg", "hyprctl", "pleamar", "printenv", "mkdir", "pkill" }
+
+    fact shown = false     // the camera is on
+    fact gx = -1           // the pane's top left in the desktop (all the monitors together); -1 until the logic has put it somewhere
+    fact gy = -1
+    fact gs = 1            // how big: 0.5 to 2 times 240
+    fact bs = 1            // the size when a handle was pressed
+    fact bx = 0            // where the pane was when the drag began
+    fact by = 0
+    fact rk = -1           // which handle is held (0 top left, 1 top right, 2 bottom left, 3 bottom right), -1 none
+    fact fcx = 0           // the corner across from it, which stays where it is
+    fact fcy = 0
+    text cam_path = ""     // the frame to show: the file, and `?` and a number that goes up with every frame
+    image cam_img = from cam_path, 480, 480
+    event cam_mirror ->
+
+    //  Where the monitors lie in the desktop (logical pixels), up to four, and the box all of them make together (the logic reads them from `hyprctl monitors`).
+    fact m0x = 0
+    fact m0y = 0
+    fact m1x = 0
+    fact m1y = 0
+    fact m2x = 0
+    fact m2y = 0
+    fact m3x = 0
+    fact m3y = 0
+    fact vx0 = 0
+    fact vy0 = 0
+    fact vx1 = 1920
+    fact vy1 = 1080
+
+    spring pop = 230, 17
+    prop sh = 0 ~pop
+    follow sh = if(shown, 1, 0)
+    let base = 240
+    let S = base * gs
+    let mi = clamp(screen.index, 0, 3)
+    let ox = pick(mi, m0x, m1x, m2x, m3x)     // where this monitor's top left is in the desktop
+    let oy = pick(mi, m0y, m1y, m2y, m3y)
+    let lx = gx - ox
+    let ly = gy - oy
+    let r = S / 2
+    let cx = lx + r
+    let cy = ly + r
+
+    //  The body (inside the edge) takes the drag; the edge itself is eight handles, every 45 degrees, each with the arrows of the way it pulls (declared after the body, so they win).
+    //  A handle pulls from its side: the side across from it stays where it is (`fcx`, `fcy`), and the pane's size follows the pull.
+    zone box zbody { at: cx, cy; size: S - 40, S - 40; corner: r - 20; cursor: grab; active: sh > 0.5 and gx >= 0 }
+    on press zbody { rk = -1; bx = gx; by = gy }
+    on drag zbody while rk < 0 { gx = clamp(bx + drag.dx, vx0, max(vx0, vx1 - S)); gy = clamp(by + drag.dy, vy0, max(vy0, vy1 - S)) }
+    //  Handle 0 (right)
+    zone box zrs0 { at: cx + 1 * r, cy + 0 * r; size: 40, 40; corner: 20; cursor: ew_resize; active: sh > 0.5 and gx >= 0 }
+    on press zrs0 { rk = 0; bs = gs; fcx = gx; fcy = gy + S / 2 }
+    on drag zrs0 while rk == 0 {
+        gs = clamp(bs + (1 * drag.dx + 0 * drag.dy) / 1 / base, 0.5, 2)
+        gx = fcx
+        gy = fcy - base * gs / 2
+    }
+    on release zrs0 { rk = -1 }
+    //  Handle 1 (bottom right)
+    zone box zrs1 { at: cx + 0.7071 * r, cy + 0.7071 * r; size: 40, 40; corner: 20; cursor: nwse_resize; active: sh > 0.5 and gx >= 0 }
+    on press zrs1 { rk = 1; bs = gs; fcx = gx; fcy = gy }
+    on drag zrs1 while rk == 1 {
+        gs = clamp(bs + (1 * drag.dx + 1 * drag.dy) / 2 / base, 0.5, 2)
+        gx = fcx
+        gy = fcy
+    }
+    on release zrs1 { rk = -1 }
+    //  Handle 2 (bottom)
+    zone box zrs2 { at: cx + 0 * r, cy + 1 * r; size: 40, 40; corner: 20; cursor: ns_resize; active: sh > 0.5 and gx >= 0 }
+    on press zrs2 { rk = 2; bs = gs; fcx = gx + S / 2; fcy = gy }
+    on drag zrs2 while rk == 2 {
+        gs = clamp(bs + (0 * drag.dx + 1 * drag.dy) / 1 / base, 0.5, 2)
+        gx = fcx - base * gs / 2
+        gy = fcy
+    }
+    on release zrs2 { rk = -1 }
+    //  Handle 3 (bottom left)
+    zone box zrs3 { at: cx + -0.7071 * r, cy + 0.7071 * r; size: 40, 40; corner: 20; cursor: nesw_resize; active: sh > 0.5 and gx >= 0 }
+    on press zrs3 { rk = 3; bs = gs; fcx = gx + S; fcy = gy }
+    on drag zrs3 while rk == 3 {
+        gs = clamp(bs + (-1 * drag.dx + 1 * drag.dy) / 2 / base, 0.5, 2)
+        gx = fcx - base * gs
+        gy = fcy
+    }
+    on release zrs3 { rk = -1 }
+    //  Handle 4 (left)
+    zone box zrs4 { at: cx + -1 * r, cy + 0 * r; size: 40, 40; corner: 20; cursor: ew_resize; active: sh > 0.5 and gx >= 0 }
+    on press zrs4 { rk = 4; bs = gs; fcx = gx + S; fcy = gy + S / 2 }
+    on drag zrs4 while rk == 4 {
+        gs = clamp(bs + (-1 * drag.dx + 0 * drag.dy) / 1 / base, 0.5, 2)
+        gx = fcx - base * gs
+        gy = fcy - base * gs / 2
+    }
+    on release zrs4 { rk = -1 }
+    //  Handle 5 (top left)
+    zone box zrs5 { at: cx + -0.7071 * r, cy + -0.7071 * r; size: 40, 40; corner: 20; cursor: nwse_resize; active: sh > 0.5 and gx >= 0 }
+    on press zrs5 { rk = 5; bs = gs; fcx = gx + S; fcy = gy + S }
+    on drag zrs5 while rk == 5 {
+        gs = clamp(bs + (-1 * drag.dx + -1 * drag.dy) / 2 / base, 0.5, 2)
+        gx = fcx - base * gs
+        gy = fcy - base * gs
+    }
+    on release zrs5 { rk = -1 }
+    //  Handle 6 (top)
+    zone box zrs6 { at: cx + 0 * r, cy + -1 * r; size: 40, 40; corner: 20; cursor: ns_resize; active: sh > 0.5 and gx >= 0 }
+    on press zrs6 { rk = 6; bs = gs; fcx = gx + S / 2; fcy = gy + S }
+    on drag zrs6 while rk == 6 {
+        gs = clamp(bs + (0 * drag.dx + -1 * drag.dy) / 1 / base, 0.5, 2)
+        gx = fcx - base * gs / 2
+        gy = fcy - base * gs
+    }
+    on release zrs6 { rk = -1 }
+    //  Handle 7 (top right)
+    zone box zrs7 { at: cx + 0.7071 * r, cy + -0.7071 * r; size: 40, 40; corner: 20; cursor: nesw_resize; active: sh > 0.5 and gx >= 0 }
+    on press zrs7 { rk = 7; bs = gs; fcx = gx; fcy = gy + S }
+    on drag zrs7 while rk == 7 {
+        gs = clamp(bs + (1 * drag.dx + -1 * drag.dy) / 2 / base, 0.5, 2)
+        gx = fcx
+        gy = fcy - base * gs
+    }
+    on release zrs7 { rk = -1 }
+
+    group {
+        show: sh > 0.01 and gx >= 0
+        pivot: cx, cy
+        scale: 0.55 + 0.45 * sh
+        opacity: clamp(sh * 1.6, 0, 1)
+        //  The pane: a ring of glass with the picture inside it.
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 8, 22, 36%
+            opacity: 100%
+            ellipse { at: cx, cy; radius: r + 5 }
+        }
+        group {
+            clip inset 0 ellipse { at: cx, cy; radius: r }
+            box { at: cx, cy; size: S, S; color: #0b0d12 }
+            image cam_img { at: lx, ly; size: S, S }
+        }
+    }
+}

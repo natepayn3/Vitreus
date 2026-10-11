@@ -131,6 +131,10 @@ scene Vitreus {
     measure lhw2
     measure lhw3
     measure lhw4
+    measure lhw5
+    measure lhw6
+    measure lhw7
+    measure lhw8
     measure titw                   // and its window title
     measure vclw                   // the same two, at the size they are drawn down the left bar
     measure vtiw
@@ -301,6 +305,13 @@ scene Vitreus {
     event wm_refresh ->
     //  The launcher (SUPER + Space): what is typed, the results, and which one is chosen.
     event launch_toggle ->          // from a key bind (hypr_vitreus.lua)
+    event cam_toggle ->             // from the desktop's right-click menu (desktopmenu/): the webcam bubble on or off
+    event sticky_new ->             // a new sticker, where `sn_mon`, `sn_x`, `sn_y` say (the menu sets them; -1 is the middle of the first monitor)
+    fact sn_mon = 0
+    fact sn_x = -1
+    fact sn_y = -1
+    event dclock_toggle ->          // the desktop clock
+    event dsys_toggle ->            // the desktop system monitor
     event launch_open ->
     event launch_move ->            // -1 up, +1 down
     event launch_pick ->            // a row, by place
@@ -2848,7 +2859,7 @@ scene Vitreus {
     //  The launcher: a drop that widens to the bar's width as it lands, like the calendar. The search field (40), the
     //  rows (44 each, up to eight; seven where there is a preview beside them) and a line of hints.
     let dl.w = (120 + 330 * (min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6)) * pu
-    let dl.hh = bar.h / 2 + (154 + lr * 44) * pu * dl0 + max(0, sag)
+    let dl.hh = bar.h / 2 + (172 + lr * 44) * pu * dl0 + max(0, sag)
     let dl.f = clamp((dl.w - bar.w + 24 * u) / (24 * u), 0, 1)     // as for the calendar
     let dl.top = mix(bar.y, bar.y - bar.h / 2, dl.f)
     let dm.w = (120 + 192 * (min(1, dm0 * 1.6) + max(0, dm0 - 1) * 0.6)) * cu
@@ -2874,7 +2885,7 @@ scene Vitreus {
     //  `lp.dy` and the drawer made `lp.dd` taller to make them 18.5 all round (Settings included).
     let lp.dy = if(lp_k == 1, 4.5, if(lp_k == 2 or lp_k == 3 or lp_k == 5 or lp_k == 6 or lp_k == 7 or lp_k == 8, 6.5, if(lp_k == 4, -0.5, 0))) * ku * lm
     let lp.dd = if(lp_k == 1, 11, if(lp_k == 2, 11, if(lp_k == 3 or lp_k == 5 or lp_k == 6 or lp_k == 7 or lp_k == 8, 13, if(lp_k == 4, 6, 0)))) * ku * lm
-    let lp.hd = (if(lp_k == 1, (8 + 36 + 8 + set.h + 16) * pu, if(lp_k == 2, (154 + lr * 44) * pu, if(lp_k == 3, (content_bot + 16) * cu, if(lp_k == 4, 373 * cu, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * cu, if(lp_k == 9, dsk_h, (8 + osd_h + 16) * u))))))) + lp.dd
+    let lp.hd = (if(lp_k == 1, (8 + 36 + 8 + set.h + 16) * pu, if(lp_k == 2, (172 + lr * 44) * pu, if(lp_k == 3, (content_bot + 16) * cu, if(lp_k == 4, 373 * cu, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot, panel_bot) + 16) * cu, if(lp_k == 9, dsk_h, (8 + osd_h + 16) * u))))))) + lp.dd
     //  Where it settles, as drawn (`ty`): Settings low, the launcher high, a good way from the middle, and clear of the frame; then back to the panel's
     //  own coordinates (the contents are scaled about the middle of the screen).
     let lp.ty = if(lp_k == 1, min(vc + 190 * u, vb - lf.t - 24 * u - lp.hd / 2), max(vc - 210 * u, yo + lf.t + 24 * u + lp.hd / 2))
@@ -2969,7 +2980,7 @@ scene Vitreus {
     let dl.lf = mix(min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6, min(1, dl.gl * 1.6) + max(0, dl.gl - 1) * 0.6, lm)
     let dl.rt = 2 * (225 + 6.5) * pu
     let dl.gw = max(0.1, dl.rt * dl.lf)
-    let dl.gh = (((154 + lr * 44) * pu) + lp.dd + max(0, sag)) * dl.lf
+    let dl.gh = (((172 + lr * 44) * pu) + lp.dd + max(0, sag)) * dl.lf
     let dl.gx = mix(lp.xl + dl.gw / 2, ccx, edg)
     let dl.ew = mix(dl.w, dl.gw, lm)
     let dl.eh = mix((bar.y + dl.hh - dl.top), dl.gh, lm)
@@ -3586,7 +3597,7 @@ scene Vitreus {
         let lx = pcx - 215 * pu
         let lhy = ck + 25 * pu                             // the header's middle
         let ly = ck + 50 * pu                              // the field's top
-        let lry = ly + 68 * pu                             // the rows start under the hints
+        let lry = ly + 86 * pu                             // the rows start under the two rows of hints
         let lph = max(1, lr * 44 - 4) * pu                 // the rows' height, and the preview's
         let lpx = lx + lw + 8 * pu                         // the preview's left edge
         let lpw = 430 * pu - lw - 8 * pu
@@ -3614,6 +3625,10 @@ scene Vitreus {
         text "emoji" { at: 0, 0; size: 13; lines: 1; measure: lhw2; opacity: 0; family: "Space Grotesk" }
         text "clipboard" { at: 0, 0; size: 13; lines: 1; measure: lhw3; opacity: 0; family: "Space Grotesk" }
         text "wallpapers" { at: 0, 0; size: 13; lines: 1; measure: lhw4; opacity: 0; family: "Space Grotesk" }
+        text "windows" { at: 0, 0; size: 13; lines: 1; measure: lhw5; opacity: 0; family: "Space Grotesk" }
+        text "web" { at: 0, 0; size: 13; lines: 1; measure: lhw6; opacity: 0; family: "Space Grotesk" }
+        text "snippets" { at: 0, 0; size: 13; lines: 1; measure: lhw7; opacity: 0; family: "Space Grotesk" }
+        text "calc" { at: 0, 0; size: 13; lines: 1; measure: lhw8; opacity: 0; family: "Space Grotesk" }
         //  What the first character of the search does, in small type under the field: press one to type it. Five
         //  equal cells across the field, each pair (character, name) centred in its cell, a divider between cells.
         repeat i in 0..5 {
@@ -3626,6 +3641,18 @@ scene Vitreus {
             line { from: lx + i * 86 * pu, hy - 5 * pu; to: lx + i * 86 * pu, hy + 5 * pu; width: 1 * pu; color: ink; opacity: 18%; show: i > 0 }
             zone box lhint_hit.$i { at: hc, hy; size: 84 * pu, 18 * pu; corner: 9 * pu; cursor: pointer }
             on press lhint_hit.$i { emit launch_hint(i) }
+        }
+        //  A second row of the same under it: four more (windows, the web, snippets, a sum or a conversion), four cells across the field.
+        repeat j in 0..4 {
+            let hc2 = lx + (j + 0.5) * 107.5 * pu
+            let hy2 = ly + 72 * pu
+            let hx2 = floor(hc2 - (12 * pu + rs * pick(j, lhw5.width, lhw6.width, lhw7.width, lhw8.width)) / 2 + 0.5)
+            box { at: hc2, hy2; size: 103 * pu, 18 * pu; corner: 9 * pu; color: ink; opacity: 8% * lhint2_hit.$j.hover }
+            group { scale: rs; pivot: hx2, floor(hy2 + 0.5); text pick(j, "@", "?", "$", "=") { at: hx2, floor(hy2 + 0.5); anchor: left center; size: 15; weight: 700; color: mint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: hx2 + floor(12 * pu + 0.5), floor(hy2 + 0.5); text pick(j, "windows", "web", "snippets", "calc") { at: hx2 + floor(12 * pu + 0.5), floor(hy2 + 0.5); anchor: left center; size: 13; color: ink; opacity: 70%; family: "Space Grotesk" } }
+            line { from: lx + j * 107.5 * pu, hy2 - 5 * pu; to: lx + j * 107.5 * pu, hy2 + 5 * pu; width: 1 * pu; color: ink; opacity: 18%; show: j > 0 }
+            zone box lhint2_hit.$j { at: hc2, hy2; size: 105 * pu, 18 * pu; corner: 9 * pu; cursor: pointer }
+            on press lhint2_hit.$j { emit launch_hint(j + 5) }
         }
         //  The wheel over the rows scrolls the list (under the rows, so their presses still win).
         zone box lwheel { from: lx, lry; size: lw, lph }

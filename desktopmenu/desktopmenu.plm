@@ -1,0 +1,95 @@
+language 0.1
+import "../palette.plm"
+
+//  The desktop's right-click menu: press the right button on the bare wallpaper and a card of glass opens where the pointer is, with a tick-box for each thing that lives on the desktop (the
+//  webcam bubble, the clock, the system monitor), each in brackets, with an X between them when it is on, and a plus to start a new sticky note. A press anywhere else, or Escape, closes it.
+//  It is a surface of its own on the background layer, under the other desktop cards and under every window, so it only sees the clicks that land on the wallpaper itself.
+//  What the rows do is said to Vitreus (`pleamar --say vitreus "emit ..."`, see desktopmenu.luau).
+//
+//  It starts with the desktop (a line in ~/.config/pleamar/autostart, which install.sh adds), or by hand:   pleamar --scene .../desktopmenu/desktopmenu.plm --no-hud
+
+scene DesktopMenu {
+    surface { size: full, full; anchor: top_left; margin: 0; level: background; screens: all; reserve: -1; keyboard: on_demand }
+
+    permissions { run: "pleamar", "pgrep" }
+
+    fact open = false          // the menu is out
+    fact mx = 0                // where it was asked for
+    fact my = 0
+    fact mmon = 0              // which monitor it was asked for on
+    fact cam_on = false        // the state of what the switches show (the logic asks when the menu opens)
+    fact clock_on = false
+    fact sys_on = false
+    fact obs = false           // Vitreus has its glass off: the card is flat obsidian
+    event menu_do ->           // a row, by position
+
+    spring pop = 230, 17
+    prop mo = 0 ~pop
+    follow mo = if(open, 1, 0)
+    prop ob = 0 ~calm
+    follow ob = if(obs, 1, 0)
+    prop s0 = 0 ~calm
+    prop s2 = 0 ~calm
+    prop s3 = 0 ~calm
+    follow s0 = if(cam_on, 1, 0)
+    follow s2 = if(clock_on, 1, 0)
+    follow s3 = if(sys_on, 1, 0)
+
+    let cw = 244
+    let rh = 40
+    let rows = 4
+    let ch = rows * rh + 16
+    let cx0 = clamp(mx, 10, max(10, screen.width - cw - 10))
+    let cy0 = clamp(my, 10, max(10, screen.height - ch - 10))
+
+    //  The wallpaper: a press on it opens the menu (right) or puts it away (any), under the card's own zones.
+    zone box wall { at: screen.width / 2, screen.height / 2; size: screen.width, screen.height }
+    on press right wall { mx = pointer.x; my = pointer.y; mmon = screen.index; open = true }
+    on press wall { open = false }
+    on key Escape while open { open = false }
+
+    //  The card's rows, over the wallpaper's zone (declared after it, so they win the press; and before the card is drawn, which reads their hover).
+    repeat i in 0..4 {
+        let ry = cy0 + 8 + i * rh + rh / 2
+        zone box mrow.$i { at: cx0 + cw / 2, ry; size: cw - 12, rh - 4; corner: 14; cursor: pointer; active: open and mo > 0.6 }
+        on press mrow.$i { emit menu_do(i); open = false }
+    }
+
+    group {
+        show: mo > 0.01
+        pivot: cx0, cy0
+        scale: 0.92 + 0.08 * mo
+        opacity: clamp(mo * 1.6, 0, 1)
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 8, 22, 34%
+            opacity: 85% * (1 - ob)
+            show: ob < 0.996
+            box { from: cx0, cy0; size: cw, ch; corner: 20 }
+        }
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: 100% * ob
+            shadow: 0, 8, 22, 45%, #000000
+            show: ob > 0.004
+            box { from: cx0, cy0; size: cw, ch; corner: 20 }
+        }
+        repeat i in 0..4 {
+            let ry = cy0 + 8 + i * rh + rh / 2
+            let hv = mrow.$i.hover
+            let on = pick(i, s0, s2, s3, 0)
+            box { at: cx0 + cw / 2, ry; size: cw - 12, rh - 4; corner: 14; color: ink; opacity: 9% * hv }
+            text pick(i, "Webcam", "Desktop clock", "System monitor", "New sticky note") { at: cx0 + 20, ry; anchor: left center; size: 15; weight: 600; color: ink; family: "Space Grotesk" }
+            //  brackets at the right, with an X between them when it is on:  [ ]  or  [X]
+            text "[" { at: cx0 + cw - 44, ry; anchor: center center; size: 20; weight: 600; color: mix(ink, mint, on); opacity: if(i < 3, 75% + 25% * on, 0); family: "Space Grotesk" }
+            text "]" { at: cx0 + cw - 18, ry; anchor: center center; size: 20; weight: 600; color: mix(ink, mint, on); opacity: if(i < 3, 75% + 25% * on, 0); family: "Space Grotesk" }
+            text "X" { at: cx0 + cw - 31, ry; anchor: center center; size: 16; weight: 700; color: mint; opacity: on; family: "Space Grotesk" }
+            text "+" { at: cx0 + cw - 31, ry; anchor: center center; size: 22; weight: 600; color: ink; opacity: if(i == 3, 80%, 0); family: "Space Grotesk" }
+        }
+    }
+}

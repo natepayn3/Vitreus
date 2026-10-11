@@ -124,6 +124,14 @@ if [ "$action" = uninstall ]; then
         run sed -i '/vitreus\/desktopsysmon\/desktopsysmon\.plm/d' "$autostart"
         say "removed the desktop system monitor's line from $autostart"
     fi
+    if [ -f "$autostart" ] && grep -q 'vitreus/desktopnotes/desktopnotes.plm' "$autostart"; then
+        run sed -i '/vitreus\/desktopnotes\/desktopnotes\.plm/d' "$autostart"
+        say "removed the desktop notes' line from $autostart"
+    fi
+    if [ -f "$autostart" ] && grep -q 'vitreus/desktopmenu/desktopmenu.plm' "$autostart"; then
+        run sed -i '/vitreus\/desktopmenu\/desktopmenu\.plm/d' "$autostart"
+        say "removed the desktop menu's line from $autostart"
+    fi
     hyprlua="$conf/hypr/hyprland.lua"
     if [ -f "$hyprlua" ] && grep -q '^-- >>> vitreus' "$hyprlua"; then
         run sed -i '/^-- >>> vitreus/,/^-- <<< vitreus/d' "$hyprlua"
@@ -463,6 +471,7 @@ if $do_autostart; then
         if $dry; then echo "    would add to $autostart: $sysmonline"; else printf '%s\n' "$sysmonline" >> "$autostart"; fi
         say "the desktop system monitor starts with the desktop too, hidden (a line in $autostart); \"Desktop system monitor: toggle\" in the launcher shows it"
     fi
+    # The desktop stickers and the desktop's right-click menu are scenes of their own too, but Vitreus starts them itself (see vitreus.luau), so they have no line here.
 fi
 
 # ── the daemons Vitreus talks to ───────────────────────────────────────────

@@ -1,0 +1,904 @@
+language 0.1
+import "../palette.plm"
+
+//  The desktop stickers: sticky notes that stay on the desktop, glass on the bottom layer (above the wallpaper, under every window). Each one is its own little pane of glass, tinted with one of the shell's colours: drag it
+//  (by the strip along its top or anywhere on it) all over the desktop, onto another monitor too; click it to write on it (a line or two: Enter keeps what is typed, Escape lets it be);
+//  the cross in its corner takes it away. New ones come from the desktop's right-click menu ("New sticky note") or the launcher ("Sticky note: new"); up to sixteen. They stay
+//  where they were put, from one session to the next.
+//
+//  The scene is one surface a monitor, each as big as it, and only the stickers take the pointer. Where a sticker is is kept in the desktop's own coordinates (all the monitors'
+//  together, `gx`, `gy`), and each monitor draws the part of that which falls on it: the logic tells the scene where the monitors lie (`m0x` and the rest, from `hyprctl monitors`).
+//
+//  Turn them on or off with   pleamar --say desktopnotes "fact shown true"   (or false); "Desktop notes: toggle" in the launcher does it, and starts it if it is not running.
+//  Its settings are kept in desktopnotes.json and the stickers in desktopnotes-stickers.json, in ~/.local/share/pleamar/desktopnotes (see desktopnotes.luau).
+
+scene DesktopNotes {
+    surface { size: full, full; anchor: top_left; margin: 0; level: bottom; screens: each; reserve: -1; keyboard: on_demand }
+
+    permissions { services: "files", "files.write"; run: "pleamar", "hyprctl" }
+
+    fact shown = false     // the logic sets it from desktopnotes.json (so that `sh` follows it from nothing)
+    fact cli = 1           // the glass: 0 clear, 1 soft, 2 full
+    fact obs = false       // Vitreus has its glass off (Vitreus says so with `fact obs true`): the stickers are flat obsidian
+    fact nmon = 0          // a new sticker is asked for: on which monitor, and where in it (-1 for the middle)
+    fact nx = -1
+    fact ny = -1
+
+    //  Where the monitors lie in the desktop (logical pixels), up to four, and the box all of them make together.
+    fact mcount = 1
+    fact m0x = 0
+    fact m0y = 0
+    fact m1x = 0
+    fact m1y = 0
+    fact m2x = 0
+    fact m2y = 0
+    fact m3x = 0
+    fact m3y = 0
+    fact vx0 = 0
+    fact vy0 = 0
+    fact vx1 = 1920
+    fact vy1 = 1080
+
+    fact eix = -1          // the sticker being written on, -1 for none
+    text ei = ""           // what is typed
+    fact bx = 0            // where the sticker being dragged was when the drag began
+    fact by = 0
+    event note_new ->
+    event note_del ->      // a sticker, by place
+    event note_commit ->   // Enter in the field
+
+    prop sh = 0 ~calm
+    follow sh = if(shown, 1, 0)
+    prop ob = 0 ~calm
+    follow ob = if(obs, 1, 0)
+    let clr = if(cli == 0, 55%, if(cli == 1, 80%, 100%))
+    let mi = clamp(screen.index, 0, 3)
+    let ox = pick(mi, m0x, m1x, m2x, m3x)     // where this monitor's top left is in the desktop
+    let oy = pick(mi, m0y, m1y, m2y, m3y)
+
+    on key Escape while eix >= 0 { eix = -1 }
+    //  (Nothing here takes the keyboard by itself: `focus` on a field the scene was not clicked for makes pleamar ask the compositor for the keyboard exclusively, for good. A sticker is
+    //  written on only after it is clicked, which is what hands the keyboard over.)
+    on submit ei { emit note_commit }
+
+    //  ── sticker 0 ──
+    fact o0 = false      // there is one
+    fact h0 = false      // it has writing
+    fact gx0 = 0         // its top left in the desktop
+    fact gy0 = 0
+    fact c0 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t0 = ""
+    let lx0 = gx0 - ox
+    let ly0 = gy0 - oy
+    zone box zb0 { at: lx0 + 100, ly0 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o0 and sh > 0.5 }
+    zone box zx0 { at: lx0 + 184, ly0 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o0 and sh > 0.5 }
+    on press zb0 { bx = gx0; by = gy0 }
+    on drag zb0 { gx0 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy0 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb0 while abs(gx0 - bx) + abs(gy0 - by) < 6 { eix = 0; focus ei }
+    on press zx0 { emit note_del(0) }
+    //  ── sticker 1 ──
+    fact o1 = false      // there is one
+    fact h1 = false      // it has writing
+    fact gx1 = 0         // its top left in the desktop
+    fact gy1 = 0
+    fact c1 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t1 = ""
+    let lx1 = gx1 - ox
+    let ly1 = gy1 - oy
+    zone box zb1 { at: lx1 + 100, ly1 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o1 and sh > 0.5 }
+    zone box zx1 { at: lx1 + 184, ly1 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o1 and sh > 0.5 }
+    on press zb1 { bx = gx1; by = gy1 }
+    on drag zb1 { gx1 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy1 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb1 while abs(gx1 - bx) + abs(gy1 - by) < 6 { eix = 1; focus ei }
+    on press zx1 { emit note_del(1) }
+    //  ── sticker 2 ──
+    fact o2 = false      // there is one
+    fact h2 = false      // it has writing
+    fact gx2 = 0         // its top left in the desktop
+    fact gy2 = 0
+    fact c2 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t2 = ""
+    let lx2 = gx2 - ox
+    let ly2 = gy2 - oy
+    zone box zb2 { at: lx2 + 100, ly2 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o2 and sh > 0.5 }
+    zone box zx2 { at: lx2 + 184, ly2 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o2 and sh > 0.5 }
+    on press zb2 { bx = gx2; by = gy2 }
+    on drag zb2 { gx2 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy2 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb2 while abs(gx2 - bx) + abs(gy2 - by) < 6 { eix = 2; focus ei }
+    on press zx2 { emit note_del(2) }
+    //  ── sticker 3 ──
+    fact o3 = false      // there is one
+    fact h3 = false      // it has writing
+    fact gx3 = 0         // its top left in the desktop
+    fact gy3 = 0
+    fact c3 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t3 = ""
+    let lx3 = gx3 - ox
+    let ly3 = gy3 - oy
+    zone box zb3 { at: lx3 + 100, ly3 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o3 and sh > 0.5 }
+    zone box zx3 { at: lx3 + 184, ly3 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o3 and sh > 0.5 }
+    on press zb3 { bx = gx3; by = gy3 }
+    on drag zb3 { gx3 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy3 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb3 while abs(gx3 - bx) + abs(gy3 - by) < 6 { eix = 3; focus ei }
+    on press zx3 { emit note_del(3) }
+    //  ── sticker 4 ──
+    fact o4 = false      // there is one
+    fact h4 = false      // it has writing
+    fact gx4 = 0         // its top left in the desktop
+    fact gy4 = 0
+    fact c4 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t4 = ""
+    let lx4 = gx4 - ox
+    let ly4 = gy4 - oy
+    zone box zb4 { at: lx4 + 100, ly4 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o4 and sh > 0.5 }
+    zone box zx4 { at: lx4 + 184, ly4 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o4 and sh > 0.5 }
+    on press zb4 { bx = gx4; by = gy4 }
+    on drag zb4 { gx4 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy4 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb4 while abs(gx4 - bx) + abs(gy4 - by) < 6 { eix = 4; focus ei }
+    on press zx4 { emit note_del(4) }
+    //  ── sticker 5 ──
+    fact o5 = false      // there is one
+    fact h5 = false      // it has writing
+    fact gx5 = 0         // its top left in the desktop
+    fact gy5 = 0
+    fact c5 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t5 = ""
+    let lx5 = gx5 - ox
+    let ly5 = gy5 - oy
+    zone box zb5 { at: lx5 + 100, ly5 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o5 and sh > 0.5 }
+    zone box zx5 { at: lx5 + 184, ly5 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o5 and sh > 0.5 }
+    on press zb5 { bx = gx5; by = gy5 }
+    on drag zb5 { gx5 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy5 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb5 while abs(gx5 - bx) + abs(gy5 - by) < 6 { eix = 5; focus ei }
+    on press zx5 { emit note_del(5) }
+    //  ── sticker 6 ──
+    fact o6 = false      // there is one
+    fact h6 = false      // it has writing
+    fact gx6 = 0         // its top left in the desktop
+    fact gy6 = 0
+    fact c6 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t6 = ""
+    let lx6 = gx6 - ox
+    let ly6 = gy6 - oy
+    zone box zb6 { at: lx6 + 100, ly6 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o6 and sh > 0.5 }
+    zone box zx6 { at: lx6 + 184, ly6 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o6 and sh > 0.5 }
+    on press zb6 { bx = gx6; by = gy6 }
+    on drag zb6 { gx6 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy6 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb6 while abs(gx6 - bx) + abs(gy6 - by) < 6 { eix = 6; focus ei }
+    on press zx6 { emit note_del(6) }
+    //  ── sticker 7 ──
+    fact o7 = false      // there is one
+    fact h7 = false      // it has writing
+    fact gx7 = 0         // its top left in the desktop
+    fact gy7 = 0
+    fact c7 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t7 = ""
+    let lx7 = gx7 - ox
+    let ly7 = gy7 - oy
+    zone box zb7 { at: lx7 + 100, ly7 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o7 and sh > 0.5 }
+    zone box zx7 { at: lx7 + 184, ly7 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o7 and sh > 0.5 }
+    on press zb7 { bx = gx7; by = gy7 }
+    on drag zb7 { gx7 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy7 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb7 while abs(gx7 - bx) + abs(gy7 - by) < 6 { eix = 7; focus ei }
+    on press zx7 { emit note_del(7) }
+    //  ── sticker 8 ──
+    fact o8 = false      // there is one
+    fact h8 = false      // it has writing
+    fact gx8 = 0         // its top left in the desktop
+    fact gy8 = 0
+    fact c8 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t8 = ""
+    let lx8 = gx8 - ox
+    let ly8 = gy8 - oy
+    zone box zb8 { at: lx8 + 100, ly8 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o8 and sh > 0.5 }
+    zone box zx8 { at: lx8 + 184, ly8 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o8 and sh > 0.5 }
+    on press zb8 { bx = gx8; by = gy8 }
+    on drag zb8 { gx8 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy8 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb8 while abs(gx8 - bx) + abs(gy8 - by) < 6 { eix = 8; focus ei }
+    on press zx8 { emit note_del(8) }
+    //  ── sticker 9 ──
+    fact o9 = false      // there is one
+    fact h9 = false      // it has writing
+    fact gx9 = 0         // its top left in the desktop
+    fact gy9 = 0
+    fact c9 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t9 = ""
+    let lx9 = gx9 - ox
+    let ly9 = gy9 - oy
+    zone box zb9 { at: lx9 + 100, ly9 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o9 and sh > 0.5 }
+    zone box zx9 { at: lx9 + 184, ly9 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o9 and sh > 0.5 }
+    on press zb9 { bx = gx9; by = gy9 }
+    on drag zb9 { gx9 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy9 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb9 while abs(gx9 - bx) + abs(gy9 - by) < 6 { eix = 9; focus ei }
+    on press zx9 { emit note_del(9) }
+    //  ── sticker 10 ──
+    fact o10 = false      // there is one
+    fact h10 = false      // it has writing
+    fact gx10 = 0         // its top left in the desktop
+    fact gy10 = 0
+    fact c10 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t10 = ""
+    let lx10 = gx10 - ox
+    let ly10 = gy10 - oy
+    zone box zb10 { at: lx10 + 100, ly10 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o10 and sh > 0.5 }
+    zone box zx10 { at: lx10 + 184, ly10 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o10 and sh > 0.5 }
+    on press zb10 { bx = gx10; by = gy10 }
+    on drag zb10 { gx10 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy10 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb10 while abs(gx10 - bx) + abs(gy10 - by) < 6 { eix = 10; focus ei }
+    on press zx10 { emit note_del(10) }
+    //  ── sticker 11 ──
+    fact o11 = false      // there is one
+    fact h11 = false      // it has writing
+    fact gx11 = 0         // its top left in the desktop
+    fact gy11 = 0
+    fact c11 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t11 = ""
+    let lx11 = gx11 - ox
+    let ly11 = gy11 - oy
+    zone box zb11 { at: lx11 + 100, ly11 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o11 and sh > 0.5 }
+    zone box zx11 { at: lx11 + 184, ly11 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o11 and sh > 0.5 }
+    on press zb11 { bx = gx11; by = gy11 }
+    on drag zb11 { gx11 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy11 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb11 while abs(gx11 - bx) + abs(gy11 - by) < 6 { eix = 11; focus ei }
+    on press zx11 { emit note_del(11) }
+    //  ── sticker 12 ──
+    fact o12 = false      // there is one
+    fact h12 = false      // it has writing
+    fact gx12 = 0         // its top left in the desktop
+    fact gy12 = 0
+    fact c12 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t12 = ""
+    let lx12 = gx12 - ox
+    let ly12 = gy12 - oy
+    zone box zb12 { at: lx12 + 100, ly12 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o12 and sh > 0.5 }
+    zone box zx12 { at: lx12 + 184, ly12 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o12 and sh > 0.5 }
+    on press zb12 { bx = gx12; by = gy12 }
+    on drag zb12 { gx12 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy12 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb12 while abs(gx12 - bx) + abs(gy12 - by) < 6 { eix = 12; focus ei }
+    on press zx12 { emit note_del(12) }
+    //  ── sticker 13 ──
+    fact o13 = false      // there is one
+    fact h13 = false      // it has writing
+    fact gx13 = 0         // its top left in the desktop
+    fact gy13 = 0
+    fact c13 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t13 = ""
+    let lx13 = gx13 - ox
+    let ly13 = gy13 - oy
+    zone box zb13 { at: lx13 + 100, ly13 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o13 and sh > 0.5 }
+    zone box zx13 { at: lx13 + 184, ly13 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o13 and sh > 0.5 }
+    on press zb13 { bx = gx13; by = gy13 }
+    on drag zb13 { gx13 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy13 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb13 while abs(gx13 - bx) + abs(gy13 - by) < 6 { eix = 13; focus ei }
+    on press zx13 { emit note_del(13) }
+    //  ── sticker 14 ──
+    fact o14 = false      // there is one
+    fact h14 = false      // it has writing
+    fact gx14 = 0         // its top left in the desktop
+    fact gy14 = 0
+    fact c14 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t14 = ""
+    let lx14 = gx14 - ox
+    let ly14 = gy14 - oy
+    zone box zb14 { at: lx14 + 100, ly14 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o14 and sh > 0.5 }
+    zone box zx14 { at: lx14 + 184, ly14 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o14 and sh > 0.5 }
+    on press zb14 { bx = gx14; by = gy14 }
+    on drag zb14 { gx14 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy14 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb14 while abs(gx14 - bx) + abs(gy14 - by) < 6 { eix = 14; focus ei }
+    on press zx14 { emit note_del(14) }
+    //  ── sticker 15 ──
+    fact o15 = false      // there is one
+    fact h15 = false      // it has writing
+    fact gx15 = 0         // its top left in the desktop
+    fact gy15 = 0
+    fact c15 = 0          // its paper: 0 yellow, 1 pink, 2 green, 3 blue, 4 orange, 5 violet
+    text t15 = ""
+    let lx15 = gx15 - ox
+    let ly15 = gy15 - oy
+    zone box zb15 { at: lx15 + 100, ly15 + 84; size: 200, 168; corner: 6; cursor: pointer; active: o15 and sh > 0.5 }
+    zone box zx15 { at: lx15 + 184, ly15 + 13; size: 26, 26; corner: 13; cursor: pointer; active: o15 and sh > 0.5 }
+    on press zb15 { bx = gx15; by = gy15 }
+    on drag zb15 { gx15 = clamp(bx + drag.dx, vx0, max(vx0, vx1 - 200)); gy15 = clamp(by + drag.dy, vy0, max(vy0, vy1 - 168)) }
+    on release zb15 while abs(gx15 - bx) + abs(gy15 - by) < 6 { eix = 15; focus ei }
+    on press zx15 { emit note_del(15) }
+
+    //  ── drawing: the stickers one over another, the last on top ──
+    group {
+        show: o0 and sh > 0.01
+        move: lx0, ly0
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c0, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb0.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb0.hover }
+            text t0 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 0 and h0 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 0 and not h0 }
+        }
+    }
+    group {
+        show: o1 and sh > 0.01
+        move: lx1, ly1
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c1, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb1.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb1.hover }
+            text t1 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 1 and h1 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 1 and not h1 }
+        }
+    }
+    group {
+        show: o2 and sh > 0.01
+        move: lx2, ly2
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c2, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb2.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb2.hover }
+            text t2 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 2 and h2 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 2 and not h2 }
+        }
+    }
+    group {
+        show: o3 and sh > 0.01
+        move: lx3, ly3
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c3, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb3.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb3.hover }
+            text t3 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 3 and h3 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 3 and not h3 }
+        }
+    }
+    group {
+        show: o4 and sh > 0.01
+        move: lx4, ly4
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c4, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb4.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb4.hover }
+            text t4 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 4 and h4 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 4 and not h4 }
+        }
+    }
+    group {
+        show: o5 and sh > 0.01
+        move: lx5, ly5
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c5, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb5.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb5.hover }
+            text t5 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 5 and h5 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 5 and not h5 }
+        }
+    }
+    group {
+        show: o6 and sh > 0.01
+        move: lx6, ly6
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c6, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb6.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb6.hover }
+            text t6 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 6 and h6 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 6 and not h6 }
+        }
+    }
+    group {
+        show: o7 and sh > 0.01
+        move: lx7, ly7
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c7, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb7.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb7.hover }
+            text t7 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 7 and h7 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 7 and not h7 }
+        }
+    }
+    group {
+        show: o8 and sh > 0.01
+        move: lx8, ly8
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c8, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb8.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb8.hover }
+            text t8 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 8 and h8 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 8 and not h8 }
+        }
+    }
+    group {
+        show: o9 and sh > 0.01
+        move: lx9, ly9
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c9, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb9.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb9.hover }
+            text t9 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 9 and h9 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 9 and not h9 }
+        }
+    }
+    group {
+        show: o10 and sh > 0.01
+        move: lx10, ly10
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c10, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb10.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb10.hover }
+            text t10 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 10 and h10 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 10 and not h10 }
+        }
+    }
+    group {
+        show: o11 and sh > 0.01
+        move: lx11, ly11
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c11, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb11.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb11.hover }
+            text t11 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 11 and h11 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 11 and not h11 }
+        }
+    }
+    group {
+        show: o12 and sh > 0.01
+        move: lx12, ly12
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c12, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb12.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb12.hover }
+            text t12 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 12 and h12 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 12 and not h12 }
+        }
+    }
+    group {
+        show: o13 and sh > 0.01
+        move: lx13, ly13
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c13, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb13.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb13.hover }
+            text t13 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 13 and h13 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 13 and not h13 }
+        }
+    }
+    group {
+        show: o14 and sh > 0.01
+        move: lx14, ly14
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c14, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb14.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb14.hover }
+            text t14 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 14 and h14 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 14 and not h14 }
+        }
+    }
+    group {
+        show: o15 and sh > 0.01
+        move: lx15, ly15
+        body {
+            color: tint
+            glass: 1
+            lens: false
+            rim: 70%
+            shine: 0, 0
+            shadow: 0, 6, 18, 30%
+            opacity: sh * clr * (1 - ob)
+            show: ob < 0.996
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Obsidian (Vitreus has its glass off): the same shape as a flat, dark piece.
+        body {
+            color: mix(mix(tint, #000000, 0.7), ink, 0.3)
+            rim: 0%
+            opacity: sh * ob
+            shadow: 0, 6, 18, 45%, #000000
+            show: ob > 0.004
+            box { from: 0, 0; size: 200, 168; corner: 22 }
+        }
+        //  Its tint: a wash of one of the shell's own colours over the glass (they follow the wallpaper).
+        box { from: 0, 0; size: 200, 168; corner: 22; color: pick(c15, mint, alert, mintlo, ink, minthi, panel); opacity: 17% * sh }
+        group {
+            opacity: sh
+            box { at: 100, 31; size: 160, 1.2; corner: 0.6; color: ink; opacity: 22% }
+            ellipse { at: 100 - 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100, 15; radius: 1.8; color: ink; opacity: 45% }
+            ellipse { at: 100 + 9, 15; radius: 1.8; color: ink; opacity: 45% }
+            line { from: 174, 10.5; to: 184, 19.5; width: 1.5; color: ink; opacity: 65% * zb15.hover }
+            line { from: 184, 10.5; to: 174, 19.5; width: 1.5; color: ink; opacity: 65% * zb15.hover }
+            text t15 { at: 20, 46; anchor: left top; size: 17; weight: 500; width: 160; lines: 5; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 15 and h15 }
+            text "Click to write" { at: 20, 46; anchor: left top; size: 15; weight: 500; color: ink; opacity: 50%; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: eix != 15 and not h15 }
+        }
+    }
+
+    //  The field, over the sticker being written on (not inside its group: where it is typed in is where it is drawn).
+    let egx = pick(clamp(eix, 0, 15), gx0, gx1, gx2, gx3, gx4, gx5, gx6, gx7, gx8, gx9, gx10, gx11, gx12, gx13, gx14, gx15) - ox
+    let egy = pick(clamp(eix, 0, 15), gy0, gy1, gy2, gy3, gy4, gy5, gy6, gy7, gy8, gy9, gy10, gy11, gy12, gy13, gy14, gy15) - oy
+    box { at: egx + 100, egy + 98; size: 168, 90; corner: 12; color: mix(tint, #000000, 0.35); opacity: 60% * sh; show: eix >= 0 }
+    input ei { at: egx + 20, egy + 52; width: 160; size: 17; weight: 500; color: ink; family: "Space Grotesk"; placeholder: "Write here…"; show: eix >= 0 and sh > 0.01; opacity: sh }
+}
