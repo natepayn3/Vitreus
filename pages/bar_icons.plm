@@ -106,12 +106,17 @@ part BarIcons {
         let sk.q = 0.12 * sk.r
         let sk.x = mix(ws.o + 9 * ws.U, lf.x, lm)
         let sk.y = mix(bar.y, ws.o + 9 * ws.U, lm)
-        path { at: sk.x, sk.y; color: mint; opacity: ws.sp * bs.ws
-            move 0, -sk.r; curve sk.r, 0 via sk.q, -sk.q; curve 0, sk.r via sk.q, sk.q; curve -sk.r, 0 via -sk.q, sk.q; curve 0, -sk.r via -sk.q, -sk.q; close }
         let sk.s = 0.36 * sk.r
         let sk.t = 0.12 * sk.s
-        path { at: sk.x + 0.95 * sk.r, sk.y - 0.8 * sk.r; color: mint; opacity: 0.8 * ws.sp * bs.ws
+        body ws_spark {
+            color: mint
+            shadow: 0, 0, 8 * u, 40%, mint
+            opacity: ws.sp * bs.ws
+        path { at: sk.x, sk.y
+            move 0, -sk.r; curve sk.r, 0 via sk.q, -sk.q; curve 0, sk.r via sk.q, sk.q; curve -sk.r, 0 via -sk.q, sk.q; curve 0, -sk.r via -sk.q, -sk.q; close }
+        path { at: sk.x + 0.95 * sk.r, sk.y - 0.8 * sk.r; opacity: 80%
             move 0, -sk.s; curve sk.s, 0 via sk.t, -sk.t; curve 0, sk.s via sk.t, sk.t; curve -sk.s, 0 via -sk.t, sk.t; curve 0, -sk.s via -sk.t, -sk.t; close }
+        }
         //  The plus: two strokes, there while the workspace in view has a window.
         let wpl.x = mix(ws.a6, lf.x, lm)
         let wpl.y = mix(bar.y, ws.a6, lm)
