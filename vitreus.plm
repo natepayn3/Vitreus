@@ -3760,7 +3760,7 @@ scene Vitreus {
         let wc.gap = -wc.sw * 0.28                                   // they overlap
         let wc.sk = wc.sw * 0.26                                     // how far the top is slanted over
         let wc.step = wc.sw + wc.gap
-        let wc.yb = yo + vh - 176                                    // the bottom of the focused card
+        let wc.yb = yo + vh - 206                                    // the bottom of the focused card
         let wc.yc = wc.yb - wc.H / 2
         let wc.ext = 74                                              // the panel under the focused card's picture
         //  The slices are centred on the focused card as a whole, its panel too: `wc.ext / 2` lower than the picture's middle, which is where they come from (the focus moves up
@@ -3769,11 +3769,11 @@ scene Vitreus {
         let wc.ag = wp_ag
         let wc.ab = wp_ab
         let wc.acc = rgb(wc.ar, wc.ag, wc.ab)
-        //  The colour filter, the same twelve swatches as the Settings' wallpaper page (and the same filter): the cards narrow to the wallpapers of the lit colour; it is
+        //  The colour filter, under the cards, the same twelve swatches as the Settings' wallpaper page (and the same filter): the cards narrow to the wallpapers of the lit colour; it is
         //  pressed again to clear it.
         repeat i in 0..12 {
             let sw.x = wc.cxm + (i - 5.5) * 28
-            let sw.y = wc.yc - wc.H / 2 - 38
+            let sw.y = wc.yb + wc.ext + 30                          // under the card's panel
             let sw.lit = if(wp_filter == i, 1, 0)
             let sw.a = clamp(wp_pgp * 3, 0, 1)
             box { at: sw.x, sw.y; size: 18 + 4 * sw.lit, 18 + 4 * sw.lit; corner: 5; color: pick(i, #e53935, #fb8c00, #fdd835, #43a047, #00acc1, #1e88e5, #8e24aa, #ec407a, #6d4c41, #f5f5f5, #9e9e9e, #212121); opacity: sw.a }
@@ -3882,7 +3882,7 @@ scene Vitreus {
             }
         }
         //  Under the card: the keys.
-        text "Left and Right browse  ·  Enter keeps one  ·  Esc puts the old one back  ·  Tab goes back to the hexagons" { at: floor(wc.cxm + 0.5), floor(wc.yb + wc.ext + 28 + 0.5); anchor: center; align: center; size: 13; color: #ffffff; opacity: 45% * clamp(wp_pgp * 3, 0, 1); family: "Space Grotesk" }
+        text "Left and Right browse  ·  Enter keeps one  ·  Esc puts the old one back  ·  Tab goes back to the hexagons" { at: floor(wc.cxm + 0.5), floor(wc.yb + wc.ext + 66 + 0.5); anchor: center; align: center; size: 13; color: #ffffff; opacity: 45% * clamp(wp_pgp * 3, 0, 1); family: "Space Grotesk" }
         //  Which page it is on: two dots at the foot.
         ellipse { at: cx - 9, yo + vh - 24; radius: 3.5 + 1.5 * (1 - wp_pgp); color: mint; opacity: 35% + 65% * (1 - wp_pgp) }
         ellipse { at: cx + 9, yo + vh - 24; radius: 3.5 + 1.5 * wp_pgp; color: mint; opacity: 35% + 65% * wp_pgp }
