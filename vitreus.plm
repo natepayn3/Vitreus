@@ -2910,6 +2910,8 @@ scene Vitreus {
     let dz.stray = 10 * u * dpstray * lm
     let dz.act = if(lm > 0.5 and desk_open and (abs(desk_ox + (desk_s - 1) * dsk_w) > 4 * du or dprip < 0.98 or dpstray > 0.01 or abs(dbounce) > 0.2), 1, 0)
     let dz.px = if(dz.act > 0.5, 0, 30000)
+    //  The ripples alone also run after the desk has closed (`dz.act` needs it open): they are the closing ripple, as the title's panel has (`tprip`).
+    let dz.rpx = if(lm > 0.5 and dprip < 0.98, 0, 30000)
     let dz.fy = mix(vc + desk_oy, desk_ry, dz.det)       // along the frame: where the neck is, then where it broke
     let dz.ey = vc + desk_oy
     //  What the glass is when the desk is scaled (about its top left corner, which `dsk_x0`, `dsk_y0` is): the contents are scaled by a group and take
@@ -3014,6 +3016,7 @@ scene Vitreus {
     on change dz.det > 0.7 while dz.det > 0.7 { desk_ry = vc + desk_oy; impulse dbounce -280; impulse wobble -300; dprip: 0 ~16ms; dprip: 1 ~1100ms after 30ms; dpstray: 1 ~16ms; dpstray: 0 ~700ms after 60ms }
     on change dz.det < 0.7 while dz.det < 0.7 and desk_open { desk_ry = vc + desk_oy; impulse dbounce 80; impulse wobble 200 }
     on change dz.det < 0.05 while dz.det < 0.05 and desk_open { desk_ry = vc + desk_oy; impulse dbounce -200; impulse wobble -120; dprip: 0 ~16ms; dprip: 1 ~900ms after 30ms }
+    on change dz0 < 0.06 while dz0 < 0.06 and not desk_open and lm > 0.5 { dprip: 0 ~16ms; dprip: 1 ~900ms after 30ms }
     follow desk_sel = desk_tab
     zone box ntz_r { at: screen.width - (lf.t + 6 * cu) / 2, vc; size: lf.t + 6 * cu, nt_w + 24 * cu; active: lm > 0.5 and not desk_open }
     zone box ntn_r { at: screen.width - (lf.t + nt_d) / 2, vc; size: lf.t + nt_d, nt_w; cursor: pointer; active: lm > 0.5 and nt_vis_r > 0.5 and not desk_open }
