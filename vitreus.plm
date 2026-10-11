@@ -1276,6 +1276,7 @@ scene Vitreus {
     //  with a spring that overshoots, glides from one hexagon to the next, has a light sweep across it each time the pointer
     //  arrives, and its edge ripples (`liquid.wgsl`).
     shader liquid = file "liquid.wgsl"
+    shader cardrip = file "cardrip.wgsl"
     spring wp_picker_pop = 240, 14             // a spring that overshoots (about 17%): the snap out to the large size bounces
     fact wp_picker_hx = 0                     // where the hovered hexagon is
     fact wp_picker_hy = 0
@@ -1296,7 +1297,44 @@ scene Vitreus {
     on change wp_picker_hot while wp_picker_hot >= 0 { wp_picker_sw: 0 ~40ms }
     on change wp_picker_hot while wp_picker_hot >= 0 { wp_picker_sw: 1 ~700ms after 60ms }
     on change wp_picker_open while not wp_picker_open { wp_picker_hot = -1 }
-    on key Escape while wp_picker_open { wp_picker_open = false }
+    on key Escape while wp_picker_open and wp_pg == 0 { wp_picker_open = false }
+    //  The picker has a second page, a row of cards along the foot that changes the wallpaper live as they are shifted through. The two sit side by side and
+    //  the whole picker swipes between them: Tab goes from one to the other (the arrows belong to the cards; the two dots at the foot can be pressed too). The cards are the logic's `wp_cards`:
+    //  fifteen slots around the one in focus (a window onto the list: the atlas could not hold every picture), `wp_card_base` the position of the first slot
+    //  in the list and `wp_card_sel` the one in focus. Escape puts the old wallpaper back; Enter, a click on the focused card or a click outside keeps what is showing.
+    fact wp_pg = 0                            // the page asked for: 0 hexagons, 1 cards
+    prop wp_pgp = 0 ~calm                     // and how far the swipe has got
+    follow wp_pgp = wp_pg
+    model wp_cards max 15 { img: image 96, 216; ix: number; cur: bool; ok: bool }        // the narrow strip of each wallpaper in the row (a tall crop of its middle)
+    model wp_big max 2 { img: image 768, 432; ix: number; cur: bool; ok: bool }           // the picture of the one in focus, and of the one that has just left focus (so it can shrink)
+    text wp_card_info = ""                    // 3840 × 2160  ·  2.4 MB  ·  PNG  ·  41 of 137
+    fact wp_card_cr = 0.5                     // the accent of the one in focus, from the wallpaper's own colour (0 to 1)
+    fact wp_card_cg = 0.8
+    fact wp_card_cb = 0.7
+    prop wp_ar = 0.5 ~calm
+    prop wp_ag = 0.8 ~calm
+    prop wp_ab = 0.7 ~calm
+    follow wp_ar = wp_card_cr
+    follow wp_ag = wp_card_cg
+    follow wp_ab = wp_card_cb
+    fact wp_card_sel = 0
+    fact wp_card_base = 0
+    text wp_card_name = ""
+    prop wp_cpos = 0 ~lively                  // where the row has got to, in cards: it glides to the one in focus
+    follow wp_cpos = wp_card_sel
+    fact wp_card_rip = 0                      // counts the cards kept: each one sets off the ripple
+    prop wp_crip = 1 ~900ms                   // the card's ripple, as the island bar's when a panel closes: 0 just born, 1 gone
+    on change wp_card_rip while wp_card_rip > 0 { wp_crip: 0 ~16ms; wp_crip: 1 ~900ms after 30ms }
+    event wp_card_step ->                     // -1 or 1
+    event wp_card_go ->                       // a card pressed, by its place in the list
+    event wp_card_pick ->                     // keep this one
+    event wp_card_cancel ->                   // put the old one back
+    on key Right while wp_picker_open and wp_pg == 1 { emit wp_card_step(1) }
+    on key Left while wp_picker_open and wp_pg == 1 and wp_card_sel > 0.5 { emit wp_card_step(-1) }
+    on key Tab while wp_picker_open { wp_pg = 1 - wp_pg }
+    on key Return while wp_picker_open and wp_pg == 1 { emit wp_card_pick }
+    on key Escape while wp_picker_open and wp_pg == 1 { emit wp_card_cancel }
+    on change wp_pg while wp_pg > 0.5 { wp_picker_hot = -1 }
     //  The workspace overview (the button before the bar's workspace dots, or the launcher): a card for each of the five workspaces,
     //  listing the windows on it. The logic fills `ovw` a slot at a time (nine to a workspace, in order) from `hyprctl clients`, each with a
     //  picture of the window taken while its workspace was in front.
@@ -3618,7 +3656,8 @@ scene Vitreus {
     let g.rows = floor((g.n + g.cols - 1) / g.cols)
     let g.gw = (g.cols + 0.5) * g.w
     let g.gh = (g.rows - 1) * 1.5 * g.R + 2 * g.R
-    let g.x0 = cx - g.gw / 2
+    let g.pgx = -wp_pgp * screen.width                  // the swipe: the hexagons leave to the left as the cards come in
+    let g.x0 = cx - g.gw / 2 + g.pgx
     //  Round the hovered hexagon the others give way: they are pushed outwards (by K, most at about a tile's distance and not at all far
     //  off) and the ring next to it shrinks a little. The hovered one grows on its own spring (`gt`). `sg` is how far this reaches.
     let g.K = 0.55 * clamp(wp_picker_hs, 0, 1.1)
@@ -3631,14 +3670,18 @@ scene Vitreus {
         opacity: wp_picker_show * wp_picker_veil
         //  Behind the tiles, a plain dark sheet over the whole surface (a shape, not a glass body: those were what made the picker slow), so that
         //  nothing of what is under shows through.
-        box { at: screen.width / 2, screen.height / 2; size: screen.width, screen.height; color: #05070d; opacity: 88% }
+        //  On the cards page there is no sheet: the wallpaper changes live under it, so it has to be seen. Only a soft shade rises from the foot, for the cards and their words.
+        box { at: screen.width / 2, screen.height / 2; size: screen.width, screen.height; color: #05070d; opacity: 88% * (1 - wp_pgp) }
+        repeat k in 0..8 {
+            box { from: 0, yo + vh - 420 + k * 52.5; size: screen.width, 53; color: #05070d; opacity: (k + 1) * 9% * clamp(wp_pgp * 2 - 0.4, 0, 1) }
+        }
         //  Where the pointer is on the hovered tile, for its tilt: a grid of invisible zones laid over it, 7 across and 8 down, each of which
         //  notes the pointer as it comes in. The tile's shader cannot be told (a group's shader is not given the pointer), and reading `cursor`
         //  instead made pleamar poll the mouse all the time. Declared before the tiles, so a press still goes to the tile under it.
         let tl.w = 1.732 * g.R * 0.93 * (1 + 0.8 * wp_picker_hs)
         let tl.h = 2 * g.R * 0.93 * (1 + 0.8 * wp_picker_hs)
         repeat k in 0..56 {
-            zone box wp_tilt.$k { at: wp_picker_lx + (mod(k, 7) - 3) * tl.w / 7, wp_picker_ly + (floor(k / 7) - 3.5) * tl.h / 8; size: tl.w / 7 + 1, tl.h / 8 + 1; active: wp_picker_hot >= 0 and wp_picker_open and wp_picker_leaving == 0 }
+            zone box wp_tilt.$k { at: wp_picker_lx + (mod(k, 7) - 3) * tl.w / 7, wp_picker_ly + (floor(k / 7) - 3.5) * tl.h / 8; size: tl.w / 7 + 1, tl.h / 8 + 1; active: wp_picker_hot >= 0 and wp_picker_open and wp_picker_leaving == 0 and wp_pgp < 0.1 }
             on enter wp_tilt.$k { wp_picker_tx: clamp((pointer.x - wp_picker_lx) / tl.w, -0.6, 0.6); wp_picker_ty: clamp((pointer.y - wp_picker_ly) / tl.h, -0.6, 0.6) }
         }
         repeat i in 0..200 {
@@ -3691,7 +3734,7 @@ scene Vitreus {
                 path { at: bxl, byl; stroke: 3.4; color: if(cu > 0, mint, #ffffff); opacity: 95%; move -0.0953 * rr, -0.9450 * rr; curve 0.0953 * rr, -0.9450 * rr via 0, -1 * rr; line 0.7707 * rr, -0.5550 * rr; curve 0.8660 * rr, -0.3900 * rr via 0.866 * rr, -0.5 * rr; line 0.8660 * rr, 0.3900 * rr; curve 0.7707 * rr, 0.5550 * rr via 0.866 * rr, 0.5 * rr; line 0.0953 * rr, 0.9450 * rr; curve -0.0953 * rr, 0.9450 * rr via 0, 1 * rr; line -0.7707 * rr, 0.5550 * rr; curve -0.8660 * rr, 0.3900 * rr via -0.866 * rr, 0.5 * rr; line -0.8660 * rr, -0.3900 * rr; curve -0.7707 * rr, -0.5550 * rr via -0.866 * rr, -0.5 * rr; close }
             }
             //  Its zone is the circle inside the hexagon, as big as the hexagon is now.
-            zone box wp_picker_z.$i { at: bxl, byl; size: 1.732 * rr, 1.732 * rr; corner: 0.866 * rr; cursor: pointer; active: i < g.n and i < wp_picker.count and wp_picker_show > 0.5 and wp_picker_leaving == 0 }
+            zone box wp_picker_z.$i { at: bxl, byl; size: 1.732 * rr, 1.732 * rr; corner: 0.866 * rr; cursor: pointer; active: i < g.n and i < wp_picker.count and wp_picker_show > 0.5 and wp_picker_leaving == 0 and wp_pgp < 0.1 }
             on enter wp_picker_z.$i { wp_picker_hot = i; wp_picker_hx = bx; wp_picker_hy = by }
             on away wp_picker_z.$i for 200ms while wp_picker_hot == i { wp_picker_hot = -1 }
             on press wp_picker_z.$i { wp_picker_px = bxl; wp_picker_py = mh - byl; emit wp_picker_pick(i) }
@@ -3699,9 +3742,154 @@ scene Vitreus {
 
         //  The foot: the name of the one under the pointer, or a line of help; and Random.
         let fy = g.y0 + g.gh + g.foot - 22
-        text wp_picker_hero_name { at: floor(cx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 23; weight: 700; width: 900; lines: 1; color: #ffffff; family: "Space Grotesk"; show: wp_picker_hot >= 0 }
-        text "Pick a wallpaper  ·  Esc or a click outside closes" { at: floor(cx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 18; color: #ffffff; opacity: 55%; family: "Space Grotesk"; show: wp_picker_hot < 0 and wp_picker.count > 0 }
-        text wp_picker_status { at: floor(cx + 0.5), floor(yo + vh / 2 + 0.5); anchor: center; align: center; size: 16; weight: 600; width: 600; lines: 1; color: #ffffff; opacity: 70%; family: "Space Grotesk"; show: wp_picker.count < 1 }
+        text wp_picker_hero_name { at: floor(cx + g.pgx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 23; weight: 700; width: 900; lines: 1; color: #ffffff; family: "Space Grotesk"; show: wp_picker_hot >= 0 }
+        text "Pick a wallpaper  ·  Tab for the cards  ·  Esc or a click outside closes" { at: floor(cx + g.pgx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 18; color: #ffffff; opacity: 55%; family: "Space Grotesk"; show: wp_picker_hot < 0 and wp_picker.count > 0 }
+        text wp_picker_status { at: floor(cx + g.pgx + 0.5), floor(yo + vh / 2 + 0.5); anchor: center; align: center; size: 16; weight: 600; width: 600; lines: 1; color: #ffffff; opacity: 70%; family: "Space Grotesk"; show: wp_picker.count < 1 }
+
+        //  ── the cards ────────────────────────────────────────────────
+        //  A row of tall slanted slices, the one in focus opened out into a wide card (after Ryoku's carousel). Slot `s` holds the list's number `ix` (the logic
+        //  fills them in drawing order: the left side outwards in, then the right side from far to near, so a nearer slice lies over a farther one). A slice's
+        //  place comes from its distance `d` to `wp_cpos`, which glides, so a slice keeps moving when the slots are refilled one place along. The focused
+        //  picture is `wp_big`, drawn over its slice in the same shape; there are two of them, so the one that has just lost the focus can shrink back.
+        let wc.px = (1 - wp_pgp) * screen.width
+        let wc.cxm = cx + wc.px
+        let wc.W = clamp(screen.width * 0.34, 400, 660)              // the focused card
+        let wc.H = wc.W * 9 / 16
+        let wc.sw = wc.W * 0.14                                      // a slice
+        let wc.sh = wc.H * 0.9
+        let wc.gap = -wc.sw * 0.28                                   // they overlap
+        let wc.sk = wc.sw * 0.26                                     // how far the top is slanted over
+        let wc.step = wc.sw + wc.gap
+        let wc.yb = yo + vh - 176                                    // the bottom of the focused card
+        let wc.yc = wc.yb - wc.H / 2
+        let wc.ext = 74                                              // the panel under the focused card's picture
+        //  The slices are centred on the focused card as a whole, its panel too: `wc.ext / 2` lower than the picture's middle, which is where they come from (the focus moves up
+        //  to its own middle as a card opens out).
+        let wc.ar = wp_ar
+        let wc.ag = wp_ag
+        let wc.ab = wp_ab
+        let wc.acc = rgb(wc.ar, wc.ag, wc.ab)
+        //  The colour filter, the same twelve swatches as the Settings' wallpaper page (and the same filter): the cards narrow to the wallpapers of the lit colour; it is
+        //  pressed again to clear it.
+        repeat i in 0..12 {
+            let sw.x = wc.cxm + (i - 5.5) * 28
+            let sw.y = wc.yc - wc.H / 2 - 38
+            let sw.lit = if(wp_filter == i, 1, 0)
+            let sw.a = clamp(wp_pgp * 3, 0, 1)
+            box { at: sw.x, sw.y; size: 18 + 4 * sw.lit, 18 + 4 * sw.lit; corner: 5; color: pick(i, #e53935, #fb8c00, #fdd835, #43a047, #00acc1, #1e88e5, #8e24aa, #ec407a, #6d4c41, #f5f5f5, #9e9e9e, #212121); opacity: sw.a }
+            box { at: sw.x, sw.y; size: 18 + 4 * sw.lit, 18 + 4 * sw.lit; corner: 5; stroke: 1; color: #000000; opacity: 35% * sw.a }
+            box { at: sw.x, sw.y; size: 26, 26; corner: 7; stroke: 2; color: wc.acc; opacity: sw.lit * sw.a }
+            zone box wp_cswatch.$i { at: sw.x, sw.y; size: 26, 26; corner: 7; cursor: pointer; active: wp_pg == 1 and wp_pgp > 0.6 and wp_picker_show > 0.5 }
+            on press wp_cswatch.$i { emit wp_filter_set(i) }
+        }
+        repeat s in 0..15 {
+            let wc.d = wp_cards.$s.ix - wp_cpos
+            let wc.e = 1 - min(1, abs(wc.d))
+            //  An accordion: the further from the focus, the smaller the slice (full size beside it, then a step smaller, then a smaller one still), and the row bunches up with it.
+            let wc.f = 1 - 0.15 * clamp(abs(wc.d) - 1, 0, 1) - 0.15 * clamp(abs(wc.d) - 2, 0, 1)
+            let wc.x1 = clamp(abs(wc.d) - 1, 0, 1)
+            let wc.x2 = clamp(abs(wc.d) - 2, 0, 1)
+            let wc.fx = wc.x1 * (1 - 0.075 * wc.x1) + wc.x2 * (0.85 - 0.075 * wc.x2) + 0.7 * max(abs(wc.d) - 3, 0)
+            let wc.k = wc.sk * wc.f
+            let wc.w = mix(wc.sw * wc.f, wc.W, wc.e)
+            let wc.h = mix(wc.sh * wc.f, wc.H, wc.e)
+            let wc.l = if(wc.d < -1, wc.cxm - wc.W / 2 - wc.gap - wc.fx * 0.72 * wc.sw - wc.w, if(wc.d < 0, wc.cxm - wc.W / 2 + wc.d * wc.step, mix(wc.cxm - wc.W / 2, wc.cxm + wc.W / 2 + wc.gap, min(wc.d, 1)) + wc.fx * 0.72 * wc.sw))
+            //  Every card has the same rounded corners, focused or not.
+            let wc.r = 18
+            let wc.ln = length(wc.k, wc.h)
+            let wc.nx = -wc.k / wc.ln
+            let wc.ny = wc.h / wc.ln
+            let wc.brx = wc.w - wc.k
+            let wc.t = wc.yc + wc.ext / 2 * (1 - wc.e) - wc.h / 2
+            let wc.a = clamp(8 - abs(wc.d), 0, 1) * clamp(wp_pgp * 3, 0, 1)
+            group {
+                show: wp_cards.$s.ok and wc.a > 0.01 and wp_pgp > 0.01
+                //  The fade goes on each shape (see the hexagons): a group with an opacity is a layer of its own, and there are only sixty-four a frame.
+                group {
+                    clip path { at: wc.l, wc.t; move wc.k + wc.r, 0; line wc.w - wc.r, 0; curve wc.w + wc.r * wc.nx, wc.r * wc.ny via wc.w, 0; line wc.brx - wc.r * wc.nx, wc.h - wc.r * wc.ny; curve wc.brx - wc.r, wc.h via wc.brx, wc.h; line wc.r, wc.h; curve -wc.r * wc.nx, wc.h - wc.r * wc.ny via 0, wc.h; line wc.k + wc.r * wc.nx, wc.r * wc.ny; curve wc.k + wc.r, 0 via wc.k, 0; close }
+                    box { at: wc.l + wc.w / 2, wc.t + wc.h / 2; size: wc.w, wc.h; color: #10131c; opacity: wc.a }
+                    image wp_cards.$s.img { at: wc.l + wc.w / 2 - max(wc.w, wc.h * 0.444) / 2, wc.t + wc.h / 2 - max(wc.h, wc.w * 2.25) / 2; size: max(wc.w, wc.h * 0.444), max(wc.h, wc.w * 2.25); opacity: wc.a * (1 - wc.e) }       // gone as it opens out: the big picture takes over, and until it is there a dark card is better than the strip blown up
+                    box { at: wc.l + wc.w / 2, wc.t + wc.h / 2; size: wc.w, wc.h; color: #05070d; opacity: 42% * wc.a }
+                }
+                path { at: wc.l, wc.t; stroke: 1; color: #ffffff; opacity: 22% * wc.a; move wc.k + wc.r, 0; line wc.w - wc.r, 0; curve wc.w + wc.r * wc.nx, wc.r * wc.ny via wc.w, 0; line wc.brx - wc.r * wc.nx, wc.h - wc.r * wc.ny; curve wc.brx - wc.r, wc.h via wc.brx, wc.h; line wc.r, wc.h; curve -wc.r * wc.nx, wc.h - wc.r * wc.ny via 0, wc.h; line wc.k + wc.r * wc.nx, wc.r * wc.ny; curve wc.k + wc.r, 0 via wc.k, 0; close }
+            }
+            zone box wp_card_z.$s { at: wc.l + wc.w / 2, wc.t + wc.h / 2; size: wc.w - wc.k, wc.h; cursor: pointer; active: wp_cards.$s.ok and wp_pg == 1 and wp_pgp > 0.6 and wp_picker_show > 0.5 and abs(wc.d) < 7 }
+            on press wp_card_z.$s { emit wp_card_go(wp_cards.$s.ix) }
+        }
+        repeat b in 0..2 {
+            let wb.d = wp_big.$b.ix - wp_cpos
+            let wb.e = 1 - min(1, abs(wb.d))
+            //  An accordion: the further from the focus, the smaller the slice (full size beside it, then a step smaller, then a smaller one still), and the row bunches up with it.
+            let wb.f = 1 - 0.15 * clamp(abs(wb.d) - 1, 0, 1) - 0.15 * clamp(abs(wb.d) - 2, 0, 1)
+            let wb.x1 = clamp(abs(wb.d) - 1, 0, 1)
+            let wb.x2 = clamp(abs(wb.d) - 2, 0, 1)
+            let wb.fx = wb.x1 * (1 - 0.075 * wb.x1) + wb.x2 * (0.85 - 0.075 * wb.x2) + 0.7 * max(abs(wb.d) - 3, 0)
+            let wb.k = wc.sk * wb.f
+            let wb.w = mix(wc.sw * wb.f, wc.W, wb.e)
+            let wb.h = mix(wc.sh * wb.f, wc.H, wb.e)
+            let wb.l = if(wb.d < -1, wc.cxm - wc.W / 2 - wc.gap - wb.fx * 0.72 * wc.sw - wb.w, if(wb.d < 0, wc.cxm - wc.W / 2 + wb.d * wc.step, mix(wc.cxm - wc.W / 2, wc.cxm + wc.W / 2 + wc.gap, min(wb.d, 1)) + wb.fx * 0.72 * wc.sw))
+            let wb.t = wc.yc + wc.ext / 2 * (1 - wb.e) - wb.h / 2
+            let wb.a = clamp(8 - abs(wb.d), 0, 1) * clamp(wp_pgp * 3, 0, 1)
+            //  The focused card has a dark panel hanging under its picture (its name and what it is), and rounded corners. Its sides go on slanting at the same angle.
+            let wb.ext = wc.ext * wb.e
+            let wb.H = wb.h + wb.ext
+            let wb.ske = wb.k * wb.ext / wb.h
+            let wb.ln = length(wb.k + wb.ske, wb.H)
+            let wb.nx = -(wb.k + wb.ske) / wb.ln
+            let wb.ny = wb.H / wb.ln
+            let wb.r = 18
+            let wb.brx = wb.w - wb.k - wb.ske
+            //  The card's own ripple when it is kept, as the island bar's when a panel closes (`cardrip.wgsl`): two crests run out along its top and foot edges from the middle,
+            //  and the picture and panel bulge where they pass. All in pixels from the middle of the group's box (`wb.bx`, `wb.by`); the box is larger than the card, to give the
+            //  bulge room.
+            let wb.rq = 10 + 0.55 * wb.w * wp_crip
+            let wb.rh = 22 * (1 - wp_crip) * clamp(wp_crip * 6, 0, 1) * clamp(wb.e * 2 - 1, 0, 1)
+            let wb.bx = wb.l + (wb.w - wb.ske) / 2
+            let wb.by = wb.t + wb.H / 2
+            group {
+                show: wp_big.$b.ok and wb.a > 0.01 and wb.e > 0.02 and wp_pgp > 0.01
+                shader: cardrip, wb.rq, wb.rh, wb.l + (wb.k + wb.w) / 2 - wb.bx, wb.l + (wb.brx - wb.ske) / 2 - wb.bx, wb.t - wb.by, wb.t + wb.H - wb.by, 46, 60
+                box { at: wb.bx, wb.by; size: wb.w + wb.ske + 240, wb.H + 160; color: #ffffff; opacity: 0.4% }
+                group {
+                    clip path { at: wb.l, wb.t; move wb.k + wb.r, 0; line wb.w - wb.r, 0; curve wb.w + wb.r * wb.nx, wb.r * wb.ny via wb.w, 0; line wb.brx - wb.r * wb.nx, wb.H - wb.r * wb.ny; curve wb.brx - wb.r, wb.H via wb.brx, wb.H; line -wb.ske + wb.r, wb.H; curve -wb.ske - wb.r * wb.nx, wb.H - wb.r * wb.ny via -wb.ske, wb.H; line wb.k + wb.r * wb.nx, wb.r * wb.ny; curve wb.k + wb.r, 0 via wb.k, 0; close }
+                    image wp_big.$b.img { at: wb.l + wb.w / 2 - max(wb.w, wb.h * 1.7778) / 2, wb.t + wb.h / 2 - max(wb.h, wb.w * 0.5625) / 2; size: max(wb.w, wb.h * 1.7778), max(wb.h, wb.w * 0.5625); opacity: wb.a * clamp(wb.e * 4, 0, 1) }
+                    box { at: wb.l + wb.w / 2, wb.t + wb.h / 2; size: wb.w, wb.h; color: #05070d; opacity: 42% * (1 - wb.e) * wb.a }
+                }
+                //  The panel: the shell's own glass (a body, frosted and blurred over what is behind it) in the card's shape from the foot of the picture down: flush
+                //  with it along the top, rounded at the bottom.
+                body {
+                    color: #05070d
+                    opacity: 58% * clamp(wb.e * 2 - 0.6, 0, 1) * wb.a
+                    rim: 14%
+                    path { at: wb.l, wb.t; move wb.k - (wb.k + wb.ske) * wb.h / wb.H, wb.h; line wb.w - (wb.k + wb.ske) * wb.h / wb.H, wb.h; line wb.brx - wb.r * wb.nx, wb.H - wb.r * wb.ny; curve wb.brx - wb.r, wb.H via wb.brx, wb.H; line -wb.ske + wb.r, wb.H; curve -wb.ske - wb.r * wb.nx, wb.H - wb.r * wb.ny via -wb.ske, wb.H; close }
+                }
+                //  The ring: faint on the slices, the wallpaper's own accent on the one in focus.
+                path { at: wb.l, wb.t; stroke: 1 + 2.5 * wb.e; color: mix(#ffffff, wc.acc, wb.e); opacity: (22% + 78% * wb.e) * wb.a; move wb.k + wb.r, 0; line wb.w - wb.r, 0; curve wb.w + wb.r * wb.nx, wb.r * wb.ny via wb.w, 0; line wb.brx - wb.r * wb.nx, wb.H - wb.r * wb.ny; curve wb.brx - wb.r, wb.H via wb.brx, wb.H; line -wb.ske + wb.r, wb.H; curve -wb.ske - wb.r * wb.nx, wb.H - wb.r * wb.ny via -wb.ske, wb.H; line wb.k + wb.r * wb.nx, wb.r * wb.ny; curve wb.k + wb.r, 0 via wb.k, 0; close }
+                //  A tag on the one in use.
+                group {
+                    show: wp_big.$b.cur and wb.e > 0.6
+                    box { at: wb.l + wb.k + 52, wb.t + 26; size: 84, 24; corner: 12; color: #05070d; opacity: 62% * wb.e * wb.a }
+                    box { at: wb.l + wb.k + 52, wb.t + 26; size: 84, 24; corner: 12; stroke: 1.5; color: wc.acc; opacity: 90% * wb.e * wb.a }
+                    text "IN USE" { at: floor(wb.l + wb.k + 52 + 0.5), floor(wb.t + 26 + 0.5); anchor: center; align: center; size: 12; weight: 700; color: wc.acc; opacity: wb.e * wb.a; family: "Space Grotesk" }
+                }
+                //  Its name in its own accent, and what it is. (Both are the focus's: while the old one shrinks back they fade out with its panel.)
+                group {
+                    show: wb.e > 0.5
+                    let wb.px = wb.l + (wb.w + wb.k) / 2 - wb.k * (wb.h + 36) / wb.h
+                    text wp_card_name { at: floor(wb.px + 0.5), floor(wb.t + wb.h + 26 + 0.5); anchor: center; align: center; size: 24; weight: 700; width: wb.w - 2 * wb.k - 40; lines: 1; color: wc.acc; opacity: clamp(wb.e * 2 - 1, 0, 1) * wb.a; family: "Space Grotesk" }
+                    text wp_card_info { at: floor(wb.px + 0.5), floor(wb.t + wb.h + 54 + 0.5); anchor: center; align: center; size: 14; weight: 500; width: wb.w - 2 * wb.k - 40; lines: 1; color: #ffffff; opacity: 80% * clamp(wb.e * 2 - 1, 0, 1) * wb.a; family: "Space Grotesk" }
+                }
+            }
+        }
+        //  Under the card: the keys.
+        text "Left and Right browse  ·  Enter keeps one  ·  Esc puts the old one back  ·  Tab goes back to the hexagons" { at: floor(wc.cxm + 0.5), floor(wc.yb + wc.ext + 28 + 0.5); anchor: center; align: center; size: 13; color: #ffffff; opacity: 45% * clamp(wp_pgp * 3, 0, 1); family: "Space Grotesk" }
+        //  Which page it is on: two dots at the foot.
+        ellipse { at: cx - 9, yo + vh - 24; radius: 3.5 + 1.5 * (1 - wp_pgp); color: mint; opacity: 35% + 65% * (1 - wp_pgp) }
+        ellipse { at: cx + 9, yo + vh - 24; radius: 3.5 + 1.5 * wp_pgp; color: mint; opacity: 35% + 65% * wp_pgp }
+        zone box wp_pg_dot0 { at: cx - 9, yo + vh - 24; size: 18, 18; corner: 9; cursor: pointer; active: wp_picker_show > 0.5 }
+        zone box wp_pg_dot1 { at: cx + 9, yo + vh - 24; size: 18, 18; corner: 9; cursor: pointer; active: wp_picker_show > 0.5 }
+        on press wp_pg_dot0 { wp_pg = 0 }
+        on press wp_pg_dot1 { wp_pg = 1 }
     }
 
     include "pages/overview.plm"

@@ -2668,9 +2668,13 @@ local wp_on_change = function(path) end       -- the wallpaper page, further dow
 -- until then it still says the old one. Taking that for a change made from outside would run Iris on the old wallpaper again (the colours
 -- went back, and then, when awww caught up, forward again). So what awww says is not believed until it says this, or the time is up.
 local wp_pending, wp_pending_until = nil, 0
+-- The wallpaper picker's cards change the wallpaper while they are shifted through; the colours are only worked out once one is kept. Until then what
+-- awww shows is not a change made from outside (a global: this chunk is at Luau's limit of locals).
+wp_prev = { on = false, touched = false, cancel = false, orig = nil, shown = nil }
 local function check_wallpaper()
     run("awww", { "query" }, function(out, code)
         if code ~= 0 or not out then return end
+        if wp_prev.on then return end
         local path = out:match("currently displaying: image: ([^\n]+)")
         if wp_pending then
             if path == wp_pending then wp_pending = nil
@@ -2918,9 +2922,10 @@ local function wp_crop(files, kind, w, h, done)
         if not src then wp_made[out] = false; left = left - 1; if left == 0 then done() end return end
         -- `jpeg:size` lets the decoder shrink while it reads (a 4K picture is not decoded whole to make a thumbnail), and one
         -- thread each keeps a page of these from taking every core.
-        run("magick", { "-limit", "thread", "1", "-define", "jpeg:size=" .. (w * 2) .. "x" .. (h * 2), src .. "[0]",
-                        "-thumbnail", w .. "x" .. h .. "^", "-gravity", "center",
-                        "-extent", w .. "x" .. h, "-quality", "88", out }, function(_, code)
+        local args = { "-limit", "thread", "1", "-define", "jpeg:size=" .. (w * 2) .. "x" .. (h * 2), src .. "[0]",
+                       "-auto-orient", "-thumbnail", w .. "x" .. h .. "^", "-gravity", "center",
+                       "-extent", w .. "x" .. h, "-quality", "88", out }
+        run("magick", args, function(_, code)
             wp_made[out] = code == 0
             left = left - 1
             if left == 0 then done() end
@@ -2993,7 +2998,8 @@ local function wp_hex(path, x, y, ok_fn, fail_fn)
 end
 
 -- `how`: awww's transition flags. `hex`, `{ x =, y = }`: the dissolve from that point instead (the wallpaper picker's).
-local function wp_apply(path, how, started, hex)
+-- `quiet`: a try, not a change: no video, no colours (Iris), and the wallpaper in use is not changed (the cards' live preview).
+local function wp_apply(path, how, started, hex, quiet)
     -- `src`: the picture awww is given: the wallpaper itself, or a video's poster (made first, once)
     wpv.src(path, function(src)
         if not src then return end
@@ -3001,7 +3007,7 @@ local function wp_apply(path, how, started, hex)
             local args = { "img", src }
             for _, a in ipairs(how or { "--transition-type", "fade", "--transition-duration", "0.8" }) do args[#args + 1] = a end
             run("awww", args, function()
-                wpv.settle(path)
+                if not quiet then wpv.settle(path) end
                 if started then started() end     -- `started`: awww has the picture, the change is under way
             end)
         end
@@ -3011,6 +3017,7 @@ local function wp_apply(path, how, started, hex)
         else
             by_awww()
         end
+        if quiet then return end
         wp_on_change(path)
         -- The path is known: Iris starts now, while the fade plays, not when the watcher next notices the
         -- change. Marking it seen stops the watcher running it a second time.
@@ -5419,10 +5426,259 @@ require("logic/nightmode")(with_dirs)
     wp_picker_start = start                              -- built at once when the folder is listed, not when the picker is first opened
     every(2000, function() if not G.started then start() end end)    -- and again if the first listing found nothing
 
+    -- ── The cards (the picker's second page) ─────────────────────────────────────────────────────────────────────────
+    -- A row of slanted slices with the card in focus opened out (see the scene). The scene holds fifteen slots around the focus (`wp_cards`: a window onto
+    -- the list, since every picture would not fit the atlas), each a narrow tall crop of its wallpaper, and two big pictures (`wp_big`: the one in focus and the
+    -- one that has just left it, which shrinks back). Shifting through the cards changes the wallpaper as it goes, with a quick fade, once the card has been
+    -- still for a moment, and without the colours (Iris) or a video; the wallpaper is only kept (and its colours worked out) when the picker closes, unless Escape
+    -- was pressed, which puts the old one back. `wp_prev` (a global, so that the colour watcher can see it) says what is going on.
+    local R = 7                              -- slots either side of the focus
+    local C = { sel = 0, base = -R, tok = 0, thumbs = 0, flip = 0, big = {}, info = {}, list = {} }
+    -- The slots are in drawing order: the left side and the focus from the far end in, then the right side from the far end in again, so that a
+    -- slice nearer the focus lies over a farther one.
+    local function slot_ix(s) if s <= R then return C.base + s else return C.base + 3 * R + 1 - s end end
+    local function strip_path(f) return wp_cache and crop_path(f, "v") or nil end
+    local function big_path(f) return wp_cache and crop_path(f, "c") or nil end
+    -- What the cards go through: every wallpaper in the picker's order, or, with a colour lit (the same swatches as Settings' wallpaper page, and the same filter),
+    -- only the ones of that colour.
+    local function card_list()
+        local out = {}
+        for _, f in ipairs(G.files or {}) do
+            local keep = true
+            if wp_filter then
+                keep = false
+                for _, tag in ipairs(wp_tags[f] or {}) do if tag == wp_filter then keep = true break end end
+            end
+            if keep then out[#out + 1] = f end
+        end
+        C.list = out
+    end
+    local function card_rows()
+        local files = C.list or {}
+        local rows = {}
+        local inuse = wp_prev.orig or wp_cur
+        for s = 0, 2 * R do
+            local ix = slot_ix(s)
+            local f = files[ix + 1]
+            if f then
+                local t = strip_path(f)
+                rows[s + 1] = { img = (t and wp_made[t] == true) and t or "", ix = ix, cur = f == inuse, ok = true }
+            else
+                rows[s + 1] = { img = "", ix = ix, cur = false, ok = false }
+            end
+        end
+        model.wp_cards = rows
+        local big = {}
+        for k = 1, 2 do
+            local e = C.big[k]
+            local f = e and files[e.ix + 1]
+            if f then
+                local t = big_path(f)
+                big[k] = { img = (t and wp_made[t] == true) and t or "", ix = e.ix, cur = f == inuse, ok = true }
+            else
+                big[k] = { img = "", ix = 0, cur = false, ok = false }
+            end
+        end
+        model.wp_big = big
+    end
+    -- The strips (small, so every wallpaper gets one), the ones near the focus first, a few at a time, so the shell stays quick.
+    local function card_thumbs()
+        if not wp_cache or not G.files or C.thumbs > 0 then return end
+        local todo = {}
+        for i, f in ipairs(G.files) do
+            if wp_made[crop_path(f, "v")] == nil then todo[#todo + 1] = { f = f, d = math.abs(i - 1 - C.sel) } end
+        end
+        if #todo == 0 then return end
+        table.sort(todo, function(a, b) return a.d < b.d end)
+        local at = 1
+        local function chunk()
+            if at > #todo or not fact.wp_picker_open then C.thumbs = 0; return end
+            local part = {}
+            for k = at, math.min(at + 3, #todo) do part[#part + 1] = todo[k].f end
+            at = at + 4
+            wp_crop(part, "v", 96, 216, function()
+                card_rows()
+                chunk()
+            end)
+        end
+        C.thumbs = 1
+        chunk()
+    end
+    -- What the focus is: its colour (from the picture's own analysis, brightened so it reads on any wallpaper), and its size, kind and weight.
+    local function hsv_rgb(h, s, v)
+        local c = v * s
+        local hp = (h % 360) / 60
+        local x = c * (1 - math.abs(hp % 2 - 1))
+        local r, g, b = 0, 0, 0
+        if hp < 1 then r, g = c, x elseif hp < 2 then r, g = x, c elseif hp < 3 then g, b = c, x
+        elseif hp < 4 then g, b = x, c elseif hp < 5 then r, b = x, c else r, b = c, x end
+        local m = v - c
+        return r + m, g + m, b + m
+    end
+    local function card_focus(f, ix, n)
+        local d = G.data[f]
+        if d then
+            local r, g, b = hsv_rgb(d.h, 0.35 + 0.4 * math.min(1, d.s * 1.5), 0.95)
+            fact.wp_card_cr, fact.wp_card_cg, fact.wp_card_cb = r, g, b
+        end
+        text.wp_card_name = stem(f)
+        local ext = (name_of(f):match("%.(%w+)$") or ""):upper()
+        local pos = string.format("%d of %d", ix + 1, n)
+        local have = C.info[f]
+        if have then text.wp_card_info = have .. pos; return end
+        text.wp_card_info = (ext ~= "" and ext .. "  ·  " or "") .. pos
+        if wpv.is(f) then return end
+        local tok = C.tok
+        run("magick", { "identify", "-ping", "-format", "%w %h", f .. "[0]" }, function(out, code)
+            local w, h = (out or ""):match("(%d+)%s+(%d+)")
+            run("stat", { "-L", "-c", "%s", f }, function(sz)
+                local bytes = tonumber((sz or ""):match("%d+"))
+                local parts = {}
+                if w then parts[#parts + 1] = w .. " × " .. h end
+                if bytes then parts[#parts + 1] = bytes >= 1048576 and string.format("%.1f MB", bytes / 1048576) or string.format("%d KB", math.floor(bytes / 1024 + 0.5)) end
+                if ext ~= "" then parts[#parts + 1] = ext end
+                C.info[f] = #parts > 0 and (table.concat(parts, "  ·  ") .. "  ·  ") or ""
+                if C.list and C.list[C.sel + 1] == f then text.wp_card_info = C.info[f] .. string.format("%d of %d", C.sel + 1, #C.list) end
+            end)
+        end)
+    end
+    -- The focus's big picture: into the slot that is not the one it just left, made if it is not yet (and shown when it is).
+    local function card_big(f, ix, instant)
+        local last = C.big[C.flip == 0 and 1 or 2]
+        if last and last.ix == ix then return end
+        C.flip = 1 - C.flip
+        C.big[C.flip + 1] = { ix = ix }
+        card_rows()
+        local t = big_path(f)
+        if t and wp_made[t] == nil then
+            -- Made once the focus has stayed here for a moment (not for every card passed over); `C.tok` is no use for this, the preview changes it at once.
+            after(instant and 0 or 90, function()
+                if C.sel ~= ix or not fact.wp_picker_open then return end
+                wp_crop({ f }, "c", 768, 432, function() card_rows() end)
+            end)
+        end
+    end
+    local function card_publish()
+        fact.wp_card_base = C.base
+        fact.wp_card_sel = C.sel
+        card_rows()
+        local files = C.list or {}
+        local f = files[C.sel + 1]
+        if f then card_focus(f, C.sel, #files) else text.wp_card_name = ""; text.wp_card_info = "No wallpaper of this colour" end
+    end
+    local function card_preview()
+        C.tok = C.tok + 1
+        local t = C.tok
+        after(170, function()
+            if t ~= C.tok or not fact.wp_picker_open then return end
+            local f = C.list and C.list[C.sel + 1]
+            if not f or f == wp_prev.shown or wpv.is(f) or wpv.is(wp_prev.orig or "") then return end
+            wp_prev.on, wp_prev.shown = true, f
+            wp_apply(f, { "--transition-type", "fade", "--transition-duration", "0.35", "--transition-fps", "60" }, nil, nil, true)
+        end)
+    end
+    local function card_set(i)
+        if C.closing then return end
+        local n = #(C.list or {})
+        if n == 0 then return end
+        C.sel = math.max(0, math.min(n - 1, i))
+        C.base = C.sel - R
+        wp_prev.touched = true
+        wp_prev.on = true                    -- from the first step the watcher leaves awww alone, until the picker closes
+        card_big(C.list[C.sel + 1], C.sel)
+        card_publish()
+        card_preview()
+    end
+    -- Which page it was left on (the hexagons or the cards) is where it opens next time, and the time after a restart.
+    do
+        local ok, saved = pcall(sys.ask, "files.read", "wallpaper-view.json", "json")
+        if ok and type(saved) == "table" and saved.page == 1 then fact.wp_pg = 1 end
+    end
+    on("fact:wp_pg", function(v)
+        pcall(sys.call, "files.write", "wallpaper-view.json", { page = (tonumber(v) or 0) > 0.5 and 1 or 0 })
+    end)
+    -- A swatch pressed (the handler on the wallpaper page sets the filter; this one runs a moment after it): the cards narrow to that colour, keeping the focus where it
+    -- is if that one is still among them. Nothing is tried on the desktop for it.
+    on("wp_filter_set", function()
+        after(50, function()
+            if not fact.wp_picker_open then return end
+            local cur = C.list[C.sel + 1]
+            card_list()
+            C.sel = 0
+            for i, f in ipairs(C.list) do if f == cur then C.sel = i - 1 break end end
+            C.base = C.sel - R
+            C.big, C.flip = {}, 0
+            local f = C.list[C.sel + 1]
+            if f then card_big(f, C.sel, true) end
+            card_publish()
+        end)
+    end)
+    local function cards_open()
+        wp_prev.orig, wp_prev.shown, wp_prev.on, wp_prev.touched, wp_prev.cancel = wp_cur, nil, false, false, false
+        C.closing = false
+        card_list()
+        C.sel = 0
+        for i, f in ipairs(C.list or {}) do if f == wp_cur then C.sel = i - 1 break end end
+        C.base = C.sel - R
+        C.tok = C.tok + 1
+        C.big, C.flip = {}, 0
+        local f = C.list and C.list[C.sel + 1]
+        if f then card_big(f, C.sel, true) end
+        card_publish()
+        card_thumbs()
+    end
+    -- The picker closes: what the cards left showing is kept (its colours are worked out now, with a plain fade over what is there), or, for Escape,
+    -- the old wallpaper comes back. A close that starts here (Enter, a press on the focused card, Escape on the cards) says so itself: a fact the logic
+    -- sets does not reach `on("fact:...")`, and the wallpaper would stay as a try that is never made the one in use. One that starts in the scene (a press
+    -- outside, Escape on the hexagons) arrives by that handler. Either way it is done once (the flags are cleared as they are read).
+    local function cards_close()
+        C.tok = C.tok + 1                    -- a try still waiting for its moment is dropped
+        local touched, cancel, orig = wp_prev.touched, wp_prev.cancel, wp_prev.orig
+        wp_prev.touched, wp_prev.cancel = false, false
+        if touched then
+            local target = cancel and orig or (C.list and C.list[C.sel + 1])
+            local function done() wp_prev.on, wp_prev.shown = false, nil end
+            if target and not (cancel and wpv.is(target)) then       -- (a video that was playing was never covered, so there is nothing to put back)
+                wp_apply(target, { "--transition-type", "fade", "--transition-duration", "0.35", "--transition-fps", "60" }, done, nil, cancel)
+            else
+                done()
+            end
+        end         -- (untouched: nothing was tried, so `wp_prev.on` is already off; and a second call, when both ways of closing arrive, finds nothing to do)
+    end
+    on("fact:wp_picker_open", function(v) if not v then cards_close() end end)
+    wp_prev.close = cards_close             -- for the other places that close the picker from the logic (the overview opening)
+    local function card_done(cancel)
+        if C.closing then return end
+        wp_prev.cancel = cancel
+        if cancel then
+            fact.wp_picker_open = false
+            cards_close()
+            return
+        end
+        -- Keeping one: a ripple runs out of the card first (the scene's, off `wp_card_rip`: the card's own edge), and the picker goes when it has run.
+        C.closing = true
+        C.rip = (C.rip or 0) + 1                -- (counted here: a fact the logic has not set may not read back)
+        fact.wp_card_rip = C.rip
+        after(760, function()
+            C.closing = false
+            if not fact.wp_picker_open then return end
+            fact.wp_picker_open = false
+            cards_close()
+        end)
+    end
+    on("wp_card_step", function(d) card_set(C.sel + math.floor((tonumber(d) or 0) + 0.5)) end)
+    on("wp_card_go", function(i)
+        i = math.floor((tonumber(i) or 0) + 0.5)
+        if i == C.sel then card_done(false) else card_set(i) end
+    end)
+    on("wp_card_pick", function() card_done(false) end)
+    on("wp_card_cancel", function() card_done(true) end)
+
     on("wp_picker_toggle", function()
         local opening = not fact.wp_picker_open
         if opening then fact.wp_picker_leaving = false; set_panel("none"); if G.laid then build() end end
         fact.wp_picker_open = opening
+        if opening then cards_open() else cards_close() end          -- after the fact: the thumbnails are only made while the picker is open; and a close from here (Super+B) is not seen by the fact's handler
     end)
 
     -- A hexagon was pressed: its wallpaper blooms out of it. `wp_picker_px`, `wp_picker_py` are where it is on the screen, from the
@@ -5430,6 +5686,7 @@ require("logic/nightmode")(with_dirs)
     on("wp_picker_pick", function(i)
         local f = G.files and G.files[i + 1]
         if not f then return end
+        wp_prev.on, wp_prev.touched = false, false          -- a hexagon was chosen: whatever the cards were showing is not kept or put back
         local px, py = math.floor((fact.wp_picker_px or 0) + 0.5), math.floor((fact.wp_picker_py or 0) + 0.5)
         local mh = tonumber(fact.mon_h) or 1080
         wp_apply(f, { "--transition-type", "grow", "--transition-pos", px .. "," .. py, "--transition-duration", "1.6",
@@ -5446,6 +5703,7 @@ require("logic/nightmode")(with_dirs)
     on("wp_picker_random", function()
         local f = wp_random_pick()
         if not f then return end
+        wp_prev.on, wp_prev.touched = false, false
         local mh = tonumber(fact.mon_h) or 1080
         wp_apply(f, { "--transition-type", "grow", "--transition-pos", "center", "--transition-duration", "1.6",
                       "--transition-fps", "60", "--transition-step", "60" }, function()
@@ -5613,6 +5871,7 @@ end)()
             return
         end
         fact.wp_picker_open = false
+        if wp_prev.close then wp_prev.close() end
         -- A drawer that is open would be in the pictures: let it go, and wait for it to leave.
         local wait = 0
         if tostring(fact.panel) ~= "none" then fact.panel = "none"; wait = 350 end
