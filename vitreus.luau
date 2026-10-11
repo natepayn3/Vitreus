@@ -1794,6 +1794,9 @@ function watch_urgent()
             rt, sig = (rt or ""):gsub("%s+$", ""), (sig or ""):gsub("%s+$", "")
             if rt == "" or sig == "" then return end
             spawn("socat", { "-u", "UNIX-CONNECT:" .. rt .. "/hypr/" .. sig .. "/.socket2.sock", "-" }, function(line)
+                -- A special workspace (the scratchpads) shown or put away: `activespecial>>special:magic,eDP-1`, with no name when it is put away.
+                local spn = line:match("^activespecial>>([^,]*),")
+                if spn then fact["ws.special"] = spn ~= "" end
                 local addr = line:match("^urgent>>(%x+)")
                 if addr then window_urgent(addr) end
                 -- the screen being shared or recorded through the portal (logic/privacy.luau has the rest of the privacy lights)
@@ -1808,7 +1811,12 @@ function watch_urgent()
         end)
     end)
 end
-after(2000, function() if on_hyprland then watch_urgent() end end)
+after(2000, function()
+    if not on_hyprland then return end
+    watch_urgent()
+    -- One may already be in view when the shell starts.
+    hypr_monitors(0, function(out) if out and out:match('"specialWorkspace":%s*{[^}]*"name":%s*"special:') then fact["ws.special"] = true end end)
+end)
 
 sys.watch("apps", function(list)
     apps_by_class = {}

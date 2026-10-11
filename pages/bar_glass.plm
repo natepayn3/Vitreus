@@ -159,13 +159,18 @@ part BarGlass {
         repeat i in 1..6 {
             //  A zone as long as the slot and its share of the gap, so the zones touch.
             let wa = if(i == 1, ws.a1, if(i == 2, ws.a2, if(i == 3, ws.a3, if(i == 4, ws.a4, ws.a5))))
-            let wsz = (if(i == 1, ws.s1, if(i == 2, ws.s2, if(i == 3, ws.s3, if(i == 4, ws.s4, ws.s5)))) + ws.g)
-            zone box ws.hit.$i { at: mix(wa, lf.x, lm), mix(bar.y, wa, lm); size: mix(wsz, 40 * u, lm), mix(bar.h, wsz, lm); cursor: pointer; active: bs.ws > 0.5 }
+            let wsz = (if(i == 1, ws.s1, if(i == 2, ws.s2, if(i == 3, ws.s3, if(i == 4, ws.s4, ws.s5)))) + ws.g) * ws.vis.$i
+            zone box ws.hit.$i { at: mix(wa, lf.x, lm), mix(bar.y, wa, lm); size: mix(wsz, 40 * u, lm), mix(bar.h, wsz, lm); cursor: pointer; active: bs.ws > 0.5 and ws.vis.$i > 0.5 }
             on press ws.hit.$i { emit go(i) }
-            on press right ws.hit.$i { emit ov_toggle }
             follow wsh.$i = ws.hit.$i.hover
             follow wsp.$i = ws.hit.$i.hover
         }
+        zone box ws_plus { at: mix(ws.a6, lf.x, lm), mix(bar.y, ws.a6, lm); size: mix(ws.sv6 + ws.g, 40 * u, lm), mix(bar.h, ws.sv6 + ws.g, lm); cursor: pointer; active: bs.ws > 0.5 and ws.pv > 0.5 }
+        on press ws_plus { emit go(ws.new) }
+        follow wspl = ws_plus.hover
+        zone box ov_btn { at: ob.x, ob.y; size: ob.s + 8 * u, ob.s + 8 * u; cursor: pointer; active: bs.ws > 0.5 }
+        on press ov_btn { emit ov_toggle }
+        follow ovp = ov_btn.hover
 
         //  What is in front: the app in small type above, the title under it, cut
         //  with an ellipsis where the clock starts.

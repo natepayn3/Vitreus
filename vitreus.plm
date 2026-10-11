@@ -614,8 +614,13 @@ scene Vitreus {
     event pow_press ->             // a session button held for one second: 0 lock, 1 sleep, 2 log out, 3 restart, 4 power off
     event pow_prof_set ->          // 0, 1 or 2
     fact ws.active = 1
+    fact ws.special = false          // a special workspace (a scratchpad) is shown over them: the marks give way to one of its own
     repeat i in 1..6 { fact ws.$i.urgent = false }   // a window on that workspace asked for attention while it was out of view
-    repeat i in 1..6 { fact ws.$i.busy = false }
+    fact ws.1.busy = false
+    fact ws.2.busy = false
+    fact ws.3.busy = false
+    fact ws.4.busy = false
+    fact ws.5.busy = false
     //  Whether the workspace in view has no window. Hyprland takes the pointer away from a layer surface that does not hold the keyboard, on the first click, when there
     //  is no window on the screen: it dropped the Desk's grip drag as it began (a slow drag that stayed over the panel was the only one that held). So with an empty
     //  workspace the open Desk holds the keyboard (see the surface's rule), there being no window to take it from.
@@ -817,6 +822,25 @@ scene Vitreus {
     follow ws.tall.3 = if(ws.3.busy, 1, 0)
     follow ws.tall.4 = if(ws.4.busy, 1, 0)
     follow ws.tall.5 = if(ws.5.busy, 1, 0)
+    //  Only the workspaces that matter have a mark: one with a window, or the one in view. The others are shut to nothing (their slot and the gap with it).
+    prop ws.vis.1 = 0 ~lively
+    prop ws.vis.2 = 0 ~lively
+    prop ws.vis.3 = 0 ~lively
+    prop ws.vis.4 = 0 ~lively
+    prop ws.vis.5 = 0 ~lively
+    follow ws.vis.1 = if((ws.1.busy or ws.active == 1) and not ws.special, 1, 0)
+    follow ws.vis.2 = if((ws.2.busy or ws.active == 2) and not ws.special, 1, 0)
+    follow ws.vis.3 = if((ws.3.busy or ws.active == 3) and not ws.special, 1, 0)
+    follow ws.vis.4 = if((ws.4.busy or ws.active == 4) and not ws.special, 1, 0)
+    follow ws.vis.5 = if((ws.5.busy or ws.active == 5) and not ws.special, 1, 0)
+    //  The plus: a workspace to start in, the first one of the five with no window (not the one in view). It is only there when the one in view has a window,
+    //  so there is somewhere new to go.
+    let ws.new = if(not ws.1.busy and ws.active != 1, 1, if(not ws.2.busy and ws.active != 2, 2, if(not ws.3.busy and ws.active != 3, 3, if(not ws.4.busy and ws.active != 4, 4, if(not ws.5.busy and ws.active != 5, 5, 0)))))
+    prop ws.pv = 0 ~lively
+    follow ws.pv = if(ws.new > 0 and not ws_empty and not ws.special, 1, 0)
+    prop ws.sp = 0 ~lively                              // how much the special workspace's mark is there
+    follow ws.sp = if(ws.special, 1, 0)
+    prop wspl = 0 ~pop                                  // the plus's hover, on the spring that pops past
     //  The mark of the workspace in view is one piece that travels: its head runs ahead to the new place and its tail follows, so it
     //  stretches across what lies between and gathers again.
     prop pl.head = 1 ~150ms
@@ -966,6 +990,7 @@ scene Vitreus {
     every 5s while chg_now and pwr.percent < 98 { charge_sweep: 0 ~0ms; charge_sweep: 1 ~900ms after 40ms }
     on change chg_now while chg_now and pwr.percent < 98 { charge_sweep: 0 ~0ms; charge_sweep: 1 ~900ms after 40ms }
     repeat i in 1..6 { prop wsh.$i = 0 ~quick }         // each workspace dot's hover, brought out of its `repeat`
+    prop ovp = 0 ~pop                                   // the overview button's hover, on the same spring: how much it swells
     repeat i in 1..6 { prop wsp.$i = 0 ~pop }           // the same, on a spring that pops a little past: how much a hovered mark swells
     follow batt_fill = clamp(pwr.percent / 100, 0, 1)
     follow batt_on = if(pwr.present, 1, 0)
@@ -1272,7 +1297,7 @@ scene Vitreus {
     on change wp_picker_hot while wp_picker_hot >= 0 { wp_picker_sw: 1 ~700ms after 60ms }
     on change wp_picker_open while not wp_picker_open { wp_picker_hot = -1 }
     on key Escape while wp_picker_open { wp_picker_open = false }
-    //  The workspace overview (right-click the bar's workspace dots, or the launcher): a card for each of the five workspaces,
+    //  The workspace overview (the button before the bar's workspace dots, or the launcher): a card for each of the five workspaces,
     //  listing the windows on it. The logic fills `ovw` a slot at a time (nine to a workspace, in order) from `hyprctl clients`, each with a
     //  picture of the window taken while its workspace was in front.
     model ovw max 45 { gx: number; gy: number; gc: number; gr: number; title: text; active: bool; used: bool; snap: bool; icon: image 37, 37; thumb: image 456, 257 }
@@ -2458,7 +2483,7 @@ scene Vitreus {
     let clock.col = max(caw.width, cdw.width)
     let bar.l = pcx - bar.w / 2 + 16 * u
     let bar.r = pcx + bar.w / 2 - 16 * u
-    let fw.ws = 108 * u                  // five squares 18 apart, one of them stretched out
+    let fw.ws = 128 * u                  // five squares 18 apart, one of them stretched out, and the overview button before them (20 more)
     let fw.media = 0                     // previous, play, next have no slot of their own: they sit inside the window title's button, top right
     let fw.set = 15 * u                  // the gear with its teeth
     let fw.sr = 12 * u                   // the magnifier, glass and handle
@@ -2510,7 +2535,7 @@ scene Vitreus {
     let roomv = 14 * cu                    // and down the left, where the dots are larger
     //  Down the left, top to bottom: the workspaces (their middle one at `lv.ws`), the title, and from the foot up the clock (its
     //  hour at `lv.clk`, the minutes, am/pm, the weekday and the date under it), the controls, search and the gear, 32 apart. Whole pixels, for the texts.
-    let lv.ws = yo + lf.t + 62 * cu
+    let lv.ws = yo + lf.t + 88 * cu
     let lv.clk = vb - lf.t - 73 * u
     let lv.ctl = lv.clk - 34 * u
     let lv.set = lv.ctl - 32 * u
@@ -2538,18 +2563,38 @@ scene Vitreus {
     let ws.s3 = mix((8 + 4.5 * ws.tall.3) * ws.U, ws.pl, ws.act.3)
     let ws.s4 = mix((8 + 4.5 * ws.tall.4) * ws.U, ws.pl, ws.act.4)
     let ws.s5 = mix((8 + 4.5 * ws.tall.5) * ws.U, ws.pl, ws.act.5)
-    let ws.w = ws.s1 + ws.s2 + ws.s3 + ws.s4 + ws.s5 + 4 * ws.g
-    let ws.c1 = ws.s1 / 2 - ws.w / 2
-    let ws.c2 = ws.c1 + ws.s1 / 2 + ws.g + ws.s2 / 2
-    let ws.c3 = ws.c2 + ws.s2 / 2 + ws.g + ws.s3 / 2
-    let ws.c4 = ws.c3 + ws.s3 / 2 + ws.g + ws.s4 / 2
-    let ws.c5 = ws.c4 + ws.s4 / 2 + ws.g + ws.s5 / 2
-    let ws.o = mix(at.ws, lv.ws, lm)
+    let ws.ps = 14 * ws.U                 // the plus's slot
+    let ws.sv1 = ws.s1 * ws.vis.1
+    let ws.sv2 = ws.s2 * ws.vis.2
+    let ws.sv3 = ws.s3 * ws.vis.3
+    let ws.sv4 = ws.s4 * ws.vis.4
+    let ws.sv5 = ws.s5 * ws.vis.5
+    let ws.sv6 = ws.ps * ws.pv
+    //  The row starts against the overview button and runs on (left to right, or down), so a mark opening or shutting moves only what comes after it.
+    //  `ws.qN` is how far the row has gone once slot N is in: its mark and the gap after it, each as open as the mark is.
+    let ws.q1 = (ws.s1 + ws.g) * ws.vis.1
+    let ws.q2 = ws.q1 + (ws.s2 + ws.g) * ws.vis.2
+    let ws.q3 = ws.q2 + (ws.s3 + ws.g) * ws.vis.3
+    let ws.q4 = ws.q3 + (ws.s4 + ws.g) * ws.vis.4
+    let ws.q5 = ws.q4 + (ws.s5 + ws.g) * ws.vis.5
+    let ws.c1 = ws.sv1 / 2
+    let ws.c2 = ws.q1 + ws.sv2 / 2
+    let ws.c3 = ws.q2 + ws.sv3 / 2
+    let ws.c4 = ws.q3 + ws.sv4 / 2
+    let ws.c5 = ws.q4 + ws.sv5 / 2
+    let ws.c6 = ws.q5 + ws.sv6 / 2
+    //  The overview button, before the first mark (at the top of them down the left): its middle and its size.
+    let ob.x = mix(at.ws - vw.ws / 2 + 10 * u, lf.x, lm)
+    let ob.y = mix(bar.y, yo + lf.t + 24 * cu, lm)
+    let ob.s = 18 * ws.U
+    let ob.d = ob.s * (1 + 0.2 * ovp)       // as it is drawn
+    let ws.o = mix(ob.x, ob.y, lm) + ob.s / 2 + 6.5 * ws.U
     let ws.a1 = ws.o + ws.c1
     let ws.a2 = ws.o + ws.c2
     let ws.a3 = ws.o + ws.c3
     let ws.a4 = ws.o + ws.c4
     let ws.a5 = ws.o + ws.c5
+    let ws.a6 = ws.o + ws.c6
 
     //  The music only moves the bar: it fades out as the panel opens (gone by a third of
     //  the way), so an open panel sits still.
