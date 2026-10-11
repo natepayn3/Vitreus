@@ -72,9 +72,9 @@ layout all run in the renderer, and the logic only reports facts.
   screen recording, and power (lock, sleep, log out, restart, power off). A screenshot comes up as a card with its picture:
   open it, copy its text, ask about it, or delete it.
 * **Player** — cover art, a live spectrum, and your running windows.
-* **Launcher** (`SUPER + Space`) — apps, files, commands, emoji, clipboard history and wallpapers, with previews.
+* **Launcher** (`SUPER + Space`) — apps, files, commands, emoji, clipboard history and wallpapers, with previews. A sum or a conversion (`5 km to mi`, `20 c in f`, `15% of 80`) is answered as you type; `?` or `!yt lofi` searches the web (twenty-one `!bang` sites, and DuckDuckGo's instant answer); `@` switches to an open window; `$` expands snippets and quicklinks from `snippets.json`.
 * **Settings** (`SUPER + SHIFT + Space`) — wallpaper, theme, glass, display, Hyprland, notifications, clock and a system monitor.
-* **Wallpaper picker** (`SUPER + B`) — your wallpapers as a honeycomb of glass hexagons.
+* **Wallpaper picker** (`SUPER + B`) — your wallpapers as a honeycomb of glass hexagons, and (`Tab`) a row of slanted cards that changes the wallpaper live as you step through them, with a colour filter and each picture's size and kind. It opens on the one you used last.
 * **Workspace overview** (`SUPER + TAB`) — a glass card per workspace; drag a window to move it.
 * **Desk** (`SUPER + D`) — a panel out of the right edge: Focus timer, Shelf, Pad (tasks and drawing), a terminal, Ask, and Clip (your
   clipboard history, with pins).
@@ -86,6 +86,7 @@ layout all run in the renderer, and the logic only reports facts.
 * **Notifications** — history, rules and sounds for each app, quiet hours, and silence while a window is fullscreen.
 * **Authentication** — a polkit agent drawn in the same glass.
 * **Lock screen**, **Night mode**, and a **desktop clock** drawn as glass.
+* **Desktop** — right-click the bare wallpaper for a menu: **Webcam** (your camera in a round glass pane over everything; drag it, and pull its edge to resize it, as the Desk's corners do), the clock, the system monitor, and **New sticky note**. Stickers are glass notes, tinted from your palette, that stay where you put them and can be dragged onto other monitors.
 * **Theme** — Iris recolours Vitreus from your wallpaper, or pick Tokyo Night, Catppuccin Mocha, Gruvbox, Nord, Rosé Pine or Dracula.
 
 ---
@@ -100,11 +101,11 @@ The packages `install.sh` installs (pacman, and the AUR for the last two):
 
 | Package | Used for |
 | --- | --- |
-| `git`, `curl`, `fontconfig` | fetching Vitreus, weather and cover art, and the font |
+| `git`, `curl`, `fontconfig` | fetching Vitreus, weather and cover art, the launcher's web answers, and the font |
 | `hyprsunset` | Night mode |
 | `awww` | the wallpaper picker |
 | `iris-colors` (AUR) | theming from the wallpaper |
-| `mpvpaper` (AUR), `ffmpeg` | video wallpapers |
+| `mpvpaper` (AUR), `ffmpeg` | video wallpapers, and the webcam (`ffmpeg` reads the camera) |
 | `imagemagick` | wallpaper thumbnails and the launcher's picture previews |
 | `cava` | the bass pulse and the equalizer |
 | `playerctl` | the player and its cover art |
@@ -113,8 +114,8 @@ The packages `install.sh` installs (pacman, and the AUR for the last two):
 | `brightnessctl` | the brightness slider |
 | `hypridle` | Caffeine |
 | `libnotify` | calendar reminders |
-| `xdg-user-dirs`, `xdg-utils` | finding your Pictures folder, opening files |
-| `wl-clipboard`, `cliphist` | the launcher's clipboard and copying |
+| `xdg-user-dirs`, `xdg-utils` | finding your Pictures folder, opening files and web searches |
+| `wl-clipboard`, `cliphist` | the launcher's clipboard and copying (results, snippets) |
 | `grim`, `slurp`, `wf-recorder` | screenshots and screen recording |
 | `power-profiles-daemon` | the power profile |
 | `polkit`, `python-gobject` | the authentication dialog |

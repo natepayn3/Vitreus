@@ -208,10 +208,10 @@ if $deps; then
     cava            the bass pulse and the equalizer
     playerctl       cover art
     awww            the wallpaper picker
-    mpvpaper (AUR), ffmpeg  video wallpapers (mp4, webm): mpvpaper plays them, ffmpeg takes the frame the rest of the shell reads
+    mpvpaper (AUR), ffmpeg  video wallpapers (mp4, webm, mov): mpvpaper plays them, ffmpeg takes the frame the rest of the shell reads; ffmpeg also reads the webcam
     iris            theming from the wallpaper (https://aur.archlinux.org/packages/iris-colors)
     imagemagick     wallpaper thumbnails, the launcher's picture previews
-    wl-clipboard    the launcher copying (wl-copy), and Capture copying a screenshot
+    wl-clipboard    the launcher copying (wl-copy: results, snippets), and Capture copying a screenshot
     polkit, python-gobject  the authentication dialog (Vitreus asks for your password when something wants admin rights)
     python-pyte, SpaceMono Nerd Font  the Desk's terminal (pyte keeps its screen; the font is Space Grotesk's monospaced sibling)
     pipewire (pw-play), sound-theme-freedesktop  the sounds notifications make
@@ -220,8 +220,8 @@ if $deps; then
     wf-recorder     Capture's screen recording (slurp picks the region)
     power-profiles-daemon  the power profile in Power (powerprofilesctl)
     cliphist        the launcher's clipboard search (something must run: wl-paste --watch cliphist store)
-    xdg-utils       the launcher opening a file (xdg-open)
-    curl            weather and remote cover art
+    xdg-utils       the launcher opening a file or a web search (xdg-open)
+    curl            weather, remote cover art and the launcher's web answers
     NetworkManager  Wi-Fi (nmcli)
     BlueZ           Bluetooth (bluetoothctl)
     brightnessctl   the brightness slider
