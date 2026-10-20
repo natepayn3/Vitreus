@@ -2495,6 +2495,7 @@ end)
 -- holds the two settings: { enabled = true, intensity = "medium" | "subtle" | "bold" }.
 local iris_cfg = { enabled = true, intensity = "bold" }       -- how far the wallpaper's accent is pushed: always Bold (the Theme page no longer offers a choice)
 local iris_last_wp = nil
+local iris_warned = false          -- `iris` missing or failing: said once, so a Glass switch that changes nothing does not stay silent
 local iris_last_text = nil
 
 local function hex_to_rgb(h)
@@ -2862,9 +2863,17 @@ local function run_iris(path, card_only)
     -- Dark, and for glass (`--glass` adjusts the background for transparency): see apply_iris. `card_only`: only the Theme card's colours
     -- are updated, the shell keeps the palette it has (a named one, or the greys).
     run("iris", { "--json-only", "--dark", "1", "--glass", path }, function(out, code)
-        if code ~= 0 or not out then return end
-        local json = out:match("%b{}")
-        if json and json_hex(json, "bg") then
+        local json = (code == 0 and out) and out:match("%b{}") or nil
+        if not json then
+            -- Nothing to apply: `iris` is not installed (or failed). Say so once: the Theme page has already taken Glass as the
+            -- choice, so the palette silently keeping the last theme's colours is what looks like a theme switch gone wrong.
+            if not iris_warned then
+                iris_warned = true
+                run("notify-send", { "-a", "Vitreus", "Glass needs Iris", "The wallpaper's colours are worked out by `iris` (iris-colors), which is missing or failed: Glass keeps the last palette until it is installed." }, function() end)
+            end
+            return
+        end
+        if json_hex(json, "bg") then
             local pal = iris_palette(json)
             set_card(pal)
             local keep = {}
