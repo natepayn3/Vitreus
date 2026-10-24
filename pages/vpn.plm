@@ -1,7 +1,7 @@
 part Vpn {
         //  ── VPN page: BEGIN ──
-        //  Settings > VPN. Scrolls like Notifications: a clipped viewport, the content moved by a whole-pixel `vpn.off`. Three cards: what is
-        //  connected, the profiles NetworkManager holds, and the form to add one (WireGuard, OpenVPN, or a file). See "Settings > VPN" in the logic.
+        //  Settings > VPN. Scrolls like Notifications: a clipped viewport, the content moved by a whole-pixel `vpn.off`. Three cards (four with NordVPN): what is
+        //  connected, NordVPN when it is installed, the profiles NetworkManager holds, and the form to add one (WireGuard, OpenVPN, or a file). See "Settings > VPN" in the logic.
         group {
             show: set_pgv > 0.01
             opacity: set_pgv
@@ -36,6 +36,41 @@ part Vpn {
             }
             zone box vpn_dn_hit { at: spx + 380 * pw, sby + 55 * pu; size: 98 * pu, 30 * pu; corner: 15 * pu; cursor: pointer; active: vpn_on and not vpn_busy }
             on press vpn_dn_hit { emit vpn_down }
+            //  NordVPN (its own CLI and daemon, not a NetworkManager profile): what it is connected to, Quick connect or Disconnect, and a field for a
+            //  country or a city. Only while `nordvpn` is installed (`vpn_nord`); the cards below move down to make room (`vpn.pb`).
+            group {
+                show: vpn_nord
+                //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+                body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + (vpn.nb + vpn.nh / 2) * pu; size: 438 * pw, vpn.nh * pu; corner: 14 * pu } }
+                DdCard(spx + 219 * pw, sby + (vpn.nb + vpn.nh / 2) * pu, 438 * pw, vpn.nh * pu, 390.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+                box { at: spx + 219 * pw, sby + (vpn.nb + vpn.nh / 2) * pu; size: 438 * pw, vpn.nh * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+                box { at: spx + 219 * pw, sby + (vpn.nb + vpn.nh / 2) * pu; size: 438 * pw, vpn.nh * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+                box { at: spx + 219 * pw, sby + (vpn.nb + vpn.nh / 2) * pu; size: 438 * pw, vpn.nh * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+                //  The section is named above the card, as every section is; what it connects by (NordLynx, OpenVPN) sits at the other end of that line.
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.nb - 13) * pu + 0.5); text "NORDVPN" { at: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.nb - 13) * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + (vpn.nb - 13) * pu + 0.5); text vpn_nd_note { at: floor(spx + 424 * pw + 0.5), floor(sby + (vpn.nb - 13) * pu + 0.5); anchor: right center; align: right; size: 14; weight: 600; width: (200 * pw) / rs; lines: 1; color: mint; family: "Space Grotesk" } }
+                ellipse { at: spx + 24 * pw, sby + (vpn.nb + 22) * pu; radius: 3.5 * pu; color: if(vpn_nd_on, mint, faint); opacity: if(vpn_nd_on, 100%, 45%) }
+                group { scale: rs; pivot: floor(spx + 38 * pw + 0.5), floor(sby + (vpn.nb + 22) * pu + 0.5); text vpn_nd_title { at: floor(spx + 38 * pw + 0.5), floor(sby + (vpn.nb + 22) * pu + 0.5); anchor: left center; size: 17; weight: 700; width: (250 * pw) / rs; lines: 1; color: if(vpn_nd_on, mint, ink); family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 38 * pw + 0.5), floor(sby + (vpn.nb + 41) * pu + 0.5); text vpn_nd_sub { at: floor(spx + 38 * pw + 0.5), floor(sby + (vpn.nb + 41) * pu + 0.5); anchor: left center; size: 14; width: (262 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                //  Quick connect, or Disconnect while it is connected.
+                box { at: spx + 366 * pw, sby + (vpn.nb + 30) * pu; size: 108 * pu, 28 * pu; corner: 14 * pu; color: if(vpn_nd_on, ink, mint); opacity: if(vpn_nd_on, 10% + 10% * vpn_nd_btn_hit.hover, 18% + 14% * vpn_nd_btn_hit.hover) }
+                PPillOutline(spx + 366 * pw, sby + (vpn.nb + 30) * pu, 108 * pu, 28 * pu, 14 * pu, vpn_nd_btn_hit.hover, clamp(3 * (if(vpn_nd_on, 10% + 10% * vpn_nd_btn_hit.hover, 18% + 14% * vpn_nd_btn_hit.hover)), 0, 1), pu)
+                group { scale: rs; pivot: floor(spx + 366 * pw + 0.5), floor(sby + (vpn.nb + 30) * pu + 0.5); text pick(if(vpn_nd_on, 1, 0), "Quick connect", "Disconnect") { at: floor(spx + 366 * pw + 0.5), floor(sby + (vpn.nb + 30) * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (104 * pw) / rs; lines: 1; color: if(vpn_nd_on, ink, mint); family: "Space Grotesk" } }
+                zone box vpn_nd_btn_hit { at: spx + 366 * pw, sby + (vpn.nb + 30) * pu; size: 110 * pu, 30 * pu; corner: 15 * pu; cursor: pointer; label: "NordVPN quick connect or disconnect"; active: vpn_nord and not vpn_busy and ((((vpn.nb + 30)) * pu - vpn.off) > 14 * pu and (((vpn.nb + 30)) * pu - vpn.off) < 440 * pu) }
+                on press vpn_nd_btn_hit while vpn_nd_on { emit vpn_nd_down }
+                on press vpn_nd_btn_hit while not vpn_nd_on { emit vpn_nd_quick }
+                //  A country or a city: Connect, or Enter, goes there (spaces become underscores, as `nordvpn connect` writes them).
+                box { at: spx + 149 * pw, sby + (vpn.nb + 74) * pu; size: 270 * pw, 28 * pu; corner: 9 * pu; color: ink; opacity: 8% }
+                group {
+                    show: (((vpn.nb + 74) * pu - vpn.off) > 14 * pu and ((vpn.nb + 74) * pu - vpn.off) < (set.h - 14) * pu)
+                    input vpn_nd_q { at: floor(spx + 26 * pw + 0.5), floor(sby + (vpn.nb + 74) * pu - 6.5 * pu + 0.5); width: 250 * pw; size: 14; color: ink; family: "Space Grotesk"; placeholder: "A country or city: Japan, Tokyo, United States" }
+                }
+                box { at: spx + 366 * pw, sby + (vpn.nb + 74) * pu; size: 108 * pu, 28 * pu; corner: 9 * pu; color: mint; opacity: 18% + 8% * vpn_nd_go_hit.hover }
+                PPillOutline(spx + 366 * pw, sby + (vpn.nb + 74) * pu, 108 * pu, 28 * pu, 9 * pu, vpn_nd_go_hit.hover, clamp(3 * (18% + 8% * vpn_nd_go_hit.hover), 0, 1), pu)
+                group { scale: rs; pivot: floor(spx + 366 * pw + 0.5), floor(sby + (vpn.nb + 74) * pu + 0.5); text "Connect" { at: floor(spx + 366 * pw + 0.5), floor(sby + (vpn.nb + 74) * pu + 0.5); anchor: center; align: center; size: 14.5; weight: 700; width: (104 * pw) / rs; lines: 1; color: mint; family: "Space Grotesk" } }
+                zone box vpn_nd_go_hit { at: spx + 366 * pw, sby + (vpn.nb + 74) * pu; size: 108 * pu, 28 * pu; corner: 9 * pu; cursor: pointer; label: "NordVPN connect to the country or city typed"; active: vpn_nord and not vpn_busy and ((((vpn.nb + 74)) * pu - vpn.off) > 14 * pu and (((vpn.nb + 74)) * pu - vpn.off) < 440 * pu) }
+                on press vpn_nd_go_hit { emit vpn_nd_go }
+            }
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
             body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + (vpn.pb + vpn.pbh / 2) * pu; size: 438 * pw, vpn.pbh * pu; corner: 14 * pu } }
             DdCard(spx + 219 * pw, sby + (vpn.pb + vpn.pbh / 2) * pu, 438 * pw, vpn.pbh * pu, 456.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card

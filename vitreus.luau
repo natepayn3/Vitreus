@@ -8768,6 +8768,8 @@ require("logic/clock")()
     local working = false
     local arm = nil
     local want_ip = nil
+    -- NordVPN: its own CLI and daemon (NordLynx), not NetworkManager, so it is a card of its own (`vpn_nord` shows it once `nordvpn` is found).
+    local nord = { have = false, on = false, country = "", city = "", host = "", ip = "", tech = "" }
 
     run("printenv", { "HOME" }, function(out) home = ((out or ""):gsub("%s+$", "")) end)
 
@@ -8820,6 +8822,11 @@ require("logic/clock")()
             text.vpn_title = "Not connected"
             text.vpn_sub = #profs == 0 and "No profiles yet: add one below" or "Pick a profile to connect"
         end
+        if nord.on then
+            fact.vpn_on = true
+            text.vpn_title = "NordVPN"
+            text.vpn_sub = nord.country .. (nord.ip ~= "" and (" · " .. nord.ip) or "")
+        end
         for i = 0, MAX - 1 do
             local p = profs[i + 1]
             fact["vpn_r." .. i .. ".on"] = p ~= nil
@@ -8858,7 +8865,89 @@ require("logic/clock")()
         end)
     end
 
+    -- ── NordVPN ───────────────────────────────────────────────────────────────────────────────────────────
+    -- `nordvpn status` / `connect [country or city]` / `disconnect`. Its output draws a spinner with carriage returns: each line is taken
+    -- after its last \r. Its errors come on stdout, so the last line it printed is what is said when it fails.
+    local function nord_lines(out)
+        local lines = {}
+        for raw in ((out or ""):gsub("\27%[[%d;]*%a", "") .. "\n"):gmatch("([^\n]*)\n") do
+            local l = trim(raw:match("([^\r]*)$") or raw)
+            if l ~= "" and not l:match("^[%-\\|/]+$") then lines[#lines + 1] = l end
+        end
+        return lines
+    end
+    local function nord_render()
+        fact.vpn_nord = nord.have
+        fact.vpn_nd_on = nord.on
+        if not nord.have then return end
+        if nord.on then
+            text.vpn_nd_title = nord.country .. (nord.city ~= "" and (", " .. nord.city) or "")
+            text.vpn_nd_sub = nord.host .. (nord.ip ~= "" and (" · " .. nord.ip) or "")
+        elseif nord.err then
+            text.vpn_nd_title = "Not ready"
+            text.vpn_nd_sub = nord.err
+        else
+            text.vpn_nd_title = "Disconnected"
+            text.vpn_nd_sub = "Quick connect picks the fastest server; or type a country or city"
+        end
+        text.vpn_nd_note = nord.tech
+    end
+    local function nord_refresh()
+        run("nordvpn", { "status" }, function(out, code)
+            if code ~= 0 and (out or "") == "" then nord.have = false; nord_render(); render(); return end
+            nord.have = true
+            local f = {}
+            for _, l in ipairs(nord_lines(out)) do
+                local k, v = l:match("^([%w%s%-]+):%s*(.*)$")
+                if k then f[k:lower()] = v end
+            end
+            local all = table.concat(nord_lines(out), " "):lower()
+            nord.err = nil
+            if all:match("permission denied") then nord.err = "Permission denied: log out and in again (the nordvpn group)"
+            elseif all:match("not logged in") then nord.err = "Not logged in: run `nordvpn login` in a terminal" end
+            nord.on = (f["status"] or ""):lower() == "connected"
+            nord.country, nord.city = f["country"] or "", f["city"] or ""
+            nord.host, nord.ip = f["hostname"] or "", f["ip"] or ""
+            local t = (f["current technology"] or f["current protocol"] or ""):upper()          -- (newer CLIs call it the protocol)
+            if t ~= "" then nord.tech = t == "NORDLYNX" and "NordLynx" or t end
+            nord_render()
+            render()
+        end)
+    end
+    local function nord_run(args, label)
+        if working then return end
+        set_working(true)
+        say(label)
+        run("nordvpn", args, function(out, code)
+            set_working(false)
+            local lines = nord_lines(out)
+            local last = lines[#lines] or ""
+            if code ~= 0 then say("NordVPN: " .. (last ~= "" and last or ("failed with code " .. tostring(code))))
+            elseif args[1] == "connect" then say(last ~= "" and last or "Connected.")
+            else say("") end
+            nord_refresh()
+        end)
+    end
+    local function nord_go()
+        local q = trim(text.vpn_nd_q)
+        if q == "" then nord_run({ "connect" }, "Connecting NordVPN to the fastest server…") return end
+        nord_run({ "connect", (q:gsub("%s+", "_")) }, "Connecting NordVPN to " .. q .. "…")
+    end
+    on("vpn_nd_quick", function() nord_run({ "connect" }, "Connecting NordVPN to the fastest server…") end)
+    on("vpn_nd_go", nord_go)
+    on("submit:vpn_nd_q", nord_go)
+    on("vpn_nd_down", function() nord_run({ "disconnect" }, "Disconnecting NordVPN…") end)
+    -- what technology it uses, once (`nordvpn settings`), for the card's corner while it is not connected
+    run("nordvpn", { "settings" }, function(out)
+        for _, l in ipairs(nord_lines(out)) do
+            local t = l:match("^Technology:%s*(%S+)") or l:match("^Protocol:%s*(%S+)")
+            if t then nord.tech = t:upper() == "NORDLYNX" and "NordLynx" or t end
+        end
+        nord_render()
+    end)
+
     local function refresh()
+        nord_refresh()
         nm({ "-t", "-f", "NAME,UUID,TYPE,ACTIVE", "connection", "show" }, function(out, code)
             if code ~= 0 then
                 profs = {}
@@ -8906,6 +8995,7 @@ require("logic/clock")()
     end
     on("vpn_toggle", toggle)
     on("vpn_down", function()
+        if nord.on then nord_run({ "disconnect" }, "Disconnecting NordVPN…") return end
         for i, p in ipairs(profs) do if p.active then return toggle(i - 1) end end
     end)
 
