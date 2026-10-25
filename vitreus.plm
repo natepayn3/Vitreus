@@ -5184,10 +5184,12 @@ scene Vitreus {
     let axs.ymin = axs.top - (axs.fy - axs.h / 2)
     let axs.ymax = cdk.ye - (axs.fy + axs.h / 2)
     //  Where the add-on's content goes, as it settles, on the screen (the glass is drawn unmirrored; the screen is not): kept for the logic, which tells the add-on.
-    on change ax_open { ax_rx = mix(axs.fx + ax_gx, screen.width - (axs.fx + ax_gx), rt); ax_ry = mix(axs.fy + ax_gy, yo + vb - (axs.fy + ax_gy), bt) + (axs.rt - axs.rb) / 2; ax_rw = axs.w; ax_rh = axs.h - axs.rt - axs.rb }
-    on change ax_cur { ax_rx = mix(axs.fx + ax_gx, screen.width - (axs.fx + ax_gx), rt); ax_ry = mix(axs.fy + ax_gy, yo + vb - (axs.fy + ax_gy), bt) + (axs.rt - axs.rb) / 2; ax_rw = axs.w; ax_rh = axs.h - axs.rt - axs.rb }
-    on change ax_hold { ax_rx = mix(axs.fx + ax_gx, screen.width - (axs.fx + ax_gx), rt); ax_ry = mix(axs.fy + ax_gy, yo + vb - (axs.fy + ax_gy), bt) + (axs.rt - axs.rb) / 2; ax_rw = axs.w; ax_rh = axs.h - axs.rt - axs.rb }
-    on change ax_rsz { ax_rx = mix(axs.fx + ax_gx, screen.width - (axs.fx + ax_gx), rt); ax_ry = mix(axs.fy + ax_gy, yo + vb - (axs.fy + ax_gy), bt) + (axs.rt - axs.rb) / 2; ax_rw = axs.w; ax_rh = axs.h - axs.rt - axs.rb }
+    //  Worked out on the copy the panel is on only (`axo`): a rule runs on every copy, and with two monitors the last copy's own width won, so the content was
+    //  told a place on the other monitor's terms (beside the panel, or off it).
+    on change ax_open while axo > 0.5 { ax_rx = mix(axs.fx + ax_gx, screen.width - (axs.fx + ax_gx), rt); ax_ry = mix(axs.fy + ax_gy, yo + vb - (axs.fy + ax_gy), bt) + (axs.rt - axs.rb) / 2; ax_rw = axs.w; ax_rh = axs.h - axs.rt - axs.rb }
+    on change ax_cur while axo > 0.5 { ax_rx = mix(axs.fx + ax_gx, screen.width - (axs.fx + ax_gx), rt); ax_ry = mix(axs.fy + ax_gy, yo + vb - (axs.fy + ax_gy), bt) + (axs.rt - axs.rb) / 2; ax_rw = axs.w; ax_rh = axs.h - axs.rt - axs.rb }
+    on change ax_hold while axo > 0.5 { ax_rx = mix(axs.fx + ax_gx, screen.width - (axs.fx + ax_gx), rt); ax_ry = mix(axs.fy + ax_gy, yo + vb - (axs.fy + ax_gy), bt) + (axs.rt - axs.rb) / 2; ax_rw = axs.w; ax_rh = axs.h - axs.rt - axs.rb }
+    on change ax_rsz while axo > 0.5 { ax_rx = mix(axs.fx + ax_gx, screen.width - (axs.fx + ax_gx), rt); ax_ry = mix(axs.fy + ax_gy, yo + vb - (axs.fy + ax_gy), bt) + (axs.rt - axs.rb) / 2; ax_rw = axs.w; ax_rh = axs.h - axs.rt - axs.rb }
     //  The right notch opens the desk: a panel out of the right frame with a few small tools, in tabs. It is not one of the values of `panel`, so it
     //  stays open while the calendar, the controls, the volume or a notification come and go. It is drawn like the volume's and the title panel's
     //  drawers (`dz.*`: the same springs and shape) but with its own geometry, which does not depend on whichever of those is out.
