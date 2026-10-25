@@ -173,8 +173,10 @@ reads the folders and leaves `addons.json` in the data folder; which are on is k
 **Logic, data and programs.** A scene's logic is the `.luau` file with the scene's name beside it (`addon.plm` and `addon.luau`; the drawer template has one). It keeps what it must in the
 scene's own data folder, `~/.local/share/pleamar/<scene's name>/`, with the `files` and `files.write` services (`sys.ask("files.folder")` is the folder's path, `files.read` and `files.write`
 work by file name), and runs programs with `run(...)`: each one has to be named in the scene's `permissions { run: ... }`, and a program that is not on every machine (a helper like
-`bin/vitreus-feedfetch`) is linked into `~/.local/bin` by `install.sh`. A panel cannot take text, so an add-on takes what it needs from the clipboard instead: `run("wl-paste", ...)`
-behind a button that says so. The shell tells an add-on the forecast as `wx_*` texts and facts when the scene declares them; an add-on that fetches its own weather should not name its
+`bin/vitreus-feedfetch`) is linked into `~/.local/bin` by `install.sh`. A panel can have a text field, which the shell takes the keys for (an add-on's scene never asks for
+the keyboard: on two monitors Hyprland handed it, and the pointer with it, to the wrong copy): the add-on says where the field is with `pleamar --say vitreus "fact axf_on true"` and its
+place (`axf_l`, `axf_t`, `axf_r`, `axf_h`), leaves that spot without a zone of its own, and draws what the shell sends back (`field_q`, `field_kb`, `field_enter`, `field_esc`); the
+template has one, and logic/addons.luau has the messages. The shell tells an add-on the forecast as `wx_*` texts and facts when the scene declares them; an add-on that fetches its own weather should not name its
 own `wx_*` or they would be overwritten (the News & Weather one uses `nw_*`). Give the scene file a name of its own: two add-ons whose scene files share a name cannot both run.
 
 **News & Weather** (`addons/news-weather/`, from jaslrobinson's drawer, issue #22) is a panel add-on built this way: an RSS/Atom reader and an Open-Meteo forecast (48-hour graphs, 16 days, saved places).

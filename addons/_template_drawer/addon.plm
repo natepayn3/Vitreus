@@ -20,18 +20,21 @@ import "addon-palette.plm"
 //  One monitor: the scene has a copy on each monitor (`screens: each`), and only the copy on the panel's monitor should draw; `shown` below is 1 only there. A copy is told
 //  apart by its monitor's size, not its number (a scene numbers its monitors in its own order, not the shell's). Hide with `shown`, and make zones `active: shown > 0.5`.
 //
-//  What this cannot do yet: take text (the shell's drawers hold the keyboard while one is open, an add-on's scene does not).
+//  Text fields: this scene does not take the keyboard (no `keyboard:` on its surface: asked of every copy at once, Hyprland gave it, and the pointer with it, to a
+//  copy on the wrong monitor). The shell takes the keys for it instead: the logic tells the shell where the field is (`axf_*`, see addon.luau and logic/addons.luau in
+//  Vitreus), this scene leaves that rectangle without a zone of its own, so a click there reaches the shell, and the shell sends back what is written (`field_q`), whether
+//  it is being typed in (`field_kb`: draw the caret) and Enter and Escape (`field_enter`, `field_esc`). One field at a time, one line, the caret at its end; it takes the
+//  keys only from a click on it (a field given the keys without one would take the pointer from this scene until it let go).
 //
 //  The logic is addon.luau beside this file (the scene's name with .luau): it keeps what it must in the scene's own data folder with the `files` services below, and any
-//  program it runs (`run("wl-paste", ...)`, `curl`, a helper of your own) has to be named in `permissions`. Since there is no text field, take text from the clipboard: a button
-//  that runs `wl-paste`. The shell sets `wx_*` texts on a scene that declares them: name your own weather facts something else (the News & Weather add-on uses `nw_*`).
+//  program it runs (`run("wl-paste", ...)`, `curl`, a helper of your own) has to be named in `permissions` (`pleamar`, to talk to the shell about the field). The shell sets `wx_*` texts on a scene that declares them: name your own weather facts something else (the News & Weather add-on uses `nw_*`).
 
 scene MyDrawer {
     surface { size: full, full; anchor: top_left; margin: 0; level: top, overlay while slot_open; screens: each max 4 }
 
     permissions {
         services: "files", "files.write"          // what addon.luau uses to keep `clicks`
-        // run: "wl-paste", "curl"                // the programs the logic may run, by name (this one runs none)
+        run: "pleamar"                           // the programs the logic may run, by name: `pleamar --say vitreus ...` places the field (add "wl-paste", "curl"... as you need them)
     }
 
     fact pal_ink_r = 0.9608
@@ -87,6 +90,12 @@ scene MyDrawer {
     let shown = if(slot_open and (slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh)), 1, 0)       // 1 on the copy that is on the panel's monitor, while the panel is out
 
     fact clicks = 0
+    text field_q = ""                                 // the field: what is written in it (the shell sends it), whether it is being typed in, and its Enter and Escape
+    fact field_kb = false
+    event field_enter ->
+    event field_esc ->
+    text hello = ""                                   // what Enter kept (addon.luau)
+    measure fq
     let left = slot_x - slot_w / 2
     let top = slot_y - slot_h / 2
 
@@ -101,4 +110,10 @@ scene MyDrawer {
     repeat i in 0..8 {
         ellipse { at: left + slot_w - 24 - (7 - i) * 16, top + 104; radius: 5; color: mint; opacity: if(clicks > i, 1, 0.2) * shown }
     }
+    //  The field: 24 from the content's left and right edges, 140 down, 36 tall (what addon.luau tells the shell). Drawn here; no zone over it, so the click is the shell's.
+    box { at: left + slot_w / 2, top + 158; size: slot_w - 48, 36; corner: 18; color: ink; opacity: (8% + 6% * if(field_kb, 1, 0)) * shown }
+    text "Type your name, then Enter" { at: left + 42, top + 158; anchor: left center; size: 15; color: faint; opacity: 70% * shown * if(fq.width < 1, 1, 0); family: "Space Grotesk" }
+    text field_q { at: left + 42, top + 158; anchor: left center; size: 15; color: ink; opacity: shown; family: "Space Grotesk"; measure: fq }
+    box { at: left + 43 + fq.width, top + 158; size: 2, 20; color: mint; opacity: shown * if(field_kb, 1, 0) }
+    text hello { at: left + 24, top + 196; anchor: left center; size: 15; weight: 700; color: mint; opacity: shown; family: "Space Grotesk" }
 }

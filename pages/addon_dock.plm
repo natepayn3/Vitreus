@@ -54,5 +54,10 @@ part AddonDock {
         path { at: axb.cx + dax.ew / 2 - 28 * cu, axb.y; stroke: 1.5 * cu; color: ink; opacity: 70% + 30% * ax_x_z.hover; move 3.4 * cu, -3.4 * cu; line -3.4 * cu, 3.4 * cu }
         zone box ax_x_z { at: axb.cx + dax.ew / 2 - 28 * cu, axb.y; size: 28 * cu, 28 * cu; cursor: pointer; label: "Close the add-on panel" }
         on press ax_x_z { ax_open = false }
+        //  The add-on's field (see `axf_on` in vitreus.plm): where the add-on draws it, while the panel is settled; a press here takes the keys for it.
+        let axf.x0 = ax_rx - ax_rw / 2 + axf_l
+        let axf.x1 = ax_rx + ax_rw / 2 - axf_r
+        zone box axf_z { at: (axf.x0 + axf.x1) / 2, ax_ry - ax_rh / 2 + axf_t + axf_h / 2; size: max(1, axf.x1 - axf.x0), max(1, axf_h); cursor: text; active: axf_on and dax0 > 0.9 and not ax_hold and not ax_rsz; label: "The add-on's text field" }
+        on press axf_z { axf_kb = true; blur }
     }
 }

@@ -73,7 +73,7 @@ scene Vitreus {
     //  search, the desk's inputs) still has it lent exclusively, to the copy it is on only. A loan ends only when this rule goes false, so the corner dock
     //  asks for the keyboard on an empty workspace while one of its icons is under the pointer or held (`cdk_hot`, `cdk_down`), not all the time:
     //  `cdk_on and ws_empty` held every loan on both copies, and the cursor stuck again.
-    surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open }
+    surface { size: full, full; anchor: bar_anchor; margin: 0; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
     permissions { services: "files", "files.write", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "env", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "test", "wl-paste", "ffprobe" }
 
@@ -4332,6 +4332,36 @@ scene Vitreus {
     fact ax_w = 0                                          // its size (0: about 40 % of the room wide, and all of its height; the manifest can say)
     fact ax_h = 0
     text ax_title = ""
+    //  A field in the add-on's panel, typed through the shell (the messages are in logic/addons.luau). An add-on's scene is a surface of its own, and its `keyboard:`
+    //  would be asked of every copy at once, as the shell's was before (see the surface): so the add-on only says where its field is, from the top left of its content
+    //  (`axf_l`, `axf_t`, its height `axf_h` and `axf_r` from the content's right edge), and the shell lays a zone there, on the panel's copy only. Its own surface leaves
+    //  the clicks there to this one (no zone of its own over the field), so a click on the field is a click on the shell, and Hyprland lends the keyboard to this copy
+    //  (`on_demand`, asked for while a field is shown) as it does for the Desk's terminal: the keys go to the logic, which keeps the text and tells the add-on, which
+    //  draws it. Not `focus`: a field focused from a rule takes the keyboard exclusively, and Hyprland then gives the pointer to the shell only, so the add-on's own
+    //  buttons stopped answering for as long as the field held it.
+    fact axf_on = false                                    // the add-on in the panel shows a field (it says so; it is put away when the panel shuts or another add-on takes it)
+    fact axf_l = 0
+    fact axf_t = 0
+    fact axf_r = 0
+    fact axf_h = 0
+    text axf_q = ""                                        // what the field starts with (the add-on sets it before `axf_on`, or with `axf_set`)
+    event axf_set ->
+    fact axf_kb = false                                    // it is being typed in: the keys go to the logic
+    event axf_esc ->
+    on change ax_open while not ax_open { axf_on = false }
+    on change ax_cur { axf_on = false }
+    on change axf_on while not axf_on { axf_kb = false }
+    on key Escape while axf_kb { axf_kb = false; emit axf_esc }
+    //  Gaining the keyboard puts the writing cursor in the first field there is, and keys typed then reach that field, not the logic: taken away again, as for the
+    //  Desk's terminal. Losing it (a click on a window) ends the typing; so does anything of the shell's own that takes the keys.
+    on focus while axf_kb { blur }
+    on blur { axf_kb = false }
+    on change panel while panel != none { axf_kb = false }
+    on change wp_picker_open while wp_picker_open { axf_kb = false }
+    on change ov_open while ov_open { axf_kb = false }
+    on change pk_open while pk_open { axf_kb = false }
+    on change dash_open while dash_open { axf_kb = false }
+    on change desk_kb while desk_kb { axf_kb = false }
     //  The wallpaper hook (logic/wallpaper_hook.luau): what the add-on that frames wallpapers answers with.
     text wph_out = ""
     event wph_done ->

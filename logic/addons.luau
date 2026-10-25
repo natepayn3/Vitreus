@@ -98,6 +98,61 @@ return function()
     on("fact:ax_sw", function(v) after(150, push_slot) end)
     on("fact:ax_rsz", function(v) after(150, push_slot) end)
 
+    -- A field in the panel (`axf_on` in vitreus.plm): the add-on draws it and the shell takes the keys for it, so that the keyboard is lent by the shell, to the copy
+    -- the panel is on, and the add-on's surface never asks for it. The messages:
+    --   add-on -> shell (`pleamar --say vitreus ...`):  fact axf_l, axf_t, axf_r, axf_h (where the field is, from the top left of the content; `axf_r` from its right edge),
+    --       text axf_q (what it starts with), then fact axf_on true; fact axf_on false takes it away; text axf_q + emit axf_set changes the text while it is shown.
+    --       The shell puts it away when the panel shuts or another add-on takes the panel: send it again when `slot_open` comes back.
+    --   shell -> add-on:  text field_q (what is written, after each key; `--say` drops a space at its very end, which shows with the next key), fact field_kb (it is being
+    --       typed in: draw the caret), emit field_enter (Enter, with field_q sent just before it), emit field_esc (Escape, which also ends the typing).
+    -- One line, up to 200 characters, the caret at its end: Backspace, Ctrl+Backspace or Ctrl+W (a word), Ctrl+U (all of it) and Ctrl+V (the clipboard's first line).
+    local fq, fsent, fbusy, fowner = "", nil, false, nil
+    local function fsend()            -- one say at a time, the newest text once it answers: two in flight can land in the wrong order
+        if fbusy or not fowner or fq == fsent then return end
+        fbusy, fsent = true, fq
+        run("pleamar", { "--say", fowner, "text field_q " .. fq }, function() fbusy = false; fsend() end)
+    end
+    local function fset(v)
+        v = tostring(v or ""):gsub("[\r\n].*$", "")
+        if utf8.len(v) and utf8.len(v) > 200 then v = v:sub(1, utf8.offset(v, 201) - 1) end
+        fq = v
+        fsend()
+    end
+    on("fact:axf_on", function(v)
+        if v == true then
+            local a = cur_pin()
+            local sock = a and a.drawer and a.sock or nil
+            if sock == fowner then return end      -- (said again while it is shown: a fact set from outside fires on every set, and starting over lost what was being written)
+            fowner = sock
+            fq, fsent = text.axf_q or "", nil
+        elseif fowner then
+            say_one(fowner, { "fact field_kb false" })
+            fowner = nil
+        end
+    end)
+    on("axf_set", function() fq, fsent = text.axf_q or "", nil end)
+    on("fact:axf_kb", function(v) if fowner then say_one(fowner, { "fact field_kb " .. tostring(v == true) }) end end)
+    on("axf_esc", function() if fowner then say_one(fowner, { "emit field_esc" }) end end)
+    on("key", function(name, typed)
+        if fact.axf_kb ~= true or not fowner then return end
+        name = tostring(name or "")
+        if name == "Return" or name == "KP_Enter" then
+            fsent = fq
+            say_one(fowner, { "text field_q " .. fq, "emit field_enter" })
+        elseif name == "BackSpace" then
+            local k = utf8.offset(fq, -1)
+            if k then fset(fq:sub(1, k - 1)) end
+        elseif name == "Ctrl+BackSpace" or name == "Ctrl+w" then
+            fset((fq:gsub("%s*[^%s]*$", "")))
+        elseif name == "Ctrl+u" then
+            fset("")
+        elseif name == "Ctrl+v" then
+            run("wl-paste", { "--no-newline" }, function(out, code) if code == 0 and fact.axf_kb == true then fset(fq .. (out or "")) end end)
+        elseif typed and typed ~= "" and not name:find("Ctrl+", 1, true) and not name:find("Alt+", 1, true) and not name:find("Super+", 1, true) then
+            fset(fq .. typed)
+        end
+    end)
+
     local function push_wx()
         if #addon_scenes == 0 then return end
         local c = { "fact wx_ok " .. tostring(fact.wx_ok == true), "fact wx_kind " .. tostring(fact.wx_kind or 2), "fact wx_c " .. tostring(fact.wx_c == true),

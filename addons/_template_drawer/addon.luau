@@ -11,3 +11,23 @@ if ok and type(saved) == "table" and type(saved.clicks) == "number" then fact.cl
 on("fact:clicks", function(v)
     pcall(sys.call, "files.write", "state.json", { clicks = tonumber(v) or 0 })
 end)
+
+-- The field (see the scene): the shell takes the keys for it. Where it is, from the top left of the content: 24 in from the left, 140 down, 36 tall, and 24 in from the
+-- right edge (so it follows the panel's width). Told again each time the panel comes out: the shell forgets it when the panel shuts.
+local function say_shell(cmds)
+    local args = { "--say", "vitreus" }
+    for _, c in ipairs(cmds) do args[#args + 1] = c end
+    run("pleamar", args, function() end)
+end
+local was_open = false
+on("fact:slot_open", function(v)       -- (the shell says it again every two seconds while the panel is out: only its coming out counts)
+    local now = v == true
+    if now == was_open then return end
+    was_open = now
+    if now then say_shell({ "fact axf_l 24", "fact axf_t 140", "fact axf_r 24", "fact axf_h 36", "text axf_q ", "fact axf_on true" }) end
+end)
+on("field_enter", function()
+    text.hello = text.field_q ~= "" and ("Hello, " .. text.field_q) or ""
+    say_shell({ "text axf_q ", "emit axf_set" })      -- empty the field again
+    text.field_q = ""
+end)
