@@ -40,7 +40,16 @@ return function(with_dirs, reload, apply, refresh_local)
         token = token + 1
         local mine = token
         busy = true
-        say("Searching…")
+        model.wps = {}                    -- (the grid empties at once: the folder's pictures would hide the note, and look like nothing happened)
+        fact.wp_sel = -1
+        local dots = 0
+        local function tick()             -- "Searching" with dots that come and go, while the search and the thumbnails are on their way
+            if mine ~= token or not busy then return end
+            say("Searching" .. string.rep(".", dots % 4))
+            dots = dots + 1
+            after(350, tick)
+        end
+        tick()
         run("vitreus-wallhaven", { "--list", "--offset", tostring(p * 16), "--count", "16", "--thumbs", CACHE, "--sort", s, "--range", "1y",
             "--purity", purity(), "--config", DIR .. "/wallhaven.json", "--", q }, function(out, code)
             if mine ~= token then return end

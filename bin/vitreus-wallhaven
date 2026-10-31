@@ -16,7 +16,7 @@ Browsing, for the picker's Wallhaven view (no picture is downloaded but the thum
 
 Files are named wallhaven-<id>.<ext>, the site's own name, so one saved from the site is not fetched twice. Each is written as .part and renamed when whole.
 Prints one line per picture that is there at the end: its path. Exit 1 when the search itself fails. Wallhaven allows 45 requests a minute; this makes one + one per new picture."""
-import argparse, json, os, re, sys, urllib.parse, urllib.request
+import argparse, json, os, re, subprocess, sys, urllib.parse, urllib.request
 
 ap = argparse.ArgumentParser()
 ap.add_argument("query", nargs="?", default="")
@@ -97,9 +97,14 @@ if a.list:                                             # a window of the results
         wid = item.get("id", "")
         url = (item.get("thumbs") or {}).get("small", "")
         if not re.fullmatch(r"[a-z0-9]{4,10}", wid) or not url.startswith("https://th.wallhaven.cc/"): return None
-        dest = os.path.join(a.thumbs, wid + ".jpg")
+        dest = os.path.join(a.thumbs, wid + ".w.jpg")      # (cropped to 16:9 like the gallery's own; the 3:2 ones of before were squeezed into the same tile)
         if not os.path.exists(dest):
-            try: download(url, dest)
+            try:
+                raw = os.path.join(a.thumbs, wid + ".raw.jpg")
+                download(url, raw)
+                r = subprocess.run(["magick", raw, "-auto-orient", "-gravity", "center", "-crop", "16:9", "+repage", "-resize", "320x180!", dest], capture_output=True, timeout=20)
+                if r.returncode != 0 or not os.path.exists(dest): os.replace(raw, dest)     # (no magick: the picture as it came)
+                elif os.path.exists(raw): os.unlink(raw)
             except Exception: return None
         return dest
     with ThreadPoolExecutor(8) as ex: files = list(ex.map(thumb, window))
