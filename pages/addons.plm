@@ -40,14 +40,10 @@ part Addons {
                         zone box ad_src.$pass.$i { at: spx + 14 * pu + 175 * pu, sby + (adt + 53) * pu; size: 350 * pu, 16 * pu; cursor: pointer; active: addons.$i.has and (sby + adc * pu) - ad.off > sby and (sby + adc * pu) - ad.off < sby + set.h * pu; label: "Open this add-on's repository" }
                         on press ad_src.$pass.$i { emit addon_repo(i) }
                         //  The bin, on the cards of the user's own add-ons: the first press asks (the card says so), the second deletes the folder (to the trash).
-                        let adbx = spx + 368 * pu
+                        let adbx = spx + 361 * pu
                         let adby = sby + adc * pu
                         let adbh = if(adel.$pass.$i.hover > 0.5 or addons.$i.ask, 1, 0)
-                        group {
-                            box { at: adbx, adby + 1 * pu; size: 11 * pu, 12 * pu; corner: 2 * pu; stroke: 1.4 * pu; color: mix(ink, alert, adbh); opacity: 45% + 50% * adbh }
-                            line { from: adbx - 8 * pu, adby - 6 * pu; to: adbx + 8 * pu, adby - 6 * pu; width: 1.4 * pu; color: mix(ink, alert, adbh); opacity: 45% + 50% * adbh }
-                            line { from: adbx - 3 * pu, adby - 9 * pu; to: adbx + 3 * pu, adby - 9 * pu; width: 1.4 * pu; color: mix(ink, alert, adbh); opacity: 45% + 50% * adbh }
-                        }
+                        PBin(adbx, adby, adbh, 55% + 45% * adbh, pu)
                         zone box adel.$pass.$i { at: adbx, adby; size: 26 * pu, 30 * pu; cursor: pointer; active: (sby + adc * pu) - ad.off > sby and (sby + adc * pu) - ad.off < sby + set.h * pu; label: "Remove this add-on" }
                         on press adel.$pass.$i { emit addon_del(i) }
                         box { at: spx + 219 * pu, sby + adc * pu; size: 438 * pu, 66 * pu; corner: 14 * pu; stroke: 1.5 * pu; color: mint; opacity: 100% * adl }
