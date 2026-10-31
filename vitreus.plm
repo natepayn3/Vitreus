@@ -1031,6 +1031,9 @@ scene Vitreus {
     }
     //  The glass bends a copy of the wallpaper, not a capture of the screen: `lens_image` in vitreus.luau writes it (half the screen's size is plenty under the frosting).
     lens = image "~/.cache/pleamar/vitreus/lens.png" while not glass_live
+    //  Live bend's pace: the Glass page's "Live bend refresh" (glass.json `cap_ms`). No `lens hold while` a panel moves: its new glass
+    //  has never been captured, and held it would bend nothing until it settled.
+    lens every lens_interval_ms * 1ms
     spring dripl = 46, 8          // the drip down the left: slow enough to see the neck stretch, thin and snap, and loose enough to swing past where it lands
     spring drip = 170, 18         // underdamped: it overshoots and settles back, like a real drop landing
     spring pop  = 300, 12         // snappier and much less damped: a toggle knob popping past where it lands
