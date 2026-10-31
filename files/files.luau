@@ -1008,7 +1008,7 @@ function F.build_places(found)
     end
     s.places[#s.places + 1] = { name = "NETWORK", kind = 1 }
     for _, n in ipairs(s.nets) do
-        s.places[#s.places + 1] = { name = n.name, path = n.path, pk = 13, kind = 0, eject = true, net = true }
+        s.places[#s.places + 1] = { name = n.name, path = n.path, pk = 13, kind = 0, eject = not n.sys, net = true, sys = n.sys }
     end
     s.places[#s.places + 1] = { name = "Connect to server…", path = "connect:", pk = 15 }
     local pinned = {}
@@ -1076,21 +1076,49 @@ function F.poll_devices()
                 if scheme == "mtp" or scheme == "gphoto2" then nm = "Phone or camera" end
                 nets[#nets + 1] = { name = nm, path = s.runtime .. "/gvfs/" .. l }
             end
-            local sig = {}
-            for _, n in ipairs(nets) do sig[#sig + 1] = n.path end
-            local key = table.concat(sig, ";")
-            if key ~= s.net_sig then
-                s.net_sig = key
-                s.nets = nets
-                if s.home ~= "" then F.build_places(); F.show_places() end
-            end
+            s.nets_gvfs = nets
+            F.merge_nets()
         end)
+    end
+    -- and the network filesystems the kernel itself has mounted: from fstab, from an automount, or by hand.
+    -- gvfs knows nothing of those, so without this a share mounted at boot shows up nowhere on the left, and
+    -- the only way to reach it is to pin its folder.
+    run("findmnt", { "-rno", "FSTYPE,TARGET,SOURCE", "-t", "cifs,smb3,nfs,nfs4,fuse.sshfs" }, function(o)
+        local nets = {}
+        for l in (o or ""):gmatch("[^\n]+") do
+            local target, source = l:match("^%S+%s+(%S+)%s+(%S+)")
+            if target then
+                target = target:gsub("\\040", " ")
+                local host, share = source:match("^//([^/]+)/(.+)$")     -- //server/share
+                if not host then host, share = source:match("^([^:/]+):(.+)$") end   -- server:/export
+                local nm = (host and share) and (basename(share) .. " on " .. host) or basename(target)
+                nets[#nets + 1] = { name = nm, path = target, sys = true }
+            end
+        end
+        s.nets_sys = nets
+        F.merge_nets()
+    end)
+end
+
+-- The two sources of network places together: what gvfs mounted and what the kernel mounted. The list is
+-- rebuilt only when it really changed, so the sidebar does not flicker on every poll.
+function F.merge_nets()
+    local nets = {}
+    for _, n in ipairs(s.nets_gvfs or {}) do nets[#nets + 1] = n end
+    for _, n in ipairs(s.nets_sys or {}) do nets[#nets + 1] = n end
+    local sig = {}
+    for _, n in ipairs(nets) do sig[#sig + 1] = n.path end
+    local key = table.concat(sig, ";")
+    if key ~= s.net_sig then
+        s.net_sig = key
+        s.nets = nets
+        if s.home ~= "" then F.build_places(); F.show_places() end
     end
 end
 
 -- let a drive go: put it away, and if it is a disk of its own (a stick) switch it off too
 function F.eject_place(p)
-    if p.net then
+    if p.net and not p.sys then
         run("gio", { "mount", "-u", "--", p.path }, function(_, code)
             say(code == 0 and ("Disconnected from " .. p.name) or ("Could not disconnect " .. p.name))
             F.poll_devices()
@@ -1784,7 +1812,7 @@ on("place_menu", function(i)
             menu_row(rows, "Open in New Window", 28, true, 19, "")
         end
         if p.dev then menu_row(rows, p.mounted and "Unmount" or "Mount", p.mounted and 64 or 42, true, 34, "", true) end
-        if p.net then menu_row(rows, "Disconnect", 64, true, 34, "", true) end
+        if p.net and not p.sys then menu_row(rows, "Disconnect", 64, true, 34, "", true) end
         if p.pinned then
             menu_row(rows, "Rename…", 65, true, 9, "", true)
             menu_row(rows, "Move Up", 66, true, 34, "")
