@@ -375,3 +375,18 @@ else
     set_stage(0, "Connecting…", cur_host())
 end
 start_helper()
+
+-- Which copy of this scene is on the panel's monitor: the one whose `screen.K.name` is the name the shell sent (`slot_mon`), as in the template. Without it the
+-- size decided, and on monitors of the same size every copy drew the panel: a ghost of it on the other monitors.
+local function find_monitor()
+    local name = text.slot_mon or ""
+    local any = false
+    for k = 0, 3 do
+        local here = name ~= "" and text["screen." .. k .. ".name"] == name
+        if fact["mon_c" .. k] ~= here then fact["mon_c" .. k] = here end
+        any = any or here
+    end
+    if fact.mon_known ~= any then fact.mon_known = any end
+end
+on("fact:slot_open", function() find_monitor() end)      -- (the shell says it again every two seconds while the panel is out, and `slot_mon` before it)
+on("text:slot_mon", function() find_monitor() end)

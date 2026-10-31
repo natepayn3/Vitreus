@@ -7,7 +7,7 @@ import "addon-pencil.plm"                          // the pencil components (see
 //  The panel, its title bar, the glass and the resizing are the shell's (see ../_template_drawer/addon.plm for what it tells this scene: the `slot_*` and `pal_*` facts below).
 
 scene VpnToggle {
-    surface { size: full, full; anchor: top_left; margin: 0; level: top, overlay while slot_open; screens: each max 4 }
+    surface { size: full, full; anchor: top_left; margin: 0; level: top, overlay while slot_open; screens: each max 4; open: shown > 0.5 }
 
     permissions {
         run: "nmcli"
@@ -71,7 +71,11 @@ scene VpnToggle {
     let shown = if(slot_open and (if(mon_known, mon_here > 0.5, slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh))), 1, 0)
 
     let u = 1.1
-    let fr = if(shown > 0.5 and look < 4.5, floor(time * 8), 0)       // (the pencil holds still on the Proxy theme: its HUD is crisp)
+    //  The pencil's clock, running only while the panel shows: naming pleamar's `time` keeps a scene awake for good, about fifty rounds a second
+    //  with the panel shut (pleamar --report: "animating 100%"). Stopped, the scene rests.
+    prop ax_clk = 0
+    spin ax_clk by if(shown > 0.5, 1, 0)
+    let fr = if(shown > 0.5 and look < 4.5, floor(ax_clk * 8), 0)       // (the pencil holds still on the Proxy theme: its HUD is crisp)
 
     prop wk = 0 ~700ms
     prop en1 = 0 ~200ms

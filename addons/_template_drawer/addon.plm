@@ -33,10 +33,10 @@ import "addon-theme.plm"                           // the theme's own pieces (se
 //
 //  Style: read STYLE.md beside this file (an add-on included in Vitreus itself has to follow it; one you write on your own is free to look as you like). It says how a panel should look and move (the boiled pencil, the Control Center's switches and sliders, even margins, how the content arrives, how
 //  input is stacked), and addon-pencil.plm holds the drawing, imported above; the sample card below uses every piece. The boiled pencil is preferred for an add-on's icons and graphics (hand-drawn lines, each drawn twice, the second fainter and a hair off, an accent wash inside, strokes
-//  redrawn about eight times a second with `floor(time * 8)`: see PCup, PBell and PEnvelope in vitreus.plm). SVGs or images of your own are allowed in its place.
+//  redrawn about eight times a second with `floor(ax_clk * 8)`, a clock that runs only while the panel shows (`time` would keep the scene awake for good): see PCup, PBell and PEnvelope in vitreus.plm). SVGs or images of your own are allowed in its place.
 
 scene MyDrawer {
-    surface { size: full, full; anchor: top_left; margin: 0; level: top, overlay while slot_open; screens: each max 4 }
+    surface { size: full, full; anchor: top_left; margin: 0; level: top, overlay while slot_open; screens: each max 4; open: shown > 0.5 }
 
     permissions {
         services: "files", "files.write"          // what addon.luau uses to keep `clicks`
@@ -104,7 +104,11 @@ scene MyDrawer {
 
     //  What the pencil library (addon-pencil.plm) expects of the scene: the unit, and the frame its lines are drawn on (it rests while the panel is shut).
     let u = 1.1
-    let fr = if(shown > 0.5 and look < 4.5, floor(time * 8), 0)       // (the pencil holds still on the Proxy theme: its HUD is crisp)
+    //  The pencil's clock, running only while the panel shows: naming pleamar's `time` keeps a scene awake for good, about fifty rounds a second
+    //  with the panel shut (pleamar --report: "animating 100%"). Stopped, the scene rests.
+    prop ax_clk = 0
+    spin ax_clk by if(shown > 0.5, 1, 0)
+    let fr = if(shown > 0.5 and look < 4.5, floor(ax_clk * 8), 0)       // (the pencil holds still on the Proxy theme: its HUD is crisp)
 
     //  What is inside arrives as the Control Center's does: one piece after another (each its own spring, the later ones slower), each rising a little as it
     //  fades in (they start 200 ms after the panel is out: a scene that was shut draws nothing, so its first frame is a long one and a spring started in it would be over at once; they go out at once). `shown` goes down while the panel is pulled or resized and comes back where it lands, so the content arrives again there. Give the pieces of

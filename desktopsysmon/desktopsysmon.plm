@@ -9,7 +9,9 @@ import "../palette.plm"
 //  Its settings are kept in desktopsysmon.json, in ~/.local/share/pleamar/desktopsysmon (see desktopsysmon.luau).
 
 scene DesktopSysmon {
-    surface { size: full, full; anchor: top_left; margin: 0; level: bottom, top while edit; screens: each; reserve: -1; rate: 60 }
+    surface { size: full, full; anchor: top_left; margin: 0; level: bottom, top while edit; screens: each; reserve: -1; rate: 60, 15 while not edit and not glide }
+    //  (15 frames a second at rest: the graph glides on a 4 s spring after every sample, so it never stops, and at the screen's pace that was a full-screen layer
+    //  painted sixty times a second all day on every monitor. Smooth enough for a graph; full pace while it is dragged or put back.)
 
     permissions {
         services: "files", "files.write"
