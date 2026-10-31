@@ -105,11 +105,11 @@ part Wallpaper {
 
             //  Card four: the gallery, sixteen at a time, with a pager.
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 361 * pu; size: 438 * pu, 314 * pu; corner: 14 * pu } }
-            box { at: spx + 219 * pu, sby + 361 * pu; size: 438 * pu, 314 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 364.5 * pu; size: 438 * pu, 321 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, sby + 364.5 * pu; size: 438 * pu, 321 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             //  The source: a pill with two options, like Desk's Focus / Timer / Stopwatch. Gallery is the folder; Wallhaven puts a search's results in the same grid (logic/wallhaven.luau).
             let wsx = spx + 14 * pu + 43 * pu
-            let wsy = sby + 219 * pu
+            let wsy = sby + 226 * pu
             body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: wsx + 43 * pu, wsy; size: 176 * pu, 26 * pu; corner: 13 * pu } }
             box { at: wsx + 43 * pu, wsy; size: 176 * pu, 26 * pu; corner: 13 * pu; color: ink; opacity: (veil) * (1 - obs) }
             PPillOutline(wsx + 43 * pu, wsy, 176 * pu, 26 * pu, 13 * pu, 0, 1, pu)
@@ -137,52 +137,60 @@ part Wallpaper {
             on press wp_dir_hit { wpd_open = true; emit wp_dir_browse }
             on key Escape while wpd_open { wpd_open = false }
             on change set_page { wpd_open = false }
-            group { scale: rs; pivot: floor(spx + 219 * pu + 0.5), floor(sby + 361 * pu + 0.5); text "No wallpaper of this color" { at: floor(spx + 219 * pu + 0.5), floor(sby + 361 * pu + 0.5); anchor: center; size: 18; color: faint; family: "Space Grotesk"; show: wps.count < 1 and wp_src == 0 } }
-            group { scale: rs; pivot: floor(spx + 219 * pu + 0.5), floor(sby + 361 * pu + 0.5); text wh_status { at: floor(spx + 219 * pu + 0.5), floor(sby + 361 * pu + 0.5); anchor: center; align: center; size: 16; color: faint; width: (380 * pu) / rs; lines: 2; show: wps.count < 1 and wp_src == 1; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 219 * pu + 0.5), floor(sby + 364.5 * pu + 0.5); text "No wallpaper of this color" { at: floor(spx + 219 * pu + 0.5), floor(sby + 364.5 * pu + 0.5); anchor: center; size: 18; color: faint; family: "Space Grotesk"; show: wps.count < 1 and wp_src == 0 } }
+            group { scale: rs; pivot: floor(spx + 219 * pu + 0.5), floor(sby + 364.5 * pu + 0.5); text wh_status { at: floor(spx + 219 * pu + 0.5), floor(sby + 364.5 * pu + 0.5); anchor: center; align: center; size: 16; color: faint; width: (380 * pu) / rs; lines: 2; show: wps.count < 1 and wp_src == 1; family: "Space Grotesk" } }
             row wp_grid {
-                at: floor(spx + 15 * pu + 0.5), floor(sby + 238 * pu + 0.5)
+                at: floor(spx + 15 * pu + 0.5), floor(sby + 245 * pu + 0.5)
                 gap: 8 * pu
                 wrap: 4
                 for w in wps { WpThumb(w, pick: wp_pick) }
             }
-            path { at: spx + 40 * pu, sby + 500 * pu; stroke: 1.6 * pu; color: ink; opacity: 55% + 45% * wp_prev_hit.hover; move 3 * pu, -5 * pu; line -3 * pu, 0; line 3 * pu, 5 * pu }
-            group { scale: rs; pivot: floor(spx + 219 * pu + 0.5), floor(sby + 500 * pu + 0.5); text wp_pager { at: floor(spx + 219 * pu + 0.5), floor(sby + 500 * pu + 0.5); anchor: center; align: center; size: 16.5; weight: 600; width: (100 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
-            path { at: spx + 398 * pu, sby + 500 * pu; stroke: 1.6 * pu; color: ink; opacity: 55% + 45% * wp_next_hit.hover; move -3 * pu, -5 * pu; line 3 * pu, 0; line -3 * pu, 5 * pu }
-            zone box wp_prev_hit { at: spx + 40 * pu, sby + 500 * pu; size: 30 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: set_page == pg_wall and (sby + 500 * pu) - wp.off > sby + 12 * pu and (sby + 500 * pu) - wp.off < sby + (set.h - 12) * pu }
-            zone box wp_next_hit { at: spx + 398 * pu, sby + 500 * pu; size: 30 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: set_page == pg_wall and (sby + 500 * pu) - wp.off > sby + 12 * pu and (sby + 500 * pu) - wp.off < sby + (set.h - 12) * pu }
+            path { at: spx + 40 * pu, sby + 507 * pu; stroke: 1.6 * pu; color: ink; opacity: 55% + 45% * wp_prev_hit.hover; move 3 * pu, -5 * pu; line -3 * pu, 0; line 3 * pu, 5 * pu }
+            group { scale: rs; pivot: floor(spx + 219 * pu + 0.5), floor(sby + 507 * pu + 0.5); text wp_pager { at: floor(spx + 219 * pu + 0.5), floor(sby + 507 * pu + 0.5); anchor: center; align: center; size: 16.5; weight: 600; width: (100 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+            path { at: spx + 398 * pu, sby + 507 * pu; stroke: 1.6 * pu; color: ink; opacity: 55% + 45% * wp_next_hit.hover; move -3 * pu, -5 * pu; line 3 * pu, 0; line -3 * pu, 5 * pu }
+            zone box wp_prev_hit { at: spx + 40 * pu, sby + 507 * pu; size: 30 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: set_page == pg_wall and (sby + 507 * pu) - wp.off > sby + 12 * pu and (sby + 507 * pu) - wp.off < sby + (set.h - 12) * pu }
+            zone box wp_next_hit { at: spx + 398 * pu, sby + 507 * pu; size: 30 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: set_page == pg_wall and (sby + 507 * pu) - wp.off > sby + 12 * pu and (sby + 507 * pu) - wp.off < sby + (set.h - 12) * pu }
             on press wp_prev_hit { emit wp_prev }
             on press wp_next_hit { emit wp_next }
+            //  Undo: for 10 s after a picture was sent to the trash, a pill at the right of the source row (where Wallhaven's sort pill is) puts the last one back.
+            group {
+                show: wp_undo and wp_src == 0
+                box { at: spx + 379 * pu, wsy; size: 84 * pu, 24 * pu; corner: 12 * pu; color: mint; opacity: 16% + 14% * wp_undo_hit.hover }
+                group { scale: rs; pivot: floor(spx + 379 * pu + 0.5), floor(wsy + 0.5); text "Undo delete" { at: floor(spx + 379 * pu + 0.5), floor(wsy + 0.5); anchor: center; align: center; size: 12.5; weight: 700; color: mint; width: (80 * pu) / rs; lines: 1; family: "Space Grotesk" } }
+                zone box wp_undo_hit { at: spx + 379 * pu, wsy; size: 84 * pu, 24 * pu; corner: 12 * pu; cursor: pointer; label: "Put the last deleted wallpaper back"; active: set_page == pg_wall and wp_undo and wp_src == 0 }
+                on press wp_undo_hit { emit wp_undo_do }
+            }
             //  The sort order's menu, under its chip: all six at once. A press anywhere else puts it away.
-            zone box wh_dd_catch { at: spx + 219 * pu, sby + 260 * pu; size: 438 * pu, 520 * pu; active: wh_dd }
+            zone box wh_dd_catch { at: spx + 219 * pu, sby + 267 * pu; size: 438 * pu, 520 * pu; active: wh_dd }
             on press wh_dd_catch { wh_dd = false }
             on key Escape while wh_dd { wh_dd = false }
             group {
                 show: wh_dd
-                body { color: mix(obsidian, ink, 8%); shadow: 0, 4 * pu, 14 * pu, 55%, #000000; box { at: spx + 372 * pu, sby + 312 * pu; size: 104 * pu, 152 * pu; corner: 14 * pu } }
-                box { at: spx + 372 * pu, sby + 312 * pu; size: 104 * pu, 152 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: 18% }
-                box { at: spx + 372 * pu, sby + 252 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 0, 24%, 0%) + 14% * wh_dd_r0.hover }
-                group { scale: rs; pivot: floor(spx + 372 * pu + 0.5), floor(sby + 252 * pu + 0.5); text "Top" { at: floor(spx + 372 * pu + 0.5), floor(sby + 252 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 0, mint, ink); family: "Space Grotesk" } }
-                zone box wh_dd_r0 { at: spx + 372 * pu, sby + 252 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Top"; active: wh_dd }
+                body { color: mix(obsidian, ink, 8%); shadow: 0, 4 * pu, 14 * pu, 55%, #000000; box { at: spx + 372 * pu, sby + 319 * pu; size: 104 * pu, 152 * pu; corner: 14 * pu } }
+                box { at: spx + 372 * pu, sby + 319 * pu; size: 104 * pu, 152 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: 18% }
+                box { at: spx + 372 * pu, sby + 259 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 0, 24%, 0%) + 14% * wh_dd_r0.hover }
+                group { scale: rs; pivot: floor(spx + 372 * pu + 0.5), floor(sby + 259 * pu + 0.5); text "Top" { at: floor(spx + 372 * pu + 0.5), floor(sby + 259 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 0, mint, ink); family: "Space Grotesk" } }
+                zone box wh_dd_r0 { at: spx + 372 * pu, sby + 259 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Top"; active: wh_dd }
                 on press wh_dd_r0 { emit wh_sort_set(0); wh_dd = false }
-                box { at: spx + 372 * pu, sby + 276 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 1, 24%, 0%) + 14% * wh_dd_r1.hover }
-                group { scale: rs; pivot: floor(spx + 372 * pu + 0.5), floor(sby + 276 * pu + 0.5); text "Latest" { at: floor(spx + 372 * pu + 0.5), floor(sby + 276 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 1, mint, ink); family: "Space Grotesk" } }
-                zone box wh_dd_r1 { at: spx + 372 * pu, sby + 276 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Latest"; active: wh_dd }
+                box { at: spx + 372 * pu, sby + 283 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 1, 24%, 0%) + 14% * wh_dd_r1.hover }
+                group { scale: rs; pivot: floor(spx + 372 * pu + 0.5), floor(sby + 283 * pu + 0.5); text "Latest" { at: floor(spx + 372 * pu + 0.5), floor(sby + 283 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 1, mint, ink); family: "Space Grotesk" } }
+                zone box wh_dd_r1 { at: spx + 372 * pu, sby + 283 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Latest"; active: wh_dd }
                 on press wh_dd_r1 { emit wh_sort_set(1); wh_dd = false }
-                box { at: spx + 372 * pu, sby + 300 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 2, 24%, 0%) + 14% * wh_dd_r2.hover }
-                group { scale: rs; pivot: floor(spx + 372 * pu + 0.5), floor(sby + 300 * pu + 0.5); text "Most views" { at: floor(spx + 372 * pu + 0.5), floor(sby + 300 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 2, mint, ink); family: "Space Grotesk" } }
-                zone box wh_dd_r2 { at: spx + 372 * pu, sby + 300 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Most views"; active: wh_dd }
+                box { at: spx + 372 * pu, sby + 307 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 2, 24%, 0%) + 14% * wh_dd_r2.hover }
+                group { scale: rs; pivot: floor(spx + 372 * pu + 0.5), floor(sby + 307 * pu + 0.5); text "Most views" { at: floor(spx + 372 * pu + 0.5), floor(sby + 307 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 2, mint, ink); family: "Space Grotesk" } }
+                zone box wh_dd_r2 { at: spx + 372 * pu, sby + 307 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Most views"; active: wh_dd }
                 on press wh_dd_r2 { emit wh_sort_set(2); wh_dd = false }
-                box { at: spx + 372 * pu, sby + 324 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 3, 24%, 0%) + 14% * wh_dd_r3.hover }
-                group { scale: rs; pivot: floor(spx + 372 * pu + 0.5), floor(sby + 324 * pu + 0.5); text "Favourites" { at: floor(spx + 372 * pu + 0.5), floor(sby + 324 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 3, mint, ink); family: "Space Grotesk" } }
-                zone box wh_dd_r3 { at: spx + 372 * pu, sby + 324 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Favourites"; active: wh_dd }
+                box { at: spx + 372 * pu, sby + 331 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 3, 24%, 0%) + 14% * wh_dd_r3.hover }
+                group { scale: rs; pivot: floor(spx + 372 * pu + 0.5), floor(sby + 331 * pu + 0.5); text "Favourites" { at: floor(spx + 372 * pu + 0.5), floor(sby + 331 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 3, mint, ink); family: "Space Grotesk" } }
+                zone box wh_dd_r3 { at: spx + 372 * pu, sby + 331 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Favourites"; active: wh_dd }
                 on press wh_dd_r3 { emit wh_sort_set(3); wh_dd = false }
-                box { at: spx + 372 * pu, sby + 348 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 4, 24%, 0%) + 14% * wh_dd_r4.hover }
-                group { scale: rs; pivot: floor(spx + 372 * pu + 0.5), floor(sby + 348 * pu + 0.5); text "Random" { at: floor(spx + 372 * pu + 0.5), floor(sby + 348 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 4, mint, ink); family: "Space Grotesk" } }
-                zone box wh_dd_r4 { at: spx + 372 * pu, sby + 348 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Random"; active: wh_dd }
+                box { at: spx + 372 * pu, sby + 355 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 4, 24%, 0%) + 14% * wh_dd_r4.hover }
+                group { scale: rs; pivot: floor(spx + 372 * pu + 0.5), floor(sby + 355 * pu + 0.5); text "Random" { at: floor(spx + 372 * pu + 0.5), floor(sby + 355 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 4, mint, ink); family: "Space Grotesk" } }
+                zone box wh_dd_r4 { at: spx + 372 * pu, sby + 355 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Random"; active: wh_dd }
                 on press wh_dd_r4 { emit wh_sort_set(4); wh_dd = false }
-                box { at: spx + 372 * pu, sby + 372 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 5, 24%, 0%) + 14% * wh_dd_r5.hover }
-                group { scale: rs; pivot: floor(spx + 372 * pu + 0.5), floor(sby + 372 * pu + 0.5); text "Best match" { at: floor(spx + 372 * pu + 0.5), floor(sby + 372 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 5, mint, ink); family: "Space Grotesk" } }
-                zone box wh_dd_r5 { at: spx + 372 * pu, sby + 372 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Best match"; active: wh_dd }
+                box { at: spx + 372 * pu, sby + 379 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 5, 24%, 0%) + 14% * wh_dd_r5.hover }
+                group { scale: rs; pivot: floor(spx + 372 * pu + 0.5), floor(sby + 379 * pu + 0.5); text "Best match" { at: floor(spx + 372 * pu + 0.5), floor(sby + 379 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 5, mint, ink); family: "Space Grotesk" } }
+                zone box wh_dd_r5 { at: spx + 372 * pu, sby + 379 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Best match"; active: wh_dd }
                 on press wh_dd_r5 { emit wh_sort_set(5); wh_dd = false }
             }
             }
