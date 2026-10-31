@@ -239,17 +239,41 @@ def stop_chain(restore):
 
 def real_default():
     d = default_sink()
-    return d if d and d != SINK else ""
+    if d and d != SINK:
+        remember_output(d)
+        return d
+    return ""
 
 
 def fallback_sink():
     """Any real output, for when the default is still "Vitreus EQ" but nothing is playing through it (the helper before this one was cut off
-    before it could give the default back): without it there is no output to play into, and no sound until the default is picked by hand."""
-    for line in out("pactl", "list", "short", "sinks").splitlines():
-        parts = line.split("\t")
-        if len(parts) > 1 and parts[1] != SINK:
-            return parts[1]
-    return ""
+    before it could give the default back): without it there is no output to play into, and no sound until the default is picked by hand.
+    The one it last played into first (`last_output`), then the one PipeWire has saved as the user's choice, and only then any."""
+    names = [l.split("\t")[1] for l in out("pactl", "list", "short", "sinks").splitlines() if len(l.split("\t")) > 1]
+    names = [n for n in names if n != SINK]
+    wanted = []
+    try:
+        wanted.append(open(os.path.join(DATA, "last_output")).read().strip())
+    except Exception:
+        pass
+    m = re.search(r"default\.configured\.audio\.sink'\s+value:'\{\s*\"name\"\s*:\s*\"([^\"]+)\"", out("pw-metadata", "-n", "default"))
+    if m:
+        wanted.append(m.group(1))
+    for n in wanted:
+        if n in names:
+            return n
+    return names[0] if names else ""
+
+
+def remember_output(name):
+    try:
+        path = os.path.join(DATA, "last_output")
+        if not os.path.exists(path) or open(path).read().strip() != name:
+            os.makedirs(DATA, exist_ok=True)
+            with open(path, "w") as f:
+                f.write(name)
+    except Exception:
+        pass
 
 
 def reconcile():
