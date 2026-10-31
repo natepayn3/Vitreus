@@ -1088,7 +1088,8 @@ function F.poll_devices()
         for l in (o or ""):gmatch("[^\n]+") do
             local target, source = l:match("^%S+%s+(%S+)%s+(%S+)")
             if target then
-                target = target:gsub("\\040", " ")
+                -- `findmnt -r` escapes with hex, not octal: a space is \x20, a tab \x09, a backslash \x5c.
+                target = target:gsub("\\x(%x%x)", function(h) return string.char(tonumber(h, 16)) end)
                 local host, share = source:match("^//([^/]+)/(.+)$")     -- //server/share
                 if not host then host, share = source:match("^([^:/]+):(.+)$") end   -- server:/export
                 local nm = (host and share) and (basename(share) .. " on " .. host) or basename(target)
