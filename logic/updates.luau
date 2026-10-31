@@ -146,6 +146,9 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
                                     elseif waiting > 0 then
                                         parts[#parts + 1] = "pleamar has " .. waiting .. " update" .. (waiting == 1 and "" or "s") .. "."
                                     end
+                                    if A.shell_behind > 0 and waiting > 0 then
+                                        parts[#parts + 1] = "Both have updates: press Update & restart twice (pleamar first, then the shell)."
+                                    end
                                     if pl_unreachable then parts[#parts + 1] = "Couldn't reach pleamar's source to look for newer ones." end
                                     busy(false, #parts > 0 and table.concat(parts, " ") or "Up to date.")
                                     if after then after() end
@@ -213,8 +216,10 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
                 local r = ({ "pleamar", "pleamar-wm" })[i]
                 if not r then
                     return run("pleamar-update", {}, function(_, code)
-                        pcall(sys.call, "files.write", "update-pending.json", { pending = false })
+                        -- Not cleared here: pleamar's own restart may land any moment now and cut this chain, and the shell that
+                        -- starts again must still find the Vitreus step written down. It is cleared once that step is past.
                         if code ~= 0 then
+                            pcall(sys.call, "files.write", "update-pending.json", { pending = false })
                             return busy(false, "Couldn't update pleamar. Try `pleamar-update` in a terminal to see why.")
                         end
                         A.pl_behind = 0
@@ -227,7 +232,10 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         end
         update_shell = function()
         busy(true, "Updating…")
-        if A.shell_behind <= 0 then return restart() end
+        if A.shell_behind <= 0 then
+            pcall(sys.call, "files.write", "update-pending.json", { pending = false })
+            return restart()
+        end
         -- Which monitors show the bar and the lock screen is kept in the `screens:` line of each scene (the Bar and Lock
         -- screen pages write it, and the choice itself is in bar.json / the lock screen's settings). A line changed that way
         -- is a change of the working tree, and git will not pull over a file it finds changed. So the stock lines are put
@@ -290,6 +298,7 @@ exit 0]]
                             run("setsid", { "-w", "sh", "-c", keep, "sh", A.dir, (bar_changed and plausible(bar_mine)) and bar_mine or "", (lock_changed and plausible(lock_mine)) and lock_mine or "" }, function(_, rcode)
                                 local code = fcode ~= 0 and fcode or rcode
                                 do
+                                    pcall(sys.call, "files.write", "update-pending.json", { pending = false })
                                     if code ~= 0 then
                                         return busy(false, "Couldn't update: couldn't reach the remote. Check the network and try again.")
                                     end
