@@ -3474,12 +3474,14 @@ do
     local INTENSITIES = { "subtle", "medium", "bold" }
     -- The desktop clock and system monitor draw themselves as plastic with Retro and UwU: they are told the theme (0 Glass, 1 Retro, 2 UwU).
     local function push_look()
-        local v = iris_cfg.look == iris_fx.CASSETTE and 1 or iris_cfg.look == iris_fx.UWU and 2 or iris_cfg.look == iris_fx.CYBER and 3 or iris_cfg.look == iris_fx.MILK and 4 or iris_cfg.look == iris_fx.PROXY and 3 or iris_cfg.look == iris_fx.PAPER and 4 or 0
+        local v = iris_cfg.look == iris_fx.CASSETTE and 1 or iris_cfg.look == iris_fx.UWU and 2 or iris_cfg.look == iris_fx.CYBER and 3 or iris_cfg.look == iris_fx.MILK and 4 or iris_cfg.look == iris_fx.PROXY and 3 or iris_cfg.look == iris_fx.PAPER and 6 or 0
         local av = iris_cfg.look == iris_fx.PROXY and 5 or iris_cfg.look == iris_fx.PAPER and 4 or v             -- add-ons know Proxy as 5 (the desktop widgets below still take it as Cyber's 3)
         addon_look = av
-        run("pleamar", { "--say", "desktopclock", "fact look " .. v }, function() end)
-        run("pleamar", { "--say", "desktopsysmon", "fact look " .. v }, function() end)
-        run("pleamar", { "--say", "desktopcards", "fact look " .. v }, function() end)
+        local vw = iris_cfg.look == iris_fx.PROXY and 5 or v       -- the clock, system monitor and cards know Proxy as 5 (the other desktop scenes still take it as Cyber's 3)
+        run("pleamar", { "--say", "desktopclock", "fact look " .. vw }, function() end)
+        run("pleamar", { "--say", "desktopsysmon", "fact look " .. vw }, function() end)
+        run("pleamar", { "--say", "desktopcards", "fact look " .. vw }, function() end)
+        run("pleamar", { "--say", "desktopedit", "fact look " .. vw }, function() end)
         run("pleamar", { "--say", "desktopnotes", "fact look " .. v }, function() end)
         run("pleamar", { "--say", "files", "fact look " .. v }, function() end)
         run("pleamar", { "--say", "cursortrail", "fact look " .. v }, function() end)
@@ -4456,6 +4458,7 @@ function glass.push_obs()
     run("pleamar", { "--say", "desktopclock", "fact obs " .. v }, function() end)
     run("pleamar", { "--say", "desktopsysmon", "fact obs " .. v }, function() end)
     run("pleamar", { "--say", "desktopcards", "fact obs " .. v }, function() end)
+    run("pleamar", { "--say", "desktopedit", "fact obs " .. v }, function() end)
     run("pleamar", { "--say", "files", "fact obs " .. v }, function() end)
     run("pleamar", { "--say", "desktopnotes", "fact obs " .. v }, function() end)
     run("pleamar", { "--say", "files", "fact gop " .. glass.opacity, "fact gbend " .. tostring((glass.bend or glass.live) and not glass.game and not glass.hg), "fact grefr " .. glass.refr, "fact gdisp " .. glass.disp,
@@ -7174,6 +7177,8 @@ require("logic/panel_monitor")()
 
 -- bar position: see logic/bar_position.luau
 require("logic/bar_position")()
+-- the desktop-click zone of the window manager leaves holes where the desktop widgets are: see logic/desk_holes.luau
+require("logic/desk_holes")()
 
 -- bar size: see logic/bar_size.luau
 require("logic/bar_size")()

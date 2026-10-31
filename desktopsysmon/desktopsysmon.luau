@@ -286,3 +286,34 @@ after(4000, ask_look)
 -- The room the bar's frame takes (`room_*`) is told by Vitreus when it changes; asked for at start (this scene starts after the shell may have said it).
 run("pleamar", { "--say", "vitreus", "emit pal_push" }, function() end)
 after(1500, function() run("pleamar", { "--say", "vitreus", "emit pal_push" }, function() end) end)
+
+-- Where the card is, told to the shell (`text hole_sys`: "monitor|x,y,w,h", empty while it is off the desktop) so that the window manager's desktop-click zone leaves a hole
+-- there: a zone over a bottom-layer widget takes its clicks (logic/desk_holes.luau). Told once it has stopped moving.
+do
+    local sent, waiting = nil, false
+    local function tell()
+        local line = ""
+        local w, h = tonumber(fact.hw) or 0, tonumber(fact.hh) or 0
+        local name = text.mon_name
+        if fact.shown and name and name ~= "" and w > 1 and h > 1 then
+            line = string.format("%s|%d,%d,%d,%d", name, math.floor(fact.hx + 0.5), math.floor(fact.hy + 0.5), math.floor(w + 0.5), math.floor(h + 0.5))
+        end
+        if sent == line then return end
+        sent = line
+        run("pleamar", { "--say", "vitreus", "text hole_sys " .. line }, function() end)
+    end
+    local function soon()
+        if waiting then return end
+        waiting = true
+        after(300, function() waiting = false; tell() end)
+    end
+    for _, v in ipairs({ "hx", "hy", "hw", "hh", "shown" }) do on("fact:" .. v, soon) end
+    on("text:mon_name", soon)
+    after(2500, tell)
+end
+
+-- Until the monitors are known the card is on none of them (`mon` starts at -1): it used to show on the first copy of the scene for a few seconds and then jump to its own
+-- monitor. If they are never learnt (no `hyprctl`), it takes the first one after ten seconds.
+after(10000, function()
+    for _, k in ipairs({ "mon" }) do if (tonumber(fact[k]) or 0) < 0 then fact[k] = 0 end end
+end)

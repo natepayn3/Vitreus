@@ -275,3 +275,37 @@ after(900, ask_look)
 after(4000, ask_look)
 run("pleamar", { "--say", "vitreus", "emit pal_push" }, function() end)
 after(1500, function() run("pleamar", { "--say", "vitreus", "emit pal_push" }, function() end) end)
+
+-- Where each card is, told to the shell (`text hole_cal` / `hole_rem`: "monitor|x,y,w,h", empty while the card is off the desktop) so that the window manager's
+-- desktop-click zone leaves a hole there: a zone over a bottom-layer widget takes its clicks. Told once it has stopped moving.
+do
+    local sent = {}
+    local waiting = {}
+    local function tell(c)
+        local line = ""
+        local name = text[c .. "_mon_name"]
+        local w, h = tonumber(fact[c .. "_hw"]) or 0, tonumber(fact[c .. "_hh"]) or 0
+        if fact[c .. "_shown"] and name and name ~= "" and w > 1 and h > 1 then
+            line = string.format("%s|%d,%d,%d,%d", name, math.floor(fact[c .. "_hx"] + 0.5), math.floor(fact[c .. "_hy"] + 0.5), math.floor(w + 0.5), math.floor(h + 0.5))
+        end
+        if sent[c] == line then return end
+        sent[c] = line
+        run("pleamar", { "--say", "vitreus", "text hole_" .. c .. " " .. line }, function() end)
+    end
+    local function soon(c)
+        if waiting[c] then return end
+        waiting[c] = true
+        after(300, function() waiting[c] = false; tell(c) end)
+    end
+    for _, c in ipairs(CARDS) do
+        for _, v in ipairs({ "hx", "hy", "hw", "hh", "shown" }) do on("fact:" .. c .. "_" .. v, function() soon(c) end) end
+        on("text:" .. c .. "_mon_name", function() soon(c) end)
+        after(2500, function() tell(c) end)
+    end
+end
+
+-- Until the monitors are known the card is on none of them (`mon` starts at -1): it used to show on the first copy of the scene for a few seconds and then jump to its own
+-- monitor. If they are never learnt (no `hyprctl`), it takes the first one after ten seconds.
+after(10000, function()
+    for _, k in ipairs({ "cal_mon", "rem_mon" }) do if (tonumber(fact[k]) or 0) < 0 then fact[k] = 0 end end
+end)

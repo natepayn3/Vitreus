@@ -77,8 +77,17 @@ once("    windows win max 16 placement manual\n", """    windows win max 16 plac
     fact desk_x = 0
     fact desk_y = 0
     fact desk_mon = 0
-    zone box desk { from: 0, 0; size: 2560, 2560 }
-    on press right desk { desk_x = pointer.x; desk_y = pointer.y; desk_mon = screen.index; desk_n = desk_n + 1 }
+    // The desktop is not one zone but a set of rectangles round the desktop widgets (Vitreus tells them: `dz.K.*`, logic/desk_holes.luau): a zone of this scene over
+    // a widget on the bottom layer takes every click meant for it. Slot 0 starts as the whole desktop of every monitor (m = -1) until Vitreus says better.
+    fact dz.0.m = -1
+    fact dz.0.x = 0
+    fact dz.0.y = 0
+    fact dz.0.w = 4096
+    fact dz.0.h = 4096
+""" + "".join("    fact dz.%d.m = -9\n    fact dz.%d.x = 0\n    fact dz.%d.y = 0\n    fact dz.%d.w = 0\n    fact dz.%d.h = 0\n" % (k, k, k, k, k) for k in range(1, 32)) + """    repeat dzk in 0..32 {
+        zone box desk.$dzk { from: dz.$dzk.x, dz.$dzk.y; size: dz.$dzk.w, dz.$dzk.h; active: dz.$dzk.w > 0.5 and (dz.$dzk.m < -0.5 and dz.$dzk.m > -1.5 or dz.$dzk.m == screen.index) }
+        on press right desk.$dzk { desk_x = pointer.x; desk_y = pointer.y; desk_mon = screen.index; desk_n = desk_n + 1 }
+    }
 """)
 s, k = re.subn(r"win\.reserved(\.\w+|\.\$\w+|\[[^\]]+\])\.(top|right|bottom|left)", r"(win.reserved\1.\2 + fr\1.\2)", s)
 assert k > 10, "win.reserved was read %d times" % k
@@ -232,20 +241,10 @@ between("    repeat i in 0..16 {\n        let dw = max(win.$i.width, 120)\n", " 
 
 # Each window's agent basin reads `time` even when no agent is on it (`pick` takes its first branch, a wobble, at 0), and the scene never
 # rests: every round is made again, ~165 a second, for a basin that is not shown. Only an agent's own window needs the wobble.
-once("let ag.lvl = pick(max(ag.$i - 1, 0), 6 + 1.5 * sin(time * 300), 3.5, 9.5)",
-     "let ag.lvl = if(ag.$i > 0.5, pick(max(ag.$i - 1, 0), 6 + 1.5 * sin(time * 300), 3.5, 9.5), 0)")
+once("let ag.lvl = pick(max(ag.$i - 1, 0), 6 + 1.5 * sin(fxclock * 300), 3.5, 9.5)",
+     "let ag.lvl = if(ag.$i > 0.5, pick(max(ag.$i - 1, 0), 6 + 1.5 * sin(fxclock * 300), 3.5, 9.5), 0)")
 
-# `time` is the scene's clock that never stops: a scene that so much as names it is made again every frame for ever (pleamar's
-# compiler, `time_prop`), at ~165 rounds a second here, with nothing moving. pleamar-wm names it for the agent's wobble and for the packet
-# that runs along a wire; both are only wanted while an agent works or a wire carries something, so they get clocks that spin only then
-# (`agent.t`, which the scene already has, and `wire.t`) and the scene is left without `time`.
-n = s.count("sin(time * ")
-assert n == 6, "the agent wobbles: expected 6, found %d" % n
-s = s.replace("sin(time * ", "sin(agent.t * ")
-once("let wv.t = fract(time / 1.3)", "let wv.t = fract(wire.t / 1.3)")
-once("    repeat k in 0..8 {\n        prop wborn.$k = 1 ~pop\n",
-     "    prop wire.t = 0\n    spin wire.t by if(" + " or ".join("wire.%d.flow != 0" % i for i in range(8)) + ", 1, 0)\n    repeat k in 0..8 {\n        prop wborn.$k = 1 ~pop\n")
-assert not re.search(r"\btime\b", re.sub(r"//[^\n]*|\"[^\"\n]*\"|now\.time|time: text", "", s)), "something still names `time`"
+# (Upstream now keeps its own clock, `fxclock`, spinning only while an agent works: the patch that took `time` out of the scene is gone, 0.6.3.)
 
 os.makedirs(os.path.join(out, "shaders"), exist_ok=True)
 for f in os.listdir(os.path.join(tmp, "shaders")):

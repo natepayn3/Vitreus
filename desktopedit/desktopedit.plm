@@ -12,6 +12,7 @@ scene DesktopEdit {
 
     permissions { run: "pleamar", "sh" }
 
+    shader paper = file "../paper.wgsl"
     shader dsh_underwater = file "../dashboard/underwater.wgsl"   // the dashboard's surfacing: seen through water, then ripples that bulge the rim
 
     fact pal_ink_r = 0.9608   // #f5f7f5
@@ -115,7 +116,18 @@ scene DesktopEdit {
         eo: 0 ~405ms after 250ms
     }
     prop ob = 0 ~calm
-    follow ob = if(obs, 1, 0)
+    fact look = 0              // the shell's theme (Vitreus says so, as it does to the widgets): 1 Retro, 2 UwU, 4 Milkbox, 5 Proxy, 6 Paper draw the shelf as a plate of their own
+    prop pl = 0 ~calm
+    follow pl = if(look == 1 or look == 2 or look == 4 or look == 5 or look == 6, 1, 0)
+    prop uk = 0 ~calm
+    follow uk = if(look == 2, 1, 0)
+    prop mk = 0 ~calm
+    follow mk = if(look == 4, 1, 0)
+    prop pxk = 0 ~calm
+    follow pxk = if(look == 5, 1, 0)
+    prop ppk = 0 ~calm
+    follow ppk = if(look == 6, 1, 0)
+    follow ob = if(obs or pl > 0.5, 1, 0)
     repeat i in 0..6 {
         prop tn.$i = 0 ~calm
     }
@@ -209,10 +221,39 @@ scene DesktopEdit {
         body {
             color: mix(mix(tint, #000000, 0.7), ink, 0.3)
             rim: 0%
-            opacity: 100% * ob
+            opacity: 100% * ob * (1 - pl)
             shadow: 0, 10, 26, 45%, #000000
-            show: ob > 0.004
+            show: ob * (1 - pl) > 0.004
             box { from: sx0, sy0; size: shw, shh; corner: 26 }
+        }
+        //  The themes that are plates (Retro, UwU, Milkbox, Proxy, Paper): the shelf is one, as the desktop widgets are.
+        body {
+            color: tint
+            rim: 0%
+            border: (2 + 1.2 * uk - 0.8 * ppk - 0.6 * pxk) * (1 - mk) * pl, mix(mix(deep, tint, 0.55 * ppk), mix(#e8f1f5, tint, 0.4), pxk)
+            shadow: (4 - 2.5 * ppk - mk - 1.5 * pxk) * pl, (5 - 1.5 * ppk - mk - 2 * pxk) * pl, 9 * ppk + 10 * mk, 55% - 13% * ppk - 27% * mk + 30% * pxk + 35% * uk, mix(deep, #ff6ec7, 0.75 * uk)
+            opacity: pl
+            show: pl > 0.004
+            box { from: sx0, sy0; size: shw, shh; corner: 26 - 14 * ppk }
+        }
+        //  Milkbox: the white light of the raised plate.
+        body {
+            color: tint
+            rim: 0%
+            shadow: -3 * mk, -3 * mk, 8 * mk, 38% * mk, #ffffff
+            opacity: mk
+            show: mk > 0.004
+            box { from: sx0, sy0; size: shw, shh; corner: 26 }
+        }
+        //  Paper: the worn, torn edge and two strips of tape.
+        group {
+            show: ppk > 0.01
+            opacity: ppk
+            shader paper { at: sx0 - 8, sy0 - 8; size: shw + 16, shh + 16; values: 1, 11.3, 8, 12; colors: tint, deep }
+            box { at: sx0 + 40, sy0 - 2; size: 66, 19; rotate: -7deg; color: #e8b9b4; opacity: 86% }
+            box { at: sx0 + 40, sy0 - 2; size: 66, 19; rotate: -7deg; stroke: 1; color: deep; opacity: 22% }
+            box { at: sx0 + shw - 52, sy0 + 3; size: 60, 19; rotate: 5deg; color: #cfe0bf; opacity: 86% }
+            box { at: sx0 + shw - 52, sy0 + 3; size: 60, 19; rotate: 5deg; stroke: 1; color: deep; opacity: 22% }
         }
 
         //  a grip at the top: the shelf is dragged by any bare part of it

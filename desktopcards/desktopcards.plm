@@ -52,12 +52,19 @@ scene DesktopCards {
     fact room_r = 0
     fact room_b = 0
     fact room_l = 0
+    shader paper = file "../paper.wgsl"
     fact obs = false           // Vitreus has its glass off: flat obsidian
     fact look = 0              // the shell's theme (Vitreus says so): 0 Glass, 1 Retro, 2 UwU, 3 Cyber; Retro and UwU are not glass, so the cards are plastic plates there, like the bar; Cyber is glass
     prop ob = 0 ~calm
-    follow ob = if(obs or look == 1 or look == 2, 1, 0)
+    follow ob = if(obs or look == 1 or look == 2 or look == 4 or look == 5 or look == 6, 1, 0)
     prop pl = 0 ~calm
-    follow pl = if(look == 1 or look == 2, 1, 0)
+    follow pl = if(look == 1 or look == 2 or look == 4 or look == 5 or look == 6, 1, 0)
+    prop mk = 0 ~calm
+    follow mk = if(look == 4, 1, 0)         // Milkbox: one pale raised material, no outline, a white light up and left and a soft shade down and right
+    prop pxk = 0 ~calm
+    follow pxk = if(look == 5, 1, 0)        // Proxy: a flat dark plate with a thin pale outline and a hard offset edge
+    prop ppk = 0 ~calm
+    follow ppk = if(look == 6, 1, 0)       // Paper: a worn sheet of cream paper, taped down (paper.wgsl)
     prop uk = 0 ~calm
     follow uk = if(look == 2, 1, 0)
     prop cyk = 0 ~calm
@@ -113,7 +120,7 @@ scene DesktopCards {
     fact cal_shown = false
     fact cal_gx = -1           // the cell of its top left corner (-1: the default one)
     fact cal_gy = -1
-    fact cal_mon = 0           // which copy of the scene draws it (the logic keeps it)
+    fact cal_mon = -1          // which copy of the scene draws it (the logic keeps it)
     text cal_mon_name = ""     // that monitor's name: set from outside (Settings > Theme > Pin widgets), a name it has not got is ignored
     fact cal_dragging = false
     prop cal_dg = 0 ~quick
@@ -176,7 +183,7 @@ scene DesktopCards {
     fact rem_shown = false
     fact rem_gx = -1           // the cell of its top left corner (-1: the default one)
     fact rem_gy = -1
-    fact rem_mon = 0           // which copy of the scene draws it (the logic keeps it)
+    fact rem_mon = -1          // which copy of the scene draws it (the logic keeps it)
     text rem_mon_name = ""     // (as the calendar's)
     fact rem_dragging = false
     prop rem_dg = 0 ~quick
@@ -210,6 +217,26 @@ scene DesktopCards {
     let rem_y = gt + rem_ey * gh + 3
     let rem_w = rem_fw * gw - 6
     let rem_h = rem_fh * gh - 6
+    //  Where the cal card is on its monitor, for the window manager's scene: it keeps a hole in its desktop-click zone there (see pleamar-wm/build-session.py), so a press on this card reaches it.
+    fact cal_hx = 0
+    fact cal_hy = 0
+    fact cal_hw = 0
+    fact cal_hh = 0
+    on change cal_x while cal_here > 0.5 { cal_hx = cal_x }
+    on change cal_y while cal_here > 0.5 { cal_hy = cal_y }
+    on change cal_w while cal_here > 0.5 { cal_hw = cal_w }
+    on change cal_h while cal_here > 0.5 { cal_hh = cal_h }
+    on change cal_here { cal_hx = cal_x; cal_hy = cal_y; cal_hw = cal_w; cal_hh = cal_h }
+    //  Where the rem card is on its monitor, for the window manager's scene: it keeps a hole in its desktop-click zone there (see pleamar-wm/build-session.py), so a press on this card reaches it.
+    fact rem_hx = 0
+    fact rem_hy = 0
+    fact rem_hw = 0
+    fact rem_hh = 0
+    on change rem_x while rem_here > 0.5 { rem_hx = rem_x }
+    on change rem_y while rem_here > 0.5 { rem_hy = rem_y }
+    on change rem_w while rem_here > 0.5 { rem_hw = rem_w }
+    on change rem_h while rem_here > 0.5 { rem_hh = rem_h }
+    on change rem_here { rem_hx = rem_x; rem_hy = rem_y; rem_hw = rem_w; rem_hh = rem_h }
     //  Dragged over to another monitor it lands there: the monitor under the card's centre shows it, and the cell is worked out against that one's grid.
     let rem_in0 = if(rem_dcx >= m0x and rem_dcx < m0x + m0w and rem_dcy >= m0y and rem_dcy < m0y + m0h, 1, 0)
     let rem_in1 = if(rem_dcx >= m1x and rem_dcx < m1x + m1w and rem_dcy >= m1y and rem_dcy < m1y + m1h, 1, 0)
@@ -259,11 +286,30 @@ scene DesktopCards {
         body {
             color: tint
             rim: 0%
-            border: (2 + 1.2 * uk) * pl, deep
-            shadow: 4 * pl, 5 * pl, 0, 55% + 35% * uk, mix(deep, #ff6ec7, 0.75 * uk)
+            border: (2 + 1.2 * uk - 0.8 * ppk - 0.6 * pxk) * (1 - mk) * pl, mix(mix(deep, tint, 0.55 * ppk), mix(#e8f1f5, tint, 0.4), pxk)
+            shadow: (4 - 2.5 * ppk - mk - 1.5 * pxk) * pl, (5 - 1.5 * ppk - mk - 2 * pxk) * pl, 9 * ppk + 10 * mk, 55% - 13% * ppk - 27% * mk + 30% * pxk + 35% * uk, mix(deep, #ff6ec7, 0.75 * uk)
             opacity: pl
             show: pl > 0.004
             box { from: cal_x, cal_y; size: cal_w, cal_h; corner: 22 * (1 - 0.73 * cyk) }
+        }
+        //  Milkbox: the white light of the raised plate (the dark shade is the plate's own shadow, above).
+        body {
+            color: tint
+            rim: 0%
+            shadow: -3 * mk, -3 * mk, 8 * mk, 38% * mk, #ffffff
+            opacity: mk
+            show: mk > 0.004
+            box { from: cal_x, cal_y; size: cal_w, cal_h; corner: 22 * (1 - 0.73 * cyk) }
+        }
+        //  Paper: the worn, torn edge and two strips of tape.
+        group {
+            show: ppk > 0.01
+            opacity: 1 * ppk
+            shader paper { at: cal_x - 8, cal_y - 8; size: cal_w + 16, cal_h + 16; values: 1, 3.7, 8, 22; colors: tint, deep }
+            box { at: cal_x + 30, cal_y + -2; size: 60, 19; rotate: -11deg; color: #e9dba8; opacity: 86% }
+            box { at: cal_x + 30, cal_y + -2; size: 60, 19; rotate: -11deg; stroke: 1; color: deep; opacity: 22% }
+            box { at: cal_x + cal_w - 58, cal_y + 4; size: 70, 19; rotate: 3deg; color: #c9d8ec; opacity: 86% }
+            box { at: cal_x + cal_w - 58, cal_y + 4; size: 70, 19; rotate: 3deg; stroke: 1; color: deep; opacity: 22% }
         }
         body {
             color: mix(mix(tint, #000000, 0.7), ink, 0.3)
@@ -340,11 +386,21 @@ scene DesktopCards {
         body {
             color: tint
             rim: 0%
-            border: (2 + 1.2 * uk) * pl, deep
-            shadow: 4 * pl, 5 * pl, 0, 55% + 35% * uk, mix(deep, #ff6ec7, 0.75 * uk)
+            border: (2 + 1.2 * uk - 0.8 * ppk - 0.6 * pxk) * (1 - mk) * pl, mix(mix(deep, tint, 0.55 * ppk), mix(#e8f1f5, tint, 0.4), pxk)
+            shadow: (4 - 2.5 * ppk - mk - 1.5 * pxk) * pl, (5 - 1.5 * ppk - mk - 2 * pxk) * pl, 9 * ppk + 10 * mk, 55% - 13% * ppk - 27% * mk + 30% * pxk + 35% * uk, mix(deep, #ff6ec7, 0.75 * uk)
             opacity: pl
             show: pl > 0.004
             box { from: rem_x, rem_y; size: rem_w, rem_h; corner: 22 * (1 - 0.73 * cyk) }
+        }
+        //  Paper: the worn, torn edge and two strips of tape.
+        group {
+            show: ppk > 0.01
+            opacity: 1 * ppk
+            shader paper { at: rem_x - 8, rem_y - 8; size: rem_w + 16, rem_h + 16; values: 1, 9.0, 8, 22; colors: tint, deep }
+            box { at: rem_x + 64, rem_y + 5; size: 58, 19; rotate: -3deg; color: #e8b9b4; opacity: 86% }
+            box { at: rem_x + 64, rem_y + 5; size: 58, 19; rotate: -3deg; stroke: 1; color: deep; opacity: 22% }
+            box { at: rem_x + rem_w - 24, rem_y + -3; size: 64, 19; rotate: 8deg; color: #cfe0bf; opacity: 86% }
+            box { at: rem_x + rem_w - 24, rem_y + -3; size: 64, 19; rotate: 8deg; stroke: 1; color: deep; opacity: 22% }
         }
         body {
             color: mix(mix(tint, #000000, 0.7), ink, 0.3)
@@ -386,7 +442,9 @@ scene DesktopCards {
         box { at: rem_x + rem_w / 2 - 20, rem_y + rem_h - 36; size: rem_w - 90, 34; corner: 17; color: ink; opacity: 9% }
         input rem_new { at: rem_x + 34, rem_y + rem_h - 46; width: rem_w - 120; size: 14; weight: 500; color: ink; family: "Space Grotesk"; placeholder: "add a reminder…"; show: rem_sh > 0.5 }
         ellipse { at: rem_x + rem_w - 36, rem_y + rem_h - 36; radius: 16; color: mint; opacity: 80% + 20% * rem_add_z.hover }
-        text "+" { at: rem_x + rem_w - 36, rem_y + rem_h - 37; anchor: center center; size: 22; weight: 700; color: onmint; family: "Space Grotesk" }
+        //  The plus is drawn, not typed: a font's "+" sits off the middle of the circle in the handwriting fonts.
+        line { from: rem_x + rem_w - 36 - 6.5, rem_y + rem_h - 36; to: rem_x + rem_w - 36 + 6.5, rem_y + rem_h - 36; width: 2.8; color: onmint }
+        line { from: rem_x + rem_w - 36, rem_y + rem_h - 36 - 6.5; to: rem_x + rem_w - 36, rem_y + rem_h - 36 + 6.5; width: 2.8; color: onmint }
     }
 
     group {

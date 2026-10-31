@@ -60,7 +60,7 @@ scene DesktopClock {
     fact g0x = 0           // while it is dragged: the cell it was at when it was pressed
     fact g0y = 0
     fact dragging = false
-    fact mon = 0           // which monitor shows the card (the scene has a copy on each, only this one draws it and takes the pointer); the logic keeps it
+    fact mon = -1          // which monitor shows the card (the scene has a copy on each, only this one draws it and takes the pointer); the logic keeps it
     text mon_name = ""     // the name of the monitor that shows the card (Settings > Widgets sets it; the logic keeps it)
     //  Where the monitors lie in the desktop (logical pixels) and how big they are, up to four (the logic asks `hyprctl`; a monitor that is not there is 0 x 0).
     fact m0x = 0
@@ -113,10 +113,14 @@ scene DesktopClock {
     follow sh = if(shown, 1, 0)
     fact obs = false        // Vitreus has its glass off: the digits are flat obsidian (Vitreus says so with `fact obs true`)
     prop ob = 0 ~calm
-    follow ob = if(obs or look == 1 or look == 2, 1, 0)
+    follow ob = if(obs or look == 1 or look == 2 or look == 4 or look == 5 or look == 6, 1, 0)
     fact look = 0           // the shell's theme (Vitreus says so): 0 Glass, 1 Retro, 2 UwU, 3 Cyber; the last three draw the digits as plastic, like the bar (outline, hard shadow)
     prop pl = 0 ~calm
-    follow pl = if(look == 1 or look == 2, 1, 0)
+    follow pl = if(look == 1 or look == 2 or look == 4 or look == 5 or look == 6, 1, 0)
+    prop mk = 0 ~calm
+    follow mk = if(look == 4, 1, 0)
+    prop pxk = 0 ~calm
+    follow pxk = if(look == 5, 1, 0)
     prop cy = 0 ~calm
     follow cy = if(look == 3, 1, 0)         // Cyber: the digits are filled with the neon (the glass's own tint is near-black there)
     prop uk = 0 ~calm
@@ -199,6 +203,16 @@ scene DesktopClock {
     follow dgp = if(dragging, 1, 0)
     //  The outline hugs the face (a little margin round it) instead of the cells it takes, and the face is in the middle of it.
     let pad = 10
+    //  Where the face is on its monitor, for the window manager's scene (it keeps a hole in its desktop-click zone there; see logic/desk_holes.luau in the shell).
+    fact hl_x = 0
+    fact hl_y = 0
+    fact hl_w = 0
+    fact hl_h = 0
+    on change fx while here > 0.5 { hl_x = fx - hw - pad }
+    on change fy while here > 0.5 { hl_y = fy - hh - pad }
+    on change hw while here > 0.5 { hl_w = 2 * (hw + pad); hl_x = fx - hw - pad }
+    on change hh while here > 0.5 { hl_h = 2 * (hh + pad); hl_y = fy - hh - pad }
+    on change here { hl_x = fx - hw - pad; hl_y = fy - hh - pad; hl_w = 2 * (hw + pad); hl_h = 2 * (hh + pad) }
     let zx = if(dragging, zpx, fx) - hw - pad
     let zy = if(dragging, zpy, fy) - hh - pad
     //  Dragged over to another monitor it lands there: the monitor under the card's centre is the one that shows it, and the cell is worked out against that one's grid.
@@ -234,6 +248,6 @@ scene DesktopClock {
 
     group {
         show: here > 0.5
-        ClockFaceStyled(k, lay, d0, d1, d2, d3, fx, fy, mix(tint, mint, cy), 1, 0.4, sh * clr, wt, mint, ink, alert, faint, ob, pl, uk, deep)
+        ClockFaceStyled(k, lay, d0, d1, d2, d3, fx, fy, mix(tint, mint, cy), 1, 0.4, sh * clr, wt, mint, ink, alert, faint, ob, pl, uk, deep, mk, pxk)
     }
 }

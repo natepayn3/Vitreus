@@ -25,7 +25,7 @@ scene DesktopSysmon {
     fact g0x = 0           // while it is dragged: the cell it was at when it was pressed
     fact g0y = 0
     fact dragging = false
-    fact mon = 0           // which monitor shows the card (the scene has a copy on each, only this one draws it and takes the pointer); the logic keeps it
+    fact mon = -1          // which monitor shows the card (the scene has a copy on each, only this one draws it and takes the pointer); the logic keeps it
     text mon_name = ""     // the name of the monitor that shows the card (Settings > Widgets sets it; the logic keeps it)
     //  Where the monitors lie in the desktop (logical pixels) and how big they are, up to four (the logic asks `hyprctl`; a monitor that is not there is 0 x 0).
     fact m0x = 0
@@ -83,12 +83,19 @@ scene DesktopSysmon {
 
     prop sh = 0 ~calm
     follow sh = if(shown, 1, 0)
+    shader paper = file "../paper.wgsl"
     fact obs = false        // Vitreus has its glass off: the card is flat obsidian (Vitreus says so with `fact obs true`)
     prop ob = 0 ~calm
-    follow ob = if(obs or look == 1 or look == 2, 1, 0)
+    follow ob = if(obs or look == 1 or look == 2 or look == 4 or look == 5 or look == 6, 1, 0)
     fact look = 0           // the shell's theme (Vitreus says so): 0 Glass, 1 Retro, 2 UwU; the last two draw the card as plastic, like the bar (a body with an outline and a hard shadow)
     prop pl = 0 ~calm
-    follow pl = if(look == 1 or look == 2, 1, 0)
+    follow pl = if(look == 1 or look == 2 or look == 4 or look == 5 or look == 6, 1, 0)
+    prop mk = 0 ~calm
+    follow mk = if(look == 4, 1, 0)         // Milkbox: one pale raised material, no outline, a white light up and left and a soft shade down and right
+    prop pxk = 0 ~calm
+    follow pxk = if(look == 5, 1, 0)        // Proxy: a flat dark plate with a thin pale outline and a hard offset edge
+    prop ppk = 0 ~calm
+    follow ppk = if(look == 6, 1, 0)       // Paper: a worn sheet of cream paper, taped down (paper.wgsl)
     prop uk = 0 ~calm
     follow uk = if(look == 2, 1, 0)
     let tx = mix(wink, ink, pl)         // the writing: light over glass, dark over plastic
@@ -170,6 +177,14 @@ scene DesktopSysmon {
     //  The outline hugs what is drawn (the card's content is 340 wide, from 30, and about 210 tall, from 8, with a little margin round it), not the cells it takes.
     let ox = 18
     let oy = -2
+    //  Where the card is on its monitor, for the window manager's scene (it keeps a hole in its desktop-click zone there; see logic/desk_holes.luau in the shell).
+    fact hx = 0
+    fact hy = 0
+    fact hw = 0
+    fact hh = 0
+    on change cx0 while here > 0.5 { hx = cx0 + 18 }
+    on change cy0 while here > 0.5 { hy = cy0 - 2; hw = 364; hh = 230 }
+    on change here { hx = cx0 + 18; hy = cy0 - 2; hw = 364; hh = 230 }
     let ow = 364
     let oh = 230
     let zx = if(dragging, zpx, cx0) + ox
@@ -226,11 +241,30 @@ scene DesktopSysmon {
         body {
             color: tint
             rim: 0%
-            border: (2 + 1.2 * uk) * pl, deep
-            shadow: 4 * pl, 5 * pl, 0, 55% + 35% * uk, mix(deep, #ff6ec7, 0.75 * uk)
+            border: (2 + 1.2 * uk - 0.8 * ppk - 0.6 * pxk) * (1 - mk) * pl, mix(mix(deep, tint, 0.55 * ppk), mix(#e8f1f5, tint, 0.4), pxk)
+            shadow: (4 - 2.5 * ppk - mk - 1.5 * pxk) * pl, (5 - 1.5 * ppk - mk - 2 * pxk) * pl, 9 * ppk + 10 * mk, 55% - 13% * ppk - 27% * mk + 30% * pxk + 35% * uk, mix(deep, #ff6ec7, 0.75 * uk)
             opacity: sh * pl
             show: pl > 0.004
             box { at: 200, 113; size: 364, 230; corner: 16 }
+        }
+        //  Milkbox: the white light of the raised plate (the dark shade is the plate's own shadow, above).
+        body {
+            color: tint
+            rim: 0%
+            shadow: -3 * mk, -3 * mk, 8 * mk, 38% * mk, #ffffff
+            opacity: sh * mk
+            show: mk > 0.004
+            box { at: 200, 113; size: 364, 230; corner: 16 }
+        }
+        //  Paper: the worn, torn edge and two strips of tape.
+        group {
+            show: ppk > 0.01
+            opacity: sh * ppk
+            shader paper { at: (200 - 364 / 2) - 8, (113 - 230 / 2) - 8; size: 364 + 16, 230 + 16; values: 1, 3.7, 8, 16; colors: tint, deep }
+            box { at: (200 - 364 / 2) + 30, (113 - 230 / 2) + -2; size: 60, 19; rotate: -11deg; color: #e9dba8; opacity: 86% }
+            box { at: (200 - 364 / 2) + 30, (113 - 230 / 2) + -2; size: 60, 19; rotate: -11deg; stroke: 1; color: deep; opacity: 22% }
+            box { at: (200 - 364 / 2) + 364 - 58, (113 - 230 / 2) + 4; size: 70, 19; rotate: 3deg; color: #c9d8ec; opacity: 86% }
+            box { at: (200 - 364 / 2) + 364 - 58, (113 - 230 / 2) + 4; size: 70, 19; rotate: 3deg; stroke: 1; color: deep; opacity: 22% }
         }
         //  Obsidian (Vitreus has its glass off): the same shapes as a flat, dark piece.
         body {
