@@ -2,7 +2,7 @@
 //
 // While it is still under the surface it is seen through the water: each point takes what is a little way off, along two slow swells
 // that cross each other, so the tile wavers the way something just under a calm surface does; it is tinted towards the water
-// and a little flattened, and faint bands of light (the caustics a surface throws) drift over it. As it comes up that goes to nothing.
+// and a little flattened. As it comes up that goes to nothing.
 //
 // As it breaks the surface, ripples run round its rim, as the island bar's do along its edges: a crest leaves the middle of each side
 // both ways and the eight meet at the corners, fading as they go. Where a crest is, the edge stands out: each point near the rim takes
@@ -88,9 +88,7 @@ fn shade(s: Shader) -> vec4<f32> {
     let grey = dot(c.rgb, vec3<f32>(0.299, 0.587, 0.114));
     var rgb = mix(c.rgb, vec3<f32>(grey), 0.25 * u);
     rgb = mix(rgb, vec3<f32>(s.a.y, s.a.z, s.a.w), 0.32 * u);
-    // Caustics: thin bright bands where the swells meet, drifting.
-    let k = sin(p.x * 0.031 + a * 1.7 + t * 0.6) * sin(p.y * 0.027 + b * 1.7 - t * 0.5);
-    let light = pow(max(k, 0.0), 6.0) * 0.16 * u + glint;
+    let light = glint;
     rgb = rgb + vec3<f32>(light, light * 1.05, light * 1.1) * c.a;
     return vec4<f32>(rgb, c.a);
 }

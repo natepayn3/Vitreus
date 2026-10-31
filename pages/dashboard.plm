@@ -33,9 +33,9 @@ part Dashboard {
             pivot: l + w / 2, t + h / 2
             scale: 0.96 + 0.04 * c
             opacity: c * dsh.vis
-            shader: dsh_underwater, dsh_under, dsh.wr, dsh.wg, dsh.wb, dsh_rq, dsh_rh, w / 2 while not dsh.still
+            shader: dsh_underwater, dsh_under, dsh.wr, dsh.wg, dsh.wb, dsh_rq, dsh_rh, w / 2 while not dsh.still and c > 0.001
             //  A little larger than the tile and all but invisible: it makes the group's box that big, so the ripples have room.
-            box { from: l - 36, t - 36; size: w + 72, h + 72; color: tint; opacity: 0.015; show: not dsh.still }
+            box { from: l - 24, t - 24; size: w + 48, h + 48; color: tint; opacity: 0.015; show: not dsh.still }
             body {
                 color: mix(tint, #000000, cy_dark * cy_k)
                 glass: 100%
@@ -43,7 +43,7 @@ part Dashboard {
                 lens: glass_bend
                 frost: glass_clear
                 refraction: glass_refr
-                dispersion: glass_disp
+                dispersion: 0%                                 // no colour fringe on the dashboard's tiles: it costs three samples of the desktop each
                 dome: glass_dome
                 milk: glass_milk
                 rim: 14% * glass_rim
@@ -156,6 +156,8 @@ part Dashboard {
             zone box dsh_hold.7 { from: dB.l, dB.t; size: dB.w, dB.h; corner: 26; active: dash_open; label: "Battery" }
             zone box dsh_hold.5 { from: dF.l, dF.t; size: dF.w, dF.h; corner: 26; active: dash_open; label: "User" }
             zone box dsh_hold.6 { from: dG.l, dG.t; size: dG.w, dG.h; corner: 26; active: dash_open; label: "System and network" }
+            //  The pointer is over a tile: the small animations run (`need_clock`).
+            follow dsh_hv = if(dsh_hold.0.hover > 0.01 or dsh_hold.1.hover > 0.01 or dsh_hold.2.hover > 0.01 or dsh_hold.3.hover > 0.01 or dsh_hold.5.hover > 0.01 or dsh_hold.6.hover > 0.01 or dsh_hold.7.hover > 0.01, 1, 0)
 
             //  ── Clock and reminders: the time, big and light, the date (and the battery, if there is one) under it; on the right today's
             //  reminders (the calendar's), ticked off with a press ──

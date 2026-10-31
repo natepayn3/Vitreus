@@ -2138,6 +2138,7 @@ scene Vitreus {
     prop dsh_hup = 0 ~lively          // the same cat, the pointer over its head: the head lifts (0 to 1)
     prop dsh_pet = 0 ~lively          // the notification cat being petted: follows the pointer over it (0 to 1)
     prop dsh_poke = 0 ~1700ms          // the sleeping speaker and cat, woken by a press (1), settling back (0)
+    prop dsh_hv = 0                    // the pointer is over a dashboard tile: its small animations run (the scene's clock is on only then: `need_clock`)
     prop dsh_c0 = 0 ~420ms             // each tile firming up
     prop dsh_c1 = 0 ~420ms
     prop dsh_c2 = 0 ~420ms
@@ -6944,7 +6945,7 @@ scene Vitreus {
         move: rt * (screen.width - 2 * lf.x), bt * (yo + vb - 2 * bar.y)
     include "pages/bar_icons.plm"
     //  The clock runs while something needs it. It is here, after the bar's zones, because it reads their hover: the bar's icons only boil under the pointer.
-    let need_clock = (cy_on > 0.01) or bar_hit.hover > 0.01 or adk_hot > 0.5 or wsh.1.$screen > 0.01 or wsh.2.$screen > 0.01 or wsh.3.$screen > 0.01 or wsh.4.$screen > 0.01 or wsh.5.$screen > 0.01 or wsh.6.$screen > 0.01 or wsh.7.$screen > 0.01 or wsh.8.$screen > 0.01 or wsh.9.$screen > 0.01 or wsh.10.$screen > 0.01 or ws.sp > 0.01 or set_hit.hover > 0.01 or sr_hit.hover > 0.01 or ctl_hit.hover > 0.01 or ov_btn.hover > 0.01 or bp.prev.hover > 0.01 or bp.play.hover > 0.01 or bp.next.hover > 0.01 or vm_prev.hover > 0.01 or vm_play.hover > 0.01 or vm_next.hover > 0.01 or ds > 0.01 or dl > 0.01 or dk > 0.01 or ((wifi_scanning or bt_scanning or bt_working or caf_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or osd_kind == note or nt_urgent)) or (set_pgd > 0.01 and disp.h > set.h) or time - pw_b0 < 1.5 or time - pw_b1 < 1.5 or time - pw_b2 < 1.5 or time - pw_b3 < 1.5 or time - pw_b4 < 1.5 or rec_on or dsh_rise > 0.01 or (mf.vis > 0.01 and media.playing)
+    let need_clock = (cy_on > 0.01) or bar_hit.hover > 0.01 or adk_hot > 0.5 or wsh.1.$screen > 0.01 or wsh.2.$screen > 0.01 or wsh.3.$screen > 0.01 or wsh.4.$screen > 0.01 or wsh.5.$screen > 0.01 or wsh.6.$screen > 0.01 or wsh.7.$screen > 0.01 or wsh.8.$screen > 0.01 or wsh.9.$screen > 0.01 or wsh.10.$screen > 0.01 or ws.sp > 0.01 or set_hit.hover > 0.01 or sr_hit.hover > 0.01 or ctl_hit.hover > 0.01 or ov_btn.hover > 0.01 or bp.prev.hover > 0.01 or bp.play.hover > 0.01 or bp.next.hover > 0.01 or vm_prev.hover > 0.01 or vm_play.hover > 0.01 or vm_next.hover > 0.01 or ds > 0.01 or dl > 0.01 or dk > 0.01 or ((wifi_scanning or bt_scanning or bt_working or caf_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or osd_kind == note or nt_urgent)) or (set_pgd > 0.01 and disp.h > set.h) or time - pw_b0 < 1.5 or time - pw_b1 < 1.5 or time - pw_b2 < 1.5 or time - pw_b3 < 1.5 or time - pw_b4 < 1.5 or rec_on or (dsh_rise > 0.01 and (dsh_rise < 0.995 or dsh_under > 0.002 or media.playing or dsh_hv > 0.5)) or (mf.vis > 0.01 and media.playing)
     spin time by if(need_clock, 1, 0)
 
 
