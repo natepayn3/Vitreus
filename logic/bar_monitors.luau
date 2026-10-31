@@ -203,7 +203,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
     -- What bar.json keeps: the chosen monitors, whether the others keep the frame, and the frame rate.
     local function save(screens)
         local fps = (B.fps and B.fps ~= FPS_FREE) and B.fps or nil
-        pcall(sys.call, "files.write", "bar.json", { screens = screens, others = B.others and "frame" or nil, fps = fps })
+        pcall(sys.call, "files.write", "bar.json", { screens = screens, others = B.others and "frame" or nil, fps = fps, ws_style = (B.ws or 0) ~= 0 and B.ws or nil })
     end
 
     -- Settings > Bar: how many frames a second the bar paints. A 240 Hz screen has it paint a panel 240 times a
@@ -219,6 +219,15 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
                 return save(B.pref or chosen())
             end
         end
+    end)
+
+    -- Settings > Bar > Workspaces: how the marks look (0 squares, 1 dots, 2 numbers, 3 lines). The scene morphs between them, so it is at once.
+    on("bar_pick_ws", function(n)
+        n = math.floor(tonumber(n) or 0)
+        if n < 0 or n > 3 then return end
+        B.ws = n
+        fact.ws_style = n
+        save(B.pref or chosen())
     end)
 
     -- A tile of the Bar page: it joins the bar's monitors, or leaves them. One stays, and no more than MAX.
@@ -264,6 +273,9 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         for _, v in ipairs(FPS) do if v == saved.fps then B.fps = saved.fps end end
     end
     fact.bar_fps = B.fps
+    B.ws = (ok and type(saved) == "table" and type(saved.ws_style) == "number") and math.floor(saved.ws_style) or 0
+    if B.ws < 0 or B.ws > 3 then B.ws = 0 end
+    fact.ws_style = B.ws
     -- What this bar was started with: the `screens:` of the scene's surface.
     with_dirs(function(d)
         run("grep", { "-o", "-m1", "-E", "screens: [^;]*;", d.conf .. "/vitreus.plm" }, function(out)

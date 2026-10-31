@@ -633,6 +633,8 @@ scene Vitreus {
     fact bar_fps = 480                 // 480 is `rate:`'s ceiling in the language, so it means "whatever the monitor does"
                                        // The page offers two values; `rate:` takes as many steps as it has paces (pleamar 0.5),
                                        // and while music plays under the audio visualiser it steps down to 60 whatever this says.
+    event bar_pick_ws ->               // Settings > Bar: how the workspace marks look (logic/bar_monitors.luau)
+    fact ws_style = 0                  // 0 glass squares, 1 dots, 2 numbers, 3 lines
     event bar_others_toggle ->       // Settings > Bar: the frame on the monitors without the bar, or nothing there (logic/bar_monitors.luau)
     event bar_dockroom_toggle ->     // Settings > Bar > "Corner docks overlap windows": windows keep clear of the docks, or go under them (logic/dock.luau)
     fact bar_dockroom = true
@@ -1357,6 +1359,12 @@ scene Vitreus {
     prop wspl.3 = 0 ~pop
     //  The mark of the workspace in view is one piece that travels: its head runs ahead to the new place and its tail follows, so it
     //  stretches across what lies between and gathers again.
+    prop ws.st1 = 0 ~260ms                               // the workspace style, as amounts (see `ws.ma`)
+    prop ws.st2 = 0 ~260ms
+    prop ws.st3 = 0 ~260ms
+    follow ws.st1 = if(ws_style == 1, 1, 0)
+    follow ws.st2 = if(ws_style == 2, 1, 0)
+    follow ws.st3 = if(ws_style == 3, 1, 0)
     prop pl.head = 1 ~150ms
     prop pl.tail = 1 ~400ms
     follow pl.head = ws.active
@@ -1938,6 +1946,9 @@ scene Vitreus {
     event lk_mon_set ->
     event lk_test ->                   // lock now, as a test: Esc or a minute opens it
     fact gl_scroll_to = 0              // the Glass page scrolls like the Lock screen's
+    fact br_scroll_to = 0              // and the Bar page
+    prop br_scroll = 0 ~quick
+    follow br_scroll = br_scroll_to
     prop gl_scroll = 0 ~quick
     prop wp_scroll = 0 ~quick
     fact wp_scroll_to = 0              // where the Wallpaper page is scrolled to (unscaled, from the top)
@@ -2438,8 +2449,8 @@ scene Vitreus {
     follow vm = if(vm_open and panel == controls, 1, 0)
     follow mvis = if(mixer.count > 0 or vm_open, 1, 0)
     //  launch_toggle and settings_toggle are handled by the logic (logic/panel_monitor.luau): it opens them on the focused monitor.
-    on change panel { wp_scroll_to = 0; wpd_open = false; font_dd_open = false; dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; gl_scroll_to = 0; ck_scroll_to = 0; ad_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0 }
-    on change set_page { wh_dd = false; wp_scroll_to = 0; font_dd_open = false; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; gl_scroll_to = 0; ck_scroll_to = 0; ad_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0; vpn_arm = -1 }
+    on change panel { wp_scroll_to = 0; wpd_open = false; font_dd_open = false; dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; gl_scroll_to = 0; br_scroll_to = 0; ck_scroll_to = 0; ad_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0 }
+    on change set_page { wh_dd = false; wp_scroll_to = 0; font_dd_open = false; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; gl_scroll_to = 0; br_scroll_to = 0; ck_scroll_to = 0; ad_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0; vpn_arm = -1 }
     //  The Hyprland and Pleamar-WM pages read their settings from the system when they are shown, and only then: reading them on every page change
     //  (a dozen commands and a couple of hundred fact writes) stalled the scene for half a second on each click anywhere in Settings.
     on change set_page while set_page == pg_hypr { emit hy_refresh }
@@ -3485,7 +3496,7 @@ scene Vitreus {
         prop a = 0 ~calm
         follow a = hot
         let fr = if(a > 0.02, floor(time * 5), 0)
-        let c = 0.3 * min(w, h)
+        let c = ws.cr * min(w, h)
         let je = (0.08 + 0.47 * a) * bu       // cleaner at rest, the same wobble under the pointer
         let jm = (0.25 + 1.1 * a) * bu
         path { at: 0, 0; stroke: 1.3 * bu; color: mix(mix(ink, warm, wg), mint, act); opacity: (1) * o; move cx + -w / 2 + c + je * sin(fr * 55 + 37100), cy + -h / 2 + je * sin(fr * 60 + 37160); curve cx + w / 2 - c + je * sin(fr * 62 + 37197), cy + -h / 2 + je * sin(fr * 67 + 37257) via cx + 0 + jm * sin(fr * 55 + 40107), cy + -h / 2 + jm * sin(fr * 60 + 40167); curve cx + w / 2 + je * sin(fr * 69 + 37294), cy + -h / 2 + c + je * sin(fr * 74 + 37354) via cx + w / 2 + jm * sin(fr * 62 + 40204), cy + -h / 2 + jm * sin(fr * 67 + 40264); curve cx + w / 2 + je * sin(fr * 45 + 37391), cy + h / 2 - c + je * sin(fr * 50 + 37451) via cx + w / 2 + jm * sin(fr * 69 + 40301), cy + 0 + jm * sin(fr * 74 + 40361); curve cx + w / 2 - c + je * sin(fr * 52 + 37488), cy + h / 2 + je * sin(fr * 57 + 37548) via cx + w / 2 + jm * sin(fr * 45 + 40398), cy + h / 2 + jm * sin(fr * 50 + 40458); curve cx + -w / 2 + c + je * sin(fr * 59 + 37585), cy + h / 2 + je * sin(fr * 64 + 37645) via cx + 0 + jm * sin(fr * 52 + 40495), cy + h / 2 + jm * sin(fr * 57 + 40555); curve cx + -w / 2 + je * sin(fr * 66 + 37682), cy + h / 2 - c + je * sin(fr * 71 + 37742) via cx + -w / 2 + jm * sin(fr * 59 + 40592), cy + h / 2 + jm * sin(fr * 64 + 40652); curve cx + -w / 2 + je * sin(fr * 73 + 37779), cy + -h / 2 + c + je * sin(fr * 78 + 37839) via cx + -w / 2 + jm * sin(fr * 66 + 40689), cy + 0 + jm * sin(fr * 71 + 40749); curve cx + -w / 2 + c + je * sin(fr * 49 + 37876), cy + -h / 2 + je * sin(fr * 54 + 37936) via cx + -w / 2 + jm * sin(fr * 73 + 40786), cy + -h / 2 + jm * sin(fr * 78 + 40846); close }
@@ -4804,18 +4815,24 @@ scene Vitreus {
     //  each other `ws.g` apart, the whole row centred on its place. `ws.cN` is where slot N's middle is, from the row's middle.
     let ws.U = mix(bu, bcu, lm)
     let ws.g = 9 * ws.U
-    let ws.pb = 15 * ws.U                 // the pill's thickness, the same wherever it is
-    let ws.pl = ws.pb + 14 * ws.U         // and its length, resting on one workspace
-    let ws.s1 = mix((8 + 4.5 * ws.tall.1) * ws.U, ws.pl, ws.act.1)
-    let ws.s2 = mix((8 + 4.5 * ws.tall.2) * ws.U, ws.pl, ws.act.2)
-    let ws.s3 = mix((8 + 4.5 * ws.tall.3) * ws.U, ws.pl, ws.act.3)
-    let ws.s4 = mix((8 + 4.5 * ws.tall.4) * ws.U, ws.pl, ws.act.4)
-    let ws.s5 = mix((8 + 4.5 * ws.tall.5) * ws.U, ws.pl, ws.act.5)
-    let ws.s6 = mix((8 + 4.5 * ws.tall.6) * ws.U, ws.pl, ws.act.6)
-    let ws.s7 = mix((8 + 4.5 * ws.tall.7) * ws.U, ws.pl, ws.act.7)
-    let ws.s8 = mix((8 + 4.5 * ws.tall.8) * ws.U, ws.pl, ws.act.8)
-    let ws.s9 = mix((8 + 4.5 * ws.tall.9) * ws.U, ws.pl, ws.act.9)
-    let ws.s10 = mix((8 + 4.5 * ws.tall.10) * ws.U, ws.pl, ws.act.10)
+    //  The style (Settings > Bar > Workspaces), each 0..1 so one morphs into the next: glass squares (none of them), dots, numbers, lines.
+    //  A mark is `ws.ma + ws.mt * tall` along the bar; across it, the same, but for the lines, which are `ws.lt` thick. `ws.cr` is its corner, of its shorter side.
+    let ws.ma = 6.5 + 0.5 * ws.st1 + 4.5 * ws.st2
+    let ws.mt = 4.5 - 3 * ws.st1 - 4.5 * ws.st2
+    let ws.lt = 4 * ws.U
+    let ws.cr = 0.3 + 0.2 * (ws.st1 + ws.st3)
+    let ws.pb = (13 - 4 * ws.st1 + 2 * ws.st2 - 9 * ws.st3) * ws.U                 // the pill's thickness, the same wherever it is
+    let ws.pl = ws.pb + (12 - 3 * ws.st1 - 6 * ws.st2 + 6 * ws.st3) * ws.U         // and its length, resting on one workspace
+    let ws.s1 = mix((ws.ma + ws.mt * ws.tall.1) * ws.U, ws.pl, ws.act.1)
+    let ws.s2 = mix((ws.ma + ws.mt * ws.tall.2) * ws.U, ws.pl, ws.act.2)
+    let ws.s3 = mix((ws.ma + ws.mt * ws.tall.3) * ws.U, ws.pl, ws.act.3)
+    let ws.s4 = mix((ws.ma + ws.mt * ws.tall.4) * ws.U, ws.pl, ws.act.4)
+    let ws.s5 = mix((ws.ma + ws.mt * ws.tall.5) * ws.U, ws.pl, ws.act.5)
+    let ws.s6 = mix((ws.ma + ws.mt * ws.tall.6) * ws.U, ws.pl, ws.act.6)
+    let ws.s7 = mix((ws.ma + ws.mt * ws.tall.7) * ws.U, ws.pl, ws.act.7)
+    let ws.s8 = mix((ws.ma + ws.mt * ws.tall.8) * ws.U, ws.pl, ws.act.8)
+    let ws.s9 = mix((ws.ma + ws.mt * ws.tall.9) * ws.U, ws.pl, ws.act.9)
+    let ws.s10 = mix((ws.ma + ws.mt * ws.tall.10) * ws.U, ws.pl, ws.act.10)
     let ws.ps = 14 * ws.U                 // the plus's slot
     let ws.sv1 = ws.s1 * ws.vis.1
     let ws.sv2 = ws.s2 * ws.vis.2
@@ -4843,7 +4860,7 @@ scene Vitreus {
     let sg.we = max(max(max(max(max(max(max(max(max(max(ws.sv1, (ws.q1 + ws.sv2) * ws.vis.2), (ws.q2 + ws.sv3) * ws.vis.3), (ws.q3 + ws.sv4) * ws.vis.4), (ws.q4 + ws.sv5) * ws.vis.5), (ws.q5 + ws.sv6) * ws.vis.6), (ws.q6 + ws.sv7) * ws.vis.7), (ws.q7 + ws.sv8) * ws.vis.8), (ws.q8 + ws.sv9) * ws.vis.9), (ws.q9 + ws.sv10) * ws.vis.10), max(ws.q10 + ws.ps * (1 - ws.sp), 9 * ws.U * ws.sp))     //  (the room for the plus is always kept, shown or not, so the last mark never sits on the slope of the notch)  where the last mark ends (or the special workspace's star)
     //  The workspace marks decide how wide their piece is: the row (overview button, marks, plus) is measured here, and the bar widens by what it needs beyond the
     //  128 * bu it was made for (`ws.more`), so the marks never run into the title. Down the left (`lm`) the strip is the same length whatever is in it.
-    let ws.row = (10 * bu + 15.5 * ws.U + sg.we) * (1 - lm)
+    let ws.row = (10 * bu + 19.5 * ws.U + sg.we) * (1 - lm)
     let ws.more = max(0, ws.row - 128 * bu)
     //  The tray's icons (the pinned apps, or all of them) are a piece of the bar like the others; the bar widens for them.
     let bar.gap = 12 * bu
@@ -4997,7 +5014,7 @@ scene Vitreus {
     let ob.y = mix(bar.y, yo + lf.t + 24 * bcu, lm)
     let ob.s = 18 * ws.U
     let ob.d = ob.s * (1 + 0.2 * pick(screen.index, ovp.0, ovp.1))       // as it is drawn
-    let ws.o = mix(ob.x, ob.y, lm) + ob.s / 2 + 6.5 * ws.U
+    let ws.o = mix(ob.x, ob.y, lm) + ob.s / 2 + 10.5 * ws.U
     let ws.a1 = ws.o + ws.c1
     let ws.a2 = ws.o + ws.c2
     let ws.a3 = ws.o + ws.c3
@@ -5192,6 +5209,7 @@ scene Vitreus {
     let wm.h = 946                     // the Pleamar-WM page: to the bottom of its last card
     let ad.h = 36 + max(1, addons.count) * 74 + 52 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (74 apart), and the line under them
     let ck.h = 1208                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
+    let br.h = 706                     // the Bar page: to the bottom of its last card
     let gl.h = 935                     // the Glass page: to the bottom of its last card
     let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
