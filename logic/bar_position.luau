@@ -25,6 +25,7 @@ return function()
         elseif saved.left == true then pos = "left" end
     end
     show()
+    run("pgrep", { "-x", "pleamar-wm" }, function(_, code) fact.wm_session = (code == 0) end)
     -- What the gaps round the windows were, to give back up on the top: read once, before anything of ours changes them (if it already
     -- says what a strip needs, it was us, and the usual 20 does).
     run("hyprctl", { "getoption", "general:gaps_out", "-j" }, function(out, code)

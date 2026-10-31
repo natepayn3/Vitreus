@@ -4760,6 +4760,7 @@ scene Vitreus {
     fact ax_rx = 0                                         // where its content goes, once out: the middle and the size (the add-on is told when the drawer opens)
     fact ax_ry = 0
     fact ax_rw = 0
+    fact wm_session = false                                // running under pleamar-wm (set by logic/bar_position.luau): it does not push a layer surface below another's reserve, so the add-on scenes start at the top of the screen and `ax.yoff` is 0
     fact ax_yoff = 0                                       // how far down the add-on scenes' surfaces start: the bar reserves its 62 at the top of the Island, and the compositor puts them in what is left (see `ax.yoff`)
     fact ax_rh = 0
     event ax_toggle ->
@@ -5732,7 +5733,7 @@ scene Vitreus {
     let axs.rt = max(axs.hh, cdk.t * (1 - adk.sb) * (1 - axb) * (1 - lm))   // what the content leaves free: the title bar, or the pill's strip when the pill is at the top, whichever is taller (the strip is inside the title bar's height: added together they left a gap as tall as the pill's strip)
     let axs.rr = cdk.t * lm * (1 - axb)                    // down a side strip the pill stands upright against the frame's edge, in the panel's side: its strip is taken from the panel's width (on the side of the frame, mirrored with `rt`)
     let axs.rb = cdk.t * adk.sb * (1 - axb) * (1 - lm)     // ... and the pill's strip along the bottom (the pill is in the panel's corner, its icons showing)
-    let ax.yoff = if(bar_anchor == top and not bar_frame and bar_size > 0.995, 62, 0)       // as the shell's own surface reserves (`reserve:` on it): an add-on's scene is laid out below it, so what it is told is moved up by this
+    let ax.yoff = if(bar_anchor == top and not bar_frame and bar_size > 0.995 and not wm_session, 62, 0)       // as the shell's own surface reserves (`reserve:` on it): an add-on's scene is laid out below it, so what it is told is moved up by this
     //  How far it may be pulled (offsets from its place, in the glass's drawing): anywhere inside the frame, right up against it, as the Desk can be.
     let axs.xmin = cdk.xs - (axs.fx - axs.w / 2)
     let axs.xmax = cdk.xe - (axs.fx + axs.w / 2)
@@ -6758,12 +6759,12 @@ scene Vitreus {
         let ppdaxr = pxk_xdrawer_cx + pxk_xdrawer_w / 2
         let ppdaxt = pxk_xdrawer_cy - pxk_xdrawer_h / 2
         let ppdaxb = min(pxk_xdrawer_cy + pxk_xdrawer_h / 2, vb - lf.t - 1)
-        box { at: ppdaxl + 46 * u, ppdaxt + 3; size: 64 * u, 19; rotate: -5deg; color: #e9dba8; opacity: 86% }
-        box { at: ppdaxl + 46 * u, ppdaxt + 3; size: 64 * u, 19; rotate: -5deg; stroke: 1; color: deep; opacity: 22% }
-        line { from: ppdaxl + 46 * u - 24 * u, ppdaxt + 3 - 4; to: ppdaxl + 46 * u + 24 * u, ppdaxt + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -5deg }
-        box { at: ppdaxr - 46 * u, ppdaxt + 3; size: 64 * u, 19; rotate: 4deg; color: #c9d8ec; opacity: 86% }
-        box { at: ppdaxr - 46 * u, ppdaxt + 3; size: 64 * u, 19; rotate: 4deg; stroke: 1; color: deep; opacity: 22% }
-        line { from: ppdaxr - 46 * u - 24 * u, ppdaxt + 3 - 4; to: ppdaxr - 46 * u + 24 * u, ppdaxt + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: 4deg }
+        box { at: ppdaxl + 72 * u, ppdaxt + 0; size: 62 * u, 19; rotate: -6deg; color: #e9dba8; opacity: 86% }
+        box { at: ppdaxl + 72 * u, ppdaxt + 0; size: 62 * u, 19; rotate: -6deg; stroke: 1; color: deep; opacity: 22% }
+        line { from: ppdaxl + 72 * u - 31 * u, ppdaxt + 0 - 4; to: ppdaxl + 72 * u + 31 * u, ppdaxt + 0 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -6deg }
+        box { at: ppdaxr - 16 * u, ppdaxt + 4; size: 66 * u, 19; rotate: 12deg; color: #e9dba8; opacity: 86% }
+        box { at: ppdaxr - 16 * u, ppdaxt + 4; size: 66 * u, 19; rotate: 12deg; stroke: 1; color: deep; opacity: 22% }
+        line { from: ppdaxr - 16 * u - 33 * u, ppdaxt + 4 - 4; to: ppdaxr - 16 * u + 33 * u, ppdaxt + 4 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: 12deg }
     }
     group {
         show: pp_k > 0.01 and do0 > 0.9
@@ -6772,12 +6773,12 @@ scene Vitreus {
         let ppdor = do.ix + do.iw / 2
         let ppdot = do.ey - do.eh / 2
         let ppdob = min(do.ey + do.eh / 2, vb - lf.t - 1)
-        box { at: ppdol + 46 * u, ppdot + 3; size: 64 * u, 19; rotate: -5deg; color: #e9dba8; opacity: 86% }
-        box { at: ppdol + 46 * u, ppdot + 3; size: 64 * u, 19; rotate: -5deg; stroke: 1; color: deep; opacity: 22% }
-        line { from: ppdol + 46 * u - 24 * u, ppdot + 3 - 4; to: ppdol + 46 * u + 24 * u, ppdot + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -5deg }
-        box { at: ppdor - 46 * u, ppdot + 3; size: 64 * u, 19; rotate: 4deg; color: #c9d8ec; opacity: 86% }
-        box { at: ppdor - 46 * u, ppdot + 3; size: 64 * u, 19; rotate: 4deg; stroke: 1; color: deep; opacity: 22% }
-        line { from: ppdor - 46 * u - 24 * u, ppdot + 3 - 4; to: ppdor - 46 * u + 24 * u, ppdot + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: 4deg }
+        box { at: ppdol + 22 * u, ppdot + 4; size: 64 * u, 19; rotate: 2deg; color: #e8b9b4; opacity: 86% }
+        box { at: ppdol + 22 * u, ppdot + 4; size: 64 * u, 19; rotate: 2deg; stroke: 1; color: deep; opacity: 22% }
+        line { from: ppdol + 22 * u - 32 * u, ppdot + 4 - 4; to: ppdol + 22 * u + 32 * u, ppdot + 4 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: 2deg }
+        box { at: ppdor - 54 * u, ppdot - 4; size: 58 * u, 19; rotate: -9deg; color: #cfe0bf; opacity: 86% }
+        box { at: ppdor - 54 * u, ppdot - 4; size: 58 * u, 19; rotate: -9deg; stroke: 1; color: deep; opacity: 22% }
+        line { from: ppdor - 54 * u - 29 * u, ppdot - 4 - 4; to: ppdor - 54 * u + 29 * u, ppdot - 4 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -9deg }
     }
     //  The Proxy's hazard tape on the add-on panel, as on the other drawers (see bar_glass.plm).
     group {

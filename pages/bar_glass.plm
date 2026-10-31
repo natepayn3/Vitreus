@@ -517,6 +517,48 @@ part BarGlass {
             let pedzt = dz.fcy - pedzh / 2
             shader paper { at: pedzl - 8, pedzt - 8; size: pedzw + 16, pedzh + 16; values: 1, 19.5, 8, mix(min(dz.fw, dz.fh) / 2, 26 * u * desk_s * (1 - 0.73 * sq), clamp(dz0 * 1.6 - 0.1, 0, 1)); colors: obsidian, deep }
         }
+        //  The Paper's torn edge on the shell's notches and on the two docks (the app dock and the add-on dock), so they are worn like the drawers. The side that is buried in the frame
+        //  is kept clean (the 100s in the seed are a mask of the sides, see paper.wgsl), so the tear only runs on the part that shows.
+        //  The top frame in three pieces (see `sg.*`): the same torn edge on each piece. Its top (and the end that runs off the screen) is buried in the thin frame, so those sides are kept clean.
+        group {
+            show: pp_k > 0.01 and sg > 0.35
+            opacity: pp_k * clamp(sg * 3 - 1, 0, 1)
+            shader paper { at: -14 - 8, yo - 14 - 8; size: sg.lr + 14 + 16, sg.hc + 14 + 16; values: 1, 503.1, 8, (sg.hc + sg.r) * 0.34 * (1 - 0.73 * sq); colors: obsidian, deep }
+            shader paper { at: sg.q0 - 8, yo - 14 - 8; size: sg.q1 - sg.q0 + 16, sg.hc + 14 + 16; values: 1, 410.6, 8, (sg.hc + sg.r) * 0.34 * (1 - 0.73 * sq); colors: obsidian, deep }
+            shader paper { at: sg.rq - 8, yo - 14 - 8; size: screen.width + 14 - sg.rq + 16, sg.hc + 14 + 16; values: 1, 607.9, 8, (sg.hc + sg.r) * 0.34 * (1 - 0.73 * sq); colors: obsidian, deep }
+        }
+        group {
+            show: pp_k > 0.01 and tm > 0.35 and nt_vis_l.$screen > 0.02
+            opacity: pp_k * clamp(nt_vis_l.$screen * 3, 0, 1)
+            shader paper { at: th.l - 22 - 8, vcc - nt_w / 2 - 8; size: 22 + nt_d * nt_vis_l.$screen + 16, nt_w + 16; values: 1, 101.5, 8, 9 * cu * (1 - 0.73 * sq); colors: obsidian, deep }
+        }
+        group {
+            show: pp_k > 0.01 and lm > 0.35 and sb > 0.5 and nt_vis_t.$screen > 0.02
+            opacity: pp_k * clamp(nt_vis_t.$screen * 3, 0, 1)
+            shader paper { at: ccx - nt_w / 2 - 8, yo + lf.t - 22 - 8; size: nt_w + 16, 22 + nt_d * nt_vis_t.$screen + 16; values: 1, 405.9, 8, 9 * cu * (1 - 0.73 * sq); colors: obsidian, deep }
+        }
+        group {
+            show: pp_k > 0.01 and fm > 0.35 and sb > 0.5 and nt_vis_b.$screen > 0.02
+            opacity: pp_k * clamp(nt_vis_b.$screen * 3, 0, 1)
+            shader paper { at: ccx - nt_w / 2 - 8, vb - th.b - nt_d * nt_vis_b.$screen - 8; size: nt_w + 16, 22 + nt_d * nt_vis_b.$screen + 16; values: 1, 810.3, 8, 9 * cu * (1 - 0.73 * sq); colors: obsidian, deep }
+        }
+        group {
+            show: pp_k > 0.01 and fm > 0.35 and sb > 0.5 and nt_vis_r.$screen > 0.02
+            opacity: pp_k * clamp(nt_vis_r.$screen * 3, 0, 1)
+            shader paper { at: screen.width - th.r - nt_d * nt_vis_r.$screen - 8, vcc - nt_w / 2 - 8; size: 22 + nt_d * nt_vis_r.$screen + 16, nt_w + 16; values: 1, 214.7, 8, 9 * cu * (1 - 0.73 * sq); colors: obsidian, deep }
+        }
+        group {
+            show: pp_k > 0.01 and cdk.g > 0.02
+            opacity: pp_k * clamp(cdk.g * 3, 0, 1)
+            let ppcdm = if(pick(screen.index, cdk_ax.0, cdk_ax.1) < -0.5, 1, 0) + 2 * if(pick(screen.index, cdk_ax.0, cdk_ax.1) > 0.5, 1, 0) + 4 * if(pick(screen.index, cdk_ay.0, cdk_ay.1) < -0.5, 1, 0) + 8 * if(pick(screen.index, cdk_ay.0, cdk_ay.1) > 0.5, 1, 0)
+            shader paper { at: cdk.bx - max(0.3, cdk.bw) / 2 - 8, cdk.by - max(0.3, cdk.bh) / 2 - 8; size: max(0.3, cdk.bw) + 16, max(0.3, cdk.bh) + 16; values: 1, 6.2 + 100 * ppcdm, 8, cdk.cr; colors: obsidian, deep }
+        }
+        group {
+            show: pp_k > 0.01 and adk.g > 0.02
+            opacity: pp_k * clamp(adk.g * 3, 0, 1)
+            let ppadm = if(pick(screen.index, adk_ax.0, adk_ax.1) < -0.5, 1, 0) + 2 * if(pick(screen.index, adk_ax.0, adk_ax.1) > 0.5, 1, 0) + 4 * if(pick(screen.index, adk_ay.0, adk_ay.1) < -0.5, 1, 0) + 8 * if(pick(screen.index, adk_ay.0, adk_ay.1) > 0.5, 1, 0)
+            shader paper { at: adk.bx - max(0.3, adk.bw) / 2 - 8, adk.by - max(0.3, adk.bh) / 2 - 8; size: max(0.3, adk.bw) + 16, max(0.3, adk.bh) + 16; values: 1, 17.4 + 100 * ppadm, 8, cdk.cr; colors: obsidian, deep }
+        }
         //  The Paper's worn sheet and tape on every drawer that is out: the shader rubs the edges and speckles the cream, and two strips of washi tape hold it down by its top corners.
         group {
             show: pp_k > 0.01 and dk0 > 0.9
@@ -525,12 +567,12 @@ part BarGlass {
             let ppdkr = dk.ex + dk.ew / 2
             let ppdkt = dk.ey - dk.eh / 2
             let ppdkb = min(dk.ey + dk.eh / 2, vb - lf.t - 1)
-            box { at: ppdkl + 46 * u, ppdkt + 3; size: 64 * u, 19; rotate: -5deg; color: #e9dba8; opacity: 86% }
-            box { at: ppdkl + 46 * u, ppdkt + 3; size: 64 * u, 19; rotate: -5deg; stroke: 1; color: deep; opacity: 22% }
-            line { from: ppdkl + 46 * u - 24 * u, ppdkt + 3 - 4; to: ppdkl + 46 * u + 24 * u, ppdkt + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -5deg }
-            box { at: ppdkr - 46 * u, ppdkt + 3; size: 64 * u, 19; rotate: 4deg; color: #c9d8ec; opacity: 86% }
-            box { at: ppdkr - 46 * u, ppdkt + 3; size: 64 * u, 19; rotate: 4deg; stroke: 1; color: deep; opacity: 22% }
-            line { from: ppdkr - 46 * u - 24 * u, ppdkt + 3 - 4; to: ppdkr - 46 * u + 24 * u, ppdkt + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: 4deg }
+            box { at: ppdkl + 30 * u, ppdkt - 2; size: 60 * u, 19; rotate: -11deg; color: #e9dba8; opacity: 86% }
+            box { at: ppdkl + 30 * u, ppdkt - 2; size: 60 * u, 19; rotate: -11deg; stroke: 1; color: deep; opacity: 22% }
+            line { from: ppdkl + 30 * u - 30 * u, ppdkt - 2 - 4; to: ppdkl + 30 * u + 30 * u, ppdkt - 2 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -11deg }
+            box { at: ppdkr - 58 * u, ppdkt + 4; size: 70 * u, 19; rotate: 3deg; color: #c9d8ec; opacity: 86% }
+            box { at: ppdkr - 58 * u, ppdkt + 4; size: 70 * u, 19; rotate: 3deg; stroke: 1; color: deep; opacity: 22% }
+            line { from: ppdkr - 58 * u - 35 * u, ppdkt + 4 - 4; to: ppdkr - 58 * u + 35 * u, ppdkt + 4 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: 3deg }
         }
         group {
             show: pp_k > 0.01 and dc0 > 0.9
@@ -539,12 +581,12 @@ part BarGlass {
             let ppdcr = dc.ex + dc.ew / 2
             let ppdct = dc.ey - dc.eh / 2
             let ppdcb = min(dc.ey + dc.eh / 2, vb - lf.t - 1)
-            box { at: ppdcl + 46 * u, ppdct + 3; size: 64 * u, 19; rotate: -5deg; color: #e9dba8; opacity: 86% }
-            box { at: ppdcl + 46 * u, ppdct + 3; size: 64 * u, 19; rotate: -5deg; stroke: 1; color: deep; opacity: 22% }
-            line { from: ppdcl + 46 * u - 24 * u, ppdct + 3 - 4; to: ppdcl + 46 * u + 24 * u, ppdct + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -5deg }
-            box { at: ppdcr - 46 * u, ppdct + 3; size: 64 * u, 19; rotate: 4deg; color: #c9d8ec; opacity: 86% }
-            box { at: ppdcr - 46 * u, ppdct + 3; size: 64 * u, 19; rotate: 4deg; stroke: 1; color: deep; opacity: 22% }
-            line { from: ppdcr - 46 * u - 24 * u, ppdct + 3 - 4; to: ppdcr - 46 * u + 24 * u, ppdct + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: 4deg }
+            box { at: ppdcl + 64 * u, ppdct + 5; size: 58 * u, 19; rotate: -3deg; color: #e8b9b4; opacity: 86% }
+            box { at: ppdcl + 64 * u, ppdct + 5; size: 58 * u, 19; rotate: -3deg; stroke: 1; color: deep; opacity: 22% }
+            line { from: ppdcl + 64 * u - 29 * u, ppdct + 5 - 4; to: ppdcl + 64 * u + 29 * u, ppdct + 5 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -3deg }
+            box { at: ppdcr - 24 * u, ppdct - 3; size: 64 * u, 19; rotate: 8deg; color: #cfe0bf; opacity: 86% }
+            box { at: ppdcr - 24 * u, ppdct - 3; size: 64 * u, 19; rotate: 8deg; stroke: 1; color: deep; opacity: 22% }
+            line { from: ppdcr - 24 * u - 32 * u, ppdct - 3 - 4; to: ppdcr - 24 * u + 32 * u, ppdct - 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: 8deg }
         }
         group {
             show: pp_k > 0.01 and ds0 > 0.9
@@ -553,12 +595,12 @@ part BarGlass {
             let ppdsr = ds.ex + ds.ew / 2
             let ppdst = ds.ey - ds.eh / 2
             let ppdsb = min(ds.ey + ds.eh / 2, vb - lf.t - 1)
-            box { at: ppdsl + 46 * u, ppdst + 3; size: 64 * u, 19; rotate: -5deg; color: #e9dba8; opacity: 86% }
-            box { at: ppdsl + 46 * u, ppdst + 3; size: 64 * u, 19; rotate: -5deg; stroke: 1; color: deep; opacity: 22% }
-            line { from: ppdsl + 46 * u - 24 * u, ppdst + 3 - 4; to: ppdsl + 46 * u + 24 * u, ppdst + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -5deg }
-            box { at: ppdsr - 46 * u, ppdst + 3; size: 64 * u, 19; rotate: 4deg; color: #c9d8ec; opacity: 86% }
-            box { at: ppdsr - 46 * u, ppdst + 3; size: 64 * u, 19; rotate: 4deg; stroke: 1; color: deep; opacity: 22% }
-            line { from: ppdsr - 46 * u - 24 * u, ppdst + 3 - 4; to: ppdsr - 46 * u + 24 * u, ppdst + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: 4deg }
+            box { at: ppdsl + 18 * u, ppdst + 2; size: 72 * u, 19; rotate: -8deg; color: #e9dba8; opacity: 86% }
+            box { at: ppdsl + 18 * u, ppdst + 2; size: 72 * u, 19; rotate: -8deg; stroke: 1; color: deep; opacity: 22% }
+            line { from: ppdsl + 18 * u - 36 * u, ppdst + 2 - 4; to: ppdsl + 18 * u + 36 * u, ppdst + 2 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -8deg }
+            box { at: ppdsr - 70 * u, ppdst + 6; size: 56 * u, 19; rotate: -2deg; color: #d9c6e6; opacity: 86% }
+            box { at: ppdsr - 70 * u, ppdst + 6; size: 56 * u, 19; rotate: -2deg; stroke: 1; color: deep; opacity: 22% }
+            line { from: ppdsr - 70 * u - 28 * u, ppdst + 6 - 4; to: ppdsr - 70 * u + 28 * u, ppdst + 6 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -2deg }
         }
         group {
             show: pp_k > 0.01 and dl0 > 0.9
@@ -567,12 +609,12 @@ part BarGlass {
             let ppdlr = dl.ex + dl.ew / 2
             let ppdlt = dl.ey - dl.eh / 2
             let ppdlb = min(dl.ey + dl.eh / 2, vb - lf.t - 1)
-            box { at: ppdll + 46 * u, ppdlt + 3; size: 64 * u, 19; rotate: -5deg; color: #e9dba8; opacity: 86% }
-            box { at: ppdll + 46 * u, ppdlt + 3; size: 64 * u, 19; rotate: -5deg; stroke: 1; color: deep; opacity: 22% }
-            line { from: ppdll + 46 * u - 24 * u, ppdlt + 3 - 4; to: ppdll + 46 * u + 24 * u, ppdlt + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -5deg }
-            box { at: ppdlr - 46 * u, ppdlt + 3; size: 64 * u, 19; rotate: 4deg; color: #c9d8ec; opacity: 86% }
-            box { at: ppdlr - 46 * u, ppdlt + 3; size: 64 * u, 19; rotate: 4deg; stroke: 1; color: deep; opacity: 22% }
-            line { from: ppdlr - 46 * u - 24 * u, ppdlt + 3 - 4; to: ppdlr - 46 * u + 24 * u, ppdlt + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: 4deg }
+            box { at: ppdll + 52 * u, ppdlt - 1; size: 64 * u, 19; rotate: 6deg; color: #c9d8ec; opacity: 86% }
+            box { at: ppdll + 52 * u, ppdlt - 1; size: 64 * u, 19; rotate: 6deg; stroke: 1; color: deep; opacity: 22% }
+            line { from: ppdll + 52 * u - 32 * u, ppdlt - 1 - 4; to: ppdll + 52 * u + 32 * u, ppdlt - 1 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: 6deg }
+            box { at: ppdlr - 34 * u, ppdlb - 14 - 6; size: 62 * u, 19; rotate: -6deg; color: #e9dba8; opacity: 86% }
+            box { at: ppdlr - 34 * u, ppdlb - 14 - 6; size: 62 * u, 19; rotate: -6deg; stroke: 1; color: deep; opacity: 22% }
+            line { from: ppdlr - 34 * u - 31 * u, ppdlb - 14 - 6 - 4; to: ppdlr - 34 * u + 31 * u, ppdlb - 14 - 6 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -6deg }
         }
         group {
             show: pp_k > 0.01 and dm0 > 0.9
@@ -581,12 +623,12 @@ part BarGlass {
             let ppdmr = dm.ex + dm.ew / 2
             let ppdmt = dm.ey - dm.eh / 2
             let ppdmb = min(dm.ey + dm.eh / 2, vb - lf.t - 1)
-            box { at: ppdml + 46 * u, ppdmt + 3; size: 64 * u, 19; rotate: -5deg; color: #e9dba8; opacity: 86% }
-            box { at: ppdml + 46 * u, ppdmt + 3; size: 64 * u, 19; rotate: -5deg; stroke: 1; color: deep; opacity: 22% }
-            line { from: ppdml + 46 * u - 24 * u, ppdmt + 3 - 4; to: ppdml + 46 * u + 24 * u, ppdmt + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -5deg }
-            box { at: ppdmr - 46 * u, ppdmt + 3; size: 64 * u, 19; rotate: 4deg; color: #c9d8ec; opacity: 86% }
-            box { at: ppdmr - 46 * u, ppdmt + 3; size: 64 * u, 19; rotate: 4deg; stroke: 1; color: deep; opacity: 22% }
-            line { from: ppdmr - 46 * u - 24 * u, ppdmt + 3 - 4; to: ppdmr - 46 * u + 24 * u, ppdmt + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: 4deg }
+            box { at: ppdml + 40 * u, ppdmt + 6; size: 56 * u, 19; rotate: -14deg; color: #cfe0bf; opacity: 86% }
+            box { at: ppdml + 40 * u, ppdmt + 6; size: 56 * u, 19; rotate: -14deg; stroke: 1; color: deep; opacity: 22% }
+            line { from: ppdml + 40 * u - 28 * u, ppdmt + 6 - 4; to: ppdml + 40 * u + 28 * u, ppdmt + 6 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -14deg }
+            box { at: ppdmr - 46 * u, ppdmt - 2; size: 70 * u, 19; rotate: 5deg; color: #e8b9b4; opacity: 86% }
+            box { at: ppdmr - 46 * u, ppdmt - 2; size: 70 * u, 19; rotate: 5deg; stroke: 1; color: deep; opacity: 22% }
+            line { from: ppdmr - 46 * u - 35 * u, ppdmt - 2 - 4; to: ppdmr - 46 * u + 35 * u, ppdmt - 2 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: 5deg }
         }
         group {
             show: pp_k > 0.01 and dz0 > 0.9
@@ -595,12 +637,12 @@ part BarGlass {
             let ppdzr = dz.fx + dz.fw / 2
             let ppdzt = dz.fcy - dz.fh / 2
             let ppdzb = min(dz.fcy + dz.fh / 2, vb - lf.t - 1)
-            box { at: ppdzl + 46 * u, ppdzt + 3; size: 64 * u, 19; rotate: -5deg; color: #e9dba8; opacity: 86% }
-            box { at: ppdzl + 46 * u, ppdzt + 3; size: 64 * u, 19; rotate: -5deg; stroke: 1; color: deep; opacity: 22% }
-            line { from: ppdzl + 46 * u - 24 * u, ppdzt + 3 - 4; to: ppdzl + 46 * u + 24 * u, ppdzt + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -5deg }
-            box { at: ppdzr - 46 * u, ppdzt + 3; size: 64 * u, 19; rotate: 4deg; color: #c9d8ec; opacity: 86% }
-            box { at: ppdzr - 46 * u, ppdzt + 3; size: 64 * u, 19; rotate: 4deg; stroke: 1; color: deep; opacity: 22% }
-            line { from: ppdzr - 46 * u - 24 * u, ppdzt + 3 - 4; to: ppdzr - 46 * u + 24 * u, ppdzt + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: 4deg }
+            box { at: ppdzl + 28 * u, ppdzb - 14 - 4; size: 66 * u, 19; rotate: 7deg; color: #d9c6e6; opacity: 86% }
+            box { at: ppdzl + 28 * u, ppdzb - 14 - 4; size: 66 * u, 19; rotate: 7deg; stroke: 1; color: deep; opacity: 22% }
+            line { from: ppdzl + 28 * u - 33 * u, ppdzb - 14 - 4 - 4; to: ppdzl + 28 * u + 33 * u, ppdzb - 14 - 4 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: 7deg }
+            box { at: ppdzr - 62 * u, ppdzt + 3; size: 60 * u, 19; rotate: -4deg; color: #c9d8ec; opacity: 86% }
+            box { at: ppdzr - 62 * u, ppdzt + 3; size: 60 * u, 19; rotate: -4deg; stroke: 1; color: deep; opacity: 22% }
+            line { from: ppdzr - 62 * u - 30 * u, ppdzt + 3 - 4; to: ppdzr - 62 * u + 30 * u, ppdzt + 3 - 4; width: 1.2; color: #ffffff; opacity: 30%; rotate: -4deg }
         }
         //  The Cassette's detail on each drawer, only while it is plastic and the drawer is out: an accent-coloured tab at the top left (opposite the grips) (a console's button), a row of straight vertical grip slots in the bottom right
         //  corner (like the vents of a handheld: dark, with a lit edge) that run a few pixels past the drawer's bottom edge as if they wrapped round the base, and a screw in the bottom left.
@@ -966,7 +1008,7 @@ part BarGlass {
             let cybarb = bar.y - bar.h / 2 + bar.h + pop
             //  (the bar itself has no corner brackets: only the drawers and the cards under it do; its ruler of ticks and its readout stay)
             repeat cybark in 0..13 {
-                line { from: cybarl + 22 * u + cybark * 6 * u, cybarb + 6 * u + 1; to: cybarl + 22 * u + cybark * 6 * u, cybarb + 6 * u + 1 + if(mod(cybark, 4) == 0, 6 * u, 3 * u); width: 1.1; color: mint; opacity: 70% }
+                line { from: cybarl + 22 + cybark * 6 * u, cybarb + 6 * u + 1; to: cybarl + 22 + cybark * 6 * u, cybarb + 6 * u + 1 + if(mod(cybark, 4) == 0, 6 * u, 3 * u); width: 1.1; color: mint; opacity: 70% }
             }
         
             text "SYS 7F3A·9C21" { at: cybarr - 9 * u, cybarb + 6 * u + 11 * u; anchor: right center; size: 10; weight: 500; color: minthi; family: "SpaceMono Nerd Font"; opacity: cy_on * if(mod(floor(time * 7 + 0), 3) == 0, 85%, 0) }
@@ -991,7 +1033,7 @@ part BarGlass {
                 path { at: cydkx, cydky; stroke: 1.7; color: minthi; move 0, -cydksy * 15 * u; line 0, 0; line -cydksx * 15 * u, 0 }
             }
             repeat cydkk in 0..13 {
-                line { from: cydkl + 22 * u + cydkk * 6 * u, cydkb + 7 * u + 1; to: cydkl + 22 * u + cydkk * 6 * u, cydkb + 7 * u + 1 + if(mod(cydkk, 4) == 0, 6 * u, 3 * u); width: 1.1; color: mint; opacity: 70% }
+                line { from: cydkl + 22 + cydkk * 6 * u, cydkb + 7 * u + 1; to: cydkl + 22 + cydkk * 6 * u, cydkb + 7 * u + 1 + if(mod(cydkk, 4) == 0, 6 * u, 3 * u); width: 1.1; color: mint; opacity: 70% }
             }
         
             text "SYS 2B6D·F418" { at: cydkr - 16 * u, cydkb - 9 * u; anchor: right center; size: 10; weight: 500; color: minthi; family: "SpaceMono Nerd Font"; opacity: cy_on * if(mod(floor(time * 7 + 1), 3) == 0, 85%, 0) }
@@ -1016,7 +1058,7 @@ part BarGlass {
                 path { at: cydcx, cydcy; stroke: 1.7; color: minthi; move 0, -cydcsy * 15 * u; line 0, 0; line -cydcsx * 15 * u, 0 }
             }
             repeat cydck in 0..13 {
-                line { from: cydcl + 22 * u + cydck * 6 * u, cydcb + 7 * u + 1; to: cydcl + 22 * u + cydck * 6 * u, cydcb + 7 * u + 1 + if(mod(cydck, 4) == 0, 6 * u, 3 * u); width: 1.1; color: mint; opacity: 70% }
+                line { from: cydcl + 22 + cydck * 6 * u, cydcb + 7 * u + 1; to: cydcl + 22 + cydck * 6 * u, cydcb + 7 * u + 1 + if(mod(cydck, 4) == 0, 6 * u, 3 * u); width: 1.1; color: mint; opacity: 70% }
             }
         
             text "SYS C4F1·0A9E" { at: cydcr - 16 * u, cydcb - 9 * u; anchor: right center; size: 10; weight: 500; color: minthi; family: "SpaceMono Nerd Font"; opacity: cy_on * if(mod(floor(time * 7 + 2), 3) == 0, 85%, 0) }
@@ -1041,7 +1083,7 @@ part BarGlass {
                 path { at: cydsx, cydsy; stroke: 1.7; color: minthi; move 0, -cydssy * 15 * u; line 0, 0; line -cydssx * 15 * u, 0 }
             }
             repeat cydsk in 0..13 {
-                line { from: cydsl + 22 * u + cydsk * 6 * u, cydsb + 7 * u + 1; to: cydsl + 22 * u + cydsk * 6 * u, cydsb + 7 * u + 1 + if(mod(cydsk, 4) == 0, 6 * u, 3 * u); width: 1.1; color: mint; opacity: 70% }
+                line { from: cydsl + 22 + cydsk * 6 * u, cydsb + 7 * u + 1; to: cydsl + 22 + cydsk * 6 * u, cydsb + 7 * u + 1 + if(mod(cydsk, 4) == 0, 6 * u, 3 * u); width: 1.1; color: mint; opacity: 70% }
             }
         
             text "SYS 7F3A·9C21" { at: cydsr - 16 * u, cydsb - 9 * u; anchor: right center; size: 10; weight: 500; color: minthi; family: "SpaceMono Nerd Font"; opacity: cy_on * if(mod(floor(time * 7 + 3), 3) == 0, 85%, 0) }
@@ -1066,7 +1108,7 @@ part BarGlass {
                 path { at: cydlx, cydly; stroke: 1.7; color: minthi; move 0, -cydlsy * 15 * u; line 0, 0; line -cydlsx * 15 * u, 0 }
             }
             repeat cydlk in 0..13 {
-                line { from: cydll + 22 * u + cydlk * 6 * u, cydlb + 7 * u + 1; to: cydll + 22 * u + cydlk * 6 * u, cydlb + 7 * u + 1 + if(mod(cydlk, 4) == 0, 6 * u, 3 * u); width: 1.1; color: mint; opacity: 70% }
+                line { from: cydll + 22 + cydlk * 6 * u, cydlb + 7 * u + 1; to: cydll + 22 + cydlk * 6 * u, cydlb + 7 * u + 1 + if(mod(cydlk, 4) == 0, 6 * u, 3 * u); width: 1.1; color: mint; opacity: 70% }
             }
         
             text "SYS 2B6D·F418" { at: cydlr - 16 * u, cydlb - 9 * u; anchor: right center; size: 10; weight: 500; color: minthi; family: "SpaceMono Nerd Font"; opacity: cy_on * if(mod(floor(time * 7 + 4), 3) == 0, 85%, 0) }
@@ -1091,7 +1133,7 @@ part BarGlass {
                 path { at: cydmx, cydmy; stroke: 1.7; color: minthi; move 0, -cydmsy * 15 * u; line 0, 0; line -cydmsx * 15 * u, 0 }
             }
             repeat cydmk in 0..13 {
-                line { from: cydml + 22 * u + cydmk * 6 * u, cydmb + 7 * u + 1; to: cydml + 22 * u + cydmk * 6 * u, cydmb + 7 * u + 1 + if(mod(cydmk, 4) == 0, 6 * u, 3 * u); width: 1.1; color: mint; opacity: 70% }
+                line { from: cydml + 22 + cydmk * 6 * u, cydmb + 7 * u + 1; to: cydml + 22 + cydmk * 6 * u, cydmb + 7 * u + 1 + if(mod(cydmk, 4) == 0, 6 * u, 3 * u); width: 1.1; color: mint; opacity: 70% }
             }
         
             text "SYS C4F1·0A9E" { at: cydmr - 16 * u, cydmb - 9 * u; anchor: right center; size: 10; weight: 500; color: minthi; family: "SpaceMono Nerd Font"; opacity: cy_on * if(mod(floor(time * 7 + 5), 3) == 0, 85%, 0) }
@@ -1118,7 +1160,7 @@ part BarGlass {
                 path { at: cydzx, cydzy; stroke: 1.7; color: minthi; move 0, -cydzsy * 15 * u; line 0, 0; line -cydzsx * 15 * u, 0 }
             }
             repeat cydzk in 0..13 {
-                line { from: cydzl + 22 * u + cydzk * 6 * u, cydzb + 7 * u + 1; to: cydzl + 22 * u + cydzk * 6 * u, cydzb + 7 * u + 1 + if(mod(cydzk, 4) == 0, 6 * u, 3 * u); width: 1.1; color: mint; opacity: 70% }
+                line { from: cydzl + 22 + cydzk * 6 * u, cydzb + 7 * u + 1; to: cydzl + 22 + cydzk * 6 * u, cydzb + 7 * u + 1 + if(mod(cydzk, 4) == 0, 6 * u, 3 * u); width: 1.1; color: mint; opacity: 70% }
             }
         
             text "SYS 7F3A·9C21" { at: cydzr - 16 * u, cydzb - 9 * u; anchor: right center; size: 10; weight: 500; color: minthi; family: "SpaceMono Nerd Font"; opacity: cy_on * if(mod(floor(time * 7 + 6), 3) == 0, 85%, 0) }
@@ -1662,8 +1704,8 @@ part BarGlass {
                 repeat pxk in 0..24 {
                     group {
                         clip inset 0 box { from: pxX + pxk * pxW / 24, pxY - 4 * bu; size: clamp(pxg.len - pxk * pxW / 24, 0.01, pxW / 24 + 0.7), pxH + 8 * bu }
-                        path { at: pxX, pxY; color: mix(mix(pxg.c, #ffffff, 0.16), pxg.c, pxk / 23); move 0.022 * pxW + 1 * pxR, 0 * pxH + 1 * pxR; line 1 * pxW + -1 * pxR, 0 * pxH + 1 * pxR; line 1 * pxW + -1 * pxR, 0.38 * pxH + -1 * pxR; line 0.381 * pxW + -1 * pxR, 0.38 * pxH + -1 * pxR; line 0.355 * pxW + -1 * pxR, 1 * pxH + -1 * pxR; line 0 * pxW + 1 * pxR, 1 * pxH + -1 * pxR; close }
-                        path { at: pxX, pxY; stroke: 2 * pxR; color: mix(mix(pxg.c, #ffffff, 0.16), pxg.c, pxk / 23); move 0.022 * pxW + 1 * pxR, 0 * pxH + 1 * pxR; line 1 * pxW + -1 * pxR, 0 * pxH + 1 * pxR; line 1 * pxW + -1 * pxR, 0.38 * pxH + -1 * pxR; line 0.381 * pxW + -1 * pxR, 0.38 * pxH + -1 * pxR; line 0.355 * pxW + -1 * pxR, 1 * pxH + -1 * pxR; line 0 * pxW + 1 * pxR, 1 * pxH + -1 * pxR; line 0.022 * pxW + 1 * pxR, 0 * pxH + 1 * pxR }
+                        path { at: pxX, pxY; color: mix(mix(pxg.c, #ffffff, 0.16), pxg.c, pxk / 23); move 0.022 * pxW + 1 * pxR, 0 * pxH + 1 * pxR; line 1 * pxW - 1 * pxR, 0 * pxH + 1 * pxR; line 1 * pxW - 1 * pxR, 0.38 * pxH - 1 * pxR; line 0.381 * pxW - 1 * pxR, 0.38 * pxH - 1 * pxR; line 0.355 * pxW - 1 * pxR, 1 * pxH - 1 * pxR; line 0 * pxW + 1 * pxR, 1 * pxH - 1 * pxR; close }
+                        path { at: pxX, pxY; stroke: 2 * pxR; color: mix(mix(pxg.c, #ffffff, 0.16), pxg.c, pxk / 23); move 0.022 * pxW + 1 * pxR, 0 * pxH + 1 * pxR; line 1 * pxW - 1 * pxR, 0 * pxH + 1 * pxR; line 1 * pxW - 1 * pxR, 0.38 * pxH - 1 * pxR; line 0.381 * pxW - 1 * pxR, 0.38 * pxH - 1 * pxR; line 0.355 * pxW - 1 * pxR, 1 * pxH - 1 * pxR; line 0 * pxW + 1 * pxR, 1 * pxH - 1 * pxR; line 0.022 * pxW + 1 * pxR, 0 * pxH + 1 * pxR }
                     }
                 }
             }
