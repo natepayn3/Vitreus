@@ -242,6 +242,16 @@ def real_default():
     return d if d and d != SINK else ""
 
 
+def fallback_sink():
+    """Any real output, for when the default is still "Vitreus EQ" but nothing is playing through it (the helper before this one was cut off
+    before it could give the default back): without it there is no output to play into, and no sound until the default is picked by hand."""
+    for line in out("pactl", "list", "short", "sinks").splitlines():
+        parts = line.split("\t")
+        if len(parts) > 1 and parts[1] != SINK:
+            return parts[1]
+    return ""
+
+
 def reconcile():
     """Make what runs match what is wanted. Called on every command and every few seconds.
     The EQ takes over as the default output when it is switched on (`claim`), and then lets go: if the output is
@@ -256,7 +266,7 @@ def reconcile():
                 error = "the filter stopped"
             d = default_sink()
             if chain is None:
-                tgt = real_default() or target
+                tgt = real_default() or target or fallback_sink()
                 if not tgt:
                     error = "no output to play into"
                 elif start_chain(tgt):
@@ -484,6 +494,33 @@ def spectrum_loop():
         sys.stdout.flush()
 
 
+PIDFILE = os.path.join(DATA, "helper.pid")
+
+
+def take_over():
+    """Only one helper at a time. One left behind by a shell that was cut off (its input never closed) kept running and held the output;
+    this one asks it to stop (it gives the default output back as it goes) and takes its place."""
+    try:
+        old = int(open(PIDFILE).read().strip())
+        if old != os.getpid() and "vitreus-eq" in open("/proc/%d/cmdline" % old).read():
+            os.kill(old, signal.SIGTERM)
+            for _ in range(50):
+                if not os.path.exists("/proc/%d" % old):
+                    break
+                time.sleep(0.1)
+            else:
+                os.kill(old, signal.SIGKILL)         # (stuck, for instance on a pactl that never answered: it ignores the polite one)
+                time.sleep(0.3)
+    except Exception:
+        pass
+    try:
+        os.makedirs(DATA, exist_ok=True)
+        with open(PIDFILE, "w") as f:
+            f.write(str(os.getpid()))
+    except Exception:
+        pass
+
+
 def shutdown(*_):
     with lock:
         stop_chain(target)
@@ -496,6 +533,7 @@ def main():
         for name in missing_plugins():
             print(name + "-lv2")
         return
+    take_over()
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGHUP, shutdown)
 
