@@ -3021,8 +3021,13 @@ function iris_fx.gaps_code(left, nodock)
     if bar_fx.seg then bar_gaps = { math.floor(1.35 * 36 * bz + 0.5) + 10, px, px, px } end       -- the top frame in pieces: thin, but the windows start below the pieces (36 * u) and a gap
     if isl then bar_gaps = { o[1] + iris_fx.island_room(), o[2], o[3], o[4] } end
     local everywhere = (bar_fx.on or "all") == "all"      -- the bar is on every monitor there is
-    local base = (left and everywhere) and bar_gaps or o
-    if docked and everywhere then base = dock_fx.raise(base) end
+    -- The global gaps stay the user's own, also with the bar on every monitor: each monitor's rule below carries the bar's room. On the next start
+    -- they are read back as the gaps as they were (logic/bar_position.luau), and a Vitreus restarted with the Island's room in them (the bar on
+    -- every monitor because the one it was set to was still off) took it for the original and gave that monitor the room twice.
+    -- (Until the monitors are known, or with a scene file from before the copies, there are no rules: then the global gaps carry it, as before.)
+    local ruled = #(bar_fx.mons or {}) > 0
+    local base = (left and everywhere and not ruled) and bar_gaps or o
+    if docked and everywhere and not ruled then base = dock_fx.raise(base) end
     local parts = { cfg(base) }
     for _, name in ipairs(bar_fx.mons or {}) do
         if name:match("^[%w%._%-]+$") then
