@@ -13,7 +13,7 @@
 return function(with_dirs)
     local MAX = 4                    -- as many as the page shows in its row of tiles and the scene declares (`bar_c0`…`bar_c3`)
     local FPS_FREE = 480             -- `rate:`'s ceiling in the language: the scene is left to the monitor
-    local FPS = { FPS_FREE, 120 }    -- what the page offers, in the order of its chips: only one conditional
+    local FPS = { FPS_FREE, 120, 60 } -- what the page offers, in the order of its chips (`rate:` in the scene has a line for each)
                                      -- `rate:` clause is honoured, so there is one value to choose besides "Screen"
     local B = { pref = nil, file = nil, mons = {}, busy = false, awake = false, others = false, may_shrink = true }
     local RESTART = [[
@@ -206,7 +206,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         pcall(sys.call, "files.write", "bar.json", { screens = screens, others = B.others and "frame" or nil, fps = fps, ws_style = (B.ws or 0) ~= 0 and B.ws or nil })
     end
 
-    -- Settings > Bar: how many frames a second the bar paints. A 240 Hz screen has it paint a panel 240 times a
+    -- Settings > Display: how many frames a second the shell paints. A 240 Hz screen has it paint a panel 240 times a
     -- second, which costs while it lasts what a game at that rate costs; the animations last the same either way,
     -- so this is less current, not less movement. The scene reads `bar_fps` in its `rate:`, so it takes at once
     -- and nothing is restarted. FPS_FREE is `rate:`'s ceiling in the language, which is to say "no cap".

@@ -74,7 +74,7 @@ scene Vitreus {
     //  search, the desk's inputs) still has it lent exclusively, to the copy it is on only. A loan ends only when this rule goes false, so the corner dock
     //  asks for the keyboard on an empty workspace while one of its icons is under the pointer or held (`cdk_hot`, `cdk_down`), not all the time:
     //  `cdk_on and ws_empty` held every loan on both copies, and the cursor stuck again.
-    surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on), 60 while media.playing and fw_on; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
+    surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on), 60 while (media.playing and fw_on) or bar_fps == 60; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
     permissions { services: "files", "files.write", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "env", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "test", "wl-paste", "ffprobe" }
 
@@ -631,9 +631,9 @@ scene Vitreus {
     }
     text bar_msg = ""
     event bar_pick_scr ->
-    event bar_pick_fps ->              // Settings > Bar: how many frames a second the bar paints (logic/bar_monitors.luau)
+    event bar_pick_fps ->              // Settings > Display: how many frames a second the shell paints (logic/bar_monitors.luau)
     fact bar_fps = 480                 // 480 is `rate:`'s ceiling in the language, so it means "whatever the monitor does"
-                                       // The page offers two values; `rate:` takes as many steps as it has paces (pleamar 0.5),
+                                       // The page offers three (Screen, 120, 60); `rate:` takes as many steps as it has paces (pleamar 0.5),
                                        // and while music plays under the audio visualiser it steps down to 60 whatever this says.
     event bar_pick_ws ->               // Settings > Bar: how the workspace marks look (logic/bar_monitors.luau)
     fact ws_style = 0                  // 0 glass squares, 1 dots, 2 numbers, 3 lines
@@ -5214,7 +5214,7 @@ scene Vitreus {
     //  How tall the settings page in view is (unscaled): Wallpaper, Glass, Display.
     //  The Display page: its cards down to the profiles one, which is as tall as its rows (none: a line).
     let disp.prows = max(24, disp_pn_s * 30)
-    let disp.h = 554 + disp.prows + 114 + if(gpu_has, 98, 0)
+    let disp.h = 554 + disp.prows + 114 + if(gpu_has, 98, 0) + 74
     //  The System monitor page: the storage card has a row for each drive and the temperature card one for each sensor, and what is under
     //  them slides up as they shrink (see the page, which is generated: sm.ds and sm.dt are how much each has given back).
     //  The sidebar, top to bottom: LOOK (Wallpaper, Theme, Glass), SHELL (Bar, Widgets, Add-ons, Notifications, Lock screen), SCREEN (Display, Night mode) and SYSTEM
@@ -5254,7 +5254,7 @@ scene Vitreus {
     let wm.h = 946                     // the Pleamar-WM page: to the bottom of its last card
     let ad.h = 36 + max(1, addons.count) * 74 + 52 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (74 apart), and the line under them
     let ck.h = 1208                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
-    let br.h = 706                     // the Bar page: to the bottom of its last card
+    let br.h = 631                     // the Bar page: to the bottom of its last card
     let gl.h = 935                     // the Glass page: to the bottom of its last card
     let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.

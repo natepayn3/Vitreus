@@ -111,29 +111,6 @@ part Bar {
             on scroll bar_dr_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
             on press bar_dr_hit { emit bar_dockroom_toggle }
 
-            //  ── How many frames a second the bar paints ─────────────────────────────────────────────────────────
-            //  A 240 Hz screen makes the shell paint a panel 240 times a second, which costs what a 240 Hz game costs
-            //  while it lasts. The animations are the same length either way: fewer frames is less current, not less
-            //  movement. `Screen` is no cap at all (the scene leaves it to the monitor).
-            let bfy = sby + 556 * pu
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 526 * pu + 0.5); text "FRAME RATE" { at: floor(spx + 14 * pu + 0.5), floor(sby + 526 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
-            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, bfy; size: 438 * pu, 44 * pu; corner: 14 * pu } }
-            box { at: spx + 219 * pu, bfy; size: 438 * pu, 44 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(bfy + 0.5); text "Frames a second" { at: floor(spx + 14 * pu + 0.5), floor(bfy + 0.5); anchor: left center; size: 15; weight: 700; width: (150 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 150 * pu + 0.5), floor(bfy + 0.5); text "Fewer frames, same movement" { at: floor(spx + 150 * pu + 0.5), floor(bfy + 0.5); anchor: left center; size: 13.5; width: (140 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
-            repeat f in 0..2 {
-                let bfv = pick(f, 480, 120)
-                let bfx = spx + (316 + f * 60) * pu
-                let bflit = if(bar_fps == bfv, 1, 0)
-                box { at: bfx, bfy; size: 56 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, bflit); opacity: 8% + 20% * bflit + 6% * bar_fps_hit.$f.hover }
-                PPillOutline(bfx, bfy, 56 * pu, 24 * pu, 8 * pu, bar_fps_hit.$f.hover, clamp(3 * (8% + 20% * bflit + 6% * bar_fps_hit.$f.hover), 0, 1), pu)
-                group { scale: rs; pivot: floor(bfx + 0.5), floor(bfy + 0.5); text pick(f, "Screen", "120") { at: floor(bfx + 0.5), floor(bfy + 0.5); anchor: center; align: center; size: 15; weight: 700; width: (52 * pu) / rs; lines: 1; color: mix(ink, mint, bflit); family: "Space Grotesk" } }
-                zone box bar_fps_hit.$f { at: bfx, bfy; size: 56 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; label: pick(f, "The monitor's own rate", "120 frames a second") }
-                on scroll bar_fps_hit.$f { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
-                on press bar_fps_hit.$f { emit bar_pick_fps(bfv) }
-            }
-
             //  ── The Island's layout: a small copy of the bar, and under it a tray for the pieces that are hidden. The Frame has a fixed one (see the end). ──
             //  Drag a piece along the bar to move it, or down into the tray to hide it (all but the settings gear,
             //  the way back here). The logic places the chips and makes room where the dragged one would land.
@@ -254,7 +231,7 @@ part Bar {
             }
 
             //  ── How the workspace marks look: a card each, with the marks drawn small (one of four in view, one with a window), as they are on the bar ──
-            let bwc = sby + 640 * pu
+            let bwc = sby + 565 * pu
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
             body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, bwc; size: 438 * pu, 96 * pu; corner: 14 * pu } }
             box { at: spx + 219 * pu, bwc; size: 438 * pu, 96 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }

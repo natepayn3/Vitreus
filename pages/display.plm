@@ -221,10 +221,32 @@ part Display {
             box { at: spx + 219 * pu, gtop + 43 * pu; size: 438 * pu, 86 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) * gon }
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(gtop + 13 * pu + 0.5); text "GRAPHICS CARD" { at: floor(spx + 14 * pu + 0.5), floor(gtop + 13 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; show: gpu_has; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(gtop + 44 * pu + 0.5); text "Draw the shell on the discrete card" { at: floor(spx + 14 * pu + 0.5), floor(gtop + 44 * pu + 0.5); anchor: left center; size: 16.5; weight: 700; width: (380 * pu) / rs; lines: 1; color: ink; show: gpu_has; family: "Space Grotesk" } }
-            SettingsSwitch(spx + 424 * pu, gtop + 44 * pu, gpu_pill * gon, gpu_hit.pressed, gpu_hit.hover, mint)
+            group { show: gpu_has; SettingsSwitch(spx + 424 * pu, gtop + 44 * pu, gpu_pill * gon, gpu_hit.pressed, gpu_hit.hover, mint) }
             zone box gpu_hit { at: spx + 405 * pu, gtop + 44 * pu; size: 46 * pu, 30 * pu; cursor: pointer; label: "Draw the shell on the discrete graphics card"; active: gpu_has and (gtop + 44 * pu) - disp.off > sby and (gtop + 44 * pu) - disp.off < sby + set.h * pu }
             on press gpu_hit { emit gpu_toggle }
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(gtop + 68 * pu + 0.5); text gpu_note { at: floor(spx + 14 * pu + 0.5), floor(gtop + 68 * pu + 0.5); anchor: left center; size: 15; width: (410 * pu) / rs; lines: 1; color: faint; show: gpu_has; family: "Space Grotesk" } }
+
+            //  ── Card five: how often the shell paints (Settings > Display; it is the whole shell, every screen, and takes at once: no Apply) ──
+            //  A 240 Hz screen makes the shell paint a panel 240 times a second, which costs what a 240 Hz game costs while it lasts. The animations last
+            //  the same either way: fewer frames is less current, not less movement. `Screen` is no cap (the scene leaves it to the monitor).
+            let ftop = gtop + 98 * gon * pu
+            let ffy = ftop + 42 * pu
+            body { color: mix(obsidian, ink, (veil) * 1.6); opacity: obs; shadow: 0, 2 * pu, 7 * pu, 40%, #000000; show: obs > 0.004; box { at: spx + 219 * pu, ftop + 31 * pu; size: 438 * pu, 62 * pu; corner: 14 * pu } }
+            box { at: spx + 219 * pu, ftop + 31 * pu; size: 438 * pu, 62 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(ftop + 13 * pu + 0.5); text "SHELL FRAME RATE" { at: floor(spx + 14 * pu + 0.5), floor(ftop + 13 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(ffy + 0.5); text "Frames a second" { at: floor(spx + 14 * pu + 0.5), floor(ffy + 0.5); anchor: left center; size: 15; weight: 700; width: (150 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 150 * pu + 0.5), floor(ffy + 0.5); text "Fewer frames, same movement" { at: floor(spx + 150 * pu + 0.5), floor(ffy + 0.5); anchor: left center; size: 13.5; width: (140 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+            repeat f in 0..3 {
+                let bfv = pick(f, 480, 120, 60)
+                let bfx = spx + (308 + f * 50) * pu
+                let bflit = if(bar_fps == bfv, 1, 0)
+                box { at: bfx, ffy; size: 46 * pu, 24 * pu; corner: 8 * pu; color: mix(ink, mint, bflit); opacity: 8% + 20% * bflit + 6% * bar_fps_hit.$f.hover }
+                PPillOutline(bfx, ffy, 46 * pu, 24 * pu, 8 * pu, bar_fps_hit.$f.hover, clamp(3 * (8% + 20% * bflit + 6% * bar_fps_hit.$f.hover), 0, 1), pu)
+                group { scale: rs; pivot: floor(bfx + 0.5), floor(ffy + 0.5); text pick(f, "Screen", "120", "60") { at: floor(bfx + 0.5), floor(ffy + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: (44 * pu) / rs; lines: 1; color: mix(ink, mint, bflit); family: "Space Grotesk" } }
+                zone box bar_fps_hit.$f { at: bfx, ffy; size: 46 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; label: pick(f, "The monitor's own rate", "120 frames a second", "60 frames a second"); active: (ffy) - disp.off > sby and (ffy) - disp.off < sby + set.h * pu }
+                on scroll bar_fps_hit.$f { disp_scroll_to = clamp(disp_scroll_to - wheel * 40, 0, max(0, disp.h - set.h)) }
+                on press bar_fps_hit.$f { emit bar_pick_fps(bfv) }
+            }
 
             //  ── The resolution dropdown, drawn last so its rows win the press over everything under it ──
             zone box disp_res_catch { at: spx + 219 * pu, dtop + 156 * pu; size: 438 * pu, 312 * pu; active: (disp_res_open) and (dtop + 156 * pu) - disp.off > sby and (dtop + 156 * pu) - disp.off < sby + set.h * pu }
