@@ -150,6 +150,10 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         with_dirs(function(d)
             local plm = d.conf .. "/vitreus.plm"
             local value = value or file_for()
+            -- (said in vitreus.log: a restart of the whole shell is worth knowing the reason of)
+            local names = {}
+            for _, m in ipairs(B.mons) do names[#names + 1] = m.name end
+            log("bar · restarting for " .. value .. " (was " .. tostring(B.file) .. "; plugged in: " .. table.concat(names, ", ") .. "; chosen: " .. table.concat(B.pref or {}, ", ") .. ")")
             run("sed", { "-i", "-E", "/^    surface \\{/s/screens: [^;]*;/screens: " .. value .. ";/", plm }, function(_, code)
                 if code ~= 0 then
                     B.busy = false
