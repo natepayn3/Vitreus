@@ -1388,6 +1388,10 @@ scene Files {
         rb.by = clamp(pointer.y - cy0, 0, vph) + sc
     }
     on press right midzone { menu.x = pointer.x; menu.y = pointer.y; emit bg_menu }
+    //  The mouse's thumb buttons, where a file manager is expected to answer them. They are asked for on
+    //  the items too: a press goes to the topmost zone, and over a file that is the item, not the folder.
+    on press back midzone while can.back   { emit act(12) }
+    on press forward midzone while can.fwd { emit act(13) }
     on scroll midzone { sct = clamp(sct - wheel * 90, 0, maxsc) }
     on drop midzone { emit dropped(-1) }
     text empty { at: mx + mw / 2, cy0 + vph / 2 - 10; anchor: center; size: 15; weight: 600; color: faint; show: total == 0 and ready; family: "Space Grotesk" }
@@ -1486,6 +1490,8 @@ scene Files {
                             on press t { emit tile(c.at) }
                             on release t { emit tile_up(c.at) }
                             on press right t { menu.x = pointer.x; menu.y = pointer.y; emit tile_menu(c.at) }
+                            on press back t while can.back   { emit act(12) }
+                            on press forward t while can.fwd { emit act(13) }
                             on press middle t { emit tile_mid(c.at) }
                             on drop t { emit dropped(c.at) }
                             on hover t for 900ms while drag.over > 0.5 and c.ik == 0 { emit spring(c.at) }
