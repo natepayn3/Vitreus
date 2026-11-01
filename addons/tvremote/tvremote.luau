@@ -82,7 +82,7 @@ local function clear_field()
     text.field_q = ""
     say_shell({ "text axf_q ", "emit axf_set" })
 end
-local PH = { [1] = "Type into the TV, then Enter", [2] = "TV address, like 192.168.x.x", [4] = "The 6-character code on the TV" }
+local PH = { [1] = "Type or search, then Enter", [2] = "TV address, like 192.168.x.x", [4] = "The 6-character code on the TV" }
 local found = {}
 local fail_kind = "conn"       -- what the "unreachable" screen is about: "conn" (the TV does not answer) or "pair" (the pairing failed)
 local function show_found()
@@ -176,7 +176,7 @@ local function show_sheet()
     local pages = math.max(1, math.ceil(n / PER))
     sheet.page = sheet.page % pages
     local first = sheet.page * PER
-    local title = sheet.kind == "inputs" and "Inputs" or "Apps"
+    local title = sheet.kind == "inputs" and "Inputs" or sheet.kind == "running" and "Running Apps" or "Apps"
     text.sheet_t = pages > 1 and (title .. "  ·  " .. (sheet.page + 1) .. " of " .. pages) or title
     local rows, cur = 0, -1
     for k = 0, PER - 1 do
@@ -241,9 +241,15 @@ local function on_line(line)
             set_stage(0, "Asking the TV…", "A question is about to appear on its screen.")
             send({ cmd = "pair", host = ev.host, kind = "webos", mac = cfg.tvs[i].mac })
         end
-    elseif ev.ev == "inputs" or ev.ev == "apps" then
+    elseif ev.ev == "inputs" or ev.ev == "apps" or ev.ev == "running" then
         sheet.kind = ev.ev
-        sheet.list = type(ev.list) == "table" and ev.list or {}
+        local items = type(ev.list) == "table" and ev.list or {}
+        if ev.ev == "apps" then
+            table.insert(items, 1, { id = "__running__", label = "Running Apps \u{25B8}" })
+        elseif ev.ev == "running" then
+            table.insert(items, 1, { id = "__apps__", label = "\u{25C2} All Apps" })
+        end
+        sheet.list = items
         sheet.page = 0
         show_sheet()
     elseif ev.ev == "log" then
@@ -318,8 +324,21 @@ on("tv_sheet", function(k)                 -- a row of an LG's list
     if k == PER then sheet.page = sheet.page + 1 show_sheet() return end
     local it = sheet.list[sheet.page * PER + k + 1]
     if not it then return end
-    if sheet.kind == "inputs" then send({ cmd = "input", id = it.id }) else send({ cmd = "launch", id = it.id }) end
-    fact.sheet_open = false
+    if it.id == "__running__" then
+        send({ cmd = "running" })
+    elseif it.id == "__apps__" then
+        send({ cmd = "apps" })
+    elseif sheet.kind == "inputs" then
+        send({ cmd = "input", id = it.id })
+        fact.sheet_open = false
+    elseif sheet.kind == "running" then
+        send({ cmd = "close", id = it.id })
+        table.remove(sheet.list, sheet.page * PER + k + 1)
+        if #sheet.list == 0 then fact.sheet_open = false else show_sheet() end
+    else
+        send({ cmd = "launch", id = it.id })
+        fact.sheet_open = false
+    end
 end)
 on("tv_menu", function(k)                  -- a row of the switcher
     k = math.floor((tonumber(k) or 0) + 0.5) + 1

@@ -18,6 +18,7 @@ import json
 import os
 import re
 import select
+import shutil
 import socket
 import ssl
 import subprocess
@@ -336,6 +337,7 @@ class Remote:
 # ── LG webOS TVs: the second-screen API (requests as JSON over a WebSocket, 3001 with TLS or 3000) ───────────────────────────
 WEBOS_PORTS = tuple(int(p) for p in os.environ.get("VITREUS_TVREMOTE_WEBOS_PORTS", "3001,3000").split(","))     # wss, ws
 WEBOS_IDLE = float(os.environ.get("VITREUS_TVREMOTE_WEBOS_IDLE", "20"))      # seconds of silence before the TV is asked whether it is there
+ARES_DEVICE = os.environ.get("VITREUS_TVREMOTE_ARES_DEVICE", "tv")          # the LG as named in `ares-setup-device`, for closing apps over Developer Mode
 WEBOS_PERMS = [                                     # aiowebostv's (handshake.py): the TV asks once, on its screen, for all of them
     "APP_TO_APP", "CLOSE", "CONTROL_AUDIO", "CONTROL_DISPLAY", "CONTROL_INPUT_JOYSTICK", "CONTROL_INPUT_MEDIA_PLAYBACK",
     "CONTROL_INPUT_MEDIA_RECORDING", "CONTROL_INPUT_TEXT", "CONTROL_INPUT_TV", "CONTROL_MOUSE_AND_KEYBOARD", "CONTROL_POWER",
@@ -489,6 +491,8 @@ class WebOS:
         self.waiting = {}                           # request id -> (callback, kept for a subscription)
         self.lock = threading.Lock()
         self.playing = False                        # webOS has no play/pause toggle: alternate
+        self.search_map = {}                        # appId -> its inAppSearchParams template (YouTube, Play Movies)
+        self.app_names = {}                         # appId -> friendly title, populated by listApps and listLaunchPoints
 
     def close(self):
         self.stale = True
@@ -585,6 +589,7 @@ class WebOS:
             self.request("audio/getVolume", kind="subscribe", on_reply=vol)
             self.request("com.webos.applicationManager/getForegroundAppInfo", kind="subscribe", on_reply=app)
             self.request("com.webos.service.networkinput/getPointerInputSocket", on_reply=self.open_buttons)
+            self.request("com.webos.applicationManager/listApps", on_reply=self.load_search_map)
             emit(ev="state", stage="ready", **st)
             missed = False
             while True:
@@ -606,7 +611,9 @@ class WebOS:
                 if m.get("type") == "error":
                     emit(ev="log", msg="webOS %s: %s" % (m.get("id"), m.get("error")))
                     with self.lock:
-                        self.waiting.pop(m.get("id"), None)
+                        cb = self.waiting.pop(m.get("id"), None)
+                    if cb and not cb[1]:                                    # a one-shot request hears of its refusal (every callback here reads with .get)
+                        cb[0]({"returnValue": False, "error": m.get("error") or "error"})
                     continue
                 with self.lock:
                     cb = self.waiting.get(m.get("id"))
@@ -671,7 +678,44 @@ class WebOS:
         elif k in WEBOS_BUTTONS:
             self.button(WEBOS_BUTTONS[k])
 
+    def load_search_map(self, p):
+        """The apps that declare a search deep link: YouTube and Google Play Movies on this TV."""
+        apps = p.get("apps") if isinstance(p, dict) else None
+        if not isinstance(apps, list):
+            return
+        found = {}
+        for a in apps:
+            if not isinstance(a, dict):
+                continue
+            if a.get("id") and a.get("title"):
+                self.app_names[a["id"]] = a["title"]
+            template = a.get("inAppSearchParams")
+            if isinstance(template, str) and template.strip():
+                found[a.get("id") or ""] = template
+        self.search_map = found
+        emit(ev="log", msg="webOS search apps: " + (", ".join(sorted(found)) if found else "none"))
+
     def text(self, t):
+        app = (self.state or {}).get("app", "")
+        template = self.search_map.get(app, "")
+        if template:
+            try:
+                params = json.loads(template)
+            except ValueError:
+                params = {"contentTarget": t}
+
+            def replace(v):
+                if isinstance(v, str):
+                    return v.replace("$SEARCH_KEYWORD", t)
+                if isinstance(v, dict):
+                    return {k: replace(x) for k, x in v.items()}
+                if isinstance(v, list):
+                    return [replace(x) for x in v]
+                return v
+
+            self.request("system.launcher/launch", {"id": app, "params": replace(params)})
+            emit(ev="log", msg="webOS search: %s %s" % (app, t))
+            return
         self.request("com.webos.service.ime/insertText", {"text": t, "replace": 0})
         self.request("com.webos.service.ime/sendEnterKey")
 
@@ -689,8 +733,48 @@ class WebOS:
         def got(p):
             cur = (self.state or {}).get("app", "")
             pts = sorted(p.get("launchPoints", []), key=lambda a: (a.get("title") or "").lower())
+            for a in pts:
+                if a.get("id") and a.get("title"):
+                    self.app_names[a["id"]] = a["title"]
             emit(ev="apps", list=[{"id": a.get("id", ""), "label": a.get("title") or a.get("id", ""), "on": a.get("id") == cur} for a in pts])
         self.request("com.webos.applicationManager/listLaunchPoints", on_reply=got)
+
+    def app_label(self, aid):
+        return self.app_names.get(aid) or (aid.rsplit(".", 1)[-1] if "." in aid else aid)
+
+    def running(self):
+        """webOS exposes no running-apps list over SSAP (applicationManager/running is a 404 on a CX): the app in front is what there is to close."""
+        def got(p):
+            if p.get("error"):
+                emit(ev="running", list=[], error=p["error"])
+                return
+            aid = p.get("appId") or (self.state or {}).get("app", "")
+            if aid:
+                self.state["app"] = aid
+            result = [{"id": aid, "label": self.app_label(aid) + "  ·  " + aid, "on": True}] if aid else []
+            emit(ev="running", list=result)
+        self.request("com.webos.applicationManager/getForegroundAppInfo", on_reply=got)
+
+    def close_app(self, aid):
+        """system.launcher/close is 403 on a CX whatever the manifest (signed or not): then the SDK's ares-launch --close, over Developer Mode."""
+        def done(p):
+            if not p.get("error"):
+                emit(ev="log", msg="webOS closed %s" % aid)
+                return
+            ares = shutil.which("ares-launch")
+            if not ares:
+                emit(ev="log", msg="webOS close %s: %s (no ares-launch to fall back on)" % (aid, p["error"]))
+                return
+
+            def go():
+                try:
+                    r = subprocess.run([ares, "--close", aid, "-d", ARES_DEVICE], capture_output=True, text=True, timeout=25)
+                    out = (r.stdout + r.stderr).strip().replace("\n", " ")
+                    emit(ev="log", msg="ares-launch --close %s: %s" % (aid, out or ("exit %d" % r.returncode)))
+                except (OSError, subprocess.SubprocessError) as e:
+                    emit(ev="log", msg="ares-launch --close %s: %s" % (aid, e))
+            threading.Thread(target=go, daemon=True).start()
+        self.request("system.launcher/close", {"id": aid}, on_reply=done)
 
     def launch(self, aid):
         self.request("system.launcher/launch", {"id": aid})
@@ -951,12 +1035,15 @@ def main():
             elif cmd == "app":
                 if remote and remote.alive:
                     remote.app(c.get("link", ""))
-            elif cmd in ("inputs", "apps"):              # an LG's lists: answered as `inputs` / `apps` events
+            elif cmd in ("inputs", "apps", "running"):    # an LG's lists: answered as `inputs` / `apps` / `running` events
                 if isinstance(remote, WebOS) and remote.alive:
                     getattr(remote, cmd)()
-            elif cmd in ("input", "launch"):
+            elif cmd in ("input", "launch", "close"):
                 if isinstance(remote, WebOS) and remote.alive:
-                    getattr(remote, cmd)(c.get("id", ""))
+                    if cmd == "close":
+                        remote.close_app(c.get("id", ""))
+                    else:
+                        getattr(remote, cmd)(c.get("id", ""))
             elif cmd == "wake":
                 ok = wake(c.get("host", host), c.get("mac", ""))
                 emit(ev="log", msg="wake-on-lan sent" if ok else "no MAC address for wake-on-lan")
