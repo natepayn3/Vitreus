@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""Answers org.freedesktop.FileManager1 on the session bus, so «Show in folder», «Open containing folder» and the like in other programs (Firefox, Discord, Telegram, editors...) open
+Vitreus's Files. D-Bus starts it by itself when one of them asks (the service file the installer writes, ~/.local/share/dbus-1/services/org.freedesktop.FileManager1.service, which comes before
+Nautilus's or Dolphin's own), and it ends again a minute after the last call.
+
+  ShowFolders(uris, startup_id)         a window for each folder
+  ShowItems(uris, startup_id)           a window for the folder each item is in, with the item chosen
+  ShowItemProperties(uris, startup_id)  the same
+
+It only runs `vitreus-files` (next to it); the windows are that program's. VITREUS_FILES_FALLBACK is set for it, so that when the Files scene is missing it does not ask this service again.
+"""
+import os
+import subprocess
+import sys
+import urllib.parse
+
+import gi
+
+gi.require_version("Gio", "2.0")
+gi.require_version("GLib", "2.0")
+from gi.repository import Gio, GLib  # noqa: E402
+
+NAME, PATH, IFACE = "org.freedesktop.FileManager1", "/org/freedesktop/FileManager1", "org.freedesktop.FileManager1"
+IDLE_SECONDS = 60
+XML = """<node>
+  <interface name="org.freedesktop.FileManager1">
+    <method name="ShowFolders"><arg type="as" name="URIs" direction="in"/><arg type="s" name="StartupId" direction="in"/></method>
+    <method name="ShowItems"><arg type="as" name="URIs" direction="in"/><arg type="s" name="StartupId" direction="in"/></method>
+    <method name="ShowItemProperties"><arg type="as" name="URIs" direction="in"/><arg type="s" name="StartupId" direction="in"/></method>
+  </interface>
+</node>"""
+
+here = os.path.dirname(os.path.realpath(__file__))
+files_bin = os.environ.get("VITREUS_FILES_BIN") or os.path.join(here, "vitreus-files")
+loop = GLib.MainLoop()
+idle_id = None
+
+
+def to_path(uri):
+    if uri.startswith("file://"):
+        uri = urllib.parse.unquote(uri[len("file://"):])
+        if uri.startswith("localhost/"):
+            uri = uri[len("localhost"):]
+    return uri if uri.startswith("/") else None
+
+
+def environment():
+    """What the Files window needs to find the screen: D-Bus's own environment may lack it (it was started before the desktop)."""
+    env = dict(os.environ)
+    env["VITREUS_FILES_FALLBACK"] = "1"
+    run = env.get("XDG_RUNTIME_DIR") or "/run/user/%d" % os.getuid()
+    env.setdefault("XDG_RUNTIME_DIR", run)
+    if not env.get("WAYLAND_DISPLAY"):
+        try:
+            sockets = sorted(n for n in os.listdir(run) if n.startswith("wayland-") and not n.endswith(".lock"))
+        except OSError:
+            sockets = []
+        if sockets:
+            env["WAYLAND_DISPLAY"] = sockets[0]
+    return env
+
+
+def open_paths(paths, reveal=False):
+    """One window for each path (for each folder, when revealing: the first of the items in it is the one chosen)."""
+    seen, folders = [], []
+    for p in paths:
+        key = os.path.dirname(p.rstrip("/")) if reveal else p
+        if p and key not in folders:
+            folders.append(key)
+            seen.append(p)
+    if not seen:
+        return
+    subprocess.Popen([files_bin] + (["--reveal"] if reveal else []) + seen, env=environment(), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def touch():
+    """Ends the service when nothing has asked for a while."""
+    global idle_id
+    if idle_id is not None:
+        GLib.source_remove(idle_id)
+    idle_id = GLib.timeout_add_seconds(IDLE_SECONDS, loop.quit)
+
+
+def on_call(conn, sender, path, iface, method, params, invocation):
+    uris = params.unpack()[0]
+    paths = [p for p in (to_path(u) for u in uris) if p]
+    if method == "ShowFolders":
+        open_paths(paths)
+    elif method in ("ShowItems", "ShowItemProperties"):
+        open_paths(paths, reveal=True)
+    else:
+        invocation.return_dbus_error("org.freedesktop.DBus.Error.UnknownMethod", "No such method: " + method)
+        return
+    invocation.return_value(None)
+    touch()
+
+
+def on_bus(conn, name):
+    node = Gio.DBusNodeInfo.new_for_xml(XML)
+    conn.register_object(PATH, node.interfaces[0], on_call, None, None)
+
+
+def on_lost(conn, name):
+    loop.quit()        # another file manager has the name, or the bus is gone
+
+
+def main():
+    if "--help" in sys.argv[1:]:
+        print(__doc__)
+        return 0
+    Gio.bus_own_name(Gio.BusType.SESSION, NAME, Gio.BusNameOwnerFlags.NONE, on_bus, None, on_lost)
+    touch()
+    loop.run()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

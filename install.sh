@@ -28,6 +28,7 @@
 #   4. the shell                      (into ~/.config/pleamar/shells/vitreus: cloned, or updated)
 #   5. your palette, autostart entry  (made once and never written over)
 #   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent, vitreus-sysmon, vitreus-term, vitreus-files, vitreus-edit and vitreus-report, linked into ~/.local/bin; vitreus-inhibit, built there)
+#   5c. Files, as a program            (its icon and entry in ~/.local/share; asked: the file manager for folders and «Show in folder», files/integrate.sh)
 #   6. its Hyprland key binds         (hypr_vitreus.lua linked into ~/.config/hypr, and loaded from hyprland.lua)
 #   6b. the daemons                   (awww, hypridle and the clipboard history: lines in ~/.config/pleamar/autostart, run on any compositor)
 #   6c. niri                        (config.kdl includes vitreus.kdl, the room round the windows the shell writes, and niri_vitreus.kdl, its key binds; with niri installed)
@@ -242,6 +243,7 @@ if [ "$action" = uninstall ]; then
     if [ -d /usr/share/sddm/themes/vitreus ]; then
         say "the Vitreus login screen is left in place; to take it away (and put the old theme back): sh $dest/sddm/install.sh --remove"
     fi
+    if [ -f "$dest/files/integrate.sh" ]; then run sh "$dest/files/integrate.sh" --remove; fi
     if [ -L "$HOME/.local/bin/vitreus-clipimg" ]; then run rm -f "$HOME/.local/bin/vitreus-clipimg"; fi
     if [ -L "$HOME/.local/bin/vitreus-polkit-agent" ]; then run rm -f "$HOME/.local/bin/vitreus-polkit-agent"; fi
     if [ -L "$HOME/.local/bin/vitreus-sysmon" ]; then run rm -f "$HOME/.local/bin/vitreus-sysmon"; fi
@@ -736,6 +738,13 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
     [ -x "$dest/bin/vitreus-eq" ] && run ln -sf "$dest/bin/vitreus-eq" "$HOME/.local/bin/vitreus-eq"       # the Equalizer add-on (addons/eq) filters the sound through it
     # For a problem report that does not need the shell to be running: `vitreus-report` writes one text file to read and send.
     [ -x "$dest/bin/vitreus-report" ] && run ln -sf "$dest/bin/vitreus-report" "$HOME/.local/bin/vitreus-report"
+    # Files among the desktop's programs: its icon and its entry always, and, when asked, the file manager (folders open in it, and «Show in folder» in other programs answer with it): files/integrate.sh
+    # (--uninstall and `sh files/integrate.sh --remove` take it away and put the old folder opener back). Not on a trial next to another shell, and not on --refresh, which asks nothing.
+    if [ -f "$dest/files/integrate.sh" ]; then
+        files_flag=--no-set
+        if ! $trial && ! $refresh && ask "make Files the file manager (folders open in it, and «Show in folder» in other programs)?"; then files_flag=--set; fi
+        run sh "$dest/files/integrate.sh" $files_flag || warn "could not: run  sh $dest/files/integrate.sh  yourself"
+    fi
     # Caffeine's idle inhibitor (a few lines of C: the compositor's own idle timer, pleamar-wm's, only listens to a Wayland client). Built here.
     if [ -f "$dest/bin/vitreus-inhibit.c" ]; then
         if $dry; then

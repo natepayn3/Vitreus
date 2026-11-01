@@ -1,6 +1,6 @@
 -- Files: the logic of the file manager. It lists a folder with `find`, hands the scene only the rows that are on screen (a folder of thousands costs what a folder of ten does), and does the work
 -- with ordinary commands: `xdg-open` to open, `mkdir`, `mv`, `cp -a`, `gio trash`, `bsdtar`, `ln` and so on, each as a job that can be watched, stopped and taken back.
--- It starts in the folder named by $FILES_START when there is one, else in the home folder.
+-- It starts in the folder named by $FILES_START when there is one, else in the home folder, with $FILES_PICK (a name in it) chosen when that is set.
 -- What is kept, in this scene's own folder (~/.local/share/pleamar/files): files.json (the view, the sort order, hidden files, zoom, the folders you pinned and the files you starred) and the
 -- pictures made for the files' faces.
 --
@@ -1190,7 +1190,11 @@ function F.start()
                                     local want = code == 0 and start_at:sub(1, 1) == "/" and start_at or s.home
                                     s.tabs = { { path = want, name = basename(want), back = {}, fwd = {} } }
                                     s.tab = 1
-                                    F.go(want, nil, nil, function() if want ~= s.home then F.go(s.home) end end)       -- a start folder that is not there: the home folder, not an empty window
+                                    -- $FILES_PICK: a thing in that folder to have chosen (and scrolled to) on arrival, as «Show in folder» in another program asks
+                                    run("printenv", { "FILES_PICK" }, function(po, pcode)
+                                        local pick = pcode == 0 and trim(po) or ""
+                                        F.go(want, nil, pick ~= "" and pick or nil, function() if want ~= s.home then F.go(s.home) end end)       -- a start folder that is not there: the home folder, not an empty window
+                                    end)
                                     F.poll_devices()
                                     every(4000, F.poll_devices)
                                 end)
