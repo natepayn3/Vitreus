@@ -8010,6 +8010,8 @@ require("logic/monitor_height")()
 
 -- capture power: see logic/capture_power.luau
 require("logic/capture_power")(set_panel)
+-- the Capture window's recent screenshots: see logic/capture_recent.luau
+require("logic/capture_recent")(with_dirs, set_panel)
 
 -- The authentication dialog. Vitreus is this session's polkit agent: `bin/vitreus-polkit-agent` (started here) registers with
 -- polkit, and when something asks for admin rights it sets `pk_open` and the dialog's texts in the scene. The scene handles the

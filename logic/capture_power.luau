@@ -21,17 +21,28 @@ return function(set_panel)
     -- Without Hyprland the focused monitor is the one under the mouse: pleamar-wm's `mon`, named from its `desktop` file.
     -- And in the theme's typeface: the font setup bin/vitreus-fonts makes for the shell (nothing for Space Grotesk). Snap reads the look itself.
     -- The whole screen (1) opens Snap too (SNAP_FULL=1): the picture shown smaller with the bar under it, to draw on, copy or save like a region.
+    local function start_snap(full, wait, extra)
+        spawn(sh('p="$HOME/.config/pleamar/shells/vitreus/snap/snap.plm"; pgrep -f "pleamar --scene $p" > /dev/null && exit 0; '
+            .. 'export SNAP_NOT_BEFORE=$(( $(date +%s%3N) + ' .. wait .. ' )); '
+            .. (full and 'export SNAP_FULL=1; ' or '') .. extra
+            .. 'o=$(hyprctl -j monitors 2> /dev/null | jq -r ".[] | select(.focused) | .name" 2> /dev/null | head -n 1); if [ -z "$o" ]; then i=$(pleamar --say wm "get mon" 2>/dev/null); o=$(grep "^monitor " "${PLEAMAR_SOCKETS:-/nonexistent}/desktop" 2>/dev/null | sed -n "$((${i:-0} + 1))p" | cut -d" " -f2); fi; '
+            .. 'fc=$("$HOME/.config/pleamar/shells/vitreus/bin/vitreus-fonts" "${XDG_DATA_HOME:-$HOME/.local/share}/pleamar/vitreus" 2> /dev/null) && [ -n "$fc" ] && export FONTCONFIG_FILE="$fc"; '
+            .. 'if [ -n "$o" ]; then SNAP_OUTPUT="$o" exec pleamar --scene "$p" --no-hud --screen "$o"; else exec pleamar --scene "$p" --no-hud; fi'))
+    end
+    -- An old screenshot opened in Snap again (the Capture window's recent pictures): the whole-screen layout, with this file as the picture (SNAP_FILE: snap.luau
+    -- puts it on a canvas of the screen's shape instead of taking the screen). False when the path could not go safely into the script (the caller opens it another way).
+    CAPTURE_SNAP_FILE = function(path)
+        if type(path) ~= "string" or path:sub(1, 1) ~= "/" or path:find("[%$`\"'\\%c]") then return false end
+        set_panel("none")
+        start_snap(true, 0, 'export SNAP_FILE="' .. path .. '"; ')
+        return true
+    end
     on("shot", function(mode)
         -- Snap is started at once, while the drawer closes: it takes the picture only once the drawer is gone (SNAP_NOT_BEFORE, the 450 ms
         -- `after_closed` waits; the whole screen waits 800, since its picture shows the drawer's closing ripple if it is taken sooner), and pleamar's own start (~220 ms) happens meanwhile instead of after.
         if mode == 0 or mode == 1 then
             set_panel("none")
-            spawn(sh('p="$HOME/.config/pleamar/shells/vitreus/snap/snap.plm"; pgrep -f "pleamar --scene $p" > /dev/null && exit 0; '
-                .. 'export SNAP_NOT_BEFORE=$(( $(date +%s%3N) + ' .. (mode == 1 and 800 or 450) .. ' )); '
-                .. (mode == 1 and 'export SNAP_FULL=1; ' or '')
-                .. 'o=$(hyprctl -j monitors 2> /dev/null | jq -r ".[] | select(.focused) | .name" 2> /dev/null | head -n 1); if [ -z "$o" ]; then i=$(pleamar --say wm "get mon" 2>/dev/null); o=$(grep "^monitor " "${PLEAMAR_SOCKETS:-/nonexistent}/desktop" 2>/dev/null | sed -n "$((${i:-0} + 1))p" | cut -d" " -f2); fi; '
-                .. 'fc=$("$HOME/.config/pleamar/shells/vitreus/bin/vitreus-fonts" "${XDG_DATA_HOME:-$HOME/.local/share}/pleamar/vitreus" 2> /dev/null) && [ -n "$fc" ] && export FONTCONFIG_FILE="$fc"; '
-                .. 'if [ -n "$o" ]; then SNAP_OUTPUT="$o" exec pleamar --scene "$p" --no-hud --screen "$o"; else exec pleamar --scene "$p" --no-hud; fi'))
+            start_snap(mode == 1, mode == 1 and 800 or 450, "")
             return
         end
         after_closed(function()

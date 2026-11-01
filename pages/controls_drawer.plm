@@ -900,18 +900,37 @@ part ControlsDrawer {
                 zone box cap_stop { at: pcx, qx_top + 164 * cu; size: 278 * cu, 54 * cu; corner: 15 * cu; cursor: pointer }
                 on press cap_stop { emit rec_stop }
             }
+            //  The newest screenshots, four small pictures: a press opens one, and one can be dragged out onto another program.
+            group {
+                show: capr_n > 0
+                let rb = qx_top + if(rec_on, 200, 244) * cu
+                box { at: pcx, rb; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
+                text "RECENT" { at: floor(pcx - 138 * cu + 0.5), floor(rb + 14 * cu + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
+                repeat k in 0..4 {
+                    let tcx = pcx - 106.5 * cu + 71 * k * cu
+                    let tcy = rb + 40 * cu
+                    group {
+                        show: capr.$k.has
+                        box { at: tcx, tcy; size: 63 * cu, 40 * cu; corner: 8 * cu; color: ink; opacity: 8% + 8% * capr_z.$k.hover }
+                        group { show: capr.$k.thumbed; clip inset 0 box { at: tcx, tcy; size: 63 * cu, 40 * cu; corner: 8 * cu }; image capr.$k.im { at: tcx - 31.5 * cu, tcy - 20 * cu; size: 63 * cu, 40 * cu } }
+                        box { at: tcx, tcy; size: 63 * cu, 40 * cu; corner: 8 * cu; stroke: 1 * cu; color: mint; opacity: 55% * capr_z.$k.hover }
+                        zone box capr_z.$k { at: tcx, tcy; size: 63 * cu, 40 * cu; corner: 8 * cu; cursor: pointer; carries: "{capr.$k.path}"; label: "Open screenshot" }
+                        on press capr_z.$k { emit capr_open(k) }
+                    }
+                }
+            }
             let qx_ay = qx_top + 220 * cu
             //  Whether a recording takes the microphone or the system sound (one of the two), under the two recordings, which are what they act on: the Settings' switch, with its word beside it. Out while one runs.
             group {
                 show: not rec_on
                 text "RECORD WITH" { at: floor(pcx - 138 * cu + 0.5), floor(qx_ay + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
-                text "MIC" { at: floor(pcx + 88 * cu + 0.5), floor(qx_ay + 0.5); anchor: right center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
+                PStageMic(pcx + 87 * cu, qx_ay, rec_mic_hit.hover, 0.6 + 0.4 * max(rec_mic_hit.hover, if(rec_mic, 1, 0)), if(rec_mic, 1, 0))
                 SettingsSwitch(pcx + 138 * cu, qx_ay, rec_mic_pill, rec_mic_hit.pressed, rec_mic_hit.hover, mint)
                 zone box rec_mic_hit { at: pcx + 106 * cu, qx_ay; size: 80 * cu, 30 * cu; corner: 10 * cu; cursor: pointer; label: "Record microphone" }
                 on press rec_mic_hit { emit rec_mic_toggle }
-                text "SYS" { at: floor(pcx - 2 * cu + 0.5), floor(qx_ay + 0.5); anchor: right center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
+                PShelfSpk(pcx - 17 * cu, qx_ay, rec_sys_hit.hover, 0.6 + 0.4 * max(rec_sys_hit.hover, if(rec_sys, 1, 0)), 0.9 * if(rec_sys, 1, 0))
                 SettingsSwitch(pcx + 44 * cu, qx_ay, rec_sys_pill, rec_sys_hit.pressed, rec_sys_hit.hover, mint)
-                zone box rec_sys_hit { at: pcx + 16 * cu, qx_ay; size: 62 * cu, 30 * cu; corner: 10 * cu; cursor: pointer; label: "Record system sound" }
+                zone box rec_sys_hit { at: pcx + 4 * cu, qx_ay; size: 100 * cu, 30 * cu; corner: 10 * cu; cursor: pointer; label: "Record system sound" }
                 on press rec_sys_hit { emit rec_sys_toggle }
             }
         }

@@ -358,6 +358,8 @@ scene Vitreus {
     text shot_name = ""
     image shot_img = from shot_imgpath, 394, 222               // drawn at 292 * u = 394 by 164 * u = 222
     fact shot_ocr = false
+    event capr_refresh ->          // the Capture window opened: read the newest screenshots again
+    event capr_open ->             // one of its pictures was pressed (0 to 3)
     event shot_done ->
     event shot_act ->                // one of its buttons: 0 open, 1 copy the text, 2 ask about the text, 3 delete
     event shot_close ->
@@ -4238,6 +4240,49 @@ scene Vitreus {
         }
     }
 
+    //  A bookshelf speaker in pencil, to stand for the system's sound (the Capture window's SYS switch): the cabinet, a tweeter over a woofer, and two sound waves (`w`, 0 to 1) at its side.
+    //  Drawn three times as the other pencil icons are (a wash, the line, a faint second pass), and boiled while `hot`. `ap` is how strong it is drawn.
+    component PShelfSpk(cx: number, cy: number, hot: number, ap: number, w: number) {
+        prop a = 0 ~calm
+        follow a = hot
+        let fr = if(a > 0.02, floor(time * 5), 0)
+        let jt = (0.18 + 0.25 * a) * cu
+        group {
+            pivot: cx, cy
+            scale: 1 + 0.10 * a
+            path { at: cx, cy; color: ink; opacity: 0.30 * ap; move -6.5 * cu + jt * sin(fr * 52 + 4823), -10 * cu + jt * sin(fr * 57 + 4883); line 6.5 * cu + jt * sin(fr * 59 + 4920), -10 * cu + jt * sin(fr * 64 + 4980); line 6.5 * cu + jt * sin(fr * 66 + 5017), 10 * cu + jt * sin(fr * 71 + 5077); line -6.5 * cu + jt * sin(fr * 73 + 5114), 10 * cu + jt * sin(fr * 47 + 5174); close }
+            ellipse { at: cx + jt * sin(fr * 61 + 5200), cy + 3.5 * cu + jt * sin(fr * 49 + 5250); radius: 3.8 * cu; color: mint; opacity: 0.25 * ap + 0.2 * w }
+            repeat bp in 0..3 {
+                path { at: cx + 0.35 * cu * bp, cy + 0.28 * cu * bp; stroke: (1.5 - 0.45 * bp) * cu; color: ink; opacity: ap * (1 - 0.72 * bp); move -6.5 * cu + jt * sin(fr * 52 + 4823 + bp * 37), -10 * cu + jt * sin(fr * 57 + 4883 + bp * 37); line 6.5 * cu + jt * sin(fr * 59 + 4920 + bp * 37), -10 * cu + jt * sin(fr * 64 + 4980 + bp * 37); line 6.5 * cu + jt * sin(fr * 66 + 5017 + bp * 37), 10 * cu + jt * sin(fr * 71 + 5077 + bp * 37); line -6.5 * cu + jt * sin(fr * 73 + 5114 + bp * 37), 10 * cu + jt * sin(fr * 47 + 5174 + bp * 37); close }
+                ellipse { at: cx + 0.35 * cu * bp + jt * sin(fr * 61 + 5300 + bp * 37), cy + 3.5 * cu + 0.28 * cu * bp + jt * sin(fr * 49 + 5350 + bp * 37); radius: 3.8 * cu; stroke: (1.5 - 0.45 * bp) * cu; color: ink; opacity: ap * (1 - 0.72 * bp) }
+                ellipse { at: cx + 0.35 * cu * bp + jt * sin(fr * 63 + 5400 + bp * 37), cy - 5.5 * cu + 0.28 * cu * bp + jt * sin(fr * 51 + 5450 + bp * 37); radius: 1.8 * cu; stroke: (1.5 - 0.45 * bp) * cu; color: ink; opacity: ap * (1 - 0.72 * bp) }
+                ellipse { at: cx + 0.35 * cu * bp, cy + 3.5 * cu + 0.28 * cu * bp; radius: 1.1 * cu; color: ink; opacity: ap * (0.5 - 0.35 * bp) * 0.8; show: bp < 2 }
+                path { at: cx + 0.35 * cu * bp, cy + 0.28 * cu * bp; stroke: (1.5 - 0.45 * bp) * cu; color: ink; opacity: w * (1 - 0.72 * bp); move 10.5 * cu + jt * sin(fr * 63 + 4876 + bp * 37), -3.5 * cu + jt * sin(fr * 68 + 4936 + bp * 37); curve 10.5 * cu + jt * sin(fr * 70 + 4973 + bp * 37), 3.5 * cu + jt * sin(fr * 44 + 5033 + bp * 37) via 14 * cu + jt * sin(fr * 48 + 9823 + bp * 37), 0 * cu + jt * sin(fr * 53 + 9883 + bp * 37) }
+                path { at: cx + 0.35 * cu * bp, cy + 0.28 * cu * bp; stroke: (1.5 - 0.45 * bp) * cu; color: ink; opacity: w * (1 - 0.72 * bp); move 13 * cu + jt * sin(fr * 43 + 4929 + bp * 37), -7 * cu + jt * sin(fr * 48 + 4989 + bp * 37); curve 13 * cu + jt * sin(fr * 50 + 5026 + bp * 37), 7 * cu + jt * sin(fr * 55 + 5086 + bp * 37) via 19 * cu + jt * sin(fr * 59 + 9876 + bp * 37), 0 * cu + jt * sin(fr * 64 + 9936 + bp * 37) }
+            }
+        }
+    }
+
+    //  A handheld stage microphone in pencil, tilted: a round grille head with a band across it, and a tapering handle (the Capture window's MIC switch; the glyph PMic stays the volume drawer's).
+    //  Drawn as PShelfSpk is: a wash, the line, a faint second pass; boiled while `hot`. `ap` is how strong it is drawn, `w` (0 or 1) lights the head.
+    component PStageMic(cx: number, cy: number, hot: number, ap: number, w: number) {
+        prop a = 0 ~calm
+        follow a = hot
+        let fr = if(a > 0.02, floor(time * 5), 0)
+        let jt = (0.18 + 0.25 * a) * cu
+        group {
+            pivot: cx, cy
+            scale: 1 + 0.10 * a
+            ellipse { at: cx - 4.5 * cu, cy - 6.5 * cu; radius: 5 * cu; color: mint; opacity: 0.22 * ap + 0.3 * w }
+            path { at: cx, cy; color: ink; opacity: 0.30 * ap; move -0.6 * cu + jt * sin(fr * 52 + 4823), -4.1 * cu + jt * sin(fr * 57 + 4883); line 6.6 * cu + jt * sin(fr * 59 + 4920), 6.4 * cu + jt * sin(fr * 64 + 4980); line 4.8 * cu + jt * sin(fr * 66 + 5017), 7.8 * cu + jt * sin(fr * 71 + 5077); line -3.4 * cu + jt * sin(fr * 73 + 5114), -2.1 * cu + jt * sin(fr * 47 + 5174); close }
+            repeat bp in 0..3 {
+                ellipse { at: cx - 4.5 * cu + 0.35 * cu * bp + jt * sin(fr * 61 + 5300 + bp * 37), cy - 6.5 * cu + 0.28 * cu * bp + jt * sin(fr * 49 + 5350 + bp * 37); radius: 5 * cu; stroke: (1.5 - 0.45 * bp) * cu; color: ink; opacity: ap * (1 - 0.72 * bp) }
+                path { at: cx + 0.35 * cu * bp, cy + 0.28 * cu * bp; stroke: (1.5 - 0.45 * bp) * cu; color: ink; opacity: ap * (1 - 0.72 * bp); move -0.6 * cu + jt * sin(fr * 52 + 4823 + bp * 37), -4.1 * cu + jt * sin(fr * 57 + 4883 + bp * 37); line 6.6 * cu + jt * sin(fr * 59 + 4920 + bp * 37), 6.4 * cu + jt * sin(fr * 64 + 4980 + bp * 37); line 4.8 * cu + jt * sin(fr * 66 + 5017 + bp * 37), 7.8 * cu + jt * sin(fr * 71 + 5077 + bp * 37); line -3.4 * cu + jt * sin(fr * 73 + 5114 + bp * 37), -2.1 * cu + jt * sin(fr * 47 + 5174 + bp * 37) }
+                path { at: cx + 0.35 * cu * bp, cy + 0.28 * cu * bp; stroke: (1.5 - 0.45 * bp) * cu; color: ink; opacity: ap * (1 - 0.72 * bp) * 0.8; move -0.1 * cu + jt * sin(fr * 63 + 4876 + bp * 37), -7.9 * cu + jt * sin(fr * 68 + 4936 + bp * 37); line -7.1 * cu + jt * sin(fr * 70 + 4973 + bp * 37), -2.7 * cu + jt * sin(fr * 44 + 5033 + bp * 37) }
+            }
+        }
+    }
+
     component LRow(t: record, pick: event, del: event, ctx: event) {
         size: lw, 40 * pu
         //  How much the remove button shows (see the end of the row).
@@ -5129,7 +5174,7 @@ scene Vitreus {
     //  The Power window lists the battery levels (this computer, then each connected device that says) between the session tiles and the profile.
     let bat_rows = (if(bat_here, 1, 0)) + bat_n
     let bat_h = if(bat_rows > 0, 20 + 56 * bat_rows, 0)
-    let sub_content = if(showing_sub == capview, if(rec_on, 142, 186), if(showing_sub == powview, 151 + bat_h, max(sub_min, if(showing_sub == cafview, 38, if(showing_sub == notifview, 60, if(showing_sub == btview, 40, 0)) + list_view_h))))
+    let sub_content = if(showing_sub == capview, if(rec_on, 142, 186) + if(capr_n > 0, 69, 0), if(showing_sub == powview, 151 + bat_h, max(sub_min, if(showing_sub == cafview, 38, if(showing_sub == notifview, 60, if(showing_sub == btview, 40, 0)) + list_view_h))))
     let sub_bot = tiles_top + 54 + sub_content + 16
     //  The output list drops over what is under the volume row; with more than a couple of outputs
     //  it reaches past the drawer, so the drawer grows to hold it while it is open.
@@ -5897,6 +5942,17 @@ scene Vitreus {
     prop fd4 = 0 ~880ms
     on change desk_open while desk_open { fd0: 1 after 200ms; fd1: 1 after 200ms; fd2: 1 after 200ms; fd3: 1 after 200ms; fd4: 1 after 200ms }
     on change desk_open while not desk_open { fd0: 0 ~80ms; fd1: 0 ~80ms; fd2: 0 ~80ms; fd3: 0 ~80ms; fd4: 0 ~80ms }
+    //  The Capture window's recent screenshots: the newest four of ~/Pictures/Screenshots (logic/capture_recent.luau), as small pictures.
+    fact capr_n = 0
+    repeat k in 0..4 {
+        text capr.$k.path = ""
+        text capr.$k.name = ""
+        text capr.$k.thumb = ""
+        fact capr.$k.has = false
+        fact capr.$k.thumbed = false
+        image capr.$k.im = from capr.$k.thumb, 128, 80
+    }
+    on change panel_sub while panel_sub == capview { emit capr_refresh }
     //  The shelf: up to eight things dropped on it (files, links, text), each draggable back out to another program.
     repeat k in 0..8 {
         text shelf.$k.name = ""

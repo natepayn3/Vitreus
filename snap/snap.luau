@@ -41,9 +41,19 @@ local function capture()
     local script = 'd="${SNAP_DIR:-${XDG_RUNTIME_DIR:-/tmp}/vitreus-snap}"; mkdir -p "$d"; '
         .. 'if [ -n "${SNAP_NOT_BEFORE-}" ]; then w=$((SNAP_NOT_BEFORE - $(date +%s%3N))); [ "$w" -gt 0 ] && [ "$w" -lt 5000 ] && sleep "$(printf "%d.%03d" $((w / 1000)) $((w % 1000)))"; fi; '
         .. 'o="$SNAP_OUTPUT"; [ -n "$o" ] || o=$(hyprctl -j monitors 2>/dev/null | jq -r \'.[] | select(.focused) | .name\' 2>/dev/null | head -n 1); if [ -z "$o" ]; then i=$(pleamar --say wm "get mon" 2>/dev/null); o=$(grep "^monitor " "${PLEAMAR_SOCKETS:-/nonexistent}/desktop" 2>/dev/null | sed -n "$((${i:-0} + 1))p" | cut -d" " -f2); fi; '
-        .. 'if [ -z "$SNAP_NO_CAPTURE" ]; then grim -l 0 ${o:+-o "$o"} "$d/shot.png" || exit 1; fi; '
+        -- SNAP_FILE: an old screenshot to draw on again, instead of the screen. It goes on a transparent canvas of the monitor's shape (the scene lays its picture out
+        -- as the screen's), and `rect` says where it sits on it (fractions of the canvas: left, top, width, height), so the scene selects just the screenshot.
+        .. [[rect="0 0 1 1"; if [ -n "$SNAP_FILE" ]; then mw=16; mh=9; s=""; ]]
+        .. [[if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ] && [ -n "$o" ]; then s=$(hyprctl -j monitors 2>/dev/null | jq -r --arg o "$o" '.[] | select(.name == $o) | "\(.width) \(.height)"' 2>/dev/null); ]]
+        .. [[elif [ -n "$o" ]; then s=$(awk -v o="$o" '$1=="monitor" && $2==o { print $3, $4 }' "${PLEAMAR_SOCKETS:-/nonexistent}/desktop" 2>/dev/null); fi; ]]
+        .. [[ [ -n "$s" ] && { set -- $s; mw=$1; mh=$2; }; ]]
+        .. [[set -- $(magick identify -format "%w %h" "$SNAP_FILE[0]" 2>/dev/null); iw=${1:-0}; ih=${2:-0}; [ "$iw" -gt 0 ] && [ "$ih" -gt 0 ] || exit 1; ]]
+        .. [[set -- $(echo "$iw $ih $mw $mh" | LC_ALL=C awk '{ cw=$1; ch=$2; if ($1 * $4 < $2 * $3) cw=int($2 * $3 / $4 + 0.5); else ch=int($1 * $4 / $3 + 0.5); ]]
+        .. [[printf "%d %d %.5f %.5f %.5f %.5f", cw, ch, (cw - $1) / 2 / cw, (ch - $2) / 2 / ch, $1 / cw, $2 / ch }'); cw=$1; ch=$2; rect="$3 $4 $5 $6"; ]]
+        .. [[magick "$SNAP_FILE[0]" -auto-orient -background none -gravity center -extent "${cw}x${ch}" -define png:compression-level=0 "$d/shot.png" || exit 1; ]]
+        .. [[elif [ -z "$SNAP_NO_CAPTURE" ]; then grim -l 0 ${o:+-o "$o"} "$d/shot.png" || exit 1; fi; ]]
         .. 'echo "$d"; od -An -tu1 -j16 -N4 "$d/shot.png" | awk "{ print \\$1 * 16777216 + \\$2 * 65536 + \\$3 * 256 + \\$4 }"; '
-        .. [[l="${SNAP_LOOK-}"; [ -n "$l" ] || l=$(sed -n 's/.*"look": *\([0-9]*\).*/\1/p' "${XDG_DATA_HOME:-$HOME/.local/share}/pleamar/vitreus/iris.json" 2> /dev/null | head -n 1); echo "$l"; echo "${SNAP_FULL:-0}"; ]]
+        .. [[l="${SNAP_LOOK-}"; [ -n "$l" ] || l=$(sed -n 's/.*"look": *\([0-9]*\).*/\1/p' "${XDG_DATA_HOME:-$HOME/.local/share}/pleamar/vitreus/iris.json" 2> /dev/null | head -n 1); echo "$l"; echo "${SNAP_FULL:-0}"; echo "$rect"; ]]
         -- The windows on that monitor's workspace (and its special one, if it is out), as "x y w h" in the monitor's own plane, bottom first (on niri `hyprctl` is
 -- pleamar-wm/hyprctl-niri, which works their places out from niri's columns, so it is the same jq as Hyprland's):
         -- tiled under floating, floating under fullscreen, the special workspace over the rest, and among equals the one used last on top.
@@ -59,9 +69,11 @@ local function capture()
         -- (the end of the script has to say 0: under pleamar-wm without its `desktop` file the awk above ends with 2, which was taken for a failed capture)
         .. "; true"
     run("sh", { "-c", script }, function(out, code)
-        local d, w, look, whole, rest = (out or ""):match("^(.-)\n(%d+)\n(%d*)\n(%d)\n?(.*)$")
+        local d, w, look, whole, rx, ry, rw, rh, rest = (out or ""):match("^(.-)\n(%d+)\n(%d*)\n(%d)\n([%d%.]+) ([%d%.]+) ([%d%.]+) ([%d%.]+)\n?(.*)$")
         if code ~= 0 or not d then fail("The screen could not be captured.") return end
         fact.look = LOOKS[look] or 0
+        -- where the picture sits on its canvas (0 0 1 1 for the screen itself): a screenshot opened again is selected, and only it
+        fact.fo_x, fact.fo_y, fact.fo_w, fact.fo_h = tonumber(rx) or 0, tonumber(ry) or 0, tonumber(rw) or 1, tonumber(rh) or 1
         local wins = {}
         for x, y, ww, hh in (rest or ""):gmatch("(%-?%d+) (%-?%d+) (%d+) (%d+)") do
             if #wins < 32 then wins[#wins + 1] = { x = tonumber(x), y = tonumber(y), w = tonumber(ww), h = tonumber(hh) } end

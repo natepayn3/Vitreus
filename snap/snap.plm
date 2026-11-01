@@ -19,6 +19,12 @@ scene Snap {
     //  1 for the whole screen (Controls > Screen, Shift+Print): the picture is taken as it is, shown smaller with the bar underneath, and `vs`, `vx`, `vy` are its scale and
     //  where its corner is (1, 0, 0 when it fills the screen). The logic sets `full`; the scene lays the picture out.
     fact full = 0
+    //  Where the picture sits on its canvas, as fractions of it (left, top, width, height): 0, 0, 1, 1 for the screen, less for an old screenshot opened again, which the logic
+    //  puts on a canvas of the screen's shape. The whole-screen layout selects just that part.
+    fact fo_x = 0
+    fact fo_y = 0
+    fact fo_w = 1
+    fact fo_h = 1
     fact vs = 1
     fact vx = 0
     fact vy = 0
@@ -307,7 +313,7 @@ scene Snap {
     on change phase { scrw = W }
     //  The whole screen: the picture shrinks to leave room under it for the bar (the margin above, and 130 below its edge), centred, and is the selection
     //  already. Only the picture itself can be cropped then: the drag and the handles stay inside it (vx, vy, vs).
-    on change full while full == 1 { vs = (H - 166) / H; vx = (W - W * (H - 166) / H) / 2; vy = 36; sx = vx; sy = 36; sw = W * vs; sh = H * vs; scrw = W; phase = 2 }
+    on change full while full == 1 { vs = (H - 166) / H; vx = (W - W * (H - 166) / H) / 2; vy = 36; sx = vx + fo_x * W * vs; sy = 36 + fo_y * H * vs; sw = fo_w * W * vs; sh = fo_h * H * vs; scrw = W; phase = 2 }
 
     //  ── Windows ─────────────────────────────────────────────────────────────────────────────────────────────────
     //  Over the bare screen, under the selection and its handles: a press here begins a selection as on the bare screen (the drag then goes to
