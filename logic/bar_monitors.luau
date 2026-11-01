@@ -299,10 +299,13 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
     end)
     read_mons()
     every(5000, read_mons)
-    -- A copy says its monitor's name when it lands on one: a monitor switched on is seen then, not at the next look five seconds later.
+    -- A copy says its monitor's name when it lands on one, also when it moves to another (the monitors are numbered again when one is switched
+    -- on). Which copies are open follows at once, not at the next look two seconds later (a copy that moved from the bar's monitor to another
+    -- one stayed open there meanwhile), and a monitor switched on is seen then, not at the next look five seconds later.
     local looking = false
     for k = 0, MAX - 1 do
         on("text:screen." .. k .. ".name", function()
+            copies()
             if looking then return end
             looking = true
             after(150, function() looking = false; read_mons() end)
