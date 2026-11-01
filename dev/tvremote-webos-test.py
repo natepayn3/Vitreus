@@ -222,6 +222,13 @@ def main():
         fail("apps not sorted by title: %s" % ev["list"])
     h.send(cmd="launch", id="netflix")
     sent(lambda m: m.get("uri") == "ssap://system.launcher/launch" and m.get("payload") == {"id": "netflix"}, "launch netflix")
+    # 4b. the app in front, by title, and closing it
+    h.send(cmd="running")
+    ev = h.wait(lambda e: e.get("ev") == "running", "running")
+    if [(a["id"], a["on"]) for a in ev["list"]] != [("com.webos.app.hdmi2", True)] or not ev["list"][0]["label"].startswith("hdmi2"):
+        fail("running: %s" % ev["list"])
+    h.send(cmd="close", id="com.webos.app.hdmi2")
+    sent(lambda m: m.get("uri") == "ssap://system.launcher/close" and m.get("payload") == {"id": "com.webos.app.hdmi2"}, "close hdmi2")
     # 5. typing, power
     h.send(cmd="text", text="hi")
     sent(lambda m: m.get("uri") == "ssap://com.webos.service.ime/insertText" and m.get("payload") == {"text": "hi", "replace": 0}, "insertText")
