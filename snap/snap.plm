@@ -311,6 +311,11 @@ scene Snap {
     }
     on release zpick { picking = 0; phase = if(sw > 8 and sh > 8, 2, 1) }
     on change phase { scrw = W }
+    //  The picture's own edges, which the selection stays inside: the whole picture for the screen, only the screenshot (`fo_*`) when one is opened again on its canvas.
+    let ix0 = vx + fo_x * W * vs
+    let iy0 = vy + fo_y * H * vs
+    let ix1 = ix0 + fo_w * W * vs
+    let iy1 = iy0 + fo_h * H * vs
     //  The whole screen: the picture shrinks to leave room under it for the bar (the margin above, and 130 below its edge), centred, and is the selection
     //  already. Only the picture itself can be cropped then: the drag and the handles stay inside it (vx, vy, vs).
     on change full while full == 1 { vs = (H - 166) / H; vx = (W - W * (H - 166) / H) / 2; vy = 36; sx = vx + fo_x * W * vs; sy = 36 + fo_y * H * vs; sw = fo_w * W * vs; sh = fo_h * H * vs; scrw = W; phase = 2 }
@@ -343,7 +348,7 @@ scene Snap {
     //  Only with Move: with the other tools a press inside the selection draws (below).
     zone box zsel { from: sx + 6, sy + 6; size: max(1, sw - 12), max(1, sh - 12); cursor: if(zsel.pressed > 0.5, grabbing, grab); active: phase == 2 and tool == 1 }
     on press zsel { bx = sx; by = sy }
-    on drag zsel { sx = clamp(bx + drag.dx, vx, vx + W * vs - sw); sy = clamp(by + drag.dy, vy, vy + H * vs - sh) }
+    on drag zsel { sx = clamp(bx + drag.dx, ix0, ix1 - sw); sy = clamp(by + drag.dy, iy0, iy1 - sh) }
 
     //  ── Drawing ─────────────────────────────────────────────────────────────────────────────────────────────────
     //  Select: a press picks the mark under it (the logic looks), a drag moves it.
@@ -369,32 +374,32 @@ scene Snap {
     zone box zh0 { at: sx + 0 * sw, sy + 0 * sh; size: 26, 26; corner: 13; cursor: nwse_resize; active: phase == 2 }
     on press zh0 { bx = sx; by = sy; bw = sw; bh = sh }
     on drag zh0 {
-        sx = clamp(bx + drag.dx, vx, bx + bw - 24)
-        sw = bw + bx - clamp(bx + drag.dx, vx, bx + bw - 24)
-        sy = clamp(by + drag.dy, vy, by + bh - 24)
-        sh = bh + by - clamp(by + drag.dy, vy, by + bh - 24)
+        sx = clamp(bx + drag.dx, ix0, bx + bw - 24)
+        sw = bw + bx - clamp(bx + drag.dx, ix0, bx + bw - 24)
+        sy = clamp(by + drag.dy, iy0, by + bh - 24)
+        sh = bh + by - clamp(by + drag.dy, iy0, by + bh - 24)
     }
     zone box zh1 { at: sx + 0.5 * sw, sy + 0 * sh; size: 26, 26; corner: 13; cursor: ns_resize; active: phase == 2 }
     on press zh1 { bx = sx; by = sy; bw = sw; bh = sh }
     on drag zh1 {
         sx = bx
         sw = bw
-        sy = clamp(by + drag.dy, vy, by + bh - 24)
-        sh = bh + by - clamp(by + drag.dy, vy, by + bh - 24)
+        sy = clamp(by + drag.dy, iy0, by + bh - 24)
+        sh = bh + by - clamp(by + drag.dy, iy0, by + bh - 24)
     }
     zone box zh2 { at: sx + 1 * sw, sy + 0 * sh; size: 26, 26; corner: 13; cursor: nesw_resize; active: phase == 2 }
     on press zh2 { bx = sx; by = sy; bw = sw; bh = sh }
     on drag zh2 {
         sx = bx
-        sw = clamp(bw + drag.dx, 24, vx + W * vs - bx)
-        sy = clamp(by + drag.dy, vy, by + bh - 24)
-        sh = bh + by - clamp(by + drag.dy, vy, by + bh - 24)
+        sw = clamp(bw + drag.dx, 24, ix1 - bx)
+        sy = clamp(by + drag.dy, iy0, by + bh - 24)
+        sh = bh + by - clamp(by + drag.dy, iy0, by + bh - 24)
     }
     zone box zh3 { at: sx + 1 * sw, sy + 0.5 * sh; size: 26, 26; corner: 13; cursor: ew_resize; active: phase == 2 }
     on press zh3 { bx = sx; by = sy; bw = sw; bh = sh }
     on drag zh3 {
         sx = bx
-        sw = clamp(bw + drag.dx, 24, vx + W * vs - bx)
+        sw = clamp(bw + drag.dx, 24, ix1 - bx)
         sy = by
         sh = bh
     }
@@ -402,9 +407,9 @@ scene Snap {
     on press zh4 { bx = sx; by = sy; bw = sw; bh = sh }
     on drag zh4 {
         sx = bx
-        sw = clamp(bw + drag.dx, 24, vx + W * vs - bx)
+        sw = clamp(bw + drag.dx, 24, ix1 - bx)
         sy = by
-        sh = clamp(bh + drag.dy, 24, vy + H * vs - by)
+        sh = clamp(bh + drag.dy, 24, iy1 - by)
     }
     zone box zh5 { at: sx + 0.5 * sw, sy + 1 * sh; size: 26, 26; corner: 13; cursor: ns_resize; active: phase == 2 }
     on press zh5 { bx = sx; by = sy; bw = sw; bh = sh }
@@ -412,21 +417,21 @@ scene Snap {
         sx = bx
         sw = bw
         sy = by
-        sh = clamp(bh + drag.dy, 24, vy + H * vs - by)
+        sh = clamp(bh + drag.dy, 24, iy1 - by)
     }
     zone box zh6 { at: sx + 0 * sw, sy + 1 * sh; size: 26, 26; corner: 13; cursor: nesw_resize; active: phase == 2 }
     on press zh6 { bx = sx; by = sy; bw = sw; bh = sh }
     on drag zh6 {
-        sx = clamp(bx + drag.dx, vx, bx + bw - 24)
-        sw = bw + bx - clamp(bx + drag.dx, vx, bx + bw - 24)
+        sx = clamp(bx + drag.dx, ix0, bx + bw - 24)
+        sw = bw + bx - clamp(bx + drag.dx, ix0, bx + bw - 24)
         sy = by
-        sh = clamp(bh + drag.dy, 24, vy + H * vs - by)
+        sh = clamp(bh + drag.dy, 24, iy1 - by)
     }
     zone box zh7 { at: sx + 0 * sw, sy + 0.5 * sh; size: 26, 26; corner: 13; cursor: ew_resize; active: phase == 2 }
     on press zh7 { bx = sx; by = sy; bw = sw; bh = sh }
     on drag zh7 {
-        sx = clamp(bx + drag.dx, vx, bx + bw - 24)
-        sw = bw + bx - clamp(bx + drag.dx, vx, bx + bw - 24)
+        sx = clamp(bx + drag.dx, ix0, bx + bw - 24)
+        sw = bw + bx - clamp(bx + drag.dx, ix0, bx + bw - 24)
         sy = by
         sh = bh
     }
