@@ -3019,6 +3019,14 @@ function iris_fx.gaps_code(left, nodock)
     local WIDE = { top = { lp, px, px, px }, right = { px, lp, px, px }, bottom = { px, px, lp, px }, left = { px, px, px, lp } }   -- top, right, bottom, left: the wide one is the strip's
     local bar_gaps = WIDE[bar_fx.edge] or WIDE.left
     if bar_fx.seg then bar_gaps = { math.floor(1.35 * 36 * bz + 0.5) + 10, px, px, px } end       -- the top frame in pieces: thin, but the windows start below the pieces (36 * u) and a gap
+    -- The scrolling layout keeps `gaps_in` between a column and the screen's left and right edges on top of `gaps_out` (the windows sat 8 px further in at the sides than on top, with the default),
+    -- so the room we give is that much less there: `iris_fx.side_comp`, set from Settings > Hyprland (the layout and the gaps_in it reads). Only the room the frame asks for, not the user's own gaps.
+    local function comp(g)
+        local c = iris_fx.side_comp or 0
+        if c <= 0 then return g end
+        return { g[1], math.max(0, g[2] - c), g[3], math.max(0, g[4] - c) }
+    end
+    bar_gaps = comp(bar_gaps)
     if isl then bar_gaps = { o[1] + iris_fx.island_room(), o[2], o[3], o[4] } end
     local everywhere = (bar_fx.on or "all") == "all"      -- the bar is on every monitor there is
     -- The global gaps stay the user's own, also with the bar on every monitor: each monitor's rule below carries the bar's room. On the next start
@@ -3033,7 +3041,7 @@ function iris_fx.gaps_code(left, nodock)
         if name:match("^[%w%._%-]+$") then
             local has_bar = left and (everywhere or (bar_fx.sel ~= nil and bar_fx.sel[name] == true))
             -- a monitor with only the frame (Settings > Bar, "Frame on the other monitors"; logic/bar_monitors.luau) gets the frame's room on every side
-            local g = has_bar and bar_gaps or ((left and bar_fx.thin and not isl) and { px, px, px, px } or o)
+            local g = has_bar and bar_gaps or ((left and bar_fx.thin and not isl) and comp({ px, px, px, px }) or o)
             -- the docks are on the monitors the bar is on, framed or not
             if docked and (everywhere or (bar_fx.sel ~= nil and bar_fx.sel[name] == true)) then g = dock_fx.raise(g) end
             parts[#parts + 1] = rule(name, g)
@@ -5513,6 +5521,11 @@ do
         fact.ni_colw = hy.colw
         fact.ni_single = hy.single
         text.hy_gaps_text = string.format("%d px", hy.gaps)
+        local sc = (LAYOUTS[hy.layout] == "scrolling") and hy.gaps or 0          -- the scrolling layout's extra room at the sides (see iris_fx.gaps_code)
+        if sc ~= iris_fx.side_comp then
+            iris_fx.side_comp = sc
+            if iris_fx.apply_hypr then iris_fx.apply_hypr() end
+        end
         text.hy_round_text = string.format("%d px", hy.round)
         text.hy_border_text = string.format("%d px", hy.border)
         text.hy_sens_text = string.format("%.2f", hy.sens)
@@ -7189,6 +7202,8 @@ require("logic/desk_holes")()
 
 -- bar size: see logic/bar_size.luau
 require("logic/bar_size")()
+-- the frame's movement switch: see logic/frame_motion.luau
+require("logic/frame_motion")()
 
 -- bar layout: see logic/bar_layout.luau
 require("logic/bar_layout")()

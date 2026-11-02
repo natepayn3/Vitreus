@@ -33,6 +33,16 @@ fn shade(s: Shader) -> vec4<f32> {
     let dy = amp * (crest + pulse * 0.35 * tremble);
     let dx = amp * 0.4 * crest * side;
     var q = vec2<f32>(p.x + dx, p.y + dy);
+    // A ripple that is always there once the shader runs (the scene runs it for the frame, `fr_wv`): the glass near each screen edge slides about 5 px at right angles to that edge,
+    // by a slow wave that travels along it (round the screen: right along the bottom, up the right, left along the top, down the left), so the frame's inner edge and its notches undulate.
+    // It weighs 1 at the edge and fades over about 40 px, so what is further in (the bar's own text and controls, away from the edge) hardly moves.
+    let wt = exp(-p.y / 40.0);
+    let wb = exp(-(s.size.y - p.y) / 40.0);
+    let wl = exp(-p.x / 40.0);
+    let wr = exp(-(s.size.x - p.x) / 40.0);
+    let ay = 5.0 * (wt + wb) * (0.65 * sin(p.x * 0.0125 - s.time * 2.0) + 0.35 * sin(p.x * 0.0053 + s.time * 1.2 + 1.7));
+    let ax = 5.0 * (wl + wr) * (0.65 * sin(p.y * 0.0125 - s.time * 2.0 + 2.0) + 0.35 * sin(p.y * 0.0053 + s.time * 1.2 + 4.1));
+    q = q + vec2<f32>(ax, ay);
     // The Retro's pixelation: only inside the screen's opening, and a square's width away from its edge, so the frame itself stays still while a drawer
     // turns into squares (the group's box is the whole surface then: bar_glass.plm puts a barely visible box over it).
     let k = s.b.z;

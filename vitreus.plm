@@ -74,7 +74,7 @@ scene Vitreus {
     //  search, the desk's inputs) still has it lent exclusively, to the copy it is on only. A loan ends only when this rule goes false, so the corner dock
     //  asks for the keyboard on an empty workspace while one of its icons is under the pointer or held (`cdk_hot`, `cdk_down`), not all the time:
     //  `cdk_on and ws_empty` held every loan on both copies, and the cursor stuck again.
-    surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on), 60 while (media.playing and fw_on) or bar_fps == 60; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
+    surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on) and not (fr_wv > 0 and bar_frame and panel == none and not (media.playing and fw_on) and not fr_hov), 60 while ((media.playing and fw_on) or bar_fps == 60) and not (fr_wv > 0 and bar_frame and panel == none and not (media.playing and fw_on) and not fr_hov), 20 while (fr_wv > 0 and bar_frame and panel == none and not (media.playing and fw_on) and not fr_hov); screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
     permissions { services: "files", "files.write", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "env", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "test", "wl-paste", "ffprobe" }
 
@@ -171,6 +171,8 @@ scene Vitreus {
     fact panel: none | calendar | controls | player | volume | notif | settings | launch | tray | desk = none
     fact media_on = false          // is there a player at all
     fact bass = 0
+    fact fr_hov = false    // the pointer is on the bar: its hover animations get the full frame rate (the 20 a second the ripple alone gets is in the surface's `rate:`)
+    fact fr_wv = 1         // the frame ripples by itself, a couple of px (wave.wgsl; 0 off)
     fact fw_on = true      // the bottom frame rises into waves with the music (needs the Frame layout; `pleamar --say vitreus "fact fw_on false"` turns it off)
     //  The 24 bars cava reports, 0..1 each, for the equalizer in the media card. Each one
     //  has its own quick spring, so they rise and fall smoothly instead of stepping.
@@ -623,6 +625,7 @@ scene Vitreus {
     fact bar_anchor: top | left | right | bottom = top
     fact bar_frame = false                   // the frame round the screen is on (the Island is the bar without it)
     fact bar_size = 1                        // Settings > Bar > Size: how big the bar is, 0.7 to 1, on every layout; the logic sets it (logic/bar_size.luau)
+    event fr_wv_toggle ->                    // Settings > Bar > "Frame movement" (logic/frame_motion.luau)
     event bar_pick_size ->                   // the slider: 0 to 1 along it, 70 to 100 %
     text bar_size_text = "100%"
     fact bar_seg = false                     // along the top with a frame: a thin frame, and the bar in three pieces of glass (workspaces, clock, controls) out of it
@@ -1822,6 +1825,10 @@ scene Vitreus {
     prop bar_oth_pill = 0 ~pop
     follow bar_oth_pill = if(bar_others, 1, 0)
     prop bar_dr_pill = 0 ~pop
+    prop fr_wv_pill = 0 ~pop
+    follow fr_wv_pill = if(fr_wv > 0.5, 1, 0)
+    on enter bar_hit { fr_hov = true }
+    on leave bar_hit { fr_hov = false }
     follow bar_dr_pill = if(bar_dockroom, 0, 1)         // the switch says "Corner docks overlap windows": on when there is no room
     follow night_auto_pill = if(night_auto, 1, 0)
     //  Settings > Lock screen: what the lock screen scene holds. The logic asks it when the page opens (`lk_ok` is false if it did not
@@ -5028,7 +5035,7 @@ scene Vitreus {
     let sg.r = 12 * bu
     let sg.up = (bar.y + sg.r) * sg                                // a drawer that hangs from the top reaches up to the edge of the screen here, out of its piece (it starts at the strip's middle line elsewhere)
     let sg.hc = 36 * bu                                             // how far the two corner pieces reach down (the middle one too; only a drawer that hangs from it goes all of `th.t`)
-    let sg.fl = 12 * bu                                             // room for the slope where a piece runs into the thin frame, so nothing sits on it
+    let sg.fl = 17 * bu                                             // room for the slope where a piece runs into the thin frame, so nothing sits on it
     let sg.c0 = sg.cl - sg.pad - sg.fl
     let sg.c1 = sg.te + bw.tray + sg.pad + sg.fl
     let sg.rl = screen.width - sg.in - sg.pad - bw.ctl - bw.set - bw.sr + bar.gap - sg.pad - sg.fl
@@ -5267,7 +5274,7 @@ scene Vitreus {
     let wm.h = 946                     // the Pleamar-WM page: to the bottom of its last card
     let ad.h = 36 + max(1, addons.count) * 74 + 52 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (74 apart), and the line under them
     let ck.h = 1208                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
-    let br.h = 631                     // the Bar page: to the bottom of its last card
+    let br.h = 671                     // the Bar page: to the bottom of its last card
     let gl.h = 935                     // the Glass page: to the bottom of its last card
     let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
