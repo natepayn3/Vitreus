@@ -53,6 +53,14 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
     -- does not restart the bar. (A file from before says one monitor's name, and is moved over.)
     local function want()
         local n = #B.mons
+        -- A chosen monitor that is not plugged in keeps a copy waiting for it: switched on after the session started (or plugged in again), it gets
+        -- that copy and the bar moves to it at once. Without it the bar was first shrunk to the others, then started again to grow back, and for a
+        -- second or two it was gone, then on every monitor, before it settled on the chosen one.
+        local seen = {}
+        for _, name in ipairs(B.pref or {}) do
+            if not seen[name] and not connected(name) then n = n + 1 end
+            seen[name] = true
+        end
         if n < 1 then n = 1 elseif n > MAX then n = MAX end
         if not B.may_shrink then
             local have = tonumber((B.file or ""):match("^each max (%d+)") or "")
@@ -142,6 +150,10 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         with_dirs(function(d)
             local plm = d.conf .. "/vitreus.plm"
             local value = value or file_for()
+            -- (said in vitreus.log: a restart of the whole shell is worth knowing the reason of)
+            local names = {}
+            for _, m in ipairs(B.mons) do names[#names + 1] = m.name end
+            log("bar · restarting for " .. value .. " (was " .. tostring(B.file) .. "; plugged in: " .. table.concat(names, ", ") .. "; chosen: " .. table.concat(B.pref or {}, ", ") .. ")")
             run("sed", { "-i", "-E", "/^    surface \\{/s/screens: [^;]*;/screens: " .. value .. ";/", plm }, function(_, code)
                 if code ~= 0 then
                     B.busy = false
@@ -291,6 +303,18 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
     end)
     read_mons()
     every(5000, read_mons)
+    -- A copy says its monitor's name when it lands on one, also when it moves to another (the monitors are numbered again when one is switched
+    -- on). Which copies are open follows at once, not at the next look two seconds later (a copy that moved from the bar's monitor to another
+    -- one stayed open there meanwhile), and a monitor switched on is seen then, not at the next look five seconds later.
+    local looking = false
+    for k = 0, MAX - 1 do
+        on("text:screen." .. k .. ".name", function()
+            copies()
+            if looking then return end
+            looking = true
+            after(150, function() looking = false; read_mons() end)
+        end)
+    end
     every(2000, copies)
     after(8000, function() B.awake = true; settle() end)
 end
