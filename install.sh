@@ -61,6 +61,9 @@ titan_licence_url="https://github.com/google/fonts/raw/main/ofl/titanone/OFL.txt
 fuzzy_url="https://github.com/google/fonts/raw/main/ofl/fuzzybubbles/FuzzyBubbles-Regular.ttf"
 fuzzy_bold_url="https://github.com/google/fonts/raw/main/ofl/fuzzybubbles/FuzzyBubbles-Bold.ttf"
 fuzzy_licence_url="https://github.com/google/fonts/raw/main/ofl/fuzzybubbles/OFL.txt"
+# The Doodle theme's typeface, Fredoka (a chunky rounded face, variable weight; Google Fonts, OFL).
+fredoka_url="https://github.com/google/fonts/raw/main/ofl/fredoka/Fredoka%5Bwdth%2Cwght%5D.ttf"
+fredoka_licence_url="https://github.com/google/fonts/raw/main/ofl/fredoka/OFL.txt"
 
 conf="${XDG_CONFIG_HOME:-$HOME/.config}"
 data="${XDG_DATA_HOME:-$HOME/.local/share}"
@@ -73,6 +76,7 @@ fonts_orbitron="$data/fonts/Orbitron"
 fonts_kurenaido="$data/fonts/ZenKurenaido"
 fonts_titan="$data/fonts/TitanOne"
 fonts_fuzzy="$data/fonts/FuzzyBubbles"
+fonts_fredoka="$data/fonts/Fredoka"
 
 # Official-repo packages, then AUR ones: what each is for is in the README.
 pacman_pkgs="gcc pkgconf wayland wayland-protocols git curl jq python fontconfig socat glib2 file imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle hyprsunset libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww ffmpeg grim slurp wf-recorder power-profiles-daemon polkit python-gobject python-pyte ttf-space-mono-nerd pipewire-audio sound-theme-freedesktop tesseract tesseract-data-eng"
@@ -410,7 +414,7 @@ if $deps; then
     xdg-user-dirs   finding your Pictures folder, and the places in Files' sidebar
     git, fontconfig
     python          the font setup of the Retro and UwU themes and the font picker (bin/vitreus-fonts)
-    Audiowide, Mochiy Pop One, Orbitron, Zen Kurenaido, Titan One, Fuzzy Bubbles  the typefaces of the Retro, UwU, Cyber, Milkbox, Proxy and Paper themes (Space Grotesk's neighbours, installed into ~/.local/share/fonts)
+    Audiowide, Mochiy Pop One, Orbitron, Zen Kurenaido, Titan One, Fuzzy Bubbles, Fredoka  the typefaces of the Retro, UwU, Cyber, Milkbox, Proxy, Paper and Doodle themes (Space Grotesk's neighbours, installed into ~/.local/share/fonts)
 LIST
     fi
     # On Hyprland hyprsunset is not optional: Night mode is driven by it. Without it the shell would have to fall back to a Hyprland
@@ -634,6 +638,18 @@ LIST
             curl -fsSL -m 120 "$fuzzy_bold_url" -o "$fonts_fuzzy/FuzzyBubbles-Bold.ttf" 2> /dev/null || true
             curl -fsSL -m 120 "$fuzzy_licence_url" -o "$fonts_fuzzy/OFL.txt" 2> /dev/null || true
             have fc-cache && fc-cache -f "$fonts_fuzzy" > /dev/null 2>&1 || true
+        fi
+    fi
+    if have fc-list && fc-list 2> /dev/null | grep -qi 'fredoka'; then
+        say "the Fredoka font is installed"
+    elif ask_font "install the Fredoka font, for the Doodle theme (into $fonts_fredoka)?"; then
+        if $dry; then
+            echo "    would download $fredoka_url"
+        else
+            mkdir -p "$fonts_fredoka"
+            curl -fsSL -m 120 "$fredoka_url" -o "$fonts_fredoka/Fredoka.ttf" || warn "could not download Fredoka: the Doodle theme will use Space Grotesk until you install it"
+            curl -fsSL -m 120 "$fredoka_licence_url" -o "$fonts_fredoka/OFL.txt" 2> /dev/null || true
+            have fc-cache && fc-cache -f "$fonts_fredoka" > /dev/null 2>&1 || true
         fi
     fi
     fi

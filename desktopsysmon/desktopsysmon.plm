@@ -86,15 +86,17 @@ scene DesktopSysmon {
     shader paper = file "../paper.wgsl"
     fact obs = false        // Vitreus has its glass off: the card is flat obsidian (Vitreus says so with `fact obs true`)
     prop ob = 0 ~calm
-    follow ob = if(obs or look == 1 or look == 2 or look == 4 or look == 5 or look == 6, 1, 0)
+    follow ob = if(obs or look == 1 or look == 2 or look == 4 or look == 5 or look == 6 or look == 7, 1, 0)
     fact look = 0           // the shell's theme (Vitreus says so): 0 Glass, 1 Retro, 2 UwU; the last two draw the card as plastic, like the bar (a body with an outline and a hard shadow)
     prop pl = 0 ~calm
-    follow pl = if(look == 1 or look == 2 or look == 4 or look == 5 or look == 6, 1, 0)
+    follow pl = if(look == 1 or look == 2 or look == 4 or look == 5 or look == 6 or look == 7, 1, 0)
     prop mk = 0 ~calm
     follow mk = if(look == 4, 1, 0)         // Milkbox: one pale raised material, no outline, a white light up and left and a soft shade down and right
     prop pxk = 0 ~calm
     follow pxk = if(look == 5, 1, 0)        // Proxy: a flat dark plate with a thin pale outline and a hard offset edge
     prop ppk = 0 ~calm
+    prop dd = 0 ~calm
+    follow dd = if(look == 7, 1, 0)         // Doodle: a cream plate with a thick black outline
     follow ppk = if(look == 6, 1, 0)       // Paper: a worn sheet of cream paper, taped down (paper.wgsl)
     prop uk = 0 ~calm
     follow uk = if(look == 2, 1, 0)
@@ -241,8 +243,8 @@ scene DesktopSysmon {
         body {
             color: tint
             rim: 0%
-            border: (2 + 1.2 * uk - 0.8 * ppk - 0.6 * pxk) * (1 - mk) * pl, mix(mix(deep, tint, 0.55 * ppk), mix(#e8f1f5, tint, 0.4), pxk)
-            shadow: (4 - 2.5 * ppk - mk - 1.5 * pxk) * pl, (5 - 1.5 * ppk - mk - 2 * pxk) * pl, 9 * ppk + 10 * mk, 55% - 13% * ppk - 27% * mk + 30% * pxk + 35% * uk, mix(deep, #ff6ec7, 0.75 * uk)
+            border: (2 + 1.2 * uk - 0.8 * ppk - 0.6 * pxk + 2.2 * dd) * (1 - mk) * pl, mix(mix(mix(deep, tint, 0.55 * ppk), mix(#e8f1f5, tint, 0.4), pxk), ink, dd)
+            shadow: (4 - 2.5 * ppk - mk - 1.5 * pxk) * pl, (5 - 1.5 * ppk - mk - 2 * pxk) * pl, 9 * ppk + 10 * mk, (55% - 13% * ppk - 27% * mk + 30% * pxk + 35% * uk) * (1 - dd), mix(deep, #ff6ec7, 0.75 * uk)
             opacity: sh * pl
             show: pl > 0.004
             box { at: 200, 113; size: 364, 230; corner: 16 }

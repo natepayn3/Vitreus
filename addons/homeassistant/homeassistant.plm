@@ -1265,7 +1265,8 @@ scene HomeAssistant {
         let dk.gt = 16 + room_t
         let dk.cw = (dk.sw - dk.gl - 16 - room_r) / 28
         let dk.ch = (dk.sh - dk.gt - 16 - room_b) / 16
-        let dk.pl = if(look == 1 or look == 2, 1, 0)
+        let dk.pl = if(look == 1 or look == 2 or look == 7, 1, 0)
+        let dkk = if(look == 7, 1, 0)                           // Doodle: a thick black outline, a pastel fill while the entity is on, no hard shadow
         repeat i in 0..8 {
             //  where it goes: its cell; in Edit mode on a spring (to the cell it would land on while it is carried or pulled); while a theme puts it back, on a slower one
             prop wqx.$i = 0 ~quick
@@ -1313,15 +1314,15 @@ scene HomeAssistant {
                     box { from: x, y; size: w, h; corner: 20 }
                 }
                 body {
-                    color: tint
+                    color: mix(tint, pick(mod(i, 5), #fcd77f, #f4b6c8, #c9b6e8, #aebfef, #b5d99c), dkk * lit)
                     rim: 0%
-                    border: 2.6, deep
-                    shadow: 4, 5, 0, 60%, deep
+                    border: 2.6 + 0.8 * dkk, mix(deep, ink, dkk)
+                    shadow: 4 * (1 - dkk), 5 * (1 - dkk), 0, 60%, deep
                     show: dk.pl > 0.5
-                    box { from: x, y; size: w, h; corner: 14 }
+                    box { from: x, y; size: w, h; corner: 14 + 8 * dkk }
                 }
-                box { from: x, y; size: w, h; corner: 20; color: mint; opacity: 4% * hot + 12% * lit }
-                box { from: x, y; size: w, h; corner: 20; stroke: 1.2; color: mint; opacity: 45% * lit }
+                box { from: x, y; size: w, h; corner: 20; color: mint; opacity: (4% * hot + 12% * lit) * (1 - dkk) }
+                box { from: x, y; size: w, h; corner: 20; stroke: 1.2; color: mint; opacity: 45% * lit * (1 - dkk) }
                 let ix = x + if(tl > 0.5, 28, 30)
                 let iy = y + if(tl > 0.5, 28, h / 2)
                 let z = if(tl > 0.5, 1, 0.9)

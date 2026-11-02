@@ -3421,9 +3421,10 @@ iris_fx.CYBER = 10
 iris_fx.MILK = 11
 iris_fx.PROXY = 12
 iris_fx.PAPER = 13
+iris_fx.DOODLE = 14
 iris_fx.CUSTOM = 100
 vtheme = { list = {}, by_id = {}, errors = {}, folder = "" }
-vtheme.look_id = { [8] = "retro", [9] = "uwu", [10] = "cyber", [11] = "milk", [12] = "proxy", [13] = "paper" }
+vtheme.look_id = { [8] = "retro", [9] = "uwu", [10] = "cyber", [11] = "milk", [12] = "proxy", [13] = "paper", [14] = "doodle" }
 function vtheme.load()
     local ok, f = pcall(sys.ask, "files.read", "themes.json", "json")
     if not ok or type(f) ~= "table" or type(f.themes) ~= "table" then return false end
@@ -3461,10 +3462,10 @@ do
     if ok and type(saved) == "table" then
         if saved.enabled ~= nil then iris_cfg.enabled = saved.enabled and true or false end
         local pr = tonumber(saved.preset)
-        if pr and (math.floor(pr) == iris_fx.CASSETTE or math.floor(pr) == iris_fx.UWU or math.floor(pr) == iris_fx.CYBER or math.floor(pr) == iris_fx.MILK or math.floor(pr) == iris_fx.PROXY or math.floor(pr) == iris_fx.PAPER or math.floor(pr) == iris_fx.CUSTOM) then iris_cfg.preset = math.floor(pr) end
+        if pr and (math.floor(pr) == iris_fx.CASSETTE or math.floor(pr) == iris_fx.UWU or math.floor(pr) == iris_fx.CYBER or math.floor(pr) == iris_fx.MILK or math.floor(pr) == iris_fx.PROXY or math.floor(pr) == iris_fx.PAPER or math.floor(pr) == iris_fx.DOODLE or math.floor(pr) == iris_fx.CUSTOM) then iris_cfg.preset = math.floor(pr) end
         -- The look (the shape of the shell) is its own setting, apart from where the colours come from: Iris may colour a Retro or UwU shell and it stays one.
         local lk = tonumber(saved.look)
-        if lk and (math.floor(lk) == iris_fx.CASSETTE or math.floor(lk) == iris_fx.UWU or math.floor(lk) == iris_fx.CYBER or math.floor(lk) == iris_fx.MILK or math.floor(lk) == iris_fx.PROXY or math.floor(lk) == iris_fx.PAPER) then iris_cfg.look = math.floor(lk)
+        if lk and (math.floor(lk) == iris_fx.CASSETTE or math.floor(lk) == iris_fx.UWU or math.floor(lk) == iris_fx.CYBER or math.floor(lk) == iris_fx.MILK or math.floor(lk) == iris_fx.PROXY or math.floor(lk) == iris_fx.PAPER or math.floor(lk) == iris_fx.DOODLE) then iris_cfg.look = math.floor(lk)
         elseif lk == nil then iris_cfg.look = iris_cfg.preset ~= iris_fx.CUSTOM and iris_cfg.preset or nil end      -- an older file: the look was the palette
         -- The theme itself. An older file has only the look, which names one of Vitreus's own; a theme whose file has gone leaves Glass.
         if type(saved.theme) == "string" then iris_cfg.theme = saved.theme
@@ -3479,7 +3480,7 @@ do
     local INTENSITIES = { "subtle", "medium", "bold" }
     -- The desktop clock and system monitor draw themselves as plastic with Retro and UwU: they are told the theme (0 Glass, 1 Retro, 2 UwU).
     local function push_look()
-        local v = iris_cfg.look == iris_fx.CASSETTE and 1 or iris_cfg.look == iris_fx.UWU and 2 or iris_cfg.look == iris_fx.CYBER and 3 or iris_cfg.look == iris_fx.MILK and 4 or iris_cfg.look == iris_fx.PROXY and 3 or iris_cfg.look == iris_fx.PAPER and 6 or 0
+        local v = iris_cfg.look == iris_fx.CASSETTE and 1 or iris_cfg.look == iris_fx.UWU and 2 or iris_cfg.look == iris_fx.CYBER and 3 or iris_cfg.look == iris_fx.MILK and 4 or iris_cfg.look == iris_fx.PROXY and 3 or iris_cfg.look == iris_fx.PAPER and 6 or iris_cfg.look == iris_fx.DOODLE and 7 or 0
         local av = iris_cfg.look == iris_fx.PROXY and 5 or iris_cfg.look == iris_fx.PAPER and 4 or v             -- add-ons know Proxy as 5 (the desktop widgets below still take it as Cyber's 3)
         addon_look = av
         local vw = iris_cfg.look == iris_fx.PROXY and 5 or v       -- the clock, system monitor and cards know Proxy as 5 (the other desktop scenes still take it as Cyber's 3)
@@ -3503,6 +3504,7 @@ do
         fact.milk = iris_cfg.look == iris_fx.MILK
         fact.proxy_on = iris_cfg.look == iris_fx.PROXY
         fact.paper_on = iris_cfg.look == iris_fx.PAPER
+        fact.doodle_on = iris_cfg.look == iris_fx.DOODLE
         if hy_theme_changed then hy_theme_changed(vtheme.current().id) end
         for k, name in ipairs(INTENSITIES) do if name == iris_cfg.intensity then fact.iris_int = k - 1 end end
     end
