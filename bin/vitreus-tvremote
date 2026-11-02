@@ -338,6 +338,7 @@ class Remote:
 WEBOS_PORTS = tuple(int(p) for p in os.environ.get("VITREUS_TVREMOTE_WEBOS_PORTS", "3001,3000").split(","))     # wss, ws
 WEBOS_IDLE = float(os.environ.get("VITREUS_TVREMOTE_WEBOS_IDLE", "20"))      # seconds of silence before the TV is asked whether it is there
 ARES_DEVICE = os.environ.get("VITREUS_TVREMOTE_ARES_DEVICE", "tv")          # the LG as named in `ares-setup-device`, for closing apps over Developer Mode
+WEBOS_HOME = ("com.webos.app.home", "")              # what is in front once an app is closed: nothing to list as running
 WEBOS_PERMS = [                                     # aiowebostv's (handshake.py): the TV asks once, on its screen, for all of them
     "APP_TO_APP", "CLOSE", "CONTROL_AUDIO", "CONTROL_DISPLAY", "CONTROL_INPUT_JOYSTICK", "CONTROL_INPUT_MEDIA_PLAYBACK",
     "CONTROL_INPUT_MEDIA_RECORDING", "CONTROL_INPUT_TEXT", "CONTROL_INPUT_TV", "CONTROL_MOUSE_AND_KEYBOARD", "CONTROL_POWER",
@@ -749,9 +750,9 @@ class WebOS:
                 emit(ev="running", list=[], error=p["error"])
                 return
             aid = p.get("appId") or (self.state or {}).get("app", "")
-            if aid:
+            if aid and self.state is not None:
                 self.state["app"] = aid
-            result = [{"id": aid, "label": self.app_label(aid) + "  ·  " + aid, "on": True}] if aid else []
+            result = [{"id": aid, "label": self.app_label(aid) + "  ·  " + aid, "on": True}] if aid and aid not in WEBOS_HOME else []
             emit(ev="running", list=result)
         self.request("com.webos.applicationManager/getForegroundAppInfo", on_reply=got)
 
@@ -760,10 +761,12 @@ class WebOS:
         def done(p):
             if not p.get("error"):
                 emit(ev="log", msg="webOS closed %s" % aid)
+                threading.Timer(1.0, self.running).start()      # the list shows what the TV says is in front now
                 return
             ares = shutil.which("ares-launch")
             if not ares:
                 emit(ev="log", msg="webOS close %s: %s (no ares-launch to fall back on)" % (aid, p["error"]))
+                self.running()
                 return
 
             def go():
@@ -773,6 +776,7 @@ class WebOS:
                     emit(ev="log", msg="ares-launch --close %s: %s" % (aid, out or ("exit %d" % r.returncode)))
                 except (OSError, subprocess.SubprocessError) as e:
                     emit(ev="log", msg="ares-launch --close %s: %s" % (aid, e))
+                self.running()
             threading.Thread(target=go, daemon=True).start()
         self.request("system.launcher/close", {"id": aid}, on_reply=done)
 

@@ -332,9 +332,7 @@ on("tv_sheet", function(k)                 -- a row of an LG's list
         send({ cmd = "input", id = it.id })
         fact.sheet_open = false
     elseif sheet.kind == "running" then
-        send({ cmd = "close", id = it.id })
-        table.remove(sheet.list, sheet.page * PER + k + 1)
-        if #sheet.list == 0 then fact.sheet_open = false else show_sheet() end
+        send({ cmd = "close", id = it.id })     -- the list is redrawn from what the TV says is in front afterwards
     else
         send({ cmd = "launch", id = it.id })
         fact.sheet_open = false
