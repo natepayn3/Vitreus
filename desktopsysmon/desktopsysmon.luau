@@ -68,8 +68,19 @@ local function refresh_monitors()
             mons[i] = { name = d.name, x = tonumber(d.x) or 0, y = tonumber(d.y) or 0, w = math.floor(w + 0.5), h = math.floor(h + 0.5) }
         end
         run("pleamar", { "--say", "desktopsysmon", "describe" }, function(desc, code2)
-            local order = {}
-            if code2 == 0 and desc then
+            -- Each copy knows the name of its monitor (`screen.K.name`, from pleamar): that is the surest way, and the only one that tells monitors of
+            -- the same size apart. The copies follow the order the compositor lists the monitors in, which changes when one is switched on after
+            -- the session started, so neither the sizes nor hyprctl's order can be trusted to match them. Without names, the sizes, as before.
+            -- (With N monitors the copies 0 to N-1 are the ones on screen; a higher one may still hold the name of a monitor that has gone.)
+            local order, taken, named = {}, {}, 0
+            for k = 0, #mons - 1 do
+                local nm = text["screen." .. k .. ".name"]
+                for i, m in ipairs(mons) do
+                    if nm and nm ~= "" and m.name == nm and not taken[i] then taken[i] = true; order[k + 1] = m; named = named + 1; break end
+                end
+            end
+            if named < #mons then order = {} end
+            if named < #mons and code2 == 0 and desc then
                 -- each line says which copy it is (`screen N`, the copy's `screen.index`): the copies are not always in the same order from one start to the next
                 local used = {}
                 for n, w, h in desc:gmatch("%(screen (%d+)%) [^\n]-panel (%d+)\xC3\x97(%d+)") do
@@ -80,7 +91,7 @@ local function refresh_monitors()
                 end
                 for k = 1, #mons do if not order[k] then order = {}; break end end
             end
-            if #order ~= #mons then order = mons end   -- (what describe says does not fit: hyprctl's own order)
+            if named < #mons and #order ~= #mons then order = mons end   -- (what describe says does not fit: hyprctl's own order)
             names = {}
             local primary, mine = 0, nil
             for k = 1, 4 do
@@ -122,6 +133,15 @@ local function mon_due()
 end
 refresh_monitors()
 watch_monitors(refresh_monitors)
+-- A copy says its monitor's name when it lands on one, also when it moves to another (a monitor switched on later): look again then.
+local name_pending = false
+for k = 0, 3 do
+    on("text:screen." .. k .. ".name", function()
+        if name_pending then return end
+        name_pending = true
+        after(300, function() name_pending = false; refresh_monitors() end)
+    end)
+end
 every(5000, function() if mon_due() and not fact.dragging then refresh_monitors() end end)
 fact.shown = cfg.shown
 

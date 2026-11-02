@@ -54,7 +54,22 @@ local function refresh_monitors(done)
                     local w, h = (tonumber(d.width) or 1920) / sc, (tonumber(d.height) or 1080) / sc
                     if (tonumber(d.transform) or 0) % 2 == 1 then w, h = h, w end
                     if d.focused then focused = i end
-                    m[i] = { x = tonumber(d.x) or 0, y = tonumber(d.y) or 0, w = math.floor(w + 0.5), h = math.floor(h + 0.5) }
+                    m[i] = { name = d.name, x = tonumber(d.x) or 0, y = tonumber(d.y) or 0, w = math.floor(w + 0.5), h = math.floor(h + 0.5) }
+                end
+                -- Each copy knows its monitor's name (`screen.K.name`): the copies follow the order the compositor lists the monitors in, which is not
+                -- Hyprland's when one is switched on after the session started. When every copy on screen has a monitor of the list, that order.
+                local byname, taken, named = {}, {}, 0
+                for k = 0, #m - 1 do
+                    local nm = text["screen." .. k .. ".name"]
+                    for j, d in ipairs(m) do
+                        if nm and nm ~= "" and d.name == nm and not taken[j] then taken[j] = true; byname[k + 1] = d; named = named + 1; break end
+                    end
+                end
+                if named == #m then
+                    local fm = focused and m[focused]
+                    focused = nil
+                    for k = 1, #m do if byname[k] == fm then focused = k end end
+                    m = byname
                 end
                 mons = m
             end
@@ -94,6 +109,15 @@ local function mon_due()
 end
 refresh_monitors()
 watch_monitors(function() refresh_monitors() end)
+-- A copy says its monitor's name when it lands on one, also when it moves to another (a monitor switched on later): look again then.
+local name_pending = false
+for k = 0, 3 do
+    on("text:screen." .. k .. ".name", function()
+        if name_pending then return end
+        name_pending = true
+        after(300, function() name_pending = false; refresh_monitors() end)
+    end)
+end
 every(5000, function() if mon_due() then refresh_monitors() end end)
 
 -- ── the stickers ──
