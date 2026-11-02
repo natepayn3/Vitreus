@@ -53,7 +53,8 @@ REPLIES = {
     "ssap://tv/getExternalInputList": {"devices": [{"id": "HDMI_1", "label": "HDMI 1", "appId": "com.webos.app.hdmi1"},
                                                    {"id": "HDMI_2", "label": "onn", "appId": "com.webos.app.hdmi2"}]},
     "ssap://com.webos.applicationManager/listApps": {"apps": [
-        {"id": "youtube.leanback.v4", "title": "YouTube", "inAppSearchParams": '{"contentTarget":"https://www.youtube.com/results?search_query=$SEARCH_KEYWORD"}'},
+        {"id": "youtube.leanback.v4", "title": "YouTube", "inAppSearchParams": '{ "contentTarget" : "q=$SEARCH_KEYWORD"}'},   # what a real CX sends: a query string, not a URL
+        {"id": "plainsearch.app", "title": "Plain", "inAppSearchParams": '{"searchText":"$SEARCH_KEYWORD"}'},                    # a plain text field: the words go in as they are
         {"id": "netflix", "title": "Netflix"}]},
     "ssap://com.webos.applicationManager/listLaunchPoints": {"launchPoints": [{"id": "youtube.leanback.v4", "title": "YouTube"},
                                                                                {"id": "netflix", "title": "Netflix"}]},
@@ -286,7 +287,14 @@ def main():
     h.send(cmd="text", text='cats & "dogs"')
     sent(lambda m: m.get("uri") == "ssap://system.launcher/launch" and m.get("payload") == {
         "id": "youtube.leanback.v4",
-        "params": {"contentTarget": 'https://www.youtube.com/results?search_query=cats & "dogs"'}}, "search launch")
+        "params": {"contentTarget": "q=cats+%26+%22dogs%22"}}, "search launch")
+    # 4e-ii. an app whose template is a plain text field, not a query: the words go in untouched
+    REPLIES["ssap://com.webos.applicationManager/getForegroundAppInfo"] = {"appId": "plainsearch.app"}
+    h.send(cmd="running")
+    h.wait(lambda e: e.get("ev") == "running", "running in plainsearch")
+    h.send(cmd="text", text='cats & "dogs"')
+    sent(lambda m: m.get("uri") == "ssap://system.launcher/launch" and m.get("payload") == {
+        "id": "plainsearch.app", "params": {"searchText": 'cats & "dogs"'}}, "a plain text field left unencoded")
     REPLIES["ssap://com.webos.applicationManager/getForegroundAppInfo"] = {"appId": "netflix"}
     h.send(cmd="running")
     h.wait(lambda e: e.get("ev") == "running", "running in netflix")

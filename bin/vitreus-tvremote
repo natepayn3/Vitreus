@@ -24,6 +24,7 @@ import ssl
 import subprocess
 import sys
 import threading
+import urllib.parse
 import time
 
 DATA = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/.local/share/pleamar/tvremote")
@@ -707,7 +708,16 @@ class WebOS:
 
             def replace(v):
                 if isinstance(v, str):
-                    return v.replace("$SEARCH_KEYWORD", t)
+                    if "$SEARCH_KEYWORD" not in v:
+                        return v
+                    #  The template is the TV's own (inAppSearchParams). On a CX both of them are a bare query string, not a URL:
+                    #  YouTube and Google Play Movies each send `{ "contentTarget" : "q=$SEARCH_KEYWORD"}`. Whatever reads it splits on
+                    #  & and =, so the words have to be percent-encoded as a parameter value or the first & ends the search: measured
+                    #  on a CX, `cats & dogs` looked up "cats" and nothing else. A placeholder that is NOT a parameter value (no `=`
+                    #  before it, no query or scheme around it) is some app's plain text field, and encoding it there would show through.
+                    head = v.split("$SEARCH_KEYWORD", 1)[0]
+                    word = urllib.parse.quote_plus(t) if ("=" in head or "?" in v or "://" in v) else t
+                    return v.replace("$SEARCH_KEYWORD", word)
                 if isinstance(v, dict):
                     return {k: replace(x) for k, x in v.items()}
                 if isinstance(v, list):
