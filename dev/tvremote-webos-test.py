@@ -52,9 +52,16 @@ REPLIES = {
     "ssap://com.webos.service.networkinput/getPointerInputSocket": {"socketPath": "ws://127.0.0.1:%d/resources/fake/netinput.pointer.sock" % WS},
     "ssap://tv/getExternalInputList": {"devices": [{"id": "HDMI_1", "label": "HDMI 1", "appId": "com.webos.app.hdmi1"},
                                                    {"id": "HDMI_2", "label": "onn", "appId": "com.webos.app.hdmi2"}]},
+    "ssap://com.webos.applicationManager/listApps": {"apps": [
+        {"id": "youtube.leanback.v4", "title": "YouTube", "inAppSearchParams": '{ "contentTarget" : "q=$SEARCH_KEYWORD"}'},   # what a real CX sends: a query string, not a URL
+        {"id": "plainsearch.app", "title": "Plain", "inAppSearchParams": '{"searchText":"$SEARCH_KEYWORD"}'},                    # a plain text field: the words go in as they are
+        {"id": "netflix", "title": "Netflix"}]},
     "ssap://com.webos.applicationManager/listLaunchPoints": {"launchPoints": [{"id": "youtube.leanback.v4", "title": "YouTube"},
                                                                                {"id": "netflix", "title": "Netflix"}]},
 }
+
+
+REFUSED = {"ssap://system.launcher/close"}          # a CX answers 403 to this whatever the manifest
 
 
 def serve_client(conn):
@@ -84,6 +91,8 @@ def serve_client(conn):
                     ws_send(conn, json.dumps({"type": "response", "id": m["id"], "payload": {"pairingType": "PROMPT"}}))
                     time.sleep(0.3)
                 ws_send(conn, json.dumps({"type": "registered", "id": m["id"], "payload": {"client-key": KEY}}))
+            elif m.get("uri") in REFUSED:
+                ws_send(conn, json.dumps({"type": "error", "id": m["id"], "error": "403 insufficient permissions"}))
             else:
                 ws_send(conn, json.dumps({"type": "response", "id": m["id"], "payload": REPLIES.get(m.get("uri"), {"returnValue": True})}))
     except (ConnectionError, OSError, ValueError, IndexError):
@@ -183,6 +192,16 @@ def main():
     listen(WS)
     data = tmp + "/data"
     os.makedirs(data)
+    fake = tmp + "/bin"                                 # a stand-in ares-launch for the close fallback
+    os.makedirs(fake)
+    with open(fake + "/ares-launch", "w") as f:                 # it fails, exit 255, with whatever message the test drops in ares.fail (as a real one does)
+        f.write('#!/bin/sh\necho "$@" > "%s/ares.args"\n'
+                'if [ -f "%s/ares.fail" ]; then\n'
+                '  echo "ares-launch ERR! [com.webos.applicationManager failure]: luna-send command failed <$(cat %s/ares.fail)>" >&2\n'
+                '  exit 255\n'
+                'fi\n' % (tmp, tmp, tmp))
+    os.chmod(fake + "/ares-launch", 0o755)
+    os.environ["PATH"] = fake + os.pathsep + os.environ["PATH"]
     h = Helper(data, "%d,%d" % (WSS, WS))
     h.wait(lambda e: e.get("ev") == "hello", "hello")
     # 1. no key yet: asks to pair, connects nowhere
@@ -222,6 +241,65 @@ def main():
         fail("apps not sorted by title: %s" % ev["list"])
     h.send(cmd="launch", id="netflix")
     sent(lambda m: m.get("uri") == "ssap://system.launcher/launch" and m.get("payload") == {"id": "netflix"}, "launch netflix")
+    # 4b. the app in front, by title, and closing it
+    h.send(cmd="running")
+    ev = h.wait(lambda e: e.get("ev") == "running", "running")
+    if [(a["id"], a["on"]) for a in ev["list"]] != [("com.webos.app.hdmi2", True)] or not ev["list"][0]["label"].startswith("hdmi2"):
+        fail("running: %s" % ev["list"])
+    h.send(cmd="close", id="com.webos.app.hdmi2")
+    sent(lambda m: m.get("uri") == "ssap://system.launcher/close" and m.get("payload") == {"id": "com.webos.app.hdmi2"}, "close hdmi2")
+    # 4c. the 403 fell back to ares-launch, and the list was asked again (hdmi2 is still in front on this stand-in)
+    h.wait(lambda e: e.get("ev") == "running", "running again after close")
+    for _ in range(30):
+        if os.path.exists(tmp + "/ares.args"):
+            break
+        time.sleep(0.1)
+    if open(tmp + "/ares.args").read().split() != ["--close", "com.webos.app.hdmi2", "-d", "tv"]:
+        fail("ares-launch args: %s" % open(tmp + "/ares.args").read())
+    # 4c-ii. webOS refuses to close anything not sideloaded ("Only Dev app should be closed using /dev category_API", exit 255).
+    #        A store app cannot be killed, so the remote leaves it instead: Home, which is a launch and is allowed.
+    open(tmp + "/ares.fail", "w").write("Only Dev app should be closed using /dev category_API")
+    os.unlink(tmp + "/ares.args")
+    REPLIES["ssap://com.webos.applicationManager/getForegroundAppInfo"] = {"appId": "netflix"}
+    h.send(cmd="running")
+    h.wait(lambda e: e.get("ev") == "running", "running netflix")
+    h.send(cmd="close", id="netflix")
+    sent(lambda m: m.get("uri") == "ssap://system.launcher/launch" and m.get("payload") == {"id": "com.webos.app.home"},
+         "a Home launch after a refused close")
+    # 4c-iii. "app is not running" is not a refusal: the list was stale, so it is redrawn and the TV is left alone
+    open(tmp + "/ares.fail", "w").write("app is not running")
+    n = len(LOG)
+    h.send(cmd="close", id="netflix")
+    h.wait(lambda e: e.get("ev") == "running", "running again after a stale close")
+    if any(m.get("uri") == "ssap://system.launcher/launch" for m in LOG[n:]):
+        fail("went Home for an app that was not running: %s" % [m.get("uri") for m in LOG[n:]])
+    os.unlink(tmp + "/ares.fail")
+    # 4d. a closed app leaves the home screen in front: nothing running, and no crash
+    REPLIES["ssap://com.webos.applicationManager/getForegroundAppInfo"] = {"appId": "com.webos.app.home"}
+    h.send(cmd="running")
+    ev = h.wait(lambda e: e.get("ev") == "running", "running at home")
+    if ev["list"]:
+        fail("home listed as running: %s" % ev["list"])
+    # 4e. typing in an app with a search link launches it with the words in; elsewhere the words are typed
+    REPLIES["ssap://com.webos.applicationManager/getForegroundAppInfo"] = {"appId": "youtube.leanback.v4"}
+    h.send(cmd="running")
+    h.wait(lambda e: e.get("ev") == "running", "running in youtube")
+    h.send(cmd="text", text='cats & "dogs"')
+    sent(lambda m: m.get("uri") == "ssap://system.launcher/launch" and m.get("payload") == {
+        "id": "youtube.leanback.v4",
+        "params": {"contentTarget": "q=cats+%26+%22dogs%22"}}, "search launch")
+    # 4e-ii. an app whose template is a plain text field, not a query: the words go in untouched
+    REPLIES["ssap://com.webos.applicationManager/getForegroundAppInfo"] = {"appId": "plainsearch.app"}
+    h.send(cmd="running")
+    h.wait(lambda e: e.get("ev") == "running", "running in plainsearch")
+    h.send(cmd="text", text='cats & "dogs"')
+    sent(lambda m: m.get("uri") == "ssap://system.launcher/launch" and m.get("payload") == {
+        "id": "plainsearch.app", "params": {"searchText": 'cats & "dogs"'}}, "a plain text field left unencoded")
+    REPLIES["ssap://com.webos.applicationManager/getForegroundAppInfo"] = {"appId": "netflix"}
+    h.send(cmd="running")
+    h.wait(lambda e: e.get("ev") == "running", "running in netflix")
+    h.send(cmd="text", text="plain")
+    sent(lambda m: m.get("uri") == "ssap://com.webos.service.ime/insertText" and m.get("payload", {}).get("text") == "plain", "typed in an app without search")
     # 5. typing, power
     h.send(cmd="text", text="hi")
     sent(lambda m: m.get("uri") == "ssap://com.webos.service.ime/insertText" and m.get("payload") == {"text": "hi", "replace": 0}, "insertText")
