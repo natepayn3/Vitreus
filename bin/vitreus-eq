@@ -82,6 +82,8 @@ target = ""             # the output it plays into
 node_id = None
 error = ""
 claim = False           # make the EQ the default output the next time there is a chance (switched on, or restored at start)
+lost = ""               # the output the filter was on when it went away (a headset switched off): the filter goes back to it when it returns
+lost_claim = False      # ... and whether the EQ was the default output then (so it takes the default again, on the fallback and on the return)
 
 
 def emit(**kw):
@@ -282,15 +284,30 @@ def reconcile():
     changed afterwards (the shell's output picker) that is the user's choice, the EQ is bypassed, and the filter
     stays on the output it was on (it does not follow the pick, so a TV picked for a while does not become what "Vitreus EQ" plays into);
     it only moves when its output goes away, or when the EQ is switched off and on."""
-    global target, error, claim
+    global target, error, claim, lost, lost_claim
     with lock:
         if want_on:
             if chain is not None and chain.poll() is not None:
                 stop_chain(target)
                 error = "the filter stopped"
             d = default_sink()
+            if chain is not None and not claim:
+                if not sink_exists(target):
+                    # the output went away (a headset switched off): carry on at once on another output, and keep the EQ the default output
+                    # if it was, so the sound goes through the EQ there; the output is remembered, to go back to it when it returns
+                    lost, lost_claim = target, (d == SINK or lost_claim)
+                    stop_chain(None)
+                    claim = lost_claim
+                elif lost and lost != target and sink_exists(lost):
+                    lost_claim = lost_claim or d == SINK          # (the output is back: the filter moves to it, a restart under the same name)
+                    stop_chain(None)
+                    claim = lost_claim
             if chain is None:
-                tgt = real_default() or target or fallback_sink()
+                if lost and sink_exists(lost):
+                    tgt, lost = lost, ""
+                    lost_claim = False
+                else:
+                    tgt = real_default() or target or fallback_sink()
                 if not tgt:
                     error = "no output to play into"
                 elif start_chain(tgt):
@@ -303,11 +320,10 @@ def reconcile():
                 if d != SINK:
                     set_default(SINK)
                 claim = False
-            elif not sink_exists(target):
-                stop_chain(None)                                   # the output went away (a headset switched off): the next round starts again on the default
             # (another output picked, d != target: it plays directly and the filter stays on its own target, so choosing "Vitreus EQ" again goes through it to the same output as before)
         else:
             claim = False
+            lost, lost_claim = "", False
             if chain is not None:
                 stop_chain(target)
             error = ""
