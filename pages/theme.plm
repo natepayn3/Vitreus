@@ -12,19 +12,26 @@ part Theme {
             clip box { at: spx + 224 * pu, sby + set.h / 2 * pu; size: 456 * pu, set.h * pu }
             zone box th_wheel { at: spx + 219 * pu, sby + set.h / 2 * pu; size: 446 * pu, set.h * pu }
             on scroll th_wheel while not tpw_open { th_scroll_to = clamp(th_scroll_to - wheel * 44, 0, max(0, th.h - set.h)) }
-            on change set_page { th_scroll_to = 0 }
-            on change panel { th_scroll_to = 0 }
+            on change set_page { th_scroll_to = 0; th_pg = floor(max(0, theme_sel) / 8) }
+            on change panel { th_scroll_to = 0; th_pg = floor(max(0, theme_sel) / 8) }
             group {
             move: 0, -th.off
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 16 * pu + 0.5); text "Theme" { at: floor(spx + 14 * pu + 0.5), floor(sby + 16 * pu + 0.5); anchor: left center; size: 19.5; weight: 700; color: ink; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 16 * pu + 0.5); text "Changes apply right away." { at: floor(spx + 424 * pu + 0.5), floor(sby + 16 * pu + 0.5); anchor: right center; size: 15; color: faint; opacity: 80%; family: "Space Grotesk" } }
             //  Glass, Retro, UwU, Cyber and whatever is in ~/.config/pleamar/vitreus-themes: a card each (the `themes` model, filled by the logic from the theme files),
-            //  four to a row, wrapping onto more rows as themes are added. The selected card has a ring and a tick.
+            //  four to a row and two rows to a page; the pages slide sideways (`th_pgs`) inside the clip. The selected card has a ring and a tick.
+            //  With more than eight themes, the wheel over the cards turns the page (one page a turn: a touchpad's many small steps count once the cards have
+            //  slid). Its zone is declared before the cards: a press goes to the zone declared last, and the cards must keep theirs.
+            zone box th_cards { at: spx + 219 * pu, sby + 128 * pu; size: 420 * pu, 176 * pu; active: th_np > 1 and not tpw_open and not font_dd_open }
+            on scroll th_cards while wheel < 0 and abs(th_pgs - th_pgc) < 0.25 { th_pg = min(th_pgc + 1, th_np - 1) }
+            on scroll th_cards while wheel > 0 and abs(th_pgs - th_pgc) < 0.25 { th_pg = max(th_pgc - 1, 0) }
             group {
                 clip inset 0 box { at: spx + 219 * pu, sby + (84 + 44 * th_ex) * pu; size: 420 * pu, (80 + 88 * th_ex) * pu }
                 repeat i in 0..16 {
-                    let cx = spx + (62 + 104.67 * mod(i, 4)) * pu
-                    let cy = sby + (84 + 88 * floor(i / 4)) * pu
+                    let tcp = floor(i / 8)                      // its page
+                    let tcj = mod(i, 8)                         // and its place in it
+                    let cx = spx + (62 + 104.67 * mod(tcj, 4) + 420 * (tcp - th_pgs)) * pu
+                    let cy = sby + (84 + 88 * floor(tcj / 4)) * pu
                     let swa = rgb(if(themes.$i.live, wcol_tint_r, themes.$i.c0r), if(themes.$i.live, wcol_tint_g, themes.$i.c0g), if(themes.$i.live, wcol_tint_b, themes.$i.c0b))
                     let swb = rgb(if(themes.$i.live, wcol_panel_r, themes.$i.c1r), if(themes.$i.live, wcol_panel_g, themes.$i.c1g), if(themes.$i.live, wcol_panel_b, themes.$i.c1b))
                     let swc = rgb(if(themes.$i.live, wcol_ink_r, themes.$i.c2r), if(themes.$i.live, wcol_ink_g, themes.$i.c2g), if(themes.$i.live, wcol_ink_b, themes.$i.c2b))
@@ -56,13 +63,20 @@ part Theme {
                         ellipse { at: cx + 34 * pu, cy + 24 * pu; radius: 6.4 * pu; stroke: 1 * pu; color: ink; opacity: 28% }
                         ellipse { at: cx + 36 * pu, cy - 25 * pu; radius: 7 * pu; color: mint; opacity: if(theme_sel == i, 100%, 0) }
                         path { at: cx + 36 * pu, cy - 25 * pu; stroke: 1.5 * pu; color: onmint; opacity: if(theme_sel == i, 100%, 0); move -3 * pu, 0; line -0.9 * pu, 2.5 * pu; line 3.2 * pu, -2.7 * pu }
-                        zone box theme_hit.$i { at: cx, cy; size: 96 * pu, 76 * pu; corner: 14 * pu; cursor: pointer; active: i < themes.count and cy - th.off > sby and cy - th.off < sby + set.h * pu; label: "Theme" }
+                        zone box theme_hit.$i { at: cx, cy; size: 96 * pu, 76 * pu; corner: 14 * pu; cursor: pointer; active: i < themes.count and tcp == th_pgc and cy - th.off > sby and cy - th.off < sby + set.h * pu; label: "Theme" }
                         on press theme_hit.$i { emit theme_pick(i) }
                     }
                 }
             }
-            //  Under the cards: a line about the files (what went wrong with one, or where to put a theme) and, when there are more than four themes, dots for
-            //  where the strip is, with an arrow each side.
+            //  A dot for each page, under the cards, says which one is in view; pressing one goes to it.
+            repeat d in 0..2 {
+                let tda = clamp(1 - abs(th_pgs - d), 0, 1)                 // how much this one is the page in view
+                let tdx = spx + (219 + (d - (th_np - 1) / 2) * 18) * pu
+                box { at: tdx, sby + 225 * pu; size: (6 + 10 * tda) * pu, 6 * pu; corner: 3 * pu; color: mix(ink, mint, tda); opacity: if(d < th_np and th_np > 1, 30% + 60% * tda + 25% * th_dot.$d.hover, 0) }
+                zone box th_dot.$d { at: tdx, sby + 225 * pu; size: 18 * pu, 18 * pu; corner: 9 * pu; cursor: pointer; active: d < th_np and th_np > 1 and not tpw_open and not font_dd_open; label: "Theme page" }
+                on press th_dot.$d { th_pg = d }
+            }
+            //  Under the cards: a line about the files (what went wrong with one, or where to put a theme).
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (134 + 88 * th_ex) * pu + 0.5); text th_note { at: floor(spx + 14 * pu + 0.5), floor(sby + (134 + 88 * th_ex) * pu + 0.5); anchor: left center; size: 13; width: (270 * pu) / rs; lines: 1; color: if(th_err, alert, faint); opacity: if(th_err, 100%, 70%); family: "Space Grotesk" } }
             //  The font: a dropdown of the installed typefaces, a picture of the chosen one under it, and Apply (the shell starts again with it).
             let fnt_y = sby + (234 + 88 * th_ex) * pu                       // the trigger's top

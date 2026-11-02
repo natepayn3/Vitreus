@@ -1978,6 +1978,9 @@ scene Vitreus {
     fact th_scroll_to = 0              // the Theme page too (Settings > Theme)
     prop th_scroll = 0 ~quick
     follow th_scroll = th_scroll_to
+    fact th_pg = 0                     // the page of theme cards in view (Settings > Theme), and where the cards have slid to
+    prop th_pgs = 0 ~quick
+    follow th_pgs = th_pgc
     prop lk_scroll = 0 ~quick
     follow lk_scroll = lk_scroll_to
     event night_toggle ->
@@ -5283,7 +5286,11 @@ scene Vitreus {
     //  A fixed height, whatever the page: the panel used to follow the page in view (262 to 456), so it resized, and moved what hangs from it, with
     //  every click in the sidebar. A page taller than this scrolls inside it (they have their scroll thumb and "More" cue); a shorter one has
     //  empty glass at its foot. It never goes below the sidebar's last row.
-    let th_ex = max(0, floor((themes.count + 3) / 4) - 1)      // rows of theme cards beyond the first (Settings > Theme)
+    //  Settings > Theme: the cards are in pages of eight (two rows of four), turned with the wheel or the dots under them (`th_pg`, the page in view).
+    //  `th_ex` is the room the cards take beyond one row: a second row, and the dots when there is more than one page.
+    let th_np = max(1, floor((themes.count + 7) / 8))
+    let th_pgc = clamp(th_pg, 0, th_np - 1)
+    let th_ex = min(1, max(0, floor((themes.count + 3) / 4) - 1)) + if(th_np > 1, 0.2, 0)
     let wp.h = 533                    // the Wallpaper page: to the bottom of the gallery (it scrolls inside the panel when the panel is shorter)
     let set.h = max(side.ab + 40, 456 + 88 * th_ex * set_pgp)
     let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * pu
