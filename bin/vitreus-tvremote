@@ -757,7 +757,15 @@ class WebOS:
         self.request("com.webos.applicationManager/getForegroundAppInfo", on_reply=got)
 
     def close_app(self, aid):
-        """system.launcher/close is 403 on a CX whatever the manifest (signed or not): then the SDK's ares-launch --close, over Developer Mode."""
+        """Closing someone else's app is not ours to do on webOS. system.launcher/close is 403 on a CX whatever the manifest, signed or not, and
+        Developer Mode's ares-launch --close answers `Only Dev app should be closed using /dev category_API` for anything not sideloaded (measured
+        on a CX, 2026-11-01: exit 255). So a store app cannot be killed at all, and the next best thing is to leave it: Home is a launch, which IS
+        allowed. The app the TV then reports in front is the home screen, which `running` does not list, so the sheet empties either way."""
+        def home(why):
+            emit(ev="log", msg="webOS close %s: %s; going Home to leave it" % (aid, why))
+            self.request("system.launcher/launch", {"id": WEBOS_HOME[0]})
+            threading.Timer(1.0, self.running).start()
+
         def done(p):
             if not p.get("error"):
                 emit(ev="log", msg="webOS closed %s" % aid)
@@ -765,18 +773,24 @@ class WebOS:
                 return
             ares = shutil.which("ares-launch")
             if not ares:
-                emit(ev="log", msg="webOS close %s: %s (no ares-launch to fall back on)" % (aid, p["error"]))
-                self.running()
+                home("no ares-launch to fall back on")
                 return
 
             def go():
                 try:
                     r = subprocess.run([ares, "--close", aid, "-d", ARES_DEVICE], capture_output=True, text=True, timeout=25)
-                    out = (r.stdout + r.stderr).strip().replace("\n", " ")
-                    emit(ev="log", msg="ares-launch --close %s: %s" % (aid, out or ("exit %d" % r.returncode)))
                 except (OSError, subprocess.SubprocessError) as e:
                     emit(ev="log", msg="ares-launch --close %s: %s" % (aid, e))
-                self.running()
+                    home("ares-launch did not run")
+                    return
+                out = (r.stdout + r.stderr).strip().replace("\n", " ")
+                emit(ev="log", msg="ares-launch --close %s: %s" % (aid, out or ("exit %d" % r.returncode)))
+                if r.returncode == 0:
+                    self.running()                              # a sideloaded app: it really closed
+                elif "not running" in out:
+                    self.running()                              # already gone, the list was stale: just redraw it
+                else:
+                    home("Developer Mode only closes sideloaded apps")
             threading.Thread(target=go, daemon=True).start()
         self.request("system.launcher/close", {"id": aid}, on_reply=done)
 

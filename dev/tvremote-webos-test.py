@@ -193,8 +193,12 @@ def main():
     os.makedirs(data)
     fake = tmp + "/bin"                                 # a stand-in ares-launch for the close fallback
     os.makedirs(fake)
-    with open(fake + "/ares-launch", "w") as f:
-        f.write('#!/bin/sh\necho "$@" > "%s/ares.args"\n' % tmp)
+    with open(fake + "/ares-launch", "w") as f:                 # it fails, exit 255, with whatever message the test drops in ares.fail (as a real one does)
+        f.write('#!/bin/sh\necho "$@" > "%s/ares.args"\n'
+                'if [ -f "%s/ares.fail" ]; then\n'
+                '  echo "ares-launch ERR! [com.webos.applicationManager failure]: luna-send command failed <$(cat %s/ares.fail)>" >&2\n'
+                '  exit 255\n'
+                'fi\n' % (tmp, tmp, tmp))
     os.chmod(fake + "/ares-launch", 0o755)
     os.environ["PATH"] = fake + os.pathsep + os.environ["PATH"]
     h = Helper(data, "%d,%d" % (WSS, WS))
@@ -251,6 +255,24 @@ def main():
         time.sleep(0.1)
     if open(tmp + "/ares.args").read().split() != ["--close", "com.webos.app.hdmi2", "-d", "tv"]:
         fail("ares-launch args: %s" % open(tmp + "/ares.args").read())
+    # 4c-ii. webOS refuses to close anything not sideloaded ("Only Dev app should be closed using /dev category_API", exit 255).
+    #        A store app cannot be killed, so the remote leaves it instead: Home, which is a launch and is allowed.
+    open(tmp + "/ares.fail", "w").write("Only Dev app should be closed using /dev category_API")
+    os.unlink(tmp + "/ares.args")
+    REPLIES["ssap://com.webos.applicationManager/getForegroundAppInfo"] = {"appId": "netflix"}
+    h.send(cmd="running")
+    h.wait(lambda e: e.get("ev") == "running", "running netflix")
+    h.send(cmd="close", id="netflix")
+    sent(lambda m: m.get("uri") == "ssap://system.launcher/launch" and m.get("payload") == {"id": "com.webos.app.home"},
+         "a Home launch after a refused close")
+    # 4c-iii. "app is not running" is not a refusal: the list was stale, so it is redrawn and the TV is left alone
+    open(tmp + "/ares.fail", "w").write("app is not running")
+    n = len(LOG)
+    h.send(cmd="close", id="netflix")
+    h.wait(lambda e: e.get("ev") == "running", "running again after a stale close")
+    if any(m.get("uri") == "ssap://system.launcher/launch" for m in LOG[n:]):
+        fail("went Home for an app that was not running: %s" % [m.get("uri") for m in LOG[n:]])
+    os.unlink(tmp + "/ares.fail")
     # 4d. a closed app leaves the home screen in front: nothing running, and no crash
     REPLIES["ssap://com.webos.applicationManager/getForegroundAppInfo"] = {"appId": "com.webos.app.home"}
     h.send(cmd="running")
