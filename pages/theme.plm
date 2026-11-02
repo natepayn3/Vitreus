@@ -76,6 +76,17 @@ part Theme {
                 zone box th_dot.$d { at: tdx, sby + 225 * pu; size: 18 * pu, 18 * pu; corner: 9 * pu; cursor: pointer; active: d < th_np and th_np > 1 and not tpw_open and not font_dd_open; label: "Theme page" }
                 on press th_dot.$d { th_pg = d }
             }
+            //  A chevron on each side edge of the cards, halfway down them, goes to the next page / back to the previous one. Each shows only when there is
+            //  a page that way (fading as the cards slide), so with eight themes or fewer there are none. Declared after the cards so they sit over them.
+            let tcv_y = sby + 128 * pu
+            let tcr_a = clamp(th_np - 1 - th_pgs, 0, 1)                // the next page is there
+            let tcl_a = clamp(th_pgs, 0, 1)                            // the previous page is there
+            path { at: spx + 434 * pu, tcv_y; stroke: 2 * pu; color: ink; opacity: (55% + 45% * th_next.hover) * tcr_a; move -3 * pu, -7 * pu; line 3 * pu, 0; line -3 * pu, 7 * pu }
+            zone box th_next { at: spx + 432 * pu, tcv_y; size: 22 * pu, 34 * pu; corner: 8 * pu; cursor: pointer; active: th_pgc < th_np - 1 and not tpw_open and not font_dd_open; label: "Next themes" }
+            on press th_next { th_pg = min(th_pgc + 1, th_np - 1) }
+            path { at: spx + 4 * pu, tcv_y; stroke: 2 * pu; color: ink; opacity: (55% + 45% * th_prev.hover) * tcl_a; move 3 * pu, -7 * pu; line -3 * pu, 0; line 3 * pu, 7 * pu }
+            zone box th_prev { at: spx + 6 * pu, tcv_y; size: 22 * pu, 34 * pu; corner: 8 * pu; cursor: pointer; active: th_pgc > 0 and not tpw_open and not font_dd_open; label: "Previous themes" }
+            on press th_prev { th_pg = max(th_pgc - 1, 0) }
             //  Under the cards: a line about the files (what went wrong with one, or where to put a theme).
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (134 + 88 * th_ex) * pu + 0.5); text th_note { at: floor(spx + 14 * pu + 0.5), floor(sby + (134 + 88 * th_ex) * pu + 0.5); anchor: left center; size: 13; width: (270 * pu) / rs; lines: 1; color: if(th_err, alert, faint); opacity: if(th_err, 100%, 70%); family: "Space Grotesk" } }
             //  The font: a dropdown of the installed typefaces, a picture of the chosen one under it, and Apply (the shell starts again with it).
