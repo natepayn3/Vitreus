@@ -1080,10 +1080,12 @@ function F.poll_devices()
             F.merge_nets()
         end)
     end
-    -- and the network filesystems the kernel itself has mounted: from fstab, from an automount, or by hand.
-    -- gvfs knows nothing of those, so without this a share mounted at boot shows up nowhere on the left, and
-    -- the only way to reach it is to pin its folder.
-    run("findmnt", { "-rno", "FSTYPE,TARGET,SOURCE", "-t", "cifs,smb3,nfs,nfs4,fuse.sshfs" }, function(o)
+    -- and the network filesystems the system has: the ones the kernel has mounted now, and the ones fstab
+    -- declares. gvfs knows nothing of either. Both are needed: an `x-systemd.automount` share unmounts itself
+    -- when it has been idle, and then the kernel has nothing to report — but the place has to stay, since a
+    -- folder that is always there is the whole point of an automount. fstab still declares it, so it is listed
+    -- and clicking it mounts it again.
+    local function from_findmnt(o)
         local nets = {}
         for l in (o or ""):gmatch("[^\n]+") do
             local target, source = l:match("^%S+%s+(%S+)%s+(%S+)")
@@ -1096,17 +1098,29 @@ function F.poll_devices()
                 nets[#nets + 1] = { name = nm, path = target, sys = true }
             end
         end
-        s.nets_sys = nets
+        return nets
+    end
+    local kinds = "cifs,smb3,nfs,nfs4,fuse.sshfs"
+    run("findmnt", { "-rno", "FSTYPE,TARGET,SOURCE", "-t", kinds }, function(o)
+        s.nets_live = from_findmnt(o)
+        F.merge_nets()
+    end)
+    run("findmnt", { "--fstab", "-rno", "FSTYPE,TARGET,SOURCE", "-t", kinds }, function(o)
+        s.nets_fstab = from_findmnt(o)
         F.merge_nets()
     end)
 end
 
--- The two sources of network places together: what gvfs mounted and what the kernel mounted. The list is
--- rebuilt only when it really changed, so the sidebar does not flicker on every poll.
+-- The sources of network places together: what gvfs mounted, what the kernel has mounted, and what fstab
+-- declares — an idle automount is only in the last one. The same path from two of them is one place. The list
+-- is rebuilt only when it really changed, so the sidebar does not flicker on every poll.
 function F.merge_nets()
-    local nets = {}
-    for _, n in ipairs(s.nets_gvfs or {}) do nets[#nets + 1] = n end
-    for _, n in ipairs(s.nets_sys or {}) do nets[#nets + 1] = n end
+    local nets, seen = {}, {}
+    for _, from in ipairs({ s.nets_gvfs or {}, s.nets_live or {}, s.nets_fstab or {} }) do
+        for _, n in ipairs(from) do
+            if not seen[n.path] then seen[n.path] = true; nets[#nets + 1] = n end
+        end
+    end
     local sig = {}
     for _, n in ipairs(nets) do sig[#sig + 1] = n.path end
     local key = table.concat(sig, ";")
