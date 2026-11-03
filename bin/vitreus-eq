@@ -84,6 +84,7 @@ error = ""
 claim = False           # make the EQ the default output the next time there is a chance (switched on, or restored at start)
 lost = ""               # the output the filter was on when it went away (a headset switched off): the filter goes back to it when it returns
 lost_claim = False      # ... and whether the EQ was the default output then (so it takes the default again, on the fallback and on the return)
+stopping = threading.Event()    # set on SIGTERM: nothing more is started (at a shutdown the sound server goes first, and restarting into it held the shutdown 90 s)
 
 
 def emit(**kw):
@@ -210,6 +211,8 @@ def start_chain(tgt):
     chain = subprocess.Popen(["pipewire", "-c", CONF], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, preexec_fn=die_with_parent)
     target = tgt
     for _ in range(40):
+        if stopping.is_set():
+            break
         if chain.poll() is not None:
             lines = chain.stderr.read().decode(errors="replace").strip().splitlines()
             error = lines[-1][:120] if lines else "the filter stopped"
@@ -239,12 +242,33 @@ def stop_chain(restore):
     vol_last["for"] = ""
 
 
-def real_default():
+def configured_default():
+    """The output the user chose, as PipeWire saved it. It can be missing (a headset not connected yet), and then `default_sink()` is a stand-in PipeWire picked."""
+    m = re.search(r"default\.configured\.audio\.sink'\s+value:'\{\s*\"name\"\s*:\s*\"([^\"]+)\"", out("pw-metadata", "-n", "default"))
+    return m.group(1) if m else ""
+
+
+def last_output():
+    try:
+        return open(os.path.join(DATA, "last_output")).read().strip()
+    except Exception:
+        return ""
+
+
+def wanted_output():
+    """The output the filter should play into, and the one it should move to when that one turns up ("" if it is already there).
+    The user's choice is the saved default; when that is "Vitreus EQ" itself (the helper before this one was cut off, a forced reboot) it is the
+    output the EQ last played into. If it is not there yet (a Bluetooth headset connects after login), the filter plays into what is there meanwhile
+    (`lost`), and moves when it appears: before this, the stand-in was taken as the choice, remembered as the last output, and kept."""
+    chosen = configured_default()
+    if chosen == SINK or not chosen:
+        chosen = last_output()
+    if chosen and chosen != SINK and sink_exists(chosen):
+        remember_output(chosen)
+        return chosen, ""
     d = default_sink()
-    if d and d != SINK:
-        remember_output(d)
-        return d
-    return ""
+    now = d if d and d != SINK else (target or fallback_sink())
+    return now, (chosen if chosen != SINK else "")
 
 
 def fallback_sink():
@@ -253,14 +277,7 @@ def fallback_sink():
     The one it last played into first (`last_output`), then the one PipeWire has saved as the user's choice, and only then any."""
     names = [l.split("\t")[1] for l in out("pactl", "list", "short", "sinks").splitlines() if len(l.split("\t")) > 1]
     names = [n for n in names if n != SINK]
-    wanted = []
-    try:
-        wanted.append(open(os.path.join(DATA, "last_output")).read().strip())
-    except Exception:
-        pass
-    m = re.search(r"default\.configured\.audio\.sink'\s+value:'\{\s*\"name\"\s*:\s*\"([^\"]+)\"", out("pw-metadata", "-n", "default"))
-    if m:
-        wanted.append(m.group(1))
+    wanted = [last_output(), configured_default()]
     for n in wanted:
         if n in names:
             return n
@@ -285,6 +302,8 @@ def reconcile():
     stays on the output it was on (it does not follow the pick, so a TV picked for a while does not become what "Vitreus EQ" plays into);
     it only moves when its output goes away, or when the EQ is switched off and on."""
     global target, error, claim, lost, lost_claim
+    if stopping.is_set():
+        return
     with lock:
         if want_on:
             if chain is not None and chain.poll() is not None:
@@ -307,7 +326,9 @@ def reconcile():
                     tgt, lost = lost, ""
                     lost_claim = False
                 else:
-                    tgt = real_default() or target or fallback_sink()
+                    tgt, later = wanted_output()
+                    if later and later != tgt:
+                        lost, lost_claim = later, (claim or lost_claim or default_sink() == SINK)
                 if not tgt:
                     error = "no output to play into"
                 elif start_chain(tgt):
@@ -562,9 +583,25 @@ def take_over():
 
 
 def shutdown(*_):
-    with lock:
-        stop_chain(target)
-    sys.exit(0)
+    """Give the default output back and stop the filter, in a few seconds at most: at a system shutdown the sound server is going or gone,
+    each pactl waits out its timeout, and the other threads may hold the lock for as long. Whatever is not done by then is left (the next start copes)."""
+    stopping.set()
+
+    def tidy():
+        if lock.acquire(timeout=2):
+            stop_chain(target)
+
+    t = threading.Thread(target=tidy, daemon=True)
+    t.start()
+    t.join(6)
+    c = chain
+    if c is not None:
+        try:
+            c.kill()
+        except Exception:
+            pass
+    sys.stdout.flush()
+    os._exit(0)                 # (not sys.exit: from the handler it can land inside a `with lock` of the main thread, and wait on the daemon threads' pactl)
 
 
 def main():
