@@ -3807,15 +3807,11 @@ local function ask_obs()
     end)
 end
 local function ask_look()
-    run("pleamar", { "--say", "vitreus", "get cas" }, function(cas, code)
-        if code ~= 0 or not cas then return end
-        run("pleamar", { "--say", "vitreus", "get uwu" }, function(uwu, code2)
-            if code2 ~= 0 or not uwu then return end
-            run("pleamar", { "--say", "vitreus", "get cyber_on" }, function(cy, code3)
-                if code3 ~= 0 or not cy then return end
-                fact.look = cas:match("true") and 1 or (uwu:match("true") and 2 or (cy:match("true") and 3 or 0))
-            end)
-        end)
+    -- the exact number Vitreus pushes (`look_v`): its theme flags alone left Milk, Proxy, Paper and Doodle as Glass, and the later asks overwrote the push
+    run("pleamar", { "--say", "vitreus", "get look_v" }, function(out, code)
+        if code ~= 0 or not out then return end
+        local v = tonumber(out:match("%-?%d+"))
+        if v and v >= 0 then fact.look = v end
     end)
 end
 local GLASS_FACTS = { gop = "glass_op", gbend = "files_bend", grefr = "glass_refr", gdisp = "glass_disp", gclear = "glass_clear", gdome = "glass_dome", gmilk = "glass_milk", grim = "glass_rim" }

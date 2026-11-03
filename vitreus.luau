@@ -3501,6 +3501,8 @@ do
         local av = iris_cfg.look == iris_fx.PROXY and 5 or iris_cfg.look == iris_fx.PAPER and 4 or v             -- add-ons know Proxy as 5 (the desktop widgets below still take it as Cyber's 3)
         addon_look = av
         local vw = iris_cfg.look == iris_fx.PROXY and 5 or v       -- the clock, system monitor and cards know Proxy as 5 (the other desktop scenes still take it as Cyber's 3)
+        fact.look_w = vw          -- and kept, for a widget that starts later to ask for
+        fact.look_v = v
         run("pleamar", { "--say", "desktopclock", "fact look " .. vw }, function() end)
         run("pleamar", { "--say", "desktopsysmon", "fact look " .. vw }, function() end)
         run("pleamar", { "--say", "desktopcards", "fact look " .. vw }, function() end)

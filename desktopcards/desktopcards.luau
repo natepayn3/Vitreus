@@ -279,15 +279,11 @@ ask_obs()
 after(4000, ask_obs)
 -- And which theme it has (0 Glass, 1 Retro, 2 UwU, 3 Cyber): the last three are not glass, so the cards are plastic plates there. Vitreus tells it when the theme changes.
 local function ask_look()
-    run("pleamar", { "--say", "vitreus", "get cas" }, function(cas, code)
-        if code ~= 0 or not cas then return end
-        run("pleamar", { "--say", "vitreus", "get uwu" }, function(uwu, code2)
-            if code2 ~= 0 or not uwu then return end
-            run("pleamar", { "--say", "vitreus", "get cyber_on" }, function(cy, code3)
-                if code3 ~= 0 or not cy then return end
-                fact.look = cas:match("true") and 1 or (uwu:match("true") and 2 or (cy:match("true") and 3 or 0))
-            end)
-        end)
+    -- the exact number Vitreus pushes (`look_w`): its theme flags alone left Milk, Proxy, Paper and Doodle as Glass, and the later asks overwrote the push
+    run("pleamar", { "--say", "vitreus", "get look_w" }, function(out, code)
+        if code ~= 0 or not out then return end
+        local v = tonumber(out:match("%-?%d+"))
+        if v and v >= 0 then fact.look = v end
     end)
 end
 ask_look()
