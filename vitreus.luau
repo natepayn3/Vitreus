@@ -7198,6 +7198,7 @@ require("logic/bar_monitors")(with_dirs)
 require("logic/gpu")(with_dirs)
 
 -- panels from a key, on the focused monitor: see logic/panel_monitor.luau
+snd_hook = {}   -- filled by the panel sound below (the key bind sets desk_open from the logic, which fires no fact handler)
 require("logic/panel_monitor")()
 
 -- bar position: see logic/bar_position.luau
@@ -8749,6 +8750,7 @@ do
         last_at = now
         run("pw-play", { "--volume", "0.25", home .. "/.config/pleamar/shells/vitreus/assets/panel.wav" }, function() end)
     end
+    snd_hook.chime = chime
     local quiet = { none = true, volume = true, notif = true }
     on("fact:panel", function(v) if not quiet[tostring(v)] then chime() end end)
     on("fact:desk_open", function(v) if v == true then chime() end end)   -- the Desk is not one of the panels: it has its own fact

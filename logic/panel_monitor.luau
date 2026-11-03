@@ -105,6 +105,9 @@ return function()
     on("launch_toggle", function() panel_toggle("launch") end)
     on("settings_toggle", function() panel_toggle("settings") end)
     on("desk_toggle", function()
-        toggle_here(function() return fact.desk_open == true end, function(v) fact.desk_open = v end)
+        toggle_here(function() return fact.desk_open == true end, function(v)
+            fact.desk_open = v
+            if v and snd_hook and snd_hook.chime then snd_hook.chime() end   -- set from the logic, so the fact handler does not hear it
+        end)
     end)
 end
