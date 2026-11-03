@@ -21,9 +21,9 @@ P="$1"; L="$2"
 export PATH="$HOME/.local/bin:$PATH"
 pleamar --say vitreus quit >/dev/null 2>&1
 i=0
-while pgrep -f "^pleamar --scene $P" >/dev/null && [ $i -lt 15 ]; do sleep 0.2; i=$((i+1)); done
-pkill -f "^pleamar --scene $P"
-pkill -f "^pleamar --scene .*/vitreus/desktop"  # the desktop widgets restart with the shell (their keepers start them again)
+while pgrep -f "^([^ ]*/)?pleamar --scene $P" >/dev/null && [ $i -lt 15 ]; do sleep 0.2; i=$((i+1)); done
+pkill -f "^([^ ]*/)?pleamar --scene $P"
+pkill -f "^([^ ]*/)?pleamar --scene .*/vitreus/desktop"  # the desktop widgets restart with the shell (their keepers start them again)
 sleep 0.3
 [ "$(stat -c %s "$L" 2>/dev/null || echo 0)" -gt 1048576 ] && mv -f "$L" "$L.1"
 # under its keeper when there is one (bin/vitreus-keep): a keeper already looking after it starts it again itself

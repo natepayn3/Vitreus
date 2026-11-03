@@ -361,7 +361,8 @@ return function()
     local function start(a)
         run("pgrep", { "-f", "pleamar --scene " .. a.scene .. "( |$)" }, function(_, code)
             if code ~= 0 then
-                exec_on_desktop('vitreus-keep "' .. a.scene .. '"')
+                -- single-quoted for the shell: the path comes from an add-on's folder, and in double quotes a `$(…)` in a file name would run
+                exec_on_desktop("vitreus-keep '" .. a.scene:gsub("'", "'\\''") .. "'")
             end
             local known = false
             for _, sk in ipairs(addon_scenes) do if sk == a.sock then known = true end end

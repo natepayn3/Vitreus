@@ -19,7 +19,7 @@ export PATH="$HOME/.local/bin:$PATH"
 name=$(basename "$P" .plm)
 run="${XDG_RUNTIME_DIR:-/tmp}"
 say() { printf 'vitreus-keep · %s · %s\n' "$name" "$*" >> "$L"; }
-running() { pgrep -f "^pleamar --scene $P( |\$)" > /dev/null; }
+running() { pgrep -f "^([^ ]*/)?pleamar --scene $P( |\$)" > /dev/null; }
 # The display is there only if something answers on its socket: a compositor that has gone (pleamar-wm logged out of)
 # can leave the socket file behind, and then every start panics with NoCompositor.
 alive() {
@@ -54,6 +54,11 @@ while :; do
         exit 0
     fi
     alive || exit 0
+    # The log is appended to for as long as the session lasts (a long one wrote tens of MB of "slow frame" lines): past 8 MB it is kept
+    # as LOG.1 (one generation, replacing the one before) and started again, at a start of the scene, never while it is writing.
+    if [ "$L" != /dev/null ] && [ -f "$L" ] && [ "$(stat -c %s "$L" 2> /dev/null || echo 0)" -gt 8000000 ]; then
+        mv -f "$L" "$L.1" 2> /dev/null
+    fi
     started=$(date +%s)
     # The shell's typeface (Settings > Theme): Glass is Space Grotesk and Retro a VCR face, unless the Theme page's font picker chose another. pleamar's
     # font names are fixed in the scenes, so another typeface is shown by starting it with a font setup where "Space Grotesk" is that one (bin/vitreus-fonts

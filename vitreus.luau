@@ -380,6 +380,12 @@ local function show_art(path)
     end)
 end
 
+-- The covers pile up in /tmp (memory) with every new song, one or two files each: every half hour, those not looked at for two hours go,
+-- never the one on show. (No new local: this file is at Luau's limit of 200.)
+every(30 * 60 * 1000, function()
+    local cur = (text.arturl or ""):match("([^/]+)$") or "-"
+    run("find", { "/tmp", "-maxdepth", "1", "-name", "vitreus-art-*", "-mmin", "+120", "-not", "-name", cur, "-delete" }, function() end)
+end)
 local function use_art(url)
     if url == art_url then return end
     art_url = url
@@ -387,8 +393,9 @@ local function use_art(url)
     if url:sub(1, 7) == "file://" then
         show_art(unpercent(url:sub(8)))
     elseif url:match("^https?://") then
+        -- (the URL is whatever a player says: at most 16 MB of it lands in /tmp, which is memory, and a redirect stays on http(s))
         local path = "/tmp/vitreus-art-" .. hash(url) .. ".img"
-        run("curl", { "-fsSL", "--max-time", "8", "-o", path, url }, function(_, code)
+        run("curl", { "-fsSL", "--max-time", "8", "--max-filesize", "16M", "--proto-redir", "=http,https", "-o", path, url }, function(_, code)
             if code == 0 and art_url == url then show_art(path) end
         end)
     else
@@ -2985,9 +2992,9 @@ P="$1"; L="$2"
 export PATH="$HOME/.local/bin:$PATH"
 pleamar --say vitreus quit >/dev/null 2>&1
 i=0
-while pgrep -f "^pleamar --scene $P" >/dev/null && [ $i -lt 15 ]; do sleep 0.2; i=$((i+1)); done
-pkill -f "^pleamar --scene $P"
-pkill -f "^pleamar --scene .*/vitreus/desktop"  # the desktop widgets restart with the shell (their keepers start them again)
+while pgrep -f "^([^ ]*/)?pleamar --scene $P" >/dev/null && [ $i -lt 15 ]; do sleep 0.2; i=$((i+1)); done
+pkill -f "^([^ ]*/)?pleamar --scene $P"
+pkill -f "^([^ ]*/)?pleamar --scene .*/vitreus/desktop"  # the desktop widgets restart with the shell (their keepers start them again)
 sleep 0.3
 [ "$(stat -c %s "$L" 2>/dev/null || echo 0)" -gt 1048576 ] && mv -f "$L" "$L.1"
 # under its keeper when there is one (bin/vitreus-keep): a keeper already looking after it starts it again itself
@@ -3681,12 +3688,13 @@ do
         if i <= top then top = i - 1 elseif i > top + ROWS then top = i - ROWS end
         top = math.max(0, math.min(math.max(0, #view - ROWS), top))
     end
-    -- (Both fc programs run without FONTCONFIG_FILE: the shell's own font setup makes "Space Grotesk" the typeface in use, which would answer for it.)
+    -- (Both fc programs run with the system's own FONTCONFIG_FILE, not the shell's font setup, which makes "Space Grotesk" the typeface in use and would answer for it.
+-- Set through `run`'s own `env`, not by running them under `env -u`: `env` in the permissions would let the logic run any command at all.)
     -- The preview: the typeface's file (fc-match answers with the one the name stands for), drawn as three lines in the text colour.
     local function preview()
         local fam = chosen or default_font()
         local pat = ":family=" .. fam:gsub("[-:,=\\]", "\\%0")
-        run("env", { "-u", "FONTCONFIG_FILE", "fc-match", pat, "-f", "%{file}" }, function(file, code)
+        run("fc-match", { pat, "-f", "%{file}" }, function(file, code)
             if code ~= 0 or not file or file == "" then return end
             local pal = iris_fx.last_pal or iris_fx.saved or {}
             with_dirs(function(d)
@@ -3698,7 +3706,7 @@ do
                     "-gravity", "west", "-background", "none", "-append", "-gravity", "northwest", "-extent", "1420x440", out },
                     function(_, c2) if c2 == 0 then text.font_prevurl = out .. "?" .. pv_n end end)
             end)
-        end)
+        end, { env = { FONTCONFIG_FILE = "/etc/fonts/fonts.conf" } })
     end
     -- Each key would start two programs, so the picture is made once the choosing stops.
     local function preview_soon()
@@ -3727,7 +3735,7 @@ do
         preview()
     end
     local SKIP = { "symbol", "emoji", "icon", "awesome", "dingbat", "material", "webdings", "wingdings" }
-    run("env", { "-u", "FONTCONFIG_FILE", "fc-list", ":", "family" }, function(out, code)
+    run("fc-list", { ":", "family" }, function(out, code)
         if code ~= 0 or not out then return end
         local seen, names = {}, {}
         for line in out:gmatch("[^\n]+") do
@@ -3746,7 +3754,7 @@ do
         narrow()
         show()
         preview()
-    end)
+    end, { env = { FONTCONFIG_FILE = "/etc/fonts/fonts.conf" } })
     on("font_open", function()                         -- the dropdown opens with the chosen one in view, and nothing searched for
         query = ""
         text.font_q = ""

@@ -74,7 +74,7 @@ void main() {
     end
 
     local function set_option(value)
-        run("hyprctl", { "eval", 'hl.config({ decoration = { screen_shader = "' .. value .. '" } })' }, function() end)
+        run("hyprctl", { "eval", "hl.config({ decoration = { screen_shader = " .. string.format("%q", value) .. " } })" }, function() end)
     end
 
     -- hyprsunset: make sure its daemon is there (started in identity: it changes nothing until told), then call back.
