@@ -3334,14 +3334,16 @@ local function wpv_save()
     pcall(sys.call, "files.write", "wallpaper-video.json", { path = wpv.cur or "" })
 end
 
--- The wallpaper `f` is now what awww shows: stop the video that was playing, and play `f` if it is one.
+-- The wallpaper `f` is now what awww shows: stop the video that was playing, and play `f` if it is one. mpvpaper is stopped with SIGKILL: with `-s` its
+-- watcher, while the wallpaper is hidden, ignores SIGTERM and stayed behind, a second one playing. The video is decoded on the card (`hwdec=auto-safe`):
+-- a 4K60 one decoded on the CPU took cores while the wallpaper showed.
 function wpv.settle(f, keep_running)
     wpv.cur = wpv.is(f) and f or nil
     wpv_save()
-    local line = "pkill -x mpvpaper"
+    local line = "pkill -9 -x mpvpaper"
     if wpv.cur then
         -- `keep_running`: the shell restarted, and the video it left playing is the one wanted
-        line = (keep_running and "pgrep -x mpvpaper > /dev/null || " or (line .. "; ")) .. "exec mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' '"
+        line = (keep_running and "pgrep -x mpvpaper > /dev/null || " or (line .. "; ")) .. "exec mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no hwdec=auto-safe' '*' '"
             .. f:gsub("'", "'\\''") .. "' < /dev/null > /dev/null 2>&1"
     end
     exec_on_desktop(line)
@@ -3406,7 +3408,7 @@ local function check_wallpaper()
         if path and wpv.cur and shown ~= wpv.cur and not wpv.next then
             wpv.cur = nil
             wpv_save()
-            exec_on_desktop("pkill -x mpvpaper")
+            exec_on_desktop("pkill -9 -x mpvpaper")
         end
         if path and shown ~= iris_last_wp then
             iris_last_wp = shown
@@ -4427,7 +4429,7 @@ wp_load()
 -- lives in the Hyprland section below (it puts its setter in `glass.set_blur`).
 -- `clear` (0 clear glass .. 1 frosted, pleamar's `frost:`) and `auto` (frost only where what is behind is busy) are the glass that bends's own
 -- frost, and only show with `bend`. (There was once a "glass amount" slider, the scene's `glass:`: it overlapped Opacity and the Glass switch, and is always 100 % now.)
-local glass = { opacity = 1, rim = 1, refr = 1, disp = 1, dome = 0, milk = 0, bend = false, live = false, bend_mon = nil, obsidian = false, clear = 1, auto = false, cap_ms = 300 }
+local glass = { opacity = 1, rim = 1, refr = 1, disp = 1, dome = 0, milk = 0, bend = false, live = false, bend_mon = nil, obsidian = false, clear = 1, auto = false, cap_ms = 300, rest = true }
 local GLASS_OP_MIN = 0.3
 local glass_save_waiting = false
 
@@ -4455,6 +4457,7 @@ local function glass_refresh()
     fact.files_bend = (glass.bend or glass.live) and not glass.game and not glass.hg      -- Files asks for this one as it starts (files.luau)
     fact.glass_x = glass.bend
     fact.glass_live = glass.live
+    fact.glass_rest = glass.rest
     fact.lens_interval_ms = glass.cap_ms             -- pleamar reads this one: the least time between two captures for Live bend
     fact.glass_clear = glass.clear
     fact.glass_auto = glass.auto
@@ -4510,7 +4513,7 @@ local function glass_save_soon()
     glass_save_waiting = true
     after(500, function()
         glass_save_waiting = false
-        pcall(sys.call, "files.write", "glass.json", { opacity = glass.opacity, rim = glass.rim, refr = glass.refr, disp = glass.disp, dome = glass.dome, milk = glass.milk, bend = glass.bend, live = glass.live, bend_mon = glass.bend_mon, obsidian = glass.obsidian, clear = glass.clear, auto = glass.auto, cap_ms = glass.cap_ms })
+        pcall(sys.call, "files.write", "glass.json", { opacity = glass.opacity, rim = glass.rim, refr = glass.refr, disp = glass.disp, dome = glass.dome, milk = glass.milk, bend = glass.bend, live = glass.live, bend_mon = glass.bend_mon, obsidian = glass.obsidian, clear = glass.clear, auto = glass.auto, cap_ms = glass.cap_ms, rest = glass.rest })
     end)
 end
 
@@ -4525,6 +4528,7 @@ do
         if type(saved.milk) == "number" then glass.milk = math.max(0, math.min(1, saved.milk)) end
         if type(saved.bend) == "boolean" then glass.bend = saved.bend end
         if type(saved.live) == "boolean" then glass.live = saved.live end
+        if type(saved.rest) == "boolean" then glass.rest = saved.rest end
         if type(saved.bend_mon) == "string" and saved.bend_mon ~= "" then glass.bend_mon = saved.bend_mon end
         if type(saved.obsidian) == "boolean" then glass.obsidian = saved.obsidian end
         if type(saved.clear) == "number" then glass.clear = math.max(0, math.min(1, saved.clear)) end
@@ -4564,6 +4568,7 @@ end)
 -- the monitors' names arrive after the shell starts, and change when one is plugged in
 every(2000, glass_mons)
 on("glass_live_toggle", function() glass.live = not glass.live; glass_refresh(); glass_save_soon() end)
+on("glass_rest_toggle", function() glass.rest = not glass.rest; glass_refresh(); glass_save_soon() end)
 on("glass_bend_toggle", function() glass.bend = not glass.bend; glass_refresh(); glass_save_soon() end)
 on("glass_clear_set", function(t) glass.clear = glass.step(t, 1); glass_refresh(); glass_save_soon() end)
 on("glass_auto_toggle", function() glass.auto = not glass.auto; glass_refresh(); glass_save_soon() end)
@@ -7691,7 +7696,7 @@ require("logic/keybinds")()
             -- back, or the kept one started, when the picker closes). A video card is tried as its poster, a still frame of it.
             if wpv.cur and not wp_prev.stopped then
                 wp_prev.stopped = true
-                exec_on_desktop("pkill -x mpvpaper")
+                exec_on_desktop("pkill -9 -x mpvpaper")
             end
             wp_apply(f, { "--transition-type", "fade", "--transition-duration", "0.35", "--transition-fps", "60" }, nil, nil, true)
         end)
