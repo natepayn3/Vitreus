@@ -4465,7 +4465,7 @@ local function glass_refresh()
     text.glass_disp_text = string.format("%d%%", math.floor(glass.disp * 100 + 0.5))
     text.glass_dome_text = string.format("%d%%", math.floor(glass.dome * 100 + 0.5))
     text.glass_milk_text = string.format("%d%%", math.floor(glass.milk * 100 + 0.5))
-    text.glass_cap_text = string.format("%d ms", glass.cap_ms)
+    text.glass_cap_text = (glass.cap_ms <= 16) and "Every frame" or string.format("%d ms", glass.cap_ms)
 end
 -- The desktop clock and system monitor are scenes of their own: they are told when the glass goes off or on (they ask for it themselves when they start).
 function glass.push_obs()
@@ -4529,7 +4529,7 @@ do
         if type(saved.obsidian) == "boolean" then glass.obsidian = saved.obsidian end
         if type(saved.clear) == "number" then glass.clear = math.max(0, math.min(1, saved.clear)) end
         if type(saved.auto) == "boolean" then glass.auto = saved.auto end
-        if type(saved.cap_ms) == "number" then glass.cap_ms = math.max(50, math.min(1000, saved.cap_ms)) end
+        if type(saved.cap_ms) == "number" then glass.cap_ms = math.max(16, math.min(1000, saved.cap_ms)) end
     end
     glass_refresh()
 end
@@ -4547,7 +4547,12 @@ on("glass_rim_set", function(t) glass.rim = glass.step(t, 2); glass_refresh(); g
 on("glass_refr_set", function(t) glass.refr = glass.step(t, 3); glass_refresh(); glass_save_soon() end)
 on("glass_disp_set", function(t) glass.disp = glass.step(t, 2.5); glass_refresh(); glass_save_soon() end)
 on("glass_dome_set", function(t) glass.dome = glass.step(t, 1.5); glass_refresh(); glass_save_soon() end)
-on("glass_cap_set", function(t) glass.cap_ms = 50 + math.floor(math.max(0, math.min(1, t)) * 19 + 0.5) * 50; glass_refresh(); glass_save_soon() end)
+-- The far left is every frame (16 ms). Cheap only where the engine copies captures on the card (pleamar branch zerocopy-0.7); through shared memory it costs a core.
+on("glass_cap_set", function(t)
+    local k = math.floor(math.max(0, math.min(1, t)) * 20 + 0.5)
+    glass.cap_ms = (k == 0) and 16 or k * 50
+    glass_refresh(); glass_save_soon()
+end)
 on("glass_milk_set", function(t) glass.milk = glass.step(t, 1); glass_refresh(); glass_save_soon() end)
 on("glass_obs_toggle", function() glass.obsidian = not glass.obsidian; glass_refresh(); glass_save_soon() end)
 on("glass_bend_mon", function(i)
