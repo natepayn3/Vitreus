@@ -5029,9 +5029,9 @@ local function disp_trial_text()
     text.disp_trial_text = string.format("Keep these display settings? Putting them back in %d s", disp_trial)
 end
 
--- A new mode makes the shell start again, but only once the trial is over (logic/monitor_height.luau: its surface keeps the size it had, and it
--- waits for Keep). A trial is still written down as it starts, and picked up by the next run, in case the shell stops some other way meanwhile
--- (a crash, a sleep): a trial held only in memory would be lost with it, the question gone and nothing to put back.
+-- A new mode makes the shell start again at once, trial or not (logic/monitor_height.luau: its surface keeps the size it had, and the Keep button
+-- could be off the new screen). So a trial is written down as it starts and picked up by the next run, which asks again on the page at the new
+-- size; a trial held only in memory would be lost with the restart, the question gone and nothing to put back.
 local function disp_trial_save(ends, restored)
     pcall(sys.call, "files.write", "display-trial.json", { ends = ends, before = disp_before, restored = restored == true })
 end

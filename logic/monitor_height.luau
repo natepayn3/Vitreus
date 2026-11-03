@@ -7,9 +7,9 @@
 -- its own, or takes it away, and the other monitors keep theirs as they are. (Restarting then made the bar, already on its new monitor, and the
 -- desktop widgets vanish and come back a few seconds later.) The restart is the keeper's (bin/vitreus-keep starts the scene again when
 -- it stops), and the new run takes the monitors as they are as its starting point, so it does not go round again.
--- A change that is on trial (Settings > Display: "Keep these display settings?") does not restart anything: the shell stays as it is while the
--- question is open, so that the page and its Keep button do not vanish under the pointer. Keep restarts it (a moment later); Revert puts the monitors
--- back to what the shell is laid out for, and there is nothing to restart.
+-- A change that is on trial (Settings > Display: "Keep these display settings?") restarts it too, at once: held at the old size, the page and its
+-- Keep button could be off the new screen, with no way to answer. The trial is written down (display-trial.json), so the new run opens the
+-- Display page again and asks there, with a fresh countdown; Keep then has nothing to restart, and Revert restarts it back to the old mode.
 return function()
     local base = nil      -- the monitors the shell is laid out for: name -> "width,height,scale,transform"
     local latest = nil    -- the monitors as they are now
@@ -21,22 +21,11 @@ return function()
         end
         return false
     end
-    local function trial_on()
-        if (tonumber(fact.disp_trial) or 0) > 0 then return true end
-        -- the trial is written down before the mode is sent (and cleared by Keep, Revert or a refusal), so this also covers the moment
-        -- between the mode changing and the page's countdown starting
-        local ok, t = pcall(sys.ask, "files.read", "display-trial.json", "json")
-        return ok and type(t) == "table" and type(t.before) == "table" and next(t.before) ~= nil
-    end
-    local calm = 0        -- how many looks in a row found the monitors changed and no trial open (Revert clears the trial a moment before the monitors go back)
+    local calm = 0        -- how many looks in a row found the monitors changed (Hyprland can report a mode switch in two steps)
     local function maybe_restart()
         if not changed() then
             calm = 0
             base = latest or base
-            return
-        end
-        if trial_on() then
-            calm = 0
             return
         end
         calm = calm + 1
@@ -86,6 +75,6 @@ return function()
     end
     sync()
     every(4000, sync)
-    -- while a change waits for its answer, look often, so that Keep restarts the shell at once
+    -- once a change is seen, look again soon, so that the restart comes at once
     every(1000, function() if changed() then sync() end end)
 end
