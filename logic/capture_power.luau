@@ -109,9 +109,21 @@ return function(set_panel)
     -- been held for one second, so nothing here has to ask again.
     local user = nil
     run("printenv", { "USER" }, function(out) user = (out or ""):gsub("%s+$", "") end)
+    -- A session action that fails says so, with the program's own last line (polkit "Access denied", an inhibitor, no lock
+    -- screen running...): before, a refused `systemctl poweroff` did nothing at all and looked like a broken button (issue #57).
+    local function failed(what)
+        return function(out, code)
+            if code == 0 then return end
+            local why = ""
+            for l in (out or ""):gmatch("[^\n]+") do if l:match("%S") then why = l end end
+            if why == "" then why = "it ended with code " .. tostring(code) end
+            run("notify-send", { "-u", "critical", "-a", "Vitreus", "Couldn't " .. what, why }, function() end)
+        end
+    end
     local function do_it(i)
-        if i == 0 then spawn('pleamar --say lockscreen "fact locked true"')
-        elseif i == 1 then run("systemctl", { "suspend" }, function() end)
+        -- `run` finds pleamar in ~/.local/bin; a command handed to the desktop's shell did not where the session's PATH lacks it.
+        if i == 0 then run("pleamar", { "--say", "lockscreen", "fact locked true" }, failed("lock the screen (is the lock screen running?)"), { errors = true })
+        elseif i == 1 then run("systemctl", { "suspend" }, failed("suspend"), { errors = true })
         elseif i == 2 then
             -- Leave through the compositor, so the session ends by itself and SDDM gets its helper back and shows the login screen again.
             -- (`loginctl terminate-user` kills SDDM's own helper along with the session: SDDM calls that a crash and shows nothing.)
@@ -126,8 +138,8 @@ return function(set_panel)
                     end)
                 end
             end)
-        elseif i == 3 then run("systemctl", { "reboot" }, function() end)
-        elseif i == 4 then run("systemctl", { "poweroff" }, function() end) end
+        elseif i == 3 then run("systemctl", { "reboot" }, failed("restart"), { errors = true })
+        elseif i == 4 then run("systemctl", { "poweroff" }, failed("power off"), { errors = true }) end
     end
     on("pow_press", function(i)
         i = math.floor(i + 0.5)

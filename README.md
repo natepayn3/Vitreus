@@ -213,7 +213,8 @@ The packages `install.sh` installs (pacman, and the AUR for the last two):
 | Package | Used for |
 | --- | --- |
 | `git`, `curl`, `fontconfig` | fetching Vitreus, weather and cover art, the launcher's web answers, and the fonts |
-| `hyprsunset` | Night mode |
+| `hyprsunset` | Night mode on Hyprland |
+| `wlsunset` | Night mode on pleamar-wm and niri |
 | `socat` | sending the palette and other changes to the lock screen and desktop widgets, and Hyprland's events (urgent windows, screen-share light) |
 | `awww` | the wallpaper picker |
 | `iris-colors` (AUR) | theming from the wallpaper |

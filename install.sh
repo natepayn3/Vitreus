@@ -79,12 +79,12 @@ fonts_fuzzy="$data/fonts/FuzzyBubbles"
 fonts_fredoka="$data/fonts/Fredoka"
 
 # Official-repo packages, then AUR ones: what each is for is in the README.
-pacman_pkgs="gcc pkgconf wayland wayland-protocols git curl jq python fontconfig socat glib2 file imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle hyprsunset libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww ffmpeg grim slurp wf-recorder power-profiles-daemon polkit python-gobject python-pyte ttf-space-mono-nerd pipewire-audio sound-theme-freedesktop tesseract tesseract-data-eng"
+pacman_pkgs="gcc pkgconf wayland wayland-protocols git curl jq python fontconfig socat glib2 file imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle hyprsunset wlsunset libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww ffmpeg grim slurp wf-recorder power-profiles-daemon polkit python-gobject python-pyte ttf-space-mono-nerd pipewire-audio sound-theme-freedesktop tesseract tesseract-data-eng"
 aur_pkgs="iris-colors mpvpaper"
 # Debian and Ubuntu: the same list by their names. UNTESTED (written without a Debian machine to try it on), and some of these are
 # not in every release (hypridle, cliphist, wf-recorder...): each is looked up and installed on its own, and a missing one is only said.
 # Not here, because Debian has no package: awww, mpvpaper, hyprsunset, iris, the Space Mono Nerd Font (listed below for hand install).
-apt_pkgs="gcc pkgconf libwayland-dev wayland-protocols git curl jq python3 fontconfig socat libglib2.0-bin file imagemagick cava playerctl network-manager bluez brightnessctl hypridle libnotify-bin xdg-user-dirs xdg-utils wl-clipboard cliphist ffmpeg grim slurp wf-recorder power-profiles-daemon polkitd python3-gi python3-pyte pipewire-bin sound-theme-freedesktop tesseract-ocr tesseract-ocr-eng"
+apt_pkgs="gcc pkgconf libwayland-dev wayland-protocols git curl jq python3 fontconfig socat libglib2.0-bin file imagemagick cava playerctl network-manager bluez brightnessctl hypridle wlsunset libnotify-bin xdg-user-dirs xdg-utils wl-clipboard cliphist ffmpeg grim slurp wf-recorder power-profiles-daemon polkitd python3-gi python3-pyte pipewire-bin sound-theme-freedesktop tesseract-ocr tesseract-ocr-eng"
 
 assume_yes=false
 dry=false
@@ -424,7 +424,7 @@ if $deps; then
     brightnessctl   the brightness slider
     hypridle        Caffeine
     hyprsunset      Night mode (REQUIRED on Hyprland: https://github.com/hyprwm/hyprsunset)
-    wlsunset        Night mode on niri (https://sr.ht/~kennylevinsen/wlsunset/)
+    wlsunset        Night mode on niri and pleamar-wm (https://sr.ht/~kennylevinsen/wlsunset/)
     libnotify       calendar reminders (notify-send)
     xdg-user-dirs   finding your Pictures folder, and the places in Files' sidebar
     git, fontconfig
@@ -441,9 +441,10 @@ LIST
         fi
         warn "hyprsunset is not installed: Night mode (Hyprland only) will not work"
     fi
-    # niri has no night light of its own: Night mode there is wlsunset (it sets the gamma through the compositor).
-    if have niri && ! have wlsunset; then
-        warn "niri is installed but wlsunset is not: Night mode on niri needs it (sudo pacman -S wlsunset on Arch, sudo apt install wlsunset on Debian)"
+    # niri and pleamar-wm have no night light of their own: Night mode there is wlsunset (it sets the gamma through the compositor).
+    # It is in the package lists above; this is for when those were skipped or the release has none.
+    if { have niri || have pleamar-wm; } && ! have wlsunset; then
+        warn "wlsunset is not installed: Night mode on niri and pleamar-wm needs it (sudo pacman -S wlsunset on Arch, sudo apt install wlsunset on Debian)"
     fi
     have hyprctl || have niri || warn "Neither Hyprland nor niri was found. Vitreus needs a Wayland compositor with layer-shell; the list of running windows needs Hyprland or niri."
 
