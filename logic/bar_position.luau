@@ -18,6 +18,8 @@ return function()
         -- the desktop scenes keep their widgets' grid out of the bar's room (`room_*`): told again whenever the bar moves. (A fact the logic sets itself
         -- does not fire `on("fact:bar_anchor")`, so it has to be said from here.)
         if iris_fx and iris_fx.push_room then iris_fx.push_room() end
+        -- and whether the music is listened to: only the Island swells on the beat (same reason)
+        if cava_want then cava_want() end
     end
     local ok, saved = pcall(sys.ask, "files.read", "bar-position.json", "json")
     if ok and type(saved) == "table" then

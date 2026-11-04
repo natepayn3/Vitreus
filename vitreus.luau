@@ -337,12 +337,14 @@ end
 -- cava only runs while what it feeds is on screen: the bar's swell on the beat, which only the Island layout
 -- has (in the Frame layout the bar is the frame, and `pv` is 0), and the equalizer in the player's panel. Left
 -- running in the Frame layout it kept the `pulse` spring moving for nothing, and so the whole scene painting at the
--- monitor's rate for as long as music played. (Globals: this chunk is at Luau's limit of locals.)
+-- monitor's rate for as long as music played. The Island is the one layout that is not a frame: Segments and the
+-- top and bottom frames are anchored at the top or the bottom too, and with a panel open (60 fps) the beat kept
+-- the screen-wide glass painting at about 23 fps. (Globals: this chunk is at Luau's limit of locals.)
 cava_playing = false
 game_fx = { on = false }          -- Game mode (logic/gamemode.luau) sets `on`: nothing listens to the music while it is
 function cava_want()
     if game_fx.on then hush() return end
-    if cava_playing and (fact.bar_anchor == "top" or fact.bar_anchor == "bottom" or watching or eq_float() or fw_on()) then listen() else hush() end
+    if cava_playing and ((fact.bar_frame ~= true and (fact.bar_anchor == "top" or fact.bar_anchor == "bottom")) or watching or eq_float() or fw_on()) then listen() else hush() end
 end
 
 -- The cover. Every player publishes it the same way (MPRIS `mpris:artUrl`), and
