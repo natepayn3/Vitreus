@@ -10,7 +10,7 @@
 --   mon   which monitor shows it, by name ("": all of them); the page's chip is `fw_mon`, and the scene gets that monitor's size (`fw_sw`, `fw_sh`)
 -- The slider events (`fw_cols_set` …) carry where on the track it was pressed, 0 to 1. The facts can be set from outside too (`pleamar --say vitreus "fact fw_sens 2"`) and are kept.
 return function()
-    local cfg = { v = 2, on = true, cols = 24, sens = 1, hgt = 150, bl = 1, lay = 0, mon = "" }
+    local cfg = { v = 2, on = true, cols = 24, sens = 1, hgt = 50, bl = 1, lay = 0, mon = "" }
     local function clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
     local function norm(k, v)
         v = tonumber(v) or cfg[k]
