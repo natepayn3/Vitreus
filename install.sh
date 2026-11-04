@@ -79,12 +79,23 @@ fonts_fuzzy="$data/fonts/FuzzyBubbles"
 fonts_fredoka="$data/fonts/Fredoka"
 
 # Official-repo packages, then AUR ones: what each is for is in the README.
-pacman_pkgs="gcc pkgconf wayland wayland-protocols git curl jq python fontconfig socat glib2 file imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle hyprsunset wlsunset libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww ffmpeg grim slurp wf-recorder power-profiles-daemon polkit python-gobject python-pyte ttf-space-mono-nerd pipewire-audio sound-theme-freedesktop tesseract tesseract-data-eng"
+pacman_pkgs="gcc pkgconf wayland wayland-protocols git curl jq python fontconfig socat glib2 file imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww ffmpeg grim slurp wf-recorder power-profiles-daemon polkit python-gobject python-pyte ttf-space-mono-nerd pipewire-audio sound-theme-freedesktop tesseract tesseract-data-eng"
 aur_pkgs="iris-colors mpvpaper"
 # Debian and Ubuntu: the same list by their names. UNTESTED (written without a Debian machine to try it on), and some of these are
 # not in every release (hypridle, cliphist, wf-recorder...): each is looked up and installed on its own, and a missing one is only said.
 # Not here, because Debian has no package: awww, mpvpaper, hyprsunset, iris, the Space Mono Nerd Font (listed below for hand install).
-apt_pkgs="gcc pkgconf libwayland-dev wayland-protocols git curl jq python3 fontconfig socat libglib2.0-bin file imagemagick cava playerctl network-manager bluez brightnessctl hypridle wlsunset libnotify-bin xdg-user-dirs xdg-utils wl-clipboard cliphist ffmpeg grim slurp wf-recorder power-profiles-daemon polkitd python3-gi python3-pyte pipewire-bin sound-theme-freedesktop tesseract-ocr tesseract-ocr-eng"
+apt_pkgs="gcc pkgconf libwayland-dev wayland-protocols git curl jq python3 fontconfig socat libglib2.0-bin file imagemagick cava playerctl network-manager bluez brightnessctl hypridle libnotify-bin xdg-user-dirs xdg-utils wl-clipboard cliphist ffmpeg grim slurp wf-recorder power-profiles-daemon polkitd python3-gi python3-pyte pipewire-bin sound-theme-freedesktop tesseract-ocr tesseract-ocr-eng"
+
+# Night mode is hyprsunset on Hyprland, and wlsunset everywhere else (niri, pleamar-wm): each is only wanted where its compositor is,
+# and wlsunset also where there is no Hyprland at all. A machine with Hyprland and pleamar-wm gets both. (Here `have` is not defined yet.)
+# Debian has no hyprsunset package: it is in the hand-install list below.
+on_hypr=false
+{ command -v Hyprland > /dev/null 2>&1 || command -v hyprland > /dev/null 2>&1; } && on_hypr=true
+$on_hypr && pacman_pkgs="$pacman_pkgs hyprsunset"
+if command -v niri > /dev/null 2>&1 || command -v pleamar-wm > /dev/null 2>&1 || ! $on_hypr; then
+    pacman_pkgs="$pacman_pkgs wlsunset"
+    apt_pkgs="$apt_pkgs wlsunset"
+fi
 
 assume_yes=false
 dry=false
@@ -127,23 +138,191 @@ if ! $dry; then
         printf '\n=== %s · install.sh %s ===\n' "$(date)" "$*" >> "$installlog"
     } 2> /dev/null || true
 fi
-trap 'rc=$?; [ "$rc" -eq 0 ] || log "stopped with status $rc"' EXIT
 
-say()  { log "$*"; printf '\033[1;36mvitreus ·\033[0m %s\n' "$*"; }
-warn() { log "warning: $*"; printf '\033[1;33mvitreus ·\033[0m %s\n' "$*" >&2; }
-fail() { log "FAILED: $*"; printf '\033[1;31mvitreus ·\033[0m %s\n' "$*" >&2; exit 1; }
+# ── how it looks ───────────────────────────────────────────────────────────
+# On a terminal: the word VITREUS pinned at the top (everything below scrolls under it, in a scroll region), a bar for the step it is on,
+# and a mark before each line. Piped, run by Settings (--refresh), not UTF-8, or with NO_COLOR or VITREUS_PLAIN set: plain "vitreus ·" lines.
+# A terminal too small for the banner gets the colours and marks without it.
+esc=$(printf '\033')
+color=false
+fancy=false
+case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in *[Uu][Tt][Ff]-8*|*[Uu][Tt][Ff]8*) utf=true ;; *) utf=false ;; esac
+if [ -t 1 ] && $utf && [ "${TERM:-dumb}" != dumb ] && [ -z "${NO_COLOR:-}" ] && [ -z "${VITREUS_PLAIN:-}" ] && ! $refresh; then color=true; fi
+if $color; then
+    c0="$esc[0m"; c_b="$esc[1m"; c_dim="$esc[2m"
+    c_acc="$esc[38;5;45m"; c_ok="$esc[38;5;114m"; c_warn="$esc[38;5;221m"; c_bad="$esc[38;5;203m"; c_q="$esc[38;5;177m"; c_rule="$esc[38;5;238m"
+    # The word's colours, one per letter, cyan to violet to pink (24-bit where the terminal says it has it).
+    case "${COLORTERM:-}" in
+        truecolor|24bit) i=0; for c in "94;234;255" "72;204;255" "96;165;250" "129;140;248" "167;139;250" "200;130;250" "236;121;220"; do
+                i=$((i + 1)); eval "g$i=\"\$esc[38;2;\${c}m\""; done ;;
+        *) i=0; for c in 51 45 39 33 63 135 171; do i=$((i + 1)); eval "g$i=\"\$esc[38;5;\${c}m\""; done ;;
+    esac
+    export VITREUS_UI=1        # files/integrate.sh prints its lines the same way
+else
+    c0=""; c_b=""; c_dim=""; c_acc=""; c_ok=""; c_warn=""; c_bad=""; c_q=""; c_rule=""
+fi
+
+# The word, letter by letter (| between letters, so each takes its own colour).
+art1='██╗   ██╗|██╗|████████╗|██████╗ |███████╗|██╗   ██╗|███████╗'
+art2='██║   ██║|██║|╚══██╔══╝|██╔══██╗|██╔════╝|██║   ██║|██╔════╝'
+art3='██║   ██║|██║|   ██║   |██████╔╝|█████╗  |██║   ██║|███████╗'
+art4='╚██╗ ██╔╝|██║|   ██║   |██╔══██╗|██╔══╝  |██║   ██║|╚════██║'
+art5=' ╚████╔╝ |██║|   ██║   |██║  ██║|███████╗|╚██████╔╝|███████║'
+art6='  ╚═══╝  |╚═╝|   ╚═╝   |╚═╝  ╚═╝|╚══════╝|╚═════╝ |╚══════╝'
+head_h=11                  # the banner's rows: a blank, the word (6), a blank, the subtitle, the step, a rule
+
+if [ "$action" = uninstall ]; then ui_mode="taking it away"
+elif [ "$action" = stop ]; then ui_mode="ending the test"
+elif $trial; then ui_mode="trying it out"
+elif [ -f "$dest/vitreus.plm" ]; then ui_mode="updating"
+else ui_mode="installing"; fi
+$dry && ui_mode="$ui_mode (dry run: nothing is changed)"
+stage_n=0
+stage_total=0
+stage_name=""
+ui_state=run               # run, done or failed: the colour of the step line
+
+term_size() {
+    sz=$(stty size < /dev/tty 2> /dev/null) || sz=""
+    rows=${sz% *}; cols=${sz#* }
+    case "$rows$cols" in ''|*[!0-9]*) rows=$(tput lines 2> /dev/null); cols=$(tput cols 2> /dev/null) ;; esac
+    case "$rows" in ''|*[!0-9]*) rows=0 ;; esac
+    case "$cols" in ''|*[!0-9]*) cols=0 ;; esac
+}
+repeat() { r=""; k=0; while [ "$k" -lt "$2" ]; do r="$r$1"; k=$((k + 1)); done; printf '%s' "$r"; }
+draw_word() {
+    for n in 1 2 3 4 5 6; do
+        eval "row=\$art$n"
+        line=""; i=0
+        old_ifs=$IFS; IFS='|'; set -- $row; IFS=$old_ifs
+        for piece in "$@"; do i=$((i + 1)); eval "line=\"\$line\$g$i\$piece\""; done
+        printf '%s[2K  %s%s%s\n' "$esc" "$c_b" "$line" "$c0"
+    done
+}
+# The step line: a bar of the steps done, and the one it is on.
+status_line() {
+    case "$ui_state" in
+        done)   printf '  %s✓ %s%s' "$c_ok$c_b" "$stage_name" "$c0" ;;
+        failed) printf '  %s✗ stopped at: %s%s' "$c_bad$c_b" "$stage_name" "$c0" ;;
+        *)
+            if [ "$stage_total" -gt 0 ]; then
+                bw=$((cols - 44)); [ "$bw" -gt 32 ] && bw=32; [ "$bw" -lt 8 ] && bw=8
+                full=$((stage_n * bw / stage_total))
+                printf '  %s%s%s%s%s  %s%s%s  %s%d/%d%s' "$c_acc" "$(repeat ━ "$full")" "$c_rule" "$(repeat ─ $((bw - full)))" "$c0" \
+                    "$c_b" "$stage_name" "$c0" "$c_dim" "$stage_n" "$stage_total" "$c0"
+            else
+                printf '  %s%s%s' "$c_b" "$stage_name" "$c0"
+            fi ;;
+    esac
+}
+banner_status() { $fancy || return 0; printf '%s7%s[10;1H%s[2K%s%s8' "$esc" "$esc" "$esc" "$(status_line)" "$esc"; }
+draw_banner() {
+    printf '%s[H%s[2K\n' "$esc" "$esc"
+    draw_word
+    printf '%s[2K\n' "$esc"
+    printf '%s[2K  %sa glass desktop shell for pleamar%s  %s·%s  %s\n' "$esc" "$c_dim" "$c0" "$c_acc" "$c0" "$ui_mode"
+    printf '%s[2K%s\n' "$esc" "$(status_line)"
+    printf '%s[2K%s%s%s' "$esc" "$c_rule" "$(repeat ─ "$cols")" "$c0"
+}
+ui_start() {
+    $color || return 0
+    term_size
+    if [ "$rows" -ge 24 ] && [ "$cols" -ge 60 ]; then
+        fancy=true
+        ui_rows=$rows; ui_cols=$cols
+        # Push what is on the screen up into the scrollback, draw the banner, and keep the rest of the run below it.
+        k=0; while [ "$k" -lt "$rows" ]; do printf '\n'; k=$((k + 1)); done
+        draw_banner
+        printf '%s[%d;%dr%s[%d;1H' "$esc" $((head_h + 1)) "$rows" "$esc" $((head_h + 1))
+    elif [ "$cols" -ge 60 ]; then
+        printf '\n'; draw_word
+        printf '\n  %sa glass desktop shell for pleamar%s  %s·%s  %s\n' "$c_dim" "$c0" "$c_acc" "$c0" "$ui_mode"
+    else
+        printf '\n  %sV I T R E U S%s  %s%s%s\n' "$g1$c_b" "$c0" "$c_dim" "$ui_mode" "$c0"
+    fi
+}
+# The window changed size: draw the banner again (the terminal may have dropped the scroll region), or give it up when it no longer fits.
+ui_fit() {
+    $fancy || return 0
+    term_size
+    [ "$rows" = "$ui_rows" ] && [ "$cols" = "$ui_cols" ] && return 0
+    ui_rows=$rows; ui_cols=$cols
+    if [ "$rows" -lt 24 ] || [ "$cols" -lt 60 ]; then ui_end; return 0; fi
+    printf '%s7' "$esc"
+    draw_banner
+    printf '%s[%d;%dr%s8' "$esc" $((head_h + 1)) "$rows" "$esc"
+}
+# The end of the run: the whole screen scrolls again, the banner stays where it is until the next lines push it up.
+ui_end() { $fancy || return 0; fancy=false; printf '%s7%s[r%s8' "$esc" "$esc" "$esc"; }
+
+stage() {
+    stage_n=$((stage_n + 1)); stage_name=$1
+    log "── $1"
+    $color || return 0
+    ui_fit
+    printf '\n  %s▍%s%s%s\n' "$c_acc" "$c_b" "$1" "$c0"
+    banner_status
+}
+say()  { log "$*"; if $color; then ui_fit; printf '  %s•%s %s\n' "$c_acc" "$c0" "$*"; else printf 'vitreus · %s\n' "$*"; fi; }
+warn() { log "warning: $*"; if $color; then ui_fit; printf '  %s! %s%s\n' "$c_warn$c_b" "$c0$c_warn$*" "$c0" >&2; else printf 'vitreus · %s\n' "$*" >&2; fi; }
+fail() {
+    log "FAILED: $*"
+    if $color; then
+        printf '\n  %s✗ %s%s\n' "$c_bad$c_b" "$*" "$c0" >&2
+        [ -n "$stage_name" ] || stage_name=$ui_mode
+        ui_state=failed; banner_status
+    else printf 'vitreus · %s\n' "$*" >&2; fi
+    exit 1
+}
+ui_done() {
+    if $color; then
+        stage_n=$stage_total; stage_name="done"; ui_state=done; banner_status
+        if $dry; then printf '\n  %s✓ dry run done: nothing was changed%s\n' "$c_ok$c_b" "$c0"
+        else printf '\n  %s✓ Vitreus is ready%s\n' "$c_ok$c_b" "$c0"; fi
+        log "done."
+    else say "done."; fi
+}
+# The questions' look (the asking itself is ask and ask_no, below).
+prompt() {
+    if $color; then printf '  %s?%s %s %s%s%s ' "$c_q$c_b" "$c0" "$1" "$c_dim" "$2" "$c0" > /dev/tty
+    else printf 'vitreus · %s %s ' "$1" "$2" > /dev/tty; fi
+}
+# What --dry-run says it would do, dimmed.
+would() { printf '    %swould %s%s\n' "$c_dim" "$*" "$c0"; }
+# The list at the end: a label, dimmed, and what it says.
+heading() { if $color; then printf '\n  %s%s%s\n' "$c_acc$c_b" "$1" "$c0"; else printf '\n  %s\n' "$1"; fi; }
+# On a terminal, $HOME is written ~ and a long line wraps under its own column.
+row() {
+    if $color; then
+        v=$(printf '%s' "$2" | sed "s|$HOME/|~/|g")
+        w=$((${cols:-0} - 27))
+        if [ "$w" -ge 30 ]; then
+            first=true
+            printf '%s\n' "$v" | fold -s -w "$w" | while IFS= read -r l; do
+                if $first; then printf '  %s%-22s%s %s\n' "$c_dim" "$1" "$c0" "$l"; first=false; else printf '  %-22s %s\n' "" "$l"; fi
+            done
+            return 0
+        fi
+        printf '  %s%-22s%s %s\n' "$c_dim" "$1" "$c0" "$v"
+    else
+        printf '  %-22s %s\n' "$1" "$2"
+    fi
+}
+trap 'rc=$?; ui_end; [ "$rc" -eq 0 ] || log "stopped with status $rc"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM HUP
 have() { command -v "$1" > /dev/null 2>&1; }
 
 # Do a command, or, with --dry-run, only say it.
 run() {
-    if $dry; then printf '    would run: %s\n' "$*"; else
+    if $dry; then would "run: $*"; else
         if "$@"; then :; else rc=$?; log "command failed ($rc): $*"; return "$rc"; fi
     fi
 }
 # run_kept CMD…: run, and when it fails keep the last of what it printed in the install log too, so that a report says why (a
 # step like the login screen's prints its reason and only "command failed (1)" was kept).
 run_kept() {
-    if $dry; then printf '    would run: %s\n' "$*"; return 0; fi
+    if $dry; then would "run: $*"; return 0; fi
     out=$(mktemp) || { run "$@"; return; }
     st=$(mktemp) || { rm -f "$out"; run "$@"; return; }
     { "$@"; echo $? > "$st"; } 2>&1 | tee "$out"
@@ -163,7 +342,7 @@ ask() {
     $refresh && return 1
     $assume_yes && return 0
     if tty_ok; then
-        printf '\033[1;36mvitreus ·\033[0m %s [Y/n] ' "$1" > /dev/tty
+        prompt "$1" "[Y/n]"
         read -r answer < /dev/tty || answer=y
         case "$answer" in n|N|no|No) return 1 ;; *) return 0 ;; esac
     fi
@@ -174,7 +353,7 @@ ask_no() {
     $refresh && return 1
     $assume_yes && return 0
     if tty_ok; then
-        printf '\033[1;36mvitreus ·\033[0m %s [y/N] ' "$1" > /dev/tty
+        prompt "$1" "[y/N]"
         read -r answer < /dev/tty || answer=n
         case "$answer" in y|Y|yes|Yes) return 0 ;; *) return 1 ;; esac
     fi
@@ -184,6 +363,9 @@ ask_no() {
 
 [ "$(id -u)" -ne 0 ] || fail "run this as yourself, not as root: it installs into your home (and asks for sudo only for packages)"
 [ "$(uname -s)" = Linux ] || fail "Vitreus is a Linux (Wayland) shell"
+# The steps the bar counts (an install or update; --no-deps leaves out the first four after the check).
+if [ "$action" = install ]; then if $deps; then stage_total=13; else stage_total=9; fi; fi
+ui_start
 
 # ── uninstall ──────────────────────────────────────────────────────────────
 if [ "$action" = uninstall ]; then
@@ -312,6 +494,7 @@ fi
 # own the notifications, the wallpaper or the polkit agent), so this stops before touching anything. Which shell does not matter: Quickshell is
 # running (qs or quickshell) and it has a configuration of any kind in ~/.config/quickshell or the system's XDG_CONFIG_DIRS (/etc/xdg).
 # --yes does not skip it, since it is not a question of packages: only --force does. An update of Vitreus itself is not stopped.
+stage "looking for another shell"
 if [ "$action" = install ] && ! $force && ! $refresh && ! { [ -f "$autostart" ] && grep -q 'vitreus.plm' "$autostart"; }; then
     if pgrep -x qs > /dev/null 2>&1 || pgrep -x quickshell > /dev/null 2>&1; then
         # Any configuration at all (a folder, or a shell.qml directly in it), where Quickshell looks: the user's, then the system's (XDG_CONFIG_DIRS).
@@ -338,6 +521,7 @@ fi
 
 # ── 1. packages ────────────────────────────────────────────────────────────
 if $deps; then
+    stage "the packages"
     if have pacman; then
         missing=""
         for p in $pacman_pkgs; do pacman -Qi "$p" > /dev/null 2>&1 || missing="$missing $p"; done
@@ -423,7 +607,7 @@ if $deps; then
     BlueZ           Bluetooth (bluetoothctl)
     brightnessctl   the brightness slider
     hypridle        Caffeine
-    hyprsunset      Night mode (REQUIRED on Hyprland: https://github.com/hyprwm/hyprsunset)
+    hyprsunset      Night mode on Hyprland (REQUIRED there: https://github.com/hyprwm/hyprsunset)
     wlsunset        Night mode on niri and pleamar-wm (https://sr.ht/~kennylevinsen/wlsunset/)
     libnotify       calendar reminders (notify-send)
     xdg-user-dirs   finding your Pictures folder, and the places in Files' sidebar
@@ -433,13 +617,11 @@ if $deps; then
 LIST
     fi
     # On Hyprland hyprsunset is not optional: Night mode is driven by it. Without it the shell would have to fall back to a Hyprland
-    # screen shader, which makes Hyprland rebuild its buffers on every change and flicker while a panel is open. Elsewhere Night
-    # mode is not there anyway, so it is only a note.
-    if ! $dry && ! have hyprsunset; then
-        if { have Hyprland || have hyprland; } && ! $refresh; then
-            fail "hyprsunset is required on Hyprland (it is what Night mode uses) and it is not installed. Install it and run this again: sudo pacman -S hyprsunset (Arch), or your distribution's package (https://github.com/hyprwm/hyprsunset)"
-        fi
-        warn "hyprsunset is not installed: Night mode (Hyprland only) will not work"
+    # screen shader, which makes Hyprland rebuild its buffers on every change and flicker while a panel is open. Without Hyprland it
+    # is not used at all, so nothing is said.
+    if $on_hypr && ! $dry && ! have hyprsunset; then
+        $refresh || fail "hyprsunset is required on Hyprland (it is what Night mode uses) and it is not installed. Install it and run this again: sudo pacman -S hyprsunset (Arch), or your distribution's package (https://github.com/hyprwm/hyprsunset)"
+        warn "hyprsunset is not installed: Night mode on Hyprland will not work"
     fi
     # niri and pleamar-wm have no night light of their own: Night mode there is wlsunset (it sets the gamma through the compositor).
     # It is in the package lists above; this is for when those were skipped or the release has none.
@@ -451,6 +633,7 @@ LIST
     # ── 1b. a Vulkan driver for the graphics card ──
     # pleamar draws with Vulkan. Its own installer brings the loader (vulkan-icd-loader), but the driver is the card's own package, which a minimal install does not have: with none,
     # pleamar finds no graphics adapter and the shell does not start, with nothing on screen to say why. So each card found is looked up here, and only a missing driver is said or offered.
+    stage "the graphics driver"
     if ! $refresh; then
         gpu_vendors=""
         for v in /sys/class/drm/card[0-9]*/device/vendor; do
@@ -511,6 +694,7 @@ LIST
     fi
 
     # ── 2. pleamar ──
+    stage "pleamar"
     if $refresh; then :  # pleamar and the fonts are not touched here
     elif have pleamar || [ -x "$HOME/.local/bin/pleamar" ]; then
         pv=$( { pleamar --version 2> /dev/null || "$HOME/.local/bin/pleamar" --version 2> /dev/null; } | sed -n 's/^pleamar \([0-9][0-9.]*\).*/\1/p' | head -1)
@@ -518,7 +702,7 @@ LIST
         if $do_wm && ! have pleamar-wm && [ ! -x "$HOME/.local/bin/pleamar-wm" ] && have pleamar-update; then
             say "pleamar-wm, pleamar's window manager, is not installed"
             if ask "install it now? (built from source; Vitreus then also runs as a session at the login screen)"; then
-                if $dry; then echo "    would run: pleamar-update --all"
+                if $dry; then would "run: pleamar-update --all"
                 else pleamar-update --all || warn "pleamar-update --all failed: run it yourself to get pleamar-wm"
                 fi
             fi
@@ -529,7 +713,7 @@ LIST
             warn "Vitreus needs pleamar $pleamar_min or newer (this is $pv): older ones fail to load the scene with \"there is nothing called 'motion.reduced'\""
             if have pleamar-update; then
                 if ask "update pleamar now? (built from source; a few minutes)"; then
-                    if $dry; then echo "    would run: pleamar-update"
+                    if $dry; then would "run: pleamar-update"
                     else
                         pleamar-update || fail "pleamar-update failed (see above); Vitreus needs pleamar $pleamar_min or newer. Run it yourself, then run this again"
                         # Read the version again: a build that ends well can still leave an older pleamar first on the PATH.
@@ -556,7 +740,7 @@ LIST
                 do_wm=false
             fi
             if $dry; then
-                echo "    would run: curl -fsSL $pleamar_installer | sh $pleamar_args"
+                would "run: curl -fsSL $pleamar_installer | sh $pleamar_args"
             else
                 have curl || fail "curl is needed to fetch pleamar's installer"
                 # shellcheck disable=SC2086
@@ -573,13 +757,14 @@ LIST
 
     # ── 3. the font ──
     # (Settings > About runs this with --refresh, which downloads what a theme draws in without asking: a theme added by an update has its typeface.)
+    stage "the fonts"
     ask_font() { $refresh && return 0; ask "$1"; }
     if $deps; then
     if have fc-list && fc-list 2> /dev/null | grep -qi 'space grotesk'; then
         say "the Space Grotesk font is installed"
     elif ask_font "install the Space Grotesk font (into $fonts)?"; then
         if $dry; then
-            echo "    would download $font_url"
+            would "download $font_url"
         else
             mkdir -p "$fonts"
             curl -fsSL -m 120 "$font_url" -o "$fonts/SpaceGrotesk[wght].ttf" || warn "could not download the font: install Space Grotesk yourself"
@@ -592,7 +777,7 @@ LIST
         say "the Audiowide font is installed"
     elif ask_font "install the Audiowide font, for the Retro theme (into $fonts_dot)?"; then
         if $dry; then
-            echo "    would download $dot_url"
+            would "download $dot_url"
         else
             mkdir -p "$fonts_dot"
             curl -fsSL -m 120 "$dot_url" -o "$fonts_dot/Audiowide-Regular.ttf" || warn "could not download Audiowide: the Retro theme will use Space Grotesk until you install it"
@@ -604,7 +789,7 @@ LIST
         say "the Mochiy Pop One font is installed"
     elif ask_font "install the Mochiy Pop One font, for the UwU theme (into $fonts_mochiy)?"; then
         if $dry; then
-            echo "    would download $mochiy_url"
+            would "download $mochiy_url"
         else
             mkdir -p "$fonts_mochiy"
             curl -fsSL -m 120 "$mochiy_url" -o "$fonts_mochiy/MochiyPopOne-Regular.ttf" || warn "could not download Mochiy Pop One: the UwU theme will use Space Grotesk until you install it"
@@ -615,7 +800,7 @@ LIST
         say "the Orbitron font is installed"
     elif ask_font "install the Orbitron font, for the Cyber theme (into $fonts_orbitron)?"; then
         if $dry; then
-            echo "    would download $orbitron_url"
+            would "download $orbitron_url"
         else
             mkdir -p "$fonts_orbitron"
             curl -fsSL -m 120 "$orbitron_url" -o "$fonts_orbitron/Orbitron[wght].ttf" || warn "could not download Orbitron: the Cyber theme will use Space Grotesk until you install it"
@@ -627,7 +812,7 @@ LIST
         say "the Zen Kurenaido font is installed"
     elif ask_font "install the Zen Kurenaido font, for the Milk theme (into $fonts_kurenaido)?"; then
         if $dry; then
-            echo "    would download $kurenaido_url"
+            would "download $kurenaido_url"
         else
             mkdir -p "$fonts_kurenaido"
             curl -fsSL -m 120 "$kurenaido_url" -o "$fonts_kurenaido/ZenKurenaido-Regular.ttf" || warn "could not download Zen Kurenaido: the Milkbox theme will use Space Grotesk until you install it"
@@ -639,7 +824,7 @@ LIST
         say "the Titan One font is installed"
     elif ask_font "install the Titan One font, for the Proxy theme (into $fonts_titan)?"; then
         if $dry; then
-            echo "    would download $titan_url"
+            would "download $titan_url"
         else
             mkdir -p "$fonts_titan"
             curl -fsSL -m 120 "$titan_url" -o "$fonts_titan/TitanOne-Regular.ttf" || warn "could not download Titan One: the Proxy theme will use Space Grotesk until you install it"
@@ -651,7 +836,7 @@ LIST
         say "the Fuzzy Bubbles font is installed"
     elif ask_font "install the Fuzzy Bubbles font, for the Paper theme (into $fonts_fuzzy)?"; then
         if $dry; then
-            echo "    would download $fuzzy_url"
+            would "download $fuzzy_url"
         else
             mkdir -p "$fonts_fuzzy"
             curl -fsSL -m 120 "$fuzzy_url" -o "$fonts_fuzzy/FuzzyBubbles-Regular.ttf" || warn "could not download Fuzzy Bubbles: the Paper theme will use Space Grotesk until you install it"
@@ -664,7 +849,7 @@ LIST
         say "the Fredoka font is installed"
     elif ask_font "install the Fredoka font, for the Doodle theme (into $fonts_fredoka)?"; then
         if $dry; then
-            echo "    would download $fredoka_url"
+            would "download $fredoka_url"
         else
             mkdir -p "$fonts_fredoka"
             curl -fsSL -m 120 "$fredoka_url" -o "$fonts_fredoka/Fredoka.ttf" || warn "could not download Fredoka: the Doodle theme will use Space Grotesk until you install it"
@@ -676,11 +861,12 @@ LIST
 fi
 
 # ── 4. the shell itself ────────────────────────────────────────────────────
+stage "the shell itself"
 have git || fail "git is needed to fetch Vitreus"
 if $refresh; then
     :  # Settings has pulled already
 elif [ -d "$dest/.git" ]; then
-    if $dry; then echo "    would run: git -C $dest pull --ff-only (your changes, and the monitors Settings chose, carried across)"; else
+    if $dry; then would "run: git -C $dest pull --ff-only (your changes, and the monitors Settings chose, carried across)"; else
         g() { git -C "$dest" -c user.name=vitreus -c user.email=vitreus@localhost "$@"; }
         before=$(g rev-parse HEAD)
         # Settings keeps which monitors show the bar and the lock in the scenes' own `screens:` lines. They are put back to the stock
@@ -725,7 +911,7 @@ elif [ -d "$dest/.git" ]; then
         after=$(g rev-parse HEAD)
         if [ "$before" != "$after" ]; then
             say "new since last time:"
-            g log --oneline --no-decorate "$before..$after" | sed 's/^/    /' | head -20
+            g log --no-decorate --format="    ${c_acc}%h${c0} %s" "$before..$after" | head -20
         elif ! $held; then
             say "Vitreus is up to date"
         fi
@@ -741,6 +927,7 @@ fi
 # ── 5. the palettes ────────────────────────────────────────────────────────
 # Vitreus rewrites both from your wallpaper, so git ignores them: the stock ones are the `.default` copies. palette.plm is the lock
 # screen's, wm-palette.plm pleamar-wm's (its window borders).
+stage "the palettes"
 for pal in palette wm-palette; do
     if [ -f "$dest/$pal.plm" ]; then
         say "$pal.plm is there (Vitreus rewrites it from your wallpaper)"
@@ -753,6 +940,7 @@ done
 # ── the launcher's helper ──────────────────────────────────────────────────
 # Clipboard pictures cannot go through the logic (its command output is text), so a small script does the piping.
 # It is linked into ~/.local/bin, where pleamar looks for programs.
+stage "the helpers"
 if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
     run mkdir -p "$HOME/.local/bin"
     run ln -sf "$dest/bin/vitreus-clipimg" "$HOME/.local/bin/vitreus-clipimg"
@@ -784,7 +972,7 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
     # Caffeine's idle inhibitor (a few lines of C: the compositor's own idle timer, pleamar-wm's, only listens to a Wayland client). Built here.
     if [ -f "$dest/bin/vitreus-inhibit.c" ]; then
         if $dry; then
-            printf '    would build: vitreus-inhibit into %s\n' "$HOME/.local/bin"
+            would "build: vitreus-inhibit into $HOME/.local/bin"
         elif command -v gcc > /dev/null 2>&1 && command -v wayland-scanner > /dev/null 2>&1 && pkg-config --exists wayland-client 2> /dev/null; then
             inhibit_proto=/usr/share/wayland-protocols/unstable/idle-inhibit/idle-inhibit-unstable-v1.xml
             inhibit_tmp=$(mktemp -d)
@@ -823,7 +1011,7 @@ igpu_only() {
 vdata="${XDG_DATA_HOME:-$HOME/.local/share}/pleamar/vitreus"
 if ! $refresh && [ ! -e "$vdata/frame-motion.json" ] && igpu_only; then
     if $dry; then
-        echo "    would write $vdata/frame-motion.json (frame movement off: integrated graphics only)"
+        would "write $vdata/frame-motion.json (frame movement off: integrated graphics only)"
     else
         mkdir -p "$vdata" && printf '{\n  "on": false\n}\n' > "$vdata/frame-motion.json" &&
             say "integrated graphics only: the frame's ripple starts off, so the shell rests when nothing moves (Settings > Bar > Frame movement turns it on)"
@@ -835,6 +1023,7 @@ fi
 # after hypr_style.lua. Settings > Display and > Hyprland keep what you choose in vitreus_monitors.lua and
 # vitreus_hypr.lua, loaded the same way (they do not exist until something is kept, hence pcall); so does vitreus_colors.lua, the
 # window border colours Iris sets.
+stage "the key binds"
 hyprdir="$conf/hypr"
 hyprlua="$hyprdir/hyprland.lua"
 if $do_binds; then
@@ -848,7 +1037,7 @@ if $do_binds; then
         for mod in vitreus_monitors vitreus_hypr vitreus_colors; do
             grep -q "$mod" "$hyprlua" && continue
             if $dry; then
-                echo "    would add pcall(require, \"$mod\") to $hyprlua"
+                would "add pcall(require, \"$mod\") to $hyprlua"
             else
                 line="pcall(require, \"$mod\")"
                 if grep -q '^-- <<< vitreus' "$hyprlua"; then
@@ -864,7 +1053,7 @@ if $do_binds; then
     elif ask "load Vitreus's key binds (SUPER + L, SUPER + Space) from $hyprlua?"; then
         run ln -sf "$dest/hypr_vitreus.lua" "$hyprdir/hypr_vitreus.lua"
         if $dry; then
-            echo "    would back up $hyprlua and add four pcall(require, ...) lines to its end"
+            would "back up $hyprlua and add four pcall(require, ...) lines to its end"
         else
             cp "$hyprlua" "$hyprlua.before-vitreus"
             {
@@ -904,7 +1093,7 @@ if have niri && $do_binds; then
         fi
         run ln -sf "$dest/niri_vitreus.kdl" "$niridir/niri_vitreus.kdl"
         if $dry; then
-            echo "    would back up $nirikdl and add the include lines (and a spawn-at-startup for pleamar --autostart) to its end"
+            would "back up $nirikdl and add the include lines (and a spawn-at-startup for pleamar --autostart) to its end"
         else
             : >> "$niridir/vitreus.kdl"
             cp "$nirikdl" "$nirikdl.before-vitreus"
@@ -923,6 +1112,7 @@ fi
 
 # ── start with the desktop ─────────────────────────────────────────────────
 # Each scene runs under bin/vitreus-keep, which starts it again if it stops while the session lasts.
+stage "starting with the desktop"
 $dry || mkdir -p "$data/pleamar/vitreus"
 line="vitreus-keep $dest/vitreus.plm \"\$HOME/.local/share/pleamar/vitreus/vitreus.log\""
 # PLEAMAR_SWAPCHAIN=1: pleamar 0.4's own frames let the lock commit its region before its first frame, and Hyprland kills a lock
@@ -938,7 +1128,7 @@ if $do_autostart; then
     # keeps the shell outside the keeper is one that nothing starts again when Settings stops it to apply a theme's font).
     envp='([A-Za-z_][A-Za-z0-9_]*=[^ ]+ )*'
     if [ -f "$autostart" ] && grep -qE "^${envp}pleamar --scene $dest/.*\.plm --no-hud\$" "$autostart"; then
-        if $dry; then echo "    would put the scenes in $autostart under vitreus-keep"; else
+        if $dry; then would "put the scenes in $autostart under vitreus-keep"; else
             sed -i -E "s|^(${envp})pleamar --scene ($dest/vitreus\.plm) --no-hud\$|\1vitreus-keep \3 \"\$HOME/.local/share/pleamar/vitreus/vitreus.log\"|; s|^(${envp})pleamar --scene ($dest/[^ ]*\.plm) --no-hud\$|\1vitreus-keep \3|" "$autostart"
             say "the scenes in $autostart now run under vitreus-keep, which starts them again if they stop"
         fi
@@ -947,12 +1137,12 @@ if $do_autostart; then
         say "it is already in $autostart"
     elif ask "start Vitreus with the desktop (add a line to $autostart)?"; then
         run mkdir -p "$(dirname "$autostart")"
-        if $dry; then echo "    would add to $autostart: $line"; else printf '%s\n' "$line" >> "$autostart"; fi
+        if $dry; then would "add to $autostart: $line"; else printf '%s\n' "$line" >> "$autostart"; fi
     fi
     # The lock screen is a scene of its own (a session lock has to be its own program, so that restarting the shell cannot unlock
     # the session), and the lock buttons and SUPER + L only work while it runs: it always starts with the desktop.
     if [ -f "$autostart" ] && grep -q "^vitreus-keep $dest/lockscreen/lockscreen\.plm" "$autostart"; then
-        if $dry; then echo "    would start the lock screen in $autostart with PLEAMAR_SWAPCHAIN=1"; else
+        if $dry; then would "start the lock screen in $autostart with PLEAMAR_SWAPCHAIN=1"; else
             sed -i "s|^vitreus-keep \($dest/lockscreen/lockscreen\.plm\)|PLEAMAR_SWAPCHAIN=1 vitreus-keep \1|" "$autostart"
             say "the lock screen in $autostart now starts with PLEAMAR_SWAPCHAIN=1 (pleamar 0.4 otherwise crashes it on lock)"
         fi
@@ -960,35 +1150,35 @@ if $do_autostart; then
         say "the lock screen is already in $autostart"
     else
         run mkdir -p "$(dirname "$autostart")"
-        if $dry; then echo "    would add to $autostart: $lockline"; else printf '%s\n' "$lockline" >> "$autostart"; fi
+        if $dry; then would "add to $autostart: $lockline"; else printf '%s\n' "$lockline" >> "$autostart"; fi
         say "the lock screen starts with the desktop too (a line in $autostart): the lock buttons and SUPER + L need it"
     fi
     # The wallpaper picker's hexagon dissolve is a scene of its own as well; without it a pick uses awww's own transition.
     if [ -f "$autostart" ] && grep -q 'wptrans/wptrans.plm' "$autostart"; then
         say "the wallpaper transition is already in $autostart"
     else
-        if $dry; then echo "    would add to $autostart: $transline"; else printf '%s\n' "$transline" >> "$autostart"; fi
+        if $dry; then would "add to $autostart: $transline"; else printf '%s\n' "$transline" >> "$autostart"; fi
         say "the wallpaper picker's hexagon dissolve starts with the desktop too (a line in $autostart)"
     fi
     # The desktop clock (digits of glass on the bottom layer) is a scene of its own as well; it starts shown, and turns off from the launcher.
     if [ -f "$autostart" ] && grep -q 'desktopclock/desktopclock.plm' "$autostart"; then
         say "the desktop clock is already in $autostart"
     else
-        if $dry; then echo "    would add to $autostart: $clockline"; else printf '%s\n' "$clockline" >> "$autostart"; fi
+        if $dry; then would "add to $autostart: $clockline"; else printf '%s\n' "$clockline" >> "$autostart"; fi
         say "the desktop clock starts with the desktop too (a line in $autostart); \"Desktop clock: toggle\" in the launcher turns it off"
     fi
     # The desktop system monitor (a small glass card on the bottom layer) is a scene of its own too; it starts hidden, and "Desktop system monitor: toggle" in the launcher shows it.
     if [ -f "$autostart" ] && grep -q 'desktopsysmon/desktopsysmon.plm' "$autostart"; then
         say "the desktop system monitor is already in $autostart"
     else
-        if $dry; then echo "    would add to $autostart: $sysmonline"; else printf '%s\n' "$sysmonline" >> "$autostart"; fi
+        if $dry; then would "add to $autostart: $sysmonline"; else printf '%s\n' "$sysmonline" >> "$autostart"; fi
         say "the desktop system monitor starts with the desktop too, hidden (a line in $autostart); \"Desktop system monitor: toggle\" in the launcher shows it"
     fi
     # The UwU cursor trail: a scene of its own that only draws while the theme is UwU. Hyprland and pleamar-wm only (see the line above).
     if [ -f "$autostart" ] && grep -q 'cursortrail/cursortrail.plm' "$autostart"; then
         say "the UwU cursor trail is already in $autostart"
     else
-        if $dry; then echo "    would add to $autostart: $trailline"; else printf '%s\n' "$trailline" >> "$autostart"; fi
+        if $dry; then would "add to $autostart: $trailline"; else printf '%s\n' "$trailline" >> "$autostart"; fi
         say "the UwU cursor trail starts with the desktop too (a line in $autostart; not on niri, which cannot tell where the mouse is)"
     fi
     # (The audio visualiser is part of the shell itself now, the bottom edge rising into the music: no scene of its own, no line here.)
@@ -1004,7 +1194,7 @@ if $do_autostart; then
     if [ -f "$autostart" ] && grep -q '^# >>> vitreus (session)' "$autostart"; then
         say "the daemon lines are already in $autostart"
     else
-        if $dry; then echo "    would add to $autostart: awww-daemon, awww restore, hypridle, wl-paste --watch cliphist store"; else
+        if $dry; then would "add to $autostart: awww-daemon, awww restore, hypridle, wl-paste --watch cliphist store"; else
             mkdir -p "$(dirname "$autostart")"
             # older versions wrote these as `wm:` lines, which Hyprland never ran: replace them
             if [ -f "$autostart" ] && grep -q '^# >>> vitreus (pleamar-wm)' "$autostart"; then
@@ -1028,6 +1218,7 @@ fi
 # ── 7. pleamar-wm ──────────────────────────────────────────────────────────
 # Vitreus runs on pleamar-wm (a session chosen at the login screen) as well as on Hyprland. Everything below is skipped when
 # pleamar-wm is not installed, and each file of yours is only replaced when it is still the stock one.
+stage "pleamar-wm"
 wmdir="$dest/pleamar-wm"
 if $do_wm && [ -d "$wmdir" ] && { have pleamar-wm || [ -x "$HOME/.local/bin/pleamar-wm" ]; }; then
     # `wm:` lines are read by pleamar-wm's session only. Marea is the shell pleamar-wm comes with: with Vitreus as the bar,
@@ -1065,7 +1256,7 @@ if $do_wm && [ -d "$wmdir" ] && { have pleamar-wm || [ -x "$HOME/.local/bin/plea
         say "pleamar-wm already floats Files"
     else
         run mkdir -p "$conf/pleamar"
-        if $dry; then echo "    would add to $wmconf: window app=vitreus.files float"; else
+        if $dry; then would "add to $wmconf: window app=vitreus.files float"; else
             printf '\n# Vitreus Files floats rather than tiling (added by its installer; ./install.sh --uninstall takes it out)\nwindow app=vitreus.files float\n' >> "$wmconf"
             say "pleamar-wm floats Files now (a line in $wmconf)"
         fi
@@ -1090,6 +1281,7 @@ fi
 # ── the login screen ───────────────────────────────────────────────────────
 # An SDDM theme in the lock screen's look. It needs root (the theme goes in /usr/share/sddm/themes), so it is asked for, and --refresh leaves it alone. Where SDDM already has
 # a theme, its own installer asks before replacing it (--yes says yes); with no keyboard it only installs it.
+stage "the login screen"
 if $do_login && ! $refresh && [ -x "$dest/sddm/install.sh" ] && { have sddm || [ -d /usr/share/sddm/themes ]; }; then
     if [ -d /usr/share/sddm/themes/vitreus ] && cmp -s "$dest/sddm/vitreus/Main.qml" /usr/share/sddm/themes/vitreus/Main.qml; then
         say "the Vitreus login screen is installed (sh $dest/sddm/install.sh [IMAGE] makes it again, with another picture)"
@@ -1105,13 +1297,14 @@ if $do_login && ! $refresh && [ -x "$dest/sddm/install.sh" ] && { have sddm || [
 fi
 
 # ── services it talks to ───────────────────────────────────────────────────
+stage "the services"
 if have systemctl; then
     systemctl is-active --quiet bluetooth 2> /dev/null || say "Bluetooth is off: sudo systemctl enable --now bluetooth"
     systemctl is-active --quiet NetworkManager 2> /dev/null || say "NetworkManager is not running: Wi-Fi needs it (sudo systemctl enable --now NetworkManager)"
     have powerprofilesctl && { systemctl is-active --quiet power-profiles-daemon 2> /dev/null || say "power-profiles-daemon is not running: the power profile in Power needs it (sudo systemctl enable --now power-profiles-daemon)"; }
 fi
 
-say "done."
+ui_done
 $refresh && exit 0
 # ── --test: run Vitreus now, in place of the other shell, and nothing else changed ──
 if $trial; then
@@ -1140,17 +1333,18 @@ if $trial; then
     exit 0
 fi
 
+heading "Start it"
+row "now" "$line"
+row "the lock screen" "$lockline"
+row "hexagon dissolve" "$transline"
+row "with the desktop" "autostart is read by pleamar's own session; on Hyprland run \`pleamar --autostart\`:"
+row "" "hyprland.lua:   hl.on(\"hyprland.start\", function () hl.exec_cmd(\"PATH=\\\"\$HOME/.local/bin:\$PATH\\\" pleamar --autostart\") end)"
+row "" "hyprland.conf:  exec-once = ~/.local/bin/pleamar --autostart   (Hyprland's PATH may lack ~/.local/bin)"
+row "pleamar-wm" "log out and choose «pleamar-wm» in the login screen (SDDM: click the session name under the password field)"
+heading "Good to know"
+row "keys (with the binds)" "SUPER + Space launcher, SUPER + SHIFT + Space settings, SUPER + B wallpaper picker, SUPER + L lock (see lockscreen/README.md)"
+row "daemons" "awww, hypridle and the clipboard history start from $autostart (nothing to add to hyprland.lua)"
+row "notifications" "it becomes the desktop's notification server when it starts, and gives that back when it exits"
+row "its settings" "$data/pleamar/vitreus  (iris.json, weather-config.json, ...)"
+row "update later" "run this script again"
 echo
-echo "  Start it now:          $line"
-echo "  Lock screen, too:      $lockline"
-echo "  Hexagon dissolve:      $transline"
-echo "  With the desktop:      autostart is read by pleamar's own session; on Hyprland run \`pleamar --autostart\`:"
-echo "                         hyprland.lua:   hl.on(\"hyprland.start\", function () hl.exec_cmd(\"PATH=\\\"\$HOME/.local/bin:\$PATH\\\" pleamar --autostart\") end)"
-echo "                         hyprland.conf:  exec-once = ~/.local/bin/pleamar --autostart   (Hyprland's PATH may lack ~/.local/bin)"
-echo "  Keys (with the binds): SUPER + Space launcher, SUPER + SHIFT + Space settings, SUPER + B wallpaper picker, SUPER + L lock (see lockscreen/README.md)"
-echo "  Daemons:               awww, hypridle and the clipboard history start from $autostart (nothing to add to hyprland.lua)"
-echo "  pleamar-wm:            log out and choose «pleamar-wm» in the login screen (SDDM: click the session name under the password field)"
-echo "  Update later:          run this script again"
-echo "  Its settings:          $data/pleamar/vitreus  (iris.json, weather-config.json, ...)"
-echo
-echo "  It becomes the desktop's notification server when it starts, and gives that back when it exits."

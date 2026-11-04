@@ -32,7 +32,14 @@ icon=$data/icons/hicolor/scalable/apps/vitreus-files.svg
 entry=$data/applications/vitreus-files.desktop
 service=$data/dbus-1/services/org.freedesktop.FileManager1.service
 prev=$state/files-previous-handler
-say() { printf '\033[1;36mvitreus ·\033[0m %s\n' "$*"; }
+# Run by install.sh on a terminal (VITREUS_UI=1), its lines look like the installer's; otherwise the plain ones.
+if [ "${VITREUS_UI:-}" = 1 ]; then
+    say() { printf '  \033[38;5;45m•\033[0m %s\n' "$*"; }
+    ask_prefix='  \033[1;38;5;177m?\033[0m '; ask_yn='\033[2m[Y/n]\033[0m'
+else
+    say() { printf 'vitreus · %s\n' "$*"; }
+    ask_prefix='vitreus · '; ask_yn='[Y/n]'
+fi
 have() { command -v "$1" > /dev/null 2>&1; }
 current() { xdg-mime query default inode/directory 2> /dev/null || true; }
 # What the person has chosen for folders (the line in mimeapps.list), not what the desktop's list would give.
@@ -73,7 +80,7 @@ cp "$here/vitreus-files.svg" "$icon"
 if [ "$mode" = ask ]; then
     mode=no
     if [ -r /dev/tty ] && ( exec < /dev/tty ) 2> /dev/null; then
-        printf '\033[1;36mvitreus ·\033[0m make Files the file manager (folders open in it, and «Show in folder» in other programs)? [Y/n] ' > /dev/tty
+        printf "${ask_prefix}make Files the file manager (folders open in it, and «Show in folder» in other programs)? ${ask_yn} " > /dev/tty
         read -r answer < /dev/tty || answer=y
         case "$answer" in n|N|no|No) mode=no ;; *) mode=yes ;; esac
     fi
