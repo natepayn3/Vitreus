@@ -140,6 +140,21 @@ run() {
         if "$@"; then :; else rc=$?; log "command failed ($rc): $*"; return "$rc"; fi
     fi
 }
+# run_kept CMD…: run, and when it fails keep the last of what it printed in the install log too, so that a report says why (a
+# step like the login screen's prints its reason and only "command failed (1)" was kept).
+run_kept() {
+    if $dry; then printf '    would run: %s\n' "$*"; return 0; fi
+    out=$(mktemp) || { run "$@"; return; }
+    st=$(mktemp) || { rm -f "$out"; run "$@"; return; }
+    { "$@"; echo $? > "$st"; } 2>&1 | tee "$out"
+    rc=$(cat "$st" 2> /dev/null); rc=${rc:-1}
+    if [ "$rc" != 0 ]; then
+        log "command failed ($rc): $*"
+        tail -n 15 "$out" | sed 's/^/    | /' >> "$installlog" 2> /dev/null || true
+    fi
+    rm -f "$out" "$st"
+    return "$rc"
+}
 
 # ask "question": yes/no, default yes. Reads the keyboard even when the script itself was piped in.
 # ask_no "question": the same, default no, for what cannot be undone; with no keyboard (and no --yes) it is a no.
@@ -545,6 +560,10 @@ LIST
                 have curl || fail "curl is needed to fetch pleamar's installer"
                 # shellcheck disable=SC2086
                 curl -fsSL "$pleamar_installer" | sh $pleamar_args || fail "pleamar's installer failed (see above); Vitreus needs it"
+                pv=$( { pleamar --version 2> /dev/null || "$HOME/.local/bin/pleamar" --version 2> /dev/null; } | sed -n 's/^pleamar \([0-9][0-9.]*\).*/\1/p' | head -1)
+                if [ -n "$pv" ]; then say "pleamar is installed now ($pv)"
+                else warn "pleamar's installer ended, but no pleamar answers: check that ~/.local/bin is in your PATH"
+                fi
             fi
         else
             warn "without pleamar Vitreus cannot run. Install it from https://github.com/k4ditano/pleamar"
@@ -785,6 +804,31 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
 # `pleamar`. hypr_vitreus.lua adds it to PATH itself; whatever you start from hyprland.lua has to do the same.
 fi
 
+# ── 5b. integrated graphics ────────────────────────────────────────────────
+# The frame's slow ripple (Settings > Bar > Frame movement) keeps the shell drawing about a dozen frames a second for as long as it is
+# on, and on a graphics chip that shares the memory with the processor that is felt everywhere. With only an integrated chip (Intel's
+# is always the card at 0000:00:02.0; Arc and other cards are elsewhere) a first install starts with it off. A choice already kept
+# (frame-motion.json) is left as it is, and Settings turns it back on.
+igpu_only() {
+    seen=false
+    for d in /sys/class/drm/card[0-9]*/device; do
+        [ -r "$d/vendor" ] || continue
+        case "$(cat "$d/class" 2> /dev/null)" in 0x03*) ;; *) continue ;; esac
+        seen=true
+        [ "$(cat "$d/vendor" 2> /dev/null)" = 0x8086 ] && [ "$(basename "$(readlink -f "$d")")" = 0000:00:02.0 ] || return 1
+    done
+    $seen
+}
+vdata="${XDG_DATA_HOME:-$HOME/.local/share}/pleamar/vitreus"
+if ! $refresh && [ ! -e "$vdata/frame-motion.json" ] && igpu_only; then
+    if $dry; then
+        echo "    would write $vdata/frame-motion.json (frame movement off: integrated graphics only)"
+    else
+        mkdir -p "$vdata" && printf '{\n  "on": false\n}\n' > "$vdata/frame-motion.json" &&
+            say "integrated graphics only: the frame's ripple starts off, so the shell rests when nothing moves (Settings > Bar > Frame movement turns it on)"
+    fi
+fi
+
 # ── 6. Hyprland key binds ──────────────────────────────────────────────────
 # hypr_vitreus.lua (SUPER + L lock, SUPER + Space Settings) is linked into ~/.config/hypr and loaded from hyprland.lua
 # after hypr_style.lua. Settings > Display and > Hyprland keep what you choose in vitreus_monitors.lua and
@@ -831,7 +875,11 @@ if $do_binds; then
                 grep -q 'vitreus_colors' "$hyprlua" || echo 'pcall(require, "vitreus_colors")'
                 echo "-- <<< vitreus"
             } >> "$hyprlua"
-            say "added to $hyprlua (the old one is $hyprlua.before-vitreus); Hyprland reloads it by itself"
+            if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
+                say "added to $hyprlua (the old one is $hyprlua.before-vitreus); Hyprland reloads it by itself"
+            else
+                say "added to $hyprlua (the old one is $hyprlua.before-vitreus), for when you log in to Hyprland; this session is not Hyprland, so it changes nothing now"
+            fi
         fi
     fi
 fi
@@ -1047,11 +1095,11 @@ if $do_login && ! $refresh && [ -x "$dest/sddm/install.sh" ] && { have sddm || [
     elif [ -d /usr/share/sddm/themes/vitreus ]; then
         # An older copy: install it again (the picture is made again too: the repository's assets/greeter.jpeg, or pass your own to sddm/install.sh)
         if ask "update the Vitreus login screen, the SDDM theme (needs sudo)?"; then
-            run sh "$dest/sddm/install.sh" --yes || warn "could not: run  sh $dest/sddm/install.sh  yourself"
+            run_kept sh "$dest/sddm/install.sh" --yes || warn "could not: run  sh $dest/sddm/install.sh  yourself"
         fi
     elif ask "install the Vitreus login screen, an SDDM theme (needs sudo)?"; then
         if $assume_yes; then login_flags="--yes"; else login_flags=""; fi
-        run sh "$dest/sddm/install.sh" $login_flags || warn "could not: run  sh $dest/sddm/install.sh  yourself"
+        run_kept sh "$dest/sddm/install.sh" $login_flags || warn "could not: run  sh $dest/sddm/install.sh  yourself"
     fi
 fi
 

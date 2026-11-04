@@ -138,7 +138,8 @@ tailf() { # tailf file lines [filter-out-regex]
     else
         printf 'Vitreus: NOT installed (no %s)\n' "$dest"
     fi
-    try hyprctl version | head -4
+    # under pleamar-wm and niri `hyprctl` is Vitreus's stand-in, which has no `version`: its error says nothing
+    if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then try hyprctl version | head -4; fi
 
     sec "Programs it uses"
     for c in pleamar hyprctl git curl jq python3 socat magick cava playerctl nmcli bluetoothctl brightnessctl hypridle hyprsunset awww iris notify-send xdg-open wl-copy cliphist pactl ffmpeg; do
@@ -179,6 +180,20 @@ tailf() { # tailf file lines [filter-out-regex]
     sec "How long the shell has been running"
     pid="$(pgrep -f 'pleamar --scene .*/vitreus\.plm' 2> /dev/null | head -1)"
     if [ -n "$pid" ]; then printf 'running for %s (a short time means it restarted lately)\n' "$(ps -o etime= -p "$pid" 2> /dev/null | tr -d ' ')"; else printf '(the Vitreus scene is not running)\n'; fi
+
+    # What keeps the shell drawing when nothing is touched (`need_clock` in vitreus.plm; the log's "alive:" line only names the bindings).
+    # One question, answered in order; a shell that does not answer in 5 s is said to.
+    if [ -n "$pid" ] && have pleamar; then
+        sec "What keeps the shell drawing (asked of the running shell)"
+        names="fr_wv glass_live glass_x media.playing rec_on ws.sp ds dl dk do dsh_rise dsh_hv adk_hot"
+        set --; for n in $names; do set -- "$@" "get $n"; done
+        if ans="$(timeout 5 pleamar --say vitreus "$@" 2> /dev/null)" && [ -n "$ans" ]; then
+            printf '%s\n' "$ans" | awk -v names="$names" 'BEGIN { split(names, k, " ") } { printf "  %-14s %s\n", k[NR], $0 }'
+            printf '  (fr_wv 1: the frame ripples, the shell never rests; ws.sp, media.playing, rec_on: something moves on purpose)\n'
+        else
+            printf '(the shell did not answer in 5 s)\n'
+        fi
+    fi
 
     sec "Problems in Vitreus's log, since it last started (each different line once, with how many times)"
     if [ -r "$log" ]; then
