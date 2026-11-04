@@ -9,10 +9,16 @@
 #   - When the compositor has gone (the session ended), it ends too.
 #   - Five quick stops in a row (each within 30 s of starting) and it gives up: a scene that cannot start
 #     is not started forever.
+#   - A scene that is still running but no longer answers (its render stuck: a frozen bar that never exits) is stopped, and so
+#     started again: every 30 s it is asked something only its render can answer, and three times in a row without an answer
+#     in 20 s (after a minute's grace at each start) is taken as hung. `VITREUS_KEEP_WATCH=0` turns this off
+#     (`VITREUS_KEEP_GRACE`, `_EVERY`, `_PATIENCE`: those seconds, for testing it).
 #   - To stop a scene for good, stop its keeper first (pkill -f "vitreus-keep SCENE"), then the scene.
 set -u
 P="${1:?usage: vitreus-keep SCENE.plm [LOG]}"
-L="${2:-/dev/null}"
+# Without LOG, the scene's own file in the shell's logs folder: the widgets went to /dev/null, so a widget that stopped or kept stopping
+# left nothing to read. `/dev/null` given as LOG still means no log.
+L="${2:-${XDG_DATA_HOME:-$HOME/.local/share}/pleamar/vitreus/logs/$(basename "$P" .plm).log}"
 # A fresh install has no log folder yet: without it the redirects below fail and the scene never starts, silently.
 mkdir -p "$(dirname "$L")" 2> /dev/null
 export PATH="$HOME/.local/bin:$PATH"
@@ -42,10 +48,34 @@ undo_gaps() {
     sed -i '/gaps_out/d' "$data/vitreus_colors.lua" "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/vitreus_colors.lua" 2> /dev/null
 }
 
+# The hang watch, run beside the scene (pid $1). `--say` reaches a scene by its file's name; `wait` is answered by the scene's render,
+# which is what freezes, while `hello` would be answered by a thread that keeps going. A healthy shell answers in well under a second
+# (even painting once a second for a surface the compositor does not show); one that misses three in a row is killed, and the loop
+# below starts it again as after any other stop.
+watch_hang() {
+    [ "${VITREUS_KEEP_WATCH:-1}" = 0 ] && return 0
+    sleep "${VITREUS_KEEP_GRACE:-60}"
+    misses=0
+    while kill -0 "$1" 2> /dev/null; do
+        a=$(timeout "${VITREUS_KEEP_PATIENCE:-20}" pleamar --say "$name" "wait screen.width > 0 5s" 2> /dev/null)
+        case "$a" in
+            yes*) misses=0 ;;
+            *) misses=$((misses + 1)) ;;
+        esac
+        if [ "$misses" -ge 3 ]; then
+            say "not answering for over a minute (hung): stopping it, to start it again"
+            kill -9 "$1" 2> /dev/null
+            return 0
+        fi
+        sleep "${VITREUS_KEEP_EVERY:-30}"
+    done
+}
+
 exec 9> "$run/vitreus-keep-$name.lock"
 flock -n 9 || exit 0
+spid=""; wpid=""
 # Stopped by hand (pkill -f "vitreus-keep SCENE", then the scene): it gets here once the scene it is waiting on has ended.
-trap 'undo_gaps; exit 0' TERM INT HUP
+trap '[ -n "$wpid" ] && kill "$wpid" 2> /dev/null; [ -n "$spid" ] && wait "$spid" 2> /dev/null; undo_gaps; exit 0' TERM INT HUP
 
 quick=0
 while :; do
@@ -73,15 +103,22 @@ while :; do
         if grep -q '"discrete"[[:space:]]*:[[:space:]]*true' "$data/gpu.json" 2> /dev/null; then gpu_set="PLEAMAR_GPU=high"; else gpu_unset="-u PLEAMAR_GPU"; fi
     fi
     # env takes its options (-u) before its NAME=value words: after the first of those, the next word is the command.
+    # In the background, so the hang watch can run beside it; `wait` gives its exit code as running it in the foreground did.
     if [ -n "$fonts" ]; then
         # shellcheck disable=SC2086
-        env $gpu_unset $gpu_set FONTCONFIG_FILE="$fonts" pleamar --scene "$P" --no-hud >> "$L" 2>&1 9>&-
+        env $gpu_unset $gpu_set FONTCONFIG_FILE="$fonts" pleamar --scene "$P" --no-hud >> "$L" 2>&1 9>&- &
     else
         # Not the font setup this keeper itself was started under (a theme change since): that one is no longer the shell's typeface.
         # shellcheck disable=SC2086
-        env $gpu_unset -u FONTCONFIG_FILE $gpu_set pleamar --scene "$P" --no-hud >> "$L" 2>&1 9>&-
+        env $gpu_unset -u FONTCONFIG_FILE $gpu_set pleamar --scene "$P" --no-hud >> "$L" 2>&1 9>&- &
     fi
+    spid=$!
+    watch_hang "$spid" 9>&- < /dev/null &
+    wpid=$!
+    wait "$spid"
     code=$?
+    kill "$wpid" 2> /dev/null
+    wpid=""
     alive || exit 0
     if [ $(( $(date +%s) - started )) -lt 30 ]; then quick=$((quick + 1)); else quick=0; fi
     if [ "$quick" -ge 5 ]; then

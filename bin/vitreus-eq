@@ -410,24 +410,36 @@ def sync_volumes():
         vol_last["eqm"] = vol_last["tm"] = tm
 
 
-def volume_loop():
-    """Wakes on the sound server's sink events (a second at most apart) and mirrors the volume."""
-    wake = threading.Event()
+# What the sound server says wakes the two loops: a sink's volume or mute changing wakes the volume's, a sink coming or going (a headset, the filter itself
+# ending) or the default output changing wakes `reconcile`. Between events they only look every 15 s, in case `pactl subscribe` missed something: polling
+# every second ran six pactl commands a second while nothing happened.
+wake = threading.Event()
+recon = threading.Event()
+IDLE_LOOK = 15.0
 
-    def listen():
-        while True:
-            try:
-                p = subprocess.Popen(["pactl", "subscribe"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, preexec_fn=die_with_parent)
-                for line in p.stdout:
-                    if "'change' on sink" in line:
-                        wake.set()
-            except Exception:
-                pass
-            time.sleep(2)
 
-    threading.Thread(target=listen, daemon=True).start()
+def listen():
     while True:
-        wake.wait(1.0)
+        try:
+            p = subprocess.Popen(["pactl", "subscribe"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, preexec_fn=die_with_parent)
+            # (subscribed again after a break: whatever changed meanwhile is looked at now)
+            wake.set()
+            recon.set()
+            for line in p.stdout:
+                if "'change' on sink" in line:
+                    wake.set()
+                elif "'new' on sink" in line or "'remove' on sink" in line or "on server" in line:
+                    recon.set()
+                    wake.set()
+        except Exception:
+            pass
+        time.sleep(2)
+
+
+def volume_loop():
+    """Wakes on the sound server's sink events and mirrors the volume."""
+    while True:
+        wake.wait(IDLE_LOOK)
         wake.clear()
         time.sleep(0.04)                               # (a slider drag is many events: one pass for the burst)
         wake.clear()
@@ -616,12 +628,16 @@ def main():
 
     def watch():
         while True:
-            time.sleep(3)
+            recon.wait(IDLE_LOOK)
+            recon.clear()
+            time.sleep(0.3)                    # (a headset coming and going is a burst of events: one pass for all of it)
+            recon.clear()
             try:
                 reconcile()
             except Exception:
                 pass
 
+    threading.Thread(target=listen, daemon=True).start()
     threading.Thread(target=watch, daemon=True).start()
     threading.Thread(target=volume_loop, daemon=True).start()
     if np is not None:
