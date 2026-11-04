@@ -993,31 +993,6 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
 # `pleamar`. hypr_vitreus.lua adds it to PATH itself; whatever you start from hyprland.lua has to do the same.
 fi
 
-# ── 5b. integrated graphics ────────────────────────────────────────────────
-# The frame's slow ripple (Settings > Bar > Frame movement) keeps the shell drawing about a dozen frames a second for as long as it is
-# on, and on a graphics chip that shares the memory with the processor that is felt everywhere. With only an integrated chip (Intel's
-# is always the card at 0000:00:02.0; Arc and other cards are elsewhere) a first install starts with it off. A choice already kept
-# (frame-motion.json) is left as it is, and Settings turns it back on.
-igpu_only() {
-    seen=false
-    for d in /sys/class/drm/card[0-9]*/device; do
-        [ -r "$d/vendor" ] || continue
-        case "$(cat "$d/class" 2> /dev/null)" in 0x03*) ;; *) continue ;; esac
-        seen=true
-        [ "$(cat "$d/vendor" 2> /dev/null)" = 0x8086 ] && [ "$(basename "$(readlink -f "$d")")" = 0000:00:02.0 ] || return 1
-    done
-    $seen
-}
-vdata="${XDG_DATA_HOME:-$HOME/.local/share}/pleamar/vitreus"
-if ! $refresh && [ ! -e "$vdata/frame-motion.json" ] && igpu_only; then
-    if $dry; then
-        would "write $vdata/frame-motion.json (frame movement off: integrated graphics only)"
-    else
-        mkdir -p "$vdata" && printf '{\n  "on": false\n}\n' > "$vdata/frame-motion.json" &&
-            say "integrated graphics only: the frame's ripple starts off, so the shell rests when nothing moves (Settings > Bar > Frame movement turns it on)"
-    fi
-fi
-
 # ── 6. Hyprland key binds ──────────────────────────────────────────────────
 # hypr_vitreus.lua (SUPER + L lock, SUPER + Space Settings) is linked into ~/.config/hypr and loaded from hyprland.lua
 # after hypr_style.lua. Settings > Display and > Hyprland keep what you choose in vitreus_monitors.lua and

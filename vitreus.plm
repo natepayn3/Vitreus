@@ -172,7 +172,7 @@ scene Vitreus {
     fact media_on = false          // is there a player at all
     fact bass = 0
     fact fr_hov = false    // the pointer is on the bar: its hover animations get the full frame rate (the 12 a second the ripple alone gets is in the surface's `rate:`)
-    fact fr_wv = 1         // the frame ripples by itself, a couple of px (wave.wgsl; 0 off)
+    fact fr_wv = 0         // the frame ripples, a couple of px (wave.wgsl): part of the audio visualiser, set by `cava_want` while it is on and music plays
     fact fw_on = true      // the bottom frame rises into waves with the music (needs the Frame layout; `pleamar --say vitreus "fact fw_on false"` turns it off)
     //  The 24 bars cava reports, 0..1 each, for the equalizer in the media card. Each one
     //  has its own quick spring, so they rise and fall smoothly instead of stepping.
@@ -631,7 +631,6 @@ scene Vitreus {
     fact bar_anchor: top | left | right | bottom = top
     fact bar_frame = false                   // the frame round the screen is on (the Island is the bar without it)
     fact bar_size = 1                        // Settings > Bar > Size: how big the bar is, 0.7 to 1, on every layout; the logic sets it (logic/bar_size.luau)
-    event fr_wv_toggle ->                    // Settings > Bar > "Frame movement" (logic/frame_motion.luau)
     event bar_pick_size ->                   // the slider: 0 to 1 along it, 70 to 100 %
     text bar_size_text = "100%"
     fact bar_seg = false                     // along the top with a frame: a thin frame, and the bar in three pieces of glass (workspaces, clock, controls) out of it
@@ -1839,8 +1838,6 @@ scene Vitreus {
     prop bar_oth_pill = 0 ~pop
     follow bar_oth_pill = if(bar_others, 1, 0)
     prop bar_dr_pill = 0 ~pop
-    prop fr_wv_pill = 0 ~pop
-    follow fr_wv_pill = if(fr_wv > 0.5, 1, 0)
     on enter bar_hit { fr_hov = true }
     on leave bar_hit { fr_hov = false }
     follow bar_dr_pill = if(bar_dockroom, 0, 1)         // the switch says "Corner docks overlap windows": on when there is no room
@@ -5291,7 +5288,7 @@ scene Vitreus {
     let wm.h = 946                     // the Pleamar-WM page: to the bottom of its last card
     let ad.h = 36 + max(1, addons.count) * 74 + 52 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (74 apart), and the line under them
     let ck.h = 1208                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
-    let br.h = 671                     // the Bar page: to the bottom of its last card
+    let br.h = 631                     // the Bar page: to the bottom of its last card
     let gl.h = 990                     // the Glass page: to the bottom of its last card
     let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.

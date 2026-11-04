@@ -343,6 +343,10 @@ end
 cava_playing = false
 game_fx = { on = false }          -- Game mode (logic/gamemode.luau) sets `on`: nothing listens to the music while it is
 function cava_want()
+    -- The frame's slow ripple (`fr_wv`, wave.wgsl) is part of the audio visualiser: it runs while the visualiser is on and something plays, and not in Game
+    -- mode. It used to have a switch of its own (Settings > Bar > Frame movement), and on it kept the clock turning and the whole screen-wide glass painting
+    -- a dozen times a second forever: the shell never rested and the card never left its top clocks. Now it rests whenever the music does.
+    fact.fr_wv = (not game_fx.on and cava_playing and fw_on()) and 1 or 0
     if game_fx.on then hush() return end
     if cava_playing and ((fact.bar_frame ~= true and (fact.bar_anchor == "top" or fact.bar_anchor == "bottom")) or watching or eq_float() or fw_on()) then listen() else hush() end
 end
@@ -7225,8 +7229,6 @@ require("logic/desk_holes")()
 
 -- bar size: see logic/bar_size.luau
 require("logic/bar_size")()
--- the frame's movement switch: see logic/frame_motion.luau
-require("logic/frame_motion")()
 
 -- bar layout: see logic/bar_layout.luau
 require("logic/bar_layout")()
