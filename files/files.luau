@@ -383,9 +383,74 @@ function F.flush_later()
         F.show_rows()
     end)
 end
+-- Still pictures go to vitreus-thumb (a separate program, optional) a batch at a time, if it is installed: one program for up to VT_BATCH pictures (all that is on screen, as a rule), each JPEG decoded
+-- at the size it is needed and THUMB_JOBS of them at once, about four times faster than a magick each. It writes the same `th-*.png` names as below, so the cache is the same one.
+-- What it cannot read (svg, heic, tiff…) comes back to the queue marked `vt_failed` and is made the old way; if it is not there at all, magick from then on (`vt_ok`).
+local VT_BATCH = 64
+local vt_ok = true
+local function thumb_batch()
+    if not vt_ok or s.vt_busy then return false end
+    local batch, rest = {}, {}
+    for _, e in ipairs(s.queue) do
+        local stale = dirname(e.path) ~= s.path and s.mode == nil
+        if e.ik == 1 and not e.vt_failed and not stale and #batch < VT_BATCH then batch[#batch + 1] = e else rest[#rest + 1] = e end
+    end
+    if #batch == 0 then return false end
+    s.queue = rest
+    s.making = s.making + 1
+    s.vt_busy = true
+    local args = { "--size", "288x216", "--mode", "cover", "--jobs", tostring(THUMB_JOBS), "--pairs" }
+    for _, e in ipairs(batch) do
+        args[#args + 1] = e.path
+        args[#args + 1] = tdir .. "/" .. thumb_name(e)
+    end
+    -- A line per picture as soon as it is made, so the tiles fill in one by one instead of all at the end.
+    local made = {}
+    local by_path = {}
+    for _, e in ipairs(batch) do by_path[e.path] = e end
+    -- (`spawn` raises an error when the program is not there, where `run` would give a code: hence the pcall.)
+    local started, id = pcall(spawn, "vitreus-thumb", args, function(line)
+        local st, src = line:match("^(%a+)\t([^\t]*)\t")
+        local e = st == "ok" and by_path[src]
+        if e and not made[src] then
+            made[src] = true
+            s.pending[e.path] = nil
+            s.thumbs[tkey(e)] = tdir .. "/" .. thumb_name(e)
+            F.flush_later()
+        end
+    end, function(_, code)
+        s.making = s.making - 1
+        s.vt_busy = false
+        if code ~= 0 and next(made) == nil then vt_ok = false end
+        for i = #batch, 1, -1 do
+            local e = batch[i]
+            if not made[e.path] then
+                e.vt_failed = true
+                table.insert(s.queue, 1, e)
+            end
+        end
+        F.pump()
+    end)
+    if not started or not id then
+        vt_ok, s.vt_busy, s.making = false, false, s.making - 1
+        for i = #batch, 1, -1 do table.insert(s.queue, 1, batch[i]) end
+        return false
+    end
+    return true
+end
 function F.pump()
     while s.making < THUMB_JOBS and #s.queue > 0 do
-        local e = table.remove(s.queue, 1)
+        if thumb_batch() then continue end
+        -- While a batch is out, the pictures waiting for the next one stay queued; videos, PDFs and fonts go on.
+        local at = 1
+        if vt_ok and s.vt_busy then
+            at = nil
+            for k, q in ipairs(s.queue) do
+                if not (q.ik == 1 and not q.vt_failed) then at = k break end
+            end
+            if not at then break end
+        end
+        local e = table.remove(s.queue, at)
         local name = thumb_name(e)
         local out = tdir .. "/" .. name
         if dirname(e.path) ~= s.path and s.mode == nil then
