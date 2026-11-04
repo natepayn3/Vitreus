@@ -4534,7 +4534,7 @@ do
         if type(saved.rim) == "number" then glass.rim = math.max(0, math.min(2, saved.rim)) end
         if type(saved.refr) == "number" then glass.refr = math.max(0, math.min(3, saved.refr)) end
         if type(saved.disp) == "number" then glass.disp = math.max(0, math.min(2.5, saved.disp)) end
-        if type(saved.dome) == "number" then glass.dome = math.max(0, math.min(1.5, saved.dome)) end
+        if type(saved.dome) == "number" then glass.dome = math.max(0, math.min(1, saved.dome)) end
         if type(saved.milk) == "number" then glass.milk = math.max(0, math.min(1, saved.milk)) end
         if type(saved.bend) == "boolean" then glass.bend = saved.bend end
         if type(saved.live) == "boolean" then glass.live = saved.live end
@@ -4560,7 +4560,7 @@ function glass.step(t, top) return math.floor(math.max(0, math.min(1, t)) * top 
 on("glass_rim_set", function(t) glass.rim = glass.step(t, 2); glass_refresh(); glass_save_soon() end)
 on("glass_refr_set", function(t) glass.refr = glass.step(t, 3); glass_refresh(); glass_save_soon() end)
 on("glass_disp_set", function(t) glass.disp = glass.step(t, 2.5); glass_refresh(); glass_save_soon() end)
-on("glass_dome_set", function(t) glass.dome = glass.step(t, 1.5); glass_refresh(); glass_save_soon() end)
+on("glass_dome_set", function(t) glass.dome = glass.step(t, 1); glass_refresh(); glass_save_soon() end)
 -- The far left is every frame (16 ms). Cheap only where the engine copies captures on the card (pleamar branch zerocopy-0.7); through shared memory it costs a core.
 on("glass_cap_set", function(t)
     local k = math.floor(math.max(0, math.min(1, t)) * 20 + 0.5)
