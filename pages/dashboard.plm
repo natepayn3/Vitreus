@@ -16,7 +16,7 @@ part Dashboard {
     //  The tiles are staggered, not a grid: no edge runs straight across (the weather goes further down than the clock, the toggles
     //  stop short of the player).
     //
-    //  Down the left, as tall as the dashboard, two sliders of glass of their own (no tile round them): the volume and the screen's
+    //  Down the left, as tall as the dashboard, two sliders of glass of their own, shaped as the shell's pencil slider: the volume and the screen's
     //  brightness.
     //
     //  Everything on it works, through the same events as the shell's own panels: the volume slider, mute and the microphone, the
@@ -85,6 +85,108 @@ part Dashboard {
         }
     }
 
+    //  A slider of the dashboard's: the shell's pencil slider (PSlider) made of the tiles' glass and stood upright. The track is two pieces of glass,
+    //  cut apart round a glass knob (a bar a little wider than the track), all three in one body, so they are one piece of the dashboard's glass;
+    //  each has one clean boiling pencil line just inside its edge, and the level's piece is tinted and finely hatched. The knob morphs into place like PSlider's:
+    //  its leading edge goes to the new level and its trailing edge follows, stretching it flatter between them. `cx` the middle, `yb` the foot,
+    //  `T` how wide, `L` how tall, `lv` the level, `hot` the pointer (the pencil boils), `mute` 1 to grey the level, `c` how far it has surfaced.
+    component DshPinch(cx: number, yb: number, T: number, L: number, lv: number, hot: number, mute: number, c: number) {
+        prop a = 0 ~calm
+        follow a = hot
+        prop ld = 0 ~90ms
+        follow ld = lv
+        prop tl = 0 ~280ms
+        follow tl = lv
+        let fr = if(a > 0.02, floor(time * 5), 0)
+        let jt = (0.18 + 0.25 * a) * cu * (1 - dd_k)
+        let kn = 22                                            // the knob along the track
+        let smin = kn / 2 + 4
+        let smax = L - kn / 2 - 4
+        let sx = clamp(L * ld, smin, smax)                     // where the level is, up from the foot
+        let st = clamp(L * tl, smin, smax)                     // where the knob's tail still is
+        let sq = clamp(abs(sx - st) / (1.4 * kn), 0, 1)
+        let kc = (T + 14) * (1 - 0.22 * sq)                    // the knob across: wider than the track, narrower while it is stretched
+        let kr = 10
+        let kl = min(sx, st) - kn / 2
+        let kq = max(sx, st) + kn / 2
+        let g = 6 + 3 * sq                                     // the cut either side of the knob
+        let lb = kl - g                                        // the level's piece, from the foot
+        let ra = kq + g                                        // the rest starts here
+        let rc = T * 0.36                                      // the pieces' corners
+        let lon = lb > 12
+        let ron = L - ra > 12
+        group {
+            pivot: cx, yb - L / 2
+            scale: 0.96 + 0.04 * c
+            opacity: c * dsh.vis
+            shader: dsh_underwater, dsh_under, dsh.wr, dsh.wg, dsh.wb, dsh_rq, dsh_rh, T / 2 while not dsh.still and c > 0.001
+            box { from: cx - T / 2 - 31, yb - L - 24; size: T + 62, L + 48; color: tint; opacity: 0.015; show: not dsh.still }
+            body {
+                color: mix(tint, #000000, cy_dark * cy_k)
+                glass: 100%
+                opacity: glass_op * (1 - obs)
+                lens: glass_bend
+                frost: glass_clear
+                refraction: glass_refr
+                dispersion: 0%
+                dome: glass_dome
+                milk: glass_milk
+                rim: 6% * glass_rim                                // quieter than the tiles': the pencil draws the edge
+                shine: pointer
+                shadow: 0, 14 * (1 - dsh_under), 36, 34% * (1 - dsh_under), deep
+                show: obs < 0.996
+                box { from: cx - T / 2, yb - lb; size: T, lb; corner: min(rc, lb / 2); show: lon }
+                box { from: cx - T / 2, yb - L; size: T, L - ra; corner: min(rc, (L - ra) / 2); show: ron }
+                box { from: cx - kc / 2, yb - kq; size: kc, kq - kl; corner: kr }
+            }
+            body {
+                color: obsidian
+                glass: 100%
+                lens: false
+                rim: 0%
+                refraction: 0%
+                dispersion: 0%
+                shine: 9000, 9000
+                opacity: obs * 0.34
+                show: obs > 0.97
+                box { from: cx - T / 2, yb - lb; size: T, lb; corner: min(rc, lb / 2); show: lon }
+                box { from: cx - T / 2, yb - L; size: T, L - ra; corner: min(rc, (L - ra) / 2); show: ron }
+                box { from: cx - kc / 2, yb - kq; size: kc, kq - kl; corner: kr }
+            }
+            body {
+                color: obsidian
+                rim: 0%
+                opacity: obs * (1 - 0.4 * clamp(hy_blur, 0, 1))
+                shadow: 0, 14 * (1 - dsh_under), 42, 45% * (1 - dsh_under), #000000
+                show: obs > 0.004
+                box { from: cx - T / 2, yb - lb; size: T, lb; corner: min(rc, lb / 2); show: lon }
+                box { from: cx - T / 2, yb - L; size: T, L - ra; corner: min(rc, (L - ra) / 2); show: ron }
+                box { from: cx - kc / 2, yb - kq; size: kc, kq - kl; corner: kr }
+            }
+            //  The level's piece, tinted with the accent (grey when muted) like coloured glass.
+            box { from: cx - T / 2, yb - lb; size: T, lb; corner: min(rc, lb / 2); color: mix(mint, faint, mute); opacity: 0.3 - 0.12 * mute; show: lon }
+            //  The pencil, drawn along the track and stood up with it: the pieces' and the knob's outlines, and the level's hatching.
+            group {
+                pivot: cx, yb
+                rotate: -90deg
+                //  One clean line each (no faint second pass), 2 inside the glass's edge so it does not sit on the rim's own light.
+                PPinchSeg(cx + 2, cx + lb - 2, yb, T - 4, min(rc, lb / 2) - 2, min(rc, lb / 2) - 2, fr, jt * 0.7, 0.9, 15900, lon, 0.8, ink, 0, 0)
+                PPinchSeg(cx + ra + 2, cx + L - 2, yb, T - 4, min(rc, (L - ra) / 2) - 2, min(rc, (L - ra) / 2) - 2, fr, jt * 0.7, 0.9, 24100, ron, 0.8, ink, 0, 0)
+                PPinchSeg(cx + kl + 2, cx + kq - 2, yb, kc - 4, kr - 2, kr - 2, fr, jt * 0.7, 0.9, 31700, true, 1.2, ink, 0, 0)
+                //  The hatching fills the level's piece edge to edge, clipped to its shape (3 inside the line) so it does not poke out at the round ends.
+                group {
+                    clip inset 0 box { from: cx + 4, yb - T / 2 + 4; size: max(lb - 8, 0), T - 8; corner: max(min(rc, lb / 2) - 4, 0) }
+                    let xs = cx - T * 0.5                                  // past both ends: the strokes lean, and the shader keeps each one inside these; the clip trims them
+                    let xe = max(cx + lb + T * 0.5, xs)
+                    let hsp = max(2.6, (xe - xs) / 86)                     // the shader draws 88 columns: spread them over the piece, however long it is
+                    let sv = clamp(lv * 40, 0, 1) * if(lon, 1, 0)
+                    shader pencilhatch { at: cx - 6 - T, yb - T; size: L + 12 + 2 * T, 2 * T; values: xs - (cx - 6 - T), xe - (cx - 6 - T), hsp, T * 1.05, jt * 0.7, fr, 1.1, 0; colors: mix(mint, faint, mute); opacity: 0.5 * (1 - 0.55 * mute) * sv * (1 - dd_k); show: (1 - dd_k) * sv > 0.002 }
+                }
+            }
+            children
+        }
+    }
+
     group {
         show: dsh_water > 0.004 or dsh_rise > 0.004
         let dsh.gap = 18
@@ -140,6 +242,8 @@ part Dashboard {
         let dE.t = dsh.y0
         let dE.w = dsh.pw * dsh.ns + dsh.gap * (dsh.ns - 1)
         let dE.h = dsh.gh
+        let dsh.vb = dE.t + dE.h                                      // the sliders: their foot and length
+        let dsh.vl = dE.h
 
         //  (No pool over the screen: the desktop is left as it is, not dimmed or deepened, while the dashboard is up.)
 
@@ -593,7 +697,7 @@ part Dashboard {
                     zone ellipse dsh_mb.$b { at: dCb.x, dCb.y; radius: 26; cursor: pointer; active: dash_open and media_on; label: pick(b, "Previous", "Play or pause", "Next") }
                     on press dsh_mb.$b { emit mcmd(b) }
                 }
-                //  The seek row along the very foot of the card, its full width, as the floating player's: elapsed, a track filled as far as the song has gone with a knob, and the length.
+                //  The seek row along the very foot of the card, its full width, as the floating player's: elapsed, the pencil slider as far as the song has gone, and the length.
                 //  Pressed or dragged it follows the pointer and seeks where it is let go. A stream with no end shows "Live".
                 let dCk.y = min(dC.t + dC.h - 26, dC.t + 18 + dC.s + 34)   // under the cover, not stranded at the foot of a tall card
                 let dCk.x0 = dC.l + 18 + 74
@@ -603,8 +707,9 @@ part Dashboard {
                 text mp_el { at: dC.l + 18, dCk.y; anchor: left center; size: 15; weight: 600; width: 68; lines: 1; color: faint; family: "Space Grotesk"; show: media_on }
                 text mp_tot { at: dC.l + dC.w - 18, dCk.y; anchor: right center; align: right; size: 15; weight: 600; width: 68; lines: 1; color: faint; family: "Space Grotesk"; show: media_on and mp_len > 0 }
                 text "Live" { at: dC.l + dC.w - 18, dCk.y; anchor: right center; align: right; size: 15; weight: 700; color: mint; family: "Space Grotesk"; show: media_on and mp_len <= 0 }
-                box { at: dCk.x0 + dCk.w / 2, dCk.y; size: dCk.w, 5 + 1.5 * dCk.hot; corner: 3; color: ink; opacity: 14%; show: media_on and mp_len > 0 }
-                //  The part played is a wave that runs along it, as the volume banner's: 120 short lines spread over the played length, each a
+                //  The track is the shell's pencil slider (PSlider): the pinched track, the hatching as far as the song has got, the squeezed knob.
+                group { show: media_on and mp_len > 0; PSlider(dCk.x0, dCk.y, dCk.w, dCk.f, dCk.hot, 1, 9, 0) }
+                //  A stream with no end: a wave runs the whole way along it: 120 short lines spread over the played length, each a
                 //  little ahead of the last in the ripple, fading to flat at both ends so it meets the faint line and the pill. The ripple's
                 //  length stays the same however far the song has got (34 across), so it is the swing that moves, not the crests squeezing.
                 let dCk.xf = dCk.w * dCk.f
@@ -617,9 +722,8 @@ part Dashboard {
                     let dCw.xb = dCw.xa + dCk.seg
                     let dCw.ea = clamp((dCw.xa - dCk.x0) / dCk.f0, 0, 1) * clamp((dCk.x0 + dCk.xf - dCw.xa) / dCk.f0, 0, 1)
                     let dCw.eb = clamp((dCw.xb - dCk.x0) / dCk.f0, 0, 1) * clamp((dCk.x0 + dCk.xf - dCw.xb) / dCk.f0, 0, 1)
-                    line { show: media_on; from: dCw.xa, dCk.y + dCk.wa * dCw.ea * sin((dCw.xa - dCk.x0) * dCk.wf - time * 120); to: dCw.xb, dCk.y + dCk.wa * dCw.eb * sin((dCw.xb - dCk.x0) * dCk.wf - time * 120); width: 5 + 1.5 * dCk.hot; color: mint; opacity: min(1, dCk.xf / 8) * if(mp_len > 0, 1, 0.8 + 0.2 * sin(time * 120)) }
+                    line { show: media_on and mp_len <= 0; from: dCw.xa, dCk.y + dCk.wa * dCw.ea * sin((dCw.xa - dCk.x0) * dCk.wf - time * 120); to: dCw.xb, dCk.y + dCk.wa * dCw.eb * sin((dCw.xb - dCk.x0) * dCk.wf - time * 120); width: 5 + 1.5 * dCk.hot; color: mint; opacity: min(1, dCk.xf / 8) * if(mp_len > 0, 1, 0.8 + 0.2 * sin(time * 120)) }
                 }
-                box { at: clamp(dCk.x0 + dCk.xf, dCk.x0 + 3, dCk.x0 + dCk.w - 3), dCk.y; size: 6, 22 + 4 * dCk.hot; corner: 3; color: ink; show: media_on and mp_len > 0 }
                 zone box dsh_seek { at: dCk.x0 + dCk.w / 2, dCk.y; size: dCk.w + 16, 22; cursor: pointer; active: media_on and mp_len > 0 and dash_open }
                 on press dsh_seek { mp_drag = true; mp_df = clamp((pointer.x - (dC.l + 92)) / (dC.w - 184), 0, 1) }
                 on drag dsh_seek { mp_df = clamp((pointer.x - (dC.l + 92)) / (dC.w - 184), 0, 1) }
@@ -811,89 +915,31 @@ part Dashboard {
                 on press dsh_pb { dsh_pw = not dsh_pw }
             }
 
-            //  ── Volume and brightness: two tall pills of glass, filled from the bottom as far as the level, dragged up and down. Brightness is
+            //  ── Volume and brightness: the pencil slider made of the tiles' glass and stood upright (DshPinch), dragged up and down. Brightness is
             //  greyed out where there is no backlight to set (external monitors), as in the controls drawer ──
             repeat v in 0..2 {
                 let dV.w = dsh.pw
                 let dV.l = dE.l + v * (dV.w + dsh.gap)
                 let dV.k = dV.w * 0.36
                 let dV.on = if(v == 0, 1, if(brightness.present, 1, 0))      // it can be moved
-                let dV.lv = if(dsh_sl.$v.pressed, clamp((dE.t + dE.h - pointer.y) / dE.h, 0, 1), clamp(if(v == 0, volume_level, bright_level), 0, 1))   // under the pointer while dragged, not waiting on the mixer
+                let dVt.b = dsh.vb                                            // the track's foot, over the icon
+                let dVt.len = dsh.vl                                          // and its length, up to under the number
+                let dV.lv = if(dsh_sl.$v.pressed, clamp((dVt.b - pointer.y) / dVt.len, 0, 1), clamp(if(v == 0, if(audio.muted, 0, audio.volume), brightness.level), 0, 1))   // under the pointer while dragged, not waiting on the mixer; the raw level otherwise, so the knob morphs as it changes
                 let dV.dim = if(v == 0, audio.muted, 1 - dV.on)               // its fill is grey: muted, or nothing to set
-                let dV.ly = clamp(dE.t + dE.h * (1 - dV.lv) - 21, dE.t + 9, dE.t + dE.h - 21)   // the line's top: it rides above the fill, 5 clear of it (the fill is 9 clear of the glass)
-                DshTile(dV.l, dE.t, dV.w, dE.h, pick(v, dsh_c4, dsh_c1 * if(brightness.present, 1, 0)), dV.k) {
-                    group {
-                        clip inset 9 box { from: dV.l, dE.t; size: dV.w, dE.h; corner: dV.k }
-                        box { from: dV.l, dV.ly + 21; size: dV.w, dE.t + dE.h - dV.ly - 21; color: if(dV.dim, faint, mint); opacity: if(dV.dim, 0.22, 0.85) }
-                    }
-                    //  Glass reflections on the fill itself, as if it were coloured glass lit from the top left: darker toward the right and the
-                    //  foot for depth, a long bright streak down the left with a thin one beside it, a bright surface line at the top that fades
-                    //  into the fill, and a soft band of light that rises through the fill about every twelve seconds. Quieter when it is muted.
-                    group {
-                        clip inset 9 box { from: dV.l, dE.t; size: dV.w, dE.h; corner: dV.k }
-                        show: dV.on > 0.5
-                        let dVg.t = dV.ly + 21                                  // the fill's top and height
-                        let dVg.h = max(0, dE.t + dE.h - dVg.t)
-                        let dVg.q = if(dV.dim, 0.5, 1)
-                        //  Every fade is made of many fine strips, each only a hair different from the next, so it reads as smooth glass and not bands.
-                        repeat c in 0..30 {
-                            box { from: dV.l + c * dV.w / 30, dVg.t; size: dV.w / 30 + 0.6, dVg.h; color: #000000; opacity: 0.17 * c / 30 * dVg.q }
-                        }
-                        repeat c in 0..14 {
-                            box { from: dV.l, dE.t + dE.h - 3 * (c + 1); size: dV.w, 3.6; color: #000000; opacity: 0.2 * (1 - c / 14) * dVg.q }
-                        }
-                        repeat c in 0..36 {
-                            box { from: dV.l + 15, dVg.t + 10 + c * max(0, dVg.h - 24) / 36; size: 8, max(0, dVg.h - 24) / 36 + 1; corner: if(c == 0, 4, 0); color: #ffffff; opacity: 0.3 * (1 - 0.6 * c / 36) * dVg.q }
-                        }
-                        repeat c in 0..12 {
-                            box { from: dV.l + 28, dVg.t + 14 + c * max(0, dVg.h * 0.5 - 14) / 12; size: 3, max(0, dVg.h * 0.5 - 14) / 12 + 1; corner: if(c == 0, 1.5, 0); color: #ffffff; opacity: 0.16 * (1 - c / 12) * dVg.q }
-                        }
-                        repeat c in 0..11 {
-                            box { from: dV.l, dVg.t + c * 2; size: dV.w, 2.4; color: #ffffff; opacity: 0.42 * pow(1 - c / 11, 1.6) * dVg.q }
-                        }
-                        let dVg.p = fract(time * 0.08 + v * 0.45)
-                        let dVg.y = dVg.t + (1 - dVg.p) * dVg.h
-                        repeat j in 0..18 {
-                            box { from: dV.l, dVg.y - 18 + j * 2; size: dV.w, 2.4; color: #ffffff; opacity: 0.14 * sin((j + 0.5) / 18 * 180) * sin(dVg.p * 180) * dVg.q; show: dVg.h > 24 }
-                        }
-                    }
-                    //  The handle: a bright line just above the top of the fill, reaching a little past the glass on both sides.
-                    //  Glass like the fill, not flat: a rim and a soft glow, darker toward the right, a bright streak along its upper edge and a
-                    //  short one down the left.
-                    let dVh.o = 0.55 + 0.45 * dV.on
-                    let dVh.y = dV.ly + 16 - 22                                 // thicker: 22 tall instead of 16, growing upward so its foot stays where it was, 5 clear of the fill
-                    let dVh.h = 22
-                    body {
-                        color: mint
-                        rim: 30%
-                        shadow: 0, 0, 7, 50%, mint
-                        opacity: dVh.o
-                        show: dV.on > 0.5
-                        box { from: dV.l - 7, dVh.y; size: dV.w + 14, dVh.h; corner: 0 }
-                    }
-                    group {
-                        clip box { from: dV.l - 7, dVh.y; size: dV.w + 14, dVh.h; corner: 0 }
-                        show: dV.on > 0.5
-                        repeat c in 0..20 {
-                            box { from: dV.l - 7 + c * (dV.w + 14) / 20, dVh.y; size: (dV.w + 14) / 20 + 0.6, dVh.h; color: #000000; opacity: 0.2 * c / 20 * dVh.o }
-                        }
-                        repeat c in 0..6 {
-                            box { from: dV.l - 7, dVh.y + c * 1.6; size: dV.w + 14, 2; color: #ffffff; opacity: 0.45 * pow(1 - c / 6, 1.6) * dVh.o }
-                        }
-                        box { from: dV.l + 4, dVh.y + 5; size: (dV.w + 14) * 0.45, 3; corner: 1.5; color: #ffffff; opacity: 0.3 * dVh.o }
-                    }
+                let dV.c = pick(v, dsh_c4, dsh_c1 * if(brightness.present, 1, 0))
+                DshPinch(dV.l + dV.w / 2, dsh.vb, dV.w, dsh.vl, if(dV.on > 0.5, dV.lv, 0), dsh_sl.$v.hover, if(dV.dim, 1, 0), dV.c) {
                     text number(dV.lv * 100, 0, "%") { at: dV.l + dV.w / 2, dE.t + 30; anchor: center; size: 20; weight: 600; family: "Space Grotesk"; color: ink; opacity: 0.5 + 0.5 * dV.on; show: dV.on }
                     text "No backlight" { at: dV.l + dV.w / 2, dE.t + 30; anchor: center; size: 11.5; width: dV.w - 16; lines: 2; align: center; family: "Space Grotesk"; color: faint; show: not dV.on }
-                    //  The speaker (with one or two waves by the level, crossed out when muted) or the sun (its rays longer the brighter), in pencil.
-                    group { show: v == 0; GSpeaker(dV.l + dV.w / 2, dE.t + dE.h - 32, clamp(floor(dV.lv * 3), 0, 2), if(audio.muted, 1, 0), 1, if(dV.lv > 0.18 and not dV.dim, onmint, ink), 0.45 + 0.55 * dV.on, 0) }
-                    group { show: v == 1; GSun(dV.l + dV.w / 2, dE.t + dE.h - 32, clamp(dV.lv, 0, 1), 1, if(dV.lv > 0.18 and not dV.dim, onmint, ink), 0.45 + 0.55 * dV.on, 0) }
+                    //  The speaker (one wave above 0 %, two above 50 %, crossed out when muted) or the sun (its rays longer the brighter), in pencil: the power tile's plug's size and colour, boiling under the pointer.
+                    group { show: v == 0; GSpeaker(dV.l + dV.w / 2, dE.t + dE.h - 32, if(dV.lv > 0.5, 2, if(dV.lv > 0.004, 1, 0)), if(audio.muted, 1, 0), 34 / 24, if(audio.muted, faint, mint), 0.45 + 0.55 * dV.on, if(dsh_mute.hover, floor(time * 8), 0)) }
+                    group { show: v == 1; GSun(dV.l + dV.w / 2, dE.t + dE.h - 32, clamp(dV.lv, 0, 1), 34 / 24, mint, 0.45 + 0.55 * dV.on, if(dsh_sl.$v.hover, floor(time * 8), 0)) }
                 }
                 zone box dsh_sl.$v { from: dV.l, dE.t; size: dV.w, dE.h; corner: dV.k; cursor: ns_resize; active: dash_open and dV.on > 0.5; label: pick(v, "Volume", "Brightness"); role: slider; value: dV.lv }
             }
-            on press dsh_sl.0 { emit setvol(clamp((dE.t + dE.h - pointer.y) / dE.h, 0, 1)) }
-            on drag dsh_sl.0 { emit setvol(clamp((dE.t + dE.h - pointer.y) / dE.h, 0, 1)) }
-            on press dsh_sl.1 { emit setbright(clamp((dE.t + dE.h - pointer.y) / dE.h, 0, 1)) }
-            on drag dsh_sl.1 { emit setbright(clamp((dE.t + dE.h - pointer.y) / dE.h, 0, 1)) }
+            on press dsh_sl.0 { emit setvol(clamp((dsh.vb - pointer.y) / dsh.vl, 0, 1)) }
+            on drag dsh_sl.0 { emit setvol(clamp((dsh.vb - pointer.y) / dsh.vl, 0, 1)) }
+            on press dsh_sl.1 { emit setbright(clamp((dsh.vb - pointer.y) / dsh.vl, 0, 1)) }
+            on drag dsh_sl.1 { emit setbright(clamp((dsh.vb - pointer.y) / dsh.vl, 0, 1)) }
             //  The speaker, at the foot of the volume: a press mutes (declared after the slider, so it takes the press).
             zone ellipse dsh_mute { at: dE.l + dsh.pw / 2, dE.t + dE.h - 32; radius: 22; cursor: pointer; active: dash_open; label: "Mute"; role: toggle; checked: audio.muted }
             on press dsh_mute { emit mute }

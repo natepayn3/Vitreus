@@ -3518,8 +3518,8 @@ scene Vitreus {
 
     //  One piece of PSlider's track in pencil: a rounded box from `xa` to `xb` round `y`, `h` tall, corner `rl` on its left and `rr` on its right, drawn twice (the second
     //  pass fainter and a hair off) with PSlider's wobble (`fr`, `jt`); `sd` keeps two pieces from wobbling alike, `o` scales how dark it is (the knob is drawn darker).
-    //  `fc`, `fo` fill it (Doodle's cream track and level); `fo` 0 for none.
-    component PPinchSeg(xa: number, xb: number, y: number, h: number, rl: number, rr: number, fr: number, jt: number, k: number, sd: number, on: bool, o: number, fc: color, fo: number) {
+    //  `fc`, `fo` fill it (Doodle's cream track and level); `fo` 0 for none. `p2` 0 leaves out the faint second pass (one clean line, on glass).
+    component PPinchSeg(xa: number, xb: number, y: number, h: number, rl: number, rr: number, fr: number, jt: number, k: number, sd: number, on: bool, o: number, fc: color, fo: number, p2: number = 1) {
         let t = y - h / 2
         let bt = y + h / 2
         path { at: 0, 0; color: fc; opacity: fo; show: on and fo > 0.004
@@ -3543,7 +3543,7 @@ scene Vitreus {
                curve xa + jt * sin(fr * 71 + sd + 732), bt - rl + jt * sin(fr * 48 + sd + 793) via xa, bt
                line xa + jt * sin(fr * 55 + sd + 854), t + rl + jt * sin(fr * 62 + sd + 915)
                curve xa + rl + jt * sin(fr * 47 + sd + 0), t + jt * sin(fr * 54 + sd + 61) via xa, t }
-        path { at: 0.35 * cu, 0.28 * cu; stroke: 1.05 * k; color: ink; opacity: 0.2 * (1 - dd_k) * o; show: on
+        path { at: 0.35 * cu, 0.28 * cu; stroke: 1.05 * k; color: ink; opacity: 0.2 * (1 - dd_k) * o * p2; show: on and p2 > 0
                move xa + rl + jt * sin(fr * 57 + sd + 2440), t + jt * sin(fr * 64 + sd + 2501)
                line xb - rr + jt * sin(fr * 71 + sd + 2562), t + jt * sin(fr * 48 + sd + 2623)
                curve xb + jt * sin(fr * 55 + sd + 2684), t + rr + jt * sin(fr * 62 + sd + 2745) via xb, t
