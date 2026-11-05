@@ -1,0 +1,49 @@
+#!/bin/sh
+# Opens a picture in View, Vitreus's picture viewer (view/view.plm): `vitreus-view FILE` (or a folder: its first picture). Each call opens a window of its own.
+#
+# It is the program the system runs for pictures once View is the default (view/integrate.sh --set writes vitreus-view.desktop, which passes `%U`: file:// links,
+# as many as were chosen), so an argument may be a path or a file:// link. Only the first one is opened: the others of its folder are a key away.
+#
+# Started from outside the shell (a browser, Files, a terminal), it sets up what the shell's own scenes are started with: the shell's typeface (below)
+# and ~/.local/bin on the PATH. The look and the glass are asked of Vitreus by the scene itself.
+# Without pleamar or without the scene, the picture goes to whatever else opens pictures (xdg-open, unless that would come back here).
+here=$(dirname "$(readlink -f "$0")")
+shell=$(cd "$here/.." && pwd)
+scene="$shell/view/view.plm"
+export PATH="$HOME/.local/bin:$PATH"
+
+p=${1:-.}
+case $p in
+    file://*)
+        p=${p#file://}
+        p=${p#localhost}
+        if command -v python3 > /dev/null 2>&1; then
+            p=$(python3 -I -c 'import sys, urllib.parse; print(urllib.parse.unquote(sys.argv[1]), end="")' "$p")
+        else
+            p=$(printf '%s' "$p" | sed 's/%20/ /g; s/%23/#/g; s/%25/%/g')
+        fi ;;
+    "~") p=$HOME ;;
+    "~/"*) p=$HOME/${p#"~/"} ;;
+esac
+case $p in /*) ;; *) p="$(pwd)/$p" ;; esac
+
+if [ ! -f "$scene" ] || ! command -v pleamar > /dev/null 2>&1; then
+    [ -n "${VITREUS_VIEW_FALLBACK:-}" ] && exit 1
+    export VITREUS_VIEW_FALLBACK=1
+    for v in loupe eog gwenview ristretto imv feh; do command -v "$v" > /dev/null 2>&1 && exec "$v" "$p"; done
+    case $(xdg-mime query default image/png 2> /dev/null) in vitreus-view.desktop) exit 1 ;; esac
+    exec xdg-open "$p"
+fi
+
+# The typeface: the one the shell is drawn in now. The shell takes a new one only when it starts again (Settings > Theme > Apply), so the font setup it was
+# started with is read from it (its FONTCONFIG_FILE, or none: Space Grotesk itself); without the shell running, what bin/vitreus-fonts makes of the settings.
+# Whatever the program that started View had (Files started under another theme, say) is not kept.
+unset FONTCONFIG_FILE
+sp=$(pgrep -f "pleamar --scene $shell/vitreus.plm" | head -n 1)
+if [ -n "$sp" ] && [ -r "/proc/$sp/environ" ]; then
+    fc=$(tr '\0' '\n' < "/proc/$sp/environ" | sed -n 's/^FONTCONFIG_FILE=//p' | head -n 1)
+    [ -n "$fc" ] && [ -f "$fc" ] && export FONTCONFIG_FILE="$fc"
+else
+    fc=$("$shell/bin/vitreus-fonts" "${XDG_DATA_HOME:-$HOME/.local/share}/pleamar/vitreus" 2> /dev/null) && [ -n "$fc" ] && export FONTCONFIG_FILE="$fc"
+fi
+VIEW_START="$p" VIEW_SHELL="$shell" setsid pleamar --scene "$scene" --no-hud > /dev/null 2>&1 &

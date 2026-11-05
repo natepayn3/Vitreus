@@ -1,0 +1,611 @@
+language 0.1
+import "../palette.plm"
+
+//  View: the picture viewer. One picture at a time, fitted to the window, with the others of its folder a key or a click away: the arrows (or the wheel
+//  over the arrows at the sides) go through them, the wheel over the picture zooms about the pointer, dragging moves it once it is bigger than the
+//  window, and a double click goes between fitted and its real size. A pill under it holds the same as buttons, and Edit opens the picture in Snap to
+//  draw on. The logic (view.luau) finds the folder's pictures, measures each one and makes a copy that pleamar can read when it cannot (HEIC, AVIF,
+//  TIFF..., or a photo whose camera says it is turned).
+//
+//  It is drawn like the shell: the colours are Vitreus's (../palette.plm), and the look (Settings > Theme) is asked of Vitreus, as Files does: 0 Glass,
+//  1 Retro (moulded plastic: square corners, a dark outline, a hard shadow), 2 UwU (candy plastic: a pastel gradient, a thick grape outline, a hard pink
+//  shadow, cat ears), 3 Cyber (near-black glass, a neon hairline, corner brackets), 4 Doodle (a sketchbook: paper, an ink outline, a solid ink shadow, tape).
+//
+//  Keys: Left / Right (and Page Up / Page Down, Backspace / Space) the one before and after, Home and End the first and the last, + and - zoom, R and Shift+R turn it, E edits it in Snap, Ctrl+C copies it, W makes it the wallpaper, I shows its details, S starts or stops
+//  the slideshow, Delete puts it in the trash, F (or F11) fills the screen, keypad 0 fits and keypad 1 is the real size, Esc stops, closes the details, then View; Q closes.
+//
+//  Open it with   bin/vitreus-view FILE   (what the desktop runs for pictures once View is the default: view/integrate.sh --set).
+
+scene View {
+    surface { size: 1180, 800; kind: window; title: "View"; app_id: "vitreus.view"; keyboard: on_demand }
+    //  The glass bends a copy of the wallpaper, as Files does (a capture of the screen needs a moment to start, and the window is clear until it does).
+    lens = image "~/.cache/pleamar/vitreus/lens.png"
+
+    permissions {
+        run: "sh", "pleamar", "printenv", "magick", "gio", "wl-copy", "hyprctl", "vitreus-files", "notify-send", "awww"
+    }
+
+    // ── what the logic says ──
+    text src = ""                    // the picture to show: its file (or the copy made of it), `?` and a number, so a new one is always read again
+    text name = ""                   // its name, and the line under it (which of how many, its size in pixels, how big the file is)
+    text sub = ""
+    text msg = ""                    // why there is nothing to show
+    text toast = ""                  // a word from View: copied, put in the trash...
+    text pre_a = ""                  // the pictures after and before this one, drawn out of sight so that they are ready (see view.luau, `preload`)
+    text pre_b = ""
+    fact info_on = false             // the details card is open, and how many lines it has
+    fact info_n = 0
+    model info max 16 { k: text; v: text }
+    fact toast_on = false
+    fact has_name = false            // there is a file (a name to show), and a reason why nothing is drawn
+    fact has_msg = false
+    fact iw = 0                      // the picture's size in pixels, as it is drawn (a turned photo's copy is already the right way up)
+    fact ih = 0
+    fact ready = false               // it has been measured and can be drawn
+    fact gen = 0                     // goes up with every picture shown
+    fact count = 0                   // how many pictures are in its folder, and which this one is (from 1)
+    fact idx = 0
+    fact dpr = 1                     // the monitor's scale: the real size is one pixel of the picture to one of the screen
+    fact look = 0                    // the shell's look (above)
+    fact obs = false                 // Vitreus has its glass off: flat obsidian
+    fact gop = 1                     // and its glass settings, as Files wears them: opacity, X-Bend, refraction, fringe, frost, dome, milk, rim
+    fact gbend = false
+    fact grefr = 1
+    fact gdisp = 1
+    fact gclear = 1
+    fact gdome = 0
+    fact gmilk = 0
+    fact grim = 1
+    fact wr = -1                     // the window's rounding, as Hyprland has it
+
+    // ── what the scene keeps ──
+    fact z = 1                       // the zoom, times the fitted size (1 is fitted)
+    fact ox = 0                      // how far the picture is moved from the middle, in the window's pixels
+    fact oy = 0
+    fact bx = 0                      // where it was when a drag began
+    fact by = 0
+    fact rot = 0                     // quarter turns, clockwise (only how it is shown: the file is left as it is)
+    fact tip = 0                     // the button whose tooltip shows (0 none)
+    fact held = false                // the picture is being dragged
+    fact playing = false             // the slideshow: the next one every four seconds
+
+    event nav ->                     // -1 the one before, 1 the one after, -2 the first, 2 the last
+    event tap ->                     // a click on the picture (the logic tells a double click from two)
+    event do_edit ->
+    event do_reveal ->
+    event do_copy ->
+    event do_trash ->
+    event do_full ->
+    event dbl                        // the logic's answer to a double click
+    event focused ->
+    event do_wall ->
+    event do_info ->
+
+    spring pop = 230, 17
+    prop zk = 1 ~quick
+    prop oxk = 0 ~quick
+    prop oyk = 0 ~quick
+    prop rk = 0 ~quick
+    prop ap = 0 ~quick
+    prop toast_k = 0 ~pop
+    follow zk = z
+    follow oxk = ox
+    follow oyk = oy
+    follow rk = rot
+    follow ap = if(ready, 1, 0)
+    follow toast_k = if(toast_on, 1, 0)
+
+    let pink_shadow = mix(deep, #ff6ec7, 0.75)
+    let tape = #f7a8c4     // Doodle's strip of washi tape
+    let candy = #ffcfe8    // UwU's pastels, from pink to mint
+    let candy2 = #d2fff0
+
+    // ── the shape of the window ──
+    let W = screen.width
+    let H = screen.height
+    //  the window's corners: the compositor's own (Hyprland's rounding, which Vitreus sets from the theme), so the glass meets the window's border;
+    //  without Hyprland to ask (`wr` -1), the theme's: squarer on Retro, Cyber and Doodle
+    let wc = if(wr >= 0, wr, 22 * pick(look, 1, 0.32, 1, 0.27, 0.15))
+    let top = 60                                             // the name's chip over the picture, and the pill under it
+    let bot = 88
+    let AW = W - 32                                          // the room the picture is fitted into
+    let AH = H - top - bot
+    let cx = W / 2
+    let cy = top + AH / 2
+    //  the picture's size as it is turned, how much it is made smaller to fit (never bigger than its real size), and what it is drawn at
+    let rw = max(if(mod(rot, 2) == 1, ih, iw), 1)
+    let rh = max(if(mod(rot, 2) == 1, iw, ih), 1)
+    let fk = min(min(AW / rw, AH / rh), 1 / dpr)
+    let k = fk * zk
+    let px = cx + oxk
+    let py = cy + oyk
+    //  how far it can be moved: until each edge reaches the room's (nothing, while it fits); the zoom it can have: fitted to 16 times its real size
+    let lim.x = max(0, (rw * fk * z - AW) / 2)
+    let lim.y = max(0, (rh * fk * z - AH) / 2)
+    let zmax = max(2, 16 / (fk * dpr))
+    let real = 1 / (fk * dpr)                                // the zoom that is its real size
+    let zoomed = z > 1.01
+    let big = (rw * fk * z > AW + 1) or (rh * fk * z > AH + 1)
+    let has = ready and count > 0
+
+    // ── pieces that come again and again ──
+    //  Doodle's card, drawn by hand (the same as Vitreus's and Snap's): a slightly crooked quad with sharp corners and gently bowed edges, and a solid ink
+    //  shadow, the same shape moved down and to the right.
+    component DdCard(cx: number, cy: number, w: number, h: number, sd: number, fill: color, k: number = 1, s: number = 1) {
+        let x0 = cx - w / 2
+        let y0 = cy - h / 2
+        let x1 = cx + w / 2
+        let y1 = cy + h / 2
+        let j = min(1.8 * s, min(w, h) * 0.04)
+        let ax = x0 - j * (random(sd + 0.11) - 0.5)
+        let ay = y0 - j * (random(sd + 0.23) - 0.5)
+        let bx = x1 + j * (random(sd + 0.37) - 0.5)
+        let by = y0 - j * (random(sd + 0.41) - 0.5)
+        let qx = x1 + j * (random(sd + 0.53) - 0.5)
+        let qy = y1 + j * (random(sd + 0.67) - 0.5)
+        let dx = x0 - j * (random(sd + 0.71) - 0.5)
+        let dy = y1 + j * (random(sd + 0.89) - 0.5)
+        let bw = min(1.3 * s, min(w, h) * 0.03)
+        let b1 = -bw * random(sd + 1.3)
+        let b2 = bw * random(sd + 1.7)
+        let b3 = bw * random(sd + 2.1)
+        let b4 = -bw * random(sd + 2.9)
+        let o = 2.6 * s
+        path { at: o, o; color: ink; opacity: k
+            move ax, ay
+            curve bx, by via (ax + bx) / 2, (ay + by) / 2 + b1
+            curve qx, qy via (bx + qx) / 2 + b2, (by + qy) / 2
+            curve dx, dy via (qx + dx) / 2, (qy + dy) / 2 + b3
+            curve ax, ay via (dx + ax) / 2 + b4, (dy + ay) / 2
+            close }
+        path { at: 0, 0; color: fill; opacity: k
+            move ax, ay
+            curve bx, by via (ax + bx) / 2, (ay + by) / 2 + b1
+            curve qx, qy via (bx + qx) / 2 + b2, (by + qy) / 2
+            curve dx, dy via (qx + dx) / 2, (qy + dy) / 2 + b3
+            curve ax, ay via (dx + ax) / 2 + b4, (dy + ay) / 2
+            close }
+        path { at: 0, 0; stroke: 2 * s; color: ink; opacity: k
+            move ax, ay
+            curve bx, by via (ax + bx) / 2, (ay + by) / 2 + b1
+            curve qx, qy via (bx + qx) / 2 + b2, (by + qy) / 2
+            curve dx, dy via (qx + dx) / 2, (qy + dy) / 2 + b3
+            curve ax, ay via (dx + ax) / 2 + b4, (dy + ay) / 2
+            close }
+    }
+
+    //  What the pill, the chip and the tooltips are made of, in the look's material (as Snap's bar is): a box from (x, y), `w` by `h`, `r` its roundest
+    //  corner, `sd` the seed of Doodle's wobble, `k` how much of it is seen. Over a picture it is solid, not glass: glass would bend the desktop behind
+    //  the window, not the picture.
+    component Mat(x: number, y: number, w: number, h: number, r: number, sd: number, k: number) {
+        body {
+            color: if(look == 3, mix(tint, #000000, 0.8), mix(tint, #000000, 0.12))
+            rim: 14%
+            border: if(look == 3, 1.2, 0), mint
+            shadow: 0, 7, 20, 30%, deep
+            opacity: 94% * k
+            show: k > 0.01 and (look == 0 or look == 3)
+            box { from: x, y; size: w, h; corner: if(look == 3, 5, r) }
+        }
+        //  Cyber's magenta corner brackets
+        repeat c in 0..4 {
+            let bx0 = if(mod(c, 2) == 0, x - 5, x + w + 5)
+            let by0 = if(mod(c, 4) < 2, y - 5, y + h + 5)
+            let sx = if(mod(c, 2) == 0, 1, -1)
+            let sy = if(mod(c, 4) < 2, 1, -1)
+            path { at: bx0, by0; stroke: 2; color: deep; opacity: k; show: k > 0.01 and look == 3; move 0, sy * 12; line 0, 0; line sx * 12, 0 }
+        }
+        //  Retro: putty, a lit lip, a dark outline and a hard shadow
+        body {
+            color: tint
+            rim: 40%
+            border: 1.7, deep
+            shadow: 4, 5, 0, 55%, deep
+            opacity: k
+            show: k > 0.01 and look == 1
+            box { from: x, y; size: w, h; corner: min(r, 7) }
+        }
+        //  UwU: candy plastic
+        body {
+            gradient: x, y to x + w, y + h, candy, #e6d6ff 38%, #cfeaff 68%, candy2
+            rim: 55%
+            border: 3, deep
+            shadow: 4, 5, 0, 90%, pink_shadow
+            opacity: k
+            show: k > 0.01 and look == 2
+            box { from: x, y; size: w, h; corner: r }
+        }
+        //  Doodle: a card drawn by hand
+        DdCard(x + w / 2, y + h / 2, w, h, sd, tint, k) { show: k > 0.01 and look == 4 }
+    }
+
+    //  A button of the pill: `g` is its picture (below), `n` its place for the tooltip, and it says `ev(arg)` when pressed; `en` greys it out.
+    component Tb(x: number, y: number, n: number, g: number, lbl: text, ev: event, arg: number, en: number, sel: number = 0) {
+        prop hv = 0 ~quick
+        follow hv = tz.hover
+        box { at: x, y; size: 38, 38; corner: pick(look, 13, 4, 13, 3, 2); color: mint; opacity: if(en > 0.5, max(24% * hv, 45% * sel), 0) }
+        box { at: x, y; size: 38, 38; corner: pick(look, 13, 4, 13, 3, 2); stroke: 1.6; color: ink; opacity: if(en > 0.5 and (look == 1 or look == 2 or look == 4), 70% * hv, 0) }
+        group {
+            opacity: if(en > 0.5, 100%, 35%)
+            //  0 the one before, 1 the one after
+            path { at: x, y; stroke: 2.6; color: ink; show: g == 0; move 4, -8; line -4, 0; line 4, 8 }
+            path { at: x, y; stroke: 2.6; color: ink; show: g == 1; move -4, -8; line 4, 0; line -4, 8 }
+            //  2 zoom out, 3 zoom in: a lens with a minus or a plus in it
+            ellipse { at: x - 2, y - 2; radius: 6.5; stroke: 2.2; color: ink; show: g == 2 or g == 3 }
+            line { from: x + 2.8, y + 2.8; to: x + 8, y + 8; width: 2.6; color: ink; show: g == 2 or g == 3 }
+            line { from: x - 5.5, y - 2; to: x + 1.5, y - 2; width: 2; color: ink; show: g == 2 or g == 3 }
+            line { from: x - 2, y - 5.5; to: x - 2, y + 1.5; width: 2; color: ink; show: g == 3 }
+            //  4 fit (when it is zoomed: four corners pointing in) or its real size (1:1)
+            repeat c in 0..4 {
+                let sx = if(mod(c, 2) == 0, -1, 1)
+                let sy = if(c < 2, -1, 1)
+                path { at: x + sx * 8, y + sy * 8; stroke: 2.2; color: ink; show: g == 4 and zoomed; move 0, -sy * 5; line 0, 0; line -sx * 5, 0 }
+            }
+            text "1:1" { at: x, y; anchor: center; size: 13; weight: 700; color: ink; family: "Space Grotesk"; show: g == 4 and not zoomed }
+            //  5 turn left, 6 turn right: three quarters of a circle with its head at the top
+            path { at: x, y; stroke: 2.2; color: ink; show: g == 5
+                move 0, -7
+                curve 4.95, -4.95 via 2.9, -7
+                curve 7, 0 via 7, -2.9
+                curve 4.95, 4.95 via 7, 2.9
+                curve 0, 7 via 2.9, 7
+                curve -4.95, 4.95 via -2.9, 7
+                curve -7, 0 via -7, 2.9 }
+            path { at: x, y; stroke: 2.2; color: ink; show: g == 5; move 3.5, -10.5; line 0, -7; line 3.5, -3.5 }
+            path { at: x, y; stroke: 2.2; color: ink; show: g == 6
+                move 0, -7
+                curve -4.95, -4.95 via -2.9, -7
+                curve -7, 0 via -7, -2.9
+                curve -4.95, 4.95 via -7, 2.9
+                curve 0, 7 via -2.9, 7
+                curve 4.95, 4.95 via 2.9, 7
+                curve 7, 0 via 7, 2.9 }
+            path { at: x, y; stroke: 2.2; color: ink; show: g == 6; move -3.5, -10.5; line 0, -7; line -3.5, -3.5 }
+            //  7 edit (a pencil), 8 show in its folder, 9 copy, 10 the trash
+            path { at: x, y; stroke: 2.1; color: ink; show: g == 7; move -7, 7; line -6, 2.5; line 4, -7.5; line 7.5, -4; line -2.5, 6; close }
+            line { from: x + 1.5, y - 5; to: x + 5, y - 1.5; width: 2; color: ink; show: g == 7 }
+            path { at: x, y; stroke: 2.1; color: ink; show: g == 8; move -8.5, -6; line -3.5, -6; line -1.5, -3.5; line 8.5, -3.5; line 8.5, 6.5; line -8.5, 6.5; close }
+            box { at: x - 2, y + 2; size: 11, 13; corner: 2; stroke: 2; color: ink; show: g == 9 }
+            path { at: x, y; stroke: 2; color: ink; show: g == 9; move -3.5, -5.5; line -3.5, -8.5; line 7.5, -8.5; line 7.5, 4.5; line 4.5, 4.5 }
+            line { from: x - 8, y - 5; to: x + 8, y - 5; width: 2.2; color: ink; show: g == 10 }
+            path { at: x, y; stroke: 2.1; color: ink; show: g == 10; move -3, -5; line -3, -8; line 3, -8; line 3, -5 }
+            path { at: x, y; stroke: 2.1; color: ink; show: g == 10; move -5.5, -5; line -4.5, 8; line 4.5, 8; line 5.5, -5 }
+            //  11 the slideshow: play, or two bars while it plays
+            path { at: x, y; color: ink; show: g == 11 and sel < 0.5; move -4.5, -7.5; line 7.5, 0; line -4.5, 7.5; close }
+            box { at: x - 3.5, y; size: 3.6, 14; corner: 1; color: ink; show: g == 11 and sel > 0.5 }
+            box { at: x + 3.5, y; size: 3.6, 14; corner: 1; color: ink; show: g == 11 and sel > 0.5 }
+            //  12 the details: an i in a ring
+            ellipse { at: x, y; radius: 8.5; stroke: 2; color: ink; show: g == 12 }
+            box { at: x, y + 2; size: 2.4, 7; corner: 1; color: ink; show: g == 12 }
+            ellipse { at: x, y - 4; radius: 1.5; color: ink; show: g == 12 }
+            //  13 the wallpaper: a screen with hills on it, on its stand
+            box { at: x, y - 2; size: 19, 13; corner: 2; stroke: 2; color: ink; show: g == 13 }
+            path { at: x, y; color: ink; show: g == 13; move -6, 2; line -2, -3.5; line 1, -0.5; line 3, -2.5; line 6.5, 2; close }
+            line { from: x - 4, y + 8.5; to: x + 4, y + 8.5; width: 2; color: ink; show: g == 13 }
+            line { from: x, y + 4.5; to: x, y + 8.5; width: 2; color: ink; show: g == 13 }
+        }
+        zone box tz { at: x, y; size: 38, 38; corner: 13; cursor: pointer; label: lbl; active: en > 0.5 }
+        on press tz { emit ev(arg) }
+        on leave tz { tip = 0 }
+        on hover tz for 450ms { tip = n }
+    }
+
+    //  A tooltip over a button: its words in a small chip of the look's material, `x` the button's middle.
+    component Tip(n: number, x: number, y: number, words: text) {
+        measure tw
+        group {
+            show: tip == n
+            Mat(x - tw.width / 2 - 12, y - 14, tw.width + 24, 28, 14, 3.5 + n, 1)
+            text words { at: x, y; anchor: center; size: 12.5; weight: 700; color: ink; family: "Space Grotesk"; measure: tw }
+        }
+    }
+
+    // ── the window ──
+    let ob = obs or look == 1 or look == 2 or look == 4      // drawn solid: the glass is off, or the look is plastic or paper
+    body {
+        color: if(look == 3, mix(tint, #000000, 0.55), tint)
+        glass: 100%
+        lens: gbend
+        frost: gclear
+        refraction: grefr
+        dispersion: gdisp
+        dome: gdome
+        milk: gmilk
+        rim: 60% * grim
+        shine: 0, 0
+        opacity: gop
+        show: not ob
+        box { from: 0, 0; size: W, H; corner: wc }
+    }
+    //  the obsidian of the glass turned off, and the looks that are solid
+    body {
+        color: pick(look, mix(mix(tint, #000000, 0.7), ink, 0.3), tint, tint, mix(tint, #000000, 0.8), tint)
+        rim: 0%
+        show: ob and look != 2
+        box { from: 0, 0; size: W, H; corner: wc }
+    }
+    body {
+        gradient: 0, 0 to W, H, candy, #e6d6ff 38%, #cfeaff 68%, candy2
+        show: look == 2
+        box { from: 0, 0; size: W, H; corner: wc }
+    }
+    //  the outline the plastic looks and the paper have, inside the window's edge (a shadow would be cut by it)
+    box { from: 1.5, 1.5; size: W - 3, H - 3; corner: wc; stroke: pick(look, 0, 2, 3.2, 1.2, 2.4); color: pick(look, deep, deep, deep, mint, ink); opacity: if(look == 0, 0, if(look == 3, 55%, 100%)) }
+    //  Doodle: the paper of a sketchbook, faint dots on a grid
+    repeat gy in 0..40 {
+        repeat gx in 0..64 {
+            ellipse { at: 14 + gx * 28, 14 + gy * 28; radius: 1; color: ink; opacity: 9%; show: look == 4 and 14 + gx * 28 < W and 14 + gy * 28 < H }
+        }
+    }
+    //  where the picture lies: a hollow a little darker than the glass, so a photo reads on any wallpaper
+    box { from: 8, 8; size: W - 16, H - 16; corner: max(wc - 6, 2); color: if(look == 3, #000000, deep); opacity: pick(look, 38%, 0, 0, 45%, 0) }
+
+    // ── the picture ──
+    image pic = from src, 0, 0
+    //  The neighbours, decoded in advance: drawn at the size they will be shown, inside a clip of one pixel in the corner (under the window's rounding).
+    image pa = from pre_a, 0, 0
+    image pb = from pre_b, 0, 0
+    group {
+        clip box { from: 0, 0; size: 1, 1 }
+        image pa { at: 0, 0; size: AW, AH; fit: contain }
+        image pb { at: 0, 0; size: AW, AH; fit: contain }
+    }
+    //  Everything that is the picture's turns about its middle: the shadow or the frame the look gives it, and the picture itself. Its size is not
+    //  turned: the group turns it.
+    let dw = iw * k
+    let dh = ih * k
+    group {
+        pivot: px, py
+        rotate: rk * 90deg
+        opacity: ap
+        show: has
+        //  Glass: a soft shadow under it. Retro: a hard one and a dark outline. UwU: a pink one. Cyber: a neon hairline. Doodle: an ink one, and tape.
+        body {
+            color: deep
+            shadow: pick(look, 0, 5, 5, 0, 4), pick(look, 10, 6, 6, 0, 4), pick(look, 30, 0, 0, 16, 0), pick(look, 50%, 55%, 90%, 45%, 100%), pick(look, #000000, deep, pink_shadow, mint, ink)
+            show: not big
+            box { at: px, py; size: dw, dh; corner: if(look == 2, 14, 0) }
+        }
+        clip box { at: px, py; size: dw, dh; corner: if(look == 2 and not big, 14, 0) }
+        image pic { at: px - dw / 2, py - dh / 2; size: dw, dh }
+    }
+    group {
+        pivot: px, py
+        rotate: rk * 90deg
+        opacity: ap
+        show: has and not big
+        box { at: px, py; size: dw, dh; corner: if(look == 2, 14, 0); stroke: pick(look, 0, 2, 3, 1.2, 2.4); color: pick(look, deep, deep, deep, mint, ink); opacity: if(look == 0, 0, 100%) }
+        repeat c in 0..2 {
+            let tx = if(c == 0, px - dw / 2 + 10, px + dw / 2 - 10)
+            let ty = py - dh / 2 + 2
+            group {
+                show: look == 4
+                pivot: tx, ty
+                rotate: if(c == 0, -38deg, 38deg)
+                box { at: tx, ty; size: 58, 17; corner: 1; color: tape; opacity: 80% }
+            }
+        }
+    }
+
+    //  nothing to show: an empty folder, a file that is not a picture, or one that could not be read
+    group {
+        show: not has and has_msg
+        Mat(cx - 210, cy - 70, 420, 140, 22, 4.5, 1)
+        box { at: cx, cy - 22; size: 34, 26; corner: 4; stroke: 2.2; color: ink; opacity: 70% }
+        path { at: cx, cy - 22; color: ink; opacity: 70%; move -13, 9; line -4, -1; line 2, 5; line 6, 1; line 13, 9; close }
+        ellipse { at: cx + 7, cy - 28; radius: 2.6; color: ink; opacity: 70% }
+        text msg { at: cx, cy + 22; anchor: center; size: 14; weight: 600; color: ink; width: 380; align: center; family: "Space Grotesk" }
+    }
+
+    // ── the picture's own zone: zoom, move, a double click ──
+    //  Written before everything that floats over it, so the buttons win their presses (the last zone declared gets them).
+    zone box stage { from: 0, 0; size: W, H; cursor: if(lim.x > 0 or lim.y > 0, if(held, grabbing, grab), default); label: "Picture"; role: region }
+    on scroll stage while has {
+        ox = clamp((ox - (pointer.x - cx)) * clamp(z * pow(1.2, wheel), 1, zmax) / z + (pointer.x - cx), -max(0, (rw * fk * clamp(z * pow(1.2, wheel), 1, zmax) - AW) / 2), max(0, (rw * fk * clamp(z * pow(1.2, wheel), 1, zmax) - AW) / 2))
+        oy = clamp((oy - (pointer.y - cy)) * clamp(z * pow(1.2, wheel), 1, zmax) / z + (pointer.y - cy), -max(0, (rh * fk * clamp(z * pow(1.2, wheel), 1, zmax) - AH) / 2), max(0, (rh * fk * clamp(z * pow(1.2, wheel), 1, zmax) - AH) / 2))
+        z = clamp(z * pow(1.2, wheel), 1, zmax)
+    }
+    on press stage { bx = ox; by = oy; held = true }
+    on drag stage { ox = clamp(bx + drag.dx, -lim.x, lim.x); oy = clamp(by + drag.dy, -lim.y, lim.y) }
+    on release stage {
+        held = false
+        emit tap(if(abs(ox - bx) + abs(oy - by) < 3, 1, 0))
+    }
+    //  a double click: fitted to its real size (twice the size, if that is what it is already), about the pointer; and back
+    on dbl while not zoomed {
+        ox = clamp((cx - pointer.x) * (if(real > 1.05, real, 2) - 1), -max(0, (rw * fk * if(real > 1.05, real, 2) - AW) / 2), max(0, (rw * fk * if(real > 1.05, real, 2) - AW) / 2))
+        oy = clamp((cy - pointer.y) * (if(real > 1.05, real, 2) - 1), -max(0, (rh * fk * if(real > 1.05, real, 2) - AH) / 2), max(0, (rh * fk * if(real > 1.05, real, 2) - AH) / 2))
+        z = if(real > 1.05, real, 2)
+    }
+    on dbl while zoomed { z = 1; ox = 0; oy = 0 }
+
+    //  a new picture starts fitted, the right way up
+    on change gen { z = 1; ox = 0; oy = 0; rot = 0; held = false }
+    on focus { emit focused }
+
+    // ── going through the folder: the arrows at the sides ──
+    repeat side in 0..2 {
+        let ax = if(side == 0, 40, W - 40)
+        let sg = if(side == 0, -1, 1)
+        prop eh = 0 ~quick
+        follow eh = if(count > 1, edge.hover, 0)
+        group {
+            opacity: eh
+            show: eh > 0.01
+            Mat(ax - 24, cy - 24, 48, 48, 24, 6.5 + side, 1)
+            path { at: ax, cy; stroke: 3; color: ink; move -sg * 4, -9; line sg * 5, 0; line -sg * 4, 9 }
+        }
+        zone box edge { from: if(side == 0, 0, W - 110), top; size: 110, AH; cursor: pointer; label: if(side == 0, "Previous picture", "Next picture"); active: count > 1 }
+        on press edge { emit nav(sg) }
+    }
+
+    // ── the chip, the pill, the details: they make way for the pictures during a slideshow, and come back while the pointer is over the pill ──
+    zone box pillarea { from: cx - 380, H - 96; size: 760, 96; label: "Buttons"; role: region }
+    prop ck = 1 ~quick
+    follow ck = if(playing and not pillarea.hover, 0, 1)
+    every 4s while playing and count > 1 { emit nav(1) }
+    on change count while count < 2 { playing = false }
+
+    group {
+    opacity: ck
+    show: ck > 0.01
+
+    // ── the name, at the top left ──
+    measure nm
+    measure sb
+    let chw = min(max(nm.width, sb.width) + 32, W - 32)
+    group {
+        show: has_name
+        Mat(16, 12, chw, 44, 16, 2.5, 1)
+        group {
+            show: look == 4
+            pivot: 30, 13
+            rotate: -7deg
+            box { at: 30, 13; size: 46, 14; corner: 1; color: tape; opacity: 78% }
+        }
+        text name { at: 32, 25; anchor: left center; size: 13.5; weight: 700; color: ink; family: "Space Grotesk"; measure: nm }
+        text sub { at: 32, 43; anchor: left center; size: 11.5; weight: 500; color: ink; opacity: 62%; family: "Space Grotesk"; measure: sb }
+    }
+
+    // ── the details, at the top right ──
+    prop io = 0 ~quick
+    follow io = if(info_on, 1, 0)
+    let iw_ = 360
+    let ix = W - 16 - iw_
+    let ih_ = 50 + info_n * 25
+    group {
+        opacity: io
+        show: io > 0.01
+        move: 0, -8 * (1 - io)
+        Mat(ix, 12, iw_, ih_, 18, 8.5, 1)
+        group {
+            show: look == 4
+            pivot: ix + iw_ - 40, 13
+            rotate: 8deg
+            box { at: ix + iw_ - 40, 13; size: 52, 15; corner: 1; color: tape; opacity: 78% }
+        }
+        text "Details" { at: ix + 18, 34; anchor: left center; size: 14; weight: 700; color: ink; family: "Space Grotesk" }
+        box { at: ix + iw_ / 2, 50; size: iw_ - 36, 1; color: ink; opacity: 16% }
+        for r in info {
+            text r.k { at: ix + 18, 66 + r.index * 25; anchor: left center; size: 12; weight: 600; color: ink; opacity: 58%; family: "Space Grotesk" }
+            text r.v { at: ix + 104, 66 + r.index * 25; anchor: left center; size: 12.5; weight: 600; color: ink; width: iw_ - 120; lines: 1; family: "Space Grotesk"; selectable: true }
+        }
+        zone box infoz { from: ix, 12; size: iw_, ih_; label: "Details"; role: region }
+    }
+
+    // ── the pill: the same as the keys, as buttons ──
+    let pw = 684
+    let pbx = cx - pw / 2
+    let pby = H - 70
+    let by_ = pby + 26
+    let b0 = pbx + 30
+    Mat(pbx, pby, pw, 52, 26, 9.5, 1)
+    //  UwU's ears at its two ends, Retro's accent tab, Doodle's tape
+    repeat side in 0..2 {
+        let ex = if(side == 0, pbx + 46, pbx + pw - 46)
+        let sg = if(side == 0, -1, 1)
+        path { at: ex, pby; color: if(side == 0, candy, candy2); show: look == 2; move -21, 8; line sg * 12, -27; line 21, 8; close }
+        path { at: ex, pby; stroke: 3; color: deep; show: look == 2; move -21, 8; line sg * 12, -27; line 21, 8 }
+        path { at: ex, pby; color: #ff8fc8; show: look == 2; move -13, 5; line sg * 8, -17; line 13, 5; close }
+    }
+    box { from: pbx + 22, pby - 4; size: 30, 6; corner: 2; color: mint; show: look == 1 }
+    box { from: pbx + 22, pby - 4; size: 30, 6; corner: 2; stroke: 1.5; color: deep; show: look == 1 }
+    group {
+        show: look == 4
+        pivot: pbx + 34, pby + 1
+        rotate: -6deg
+        box { at: pbx + 34, pby + 1; size: 60, 16; corner: 1; color: tape; opacity: 78% }
+    }
+    event zstep
+    event zfit
+    event turn
+    event play
+    Tb(b0, by_, 1, 0, "Previous picture", nav, -1, if(count > 1, 1, 0))
+    Tb(b0 + 44, by_, 2, 1, "Next picture", nav, 1, if(count > 1, 1, 0))
+    Tb(b0 + 88, by_, 3, 11, if(playing, "Stop the slideshow", "Slideshow"), play, 0, if(count > 1, 1, 0), if(playing, 1, 0))
+    box { at: b0 + 110, by_; size: 1, 24; color: ink; opacity: 22% }
+    Tb(b0 + 132, by_, 4, 2, "Zoom out", zstep, -1, if(has and zoomed, 1, 0))
+    text number(fk * zk * dpr * 100, 0, "%") { at: b0 + 180, by_; anchor: center; size: 13; weight: 700; color: ink; opacity: if(has, 100%, 35%); family: "Space Grotesk" }
+    Tb(b0 + 228, by_, 5, 3, "Zoom in", zstep, 1, if(has and z < zmax - 0.01, 1, 0))
+    Tb(b0 + 272, by_, 6, 4, if(zoomed, "Fit to the window", "Real size"), zfit, 0, if(has, 1, 0))
+    box { at: b0 + 294, by_; size: 1, 24; color: ink; opacity: 22% }
+    Tb(b0 + 316, by_, 7, 5, "Turn left", turn, -1, if(has, 1, 0))
+    Tb(b0 + 360, by_, 8, 6, "Turn right", turn, 1, if(has, 1, 0))
+    box { at: b0 + 382, by_; size: 1, 24; color: ink; opacity: 22% }
+    Tb(b0 + 404, by_, 9, 7, "Draw on it in Snap", do_edit, 0, if(has, 1, 0))
+    Tb(b0 + 448, by_, 10, 8, "Show in Files", do_reveal, 0, if(has_name, 1, 0))
+    Tb(b0 + 492, by_, 11, 9, "Copy the picture", do_copy, 0, if(has, 1, 0))
+    Tb(b0 + 536, by_, 12, 13, "Make it the wallpaper", do_wall, 0, if(has, 1, 0))
+    Tb(b0 + 580, by_, 13, 12, "Details", do_info, 0, if(has_name, 1, 0), if(info_on, 1, 0))
+    Tb(b0 + 624, by_, 14, 10, "Move to the trash", do_trash, 0, if(has_name, 1, 0))
+
+    Tip(1, b0, pby - 22, "Previous  ←")
+    Tip(2, b0 + 44, pby - 22, "Next  →")
+    Tip(3, b0 + 88, pby - 22, if(playing, "Stop  S", "Slideshow  S"))
+    Tip(4, b0 + 132, pby - 22, "Zoom out  −")
+    Tip(5, b0 + 228, pby - 22, "Zoom in  +")
+    Tip(6, b0 + 272, pby - 22, if(zoomed, "Fit to the window  keypad 0", "Real size  keypad 1"))
+    Tip(7, b0 + 316, pby - 22, "Turn left  Shift+R")
+    Tip(8, b0 + 360, pby - 22, "Turn right  R")
+    Tip(9, b0 + 404, pby - 22, "Draw on it in Snap  E")
+    Tip(10, b0 + 448, pby - 22, "Show in Files")
+    Tip(11, b0 + 492, pby - 22, "Copy  Ctrl+C")
+    Tip(12, b0 + 536, pby - 22, "Make it the wallpaper  W")
+    Tip(13, b0 + 580, pby - 22, "Details  I")
+    Tip(14, b0 + 624, pby - 22, "Move to the trash  Delete")
+    }
+
+    //  zoom a step about the middle, keeping what is in the middle there
+    on zstep(d) {
+        ox = clamp(ox * clamp(z * pow(1.4, d), 1, zmax) / z, -max(0, (rw * fk * clamp(z * pow(1.4, d), 1, zmax) - AW) / 2), max(0, (rw * fk * clamp(z * pow(1.4, d), 1, zmax) - AW) / 2))
+        oy = clamp(oy * clamp(z * pow(1.4, d), 1, zmax) / z, -max(0, (rh * fk * clamp(z * pow(1.4, d), 1, zmax) - AH) / 2), max(0, (rh * fk * clamp(z * pow(1.4, d), 1, zmax) - AH) / 2))
+        z = clamp(z * pow(1.4, d), 1, zmax)
+    }
+    on zfit while zoomed { z = 1; ox = 0; oy = 0 }
+    on zfit while not zoomed { z = if(real > 1.05, real, 2); ox = 0; oy = 0 }
+    on turn(d) { rot = rot + d; z = 1; ox = 0; oy = 0 }
+    on play while count > 1 { toggle playing }
+
+    // ── a word from View, over the pill ──
+    measure tt
+    group {
+        opacity: toast_k
+        show: toast_k > 0.01
+        move: 0, 10 * (1 - toast_k)
+        Mat(cx - tt.width / 2 - 18, pby - 62, tt.width + 36, 34, 17, 5.5, 1)
+        text toast { at: cx, pby - 45; anchor: center; size: 13; weight: 700; color: ink; family: "Space Grotesk"; measure: tt }
+    }
+
+    // ── keys ──
+    on key Left { emit nav(-1) }
+    on key Right { emit nav(1) }
+    on key Page_Up { emit nav(-1) }
+    on key Page_Down { emit nav(1) }
+    on key BackSpace { emit nav(-1) }
+    on key space { emit nav(1) }
+    on key Home { emit nav(-2) }
+    on key End { emit nav(2) }
+    on key plus { emit zstep(1) }
+    on key equal { emit zstep(1) }
+    on key KP_Add { emit zstep(1) }
+    on key minus { emit zstep(-1) }
+    on key KP_Subtract { emit zstep(-1) }
+    //  (the digit keys cannot be named in a scene: a key's name cannot start with a digit, so 0 and 1 are the keypad's)
+    on key KP_0 { z = 1; ox = 0; oy = 0 }
+    on key KP_1 while has { z = real; ox = 0; oy = 0 }
+    on key r while has { emit turn(1) }
+    on key R while has { emit turn(-1) }
+    on key e while has { emit do_edit }
+    on key Ctrl+c while has { emit do_copy }
+    on key w while has { emit do_wall }
+    on key i while has_name { emit do_info }
+    on key s { emit play }
+    on key Delete while has_name { emit do_trash }
+    on key f { emit do_full }
+    on key F11 { emit do_full }
+    //  Escape first stops the slideshow, then closes the details, then View
+    on key Escape while playing { playing = false }
+    on key Escape while info_on and not playing { emit do_info }
+    on key Escape while not playing and not info_on { quit }
+    on key q { quit }
+}
