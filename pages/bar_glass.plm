@@ -1820,7 +1820,8 @@ part BarGlass {
         zone box ov_btn { at: ob.x, ob.y; size: ob.s + 8 * bu, ob.s + 8 * bu; cursor: pointer; active: bs.ws > 0.5 }
         on press ov_btn { emit ov_toggle }
         follow ovp.$screen = ov_btn.hover
-        follow ws_lv = if(abs(pl.tail - ws.active) > 0.02 or abs(pl.head - ws.active) > 0.02 or wsh.1.$screen > 0.01 or wsh.2.$screen > 0.01 or wsh.3.$screen > 0.01 or wsh.4.$screen > 0.01 or wsh.5.$screen > 0.01 or wsh.6.$screen > 0.01 or wsh.7.$screen > 0.01 or wsh.8.$screen > 0.01 or wsh.9.$screen > 0.01 or wsh.10.$screen > 0.01 or ws_plus.hover > 0.01 or ov_btn.hover > 0.01, 1, 0)
+        follow ws_lv = if(abs(pl.tail - ws.active) > 0.02 or abs(pl.head - ws.active) > 0.02, 1, 0)
+        follow bar_lv = if(bar_hover.hover > 0.01 or lf_hover.hover > 0.01 or abs(trn - bartrays.count) > 0.02 or abs(pvn - (if(priv_mic, 1, 0) + if(priv_cam, 1, 0) + if(priv_scr and not rec_on, 1, 0) + if(kb_multi, 1, 0))) > 0.02 or abs(media_open - if(media_on, 1, 0)) > 0.02 or charge_sweep < 0.98, 1, 0)
 
         //  What is in front: the app in small type above, the title under it, cut
         //  with an ellipsis where the clock starts.
