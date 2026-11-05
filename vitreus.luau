@@ -320,7 +320,11 @@ listen = function()
             last = bass
             fact.bass = bass
         end
-    end, function() if cava == mine then cava = nil end end)
+    end, function() if cava == mine then cava = nil end end,
+    -- cava asks PipeWire for 512/48000: joining, it dropped the whole graph's quantum mid-stream (2048 -> 512 with a remote-desktop
+    -- stream playing), and the sound playing then (the panel chime, opening the player) took a step, a click. Asking for more than the
+    -- graph's largest quantum means cava never pulls it down: it takes whatever the graph already runs at.
+    { env = { PIPEWIRE_LATENCY = "8192/48000" } })
     cava = mine
 end
 
