@@ -32,9 +32,9 @@ part ControlsDrawer {
             let bsl.x0 = pcx - 96 * cu
             let bsl.w = 170 * cu
             let bsy = bcy
-            let bth = (16 + 3 * bright_hit.hover) * cu
+            let bth = 16 * u                                  // the volume banner's thickness (it no longer thickens under the pointer: the knob is sized by it)
             PSun(pcx - 118 * cu, bsy, bright_hit.hover, bright_level, 0.7 + 0.3 * bright_hit.hover)
-            PSlider(bsl.x0, bsy, bsl.w, bri_shown, bright_hit.hover, cu, bth, 0)
+            PSlider(bsl.x0, bsy, bsl.w, if(bri_lock > 0.5, bri_ui, brightness.level), bright_hit.hover, u, bth, 0)
             zone box bright_hit { at: bsl.x0 + bsl.w / 2, bsy; size: bsl.w + 28 * cu, 34 * cu; cursor: pointer; active: brightness.present and bright_avail }
             on press bright_hit { bri_ui = clamp(((pointer.x - tx.pnl) - bsl.x0) / bsl.w, 0, 1); bri_lock: 1 ~1ms; emit setbright(clamp(((pointer.x - tx.pnl) - bsl.x0) / bsl.w, 0, 1)) }
             on drag bright_hit { bri_ui = clamp(((pointer.x - tx.pnl) - bsl.x0) / bsl.w, 0, 1); bri_lock: 1 ~1ms; emit setbright(clamp(((pointer.x - tx.pnl) - bsl.x0) / bsl.w, 0, 1)) }
@@ -51,8 +51,8 @@ part ControlsDrawer {
             let micy = ck + (vol_top - 16 + 4 * dd_k) * cu
             let msl.x0 = pcx - 96 * cu
             let msl.w = 170 * cu
-            let mth = (16 + 3 * mic_sl.hover) * cu
-            PSlider(msl.x0, micy, msl.w, mic_shown, mic_sl.hover, cu, mth, if(audio.input_muted, 1, 0))
+            let mth = 16 * u                                  // the volume banner's thickness
+            PSlider(msl.x0, micy, msl.w, if(mic_lock > 0.5, mic_ui, clamp(audio.input, 0, 1)), mic_sl.hover, u, mth, if(audio.input_muted, 1, 0))
             zone box mic_sl { at: msl.x0 + msl.w / 2, micy; size: msl.w + 28 * cu, 34 * cu; cursor: pointer }
             on press mic_sl { mic_ui = clamp(((pointer.x - tx.pnl) - msl.x0) / msl.w, 0, 1); mic_lock: 1 ~1ms; emit setmic(clamp(((pointer.x - tx.pnl) - msl.x0) / msl.w, 0, 1)) }
             on drag mic_sl { mic_ui = clamp(((pointer.x - tx.pnl) - msl.x0) / msl.w, 0, 1); mic_lock: 1 ~1ms; emit setmic(clamp(((pointer.x - tx.pnl) - msl.x0) / msl.w, 0, 1)) }
@@ -74,8 +74,8 @@ part ControlsDrawer {
             let sl.x0 = pcx - 96 * cu
             let sl.w = 170 * cu
             let sy = vol_cy
-            let th = (16 + 3 * vol_hit.hover) * cu          // the track thickens under the pointer
-            PSlider(sl.x0, sy, sl.w, vol_shown, vol_hit.hover, cu, th, if(audio.muted, 1, 0))
+            let th = 16 * u                                   // the volume banner's thickness
+            PSlider(sl.x0, sy, sl.w, if(vol_lock > 0.5, vol_ui, if(audio.muted, 0, audio.volume)), vol_hit.hover, u, th, if(audio.muted, 1, 0))
             //  The zone that takes the click: the whole track and a little more each side, so it is easy to hit; on the press and all through a drag it turns where the pointer is into a volume.
             zone box vol_plate { at: pcx, ck + (vol_top + (vp.h + bri_cut - 82 + 8 * dd_k) / 2) * cu; size: 288 * cu, (vp.h + bri_cut - 82 + 8 * dd_k) * cu; corner: pr }
             on press right vol_plate { vm_open = not vm_open; dd_open = false }

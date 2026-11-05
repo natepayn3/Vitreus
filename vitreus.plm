@@ -3324,7 +3324,7 @@ scene Vitreus {
         opacity: if(m.corked, 55%, 100%)
         image m.icon { at: floor(10 * cu + 0.5), floor(5 * cu + 0.5); size: floor(20 * cu + 0.5), floor(20 * cu + 0.5) }
         text m.name { at: floor(38 * cu + 0.5), floor(13 * cu + 0.5); anchor: left center; size: 12.5; width: 78 * cu; lines: 1; color: ink; family: "Space Grotesk" }
-        //  The level is the same pencil slider as the volume's (PSlider), smaller: a crooked outline, the level shaded in, a pencil circle at the end; it redraws while the pointer is on it.
+        //  The level is the same pencil slider as the volume's (PSlider), smaller: the pinched pencil track, the level shaded in, a squeezed ring for a knob; it redraws while the pointer is on it.
         PSlider(116 * cu, 14 * cu, 100 * cu, clamp(m.pct / 100, 0, 1), track.hover, cu, 9 * cu, if(m.muted, 1, 0))
         zone box track { at: 166 * cu, 14 * cu; size: 112 * cu, 24 * cu; cursor: pointer }
         on press track { emit set(m.index * 4 + clamp((local.x - 116 * cu) / (100 * cu), 0, 1)) }
@@ -3468,29 +3468,91 @@ scene Vitreus {
     }
     }
 
-    //  A pencil-drawn slider (the volume and brightness, in the control center and in the banners): the track is a crooked double outline, the level is coloured in with
-    //  up-and-down pencil columns (one shape, with a faint second pass), and a pencil circle marks the end. `x0`, `y` the track's left end and middle, `w` its length, `lv` the level
-    //  (0 to 1), `k` the unit (`cu` or `u`), `h` the track's thickness, `mute` 1 when silenced (the shading goes grey). `hot` (hover) redraws it about five times a second.
+    //  The pencil slider (the volume and brightness, in the control center and in the banners, and every slider in Settings): a boiling crooked double outline, the
+    //  level coloured in with up-and-down pencil columns, and the track pinched in two round the knob, so the level and what is left read as two shapes, each with
+    //  round outer ends and tighter corners at the cut. The knob is a pencil ring squeezed into a rounded upright bar. `x0`, `y` the track's left end and middle, `w`
+    //  its length, `lv` the level (0 to 1), `k` the unit (`cu` or `u`), `h` the track's thickness, `mute` 1 when silenced (the shading goes grey). `hot` (hover)
+    //  redraws it about five times a second.
     component PSlider(x0: number, y: number, w: number, lv: number, hot: number, k: number, h: number, mute: number) {
         prop a = 0 ~calm
         follow a = hot
+        //  The knob morphs into place: its leading edge goes to the new level quickly (`ld`) and its trailing edge follows (`tl`), so while the level moves the bar
+        //  is stretched from where it was to where it goes and squashed flatter for it, then gathers back into the upright bar as the trailing edge arrives.
+        //  Give it the level itself (not one already on a spring), or the leading edge lags too.
+        prop ld = 0 ~90ms
+        follow ld = lv
+        prop tl = 0 ~280ms
+        follow tl = lv
         let fr = if(a > 0.02, floor(time * 5), 0)
-        let jt = (0.18 + 0.25 * a) * cu * (1 - dd_k)       // Doodle: no wobble
-        let kx = clamp(x0 + w * lv, x0 + h * 0.6, x0 + w - h * 0.6)
-        let sp = max(2.5 * k, (w - h) / 86)           // the 88 columns of pencil reach the end of any track: the control center's are as close as they were, a longer one spreads them
-        box { from: x0, y - h / 2; size: w, h; corner: h / 2; color: dd_cream; opacity: dd_k; show: dd_k > 0.004 }
-        box { from: x0, y - h / 2; size: max(kx - x0 + h * 0.2, h), h; corner: h / 2; color: mix(mint, faint, mute); opacity: dd_k * clamp(lv * 40, 0, 1); show: dd_k > 0.004 }
-        path { at: 0, 0; stroke: (1.5 + 2.7 * dd_k) * k; color: ink; opacity: 0.6 + 0.4 * dd_k; move x0 + h / 2 + jt * sin(fr * 57 + 15900), y - h / 2 + jt * sin(fr * 62 + 15960); line x0 + w - h / 2 + jt * sin(fr * 64 + 15997), y - h / 2 + jt * sin(fr * 69 + 16057); curve x0 + w + jt * sin(fr * 71 + 16094), y + jt * sin(fr * 76 + 16154) via x0 + w + jt * sin(fr * 72 + 19974), y - h / 2 + jt * sin(fr * 77 + 20034); curve x0 + w - h / 2 + jt * sin(fr * 47 + 16191), y + h / 2 + jt * sin(fr * 52 + 16251) via x0 + w + jt * sin(fr * 48 + 20071), y + h / 2 + jt * sin(fr * 53 + 20131); line x0 + h / 2 + jt * sin(fr * 54 + 16288), y + h / 2 + jt * sin(fr * 59 + 16348); curve x0 + jt * sin(fr * 61 + 16385), y + jt * sin(fr * 66 + 16445) via x0 + jt * sin(fr * 62 + 20265), y + h / 2 + jt * sin(fr * 67 + 20325); curve x0 + h / 2 + jt * sin(fr * 68 + 16482), y - h / 2 + jt * sin(fr * 73 + 16542) via x0 + jt * sin(fr * 69 + 20362), y - h / 2 + jt * sin(fr * 74 + 20422); }
-        path { at: 0 + 0.35 * cu, 0 + 0.28 * cu; stroke: 1.05 * k; color: ink; opacity: 0.2 * (1 - dd_k); move x0 + h / 2 + jt * sin(fr * 72 + 16271), y - h / 2 + jt * sin(fr * 77 + 16331); line x0 + w - h / 2 + jt * sin(fr * 48 + 16368), y - h / 2 + jt * sin(fr * 53 + 16428); curve x0 + w + jt * sin(fr * 55 + 16465), y + jt * sin(fr * 60 + 16525) via x0 + w + jt * sin(fr * 56 + 20345), y - h / 2 + jt * sin(fr * 61 + 20405); curve x0 + w - h / 2 + jt * sin(fr * 62 + 16562), y + h / 2 + jt * sin(fr * 67 + 16622) via x0 + w + jt * sin(fr * 63 + 20442), y + h / 2 + jt * sin(fr * 68 + 20502); line x0 + h / 2 + jt * sin(fr * 69 + 16659), y + h / 2 + jt * sin(fr * 74 + 16719); curve x0 + jt * sin(fr * 45 + 16756), y + jt * sin(fr * 50 + 16816) via x0 + jt * sin(fr * 46 + 20636), y + h / 2 + jt * sin(fr * 51 + 20696); curve x0 + h / 2 + jt * sin(fr * 52 + 16853), y - h / 2 + jt * sin(fr * 57 + 16913) via x0 + jt * sin(fr * 53 + 20733), y - h / 2 + jt * sin(fr * 58 + 20793); }
-        //  The shading: the level coloured in with a pencil, in tight columns up and down (one shape, the second pass fainter and a hair off). Each stroke leans, wobbles and overshoots a little;
-        //  the columns past the level fold onto its end (they add nothing), and with none of it there is nothing to draw. (88 columns of two, drawn by pencilhatch.wgsl: as two 176-point paths they were a tenth of what the shell took to read at its start.)
+        let jt = (0.18 + 0.25 * a) * cu * (1 - dd_k)
+        let kmin = x0 + h * 0.6
+        let kmax = x0 + w - h * 0.6
+        let kx = clamp(x0 + w * ld, kmin, kmax)              // where the level is drawn to
+        let kt = clamp(x0 + w * tl, kmin, kmax)              // where the knob's tail still is
+        let kw = h * 0.78                                     // the knob: a rounded upright bar, a ring squeezed from the sides
+        let sq = clamp(abs(kx - kt) / (1.4 * h), 0, 1)       // how stretched it is (a single 5% key step flattens it most of the way)
+        let kh = h * (2.0 - 0.95 * sq)                        // flatter the further it is stretched
+        let kl = min(kx, kt) - kw / 2
+        let kq = max(kx, kt) + kw / 2
+        let g = (3 + 2 * sq) * k                              // the cut either side of it, a little wider while it moves
+        let lb = kl - g                                       // the level's piece ends here
+        let ra = kq + g                                       // and the rest starts here
+        let ri = h * 0.26                                     // the corners at the cut
+        let lon = lb - x0 > h * 0.6
+        let ron = x0 + w - ra > h * 0.6
+        let sp = max(2.5 * k, (w - h) / 86)
+        //  Doodle fills the two pieces: the cream track and the level.
+        //  The outlines: each piece in the crooked double line, the second pass fainter and a hair off.
+        PPinchSeg(x0, lb, y, h, h / 2, min(ri, (lb - x0) / 2), fr, jt, k, 15900, lon, 1, mix(mint, faint, mute), dd_k)
+        PPinchSeg(ra, x0 + w, y, h, min(ri, (x0 + w - ra) / 2), h / 2, fr, jt, k, 24100, ron, 1, dd_cream, dd_k)
+        //  The level's shading, stopped short of the cut.
         let xs = x0 + h * 0.5
-        let xe = max(x0 + w * lv - h * 0.1, xs)
-        shader pencilhatch { at: x0 - 6, y - h; size: w + 12, 2 * h; values: xs - (x0 - 6), xe - (x0 - 6), sp, h, jt, fr, 1.1 * k, 0; colors: mix(mint, faint, mute); opacity: 0.5 * (1 - 0.55 * mute) * clamp(lv * 40, 0, 1) * (1 - dd_k); show: (1 - dd_k) * clamp(lv * 40, 0, 1) > 0.002 }
-        shader pencilhatch { at: x0 - 6 + 0.3 * cu, y - h + 0.25 * cu; size: w + 12, 2 * h; values: xs - (x0 - 6), xe - (x0 - 6), sp, h, jt, fr, 0.8 * k, 1; colors: mix(mint, faint, mute); opacity: 0.22 * (1 - 0.55 * mute) * clamp(lv * 40, 0, 1) * (1 - dd_k); show: (1 - dd_k) * clamp(lv * 40, 0, 1) > 0.002 }
-        ellipse { at: kx + jt * sin(fr * 67 + 17057), y + jt * sin(fr * 48 + 17214); radius: h * 0.85 * (1 + 0.04 * sin(fr * 47 + 0)); stroke: (1.5 + 2.7 * dd_k) * k; color: ink; opacity: 0.9 + 0.1 * dd_k }
-        ellipse { at: kx + 0.35 * cu + jt * sin(fr * 51 + 17428), y + 0.28 * cu + jt * sin(fr * 63 + 17585); radius: h * 0.85 * (1 + 0.04 * sin(fr * 47 + 70)); stroke: 1.05 * k; color: ink; opacity: 0.3 * (1 - dd_k) }
-        ellipse { at: kx, y; radius: h * 0.85; color: mix(ink, dd_cream, dd_k); opacity: 0.14 + 0.86 * dd_k }
+        let xe = max(min(x0 + w * ld - h * 0.1, lb - h * 0.2), xs)
+        let sv = clamp(ld * 40, 0, 1) * if(lon, 1, 0)
+        shader pencilhatch { at: x0 - 6, y - h; size: w + 12, 2 * h; values: xs - (x0 - 6), xe - (x0 - 6), sp, h, jt, fr, 1.1 * k, 0; colors: mix(mint, faint, mute); opacity: 0.5 * (1 - 0.55 * mute) * sv * (1 - dd_k); show: (1 - dd_k) * sv > 0.002 }
+        shader pencilhatch { at: x0 - 6 + 0.3 * cu, y - h + 0.25 * cu; size: w + 12, 2 * h; values: xs - (x0 - 6), xe - (x0 - 6), sp, h, jt, fr, 0.8 * k, 1; colors: mix(mint, faint, mute); opacity: 0.22 * (1 - 0.55 * mute) * sv * (1 - dd_k); show: (1 - dd_k) * sv > 0.002 }
+        //  The knob: a pencil ring squeezed into a rounded upright bar, in the cut, stretched out behind it while it moves.
+        box { from: kl, y - kh / 2; size: kq - kl, kh; corner: kw * 0.45; color: mix(ink, dd_cream, dd_k); opacity: 0.14 + 0.86 * dd_k }
+        PPinchSeg(kl, kq, y, kh, kw * 0.45, kw * 0.45, fr, jt, k, 31700, true, 1.5, ink, 0)
+    }
+
+    //  One piece of PSlider's track in pencil: a rounded box from `xa` to `xb` round `y`, `h` tall, corner `rl` on its left and `rr` on its right, drawn twice (the second
+    //  pass fainter and a hair off) with PSlider's wobble (`fr`, `jt`); `sd` keeps two pieces from wobbling alike, `o` scales how dark it is (the knob is drawn darker).
+    //  `fc`, `fo` fill it (Doodle's cream track and level); `fo` 0 for none.
+    component PPinchSeg(xa: number, xb: number, y: number, h: number, rl: number, rr: number, fr: number, jt: number, k: number, sd: number, on: bool, o: number, fc: color, fo: number) {
+        let t = y - h / 2
+        let bt = y + h / 2
+        path { at: 0, 0; color: fc; opacity: fo; show: on and fo > 0.004
+               move xa + rl, t
+               line xb - rr, t
+               curve xb, t + rr via xb, t
+               line xb, bt - rr
+               curve xb - rr, bt via xb, bt
+               line xa + rl, bt
+               curve xa, bt - rl via xa, bt
+               line xa, t + rl
+               curve xa + rl, t via xa, t
+               close }
+        path { at: 0, 0; stroke: (1.5 + 2.7 * dd_k) * k; color: ink; opacity: min((0.6 + 0.4 * dd_k) * o, 1); show: on
+               move xa + rl + jt * sin(fr * 47 + sd + 0), t + jt * sin(fr * 54 + sd + 61)
+               line xb - rr + jt * sin(fr * 61 + sd + 122), t + jt * sin(fr * 68 + sd + 183)
+               curve xb + jt * sin(fr * 75 + sd + 244), t + rr + jt * sin(fr * 52 + sd + 305) via xb, t
+               line xb + jt * sin(fr * 59 + sd + 366), bt - rr + jt * sin(fr * 66 + sd + 427)
+               curve xb - rr + jt * sin(fr * 73 + sd + 488), bt + jt * sin(fr * 50 + sd + 549) via xb, bt
+               line xa + rl + jt * sin(fr * 57 + sd + 610), bt + jt * sin(fr * 64 + sd + 671)
+               curve xa + jt * sin(fr * 71 + sd + 732), bt - rl + jt * sin(fr * 48 + sd + 793) via xa, bt
+               line xa + jt * sin(fr * 55 + sd + 854), t + rl + jt * sin(fr * 62 + sd + 915)
+               curve xa + rl + jt * sin(fr * 47 + sd + 0), t + jt * sin(fr * 54 + sd + 61) via xa, t }
+        path { at: 0.35 * cu, 0.28 * cu; stroke: 1.05 * k; color: ink; opacity: 0.2 * (1 - dd_k) * o; show: on
+               move xa + rl + jt * sin(fr * 57 + sd + 2440), t + jt * sin(fr * 64 + sd + 2501)
+               line xb - rr + jt * sin(fr * 71 + sd + 2562), t + jt * sin(fr * 48 + sd + 2623)
+               curve xb + jt * sin(fr * 55 + sd + 2684), t + rr + jt * sin(fr * 62 + sd + 2745) via xb, t
+               line xb + jt * sin(fr * 69 + sd + 2806), bt - rr + jt * sin(fr * 76 + sd + 2867)
+               curve xb - rr + jt * sin(fr * 53 + sd + 2928), bt + jt * sin(fr * 60 + sd + 2989) via xb, bt
+               line xa + rl + jt * sin(fr * 67 + sd + 3050), bt + jt * sin(fr * 74 + sd + 3111)
+               curve xa + jt * sin(fr * 51 + sd + 3172), bt - rl + jt * sin(fr * 58 + sd + 3233) via xa, bt
+               line xa + jt * sin(fr * 65 + sd + 3294), t + rl + jt * sin(fr * 72 + sd + 3355)
+               curve xa + rl + jt * sin(fr * 57 + sd + 2440), t + jt * sin(fr * 64 + sd + 2501) via xa, t }
     }
 
     //  A button or pill's outline in pencil, over its fill (the fill and the label stay): the crooked double outline of PSlider's track, drawn as a rounded box with corner `r`, calm

@@ -35,8 +35,8 @@ part OsdDrawer {
             let vy = ot + 32 * u                             // the top row (the plate's middle when it is the only one)
             let vtx = os.px - 128 * u                        // the face's tile
             box { at: vtx, vy; size: 44 * u, 44 * u; corner: 12 * u; color: ink; opacity: 6% }
-            //  The level is a pencil slider (PSlider), the control center's: a crooked double outline, the level shaded in with slanted strokes, a pencil circle at its end.
-            PSlider(os.px - 96 * u, vy, 170 * u, volume_level, 1, u, 16 * u, if(audio.muted, 1, 0))
+            //  The level is a pencil slider (PSlider), the control center's: the pinched pencil track, the squeezed ring for a knob. Given the raw volume so the knob morphs as it changes.
+            PSlider(os.px - 96 * u, vy, 170 * u, if(audio.muted, 0, audio.volume), 1, u, 16 * u, if(audio.muted, 1, 0))
             text number(audio.volume * 100, 0, "%") { at: floor(os.px + 116 * u + 0.5), floor(vy + 0.5); anchor: center; align: center; size: 21; weight: 700; color: ink; family: "Space Grotesk"; show: not audio.muted }
             text "Muted" { at: floor(os.px + 116 * u + 0.5), floor(vy + 0.5); anchor: center; align: center; size: 21; weight: 700; color: faint; family: "Space Grotesk"; show: audio.muted }
         }
