@@ -3848,8 +3848,17 @@ on("key", function(name, txt)
     end
 end)
 
+-- the window's corners: Hyprland's rounding (Vitreus sets it from the theme), so the glass meets the window's border; elsewhere the theme's own (`wr` -1)
+local function ask_round()
+    run("hyprctl", { "getoption", "decoration:rounding", "-j" }, function(out, code)
+        if code ~= 0 or not out then return end
+        local n = tonumber(out:match('"int"%s*:%s*(%-?%d+)'))
+        if n and n >= 0 then fact.wr = n end
+    end)
+end
 -- coming back to this window: what was dragged out or in from another one shows
 on("focused", function()
+    ask_round()                                         -- a theme changed meanwhile changes the windows' corners
     if s.path ~= "" and not s.busy then F.refresh() end
     -- a cut that was pasted from another window (which clears the clipboard) is not a cut here any more
     if s.clip then
@@ -3895,6 +3904,7 @@ end
 ask_obs()
 ask_look()
 ask_glass()
-after(4000, function() ask_obs(); ask_look(); ask_glass() end)
+ask_round()
+after(4000, function() ask_obs(); ask_look(); ask_glass(); ask_round() end)
 
 F.start()

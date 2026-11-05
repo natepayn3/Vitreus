@@ -181,8 +181,12 @@ scene Files {
     prop uk = 0 ~calm
     follow uk = if(look == 2, 1, 0)
     prop sq = 0 ~calm
-    follow sq = if(look == 1 or look == 3, 1, 0)       // Retro and Cyber cut their corners squarer, as the bar's drawers do (`rc` in vitreus.plm)
+    follow sq = if(look == 1 or look == 3 or look == 7, 1, 0)       // Retro, Cyber and Doodle cut their corners squarer, as the bar's drawers do (`rc` in vitreus.plm)
     let rr = 1 - 0.73 * sq                             // what every corner is multiplied by
+    //  The window's own corners: the compositor's (Hyprland's `decoration:rounding`, which Vitreus sets from the theme), so the glass fills the rounded window
+    //  to its edge and meets its border; -1 (no Hyprland to ask) keeps the theme's own.
+    fact wr = -1
+    let wcr = if(wr >= 0, wr, 22 * rr)
 
     // >>> icons (written by gen_icons.py: edit that, not this)
     //  A file's or a folder's picture in pencil: a folder, a picture, a PDF, a sound, a video, code, an archive or any other file (`ik`, which the logic sets). `s` is its size (1 is 64 px); `hot` (hover) swells it and redraws it about five times a second. The folder takes the accent and the files the ink, so any palette is theirs.
@@ -1177,7 +1181,7 @@ scene Files {
         shine: 0, 0
         opacity: gop * (1 - ob)
         show: ob < 0.996
-        box { from: 0, 0; size: W, H; corner: 22 * rr }
+        box { from: 0, 0; size: W, H; corner: wcr }
     }
     body {
         color: mix(mix(mix(tint, #000000, 0.7), ink, 0.3), tint, pl)
@@ -1185,10 +1189,10 @@ scene Files {
         border: (2 + 1.2 * uk) * pl, deep
         opacity: ob
         show: ob > 0.004
-        box { from: 0, 0; size: W, H; corner: 22 * rr }
+        box { from: 0, 0; size: W, H; corner: wcr }
     }
     //  The places lie on it a little darker, and the folder sits in a hollow of its own.
-    box { from: 0, 0; size: side, H; corner: 22 * rr; color: panel; opacity: 30% }
+    box { from: 0, 0; size: side, H; corner: wcr; color: panel; opacity: 30% }
     box { from: side - 24, 0; size: 24, H; color: tint; opacity: 0 }
     box { from: side, 14; size: 1, H - 28; color: ink; opacity: 8% }
     box { from: mx - 6, my - 4; size: mw + 12, mh + 6; corner: 14 * rr; color: deep; opacity: 24% }
@@ -1585,7 +1589,7 @@ scene Files {
         opacity: min(1, ao * 3)
         zone box askcatch { from: 0, 0; size: W, H; active: ask.on }
         on press askcatch { emit act(10) }
-        box { from: 0, 0; size: W, H; corner: 22 * rr; color: deep; opacity: 45% * clamp(ao, 0, 1) }
+        box { from: 0, 0; size: W, H; corner: wcr; color: deep; opacity: 45% * clamp(ao, 0, 1) }
         Pane(W / 2 - 220, H / 2 - 80, 440, max(4, (160) * clamp(ao, 0, 1)), 18, 0.96)
         zone box askbox { from: W / 2 - 220, H / 2 - 80; size: 440, 160 }
         group {
@@ -1612,7 +1616,7 @@ scene Files {
         show: co > 0.01
         opacity: min(1, co * 3)
         zone box cfcatch { from: 0, 0; size: W, H; active: cf.on }
-        box { from: 0, 0; size: W, H; corner: 22 * rr; color: deep; opacity: 45% * clamp(co, 0, 1) }
+        box { from: 0, 0; size: W, H; corner: wcr; color: deep; opacity: 45% * clamp(co, 0, 1) }
         Pane(W / 2 - 250, H / 2 - 105, 500, max(4, (210) * clamp(co, 0, 1)), 18, 0.96)
         zone box cfbox { from: W / 2 - 250, H / 2 - 105; size: 500, 210 }
         group {
@@ -1645,7 +1649,7 @@ scene Files {
         opacity: min(1, ko * 3)
         zone box pkcatch { from: 0, 0; size: W, H; active: pick.on }
         on press pkcatch { emit act(10) }
-        box { from: 0, 0; size: W, H; corner: 22 * rr; color: deep; opacity: 45% * clamp(ko, 0, 1) }
+        box { from: 0, 0; size: W, H; corner: wcr; color: deep; opacity: 45% * clamp(ko, 0, 1) }
         Pane(W / 2 - 220, H / 2 - pkh / 2, 440, max(4, (pkh) * clamp(ko, 0, 1)), 18, 0.96)
         zone box pkbox { from: W / 2 - 220, H / 2 - pkh / 2; size: 440, pkh }
         group {
@@ -1733,7 +1737,7 @@ scene Files {
         opacity: min(1, po * 3)
         zone box propcatch { from: 0, 0; size: W, H; active: prop.on }
         on press propcatch { emit act(10) }
-        box { from: 0, 0; size: W, H; corner: 22 * rr; color: deep; opacity: 45% }
+        box { from: 0, 0; size: W, H; corner: wcr; color: deep; opacity: 45% }
         Pane(ppx, ppy, 472, max(4, (prop.h) * clamp(po, 0, 1)), 20, 0.6)
         zone box propbox { from: ppx, ppy; size: 472, prop.h }
         group {
@@ -1821,7 +1825,7 @@ scene Files {
         opacity: min(1, pvo * 3)
         zone box pvcatch { from: 0, 0; size: W, H; active: pv.on }
         on press pvcatch { emit act(10) }
-        box { from: 0, 0; size: W, H; corner: 22 * rr; color: deep; opacity: 55% }
+        box { from: 0, 0; size: W, H; corner: wcr; color: deep; opacity: 55% }
         Pane(pvx, pvy, pvw, max(4, (pvh) * clamp(pvo, 0, 1)), 20, 0.7)
         zone box pvbox { from: pvx, pvy; size: pvw, pvh }
         group {
