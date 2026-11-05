@@ -57,7 +57,22 @@ else
     out="$desk/vitreus-report-$stamp.txt"
 fi
 raw="$(mktemp 2> /dev/null || echo "/tmp/vitreus-report.$$")"
-trap 'rm -f "$raw"' EXIT INT TERM
+# If anything stops it before the end, say so and show where, instead of leaving without a word (the error is in $raw, which is not shown otherwise).
+# fd 3 is the real stderr: the trap can run inside the block below, where stderr goes into $raw.
+exec 3>&2
+finished=false
+on_exit() {
+    if ! $finished; then
+        {
+            printf '\nvitreus-report stopped before it finished, and wrote no report. The last lines it got to:\n'
+            tail -n 5 "$raw" 2> /dev/null
+            printf 'Please send these lines (a photo of the screen is fine) to %s\n' "$REPORT_TO"
+        } >&3
+    fi
+    rm -f "$raw" "$raw.run"
+}
+trap on_exit EXIT
+trap 'exit 130' INT TERM
 
 if ! $to_stdout; then
     say ""
@@ -139,7 +154,7 @@ tailf() { # tailf file lines [filter-out-regex]
         printf 'Vitreus: NOT installed (no %s)\n' "$dest"
     fi
     # under pleamar-wm and niri `hyprctl` is Vitreus's stand-in, which has no `version`: its error says nothing
-    if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then try hyprctl version | head -4; fi
+    if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then try hyprctl version | head -4; fi
 
     sec "Programs it uses"
     for c in pleamar hyprctl git curl jq python3 socat magick cava playerctl nmcli bluetoothctl brightnessctl hypridle hyprsunset awww iris notify-send xdg-open wl-copy cliphist pactl ffmpeg; do
@@ -279,6 +294,7 @@ user_name="$(id -un 2> /dev/null || echo "${USER:-}")"
     if [ -n "$reply" ]; then printf '\nReply to: %s\n' "$reply"; fi
 } > "$out"
 
+finished=true
 $to_stdout && exit 0
 
 say ""
