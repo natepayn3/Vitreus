@@ -22,7 +22,7 @@ part BarShapes {
             box lf_bottom { at: cx, vb - th.b * fm / 2; size: screen.width, th.b * fm; show: fm > 0.004 }
             //  The audio visualiser's columns are in bar_waves.plm: bodies that have them (bar_glass.plm) are shown only while a column is tall enough to see (`fw_act`), because
             //  `show:` does not take a shape out of the glass and 47 smooth-blended shapes doubled what the glass costs on an Intel iGPU even with the visualiser off.
-            box { from: th.l - (lf.t + 50 * u) / 2 + if(fm > 0.35, 0, 30000), yo + th.ts - (lf.t + 50 * u) / 2 + if(fm > 0.35, 0, 30000); size: screen.width - th.r - th.l + lf.t + 50 * u, vh - th.ts - th.b + lf.t + 50 * u; corner: rc * 0.72 + (lf.t + 50 * u) / 2; stroke: lf.t * max(fm, 0.35) + 50 * u * fm }
+            box { from: th.l - (lf.t + 50 * u) / 2 + if(fm > 0.35, 0, 30000), yo + th.ts - (lf.t + 50 * u) / 2 + if(fm > 0.35, 0, 30000); size: screen.width - th.r - th.l + lf.t + 50 * u, vh - th.ts - th.b + lf.t + 50 * u; corner: fr_in_r + (lf.t + 50 * u) / 2; stroke: lf.t * max(fm, 0.35) + 50 * u * fm }
             //  The drawer is a second shape in the same glass. `blend` melts it into the bar, so where the
             //  narrow drawer meets the wide bar there is a liquid neck, not a corner. It is only there
             //  while it has size: a zero-size shape would leave a stray shadow behind.
@@ -59,13 +59,13 @@ part BarShapes {
             ellipse { at: screen.width - th.r - dz.stray * 0.7 + dz.px, dz.fy; radius: max(dz.stray, 0.3); blend: (7 * u * clamp(dz.stray / (3 * u), 0, 1)) * bk }
             box zdrawer { at: dz.fx + if(fm > 0.5, 0, 30000) + if(px_k > 0.5, 30000, 0), dz.fcy; size: dz.fw * (1 + dz.stretch - 0.07 * dz.bell), dz.fh * (1 - dz.stretch * 0.5); corner: mix(min(dz.fw, dz.fh) / 2, 26 * u * desk_s * (1 - 0.73 * sq), clamp(dz0 * 1.6 - 0.1, 0, 1)); blend: ((26 + 20 * dz.bell) * u * min(1, dz0 * 4)) * bk; show: dz0 > 0.004 }
             //  The top frame in three pieces (see `sg.*`): glass that bulges out of the thin frame, melted into it. Off the screen outside that layout.
-            box { at: (sg.lr - sg.r) / 2 + if(sg > 0.35, 0, 30000) + if(px_k > 0.5, 30000, 0), yo + (sg.hc - sg.r) / 2; size: sg.lr + sg.r, sg.hc + sg.r; corner: (sg.hc + sg.r) * 0.5 * (1 - 0.73 * sq); blend: (40 * u * sg) * bk }
+            box { at: (sg.lr - sg.r) / 2 + if(sg > 0.35, 0, 30000) + if(px_k > 0.5, 30000, 0), yo + (sg.hc - sg.r) / 2; size: sg.lr + sg.r, sg.hc + sg.r; corner: (sg.hc + sg.r) * 0.5 * (1 - 0.73 * sq); blend: (fr_in_r / 0.85 * sg) * bk }
             box { at: (sg.q0 + sg.q1) / 2 + if(sg > 0.35, 0, 30000) + if(px_k > 0.5, 30000, 0), yo + (sg.hc - sg.r) / 2; size: sg.q1 - sg.q0, sg.hc + sg.r; corner: (sg.hc + sg.r) * 0.5 * (1 - 0.73 * sq); blend: (40 * u * sg * (1 + 0.5 * sg.wd)) * bk }
-            box { at: (sg.rq + screen.width + sg.r) / 2 + if(sg > 0.35, 0, 30000) + if(px_k > 0.5, 30000, 0), yo + (sg.hc - sg.r) / 2; size: screen.width + sg.r - sg.rq, sg.hc + sg.r; corner: (sg.hc + sg.r) * 0.5 * (1 - 0.73 * sq); blend: (40 * u * sg * (1 + 0.5 * sg.wr)) * bk }
+            box { at: (sg.rq + screen.width + sg.r) / 2 + if(sg > 0.35, 0, 30000) + if(px_k > 0.5, 30000, 0), yo + (sg.hc - sg.r) / 2; size: screen.width + sg.r - sg.rq, sg.hc + sg.r; corner: (sg.hc + sg.r) * 0.5 * (1 - 0.73 * sq); blend: (fr_in_r / 0.85 * sg * (1 + 0.5 * sg.wr)) * bk }
             //  The corner dock's pill (see `cdk.*`), melted into the frame. Off the screen while empty or switched off: `show:` does not take a shape off the glass.
-            box { at: cdk.bx + if(cdk.g > 0.02, 0, 30000) + if(px_k > 0.5, 30000, 0), cdk.by; size: max(0.3, cdk.bw), max(0.3, cdk.bh); corner: cdk.cr; blend: (38 * u * min(1, cdk.g * 4)) * bk }
+            box { at: cdk.bx + if(cdk.g > 0.02, 0, 30000) + if(px_k > 0.5, 30000, 0), cdk.by; size: max(0.3, cdk.bw), max(0.3, cdk.bh); corner: cdk.cr; blend: (fr_in_r / 0.85 * min(1, cdk.g * 4)) * bk }
             //  The add-on pill (see `adk.*`): the same, in the other corner.
-            box { at: adk.bx + if(adk.g > 0.02, 0, 30000) + if(px_k > 0.5, 30000, 0), adk.by; size: max(0.3, adk.bw), max(0.3, adk.bh); corner: cdk.cr; blend: (38 * u * min(1, adk.g * 4)) * bk }
+            box { at: adk.bx + if(adk.g > 0.02, 0, 30000) + if(px_k > 0.5, 30000, 0), adk.by; size: max(0.3, adk.bw), max(0.3, adk.bh); corner: cdk.cr; blend: (fr_in_r / 0.85 * min(1, adk.g * 4)) * bk }
             //  The floating media card's side of the frame (`mf.f*`): the same, melted into the frame where it is carried against it.
             box { at: mix(mf.fx, screen.width - mf.fx, rt) + if(fm > 0.5 and mf.mine > 0.5, 0, 30000), mix(mf.fcy, yo + vb - mf.fcy, bt); size: max(0.3, mf.fw * mf.g), max(0.3, mf.fh * mf.g); corner: mix(min(mf.fw, mf.fh) / 2, 26 * u * mf.k * (1 - 0.73 * sq), clamp(mf.g * 1.6 - 0.1, 0, 1)); blend: (26 * u * min(1, mf.g * 4)) * bk; show: mf.g > 0.004 }
 }
