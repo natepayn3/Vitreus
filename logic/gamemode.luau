@@ -26,10 +26,22 @@ return function()
     end
 
     local function start()
-        -- Any battery that reports Discharging means the machine is not on the mains.
-        -- (Not `grep -R`: /sys has symlink loops under power_supply and it never comes back.) Any status file that says Discharging.
-        run("find", { "-L", "/sys/class/power_supply", "-maxdepth", "2", "-name", "status", "-exec", "grep", "-l", "Discharging", "{}", "+" }, function(out)
-            if type(out) == "string" and out:find("status", 1, true) then
+        -- A system battery (type Battery, scope not Device) that reports Discharging means the machine is not on the mains.
+        -- Peripheral batteries (a wireless mouse: hidpp_battery_*, scope Device) and USB-C ports (type USB) also say Discharging,
+        -- and must not count, or a desktop with a Logitech mouse is "on battery" forever.
+        -- (Not `sh`: the scene may not run it. `find` + `grep -H` print "dir/field:value" for each, parsed here.)
+        run("find", { "-L", "/sys/class/power_supply", "-maxdepth", "2", "(", "-name", "type", "-o", "-name", "scope", "-o", "-name", "status", ")",
+                      "-exec", "grep", "-H", "", "{}", "+" }, function(out)
+            local ps = {}
+            for dir, field, val in (type(out) == "string" and out or ""):gmatch("([^\n]*)/(%a+):([^\n]*)") do
+                ps[dir] = ps[dir] or {}
+                ps[dir][field] = val
+            end
+            local discharging = false
+            for _, p in pairs(ps) do
+                if p.type == "Battery" and p.scope ~= "Device" and p.status == "Discharging" then discharging = true end
+            end
+            if discharging then
                 fact.game_k = 0.45
                 text.game_status = "Needs AC power"
                 say("Game Mode", "Needs AC power: every lever trades battery and heat for latency")
