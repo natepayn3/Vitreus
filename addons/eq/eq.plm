@@ -245,7 +245,7 @@ scene Equalizer {
         //  top of it. Drag the glass to shape it. A column with no length is moved off the surface, as there.
         //  The glass takes the theme's own material, as the shell's frame does (pages/bar_glass.plm): Glass and Cyber (its tint taken to black) stay glass; the Cassette is lit plastic with a dark outline and a hard shadow,
         //  the UwU a pastel candy with a grape outline and a pink shadow, the Milkbox two layers of one pale material (a white light up and left, a soft shade down and right), the Proxy a flat plate with a thin pale
-        //  outline and a hard offset edge. The plastics are solid, so they have no lens and no rim of glass.
+        //  outline and a hard offset edge, the Doodle sticky-note paper with an ink outline and a solid ink shadow. The plastics are solid, so they have no lens and no rim of glass.
         body {
             color: if(look == 3, #000000, mix(tint, mintlo, 0.2 * ea))
             glass: 100%
@@ -303,10 +303,29 @@ scene Equalizer {
             show: look == 5
             include "eq-columns.plm"
         }
+        //  Doodle: a sheet of sticky-note paper with a thin ink outline, and the same silhouette again in ink, moved down and to the right, for its solid shadow (as the shell's drawers, pages/bar_glass.plm).
+        group {
+            move: 2.6 * u, 2.6 * u
+            body {
+                color: ink
+                rim: 0%
+                opacity: shown
+                show: look == 7
+                include "eq-columns.plm"
+            }
+        }
+        body {
+            color: mix(tint, mint, 0.22)
+            rim: 0%
+            border: 2 * u, ink
+            opacity: shown
+            show: look == 7
+            include "eq-columns.plm"
+        }
         //  Every few seconds a band of light crosses the glass (glint.wgsl): a copy of its silhouette in a light colour, of which the shader keeps a moving diagonal band. Hidden between crossings.
         group {
             shader: glint, sw, 0.9
-            show: sw > 0.002 and look != 5
+            show: sw > 0.002 and look != 5 and look != 7
             body {
                 color: minthi
                 opacity: shown

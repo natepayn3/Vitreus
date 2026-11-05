@@ -19,7 +19,8 @@ part ControlsDrawer {
             move: 0, (1 - f6) * 12 * cu
             let card_cy = ck + (bright_top + vp.h / 2) * cu
             //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx, card_cy; size: 288 * cu, vp.h * cu; corner: pr } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx, card_cy; size: 288 * cu, vp.h * cu; corner: pr } }
+            DdCard(pcx, card_cy, 288 * cu, vp.h * cu, 322.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: pcx, card_cy; size: 288 * cu, vp.h * cu; corner: pr; color: ink; opacity: (veil) * (1 - obs) }
         }
 
@@ -142,7 +143,8 @@ part ControlsDrawer {
             let tb3 = pcx + 118 * cu
 
             //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_p2, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: pr } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_p2, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: pr } }
+            DdCard(tb1 - 21 * cu, tile_cy, 94 * cu, tiles_h * cu, 193.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_p2, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: pr; color: ink; opacity: (veil) * (1 - obs) }
             group { pivot: tb1 - 44 * cu, tile_cy - 17 * cu; scale: 1.2; PWifi(tb1 - 44 * cu, tile_cy - 17 * cu, max(if(on_wifi, 1, 0), wifi_tile_hit.hover), if(on_wifi, 45% + 55% * clamp(net.strength / 0.3, 0, 1), 30%) * (1 - wf_hold), if(on_wifi, 45% + 55% * clamp(net.strength / 0.65, 0, 1), 30%) * (1 - wf_hold), if(on_wifi, 45% + 55% * clamp(net.strength / 1.0, 0, 1), 30%) * (1 - wf_hold)) }
             text "Wi-Fi" { at: floor(tb1 - 58 * cu + 0.5), floor(tile_cy + 8 * cu + 0.5); anchor: left center; size: 15; color: ink; family: "Space Grotesk" }
@@ -213,7 +215,7 @@ part ControlsDrawer {
             line { from: wf_kx - 5 * cu, wf_cy - 5 * cu; to: wf_kx + 5 * cu, wf_cy + 5 * cu; width: 1.4 * cu; color: wf_dk; opacity: glyph_a * (0.8 * (1 - wifi_on)) }
 
             //  No Wi-Fi adapter (a desktop with only a cable): the tile is greyed out, says so, and does nothing.
-            box { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: pr; color: deep; opacity: 60% * (1 - wifi_hw_k) }
+            box { at: tb1 - 21 * cu, tile_cy; size: (94 - 7 * dd_k) * cu, (tiles_h - 7 * dd_k) * cu; corner: pr; color: mix(deep, dd_cream, dd_k); opacity: 60% * (1 - wifi_hw_k) }      // (Doodle: a wash of paper inside the drawn outline)
             text "No adapter" { at: floor(tb1 - 58 * cu + 0.5), floor(tile_cy + 26 * cu + 0.5); anchor: left center; size: 13; color: faint; opacity: 1 - wifi_hw_k; family: "Space Grotesk" }
             zone box wifi_tile_hit { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; cursor: pointer; active: wifi_hw }
             on press wifi_tile_hit { panel_sub = if(panel_sub == netview, none, netview) }
@@ -225,7 +227,8 @@ part ControlsDrawer {
             on release wifi_toggle_hit { wf_press: 0; wf_hold: 0; wf_held = false }
 
             //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_p3, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: pr } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_p3, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: pr } }
+            DdCard(tb1 - 21 * cu, tile2_cy, 94 * cu, tiles_h * cu, 781.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_p3, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: pr; color: ink; opacity: (veil) * (1 - obs) }
             group { pivot: tb1 - 44 * cu, tile2_cy - 17 * cu; scale: 1.2; PBt(tb1 - 44 * cu, tile2_cy - 17 * cu, max(bt_on, bt_tile_hit.hover), 0.45 + 0.55 * bt_on) }
             text "Bluetooth" { at: floor(tb1 - 58 * cu + 0.5), floor(tile2_cy + 8 * cu + 0.5); anchor: left center; size: 15; color: ink; family: "Space Grotesk" }
@@ -293,7 +296,8 @@ part ControlsDrawer {
             //  Notifications (Do Not Disturb, with its own window) and Caffeine (the whole tile is its toggle), underneath.
 
             //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil + 6% * dnd_hit.hover) * 1.6), dd_p4, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb2 - 21 * cu, s2_cy; size: 94 * cu, st_h * cu; corner: pr } }
+            body { color: mix(mix(obsidian, ink, (veil + 6% * dnd_hit.hover) * 1.6), dd_p4, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb2 - 21 * cu, s2_cy; size: 94 * cu, st_h * cu; corner: pr } }
+            DdCard(tb2 - 21 * cu, s2_cy, 94 * cu, st_h * cu, 267.5, mix(mix(obsidian, ink, (veil + 6% * dnd_hit.hover) * 1.6), dd_p4, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: tb2 - 21 * cu, s2_cy; size: 94 * cu, st_h * cu; corner: pr; color: ink; opacity: (veil + 6% * dnd_hit.hover) * (1 - obs) }
             //  A bell: dome, rim and clapper, struck through while it is on.
             PBell(tb2 - 48 * cu, s2_cy - 15 * cu, max(dnd_pill, dnd_hit.hover), 0.45 + 0.55 * dnd_pill, dnd_pill, dnd_wobble)
@@ -361,7 +365,8 @@ part ControlsDrawer {
             group {
                 opacity: mix(0.45, 1, caf_avail)
                 //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
-                body { color: mix(mix(obsidian, ink, (veil + 6% * caf_hit.hover * caf_avail) * 1.6), dd_p0, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb2 - 21 * cu, s1_cy; size: 94 * cu, st_h * cu; corner: pr } }
+                body { color: mix(mix(obsidian, ink, (veil + 6% * caf_hit.hover * caf_avail) * 1.6), dd_p0, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb2 - 21 * cu, s1_cy; size: 94 * cu, st_h * cu; corner: pr } }
+                DdCard(tb2 - 21 * cu, s1_cy, 94 * cu, st_h * cu, 750.5, mix(mix(obsidian, ink, (veil + 6% * caf_hit.hover * caf_avail) * 1.6), dd_p0, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
                 box { at: tb2 - 21 * cu, s1_cy; size: 94 * cu, st_h * cu; corner: pr; color: ink; opacity: (veil + 6% * caf_hit.hover * caf_avail) * (1 - obs) }
                 PCup(tb2 - 46 * cu, s1_cy - 14 * cu, max(caf_pill, caf_hit.hover), 0.45 + 0.55 * caf_pill)
                 repeat i in 0..3 {
@@ -434,7 +439,8 @@ part ControlsDrawer {
             //  (screenshots, and a recording of the whole screen). Power has no switch: the whole tile opens its window.
 
             //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil + 6% * cap_hit.hover) * 1.6), dd_p1, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb2 - 21 * cu, s3_cy; size: 94 * cu, st_h * cu; corner: pr } }
+            body { color: mix(mix(obsidian, ink, (veil + 6% * cap_hit.hover) * 1.6), dd_p1, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb2 - 21 * cu, s3_cy; size: 94 * cu, st_h * cu; corner: pr } }
+            DdCard(tb2 - 21 * cu, s3_cy, 94 * cu, st_h * cu, 271.5, mix(mix(obsidian, ink, (veil + 6% * cap_hit.hover) * 1.6), dd_p1, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: tb2 - 21 * cu, s3_cy; size: 94 * cu, st_h * cu; corner: pr; color: ink; opacity: (veil + 6% * cap_hit.hover) * (1 - obs) }
             PCam(tb2 - 48 * cu, s3_cy - 14 * cu, max(rec_pill, cap_hit.hover), 0.45 + 0.55 * rec_pill)
             text "Capture" { at: floor(tb2 - 58 * cu + 0.5), floor(s3_cy + 7 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
@@ -449,7 +455,8 @@ part ControlsDrawer {
             on press cap_rec_hit { emit rec_toggle }
 
             //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil + 6% * pow_hit.hover) * 1.6), dd_p2, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb3 - 21 * cu, s3_cy; size: 94 * cu, st_h * cu; corner: pr } }
+            body { color: mix(mix(obsidian, ink, (veil + 6% * pow_hit.hover) * 1.6), dd_p2, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb3 - 21 * cu, s3_cy; size: 94 * cu, st_h * cu; corner: pr } }
+            DdCard(tb3 - 21 * cu, s3_cy, 94 * cu, st_h * cu, 383.5, mix(mix(obsidian, ink, (veil + 6% * pow_hit.hover) * 1.6), dd_p2, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: tb3 - 21 * cu, s3_cy; size: 94 * cu, st_h * cu; corner: pr; color: ink; opacity: (veil + 6% * pow_hit.hover) * (1 - obs) }
             //  A power symbol: a ring open at the top, and the bar through the gap.
             PPower(tb3 - 48 * cu, s3_cy - 14 * cu, pow_hit.hover, 0.75)
@@ -464,7 +471,8 @@ part ControlsDrawer {
             //  Night mode: the whole tile is its switch (there is no window of its own), the pill shows it.
             group {
                 opacity: 1
-                body { color: mix(mix(obsidian, ink, (veil + 6% * nm_hit.hover * 1) * 1.6), dd_p3, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb3 - 21 * cu, s1_cy; size: 94 * cu, st_h * cu; corner: pr } }
+                body { color: mix(mix(obsidian, ink, (veil + 6% * nm_hit.hover * 1) * 1.6), dd_p3, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb3 - 21 * cu, s1_cy; size: 94 * cu, st_h * cu; corner: pr } }
+                DdCard(tb3 - 21 * cu, s1_cy, 94 * cu, st_h * cu, 495.5, mix(mix(obsidian, ink, (veil + 6% * nm_hit.hover * 1) * 1.6), dd_p3, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
                 box { at: tb3 - 21 * cu, s1_cy; size: 94 * cu, st_h * cu; corner: pr; color: ink; opacity: (veil + 6% * nm_hit.hover * 1) * (1 - obs) }
                 PMoon(tb3 - 46 * cu, s1_cy - 14 * cu, max(nm_pill, nm_hit.hover), 0.45 + 0.55 * nm_pill)
                 text "Night mode" { at: floor(tb3 - 58 * cu + 0.5), floor(s1_cy + 7 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
@@ -521,7 +529,8 @@ part ControlsDrawer {
             //  Game mode: the whole tile is its switch (there is no window of its own), the pill shows it.
             group {
                 opacity: game_k
-                body { color: mix(mix(obsidian, ink, (veil + 6% * gm_hit.hover * game_k) * 1.6), dd_p4, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb3 - 21 * cu, s2_cy; size: 94 * cu, st_h * cu; corner: pr } }
+                body { color: mix(mix(obsidian, ink, (veil + 6% * gm_hit.hover * game_k) * 1.6), dd_p4, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tb3 - 21 * cu, s2_cy; size: 94 * cu, st_h * cu; corner: pr } }
+                DdCard(tb3 - 21 * cu, s2_cy, 94 * cu, st_h * cu, 901.5, mix(mix(obsidian, ink, (veil + 6% * gm_hit.hover * game_k) * 1.6), dd_p4, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
                 box { at: tb3 - 21 * cu, s2_cy; size: 94 * cu, st_h * cu; corner: pr; color: ink; opacity: (veil + 6% * gm_hit.hover * game_k) * (1 - obs) }
                 PPad(tb3 - 46 * cu, s2_cy - 14 * cu, max(gm_pill, gm_hit.hover), 0.45 + 0.55 * gm_pill)
                 text "Game mode" { at: floor(tb3 - 58 * cu + 0.5), floor(s2_cy + 7 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
@@ -662,7 +671,7 @@ part ControlsDrawer {
             text number(min(99, nt_hist.count), 0, "") { at: floor(pcx + 13.5 * cu + 0.5), floor(nx_cy - 4 * cu + 0.5); anchor: center; align: center; size: 9.5; weight: 700; width: 14 * cu; lines: 1; color: onmint; family: "Space Grotesk"; show: nt_hist.count > 0 and not dnd_on }
             //  Where it stands, beside the title: how long is left, or that it is on until turned off.
             text dnd_left { at: floor(pcx + 78 * cu + 0.5), floor(nx_cy + 0.5); anchor: right center; align: right; size: 11.5; width: 62 * cu; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
-            box { at: pcx + 112 * cu, nx_cy; size: 52 * cu, 24 * cu; corner: 12 * cu; color: ink; opacity: 8% + 10% * nt_clear_hit.hover }
+            box { at: pcx + 112 * cu, nx_cy; size: 52 * cu, 24 * cu; corner: (12 * cu) * (1 - 0.85 * dd_k); color: ink; opacity: 8% + 10% * nt_clear_hit.hover }
             PPillOutline(pcx + 112 * cu, nx_cy, 52 * cu, 24 * cu, 12 * cu, nt_clear_hit.hover, clamp(3 * (8% + 10% * nt_clear_hit.hover), 0, 1), cu)
             text "Clear" { at: floor(pcx + 112 * cu + 0.5), floor(nx_cy + 0.5); anchor: center; size: 14; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
             zone box nt_clear_hit { at: pcx + 112 * cu, nx_cy; size: 54 * cu, 26 * cu; corner: 13 * cu; cursor: pointer }
@@ -679,7 +688,8 @@ part ControlsDrawer {
             let ns_th  = (26 - 3 * clamp(ns_str, 0, 1) - 2 * dnd_press) * cu
             let ns_on  = clamp(dnd_pill, 0, 1)
             //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx, ns_y; size: 264 * cu, 36 * cu; corner: 18 * cu } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx, ns_y; size: 264 * cu, 36 * cu; corner: 18 * cu } }
+            DdCard(pcx, ns_y, 264 * cu, 36 * cu, 20.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: pcx, ns_y; size: 264 * cu, 36 * cu; corner: 18 * cu; color: ink; opacity: (veil) * (1 - obs) }
             group {
                 clip inset 0 box { at: pcx, ns_y; size: 264 * cu, 36 * cu; corner: 18 * cu }
@@ -814,7 +824,8 @@ part ControlsDrawer {
                 let cs_th  = (26 - 3 * clamp(cs_str, 0, 1) - 2 * caf_press) * cu
                 let cs_on  = clamp(caf_pill, 0, 1)
                 //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
-                body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx, cs_y; size: 266 * cu, 36 * cu; corner: 18 * cu } }
+                body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx, cs_y; size: 266 * cu, 36 * cu; corner: 18 * cu } }
+                DdCard(pcx, cs_y, 266 * cu, 36 * cu, 972.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
                 box { at: pcx, cs_y; size: 266 * cu, 36 * cu; corner: 18 * cu; color: ink; opacity: (veil) * (1 - obs) }
                 group {
                     clip inset 0 box { at: pcx, cs_y; size: 266 * cu, 36 * cu; corner: 18 * cu }

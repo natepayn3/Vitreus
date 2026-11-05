@@ -37,7 +37,7 @@ part Player {
                 //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
                 box { from: mdx + 147 * cu, ck + tray_list * cu + tray_col.scroll / max(tray_col.content, 1) * ((max(1, tray_rows) * 40 - 4) * cu); size: 3 * cu, ((max(1, tray_rows) * 40 - 4) * cu) * ((max(1, tray_rows) * 40 - 4) * cu) / max(tray_col.content, (max(1, tray_rows) * 40 - 4) * cu); corner: 1.5 * cu; color: ink; opacity: if(tray_col.content > ((max(1, tray_rows) * 40 - 4) * cu) + 1, 35%, 0%) }
                 //  What the bar shows of them: every app, or only the pinned ones.
-                box { at: mdx + 96 * cu, ck + tray_top * cu + 11 * cu; size: 86 * cu, 20 * cu; corner: 10 * cu; color: if(tray_only_pinned, mint, ink); opacity: if(tray_only_pinned, 22%, 8% + 10% * tray_mode_hit.hover) }
+                box { at: mdx + 96 * cu, ck + tray_top * cu + 11 * cu; size: 86 * cu, 20 * cu; corner: (10 * cu) * (1 - 0.85 * dd_k); color: if(tray_only_pinned, mint, ink); opacity: if(tray_only_pinned, 22%, 8% + 10% * tray_mode_hit.hover) }
                 PPillOutline(mdx + 96 * cu, ck + tray_top * cu + 11 * cu, 86 * cu, 20 * cu, 10 * cu, tray_mode_hit.hover, clamp(3 * (if(tray_only_pinned, 22%, 8% + 10% * tray_mode_hit.hover)), 0, 1), cu)
                 text "Bar: pinned" { at: floor(mdx + 96 * cu + 0.5), floor(ck + tray_top * cu + 11 * cu + 0.5); anchor: center; align: center; size: 13; weight: 600; width: 82 * cu; lines: 1; color: mint; show: tray_only_pinned; family: "Space Grotesk" }
                 text "Bar: all" { at: floor(mdx + 96 * cu + 0.5), floor(ck + tray_top * cu + 11 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 82 * cu; lines: 1; color: ink; opacity: 85%; show: not tray_only_pinned; family: "Space Grotesk" }
@@ -53,7 +53,8 @@ part Player {
             move: 0, (1 - f3) * 12 * cu
             let ty = ck + 34 * cu                           // the app plate's middle
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: mdx, ty; size: 288 * cu, 52 * cu; corner: pr } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: mdx, ty; size: 288 * cu, 52 * cu; corner: pr } }
+            DdCard(mdx, ty, 288 * cu, 52 * cu, 924.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: mdx, ty; size: 288 * cu, 52 * cu; corner: pr; color: ink; opacity: (veil) * (1 - obs) }
             image tm_icon { at: floor(mdx - 132 * cu + 0.5), floor(ty - 15 * cu + 0.5); size: floor(30 * cu + 0.5), floor(30 * cu + 0.5) }
             text tm_title { at: floor(mdx - 94 * cu + 0.5), floor(ty - 8 * cu + 0.5); anchor: left center; size: 15.5; weight: 700; width: 170 * cu; lines: 1; color: ink; family: "Space Grotesk" }
@@ -66,12 +67,12 @@ part Player {
             zone box tm_pin_hit { at: mdx + 122 * cu, ty; size: 28 * cu, 28 * cu; corner: pr; cursor: pointer }
             on press tm_pin_hit { emit tm_pin }
             //  Open and Alt: what a left and a middle click on its icon would do.
-            box { at: mdx - 71 * cu, ck + 79 * cu; size: 138 * cu, 26 * cu; corner: 9 * cu; color: ink; opacity: 8% + 10% * tm_open_hit.hover }
+            box { at: mdx - 71 * cu, ck + 79 * cu; size: 138 * cu, 26 * cu; corner: (9 * cu) * (1 - 0.85 * dd_k); color: ink; opacity: 8% + 10% * tm_open_hit.hover }
             PPillOutline(mdx - 71 * cu, ck + 79 * cu, 138 * cu, 26 * cu, 9 * cu, tm_open_hit.hover, clamp(3 * (8% + 10% * tm_open_hit.hover), 0, 1), cu)
             text "Open" { at: floor(mdx - 71 * cu + 0.5), floor(ck + 79 * cu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 130 * cu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
             zone box tm_open_hit { at: mdx - 71 * cu, ck + 79 * cu; size: 140 * cu, 28 * cu; corner: 9 * cu; cursor: pointer }
             on press tm_open_hit { emit tm_open }
-            box { at: mdx + 71 * cu, ck + 79 * cu; size: 138 * cu, 26 * cu; corner: 9 * cu; color: ink; opacity: 8% + 10% * tm_alt_hit.hover }
+            box { at: mdx + 71 * cu, ck + 79 * cu; size: 138 * cu, 26 * cu; corner: (9 * cu) * (1 - 0.85 * dd_k); color: ink; opacity: 8% + 10% * tm_alt_hit.hover }
             PPillOutline(mdx + 71 * cu, ck + 79 * cu, 138 * cu, 26 * cu, 9 * cu, tm_alt_hit.hover, clamp(3 * (8% + 10% * tm_alt_hit.hover), 0, 1), cu)
             text "Alt" { at: floor(mdx + 71 * cu + 0.5), floor(ck + 79 * cu + 0.5); anchor: center; align: center; size: 14; weight: 600; width: 130 * cu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
             zone box tm_alt_hit { at: mdx + 71 * cu, ck + 79 * cu; size: 140 * cu, 28 * cu; corner: 9 * cu; cursor: pointer }

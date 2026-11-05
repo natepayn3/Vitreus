@@ -14,7 +14,8 @@ scene Snap {
     fact phase = 0         // 0 taking the picture (nothing is drawn), 1 picking, 2 a part is picked
     //  Vitreus's look (Settings > Theme), which the logic reads: 0 Glass, 1 Retro (moulded plastic: square corners, a dark outline, a hard shadow),
     //  2 UwU (candy plastic: a pastel gradient, a thick grape outline, a hard pink shadow, cat ears), 3 Cyber (near-black glass, a neon hairline,
-    //  magenta corner brackets). The colours are Vitreus's own already (../palette.plm), whichever the look.
+    //  magenta corner brackets), 4 Doodle (a sketchbook: paper, a thin ink outline, a solid ink shadow off to the bottom right, a strip of tape).
+    //  The colours are Vitreus's own already (../palette.plm), whichever the look.
     fact look = 0
     //  1 for the whole screen (Controls > Screen, Shift+Print): the picture is taken as it is, shown smaller with the bar underneath, and `vs`, `vx`, `vy` are its scale and
     //  where its corner is (1, 0, 0 when it fills the screen). The logic sets `full`; the scene lays the picture out.
@@ -29,6 +30,52 @@ scene Snap {
     fact vx = 0
     fact vy = 0
     let pink_shadow = mix(deep, #ff6ec7, 0.75)
+    let tape = #f7a8c4     // Doodle's strip of washi tape
+    //  Doodle's card, drawn by hand (the same as Vitreus's, vitreus.plm): a slightly crooked quad with sharp corners and gently bowed edges, a thin ink outline, and a solid ink shadow: the same shape, moved down and to the right.
+    component DdCard(cx: number, cy: number, w: number, h: number, sd: number, fill: color, k: number = 1, s: number = 1) {
+        let x0 = cx - w / 2
+        let y0 = cy - h / 2
+        let x1 = cx + w / 2
+        let y1 = cy + h / 2
+        //  each corner wanders a little either side of where it is, never more than about a pixel either way: the card neither cuts into what is inside it nor into the next card
+        let j = min(1.8 * s, min(w, h) * 0.04)
+        let ax = x0 - j * (random(sd + 0.11) - 0.5)
+        let ay = y0 - j * (random(sd + 0.23) - 0.5)
+        let bx = x1 + j * (random(sd + 0.37) - 0.5)
+        let by = y0 - j * (random(sd + 0.41) - 0.5)
+        let qx = x1 + j * (random(sd + 0.53) - 0.5)
+        let qy = y1 + j * (random(sd + 0.67) - 0.5)
+        let dx = x0 - j * (random(sd + 0.71) - 0.5)
+        let dy = y1 + j * (random(sd + 0.89) - 0.5)
+        let bw = min(1.3 * s, min(w, h) * 0.03)
+        let b1 = -bw * random(sd + 1.3)
+        let b2 = bw * random(sd + 1.7)
+        let b3 = bw * random(sd + 2.1)
+        let b4 = -bw * random(sd + 2.9)
+        //  the shadow is the same outline moved down and to the right, so it follows every edge at the same width
+        let o = 2.6 * s
+        path { at: o, o; color: ink; opacity: k
+            move ax, ay
+            curve bx, by via (ax + bx) / 2, (ay + by) / 2 + b1
+            curve qx, qy via (bx + qx) / 2 + b2, (by + qy) / 2
+            curve dx, dy via (qx + dx) / 2, (qy + dy) / 2 + b3
+            curve ax, ay via (dx + ax) / 2 + b4, (dy + ay) / 2
+            close }
+        path { at: 0, 0; color: fill; opacity: k
+            move ax, ay
+            curve bx, by via (ax + bx) / 2, (ay + by) / 2 + b1
+            curve qx, qy via (bx + qx) / 2 + b2, (by + qy) / 2
+            curve dx, dy via (qx + dx) / 2, (qy + dy) / 2 + b3
+            curve ax, ay via (dx + ax) / 2 + b4, (dy + ay) / 2
+            close }
+        path { at: 0, 0; stroke: 2 * s; color: ink; opacity: k
+            move ax, ay
+            curve bx, by via (ax + bx) / 2, (ay + by) / 2 + b1
+            curve qx, qy via (bx + qx) / 2 + b2, (by + qy) / 2
+            curve dx, dy via (qx + dx) / 2, (qy + dy) / 2 + b3
+            curve ax, ay via (dx + ax) / 2 + b4, (dy + ay) / 2
+            close }
+    }
     text shot_path = ""    // the picture: its file, `?` and a number
     image shot = from shot_path, 1920, 1080
     image shotv = from shot_path, 1080, 1920      // the same picture for a monitor standing on its side: the cell has the shape it is drawn in, or it is squashed
@@ -151,12 +198,14 @@ scene Snap {
     component Tip(n: number, x: number, y: number, w: number, words: text) {
         group {
             show: tip == n and pv > 0.9
+            DdCard(x, y, w * 1.16, 28, 3.5, tint) { show: look == 4 }      // Doodle: the hand-drawn card
             body {
+                show: look != 4
                 color: if(look == 3, mix(tint, #000000, 0.8), tint)
-                rim: 10% + 30% * (look == 1) + 45% * (look == 2)
-                border: pick(look, 0, 1.5, 2.5, 1.2), if(look == 3, mint, deep)
-                shadow: pick(look, 0, 2.5, 2.5, 0), pick(look, 4, 3, 3, 4), pick(look, 12, 0, 0, 12), pick(look, 30%, 55%, 90%, 30%), if(look == 2, pink_shadow, deep)
-                box { at: x, y; size: w * pick(look, 1, 1.12, 1.1, 1.16), 28; corner: pick(look, 14, 4, 14, 3) }
+                rim: 10% + 30% * (look == 1) + 45% * (look == 2) - 10% * (look == 4)
+                border: pick(look, 0, 1.5, 2.5, 1.2, 2.2), pick(look, deep, deep, deep, mint, ink)
+                shadow: pick(look, 0, 2.5, 2.5, 0, 3), pick(look, 4, 3, 3, 4, 3), pick(look, 12, 0, 0, 12, 0), pick(look, 30%, 55%, 90%, 30%, 0%), pick(look, deep, deep, pink_shadow, deep, ink)
+                box { at: x, y; size: w * pick(look, 1, 1.12, 1.1, 1.16), 28; corner: pick(look, 14, 4, 14, 3, 6) }
             }
             text words { at: x, y; anchor: center; size: 13; weight: 700; color: ink; family: "Space Grotesk" }
         }
@@ -269,7 +318,7 @@ scene Snap {
     //  Glass: a hairline and round handles. Retro: a heavier putty line and square handles with the accent in them. UwU: a thick pink line and
     //  candy handles. Cyber: a neon hairline, small square handles, and magenta brackets just outside the corners. (Over the dimmed screen: the
     //  plastic looks' dark ink would not show there.)
-    box { from: sx, sy; size: sw, sh; corner: pick(look, 2, 0, 6, 0); stroke: pick(look, 1.5, 2.2, 3, 1.2); color: pick(look, ink, tint, mint, mint); show: phase > 0 and sw > 1 }
+    box { from: sx, sy; size: sw, sh; corner: pick(look, 2, 0, 6, 0, 3); stroke: pick(look, 1.5, 2.2, 3, 1.2, 2.6); color: pick(look, ink, tint, mint, mint, tint); show: phase > 0 and sw > 1 }
     repeat k in 0..8 {
         let hdx = sx + pick(k, 0, 0.5, 1, 1, 1, 0.5, 0, 0) * sw
         let hdy = sy + pick(k, 0, 0, 0, 0.5, 1, 1, 1, 0.5) * sh
@@ -281,6 +330,7 @@ scene Snap {
         ellipse { at: hdx, hdy; radius: 6; color: tint; show: phase == 2 and look == 2 }
         ellipse { at: hdx, hdy; radius: 3.5; color: mint; show: phase == 2 and look == 2 }
         box { at: hdx, hdy; size: 7, 7; color: mint; show: phase == 2 and look == 3 }
+        DdCard(hdx, hdy, 12, 12, 20 + k, tint) { show: phase == 2 and look == 4 }
     }
     repeat k in 0..4 {
         let bkx = if(mod(k, 2) == 0, sx - 6, sx + sw + 6)
@@ -293,8 +343,8 @@ scene Snap {
     //  What to do, while nothing is picked yet.
     group {
         show: phase == 1 and sw <= 8
-        text "Click a window, or drag an area" { at: W / 2, 46; anchor: center; size: 17; weight: 700; color: if(look == 1 or look == 2, tint, ink); family: "Space Grotesk" }
-        text "Esc  close" { at: W / 2, 70; anchor: center; size: 12; color: if(look == 1 or look == 2, tint, ink); opacity: 62%; family: "Space Grotesk" }
+        text "Click a window, or drag an area" { at: W / 2, 46; anchor: center; size: 17; weight: 700; color: if(look == 1 or look == 2 or look == 4, tint, ink); family: "Space Grotesk" }
+        text "Esc  close" { at: W / 2, 70; anchor: center; size: 12; color: if(look == 1 or look == 2 or look == 4, tint, ink); opacity: 62%; family: "Space Grotesk" }
     }
 
 
@@ -336,7 +386,7 @@ scene Snap {
             image shotw { at: 0, 0; size: W, H; show: W > 2 * H }
             image shotv { at: 0, 0; size: W, H; show: H > W }
         }
-        box { from: wa, wb; size: max(1, wc - wa), max(1, wd - wb); corner: pick(look, 6, 0, 8, 0); stroke: pick(look, 2, 2.2, 3, 1.5); color: mint; show: phase == 1 and sw <= 8 and wz.$i.hover > 0.5 }
+        box { from: wa, wb; size: max(1, wc - wa), max(1, wd - wb); corner: pick(look, 6, 0, 8, 0, 4); stroke: pick(look, 2, 2.2, 3, 1.5, 3); color: mint; show: phase == 1 and sw <= 8 and wz.$i.hover > 0.5 }
         zone box wz.$i { from: wa, wb; size: max(1, wc - wa), max(1, wd - wb); cursor: crosshair; active: phase > 0 and full == 0 and wc - wa > 4 and wd - wb > 4; label: "Window" }
         on press wz.$i { picking = 1; x0 = pointer.x; y0 = pointer.y; phase = 1; sw = 0; sh = 0 }
         on release wz.$i while sw > 8 and sh > 8 { picking = 0; phase = 2 }
@@ -464,6 +514,7 @@ scene Snap {
         show: phase > 0 and sw > 2 and look == 2
         box { from: sx, cyc; size: 108, 26; corner: 13 }
     }
+    DdCard(sx + 54, cyc + 13, 108, 26, 7.5, tint) { show: phase > 0 and sw > 2 and look == 4 }      // Doodle: the hand-drawn card
     text number(sw, 0) { at: sx + 46, cyc + 13; anchor: right center; size: 13; weight: 700; color: ink; family: "Space Grotesk" ; show: phase > 0 and sw > 2 }
     text "×" { at: sx + 54, cyc + 13; anchor: center; size: 13; color: ink; opacity: 60%; family: "Space Grotesk" ; show: phase > 0 and sw > 2 }
     text number(sh, 0) { at: sx + 62, cyc + 13; anchor: left center; size: 13; weight: 700; color: ink; family: "Space Grotesk" ; show: phase > 0 and sw > 2 }
@@ -517,6 +568,15 @@ scene Snap {
         show: pv > 0.01 and look == 2
         box { from: tbx, pty; size: bw_, 52; corner: 26 }
     }
+    //  Doodle: a card drawn by hand, as Vitreus's are, and a strip of pink tape across its top left corner.
+    DdCard(tbx + bw_ / 2, pty + 26, bw_, 52, 9.5, tint, pv) { show: pv > 0.01 and look == 4 }
+    group {
+        opacity: pv
+        show: pv > 0.01 and look == 4
+        pivot: tbx + 34, pty + 1
+        rotate: -6deg
+        box { at: tbx + 34, pty + 1; size: 64, 16; corner: 1; color: tape; opacity: 78% }
+    }
     //  The ears, as Vitreus's drawers wear them (bar_glass.plm): one over each end of the bar —the tools pill's left, the actions pill's right—,
     //  leaning outwards, in the pastel of that end, with the grape outline and a pink inside.
     repeat side in 0..2 {
@@ -527,15 +587,16 @@ scene Snap {
         path { at: ex, pty; color: #ff8fc8; opacity: pv; show: pv > 0.01 and look == 2; move -14, 5; line sg * 9, -19; line 14, 5; close }
     }
 
-    //  the tool that is picked, as a bead of mint that slides to it
+    //  the tool that is picked, as a bead of mint that slides to it (on Doodle with its solid ink shadow under it)
+    DdCard(hx, ty + 14 * (1 - pv), 38, 38, 11.5, mint, pv) { show: pv > 0.01 and look == 4 }
     body {
         color: mint
         opacity: pv
         rim: 22%
-        border: pick(look, 0, 1.5, 2.5, 0), deep
-        shadow: pick(look, 0, 2.5, 2.5, 0), pick(look, 0, 3, 3, 0), pick(look, 8, 0, 0, 14), pick(look, 40%, 55%, 90%, 75%), pick(look, mint, deep, pink_shadow, mint)
-        show: pv > 0.01
-        box { at: hx, ty + 14 * (1 - pv); size: 38, 38; corner: pick(look, 13, 4, 13, 3) }
+        border: pick(look, 0, 1.5, 2.5, 0, 2), pick(look, deep, deep, deep, deep, ink)
+        shadow: pick(look, 0, 2.5, 2.5, 0, 2.5), pick(look, 0, 3, 3, 0, 2.5), pick(look, 8, 0, 0, 14, 0), pick(look, 40%, 55%, 90%, 75%, 0%), pick(look, mint, deep, pink_shadow, mint, ink)
+        show: pv > 0.01 and look != 4
+        box { at: hx, ty + 14 * (1 - pv); size: 38, 38; corner: pick(look, 13, 4, 13, 3, 6) }
     }
 
     group {
@@ -678,15 +739,18 @@ scene Snap {
         box { at: abx + 216, ty; size: 1, 24; color: ink; opacity: 22% }
 
         //  save, a clear pill, and copy, the one that is filled
-        box { at: abx + 272, ty; size: 80, 36; corner: pick(look, 18, 5, 18, 3); stroke: pick(look, 1.4, 1.7, 2.5, 1.2); color: pick(look, ink, deep, deep, mint); opacity: pick(look, 55%, 100%, 100%, 90%) }
+        box { at: abx + 272, ty; size: 80, 36; corner: pick(look, 18, 5, 18, 3, 6); stroke: pick(look, 1.4, 1.7, 2.5, 1.2, 2); color: pick(look, ink, deep, deep, mint, ink); opacity: pick(look, 55%, 100%, 100%, 90%, 100%); show: look != 4 }
+        DdCard(abx + 272, ty, 80, 36, 13.5, tint) { show: look == 4 }
         text "Save" { at: abx + 272, ty; anchor: center; size: 15; weight: 700; color: ink; family: "Space Grotesk" }
+        DdCard(abx + 368, ty, 96, 36, 15.5, mint) { show: look == 4 }
         body {
+            show: look != 4
             color: mint
             opacity: 100%
             rim: 22%
-            border: pick(look, 0, 1.5, 2.5, 0), deep
-            shadow: pick(look, 0, 2.5, 2.5, 0), pick(look, 0, 3, 3, 0), pick(look, 10, 0, 0, 14), pick(look, 38%, 55%, 90%, 75%), pick(look, mint, deep, pink_shadow, mint)
-            box { at: abx + 368, ty; size: 96, 36; corner: pick(look, 18, 5, 18, 3) }
+            border: pick(look, 0, 1.5, 2.5, 0, 2), pick(look, deep, deep, deep, deep, ink)
+            shadow: pick(look, 0, 2.5, 2.5, 0, 2.5), pick(look, 0, 3, 3, 0, 2.5), pick(look, 10, 0, 0, 14, 0), pick(look, 38%, 55%, 90%, 75%, 0%), pick(look, mint, deep, pink_shadow, mint, ink)
+            box { at: abx + 368, ty; size: 96, 36; corner: pick(look, 18, 5, 18, 3, 6) }
         }
         text "Copy" { at: abx + 368, ty; anchor: center; size: 15; weight: 800; color: onmint; family: "Space Grotesk" }
 
@@ -817,18 +881,20 @@ scene Snap {
             scale: 0.9 + 0.1 * toast_k
             pivot: tbx + bw_ / 2, tipy
             measure toast_m
+            DdCard(tbx + bw_ / 2, tipy, toast_m.width + 36, 34, 5.5, tint) { show: look == 4 }      // Doodle: the hand-drawn card
             body {
+                show: look != 4
                 color: if(look == 3, mix(tint, #000000, 0.8), tint)
-                rim: 10% + 30% * (look == 1) + 45% * (look == 2)
-                border: pick(look, 0, 1.5, 2.5, 1.2), if(look == 3, mint, deep)
-                shadow: pick(look, 0, 2.5, 2.5, 0), pick(look, 4, 3, 3, 4), pick(look, 14, 0, 0, 14), pick(look, 34%, 55%, 90%, 34%), if(look == 2, pink_shadow, deep)
-                box { at: tbx + bw_ / 2, tipy; size: toast_m.width + 36, 34; corner: pick(look, 17, 5, 17, 3) }
+                rim: 10% + 30% * (look == 1) + 45% * (look == 2) - 10% * (look == 4)
+                border: pick(look, 0, 1.5, 2.5, 1.2, 2.2), pick(look, deep, deep, deep, mint, ink)
+                shadow: pick(look, 0, 2.5, 2.5, 0, 3), pick(look, 4, 3, 3, 4, 3), pick(look, 14, 0, 0, 14, 0), pick(look, 34%, 55%, 90%, 34%, 0%), pick(look, deep, deep, pink_shadow, deep, ink)
+                box { at: tbx + bw_ / 2, tipy; size: toast_m.width + 36, 34; corner: pick(look, 17, 5, 17, 3, 6) }
             }
             text toast { at: tbx + bw_ / 2, tipy; anchor: center; size: 14; weight: 700; color: ink; family: "Space Grotesk"; measure: toast_m }
         }
 
         //  a small hint of the keys, under the pills
-        text "Enter  copy      Ctrl+S  save      Ctrl+Z  undo      Esc  close" { at: tbx + bw_ / 2, tby + 52 + 14 + if(look == 1 or look == 2, 6, 0); anchor: center; size: 12; color: if(look == 1 or look == 2, tint, ink); opacity: if(look == 1 or look == 2, 85%, 62%); family: "Space Grotesk" }
+        text "Enter  copy      Ctrl+S  save      Ctrl+Z  undo      Esc  close" { at: tbx + bw_ / 2, tby + 52 + 14 + if(look == 1 or look == 2 or look == 4, 6, 0); anchor: center; size: 12; color: if(look == 1 or look == 2 or look == 4, tint, ink); opacity: if(look == 1 or look == 2 or look == 4, 85%, 62%); family: "Space Grotesk" }
     }
 
     //  While a text is being written the keys are its own: Esc drops the text instead of closing, Enter keeps it (`submit tq`) instead of copying.

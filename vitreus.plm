@@ -453,18 +453,64 @@ scene Vitreus {
     fact paper_on = false
     prop pp_k = 0 ~calm
     follow pp_k = if(paper_on, 1, 0)
-    //  The Doodle theme: a sticker book. Cream drawers with a thick charcoal outline (the palette's `ink`), pastel fills, round corners (see bar_glass.plm). Opaque, liquid off. `dd_k` travels between glass and Doodle.
+    //  The Doodle theme: a sketchbook. Cream paper drawers with a thin hand-inked outline (the palette's `ink`) and a solid ink shadow off to the bottom right, sharp corners (see bar_glass.plm); its cards are drawn by hand, crooked a little (`DdCard`), in sticky-note pastels. Opaque, liquid off. `dd_k` travels between glass and Doodle.
     fact doodle_on = false
     prop dd_k = 0 ~calm
     follow dd_k = if(doodle_on, 1, 0)
     let pk = max(max(max(max(max(cas_k, uwu_k), milk_k), px_k), pp_k), dd_k)
-    //  Doodle's tile fills: butter, rose, lavender, sky, leaf, and the cream of the big cards. Each tile takes the next one.
-    let dd_p0 = #fcd77f
-    let dd_p1 = #f4b6c8
-    let dd_p2 = #c9b6e8
-    let dd_p3 = #aebfef
-    let dd_p4 = #b5d99c
-    let dd_cream = #fffaf6
+    //  Doodle's tile fills, sticky-note washes: butter, peach, lilac, sky, leaf, and the paper of the big cards. Each tile takes the next one.
+    let dd_p0 = #fdeca0
+    let dd_p1 = #fcd3b8
+    let dd_p2 = #ddd3f6
+    let dd_p3 = #cfe4f6
+    let dd_p4 = #d3edc2
+    let dd_cream = #fffdf6
+    //  Doodle's card, drawn by hand: a slightly crooked quad with sharp corners and gently bowed edges, a thin ink outline, and a solid ink shadow: the same shape, moved down and to the right.
+    //  `sd` is the card's own seed (fixed where it is used, so the card does not shimmer as it moves), `k` its opacity, `s` the panel's unit.
+    component DdCard(cx: number, cy: number, w: number, h: number, sd: number, fill: color, k: number = 1, s: number = 1) {
+        let x0 = cx - w / 2
+        let y0 = cy - h / 2
+        let x1 = cx + w / 2
+        let y1 = cy + h / 2
+        //  each corner wanders a little either side of where it is, never more than about a pixel either way: the card neither cuts into what is inside it nor into the next card
+        let j = min(1.8 * s, min(w, h) * 0.04)
+        let ax = x0 - j * (random(sd + 0.11) - 0.5)
+        let ay = y0 - j * (random(sd + 0.23) - 0.5)
+        let bx = x1 + j * (random(sd + 0.37) - 0.5)
+        let by = y0 - j * (random(sd + 0.41) - 0.5)
+        let qx = x1 + j * (random(sd + 0.53) - 0.5)
+        let qy = y1 + j * (random(sd + 0.67) - 0.5)
+        let dx = x0 - j * (random(sd + 0.71) - 0.5)
+        let dy = y1 + j * (random(sd + 0.89) - 0.5)
+        let bw = min(1.3 * s, min(w, h) * 0.03)
+        let b1 = -bw * random(sd + 1.3)
+        let b2 = bw * random(sd + 1.7)
+        let b3 = bw * random(sd + 2.1)
+        let b4 = -bw * random(sd + 2.9)
+        //  the shadow is the same outline moved down and to the right, so it follows every edge at the same width
+        let o = 2.6 * s
+        path { at: o, o; color: ink; opacity: k
+            move ax, ay
+            curve bx, by via (ax + bx) / 2, (ay + by) / 2 + b1
+            curve qx, qy via (bx + qx) / 2 + b2, (by + qy) / 2
+            curve dx, dy via (qx + dx) / 2, (qy + dy) / 2 + b3
+            curve ax, ay via (dx + ax) / 2 + b4, (dy + ay) / 2
+            close }
+        path { at: 0, 0; color: fill; opacity: k
+            move ax, ay
+            curve bx, by via (ax + bx) / 2, (ay + by) / 2 + b1
+            curve qx, qy via (bx + qx) / 2 + b2, (by + qy) / 2
+            curve dx, dy via (qx + dx) / 2, (qy + dy) / 2 + b3
+            curve ax, ay via (dx + ax) / 2 + b4, (dy + ay) / 2
+            close }
+        path { at: 0, 0; stroke: 2 * s; color: ink; opacity: k
+            move ax, ay
+            curve bx, by via (ax + bx) / 2, (ay + by) / 2 + b1
+            curve qx, qy via (bx + qx) / 2 + b2, (by + qy) / 2
+            curve dx, dy via (qx + dx) / 2, (qy + dy) / 2 + b3
+            curve ax, ay via (dx + ax) / 2 + b4, (dy + ay) / 2
+            close }
+    }
     //  The Cyber theme: a neon HUD. The glass stays glass (the palette makes it near-black); on top of it each drawer gets a hairline neon outline, corner brackets and
     //  scan ticks (see bar_glass.plm). `cy_k` travels between glass and Cyber. `deep` is its second neon.
     fact cyber_on = false
@@ -476,7 +522,7 @@ scene Vitreus {
     prop px_k = 0 ~calm
     follow px_k = if(proxy_on, 1, 0)
     //  How square the corners are: Retro's plastic and Cyber's HUD both take the drawers' rounding down by the same 73 % (`corner: R * (1 - 0.73 * sq)`).
-    let sq = max(max(max(cas_k, cy_k), px_k), 0.6 * pp_k)
+    let sq = max(max(max(max(cas_k, cy_k), px_k), 0.6 * pp_k), dd_k)      // (Doodle: the tight corners of a notebook's cards)
     //  The frame's inner corner, round the windows, follows the windows' own corner rounding (Settings > Hyprland / Niri, `hy_round`, kept per theme):
     //  a window sits 13 px inside the frame (see iris_fx.gaps_code), so the frame's corner is that much more, concentric with the window's.
     //  In the Notches layout the corners round the windows are where the corner pieces melt into the sides: their `blend:` (pages/bar_shapes.plm) is sized from this too.
@@ -2535,7 +2581,7 @@ scene Vitreus {
     let rs = clamp(screen.height / 1350, 0.55, 1)
     let cu = 1.5525                  // u * 1.15: the control center, the calendar and the player and tray are laid out 15% larger than the rest
     let pr = 14 * cu * (1 - 0.5 * sq)        // a plate's corner in the control center, calendar and player: it sharpens with the theme, like the bar's (`bar.rad`)
-    let rc = (26 - 19 * sq) * u              // a drawer's corner
+    let rc = (26 - 19 * sq - 5 * dd_k) * u   // a drawer's corner (Doodle: all but sharp)
     let bk = 1 - 0.85 * sq                   // how much of a melt (a neck) is left
     let du = 1.5525 * rs             // the Desk's own unit: cu (u * 1.15) at the scale of the screen
     let pu = 1.6875 * rs             // u * 1.25: the Settings and the launcher are laid out 25% larger than the rest, at real size (not zoomed)
@@ -2554,7 +2600,7 @@ scene Vitreus {
         let rowh = max(30, floor(14 + wrap.height + 0.5))
         zone box touch { from: 0, 0; size: 154 * cu, rowh; corner: 8 * cu }
         //  Obsidian: a solid plate a step lighter than the shell, in place of the veil.
-        body { color: mix(mix(obsidian, ink, (6% + 7% * touch.hover) * 1.6), dd_p0, dd_k); opacity: obs; border: 3.4 * u * dd_k, ink; show: obs > 0.004; box { from: 0, 0; size: 154 * cu, rowh; corner: 8 * cu } }
+        body { color: mix(mix(obsidian, ink, (6% + 7% * touch.hover) * 1.6), dd_p0, dd_k); opacity: obs; border: 2.4 * u * dd_k, ink; show: obs > 0.004; box { from: 0, 0; size: 154 * cu, rowh; corner: 8 * cu } }
         box { from: 0, 0; size: 154 * cu, rowh; corner: 8 * cu; color: ink; opacity: (6% + 7% * touch.hover) * (1 - obs) }
         ellipse { at: 15, 15; radius: 5.5 * cu; stroke: 1.3 * cu; color: mint; opacity: if(e.done, 0, 85%) }
         ellipse { at: 15, 15; radius: 5.5 * cu; color: mint; opacity: if(e.done, 100%, 0) }
@@ -2589,7 +2635,7 @@ scene Vitreus {
         group {
             show: m.kind == 2
             //  Obsidian: a solid plate a step lighter than the shell, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (11%) * 1.6), dd_cream, dd_k); opacity: obs; border: 3.4 * u * dd_k, ink; show: obs > 0.004; box { from: 0, hh + 2; size: 300 * du, 24 * du + ph + 12 * du - 2; corner: 10 * du } }
+            body { color: mix(mix(obsidian, ink, (11%) * 1.6), dd_cream, dd_k); opacity: obs; border: 2.4 * u * dd_k, ink; show: obs > 0.004; box { from: 0, hh + 2; size: 300 * du, 24 * du + ph + 12 * du - 2; corner: 10 * du } }
             box { from: 0, hh + 2; size: 300 * du, 24 * du + ph + 12 * du - 2; corner: 10 * du; color: ink; opacity: (11%) * (1 - obs) }
             group { scale: rs; pivot: 10 * du, hh + 2 + 12 * du; text m.lang { at: 10 * du, hh + 2 + 12 * du; anchor: left center; size: 10; weight: 600; color: faint; family: "Space Grotesk" } }
             group { scale: rs; pivot: 300 * du - 10 * du, hh + 2 + 12 * du; text "Copy" { at: 300 * du - 10 * du, hh + 2 + 12 * du; anchor: right center; align: right; size: 11; weight: 600; color: mix(faint, mint, cc.hover); family: "Space Grotesk" } }
@@ -2608,7 +2654,7 @@ scene Vitreus {
         size: 300 * du, (if(c.image, 52, 34) * du)
         zone box touch { from: 0, 0; size: 300 * du, (if(c.image, 52, 34) * du); corner: 11 * du; cursor: pointer }
         //  Obsidian: a solid plate a step lighter than the shell, in place of the veil.
-        body { color: mix(mix(obsidian, ink, (7% + 7% * touch.hover) * 1.6), dd_cream, dd_k); opacity: obs; border: 3.4 * u * dd_k, ink; show: obs > 0.004; box { from: 0, 0; size: 300 * du, (if(c.image, 52, 34) * du); corner: 11 * du } }
+        body { color: mix(mix(obsidian, ink, (7% + 7% * touch.hover) * 1.6), dd_cream, dd_k); opacity: obs; border: 2.4 * u * dd_k, ink; show: obs > 0.004; box { from: 0, 0; size: 300 * du, (if(c.image, 52, 34) * du); corner: 11 * du } }
         box { from: 0, 0; size: 300 * du, (if(c.image, 52, 34) * du); corner: 11 * du; color: ink; opacity: (7% + 7% * touch.hover) * (1 - obs) }
         ellipse { at: 15 * du, (if(c.image, 26, 17) * du); radius: 4.5 * du; stroke: 1.4 * du; color: mint; opacity: 70% + 30% * pin_z.hover }
         ellipse { at: 15 * du, (if(c.image, 26, 17) * du); radius: 4.5 * du; color: mint; opacity: if(c.pinned, 100%, 0) }
@@ -3574,7 +3620,7 @@ scene Vitreus {
 
     //  A button or pill's outline in pencil, over its fill (the fill and the label stay): the crooked double outline of PSlider's track, drawn as a rounded box with corner `r`, calm
     //  at rest and redrawn about five times a second under the pointer (`hot`). `cx`, `cy` its middle, `w`, `h` its size, `o` how much of it shows, `ku` the unit it is laid out in.
-    component PPillOutline(cx: number, cy: number, w: number, h: number, r: number, hot: number, o: number, ku: number) {
+    component PPillOutline(cx: number, cy: number, w: number, h: number, r0: number, hot: number, o: number, ku: number) {
         prop a = 0 ~calm
         follow a = hot
         let fr = if(a > 0.02, floor(time * 5), 0)
@@ -3583,6 +3629,7 @@ scene Vitreus {
         let x1 = cx + w / 2
         let y0 = cy - h / 2
         let y1 = cy + h / 2
+        let r = r0 * (1 - 0.85 * dd_k)       // (Doodle: all but sharp, as its cards are)
         path { at: 0, 0; stroke: 1.3 * ku; color: ink; opacity: 0.6 * o; move x0 + r + jt * sin(fr * 57 + 71000), y0 + jt * sin(fr * 62 + 71060); line x1 - r + jt * sin(fr * 64 + 71100), y0 + jt * sin(fr * 69 + 71160); curve x1 + jt * sin(fr * 71 + 71200), y0 + r + jt * sin(fr * 76 + 71260) via x1 + jt * sin(fr * 72 + 71300), y0 + jt * sin(fr * 77 + 71360); line x1 + jt * sin(fr * 47 + 71400), y1 - r + jt * sin(fr * 52 + 71460); curve x1 - r + jt * sin(fr * 48 + 71500), y1 + jt * sin(fr * 53 + 71560) via x1 + jt * sin(fr * 54 + 71600), y1 + jt * sin(fr * 59 + 71660); line x0 + r + jt * sin(fr * 61 + 71700), y1 + jt * sin(fr * 66 + 71760); curve x0 + jt * sin(fr * 62 + 71800), y1 - r + jt * sin(fr * 67 + 71860) via x0 + jt * sin(fr * 68 + 71900), y1 + jt * sin(fr * 73 + 71960); line x0 + jt * sin(fr * 69 + 72000), y0 + r + jt * sin(fr * 74 + 72060); curve x0 + r + jt * sin(fr * 51 + 72100), y0 + jt * sin(fr * 56 + 72160) via x0 + jt * sin(fr * 58 + 72200), y0 + jt * sin(fr * 63 + 72260); }
         path { at: 0.35 * ku, 0.28 * ku; stroke: 0.9 * ku; color: ink; opacity: 0.2 * o; move x0 + r + jt * sin(fr * 72 + 72300), y0 + jt * sin(fr * 77 + 72360); line x1 - r + jt * sin(fr * 48 + 72400), y0 + jt * sin(fr * 53 + 72460); curve x1 + jt * sin(fr * 55 + 72500), y0 + r + jt * sin(fr * 60 + 72560) via x1 + jt * sin(fr * 56 + 72600), y0 + jt * sin(fr * 61 + 72660); line x1 + jt * sin(fr * 63 + 72700), y1 - r + jt * sin(fr * 68 + 72760); curve x1 - r + jt * sin(fr * 64 + 72800), y1 + jt * sin(fr * 69 + 72860) via x1 + jt * sin(fr * 70 + 72900), y1 + jt * sin(fr * 75 + 72960); line x0 + r + jt * sin(fr * 46 + 73000), y1 + jt * sin(fr * 51 + 73060); curve x0 + jt * sin(fr * 47 + 73100), y1 - r + jt * sin(fr * 52 + 73160) via x0 + jt * sin(fr * 53 + 73200), y1 + jt * sin(fr * 58 + 73260); line x0 + jt * sin(fr * 54 + 73300), y0 + r + jt * sin(fr * 59 + 73360); curve x0 + r + jt * sin(fr * 73 + 73400), y0 + jt * sin(fr * 78 + 73460) via x0 + jt * sin(fr * 49 + 73500), y0 + jt * sin(fr * 54 + 73560); }
     }
@@ -5036,7 +5083,7 @@ scene Vitreus {
     //  Down the left the panels come out of the strip at the height of their button: `pw_y` is where the open panel's top is (see `lp.top`), and
     //  the bar's "middle line" is half a bar above it, so that the first plate keeps the 12 it has under a panel's top (`bar.y` + 32).
     let bar.y = bar.y0
-    let bar.rad = 14 * bu * (1 - 0.5 * sq)                 // the bar's corner when shut: the same as the plates', not a full pill
+    let bar.rad = 14 * bu * (1 - 0.5 * sq - 0.35 * dd_k)    // the bar's corner when shut: the same as the plates', not a full pill (Doodle: all but sharp)
     //  The bar's pieces sit in a row in the order Settings > Bar gives them (`bo.*`), 16 in from each end and
     //  `bar.gap` apart. Each one is as wide as what it draws (`fw.*`) and takes that and a gap (`bw.*`: less while
     //  it is being hidden, and the player's only while there is something playing); the title takes none, it is
@@ -7264,7 +7311,8 @@ scene Vitreus {
         zone box launch_x { at: lx + 414 * pu, lhy; size: 28 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
         on press launch_x { panel = none }
         //  Obsidian: the field is a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-        body { color: mix(mix(obsidian, ink, 8% * 1.6), dd_cream, dd_k); opacity: obs; border: 3.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { from: lx, ly; size: 430 * pu, 40 * pu; corner: 20 * pu } }
+        body { color: mix(mix(obsidian, ink, 8% * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { from: lx, ly; size: 430 * pu, 40 * pu; corner: 20 * pu } }
+        DdCard(lx + (430 * pu) / 2, ly + (40 * pu) / 2, 430 * pu, 40 * pu, 440.5, mix(mix(obsidian, ink, 8% * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
         box { from: lx, ly; size: 430 * pu, 40 * pu; corner: 20 * pu; color: ink; opacity: 8% * (1 - obs) }
         ellipse { at: lx + 24 * pu, ly + 19 * pu; radius: 5.5 * pu; stroke: 1.6 * pu; color: mint }
         line { from: lx + 28 * pu, ly + 23 * pu; to: lx + 32.5 * pu, ly + 27.5 * pu; width: 1.8 * pu; color: mint }
@@ -7319,7 +7367,8 @@ scene Vitreus {
         group {
             opacity: lpv
             show: lpv > 0.01
-            body { color: mix(mix(obsidian, ink, 5% * 1.6), dd_p1, dd_k); opacity: obs; border: 3.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { from: lpx, lry; size: lpw, lph; corner: 14 * pu } }
+            body { color: mix(mix(obsidian, ink, 5% * 1.6), dd_p1, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { from: lpx, lry; size: lpw, lph; corner: 14 * pu } }
+            DdCard(lpx + (lpw) / 2, lry + (lph) / 2, lpw, lph, 832.5, mix(mix(obsidian, ink, 5% * 1.6), dd_p1, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { from: lpx, lry; size: lpw, lph; corner: 14 * pu; color: ink; opacity: 5% * (1 - obs) }
             group { scale: rs; pivot: floor(lpx + 10 * pu + 0.5), floor(lry + 14 * pu + 0.5); text lp_kind { at: floor(lpx + 10 * pu + 0.5), floor(lry + 14 * pu + 0.5); anchor: left center; size: 12; weight: 700; width: (lpw - 20 * pu) / rs; lines: 1; color: mint; family: "Space Grotesk" } }
             group {

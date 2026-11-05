@@ -18,10 +18,12 @@ part PanelFrame {
             opacity: f1
             move: 0, (1 - f1) * 12 * cu + floor(68 * cu + 0.5)
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_p0, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx - 130 * cu, cy - 76 * cu; size: 166 * cu, 72 * cu; corner: pr } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_p0, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx - 130 * cu, cy - 76 * cu; size: 166 * cu, 72 * cu; corner: pr } }
+            DdCard(pcx - 130 * cu, cy - 76 * cu, 166 * cu, 72 * cu, 548.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_p0, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: pcx - 130 * cu, cy - 76 * cu; size: 166 * cu, 72 * cu; corner: pr; color: ink; opacity: (veil) * (1 - obs) }
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_p1, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx - 130 * cu, cy + 43 * cu; size: 166 * cu, 154 * cu; corner: pr } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_p1, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx - 130 * cu, cy + 43 * cu; size: 166 * cu, 154 * cu; corner: pr } }
+            DdCard(pcx - 130 * cu, cy + 43 * cu, 166 * cu, 154 * cu, 576.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_p1, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: pcx - 130 * cu, cy + 43 * cu; size: 166 * cu, 154 * cu; corner: pr; color: ink; opacity: (veil) * (1 - obs) }
             //  The clock card: big numerals, the am/pm tucked small at their top-right in the accent, and under
             //  them, indented a little, the date as weekday | month day with the pipe in the accent.
@@ -54,12 +56,13 @@ part PanelFrame {
             group {
                 move: 0, floor(68 * cu + 0.5)        // the month sits 68 lower, under the weather strip (a whole number of pixels)
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx + 86 * cu, cy + 4 * cu; size: 254 * cu, 232 * cu; corner: pr } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx + 86 * cu, cy + 4 * cu; size: 254 * cu, 232 * cu; corner: pr } }
+            DdCard(pcx + 86 * cu, cy + 4 * cu, 254 * cu, 232 * cu, 814.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: pcx + 86 * cu, cy + 4 * cu; size: 254 * cu, 232 * cu; corner: pr; color: ink; opacity: (veil) * (1 - obs) }
             //  Month, and the three buttons that move it.
             text cal.month { at: floor(pcx - 30 * cu + 0.5), floor(cy - 92 * cu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" }
             path { at: pcx + 141.5 * cu, cy - 92 * cu; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * cal_prev_btn.hover; move 2.5 * cu, -5 * cu; line -2.5 * cu, 0; line 2.5 * cu, 5 * cu }
-            box { at: pcx + 170.5 * cu, cy - 92 * cu; size: 40 * cu, 20 * cu; corner: 10 * cu; color: ink; opacity: 8% + 10% * cal_today_btn.hover }
+            box { at: pcx + 170.5 * cu, cy - 92 * cu; size: 40 * cu, 20 * cu; corner: (10 * cu) * (1 - 0.85 * dd_k); color: ink; opacity: 8% + 10% * cal_today_btn.hover }
             PPillOutline(pcx + 170.5 * cu, cy - 92 * cu, 40 * cu, 20 * cu, 10 * cu, cal_today_btn.hover, clamp(3 * (8% + 10% * cal_today_btn.hover), 0, 1), cu)
             text "Today" { at: floor(pcx + 170.5 * cu + 0.5), floor(cy - 92 * cu + 0.5); anchor: center; size: 13; weight: 600; color: ink; opacity: 80%; family: "Space Grotesk" }
             path { at: pcx + 199.5 * cu, cy - 92 * cu; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * cal_next_btn.hover; move -2.5 * cu, -5 * cu; line 2.5 * cu, 0; line -2.5 * cu, 5 * cu }
@@ -99,7 +102,8 @@ part PanelFrame {
             }
             //  The weather, at the very top: what it is now, on the left, and the week, on the right.
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx, cy - 82 * cu; size: 426 * cu, 60 * cu; corner: pr } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx, cy - 82 * cu; size: 426 * cu, 60 * cu; corner: pr } }
+            DdCard(pcx, cy - 82 * cu, 426 * cu, 60 * cu, 139.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: pcx, cy - 82 * cu; size: 426 * cu, 60 * cu; corner: pr; color: ink; opacity: (veil) * (1 - obs) }
             text "Loading weather…" { at: floor(pcx + 0.5), floor(cy - 82 * cu + 0.5); anchor: center; align: center; size: 13; width: 300 * cu; lines: 1; color: faint; family: "Space Grotesk"; show: not wx_ok }
             group {
@@ -121,13 +125,14 @@ part PanelFrame {
 
             //  Writing one: the field, and a button. Enter saves it as well.
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: obs; border: 3.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx, cy + 213 * cu; size: 426 * cu, 34 * cu; corner: pr } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: pcx, cy + 213 * cu; size: 426 * cu, 34 * cu; corner: pr } }
+            DdCard(pcx, cy + 213 * cu, 426 * cu, 34 * cu, 300.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: pcx, cy + 213 * cu; size: 426 * cu, 34 * cu; corner: pr; color: ink; opacity: (veil) * (1 - obs) }
             ellipse { at: pcx - 201 * cu, cy + 213 * cu; radius: 4 * cu; color: mint; opacity: 85% }
             //  An input's `at` is not its middle: it is lifted 6.3 so its text sits on the row's centre.
             input cal_new { at: floor(pcx - 189 * cu + 0.5), floor(cy + 206.7 * cu + 0.5); width: 330 * cu; size: 15; color: ink; family: "Space Grotesk"
                             placeholder: "New reminder: 3:30pm Call mom"; selection: mintlo }
-            box { at: pcx + 178 * cu, cy + 213 * cu; size: 46 * cu, 24 * cu; corner: 12 * cu; color: mint; opacity: 80% + 20% * cal_add_btn.hover }
+            box { at: pcx + 178 * cu, cy + 213 * cu; size: 46 * cu, 24 * cu; corner: (12 * cu) * (1 - 0.85 * dd_k); color: mint; opacity: 80% + 20% * cal_add_btn.hover }
             PPillOutline(pcx + 178 * cu, cy + 213 * cu, 46 * cu, 24 * cu, 12 * cu, cal_add_btn.hover, clamp(3 * (80% + 20% * cal_add_btn.hover), 0, 1), cu)
             text "Add" { at: floor(pcx + 178 * cu + 0.5), floor(cy + 213 * cu + 0.5); anchor: center; size: 14; weight: 700; color: onmint; family: "Space Grotesk" }
             zone box cal_add_btn { at: pcx + 178 * cu, cy + 213 * cu; size: 48 * cu, 28 * cu; corner: pr; cursor: pointer }

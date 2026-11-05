@@ -33,10 +33,10 @@ end
 -- lives in the runtime folder, and Copy and Save write their own); its width comes from its header, not from ImageMagick (80 ms). And SNAP_NOT_BEFORE
 -- (milliseconds since the epoch) is when it may be taken: the Controls drawer starts Snap as it closes, so pleamar starts while the drawer goes, and
 -- only the picture waits for it to be gone.
--- And the look Vitreus has (Settings > Theme), from its iris.json, so Snap is drawn like it (`fact look`: 0 Glass, 1 Retro, 2 UwU, 3 Cyber). The colours
--- come with ../palette.plm, which Vitreus rewrites; the typeface with the font setup the Controls drawer starts Snap with. SNAP_LOOK (8, 9, 10, or
+-- And the look Vitreus has (Settings > Theme), from its iris.json, so Snap is drawn like it (`fact look`: 0 Glass, 1 Retro, 2 UwU, 3 Cyber, 4 Doodle). The colours
+-- come with ../palette.plm, which Vitreus rewrites; the typeface with the font setup the Controls drawer starts Snap with. SNAP_LOOK (8, 9, 10, 14, or
 -- anything else for Glass) names one instead, to see them all.
-local LOOKS = { ["8"] = 1, ["9"] = 2, ["10"] = 3 }
+local LOOKS = { ["8"] = 1, ["9"] = 2, ["10"] = 3, ["14"] = 4 }
 local function capture()
     local script = 'd="${SNAP_DIR:-${XDG_RUNTIME_DIR:-/tmp}/vitreus-snap}"; mkdir -p "$d"; '
         .. 'if [ -n "${SNAP_NOT_BEFORE-}" ]; then w=$((SNAP_NOT_BEFORE - $(date +%s%3N))); [ "$w" -gt 0 ] && [ "$w" -lt 5000 ] && sleep "$(printf "%d.%03d" $((w / 1000)) $((w % 1000)))"; fi; '
