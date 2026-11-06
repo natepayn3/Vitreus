@@ -59,7 +59,8 @@ local function nothing(why, hint, sad, label, where)
     fact.ready = false
     fact.has_msg = true
     fact.sad = sad and true or false
-    text.msg = why
+    text.msg = why or ""
+    fact.has_why = (why or "") ~= ""
     text.hint = hint or ""
     fact.has_hint = (hint or "") ~= ""
     text.browse = label or "Find pictures in Files"
@@ -152,7 +153,7 @@ show = function(i)
         text.name = ""
         text.sub = ""
         fact.playing = false
-        nothing("There are no pictures in this folder")
+        nothing(nil)                          -- an empty folder: no words, just Peek and the button
         return
     end
     if i < 1 then i = count elseif i > count then i = 1 end
@@ -276,6 +277,10 @@ end)
 -- The button under Peek: Files, at the folder `nothing` said (the file itself is shown selected, as Show in Files does), or else at the Pictures folder
 -- (the home folder, without one). The picture chosen there comes back to this window (`open_req`).
 on("do_browse", function()
+    -- the button says «Opening Files» for a while (the scene set `opening`): long enough for Files to come up, then it is a button again
+    st.open_n = (st.open_n or 0) + 1
+    local n = st.open_n
+    after(2500, function() if st.open_n == n then fact.opening = false end end)
     -- this window waits for what is chosen there (bin/vitreus-view hands it over): its name, for `pleamar --say`
     local wait = 'n=$VIEW_NAME; if [ -n "$n" ]; then d="${XDG_RUNTIME_DIR:-/tmp}/vitreus-view"; mkdir -p "$d" && printf "%s\\n" "$n" > "$d/waiting"; fi; '
     local script = wait .. 'v="${VIEW_SHELL:-$HOME/.config/pleamar/shells/vitreus}"; p=$1; '
@@ -288,6 +293,7 @@ end)
 on("text:open_req", function(p)
     p = trim(p or "")
     if p == "" then return end
+    fact.opening = false
     open(p)
     run("sh", { "-c", 'hyprctl dispatch focuswindow "pid:$PPID" > /dev/null 2>&1' }, function() end)
 end)

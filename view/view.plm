@@ -44,6 +44,8 @@ scene View {
     fact toast_on = false
     fact has_name = false            // there is a file (a name to show), and a reason why nothing is drawn
     fact has_msg = false
+    fact opening = false             // the button to Files was pressed: Files is on its way (a couple of seconds; the logic lets it go)
+    fact has_why = false             // there is a «why» to show on the card (an empty folder has none: only Peek and the button)
     fact iw = 0                      // the picture's size in pixels, as it is drawn (a turned photo's copy is already the right way up)
     fact ih = 0
     fact ready = false               // it has been measured and can be drawn
@@ -138,10 +140,14 @@ scene View {
     let my = cy - 66                                 // the middle of what is drawn there
     let peek_eye = mix(deep, #ffffff, 0.9)           // its face: light on the picture's night sky, whatever the theme makes of ink
     let pk.on = not has and has_msg
+    let pk.by = my + if(not has_why, 160, if(has_hint, 240, 222))      // the middle of its button to Files (up under Peek when there is no card)
     prop ek = 0 ~pop                                 // it comes in
     prop pet = 0 ~lively                             // the pointer is on it: it is being petted (0 to 1)
     prop hup = 0 ~lively                             // on its ears: they prick up
     prop bh = 0 ~quick                               // the pointer is over the button
+    prop bp = 0 ~quick                               // it is held down: it sinks
+    prop bo = 0 ~lively                              // Files is on its way: the label and the folder change, Peek's ears prick up
+    follow bo = if(opening, 1, 0)
     follow ek = if(pk.on, 1, 0)
 
     // ── pieces that come again and again ──
@@ -505,19 +511,34 @@ scene View {
                 box { from: ph.x - ph.q * 0.5, ph.y + ph.q * 2; size: ph.q, ph.q; color: #ff9bb3 }
             }
         }
-        //  why, on View's card, and the way to some pictures
-        Mat(cx - 250, my + 130, 500, if(has_hint, 68, 50), 20, 4, 1)
-        text msg { at: cx, my + if(has_hint, 150, 155); anchor: center; size: 18; weight: 600; color: ink; width: 460; align: center; family: "Space Grotesk" }
-        text hint { at: cx, my + 178; anchor: center; size: 13; color: faint; opacity: 70%; width: 460; align: center; family: "Space Grotesk"; show: has_hint }
-        body {
-            color: mix(mint, minthi, bh)
-            rim: 30%
-            shadow: 0, 4 + 2 * bh, 14, 30%, deep
-            box { at: cx, my + if(has_hint, 240, 222); size: 260, 46; corner: if(look == 1 or look == 3 or look == 4, 8, 23) }
+        //  why, on View's card (when there is a why: an empty folder says nothing), and the way to some pictures
+        group {
+            show: has_why
+            Mat(cx - 250, my + 130, 500, if(has_hint, 68, 50), 20, 4, 1)
+            text msg { at: cx, my + if(has_hint, 150, 155); anchor: center; size: 18; weight: 600; color: ink; width: 460; align: center; family: "Space Grotesk" }
+            text hint { at: cx, my + 178; anchor: center; size: 13; color: faint; opacity: 70%; width: 460; align: center; family: "Space Grotesk"; show: has_hint }
         }
-        //  a folder, in pencil-thin lines
-        path { at: cx - 96, my + if(has_hint, 240, 222); stroke: 1.8; color: onmint; move -10, -7; line -3, -7; line 0, -4; line 10, -4; line 10, 7; line -10, 7; line -10, -7 }
-        text browse { at: cx + 10, my + if(has_hint, 240, 222); anchor: center; size: 14; weight: 600; color: onmint; family: "Space Grotesk" }
+        //  held, it sinks (smaller, its shadow drawn in, a shade deeper); once pressed it says that Files is coming, until it is there: its folder opens,
+        //  and three dots after the words take turns
+        group {
+            scale: 1 - 0.05 * bp
+            pivot: cx, pk.by
+            body {
+                color: mix(mix(mint, minthi, bh * (1 - bp)), deep, 0.18 * bp)
+                rim: 30%
+                shadow: 0, 4 + 2 * bh - 3 * bp, 14 - 8 * bp, 30%, deep
+                box { at: cx, pk.by; size: 260, 46; corner: if(look == 1 or look == 3 or look == 4, 8, 23) }
+            }
+            //  a folder, in pencil-thin lines: shut, or open (its front tipped forward) while Files is coming
+            path { at: cx - 96, pk.by; stroke: 1.8; color: onmint; opacity: 1 - bo; move -10, -7; line -3, -7; line 0, -4; line 10, -4; line 10, 7; line -10, 7; line -10, -7 }
+            path { at: cx - 96, pk.by; stroke: 1.8; color: onmint; opacity: bo; move -10, 7; line -10, -7; line -3, -7; line 0, -4; line 8, -4; line 8, -1 }
+            path { at: cx - 96, pk.by; stroke: 1.8; color: onmint; opacity: bo; move -10, 7; line -6, -1; line 13, -1; line 9, 7; line -10, 7 }
+            text browse { at: cx + 10, pk.by - 4 * bo; anchor: center; size: 14; weight: 600; color: onmint; opacity: 1 - bo; family: "Space Grotesk" }
+            text "Opening Files" { at: cx + 4, pk.by + 4 * (1 - bo); anchor: center; size: 14; weight: 600; color: onmint; opacity: bo; family: "Space Grotesk" }
+            repeat d in 0..3 {
+                ellipse { at: cx + 58 + d * 7, pk.by + 4; radius: 1.8; color: onmint; opacity: bo * (0.35 + 0.65 * clamp(sin(time * 360 - d * 60), 0, 1)) }
+            }
+        }
     }
 
 
@@ -537,11 +558,12 @@ scene View {
     }
     //  Peek's zone and the button (declared after the stage, so these presses are theirs)
     follow pet = pk_cat.hover
-    follow hup = pk_cat.hover
+    follow hup = max(pk_cat.hover, bo)               // and when Files is on its way
     follow bh = pk_files.hover
     zone box pk_cat { from: cx - 130, my - 126; size: 260, 240; corner: 40; cursor: pointer; active: pk.on; label: "Pet the cat" }
-    zone box pk_files { from: cx - 130, my + if(has_hint, 217, 199); size: 260, 46; cursor: pointer; active: pk.on; label: "Open Files"; role: button }
-    on press pk_files { emit do_browse }
+    zone box pk_files { from: cx - 130, pk.by - 23; size: 260, 46; cursor: if(opening, progress, pointer); active: pk.on; label: "Open Files"; role: button }
+    follow bp = pk_files.pressed
+    on press pk_files while not opening { opening = true; ripple pk_files; impulse bp 6; emit do_browse }
     //  a double click: fitted to its real size (twice the size, if that is what it is already), about the pointer; and back
     on dbl while not zoomed {
         ox = clamp((cx - pointer.x) * (if(real > 1.05, real, 2) - 1), -max(0, (rw * fk * if(real > 1.05, real, 2) - AW) / 2), max(0, (rw * fk * if(real > 1.05, real, 2) - AW) / 2))
