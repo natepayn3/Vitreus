@@ -15,7 +15,7 @@ import "addon-pencil.plm"                         // Vitreus's pencil (its add-o
 //  pencil's (addon-pencil.plm's PIcon) or of the add-on's own (ha-icons.plm's HDev); the buttons are ha-icons.plm's HUi.
 
 scene HomeAssistant {
-    surface { size: full, full; anchor: top_left; margin: 0; level: top, overlay while slot_open; screens: each max 4; keyboard: exclusive while tv_open and tv_tab == 1 and shown > 0.5 }
+    surface { size: full, full; anchor: top_left; margin: 0; level: top, overlay while slot_open; screens: each max 4; keyboard: exclusive while tv_open and tv_tab == 1 and here > 0.5 }
 
     permissions {
         services: "files", "files.write", "env"
@@ -105,7 +105,9 @@ scene HomeAssistant {
     //  it is, `hl_mon`). -1: no copy has that name (an older Vitreus does not send it), and the monitor's size decides, as before.
     fact hl_mon = -1
     let by_size = if(slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh), 1, 0)
-    let shown = if(slot_open, if(hl_mon >= 0, if(screen.index == hl_mon, 1, 0), if(hl_mon == -1, by_size, 0)), 0)
+    let onmon = if(hl_mon >= 0, screen.index == hl_mon, hl_mon == -1 and by_size > 0.5)       // this copy is on the panel's monitor (still told while it shuts)
+    let here = if(slot_open and onmon, 1, 0)       // 1 on the copy on the panel's monitor, while the panel is out
+    let shown = if(onmon and (slot_open or en1 > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has). `en1` is one for every copy: the monitor test keeps the others shut
 
     //  What the logic says (homeassistant.luau)
     fact hl_demo = false                              // no token in config.json yet: the example's rooms, played with here, and a banner on how to set it up
@@ -361,9 +363,19 @@ scene HomeAssistant {
     prop en1 = 0 ~200ms
     prop en2 = 0 ~380ms
     prop en3 = 0 ~520ms
-    on change shown while shown > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
-    on change shown while shown < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms; en3: 0 ~80ms after 205ms }
-    every 500ms while shown > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
+    on change here while here > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
+    on change here while here < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms; en3: 0 ~80ms after 205ms }
+    every 500ms while here > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
+    //  Where the content is: it glides to `slot_x`, `slot_y` on the glass's own spring (Vitreus's `ax_sp`), so it moves with the panel as it is pulled, and is put
+    //  there at once while it is not drawn yet (the panel opening, or a resize).
+    spring ax_sp = 300, 20
+    prop slx = 0 ~ax_sp
+    prop sly = 0 ~ax_sp
+    on change slot_x { slx: slot_x }
+    on change slot_y { sly: slot_y }
+    on change slot_x while en1 < 0.01 { slx: slot_x ~0ms }
+    on change slot_y while en1 < 0.01 { sly: slot_y ~0ms }
+    every 500ms while here > 0.5 and en1 < 0.01 { slx: slot_x ~0ms; sly: slot_y ~0ms }
 
     let W = max(slot_w, 1)
     let H = max(slot_h, 1)
@@ -385,7 +397,7 @@ scene HomeAssistant {
     group {
         show: shown > 0.5
         group {
-            move: slot_x - W / 2, slot_y - H / 2
+            move: slx - W / 2, sly - H / 2
 
             group {
             opacity: en1

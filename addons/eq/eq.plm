@@ -69,7 +69,9 @@ scene Equalizer {
     fact slot_w = 0
     fact slot_h = 0
     let mon_here = if(screen.index == 0, if(mon_c0, 1, 0), if(screen.index == 1, if(mon_c1, 1, 0), if(screen.index == 2, if(mon_c2, 1, 0), if(mon_c3, 1, 0))))
-    let shown = if(slot_open and (if(mon_known, mon_here > 0.5, slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh))), 1, 0)
+    let onmon = if(mon_known, mon_here > 0.5, slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh))       // this copy is on the panel's monitor (still told while it shuts)
+    let here = if(slot_open and onmon, 1, 0)       // 1 on that copy, while the panel is out
+    let shown = if(onmon and (slot_open or en1 > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has). `en1` is one for every copy: the monitor test keeps the others shut
 
     let u = 1.1
     //  The pencil's clock, running only while the panel shows: naming pleamar's `time` keeps a scene awake for good, about fifty rounds a second
@@ -82,9 +84,9 @@ scene Equalizer {
     prop en1 = 0 ~200ms
     prop en2 = 0 ~380ms
     prop en3 = 0 ~520ms
-    on change shown while shown > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
-    on change shown while shown < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms; en3: 0 ~80ms after 205ms }
-    every 500ms while shown > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
+    on change here while here > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
+    on change here while here < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms; en3: 0 ~80ms after 205ms }
+    every 500ms while here > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
 
     //  What eq.luau reports: whether the EQ is on, which preset is lit (-1: your own curve), what to say under the name, and the ten gains in dB.
     fact eq_on = 0
@@ -152,8 +154,18 @@ scene Equalizer {
     }
     let energy = (ls.0 + ls.1 + ls.2 + ls.3 + ls.4 + ls.5 + ls.6 + ls.7 + ls.8 + ls.9) / 10
 
-    let left = slot_x - slot_w / 2
-    let top = slot_y - slot_h / 2
+    //  Where the content is: it glides to `slot_x`, `slot_y` on the glass's own spring (Vitreus's `ax_sp`), so it moves with the panel as it is pulled, and is put
+    //  there at once while it is not drawn yet (the panel opening, or a resize).
+    spring ax_sp = 300, 20
+    prop slx = 0 ~ax_sp
+    prop sly = 0 ~ax_sp
+    on change slot_x { slx: slot_x }
+    on change slot_y { sly: slot_y }
+    on change slot_x while en1 < 0.01 { slx: slot_x ~0ms }
+    on change slot_y while en1 < 0.01 { sly: slot_y ~0ms }
+    every 500ms while here > 0.5 and en1 < 0.01 { slx: slot_x ~0ms; sly: slot_y ~0ms }
+    let left = slx - slot_w / 2
+    let top = sly - slot_h / 2
     let wd = slot_w - 48
     let x0 = left + 24
 
@@ -188,7 +200,7 @@ scene Equalizer {
         }
         text "Equalizer" { at: x0 + 54 * u, cy0 + ch0 / 2 - 8.5 * u; anchor: left center; size: 13.5 * u; weight: if(look == 4, 600, 700); color: ink; opacity: shown; family: "Space Grotesk" }
         text status { at: x0 + 54 * u, cy0 + ch0 / 2 + 8.5 * u; anchor: left center; size: 11 * u; weight: 600; width: wd - 110 * u; lines: 1; color: mix(faint, mint, con); opacity: shown; family: "Space Grotesk" }
-        zone box card_z { from: x0, cy0; size: wd, ch0; corner: 12 * u; cursor: pointer; label: "Equalizer on or off"; active: shown > 0.5 }
+        zone box card_z { from: x0, cy0; size: wd, ch0; corner: 12 * u; cursor: pointer; label: "Equalizer on or off"; active: here > 0.5 }
         on press card_z { emit eq_toggle }
     }
 
@@ -213,7 +225,7 @@ scene Equalizer {
         repeat k in 0..5 {
             let tsl = clamp(1 - abs(psel - k), 0, 1) * pa
             text pick(k, "Flat", "Bass", "Vocal", "Treble", "Loud") { at: x0 + (k + 0.5) * pw, pcy; anchor: center; align: center; size: 12.5 * u; weight: 600; color: mix(ink, off, tsl); opacity: shown * dim * (62% + 38% * tsl + 30% * chip.$k.hover); family: "Space Grotesk" }
-            zone box chip.$k { from: x0 + k * pw, py; size: pw, ph; cursor: pointer; label: "Preset"; active: shown > 0.5 }
+            zone box chip.$k { from: x0 + k * pw, py; size: pw, ph; cursor: pointer; label: "Preset"; active: here > 0.5 }
             on press chip.$k { emit preset(k) }
         }
 
@@ -229,7 +241,7 @@ scene Equalizer {
             opacity: bok
             PSliderCC(x0: bsx, y: bty, w: bsw, lv: boost / 12, hot: bhot, k: u, h: 12 * u, mute: 0)
         }
-        zone box bz { from: bsx - 8 * u, bty - 14 * u; size: bsw + 16 * u, 28 * u; cursor: ew_resize; label: "Boost (drag left or right)"; active: shown > 0.5 and bok > 0.5 }
+        zone box bz { from: bsx - 8 * u, bty - 14 * u; size: bsw + 16 * u, 28 * u; cursor: ew_resize; label: "Boost (drag left or right)"; active: here > 0.5 and bok > 0.5 }
         on press bz { emit boost(floor(clamp((pointer.x - bsx) / bsw, 0, 1) * 12 + 0.5)) }
         on drag bz { emit boost(floor(clamp((pointer.x - bsx) / bsw, 0, 1) * 12 + 0.5)) }
         on press right bz { emit boost(0) }
@@ -346,7 +358,7 @@ scene Equalizer {
             box { at: cxi, crest - 16 * u; size: 38 * u, 15 * u; corner: 7.5 * u; color: deep; opacity: 78% * hot * shown }
             text number(g.$i, 1, " dB") { at: cxi, crest - 16 * u; anchor: center; size: 10.5 * u; weight: 700; color: ink; opacity: hot * shown; family: "Space Grotesk" }
             text pick(i, "32", "64", "125", "250", "500", "1k", "2k", "4k", "8k", "16k") { at: cxi, by1 + 16 * u; anchor: center; size: 10.5 * u; weight: 600; color: faint; opacity: shown; family: "Space Grotesk" }
-            zone box band.$i { from: x0 + colw * i, by0 - 12 * u; size: colw, bh + 24 * u; cursor: ns_resize; label: "Band (drag up or down)"; active: shown > 0.5 }
+            zone box band.$i { from: x0 + colw * i, by0 - 12 * u; size: colw, bh + 24 * u; cursor: ns_resize; label: "Band (drag up or down)"; active: here > 0.5 }
             on press band.$i { held = i; emit bset(i * 1000 + floor((12 - 24 * clamp((pointer.y - by0) / bh, 0, 1)) * 10 + 120.5)) }
             on drag band.$i { emit bset(i * 1000 + floor((12 - 24 * clamp((pointer.y - by0) / bh, 0, 1)) * 10 + 120.5)) }
             on release band.$i { held = -1 }

@@ -87,7 +87,9 @@ scene TvRemote {
     fact slot_w = 0
     fact slot_h = 0
     let mon_here = if(screen.index == 0, if(mon_c0, 1, 0), if(screen.index == 1, if(mon_c1, 1, 0), if(screen.index == 2, if(mon_c2, 1, 0), if(mon_c3, 1, 0))))
-    let shown = if(slot_open and (if(mon_known, mon_here > 0.5, slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh))), 1, 0)
+    let onmon = if(mon_known, mon_here > 0.5, slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh))       // this copy is on the panel's monitor (still told while it shuts)
+    let here = if(slot_open and onmon, 1, 0)       // 1 on the copy on the panel's monitor, while the panel is out
+    let shown = if(onmon and (slot_open or en1 > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has). `en1` is one for every copy: the monitor test keeps the others shut
 
     let u = 1.1
     //  The pencil's clock, running only while the panel shows: naming pleamar's `time` keeps a scene awake for good, about fifty rounds a second
@@ -100,9 +102,19 @@ scene TvRemote {
     prop en1 = 0 ~200ms
     prop en2 = 0 ~380ms
     prop en3 = 0 ~520ms
-    on change shown while shown > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
-    on change shown while shown < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms; en3: 0 ~80ms after 205ms }
-    every 500ms while shown > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
+    on change here while here > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
+    on change here while here < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms; en3: 0 ~80ms after 205ms }
+    every 500ms while here > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
+    //  Where the content is: it glides to `slot_x`, `slot_y` on the glass's own spring (Vitreus's `ax_sp`), so it moves with the panel as it is pulled, and is put
+    //  there at once while it is not drawn yet (the panel opening, or a resize).
+    spring ax_sp = 300, 20
+    prop slx = 0 ~ax_sp
+    prop sly = 0 ~ax_sp
+    on change slot_x { slx: slot_x }
+    on change slot_y { sly: slot_y }
+    on change slot_x while en1 < 0.01 { slx: slot_x ~0ms }
+    on change slot_y while en1 < 0.01 { sly: slot_y ~0ms }
+    every 500ms while here > 0.5 and en1 < 0.01 { slx: slot_x ~0ms; sly: slot_y ~0ms }
 
     //  What the logic reports about the TV.
     fact st = 0                                       // 0 connecting, 1 ready, 2 needs the address, 3 needs pairing, 4 waiting for the code, 5 cannot reach it
@@ -179,8 +191,8 @@ scene TvRemote {
     let W0 = 260 * u
     let H0 = 406 * u
     let sc = clamp(min(slot_w / W0, slot_h / H0), 0.5, 2.5)
-    let left = slot_x - sc * W0 / 2                  // where the design box starts (before it is scaled about this corner)
-    let top = slot_y - slot_h / 2                    // top aligned: a panel that is taller than the design leaves its spare room at the bottom, not above the header
+    let left = slx - sc * W0 / 2                  // where the design box starts (before it is scaled about this corner)
+    let top = sly - slot_h / 2                    // top aligned: a panel that is taller than the design leaves its spare room at the bottom, not above the header
     let m = 22 * u
     let cx = left + W0 / 2
     let R = 72 * u
@@ -197,7 +209,7 @@ scene TvRemote {
             ellipse { at: cx - nmw.width / 2 - 12 * u, top + 20 * u; radius: 3.5 * u; color: if(tv_on, mint, faint); opacity: shown * if(tv_on, 1, 0.45) }
             text tv_name { at: cx, top + 20 * u; anchor: center; align: center; size: 15 * u; weight: 700; width: W0 - 2 * m; lines: 1; color: ink; opacity: shown; family: "Space Grotesk"; measure: nmw }
             path { at: cx + nmw.width / 2 + 13 * u, top + 20 * u; stroke: 1.6 * u; color: mix(faint, mint, mn + nm_z.hover); opacity: shown; move -4 * u, (-2 + 4 * mn) * u; line 0, (2 - 4 * mn) * u; line 4 * u, (-2 + 4 * mn) * u }
-            zone box nm_z { at: cx + 1 * u, top + 20 * u; size: nmw.width + 52 * u, 28 * u; cursor: pointer; label: "Switch TV"; active: shown > 0.5 and st != 2 }
+            zone box nm_z { at: cx + 1 * u, top + 20 * u; size: nmw.width + 52 * u, 28 * u; cursor: pointer; label: "Switch TV"; active: here > 0.5 and st != 2 }
             on press nm_z { toggle menu_open; sheet_open = false }
             text sub { at: cx, top + 41 * u; anchor: center; align: center; size: 11 * u; weight: 600; width: W0 - 2 * m; lines: 1; color: faint; opacity: shown; family: "Space Grotesk" }
 
@@ -218,7 +230,7 @@ scene TvRemote {
             let sbv = setup_btn
             box { at: cx, top + if(st == 2, 372, 290) * u; size: 170 * u, 38 * u; corner: 19 * u; color: mint; opacity: (70% + 25% * sb_z.hover) * shown * sbv }
             text setup_b { at: cx, top + if(st == 2, 372, 290) * u; anchor: center; size: 14 * u; weight: 700; color: onmint; opacity: shown * sbv; family: "Space Grotesk" }
-            zone box sb_z { at: cx, top + if(st == 2, 372, 290) * u; size: 170 * u, 38 * u; corner: 19 * u; cursor: pointer; label: "Setup"; active: shown > 0.5 and st != 1 and sbv > 0.5 }
+            zone box sb_z { at: cx, top + if(st == 2, 372, 290) * u; size: 170 * u, 38 * u; corner: 19 * u; cursor: pointer; label: "Setup"; active: here > 0.5 and st != 1 and sbv > 0.5 }
             on press sb_z { emit tv_act(40) }
         }
 
@@ -233,7 +245,7 @@ scene TvRemote {
                 box { at: cx, fy; size: W0 - 2 * m, 30 * u; corner: 15 * u; color: ink; opacity: ff * shown * on }
                 TvPill(cx: cx, cy: fy, w: W0 - 2 * m, h: 30 * u, r: 15 * u, hot: found.$k.hover, o: clamp(3 * ff, 0, 1) * shown * on, ku: u)
                 text pick(k, found_0, found_1, found_2, found_3) { at: cx, fy; anchor: center; size: 13.5 * u; weight: 600; width: W0 - 2 * m - 24 * u; lines: 1; align: center; color: ink; opacity: shown * on; family: "Space Grotesk" }
-                zone box found.$k { at: cx, fy; size: W0 - 2 * m, 32 * u; corner: 16 * u; cursor: pointer; label: pick(k, found_0, found_1, found_2, found_3); active: shown > 0.5 and st == 2 and on > 0.5 }
+                zone box found.$k { at: cx, fy; size: W0 - 2 * m, 32 * u; corner: 16 * u; cursor: pointer; label: pick(k, found_0, found_1, found_2, found_3); active: here > 0.5 and st == 2 and on > 0.5 }
                 on press found.$k { emit tv_pick(k) }
             }
         }
@@ -253,8 +265,8 @@ scene TvRemote {
                 text pick(k, menu_0, menu_1, menu_2, menu_3, menu_4, menu_5) { at: floor(left + m + 16 * u), floor(ry + 0.5); anchor: left center; size: 13.5 * u; weight: 600; width: W0 - 2 * m - 56 * u; lines: 1; color: if(cur > 0.5, mint, ink); opacity: shown * on; family: "Space Grotesk" }
                 let xr = if(tv_cnt > k, 1, 0)
                 text "×" { at: left + W0 - m - 16 * u, ry; anchor: center; size: 18 * u; weight: 600; color: mix(faint, alert, mx.$k.hover); opacity: shown * on * xr; family: "Space Grotesk" }
-                zone box mrow.$k { at: cx, ry; size: W0 - 2 * m, 32 * u; corner: 16 * u; cursor: pointer; label: pick(k, menu_0, menu_1, menu_2, menu_3, menu_4, menu_5); active: shown > 0.5 and mn > 0.5 and on > 0.5 }
-                zone ellipse mx.$k { at: left + W0 - m - 16 * u, ry; radius: 11 * u; cursor: pointer; label: "Forget this TV"; active: shown > 0.5 and mn > 0.5 and on > 0.5 and xr > 0.5 }
+                zone box mrow.$k { at: cx, ry; size: W0 - 2 * m, 32 * u; corner: 16 * u; cursor: pointer; label: pick(k, menu_0, menu_1, menu_2, menu_3, menu_4, menu_5); active: here > 0.5 and mn > 0.5 and on > 0.5 }
+                zone ellipse mx.$k { at: left + W0 - m - 16 * u, ry; radius: 11 * u; cursor: pointer; label: "Forget this TV"; active: here > 0.5 and mn > 0.5 and on > 0.5 and xr > 0.5 }
                 on press mrow.$k { emit tv_menu(k) }
                 on press mx.$k { emit tv_forget(k) }
             }
@@ -265,7 +277,7 @@ scene TvRemote {
             move: 0, (1 - en2) * 12
             text sheet_t { at: cx, top + 112 * u; anchor: center; size: 12 * u; weight: 700; width: W0 - 2 * m - 40 * u; lines: 1; align: center; color: faint; opacity: shown; family: "Space Grotesk" }
             text "×" { at: left + W0 - m - 12 * u, top + 112 * u; anchor: center; size: 18 * u; weight: 600; color: mix(faint, alert, sx.hover); opacity: shown; family: "Space Grotesk" }
-            zone ellipse sx { at: left + W0 - m - 12 * u, top + 112 * u; radius: 11 * u; cursor: pointer; label: "Close the list"; active: shown > 0.5 and so > 0.5 }
+            zone ellipse sx { at: left + W0 - m - 12 * u, top + 112 * u; radius: 11 * u; cursor: pointer; label: "Close the list"; active: here > 0.5 and so > 0.5 }
             on press sx { sheet_open = false }
             repeat k in 0..9 {
                 let ry = top + (140 + k * 32) * u
@@ -276,7 +288,7 @@ scene TvRemote {
                 box { at: cx, ry; size: W0 - 2 * m, 26 * u; corner: 13 * u; color: if(cur > 0.5, mint, ink); opacity: fl * shown * on }
                 TvPill(cx: cx, cy: ry, w: W0 - 2 * m, h: 26 * u, r: 13 * u, hot: hv, o: clamp(3 * fl, 0, 1) * shown * on, ku: u)
                 text pick(k, sheet_0, sheet_1, sheet_2, sheet_3, sheet_4, sheet_5, sheet_6, sheet_7, sheet_8) { at: floor(left + m + 16 * u), floor(ry + 0.5); anchor: left center; size: 13 * u; weight: 600; width: W0 - 2 * m - 32 * u; lines: 1; color: if(cur > 0.5, mint, ink); opacity: shown * on; family: "Space Grotesk" }
-                zone box srow.$k { at: cx, ry; size: W0 - 2 * m, 28 * u; corner: 14 * u; cursor: pointer; label: pick(k, sheet_0, sheet_1, sheet_2, sheet_3, sheet_4, sheet_5, sheet_6, sheet_7, sheet_8); active: shown > 0.5 and so > 0.5 and on > 0.5 }
+                zone box srow.$k { at: cx, ry; size: W0 - 2 * m, 28 * u; corner: 14 * u; cursor: pointer; label: pick(k, sheet_0, sheet_1, sheet_2, sheet_3, sheet_4, sheet_5, sheet_6, sheet_7, sheet_8); active: here > 0.5 and so > 0.5 and on > 0.5 }
                 on press srow.$k { emit tv_sheet(k) }
             }
         }

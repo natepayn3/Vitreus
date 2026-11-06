@@ -55,7 +55,7 @@ return function()
     local told_open = false
     local function push_slot()
         local cur = cur_pin()
-        local open = fact.ax_open == true and fact.ax_hold ~= true and fact.ax_rsz ~= true       -- (the content waits while the panel is pulled or resized, and goes to where it lands)
+        local open = fact.ax_open == true and fact.ax_rsz ~= true       -- (the content waits while the panel is resized, and comes back at its new size; while it is pulled it goes with it: `slide_slot`)
         told_open = fact.ax_open == true
         for _, a in ipairs(pins) do
             if a.drawer then
@@ -89,20 +89,20 @@ return function()
         if (tonumber(fact.ax_cur) or -1) >= 0 and not (cur and cur.drawer) then
             fact.ax_cur = -1
             fact.ax_open = false
-            after(150, push_slot)         -- (a fact the logic sets itself does not fire `on("fact:…")`: the add-on is told here)
+            push_slot()                   -- (a fact the logic sets itself does not fire `on("fact:…")`: the add-on is told here, at once, so its content goes with the glass)
         end
     end
     local function pin_go(i)
         local a = pins[i + 1]
         if not a then return end
         if a.drawer then
-            if fact.ax_open == true and tonumber(fact.ax_cur) == i then fact.ax_open = false; after(150, push_slot); return end
+            if fact.ax_open == true and tonumber(fact.ax_cur) == i then fact.ax_open = false; push_slot(); return end
             local sz = sizes[a.id]
             fact.ax_w, fact.ax_h = (sz and sz.w or a.drawer.width), (sz and sz.h or a.drawer.height)       -- (before `ax_cur`: the content's place is worked out when that changes)
             text.ax_title = a.name
             fact.ax_cur = i
             fact.ax_open = true
-            after(150, push_slot)         -- (as above: it is the logic that set them)
+            after(40, push_slot)          -- (as above: it is the logic that set them; 40 ms is enough for the rules to work out where the content goes, and keeps it in step with the glass)
         else
             winopen[a.id] = not winopen[a.id]
             say_one(a.sock, { "fact slot_open " .. tostring(winopen[a.id] == true) })
@@ -123,8 +123,19 @@ return function()
         for i, a in ipairs(pins) do if a.drawer then pin_go(i - 1) return end end
     end)
     -- (the rules that work out the content's place have run by then)
-    on("fact:ax_open", function(v) after(150, push_slot) end)
+    on("fact:ax_open", function(v) if v == true then after(40, push_slot) else push_slot() end end)       -- (shut: at once, so the content fades with the glass instead of sitting over it as it shrinks)
     on("fact:ax_hold", function(v) after(150, push_slot) end)
+    -- While the panel is pulled, the content's new middle goes straight to the add-on as the scene works it out (`ax_rx`, `ax_ry`), a message a frame
+    -- straight down its socket (no process started: one a frame was what made the shell lag), and the add-on glides there on the glass's own spring.
+    local function slide_slot(k, v)
+        if fact.ax_open ~= true or fact.ax_hold ~= true then return end
+        local a = cur_pin()
+        if not (a and a.drawer) then return end
+        local val = (k == "slot_y") and ((tonumber(v) or 0) - (tonumber(fact.ax_yoff) or 0)) or (tonumber(v) or 0)
+        pcall(sys.call, "say", a.sock, "fact " .. k .. " " .. string.format("%.1f", val))
+    end
+    on("fact:ax_rx", function(v) slide_slot("slot_x", v) end)
+    on("fact:ax_ry", function(v) slide_slot("slot_y", v) end)
     on("fact:ax_cur", function(v) after(150, push_slot) end)
     on("fact:ax_sw", function(v) after(150, push_slot) end)
     on("fact:ax_rsz", function(v) after(150, push_slot) end)

@@ -9,7 +9,7 @@ What a panel should look and feel like, so that an add-on sits beside the Contro
 **An add-on that is included in Vitreus itself** (in `addons/`, in this repository, listed in Settings > Add-ons, off until the user switches it on) follows this style, so the shell feels like one thing. Before proposing one, check it against this list:
 
 - It looks and moves as the sections below say: the boiled pencil that rests unless used, the Control Center's switches and sliders, even margins from the rectangle the shell gives it, and the content arriving the way the Control Center's does. Using `addon-pencil.plm` is the easy way to be right.
-- Its zones are gated on `shown`, its text fields go through the shell, and it stays well under the scene's size limit (`pleamar --check` prints it).
+- Its zones are gated on `here`, its text fields go through the shell, and it stays well under the scene's size limit (`pleamar --check` prints it).
 - It keeps secrets as described under Secrets, says in its README how, and does not send anything anywhere the user did not set up.
 - The `author` in `addon.toml` and the README credit whoever the idea or the code came from, and its licence is compatible with this repository's (MIT).
 - It runs without an account or a device the reviewer may not have, or it has a way to try it (a demo mode, for example).
@@ -61,7 +61,7 @@ What is inside arrives as the Control Center's does: after the glass has started
 
 ## Input
 
-- **Gate every zone on `shown`** (`active: shown > 0.5`): the scene has a copy on each monitor and only one shows.
+- **Gate every zone on `here`** (`active: here > 0.5`): the scene has a copy on each monitor and only one shows. Draw with `shown`, which stays on a moment longer so the content can fade out with the glass as the panel shuts.
 - **Declare zones in the order you want them stacked**: a later zone is on top.
 - **Text fields** are typed through the shell (see `addon.luau`): one field at a time, one line, and Ctrl+V works. Do not add a Paste button.
 - **A held drag must not be lost**: while a drag is held, make its zone cover the whole screen (`size: if(held, 4000, 30 * u)`).

@@ -20,7 +20,7 @@ import "addon-theme.plm"                           // the theme's own pieces (se
 //  (`room_*`), the theme's shape (`look`) and the forecast (`wx_*`), and the monitor the panel is on: its name (`slot_mon`, matched to a copy by the logic in addon.luau) and its size (`slot_sw`, `slot_sh`).
 //
 //  One monitor: the scene has a copy on each monitor (`screens: each`), and only the copy on the panel's monitor should draw; `shown` below is 1 only there. A copy is told
-//  apart by its monitor's size, not its number (a scene numbers its monitors in its own order, not the shell's). Hide with `shown`, and make zones `active: shown > 0.5`.
+//  apart by its monitor's size, not its number (a scene numbers its monitors in its own order, not the shell's). Hide with `shown` (which stays on while the content fades out as the panel shuts), and make zones `active: here > 0.5` (only while the panel is out).
 //
 //  Text fields: this scene does not take the keyboard (no `keyboard:` on its surface: asked of every copy at once, Hyprland gave it, and the pointer with it, to a
 //  copy on the wrong monitor). The shell takes the keys for it instead: the logic tells the shell where the field is (`axf_*`, see addon.luau and logic/addons.luau in
@@ -100,7 +100,9 @@ scene MyDrawer {
     fact slot_w = 0
     fact slot_h = 0
     let mon_here = if(screen.index == 0, if(mon_c0, 1, 0), if(screen.index == 1, if(mon_c1, 1, 0), if(screen.index == 2, if(mon_c2, 1, 0), if(mon_c3, 1, 0))))
-    let shown = if(slot_open and (if(mon_known, mon_here > 0.5, slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh))), 1, 0)       // 1 on the copy that is on the panel's monitor, while the panel is out
+    let onmon = if(mon_known, mon_here > 0.5, slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh))       // this copy is on the panel's monitor (still told while it shuts)
+    let here = if(slot_open and onmon, 1, 0)       // 1 on the copy on the panel's monitor, while the panel is out
+    let shown = if(onmon and (slot_open or en1 > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has). `en1` is one for every copy: the monitor test keeps the others shut
 
     //  What the pencil library (addon-pencil.plm) expects of the scene: the unit, and the frame its lines are drawn on (it rests while the panel is shut).
     let u = 1.1
@@ -117,9 +119,19 @@ scene MyDrawer {
     prop en1 = 0 ~200ms
     prop en2 = 0 ~380ms
     prop en3 = 0 ~520ms
-    on change shown while shown > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
-    on change shown while shown < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms; en3: 0 ~80ms after 205ms }
-    every 500ms while shown > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }     // (a scene that starts, or is saved, with its panel already out has no change to wait for)
+    on change here while here > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
+    on change here while here < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms; en3: 0 ~80ms after 205ms }
+    every 500ms while here > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }     // (a scene that starts, or is saved, with its panel already out has no change to wait for)
+    //  Where the content is: it glides to `slot_x`, `slot_y` on the glass's own spring (Vitreus's `ax_sp`), so it moves with the panel as it is pulled, and is put
+    //  there at once while it is not drawn yet (the panel opening, or a resize).
+    spring ax_sp = 300, 20
+    prop slx = 0 ~ax_sp
+    prop sly = 0 ~ax_sp
+    on change slot_x { slx: slot_x }
+    on change slot_y { sly: slot_y }
+    on change slot_x while en1 < 0.01 { slx: slot_x ~0ms }
+    on change slot_y while en1 < 0.01 { sly: slot_y ~0ms }
+    every 500ms while here > 0.5 and en1 < 0.01 { slx: slot_x ~0ms; sly: slot_y ~0ms }
 
     fact clicks = 0
     fact sw_on = 1                                    // the sample card's switch, and its level (a drag on the card's foot)
@@ -130,8 +142,8 @@ scene MyDrawer {
     event field_esc ->
     text hello = ""                                   // what Enter kept (addon.luau)
     measure fq
-    let left = slot_x - slot_w / 2
-    let top = slot_y - slot_h / 2
+    let left = slx - slot_w / 2
+    let top = sly - slot_h / 2
     group {
         opacity: en1
         move: 0, (1 - en1) * 12
@@ -157,14 +169,14 @@ scene MyDrawer {
         text "Lamp" { at: cx0 + 62 * u, cy0 + ch0 / 2 - 8.5 * u; anchor: left center; size: 13.5 * u; weight: 700; width: cw0 - 110 * u; lines: 1; color: ink; opacity: shown; family: "Space Grotesk" }
         text pick(con, "Off", "On") { at: cx0 + 62 * u, cy0 + ch0 / 2 + 8.5 * u; anchor: left center; size: 11 * u; weight: 600; color: mix(faint, mint, con); opacity: shown; family: "Space Grotesk" }
         PSliderMini(x0: cx0 + 16 * u, y: cy0 + ch0 - 15 * u, w: cw0 - 32 * u, lv: lvl, h: 10 * u, f: if(sl_z.hover > 0.5, fr, 0))
-        zone box card_z { from: cx0, cy0; size: cw0, ch0; corner: 12 * u; cursor: pointer; label: "Lamp"; active: shown > 0.5 }
+        zone box card_z { from: cx0, cy0; size: cw0, ch0; corner: 12 * u; cursor: pointer; label: "Lamp"; active: here > 0.5 }
         on press card_z { sw_on = 1 - sw_on }
-        zone box sl_z { from: cx0 + 8 * u, cy0 + ch0 - 30 * u; size: cw0 - 16 * u, 26 * u; cursor: pointer; label: "Level"; active: shown > 0.5 }
+        zone box sl_z { from: cx0 + 8 * u, cy0 + ch0 - 30 * u; size: cw0 - 16 * u, 26 * u; cursor: pointer; label: "Level"; active: here > 0.5 }
         on press sl_z { lvl = clamp((pointer.x - (cx0 + 16 * u)) / (cw0 - 32 * u), 0, 1) }
         on drag sl_z { lvl = clamp((pointer.x - (cx0 + 16 * u)) / (cw0 - 32 * u), 0, 1) }
         box { at: left + 70, top + 210; size: 124, 36; corner: 18; color: mint; opacity: 80% * shown }
         text "Press me" { at: left + 70, top + 210; anchor: center; size: 15; weight: 700; color: onmint; opacity: shown; family: "Space Grotesk" }
-        zone box press_me { at: left + 70, top + 210; size: 124, 36; corner: 18; cursor: pointer; active: shown > 0.5 }
+        zone box press_me { at: left + 70, top + 210; size: 124, 36; corner: 18; cursor: pointer; active: here > 0.5 }
         on press press_me { clicks = clicks + 1 }
         repeat i in 0..8 {
             ellipse { at: left + slot_w - 24 - (7 - i) * 16, top + 210; radius: 5; color: mint; opacity: if(clicks > i, 1, 0.2) * shown }

@@ -68,7 +68,9 @@ scene VpnToggle {
     fact slot_w = 0
     fact slot_h = 0
     let mon_here = if(screen.index == 0, if(mon_c0, 1, 0), if(screen.index == 1, if(mon_c1, 1, 0), if(screen.index == 2, if(mon_c2, 1, 0), if(mon_c3, 1, 0))))
-    let shown = if(slot_open and (if(mon_known, mon_here > 0.5, slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh))), 1, 0)
+    let onmon = if(mon_known, mon_here > 0.5, slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh))       // this copy is on the panel's monitor (still told while it shuts)
+    let here = if(slot_open and onmon, 1, 0)       // 1 on the copy on the panel's monitor, while the panel is out
+    let shown = if(onmon and (slot_open or en1 > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has). `en1` is one for every copy: the monitor test keeps the others shut
 
     let u = 1.1
     //  The pencil's clock, running only while the panel shows: naming pleamar's `time` keeps a scene awake for good, about fifty rounds a second
@@ -81,9 +83,19 @@ scene VpnToggle {
     prop en1 = 0 ~200ms
     prop en2 = 0 ~380ms
     prop en3 = 0 ~520ms
-    on change shown while shown > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
-    on change shown while shown < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms; en3: 0 ~80ms after 205ms }
-    every 500ms while shown > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
+    on change here while here > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
+    on change here while here < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms; en3: 0 ~80ms after 205ms }
+    every 500ms while here > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
+    //  Where the content is: it glides to `slot_x`, `slot_y` on the glass's own spring (Vitreus's `ax_sp`), so it moves with the panel as it is pulled, and is put
+    //  there at once while it is not drawn yet (the panel opening, or a resize).
+    spring ax_sp = 300, 20
+    prop slx = 0 ~ax_sp
+    prop sly = 0 ~ax_sp
+    on change slot_x { slx: slot_x }
+    on change slot_y { sly: slot_y }
+    on change slot_x while en1 < 0.01 { slx: slot_x ~0ms }
+    on change slot_y while en1 < 0.01 { sly: slot_y ~0ms }
+    every 500ms while here > 0.5 and en1 < 0.01 { slx: slot_x ~0ms; sly: slot_y ~0ms }
 
     //  What vpn.luau reports: the profiles (name, what kind, connected 0/1, working 0/1) and the line over them.
     model profs max 8 { name: text; sub: text; act: number; busy: number }
@@ -103,8 +115,8 @@ scene VpnToggle {
         PLn(ax: cx + 9.8 * iu, ay: cy, bx: cx + 9.8 * iu, by: cy + 3.8 * iu, s: s + 4, wd: 2.8 * iu, c: c, a: a, f: f)
     }
 
-    let left = slot_x - slot_w / 2
-    let top = slot_y - slot_h / 2
+    let left = slx - slot_w / 2
+    let top = sly - slot_h / 2
     //  The cards share what room there is: 40 to 60 tall, so eight fit a panel of the first size.
     let n = max(1, profs.count)
     let gap = 8 * u
@@ -136,7 +148,7 @@ scene VpnToggle {
                 text profs.$k.name { at: cx0 + 58 * u, cy0 + ch / 2 - 8 * u; anchor: left center; size: 13.5 * u; weight: 700; width: cw0 - 120 * u; lines: 1; color: ink; opacity: shown; family: "Space Grotesk" }
                 text profs.$k.sub { at: cx0 + 58 * u, cy0 + ch / 2 + 8 * u; anchor: left center; size: 11 * u; weight: 600; width: cw0 - 120 * u; lines: 1; color: mix(faint, mint, con); opacity: shown; family: "Space Grotesk" }
             }
-            zone box row.$k { from: cx0, cy0; size: cw0, ch; corner: 12 * u; cursor: pointer; label: profs.$k.name; active: shown > 0.5 and has > 0.5 and profs.$k.busy < 0.5 }
+            zone box row.$k { from: cx0, cy0; size: cw0, ch; corner: 12 * u; cursor: pointer; label: profs.$k.name; active: here > 0.5 and has > 0.5 and profs.$k.busy < 0.5 }
             on press row.$k { emit vt_toggle(k) }
         }
     }
