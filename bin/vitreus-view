@@ -27,6 +27,40 @@ case $p in
 esac
 case $p in /*) ;; *) p="$(pwd)/$p" ;; esac
 
+# A video goes to View's player: mpv, with view/player as its config folder (its keys, and the controls drawn as View's: scripts/vitreus-player.lua),
+# given the theme's colours (../palette.plm) and the look Vitreus has (as View asks it: 1 Retro, 2 UwU, 3 Cyber and Proxy, 7 Doodle; the rest Glass).
+# The other videos of its folder come after it in its list, in the order Files gives names, so the one before and after are a key away.
+VIDEOS="mp4 m4v mkv webm mov avi wmv flv mpg mpeg m2ts mts ts ogv 3gp 3g2 vob divx f4v"
+is_video() {
+    e=$(printf '%s' "${1##*.}" | tr '[:upper:]' '[:lower:]')
+    for v in $VIDEOS; do [ "$e" = "$v" ] && return 0; done
+    return 1
+}
+if [ -f "$p" ] && is_video "$p" && command -v mpv > /dev/null 2>&1; then
+    pal="$shell/palette.plm"
+    o=",vitreus-player-palette=$pal"           # (watched by the player: a new theme reaches it while it plays)
+    for k in ink faint mint minthi onmint tint panel deep alert; do
+        c=$(sed -n "s/^ *let $k *= *#\([0-9a-fA-F]\{6\}\).*/\1/p" "$pal" 2> /dev/null | head -n 1)
+        [ -n "$c" ] && o="$o,vitreus-player-$k=$c"
+    done
+    lv=$(pleamar --say vitreus "get look_v" 2> /dev/null | grep -o -- '-\?[0-9]\+' | head -n 1)
+    case $lv in 1) look=1 ;; 2) look=2 ;; 3) look=3 ;; 7) look=4 ;; *) look=0 ;; esac
+    [ -n "${VIEW_LOOK:-}" ] && look=$VIEW_LOOK                               # (to try a look without changing the theme)
+    dir=$(dirname "$p")
+    list=$(cd "$dir" 2> /dev/null && for f in *; do [ -f "$f" ] && is_video "$f" && printf '%s\n' "$f"; done | LC_ALL=C sort -f -V)
+    start=$(printf '%s\n' "$list" | grep -n -x -F -- "$(basename "$p")" | head -n 1 | cut -d: -f1)
+    if [ -n "$start" ]; then
+        pl=$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/vitreus-view-list.XXXXXX")
+        printf '%s\n' "$list" | sed "s|^|$dir/|" > "$pl"
+        ( sleep 30; rm -f "$pl" ) > /dev/null 2>&1 &
+        setsid mpv --config-dir="$shell/view/player" --script-opts="vitreus-player-look=$look$o" \
+            --playlist="$pl" --playlist-start=$((start - 1)) > /dev/null 2>&1 &
+    else
+        setsid mpv --config-dir="$shell/view/player" --script-opts="vitreus-player-look=$look$o" -- "$p" > /dev/null 2>&1 &
+    fi
+    exit 0
+fi
+
 # An empty View that sent the person to Files to find a picture (its button under the cat) waits for it: the picture chosen there goes to that window,
 # not to a new one. It leaves its name in the runtime folder (`waiting`); it is asked whether it is still empty, and then told which picture to open.
 w="${XDG_RUNTIME_DIR:-/tmp}/vitreus-view/waiting"

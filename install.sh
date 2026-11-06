@@ -29,6 +29,7 @@
 #   5. your palette, autostart entry  (made once and never written over)
 #   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent, vitreus-sysmon, vitreus-term, vitreus-files, vitreus-edit and vitreus-report, linked into ~/.local/bin; vitreus-inhibit, built there)
 #   5c. Files, as a program            (its icon and entry in ~/.local/share; asked: the file manager for folders and «Show in folder», files/integrate.sh)
+#   5d. View, as a program             (its icon and entry in ~/.local/share; asked: what opens pictures and videos, view/integrate.sh)
 #   6. its Hyprland key binds         (hypr_vitreus.lua linked into ~/.config/hypr, and loaded from hyprland.lua)
 #   6b. the daemons                   (awww, hypridle and the clipboard history: lines in ~/.config/pleamar/autostart, run on any compositor)
 #   6c. niri                        (config.kdl includes vitreus.kdl, the room round the windows the shell writes, and niri_vitreus.kdl, its key binds; with niri installed)
@@ -444,11 +445,13 @@ if [ "$action" = uninstall ]; then
         say "the Vitreus login screen is left in place; to take it away (and put the old theme back): sh $dest/sddm/install.sh --remove"
     fi
     if [ -f "$dest/files/integrate.sh" ]; then run sh "$dest/files/integrate.sh" --remove; fi
+    if [ -f "$dest/view/integrate.sh" ]; then run sh "$dest/view/integrate.sh" --remove; fi
     if [ -L "$HOME/.local/bin/vitreus-clipimg" ]; then run rm -f "$HOME/.local/bin/vitreus-clipimg"; fi
     if [ -L "$HOME/.local/bin/vitreus-polkit-agent" ]; then run rm -f "$HOME/.local/bin/vitreus-polkit-agent"; fi
     if [ -L "$HOME/.local/bin/vitreus-sysmon" ]; then run rm -f "$HOME/.local/bin/vitreus-sysmon"; fi
     if [ -L "$HOME/.local/bin/vitreus-term" ]; then run rm -f "$HOME/.local/bin/vitreus-term"; fi
     if [ -L "$HOME/.local/bin/vitreus-files" ]; then run rm -f "$HOME/.local/bin/vitreus-files"; fi
+    if [ -L "$HOME/.local/bin/vitreus-view" ]; then run rm -f "$HOME/.local/bin/vitreus-view"; fi
     if [ -L "$HOME/.local/bin/vitreus-keep" ]; then run rm -f "$HOME/.local/bin/vitreus-keep"; fi
     if [ -L "$HOME/.local/bin/vitreus-themes" ]; then run rm -f "$HOME/.local/bin/vitreus-themes"; fi
     if [ -L "$HOME/.local/bin/vitreus-wallhaven" ]; then run rm -f "$HOME/.local/bin/vitreus-wallhaven"; fi
@@ -953,6 +956,7 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
     [ -x "$dest/bin/vitreus-term" ] && run ln -sf "$dest/bin/vitreus-term" "$HOME/.local/bin/vitreus-term"
     # The keeper the autostart lines run each scene under: it starts a scene again when it stops (a crash on a monitor's wake).
     [ -x "$dest/bin/vitreus-files" ] && run ln -sf "$dest/bin/vitreus-files" "$HOME/.local/bin/vitreus-files"
+    [ -x "$dest/bin/vitreus-view" ] && run ln -sf "$dest/bin/vitreus-view" "$HOME/.local/bin/vitreus-view"             # View, the picture viewer (view/view.plm)
     [ -x "$dest/bin/vitreus-keep" ] && run ln -sf "$dest/bin/vitreus-keep" "$HOME/.local/bin/vitreus-keep"
     [ -x "$dest/bin/vitreus-themes" ] && run ln -sf "$dest/bin/vitreus-themes" "$HOME/.local/bin/vitreus-themes"       # the shell reads the theme files through it
     [ -x "$dest/bin/vitreus-wallhaven" ] && run ln -sf "$dest/bin/vitreus-wallhaven" "$HOME/.local/bin/vitreus-wallhaven"       # Settings > Wallpaper > Wallhaven fetches through it
@@ -969,6 +973,13 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
         files_flag=--no-set
         if ! $trial && ! $refresh && ask "make Files the file manager (folders open in it, and «Show in folder» in other programs)?"; then files_flag=--set; fi
         run sh "$dest/files/integrate.sh" $files_flag || warn "could not: run  sh $dest/files/integrate.sh  yourself"
+    fi
+    # View among the desktop's programs: its icon and its entry always («Open with» lists it), and, when asked, what opens pictures: view/integrate.sh (it keeps what
+    # opened each kind of picture before; --uninstall and `sh view/integrate.sh --remove` put that back). Not on a trial next to another shell, and not on --refresh.
+    if [ -f "$dest/view/integrate.sh" ]; then
+        view_flag=--no-set
+        if ! $trial && ! $refresh && ask "make View what opens pictures and videos?"; then view_flag=--set; fi
+        run sh "$dest/view/integrate.sh" $view_flag || warn "could not: run  sh $dest/view/integrate.sh  yourself"
     fi
     # Caffeine's idle inhibitor (a few lines of C: the compositor's own idle timer, pleamar-wm's, only listens to a Wayland client). Built here.
     if [ -f "$dest/bin/vitreus-inhibit.c" ]; then

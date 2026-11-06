@@ -1,7 +1,7 @@
 #!/bin/sh
-# integrate.sh [--set | --no-set] [--remove]: puts View (vitreus-view) among the desktop's programs, and, when asked, makes it what opens pictures.
+# integrate.sh [--set | --no-set] [--remove]: puts View (vitreus-view) among the desktop's programs, and, when asked, makes it what opens pictures and videos.
 #   always      the icon (~/.local/share/icons/hicolor/scalable/apps/vitreus-view.svg) and the entry (~/.local/share/applications/vitreus-view.desktop, with the path of
-#               this copy in its Exec: the programs that start it do not have ~/.local/bin on their PATH). It says which pictures it opens (MimeType), so «Open with»
+#               this copy in its Exec: the programs that start it do not have ~/.local/bin on their PATH). It says which pictures and videos it opens (MimeType), so «Open with»
 #               lists it; what opens them by default is left alone
 #   --set       also make it the default for every kind of picture it lists (xdg-mime, in ~/.config/mimeapps.list)
 #   --no-set    only the icon and the entry (the same as no option)
@@ -28,7 +28,12 @@ done
 icon=$data/icons/hicolor/scalable/apps/vitreus-view.svg
 entry=$data/applications/vitreus-view.desktop
 prev=$state/view-previous-handlers
-say() { printf 'vitreus · %s\n' "$*"; }
+# Run by install.sh on a terminal (VITREUS_UI=1), its lines look like the installer's; otherwise the plain ones.
+if [ "${VITREUS_UI:-}" = 1 ]; then
+    say() { printf '  \033[38;5;45m•\033[0m %s\n' "$*"; }
+else
+    say() { printf 'vitreus · %s\n' "$*"; }
+fi
 have() { command -v "$1" > /dev/null 2>&1; }
 types=$(sed -n 's/^MimeType=//p' "$here/vitreus-view.desktop" | tr ';' ' ')
 # What the person chose for a kind (its line in the [Default Applications] part of mimeapps.list), not what the desktop's order would give.
@@ -54,7 +59,7 @@ if [ "$action" = remove ]; then
     done
     rm -f "$prev" "$entry" "$icon"
     refresh_caches
-    say "View is no longer registered with the desktop; pictures open as they did before"
+    say "View is no longer registered with the desktop; pictures and videos open as they did before"
     exit 0
 fi
 
@@ -65,7 +70,7 @@ sed "s|@BIN@|$dest/bin/vitreus-view|" "$here/vitreus-view.desktop" > "$entry"
 refresh_caches
 say "View has its icon and its entry ($entry)"
 
-[ "$mode" = yes ] || { say "left as it was: pictures still open in ${before:-what they opened in}"; exit 0; }
+[ "$mode" = yes ] || { say "left as it was: pictures and videos still open in ${before:-what they opened in}"; exit 0; }
 
 mkdir -p "$state"
 for t in $types; do
@@ -76,4 +81,4 @@ for t in $types; do
     fi
     xdg-mime default vitreus-view.desktop "$t"
 done
-say "pictures open in View (PNG opened in ${before:-nothing in particular}); integrate.sh --remove puts that back"
+say "pictures and videos open in View (PNG opened in ${before:-nothing in particular}); integrate.sh --remove puts that back"
