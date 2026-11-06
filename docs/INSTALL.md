@@ -29,6 +29,7 @@ The packages `install.sh` installs (from pacman; `iris-colors` and `mpvpaper` co
 | `brightnessctl` | the brightness slider |
 | `hypridle` | Caffeine |
 | `libnotify` | calendar reminders |
+| `xdg-desktop-portal-gtk` | the permission prompts for apps' screenshots, screen sharing and camera, and their "choose a file" windows |
 | `xdg-user-dirs`, `xdg-utils` | finding your Pictures folder, opening files and web searches |
 | `wl-clipboard`, `cliphist` | the launcher's clipboard and copying (results, snippets) |
 | `grim`, `slurp`, `wf-recorder` | screenshots and screen recording |

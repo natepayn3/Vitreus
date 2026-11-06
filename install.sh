@@ -79,12 +79,12 @@ fonts_fuzzy="$data/fonts/FuzzyBubbles"
 fonts_kalam="$data/fonts/Kalam"
 
 # Official-repo packages, then AUR ones: what each is for is in the README.
-pacman_pkgs="gcc pkgconf wayland wayland-protocols git curl jq python fontconfig socat glib2 file imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww ffmpeg grim slurp wf-recorder power-profiles-daemon polkit python-gobject python-pyte ttf-space-mono-nerd pipewire-audio sound-theme-freedesktop tesseract tesseract-data-eng"
+pacman_pkgs="gcc pkgconf wayland wayland-protocols git curl jq python fontconfig socat glib2 file imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww ffmpeg xdg-desktop-portal-gtk grim slurp wf-recorder power-profiles-daemon polkit python-gobject python-pyte ttf-space-mono-nerd pipewire-audio sound-theme-freedesktop tesseract tesseract-data-eng"
 aur_pkgs="iris-colors mpvpaper"
 # Debian and Ubuntu: the same list by their names. UNTESTED (written without a Debian machine to try it on), and some of these are
 # not in every release (hypridle, cliphist, wf-recorder...): each is looked up and installed on its own, and a missing one is only said.
 # Not here, because Debian has no package: awww, mpvpaper, hyprsunset, iris, the Space Mono Nerd Font (listed below for hand install).
-apt_pkgs="gcc pkgconf libwayland-dev wayland-protocols git curl jq python3 fontconfig socat libglib2.0-bin file imagemagick cava playerctl network-manager bluez brightnessctl hypridle libnotify-bin xdg-user-dirs xdg-utils wl-clipboard cliphist ffmpeg grim slurp wf-recorder power-profiles-daemon polkitd python3-gi python3-pyte pipewire-bin sound-theme-freedesktop tesseract-ocr tesseract-ocr-eng"
+apt_pkgs="gcc pkgconf libwayland-dev wayland-protocols git curl jq python3 fontconfig socat libglib2.0-bin file imagemagick cava playerctl network-manager bluez brightnessctl hypridle libnotify-bin xdg-user-dirs xdg-utils wl-clipboard cliphist ffmpeg xdg-desktop-portal-gtk grim slurp wf-recorder power-profiles-daemon polkitd python3-gi python3-pyte pipewire-bin sound-theme-freedesktop tesseract-ocr tesseract-ocr-eng"
 
 # Night mode is hyprsunset on Hyprland, and wlsunset everywhere else (niri, pleamar-wm): each is only wanted where its compositor is,
 # and wlsunset also where there is no Hyprland at all. A machine with Hyprland and pleamar-wm gets both. (Here `have` is not defined yet.)
@@ -612,6 +612,8 @@ if $deps; then
     hyprsunset      Night mode on Hyprland (REQUIRED there: https://github.com/hyprwm/hyprsunset)
     wlsunset        Night mode on niri and pleamar-wm (https://sr.ht/~kennylevinsen/wlsunset/)
     libnotify       calendar reminders (notify-send)
+    xdg-desktop-portal-gtk  the permission prompts for apps' screenshots, screen sharing and camera, and their "choose a file" windows
+                    (pleamar-wm hands the portal everything it does not answer itself; Hyprland's and niri's fall back to it too)
     xdg-user-dirs   finding your Pictures folder, and the places in Files' sidebar
     git, fontconfig
     python          the font setup of the Retro and UwU themes and the font picker (bin/vitreus-fonts)
@@ -629,6 +631,11 @@ LIST
     # It is in the package lists above; this is for when those were skipped or the release has none.
     if { have niri || have pleamar-wm; } && ! have wlsunset; then
         warn "wlsunset is not installed: Night mode on niri and pleamar-wm needs it (sudo pacman -S wlsunset on Arch, sudo apt install wlsunset on Debian)"
+    fi
+    # Without it, the portal has nothing to ask permission with: apps cannot take screenshots or share the screen through it, and some
+    # (Flatpaks, Firefox set to use portals) open no file picker. The journal says "the screenshot portal requires an access impl".
+    if ! $dry && ! [ -f /usr/share/xdg-desktop-portal/portals/gtk.portal ]; then
+        warn "xdg-desktop-portal-gtk is not installed: apps' screenshots, screen sharing and file pickers need it (sudo pacman -S xdg-desktop-portal-gtk on Arch, sudo apt install xdg-desktop-portal-gtk on Debian)"
     fi
     have hyprctl || have niri || warn "Neither Hyprland nor niri was found. Vitreus needs a Wayland compositor with layer-shell; the list of running windows needs Hyprland or niri."
 

@@ -157,9 +157,12 @@ tailf() { # tailf file lines [filter-out-regex]
     if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then try hyprctl version | head -4; fi
 
     sec "Programs it uses"
-    for c in pleamar hyprctl git curl jq python3 socat magick cava playerctl nmcli bluetoothctl brightnessctl hypridle hyprsunset awww iris notify-send xdg-open wl-copy cliphist pactl ffmpeg; do
+    for c in pleamar hyprctl git curl jq python3 socat magick cava playerctl nmcli bluetoothctl brightnessctl hypridle hyprsunset wlsunset awww iris notify-send xdg-open wl-copy cliphist pactl ffmpeg; do
         if have "$c"; then printf '  ok       %s\n' "$c"; else printf '  MISSING  %s\n' "$c"; fi
     done
+
+    # Not a program but the portal's permission prompts and file pickers (the journal's "requires an access impl" when it is missing).
+    if [ -f /usr/share/xdg-desktop-portal/portals/gtk.portal ]; then printf '  ok       xdg-desktop-portal-gtk\n'; else printf '  MISSING  xdg-desktop-portal-gtk\n'; fi
 
     sec "Files in place"
     for h in vitreus-keep vitreus-sysmon vitreus-polkit-agent vitreus-clipimg vitreus-term vitreus-files; do
@@ -186,9 +189,23 @@ tailf() { # tailf file lines [filter-out-regex]
     sec "What is running"
     pgrep -a pleamar 2> /dev/null | cut -c1-200 || printf '(no pleamar process)\n'
     pgrep -af vitreus-keep 2> /dev/null | cut -c1-160 | head -12
-    if have hyprctl; then
-        printf 'surfaces on screen, by pleamar process:\n'
-        tmo hyprctl layers 2>&1 | awk '/namespace: pleamar/ { for (i = 1; i <= NF; i++) if ($i == "pid:") n[$(i + 1)]++ } END { for (p in n) printf "  pid %s: %d\n", p, n[p] }'
+    # Two surfaces of one process on one monitor is the stale surface left after a wake (pleamar #104): this is where it shows.
+    # Asked of whichever compositor is running; when it cannot be asked, the report says why instead of leaving the heading empty.
+    printf 'surfaces on screen, by pleamar process:\n'
+    if pgrep -x pleamar-wm > /dev/null 2>&1 && have pleamar-wm; then
+        # One line a surface: number, program and scene, «name», size, place, monitor, level, pid. Needs `agent on` in session.conf.
+        out="$(tmo pleamar-wm agent layers 2>&1)"
+        if printf '%s\n' "$out" | grep -q ' pid [0-9]'; then
+            printf '%s\n' "$out" | cut -c1-160 | head -40 | sed 's/^/  /'
+            printf '%s\n' "$out" | awk '/ pid [0-9]/ { for (i = 1; i <= NF; i++) if ($i == "pid") n[$(i + 1)]++ } END { for (p in n) printf "  pid %s: %d\n", p, n[p] }'
+        else
+            printf '  (pleamar-wm did not say: its agent is off, so it cannot be asked; `agent on` in ~/.config/pleamar/session.conf turns it on)\n'
+        fi
+    elif [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && have hyprctl; then
+        out="$(tmo hyprctl layers 2>&1 | awk '/namespace: pleamar/ { for (i = 1; i <= NF; i++) if ($i == "pid:") n[$(i + 1)]++ } END { for (p in n) printf "  pid %s: %d\n", p, n[p] }')"
+        printf '%s\n' "${out:-  (Hyprland shows no pleamar surface)}"
+    else
+        printf '  (cannot be asked: neither Hyprland nor pleamar-wm is running here)\n'
     fi
 
     log="$vdata/vitreus.log"
