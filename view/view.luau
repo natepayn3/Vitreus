@@ -485,7 +485,7 @@ ask_scale()
 ask_round()
 -- The runtime folder is named after pleamar's own process (the shell's $PPID), so it is the same when the scene reloads: a new theme rewrites ../palette.plm,
 -- which reloads View and starts this logic again. The picture shown is kept there (`current`), and a reload opens it rather than the one View started with.
-run("sh", { "-c", 'd="${XDG_RUNTIME_DIR:-/tmp}/vitreus-view/$PPID"; mkdir -p "$d" && chmod 700 "$d" && echo "$d" && cat "$d/current" 2> /dev/null' }, function(out, code)
+run("sh", { "-c", 'd="${XDG_RUNTIME_DIR:-/tmp}/vitreus-view/$PPID"; mkdir -p "$d" && chmod 700 "$d" && echo "$d" && { cat "$d/current" 2> /dev/null; true; }' }, function(out, code)
     local d, cur = (out or ""):match("^([^\n]*)\n?(.*)$")
     if code == 0 and d and d ~= "" then st.tmp = d end
     cur = trim(cur)
