@@ -17,7 +17,7 @@ import "../palette.plm"
 //  Open it with   bin/vitreus-view FILE   (what the desktop runs for pictures once View is the default: view/integrate.sh --set).
 
 scene View {
-    surface { size: 1180, 800; kind: window; title: "View"; app_id: "vitreus.view"; keyboard: on_demand }
+    surface { size: 1180, 800; kind: window; title: "View"; app_id: "vitreus.view"; keyboard: on_demand; rate: 60, 30 while not ready and has_msg }
     //  The glass bends a copy of the wallpaper, as Files does (a capture of the screen needs a moment to start, and the window is clear until it does).
     lens = image "~/.cache/pleamar/vitreus/lens.png"
 
@@ -29,7 +29,12 @@ scene View {
     text src = ""                    // the picture to show: its file (or the copy made of it), `?` and a number, so a new one is always read again
     text name = ""                   // its name, and the line under it (which of how many, its size in pixels, how big the file is)
     text sub = ""
-    text msg = ""                    // why there is nothing to show
+    text msg = ""                    // why there is nothing to show, a softer line under it, and whether something went wrong (Peek looks surprised)
+    text hint = ""
+    text browse = "Find pictures in Files"   // the button under it: what it says (the logic keeps where it goes)
+    text open_req = ""               // a picture handed over by bin/vitreus-view (`pleamar --say`): open this one
+    fact sad = false
+    fact has_hint = false
     text toast = ""                  // a word from View: copied, put in the trash...
     text pre_a = ""                  // the pictures after and before this one, drawn out of sight so that they are ready (see view.luau, `preload`)
     text pre_b = ""
@@ -80,6 +85,7 @@ scene View {
     event focused ->
     event do_wall ->
     event do_info ->
+    event do_browse ->
 
     spring pop = 230, 17
     prop zk = 1 ~quick
@@ -127,6 +133,16 @@ scene View {
     let zoomed = z > 1.01
     let big = (rw * fk * z > AW + 1) or (rh * fk * z > AH + 1)
     let has = ready and count > 0
+
+    // ── Peek, the picture-frame cat who keeps an empty window company (drawn under «nothing to show») ──
+    let my = cy - 66                                 // the middle of what is drawn there
+    let peek_eye = mix(deep, #ffffff, 0.9)           // its face: light on the picture's night sky, whatever the theme makes of ink
+    let pk.on = not has and has_msg
+    prop ek = 0 ~pop                                 // it comes in
+    prop pet = 0 ~lively                             // the pointer is on it: it is being petted (0 to 1)
+    prop hup = 0 ~lively                             // on its ears: they prick up
+    prop bh = 0 ~quick                               // the pointer is over the button
+    follow ek = if(pk.on, 1, 0)
 
     // ── pieces that come again and again ──
     //  Doodle's card, drawn by hand (the same as Vitreus's and Snap's): a slightly crooked quad with sharp corners and gently bowed edges, and a solid ink
@@ -387,15 +403,123 @@ scene View {
         }
     }
 
-    //  nothing to show: an empty folder, a file that is not a picture, or one that could not be read
+    //  nothing to show: an empty folder, a file that is not a picture, or one that could not be read. Peek keeps the window company, big and soft like a
+    //  watermark: a picture frame that is a cat, kin to the dashboard's sleeping cat. Ears on its top corners, its paws over the frame's lower edge, a tail
+    //  from behind it, and on the picture (a night sky with a moon) a cat's face. When the folder is empty it sleeps, breathing; when
+    //  something went wrong (`sad`) it is awake, eyes open, a «?» over it. Under the pointer it is petted as the dashboard's cat is: it squashes a little
+    //  and purrs, its eyes turn to happy arches, the tail wags faster and hearts float up. Its corners and outline follow the look.
     group {
-        show: not has and has_msg
-        Mat(cx - 210, cy - 70, 420, 140, 22, 4.5, 1)
-        box { at: cx, cy - 22; size: 34, 26; corner: 4; stroke: 2.2; color: ink; opacity: 70% }
-        path { at: cx, cy - 22; color: ink; opacity: 70%; move -13, 9; line -4, -1; line 2, 5; line 6, 1; line 13, 9; close }
-        ellipse { at: cx + 7, cy - 28; radius: 2.6; color: ink; opacity: 70% }
-        text msg { at: cx, cy + 22; anchor: center; size: 14; weight: 600; color: ink; width: 380; align: center; family: "Space Grotesk" }
+        show: pk.on
+        opacity: ek
+        scale: 0.94 + 0.06 * ek
+        pivot: cx, my
+        repeat g in 0..5 {
+            ellipse { at: cx, my - 10; radius: 250 - g * 34; color: mint; opacity: 1.6% }
+        }
+        let pc.awake = if(sad, 1, 0)
+        let pc.br = (sin(time * 70) + 1) / 2 * (1 - 0.5 * pc.awake) + pet * 1.5      // breathing, 0 to 1 (more when petted)
+        let pc.tw = sin(time * 55) * (1 + 3 * pet)                                     // the tail's sway
+        let pc.cr = pick(look, 34, 6, 38, 8, 4)                                        // the frame's corners
+        let pc.ol = pick(look, ink, deep, #a77bd6, mint, ink)                          // its outline
+        let pc.oa = pick(look, 30%, 100%, 100%, 90%, 100%)
+        let pc.ey = my - 6                                                             // the eyes' line
+        //  its shadow on the floor
+        ellipse { at: cx, my + 112; radius: 120; scale: 1, 0.1; color: #000000; opacity: 20% }
+        group {
+            pivot: cx, my + 100
+            scale: 1 + 0.012 * pc.br + 0.04 * pet, 1 + 0.02 * pc.br - 0.03 * pet
+            move: 0.6 * pet * sin(time * 2880), 0.2 * pet * sin(time * 2160)
+            //  the tail, from behind the frame's right side, curling up
+            path { at: cx + 100, my + 74; stroke: 15 + 2 * pick(look, 2, 3, 4, 1.4, 2.6); color: pc.ol; opacity: pc.oa; move 0, 0; curve 52, -10 via 40, 22; curve 46 + 8 * pc.tw, -62 via 70, -38 }
+            path { at: cx + 100, my + 74; stroke: 15; color: tint; move 0, 0; curve 52, -10 via 40, 22; curve 46 + 8 * pc.tw, -62 via 70, -38 }
+            //  the ears: the frame's colour, pink inside
+            repeat e in 0..2 {
+                let pe.s = if(e == 0, -1, 1)
+                path { at: cx + pe.s * 84, my - 84; color: tint; move pe.s * -30, 8; line pe.s * -4, -38 - 3 * hup; line pe.s * 26, 4; close }
+                path { at: cx + pe.s * 84, my - 84; stroke: pick(look, 2, 3, 4, 1.4, 2.6); color: pc.ol; opacity: pc.oa; move pe.s * -30, 6; line pe.s * -4, -38 - 3 * hup; line pe.s * 26, 2 }
+                path { at: cx + pe.s * 84, my - 84; color: #ff9bb3; opacity: 55%; move pe.s * -18, 4; line pe.s * -5, -22 - 3 * hup; line pe.s * 12, 2; close }
+            }
+            //  the frame
+            body {
+                color: tint
+                shadow: pick(look, 0, 5, 5, 0, 4), pick(look, 14, 6, 6, 0, 4), pick(look, 34, 0, 0, 16, 0), pick(look, 40%, 55%, 90%, 45%, 100%), pick(look, #000000, deep, pink_shadow, mint, ink)
+                box { at: cx, my; size: 232, 184; corner: pc.cr }
+            }
+            box { at: cx, my; size: 232, 184; corner: pc.cr; stroke: pick(look, 2, 3, 4, 1.4, 2.6); color: pc.ol; opacity: pc.oa }
+            //  the picture in it: a night sky, a moon, two hills, and faint stripes like the dashboard cat's
+            box { at: cx, my - 4; size: 184, 136; corner: max(pc.cr - 14, 2); color: deep }
+            group {
+                clip box { at: cx, my - 4; size: 184, 136; corner: max(pc.cr - 14, 2) }
+                ellipse { at: cx + 62, my - 48; radius: 13; color: alert; opacity: 70% }
+                ellipse { at: cx + 68, my - 52; radius: 11; color: deep }
+                path { at: cx, my + 64; color: panel; opacity: 70%; move -100, 0; line -100, -34; line -50, -62; line -10, -34; line 30, -52; line 100, -18; line 100, 0; close }
+                repeat t in 0..3 {
+                    box { at: cx - 20 + t * 20, my - 66; size: 8, 22; corner: 4; color: mint; opacity: 12% }
+                }
+            }
+            //  the face. Asleep: two closed curves. Awake: round eyes with a glint. Petted: happy arches.
+            let pc.cl = (1 - pc.awake) * (1 - clamp(pet * 4, 0, 1))
+            let pc.op = pc.awake * (1 - clamp(pet * 4, 0, 1))
+            let pc.hp = clamp(pet * 4 - 1, 0, 1)
+            repeat i in 0..2 {
+                let pf.x = cx + if(i == 0, -40, 40)
+                path { at: pf.x, pc.ey; stroke: 4; color: peek_eye; opacity: pc.cl; move -13, -2; curve 13, -2 via 0, 10 }
+                box { at: pf.x, pc.ey - 2; size: 20, 24; corner: 10; color: peek_eye; opacity: pc.op }
+                ellipse { at: pf.x + 4, pc.ey - 8; radius: 3.5; color: deep; opacity: pc.op * 0.9 }
+                path { at: pf.x, pc.ey; stroke: 4; color: peek_eye; opacity: pc.hp; move -12, 4; curve 12, 4 via 0, -14 }
+                ellipse { at: cx + if(i == 0, -66, 66), my + 14; radius: 11; scale: 1.3, 0.7; color: #ff8fc0; opacity: 40% }
+                //  whiskers, out over the frame
+                line { from: cx + if(i == 0, -58, 58), my + 16; to: cx + if(i == 0, -128, 128), my + 8; width: 2; color: ink; opacity: 45% }
+                line { from: cx + if(i == 0, -58, 58), my + 22; to: cx + if(i == 0, -126, 126), my + 28; width: 2; color: ink; opacity: 45% }
+            }
+            //  the nose, and the mouth: a small «ω» (an «o» when awake)
+            path { at: cx, my + 12; color: #ff9bb3; move -6, -3; line 6, -3; line 0, 4; close }
+            path { at: cx, my + 18; stroke: 2.6; color: peek_eye; opacity: 1 - pc.awake; move -11, 0; curve 0, 0 via -5.5, 7; curve 11, 0 via 5.5, 7 }
+            ellipse { at: cx, my + 25; radius: 4.5; scale: 1, 1.2; color: peek_eye; show: sad }
+            //  the paws, over the frame's lower edge
+            repeat i in 0..2 {
+                let pp.x = cx + if(i == 0, -46, 46)
+                body {
+                    color: tint
+                    box { at: pp.x, my + 92 - pet * 2; size: 46, 26; corner: 13 }
+                }
+                box { at: pp.x, my + 92 - pet * 2; size: 46, 26; corner: 13; stroke: pick(look, 2, 3, 4, 1.4, 2.6); color: pc.ol; opacity: pc.oa }
+                line { from: pp.x - 7, my + 96 - pet * 2; to: pp.x - 7, my + 103 - pet * 2; width: 2; color: pc.ol; opacity: pc.oa }
+                line { from: pp.x + 7, my + 96 - pet * 2; to: pp.x + 7, my + 103 - pet * 2; width: 2; color: pc.ol; opacity: pc.oa }
+            }
+        }
+        //  awake: a «?» by its ear
+        text "?" { at: cx + 132, my - 118; anchor: center; size: 34; weight: 700; family: "Space Grotesk"; color: mint; opacity: pc.awake * 0.85 }
+        //  petted: hearts floating up
+        repeat h in 0..3 {
+            let ph.p = fract(time * 0.9 + h / 3)
+            let ph.x = cx - 70 + h * 70 + 9 * sin(ph.p * 360)
+            let ph.y = my - 104 - ph.p * 70
+            let ph.q = 4
+            group {
+                opacity: pet * sin(ph.p * 180)
+                box { from: ph.x - ph.q * 2, ph.y - ph.q; size: ph.q, ph.q; color: #ff9bb3 }
+                box { from: ph.x + ph.q, ph.y - ph.q; size: ph.q, ph.q; color: #ff9bb3 }
+                box { from: ph.x - ph.q * 2.5, ph.y; size: ph.q * 5, ph.q; color: #ff9bb3 }
+                box { from: ph.x - ph.q * 1.5, ph.y + ph.q; size: ph.q * 3, ph.q; color: #ff9bb3 }
+                box { from: ph.x - ph.q * 0.5, ph.y + ph.q * 2; size: ph.q, ph.q; color: #ff9bb3 }
+            }
+        }
+        //  why, on View's card, and the way to some pictures
+        Mat(cx - 250, my + 130, 500, if(has_hint, 68, 50), 20, 4, 1)
+        text msg { at: cx, my + if(has_hint, 150, 155); anchor: center; size: 18; weight: 600; color: ink; width: 460; align: center; family: "Space Grotesk" }
+        text hint { at: cx, my + 178; anchor: center; size: 13; color: faint; opacity: 70%; width: 460; align: center; family: "Space Grotesk"; show: has_hint }
+        body {
+            color: mix(mint, minthi, bh)
+            rim: 30%
+            shadow: 0, 4 + 2 * bh, 14, 30%, deep
+            box { at: cx, my + if(has_hint, 240, 222); size: 260, 46; corner: if(look == 1 or look == 3 or look == 4, 8, 23) }
+        }
+        //  a folder, in pencil-thin lines
+        path { at: cx - 96, my + if(has_hint, 240, 222); stroke: 1.8; color: onmint; move -10, -7; line -3, -7; line 0, -4; line 10, -4; line 10, 7; line -10, 7; line -10, -7 }
+        text browse { at: cx + 10, my + if(has_hint, 240, 222); anchor: center; size: 14; weight: 600; color: onmint; family: "Space Grotesk" }
     }
+
 
     // ── the picture's own zone: zoom, move, a double click ──
     //  Written before everything that floats over it, so the buttons win their presses (the last zone declared gets them).
@@ -411,6 +535,13 @@ scene View {
         held = false
         emit tap(if(abs(ox - bx) + abs(oy - by) < 3, 1, 0))
     }
+    //  Peek's zone and the button (declared after the stage, so these presses are theirs)
+    follow pet = pk_cat.hover
+    follow hup = pk_cat.hover
+    follow bh = pk_files.hover
+    zone box pk_cat { from: cx - 130, my - 126; size: 260, 240; corner: 40; cursor: pointer; active: pk.on; label: "Pet the cat" }
+    zone box pk_files { from: cx - 130, my + if(has_hint, 217, 199); size: 260, 46; cursor: pointer; active: pk.on; label: "Open Files"; role: button }
+    on press pk_files { emit do_browse }
     //  a double click: fitted to its real size (twice the size, if that is what it is already), about the pointer; and back
     on dbl while not zoomed {
         ox = clamp((cx - pointer.x) * (if(real > 1.05, real, 2) - 1), -max(0, (rw * fk * if(real > 1.05, real, 2) - AW) / 2), max(0, (rw * fk * if(real > 1.05, real, 2) - AW) / 2))

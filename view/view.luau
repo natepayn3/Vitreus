@@ -53,10 +53,17 @@ local function human(bytes)
     return string.format(v < 10 and "%.1f %s" or "%.0f %s", v, units[u])
 end
 
-local function nothing(why)
+-- Nothing to show: why, a softer line under it, and whether it is a problem (Peek, the cat who keeps the empty window company, wakes up then). Under it
+-- is a button to Files: `where` is the folder it opens (nil: the Pictures folder), `label` what it says.
+local function nothing(why, hint, sad, label, where)
     fact.ready = false
     fact.has_msg = true
+    fact.sad = sad and true or false
     text.msg = why
+    text.hint = hint or ""
+    fact.has_hint = (hint or "") ~= ""
+    text.browse = label or "Find pictures in Files"
+    st.browse = where
 end
 
 local function current() return st.names[st.i] and (st.dir .. "/" .. st.names[st.i]) or nil end
@@ -162,7 +169,7 @@ show = function(i)
         if m.bad then
             st.rest = ""
             text.sub = sub_line()
-            nothing(m.why or "This file could not be read as a picture")
+            nothing(m.why or "This file could not be read as a picture", m.why and "" or "It may be damaged, or a kind of file View does not know", true, "Show it in Files", path)
             preload()
             return
         end
@@ -191,7 +198,7 @@ local function list(dir, pick, after_list)
         if code == 3 then
             st.names = {}
             fact.count = 0
-            nothing("This folder could not be opened")
+            nothing("This folder could not be opened", "It may be gone, or not yours to look in", true)
             return
         end
         local names = {}
@@ -208,11 +215,11 @@ local function open(path)
     path = trim(path)
     if path == "" then path = "." end
     run("sh", { "-c", 'if [ -d "$1" ]; then cd "$1" && pwd && echo; elif [ -e "$1" ]; then cd "$(dirname "$1")" && pwd && basename "$1"; else exit 4; fi', "sh", path }, function(out, code)
-        local dir, pick = (out or ""):match("^([^\n]*)\n([^\n]*)")
+        local dir, pick = (out or ""):match("^([^\n]*)\n?([^\n]*)")   -- a folder gives its path alone: `run` drops the blank line after it
         if code ~= 0 or not dir or dir == "" then
             fact.has_name = path ~= "."
             text.name = base_of(path)
-            nothing("This file is not there any more")
+            nothing("This file is not there any more", "It was moved, renamed or put in the trash", true, "Open its folder in Files", path:match("^(.*)/[^/]*$"))
             return
         end
         if pick == "" then pick = nil end
@@ -264,6 +271,25 @@ on("do_edit", function()
         elseif code == 4 then say("Snap is already open")
         elseif code ~= 0 then say("Snap could not be opened") end
     end)
+end)
+
+-- The button under Peek: Files, at the folder `nothing` said (the file itself is shown selected, as Show in Files does), or else at the Pictures folder
+-- (the home folder, without one). The picture chosen there comes back to this window (`open_req`).
+on("do_browse", function()
+    -- this window waits for what is chosen there (bin/vitreus-view hands it over): its name, for `pleamar --say`
+    local wait = 'n=$VIEW_NAME; if [ -n "$n" ]; then d="${XDG_RUNTIME_DIR:-/tmp}/vitreus-view"; mkdir -p "$d" && printf "%s\\n" "$n" > "$d/waiting"; fi; '
+    local script = wait .. 'v="${VIEW_SHELL:-$HOME/.config/pleamar/shells/vitreus}"; p=$1; '
+        .. 'if [ -z "$p" ] || [ ! -e "$p" ]; then p=$(xdg-user-dir PICTURES 2> /dev/null); [ -n "$p" ] && [ -d "$p" ] || p=$HOME; fi; '
+        .. 'setsid "$v/bin/vitreus-files" "$p" > /dev/null 2>&1 &'
+    run("sh", { "-c", script, "sh", st.browse or "" }, function() end)
+end)
+
+-- A picture handed over by bin/vitreus-view (chosen in Files after the button above): opened here, and this window brought to the front.
+on("text:open_req", function(p)
+    p = trim(p or "")
+    if p == "" then return end
+    open(p)
+    run("sh", { "-c", 'hyprctl dispatch focuswindow "pid:$PPID" > /dev/null 2>&1' }, function() end)
 end)
 
 -- Show in Files: its folder, with it chosen.

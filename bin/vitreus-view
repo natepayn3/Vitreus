@@ -27,6 +27,17 @@ case $p in
 esac
 case $p in /*) ;; *) p="$(pwd)/$p" ;; esac
 
+# An empty View that sent the person to Files to find a picture (its button under the cat) waits for it: the picture chosen there goes to that window,
+# not to a new one. It leaves its name in the runtime folder (`waiting`); it is asked whether it is still empty, and then told which picture to open.
+w="${XDG_RUNTIME_DIR:-/tmp}/vitreus-view/waiting"
+if [ -f "$p" ] && [ -r "$w" ] && command -v pleamar > /dev/null 2>&1; then
+    n=$(head -n 1 "$w")
+    rm -f "$w"
+    if [ -n "$n" ] && [ "$(pleamar --say "$n" "get ready" 2> /dev/null)" = false ]; then
+        pleamar --say "$n" "text open_req $p" > /dev/null 2>&1 && exit 0
+    fi
+fi
+
 if [ ! -f "$scene" ] || ! command -v pleamar > /dev/null 2>&1; then
     [ -n "${VITREUS_VIEW_FALLBACK:-}" ] && exit 1
     export VITREUS_VIEW_FALLBACK=1
@@ -46,4 +57,5 @@ if [ -n "$sp" ] && [ -r "/proc/$sp/environ" ]; then
 else
     fc=$("$shell/bin/vitreus-fonts" "${XDG_DATA_HOME:-$HOME/.local/share}/pleamar/vitreus" 2> /dev/null) && [ -n "$fc" ] && export FONTCONFIG_FILE="$fc"
 fi
-VIEW_START="$p" VIEW_SHELL="$shell" setsid pleamar --scene "$scene" --no-hud > /dev/null 2>&1 &
+# Each window answers to a name of its own (for the hand-over above).
+VIEW_START="$p" VIEW_SHELL="$shell" VIEW_NAME="view-$$" setsid pleamar --scene "$scene" --no-hud --answer-as "view-$$" > /dev/null 2>&1 &
