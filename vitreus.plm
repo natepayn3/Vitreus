@@ -74,9 +74,9 @@ scene Vitreus {
     //  search, the desk's inputs) still has it lent exclusively, to the copy it is on only. A loan ends only when this rule goes false, so the corner dock
     //  asks for the keyboard on an empty workspace while one of its icons is under the pointer or held (`cdk_hot`, `cdk_down`), not all the time:
     //  `cdk_on and ws_empty` held every loan on both copies, and the cursor stuck again.
-    //  The idle Frame paints 12 a second (`rate:`): only with nothing open and nothing still moving. A panel's drawer counts until it has gone back in (`dc`, `dk`, `dm`, `ds`, `dl`,
-    //  `dax`, `do`, `dz`: `panel` is `none` from the moment it starts to close), and so do the bar's hover (`fr_hov`), the docks (`dk_lv`), the workspace marks (`ws_lv`) and the rest of the bar (`bar_lv`), and the dashboard until it has sunk (`dsh_rise`: without it the dashboard ran at 12 a second).
-    surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on) and not (bar_frame and panel == none and not osd_on and do < 0.01 and dc < 0.01 and dk < 0.01 and dm < 0.01 and ds < 0.01 and dl < 0.01 and dax < 0.01 and not desk_open and dz < 0.01 and dsh_rise < 0.01 and not wp_picker_open and wp_picker_show < 0.01 and not (media.playing and fw_on) and not fr_hov and dk_lv < 0.02 and ws_lv < 0.02 and bar_lv < 0.02), 60 while ((media.playing and fw_on) or bar_fps == 60) and not (bar_frame and panel == none and not osd_on and do < 0.01 and dc < 0.01 and dk < 0.01 and dm < 0.01 and ds < 0.01 and dl < 0.01 and dax < 0.01 and not desk_open and dz < 0.01 and dsh_rise < 0.01 and not wp_picker_open and wp_picker_show < 0.01 and not (media.playing and fw_on) and not fr_hov and dk_lv < 0.02 and ws_lv < 0.02 and bar_lv < 0.02), 12 while (bar_frame and panel == none and not osd_on and do < 0.01 and dc < 0.01 and dk < 0.01 and dm < 0.01 and ds < 0.01 and dl < 0.01 and dax < 0.01 and not desk_open and dz < 0.01 and dsh_rise < 0.01 and not wp_picker_open and wp_picker_show < 0.01 and not (media.playing and fw_on) and not fr_hov and dk_lv < 0.02 and ws_lv < 0.02 and bar_lv < 0.02); screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
+    //  `rate:` is the rate chosen in Settings > Display (`bar_fps`), or 60 while the music moves the frame (its ripple and waves). There is no idle cap: a scene with nothing
+    //  moving paints nothing, so a cap only ever slowed what was moving (the notches, the drawers, the bar's hovers each needed an exemption from the old 12 a second).
+    surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on), 60 while (media.playing and fw_on) or bar_fps == 60; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
     permissions { services: "files", "files.write", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "test", "wl-paste", "ffprobe" }
 
@@ -173,7 +173,7 @@ scene Vitreus {
     fact panel: none | calendar | controls | player | volume | notif | settings | launch | tray | desk = none
     fact media_on = false          // is there a player at all
     fact bass = 0
-    fact fr_hov = false    // the pointer is on the bar: its hover animations get the full frame rate (the 12 a second the ripple alone gets is in the surface's `rate:`)
+    fact fr_hov = false    // the pointer is on the bar: its hover animations run (and the glass leaves its resting state: `lens.idle`)
     fact fr_wv = 0         // the frame ripples, a couple of px (wave.wgsl): part of the audio visualiser, set by `cava_want` while it is on and music plays
     fact fw_on = true      // the bottom frame rises into waves with the music (needs the Frame layout; `pleamar --say vitreus "fact fw_on false"` turns it off)
     //  The 24 bars cava reports, 0..1 each, for the equalizer in the media card. Each one
@@ -526,8 +526,8 @@ scene Vitreus {
     //  The frame's inner corner, round the windows, follows the windows' own corner rounding (Settings > Hyprland / Niri, `hy_round`, kept per theme):
     //  a window sits 13 px inside the frame (see iris_fx.gaps_code), so the frame's corner is that much more, concentric with the window's.
     //  In the Notches layout the corners round the windows are where the corner pieces melt into the sides: their `blend:` (pages/bar_shapes.plm) is sized from this too.
-    //  The app dock and the add-on pill are alive: under the pointer, held or pulled, or coming out or going in. Their icons grow and wobble with it, so the surface keeps its
-    //  full rate meanwhile, not the 12 a second of the idle Frame (`rate:` on the surface), as the bar does with `fr_hov`. A spring, so it outlasts a hover fading out; its `follow` is by corner_dock.plm's.
+    //  The app dock and the add-on pill are alive: under the pointer, held or pulled, or coming out or going in. Their icons grow and wobble with it, so the glass stays out of
+    //  its resting state meanwhile (`lens.idle`), as the bar does with `fr_hov`. A spring, so it outlasts a hover fading out; its `follow` is by corner_dock.plm's.
     prop dk_lv = 0 ~calm
     prop fr_in_r = 23 ~120ms
     follow fr_in_r = hy_round + 13
@@ -1451,8 +1451,8 @@ scene Vitreus {
     follow ws.st1 = if(ws_style == 1, 1, 0)
     follow ws.st2 = if(ws_style == 2, 1, 0)
     follow ws.st3 = if(ws_style == 3, 1, 0)
-    //  The workspace marks are alive: the one in view still travelling to its new place (its tail is the last to get there), however it was switched. The idle Frame's 12 a second
-    //  is held off meanwhile, as for the docks (`dk_lv`); its `follow` is by the marks' zones (pages/bar_glass.plm). A spring, so the morphs that end a little after are in it too.
+    //  The workspace marks are alive: the one in view still travelling to its new place (its tail is the last to get there), however it was switched. The glass stays out of its resting state
+    //  meanwhile (`lens.idle`), as for the docks (`dk_lv`); its `follow` is by the marks' zones (pages/bar_glass.plm). A spring, so the morphs that end a little after are in it too.
     prop ws_lv = 0 ~calm
     //  The rest of the bar is alive: the pointer anywhere on it (every hover and press on the bar: `bar_hover`, `lf_hover` down a side strip; the hover of a zone on top of
     //  them does not take theirs away), or something on it that comes and goes by itself: a tray icon (`trn`), a privacy light (`pvn`), the media card (`media_open`), the charge sweep.
