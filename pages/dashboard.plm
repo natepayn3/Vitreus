@@ -76,7 +76,7 @@ part Dashboard {
             box { from: l, t; size: w, h; corner: k; color: rgb(dsh.wr, dsh.wg, dsh.wb); opacity: 0.45 * dsh_under }
             //  The pointer's light on the glass: a soft wash of the accent under it.
             body {
-                gradient: radial cursor.x, cursor.y radius 220, mint, tint
+                gradient: radial pointer.x, pointer.y radius 220, mint, tint
                 rim: 0%
                 opacity: 0.13 * dsh.vis
                 box { from: l, t; size: w, h; corner: k }
@@ -260,7 +260,7 @@ part Dashboard {
             zone box dsh_hold.7 { from: dB.l, dB.t; size: dB.w, dB.h; corner: 26; active: dash_open; label: "Battery" }
             zone box dsh_hold.5 { from: dF.l, dF.t; size: dF.w, dF.h; corner: 26; active: dash_open; label: "User" }
             zone box dsh_hold.6 { from: dG.l, dG.t; size: dG.w, dG.h; corner: 26; active: dash_open; label: "System and network" }
-            //  The pointer is over a tile: the small animations run (`need_clock`).
+            //  The pointer is over a tile: the small animations run (`need_clock`, and their own clock `dsh_tq`).
             follow dsh_hv = if(dsh_hold.0.hover > 0.01 or dsh_hold.1.hover > 0.01 or dsh_hold.2.hover > 0.01 or dsh_hold.3.hover > 0.01 or dsh_hold.5.hover > 0.01 or dsh_hold.6.hover > 0.01 or dsh_hold.7.hover > 0.01, 1, 0)
 
             //  ── Clock and reminders: the time, big and light, the date (and the battery, if there is one) under it; on the right today's
@@ -310,7 +310,7 @@ part Dashboard {
                     text "Nothing for today" { at: dR.l + dR.w / 2, dA.t + 62; anchor: center; size: 13; family: "Space Grotesk"; color: faint }
                     //  stars (night, clear skies only)
                     repeat k in 0..9 {
-                        box { at: dR.l + fract(k * 0.618 + 0.1) * dR.w, dA.t + 74 + fract(k * 0.37) * 22; size: 2, 2; color: ink; opacity: (1 - dRy.day) * dRy.clear * (0.1 + 0.4 * (sin(time * 50 + k * 83) + 1) / 2) }
+                        box { at: dR.l + fract(k * 0.618 + 0.1) * dR.w, dA.t + 74 + fract(k * 0.37) * 22; size: 2, 2; color: ink; opacity: (1 - dRy.day) * dRy.clear * (0.1 + 0.4 * (sin(dsh_tq * 50 + k * 83) + 1) / 2) }
                     }
                     //  the sun (day, clear or partly): a square with rays that turn
                     group {
@@ -320,7 +320,7 @@ part Dashboard {
                         box { at: dRs.x, dRs.y; size: 14, 14; color: #ffd27a }
                         group {
                             pivot: dRs.x, dRs.y
-                            rotate: time * 6deg
+                            rotate: dsh_tq * 6deg
                             repeat r in 0..8 {
                                 group {
                                     pivot: dRs.x, dRs.y
@@ -334,7 +334,7 @@ part Dashboard {
                     group {
                         clip inset 0 box { from: dR.l, dA.t + 72; size: dR.w, 60 }
                         repeat k in 0..3 {
-                            let dRc.x = dR.l - 40 + mod(time * (5 + k * 2) + k * dR.w * 0.37, dR.w + 80)
+                            let dRc.x = dR.l - 40 + mod(dsh_tq * (5 + k * 2) + k * dR.w * 0.37, dR.w + 80)
                             let dRc.y = dA.t + 84 + k * 10
                             let dRc.o = if(dRy.k >= 4, 0.3, 0.18)
                             group {
@@ -347,7 +347,7 @@ part Dashboard {
                     }
                     //  fog: faint bands sliding across
                     repeat f in 0..3 {
-                        box { from: dR.l + mod(time * (4 + f * 3) + f * 90, dR.w + 120) - 120, dRy.by - 20 - f * 16; size: 120, 5; color: ink; opacity: if(dRy.k == 3, 0.1, 0) }
+                        box { from: dR.l + mod(dsh_tq * (4 + f * 3) + f * 90, dR.w + 120) - 120, dRy.by - 20 - f * 16; size: 120, 5; color: ink; opacity: if(dRy.k == 3, 0.1, 0) }
                     }
                     repeat b in 0..9 {
                         let dRb.w = floor(dR.w / 9)
@@ -357,7 +357,7 @@ part Dashboard {
                         repeat r in 0..9 {
                             repeat c in 0..4 {
                                 let dRw.k = fract(sin((b * 7 + r * 13 + c * 29) * 57) * 437.5)
-                                let dRw.on = fract(dRw.k * 13 + floor(time * 0.2 + dRw.k * 9) * 0.618) > if(dRy.day > 0, 0.93, 0.55)
+                                let dRw.on = fract(dRw.k * 13 + floor(dsh_tq * 0.2 + dRw.k * 9) * 0.618) > if(dRy.day > 0, 0.93, 0.55)
                                 box { from: dRb.x + 4 + c * 7, dRy.by - dRb.h + 5 + r * 7; size: 3, 3; color: mint; opacity: 0.85; show: dRw.on and (r + 1) * 7 + 4 < dRb.h and 4 + c * 7 + 3 < dRb.w - 3 }
                             }
                         }
@@ -365,18 +365,18 @@ part Dashboard {
                     box { from: dR.l, dRy.by; size: dR.w, 2; color: ink; opacity: 0.2 }
                     //  rain (rain or storm), soft
                     repeat d in 0..32 {
-                        let dRd.p = fract(time * (0.7 + 0.5 * fract(d * 0.37)) + d * 0.137)
+                        let dRd.p = fract(dsh_tq * (0.7 + 0.5 * fract(d * 0.37)) + d * 0.137)
                         let dRd.y = dA.t + 100 + dRd.p * (dRy.by - dA.t - 100)
                         let dRd.x = dR.l + fract(d * 0.618) * dR.w + dRd.p * -6
                         line { show: dRy.k == 4 or dRy.k == 6; from: dRd.x, dRd.y; to: dRd.x - 1.2, dRd.y + 5; width: 1; color: mint; opacity: 0.17 }
                     }
                     //  snow
                     repeat d in 0..28 {
-                        let dRn.p = fract(time * (0.12 + 0.08 * fract(d * 0.37)) + d * 0.137)
-                        box { at: dR.l + fract(d * 0.618) * dR.w + 6 * sin(time * 40 + d * 50), dA.t + 100 + dRn.p * (dRy.by - dA.t - 104); size: 2, 2; color: ink; opacity: 0.5; show: dRy.k == 5 }
+                        let dRn.p = fract(dsh_tq * (0.12 + 0.08 * fract(d * 0.37)) + d * 0.137)
+                        box { at: dR.l + fract(d * 0.618) * dR.w + 6 * sin(dsh_tq * 40 + d * 50), dA.t + 100 + dRn.p * (dRy.by - dA.t - 104); size: 2, 2; color: ink; opacity: 0.5; show: dRy.k == 5 }
                     }
                     //  a storm's flashes
-                    box { from: dR.l, dA.t + 70; size: dR.w, dRy.by - dA.t - 70; color: ink; opacity: if(dRy.k == 6 and fract(time * 0.23) < 0.035, 0.12, 0) }
+                    box { from: dR.l, dA.t + 70; size: dR.w, dRy.by - dA.t - 70; color: ink; opacity: if(dRy.k == 6 and fract(dsh_tq * 0.23) < 0.035, 0.12, 0) }
                 }
             }
 
@@ -391,12 +391,12 @@ part Dashboard {
                     show: wx_ok
                     group {
                         show: wx_kind < 2
-                        ellipse { at: dWx, dW.t + dWo + 50; radius: 60 + 5 * sin(time * 70); color: mint; opacity: 0.07 }
+                        ellipse { at: dWx, dW.t + dWo + 50; radius: 60 + 5 * sin(dsh_tq * 70); color: mint; opacity: 0.07 }
                         repeat r in 0..12 {
                             group {
                                 pivot: dWx, dW.t + dWo + 50
-                                rotate: r * 30deg + time * 5deg
-                                box { at: dWx, dW.t + dWo + 50 - 58; size: 3, 26; corner: 1.5; color: mint; opacity: 0.2 + 0.12 * sin(time * 90 + r * 50) }
+                                rotate: r * 30deg + dsh_tq * 5deg
+                                box { at: dWx, dW.t + dWo + 50 - 58; size: 3, 26; corner: 1.5; color: mint; opacity: 0.2 + 0.12 * sin(dsh_tq * 90 + r * 50) }
                             }
                         }
                     }
@@ -404,14 +404,14 @@ part Dashboard {
                         show: wx_kind == 1 or wx_kind == 2 or wx_kind == 3
                         repeat k in 0..4 {
                             repeat q in 0..3 {
-                                ellipse { at: dW.l - 80 + fract(time * 0.012 + k * 0.25) * (dW.w + 160), dW.t + dWo + 40 + k * 36; radius: (46 + 8 * k) * (1 - q * 0.25); color: ink; opacity: if(wx_kind == 3, 0.06, 0.035) }
+                                ellipse { at: dW.l - 80 + fract(dsh_tq * 0.012 + k * 0.25) * (dW.w + 160), dW.t + dWo + 40 + k * 36; radius: (46 + 8 * k) * (1 - q * 0.25); color: ink; opacity: if(wx_kind == 3, 0.06, 0.035) }
                             }
                         }
                     }
                     group {
                         show: wx_kind == 4 or wx_kind == 6
                         repeat d in 0..30 {
-                            let dWd.y = dW.t + fract(time * 0.9 + d * 0.173) * (dW.h + 20) - 10
+                            let dWd.y = dW.t + fract(dsh_tq * 0.9 + d * 0.173) * (dW.h + 20) - 10
                             let dWd.x = dW.l + fract(d * 0.381) * dW.w + (dWd.y - dW.t) * 0.12
                             line { from: dWd.x, dWd.y; to: dWd.x - 3, dWd.y + 13; width: 1.6; color: mint; opacity: 0.35 }
                         }
@@ -419,8 +419,8 @@ part Dashboard {
                     group {
                         show: wx_kind == 5
                         repeat d in 0..26 {
-                            let dWs.y = dW.t + fract(time * 0.12 + d * 0.211) * (dW.h + 20) - 10
-                            ellipse { at: dW.l + fract(d * 0.337) * dW.w + 8 * sin(time * 80 + d * 40), dWs.y; radius: 1.8 + 0.9 * fract(d * 0.7); color: ink; opacity: 0.5 }
+                            let dWs.y = dW.t + fract(dsh_tq * 0.12 + d * 0.211) * (dW.h + 20) - 10
+                            ellipse { at: dW.l + fract(d * 0.337) * dW.w + 8 * sin(dsh_tq * 80 + d * 40), dWs.y; radius: 1.8 + 0.9 * fract(d * 0.7); color: ink; opacity: 0.5 }
                         }
                     }
                 }
@@ -494,7 +494,7 @@ part Dashboard {
                     //  the window: the sky, stars, the moon, the frame, the curtains
                     box { from: dCb.wx, dCb.wy; size: dCb.ww, dCb.wh; color: dCb.sky }
                     repeat k in 0..8 {
-                        box { at: dCb.wx + 8 + fract(k * 0.618 + 0.15) * (dCb.ww - 16), dCb.wy + 8 + fract(k * 0.37 + 0.2) * (dCb.wh * 0.6); size: 3, 3; color: ink; opacity: 0.15 + 0.6 * (sin(time * 45 + k * 77) + 1) / 2 }
+                        box { at: dCb.wx + 8 + fract(k * 0.618 + 0.15) * (dCb.ww - 16), dCb.wy + 8 + fract(k * 0.37 + 0.2) * (dCb.wh * 0.6); size: 3, 3; color: ink; opacity: 0.15 + 0.6 * (sin(dsh_tq * 45 + k * 77) + 1) / 2 }
                     }
                     box { from: dCb.wx + dCb.ww * 0.66 + -3, dCb.wy + dCb.wh * 0.3 + -15; size: 3, 3; color: #f4ebc8; opacity: 0.9 }
                     box { from: dCb.wx + dCb.ww * 0.66 + -9, dCb.wy + dCb.wh * 0.3 + -12; size: 6, 3; color: #f4ebc8; opacity: 0.9 }
@@ -522,7 +522,7 @@ part Dashboard {
                     box { from: dC.l + dC.w / 2 - 96, dCb.fl + 10; size: 240, 3; color: ink; opacity: 0.14 }
                     //  the lamp, at the right edge: pole, base, a warm shade, and a glow that breathes
                     let dCl.x = dC.l + dC.w - 43
-                    ellipse { at: dCl.x, dCb.fl - 98; radius: 44; color: #ffd27a; opacity: 0.05 + 0.03 * (sin(time * 35) + 1) / 2 }
+                    ellipse { at: dCl.x, dCb.fl - 98; radius: 44; color: #ffd27a; opacity: 0.05 + 0.03 * (sin(dsh_tq * 35) + 1) / 2 }
                     box { from: dCl.x - 1.5, dCb.fl - 92; size: 3, 92; color: ink; opacity: 0.45 }
                     box { from: dCl.x - 10, dCb.fl - 4; size: 20, 4; color: ink; opacity: 0.45 }
                     box { from: dCl.x - 7, dCb.fl - 112; size: 14, 5; color: #ffd27a; opacity: 0.85 }
@@ -552,7 +552,7 @@ part Dashboard {
                     let dCd.c3 = mix(mint, onmint, 0.64)
                     let dCd.mx = dCd.x + 4                             // the monitor's middle
                     let dCh.pk = dsh_poke                              // 1 just after a press on the cat, down to 0
-                    let dCh.br = (sin(time * 45) + 1) / 2              // breathing, 0 to 1
+                    let dCh.br = (sin(dsh_tq * 45) + 1) / 2              // breathing, 0 to 1
                     group {
                         pivot: dCd.x, dCb.fl
                         scale: 1.5
@@ -567,7 +567,7 @@ part Dashboard {
                         box { from: dCd.mx - 3, dCb.fl - 56; size: 6, 10; color: dCd.c3 }
                         box { from: dCd.mx - 28, dCb.fl - 98; size: 56, 42; color: dCd.c3 }
                         box { from: dCd.mx - 25, dCb.fl - 95; size: 50, 36; color: dCb.sky }
-                        box { from: dCd.mx - 1, dCb.fl - 61; size: 3, 2; color: #ffd27a; opacity: 0.3 + 0.6 * (sin(time * 70) + 1) / 2 }
+                        box { from: dCd.mx - 1, dCb.fl - 61; size: 3, 2; color: #ffd27a; opacity: 0.3 + 0.6 * (sin(dsh_tq * 70) + 1) / 2 }
                         box { from: dCd.mx - 18, dCb.fl - 52; size: 36, 4; color: dCd.c3 }
                         box { from: dCd.mx - 16, dCb.fl - 51; size: 32, 1; color: ink; opacity: 0.3 }
                         box { from: dCd.mx + 24, dCb.fl - 51; size: 6, 3; color: dCd.c3 }
@@ -578,7 +578,7 @@ part Dashboard {
                         let dCt.x = dCd.x - 62                                  // its head
                         let dCt.gy = dCb.fl - 48                                // the desk's top
                         let dCt.br = dCh.br * dCt.u * 0.8                       // the back rises a little
-                        let dCt.tw = sin(time * 55) * dCt.u * 0.7 * (1 + 4 * dCh.pk)
+                        let dCt.tw = sin(dsh_tq * 55) * dCt.u * 0.7 * (1 + 4 * dCh.pk)
                         group {
                             move: 0, -3.5 * dCh.pk * abs(sin(dCh.pk * 540))
                             box { from: dCt.x + dCt.u * 2, dCt.gy - dCt.u * 1; size: dCt.u * 15, dCt.u * 1; color: mix(faint, onmint, 0.5) }
@@ -608,7 +608,7 @@ part Dashboard {
                     let dCw.hx = dCd.x - 1.5 * 62                      // the cat's head, where the desk's scale puts it
                     let dCw.hy = dCb.fl - 1.5 * 56
                     repeat k in 0..3 {
-                        let dCz.p = fract(time * 0.2 + k / 3)
+                        let dCz.p = fract(dsh_tq * 0.2 + k / 3)
                         text "z" { at: dCw.hx + 10 + dCz.p * 26 + 4 * sin(dCz.p * 360), dCw.hy - 8 - dCz.p * 36; anchor: center; size: 10 + dCz.p * 8; weight: 700; family: "Space Grotesk"; color: mint; opacity: sin(dCz.p * 180) * 0.7 * (1 - clamp(dCh.pk * 4, 0, 1)) }
                     }
                     //  woken: a "!" over the cat and five notes thrown out, drifting up and fading as dsh_poke runs down
@@ -722,7 +722,7 @@ part Dashboard {
                     let dCw.xb = dCw.xa + dCk.seg
                     let dCw.ea = clamp((dCw.xa - dCk.x0) / dCk.f0, 0, 1) * clamp((dCk.x0 + dCk.xf - dCw.xa) / dCk.f0, 0, 1)
                     let dCw.eb = clamp((dCw.xb - dCk.x0) / dCk.f0, 0, 1) * clamp((dCk.x0 + dCk.xf - dCw.xb) / dCk.f0, 0, 1)
-                    line { show: media_on and mp_len <= 0; from: dCw.xa, dCk.y + dCk.wa * dCw.ea * sin((dCw.xa - dCk.x0) * dCk.wf - time * 120); to: dCw.xb, dCk.y + dCk.wa * dCw.eb * sin((dCw.xb - dCk.x0) * dCk.wf - time * 120); width: 5 + 1.5 * dCk.hot; color: mint; opacity: min(1, dCk.xf / 8) * if(mp_len > 0, 1, 0.8 + 0.2 * sin(time * 120)) }
+                    line { show: media_on and mp_len <= 0; from: dCw.xa, dCk.y + dCk.wa * dCw.ea * sin((dCw.xa - dCk.x0) * dCk.wf - dsh_tq * 120); to: dCw.xb, dCk.y + dCk.wa * dCw.eb * sin((dCw.xb - dCk.x0) * dCk.wf - dsh_tq * 120); width: 5 + 1.5 * dCk.hot; color: mint; opacity: min(1, dCk.xf / 8) * if(mp_len > 0, 1, 0.8 + 0.2 * sin(dsh_tq * 120)) }
                 }
                 zone box dsh_seek { at: dCk.x0 + dCk.w / 2, dCk.y; size: dCk.w + 16, 22; cursor: pointer; active: media_on and mp_len > 0 and dash_open }
                 on press dsh_seek { mp_drag = true; mp_df = clamp((pointer.x - (dC.l + 92)) / (dC.w - 184), 0, 1) }
@@ -788,14 +788,14 @@ part Dashboard {
                     let dPk.pet = dsh_pet
                     let dPk.hu = dsh_hup
                     let dPk.love = max(dPk.pet, dPk.hu)
-                    let dPk.br = (sin(time * 70) + 1) / 2 + dPk.pet * 1.5            // breathing (more when petted)
-                    let dPk.tw = sin(time * 55) * (1 + 3 * dPk.pet)                   // the tail's sway
+                    let dPk.br = (sin(dsh_tq * 70) + 1) / 2 + dPk.pet * 1.5            // breathing (more when petted)
+                    let dPk.tw = sin(dsh_tq * 55) * (1 + 3 * dPk.pet)                   // the tail's sway
                     //  its shadow on the ground
                     ellipse { at: dPk.x, dPk.y + dPk.h / 2 + 12 * dPk.k; radius: 74 * dPk.k; scale: 1, 0.12; color: #000000; opacity: 16% }
                     group {
                         pivot: dPk.x, dPk.y + dPk.h / 2 + 8 * dPk.k
                         scale: 1 + 0.012 * dPk.br + 0.04 * dPk.pet, 1 + 0.02 * dPk.br - 0.03 * dPk.pet
-                        move: 0.55 * dPk.pet * sin(time * 2880), -dPk.hu * 3 * dPk.k + 0.15 * dPk.pet * sin(time * 2160)
+                        move: 0.55 * dPk.pet * sin(dsh_tq * 2880), -dPk.hu * 3 * dPk.k + 0.15 * dPk.pet * sin(dsh_tq * 2160)
                         //  the tail, from behind its right side, curling up
                         path { at: dPk.x + 62 * dPk.k, dPk.y + 30 * dPk.k; stroke: 13.5 * dPk.k; color: ink; opacity: 0.6; move 0, 0; curve 34 * dPk.k, -6 * dPk.k via 26 * dPk.k, 16 * dPk.k; curve (30 + 6 * dPk.tw) * dPk.k, -42 * dPk.k via 46 * dPk.k, -24 * dPk.k }
                         path { at: dPk.x + 62 * dPk.k, dPk.y + 30 * dPk.k; stroke: 10.5 * dPk.k; color: faint; move 0, 0; curve 34 * dPk.k, -6 * dPk.k via 26 * dPk.k, 16 * dPk.k; curve (30 + 6 * dPk.tw) * dPk.k, -42 * dPk.k via 46 * dPk.k, -24 * dPk.k }
@@ -844,7 +844,7 @@ part Dashboard {
                         }
                     }
                     repeat h in 0..3 {
-                        let dPh.p = fract(time * 0.9 + h / 3)
+                        let dPh.p = fract(dsh_tq * 0.9 + h / 3)
                         GHeart(dPk.x + (-44 + h * 44) * dPk.k + 5 * sin(dPh.p * 360), dPk.y - dPk.h / 2 - 22 * dPk.k - dPh.p * 40, (14) / 24, #ff9bb3, dPk.love * sin(dPh.p * 180), 0)
                     }
                     text "No notifications" { at: dPk.x, dPk.y + dPk.h / 2 + 30 * dPk.k + 8; anchor: center; size: 13; family: "Space Grotesk"; color: faint }
