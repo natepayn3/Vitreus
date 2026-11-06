@@ -8,6 +8,9 @@
 #   --no-set    only the icon and the entry; what the person uses now stays
 #   (neither)   ask, when there is a keyboard to ask on
 #   --yes       the same as --set
+#   --portal    only this: the file dialogs of other programs (a browser's «Open», «Save as») come up in Files. bin/vitreus-portal answers xdg-desktop-portal's FileChooser:
+#               its portal file and D-Bus service in ~/.local/share, and a line in ~/.config/xdg-desktop-portal/<desktop>-portals.conf for pleamar-wm and Hyprland (a copy of the
+#               system's own file, with the line added, when there is none of the person's). The portal service is restarted so that it reads them
 #   --remove    take all of it away, and put the folder opener that was in use back
 # What opened folders before is kept in ~/.local/share/pleamar/vitreus/files-previous-handler, the first time it is changed: «explicit <entry>» when the person had chosen
 # one (~/.config/mimeapps.list), «fallback» when it was only the order of the desktop's own list (then --remove deletes the line this wrote, and that order rules again).
@@ -25,6 +28,7 @@ for a in "$@"; do
         --set|--yes|-y) mode=yes ;;
         --no-set) mode=no ;;
         --remove) action=remove ;;
+        --portal) action=portal ;;
         *) echo "integrate.sh: I do not know $a" >&2; exit 1 ;;
     esac
 done
@@ -32,6 +36,11 @@ icon=$data/icons/hicolor/scalable/apps/vitreus-files.svg
 entry=$data/applications/vitreus-files.desktop
 service=$data/dbus-1/services/org.freedesktop.FileManager1.service
 prev=$state/files-previous-handler
+pfile=$data/xdg-desktop-portal/portals/vitreus.portal
+pservice=$data/dbus-1/services/org.freedesktop.impl.portal.desktop.vitreus.service
+pconf=$conf/xdg-desktop-portal
+pmark="# vitreus: file dialogs in Files (files/integrate.sh --portal)"
+pline="org.freedesktop.impl.portal.FileChooser=vitreus"
 # Run by install.sh on a terminal (VITREUS_UI=1), its lines look like the installer's; otherwise the plain ones.
 if [ "${VITREUS_UI:-}" = 1 ]; then
     say() { printf '  \033[38;5;45m•\033[0m %s\n' "$*"; }
@@ -57,7 +66,47 @@ drop_explicit() {
     rm -f "$tmp"
 }
 
+# The file dialogs: the portal's description, its D-Bus service, and the line that chooses it for files in each desktop's portals.conf.
+portal_on() {
+    if ! python3 -c 'import gi; gi.require_version("Gio", "2.0")' 2> /dev/null; then
+        say "file dialogs stay as they are: Files' portal needs Python with Gio (python-gobject, python3-gi)"
+        return 0
+    fi
+    mkdir -p "$(dirname "$pfile")" "$(dirname "$pservice")" "$pconf"
+    printf '[portal]\nDBusName=org.freedesktop.impl.portal.desktop.vitreus\nInterfaces=org.freedesktop.impl.portal.FileChooser;\n' > "$pfile"
+    printf '[D-BUS Service]\nName=org.freedesktop.impl.portal.desktop.vitreus\nExec=%s/bin/vitreus-portal\n' "$dest" > "$pservice"
+    for d in pleamar hyprland; do
+        f=$pconf/$d-portals.conf
+        if [ ! -f "$f" ]; then
+            { echo "$pmark"; if [ -f "/usr/share/xdg-desktop-portal/$d-portals.conf" ]; then cat "/usr/share/xdg-desktop-portal/$d-portals.conf"; else printf '[preferred]\ndefault=gtk\n'; fi; } > "$f.tmp"
+            grep -v '^org.freedesktop.impl.portal.FileChooser=' "$f.tmp" > "$f" || true
+            rm -f "$f.tmp"
+        fi
+        grep -qx "$pline" "$f" && continue
+        tmp=$(mktemp)
+        grep -v '^org.freedesktop.impl.portal.FileChooser=' "$f" | awk -v l="$pline" '{ print } /^\[preferred\]/ && !done { print l; done = 1 } END { if (!done) { print "[preferred]"; print l } }' > "$tmp"
+        cat "$tmp" > "$f"
+        rm -f "$tmp"
+    done
+    have systemctl && systemctl --user try-restart xdg-desktop-portal.service 2> /dev/null || true
+    say "file dialogs in other programs come up in Files (programs already open may need restarting)"
+}
+portal_off() {
+    for d in pleamar hyprland; do
+        f=$pconf/$d-portals.conf
+        [ -f "$f" ] || continue
+        if head -n 1 "$f" | grep -qxF "$pmark"; then rm -f "$f"
+        elif grep -qx "$pline" "$f"; then tmp=$(mktemp); grep -vx "$pline" "$f" > "$tmp" || true; cat "$tmp" > "$f"; rm -f "$tmp"; fi
+    done
+    [ -f "$pfile" ] || [ -f "$pservice" ] || return 0
+    rm -f "$pfile" "$pservice"
+    have systemctl && systemctl --user try-restart xdg-desktop-portal.service 2> /dev/null || true
+    say "file dialogs are the desktop's own again"
+}
+if [ "$action" = portal ]; then portal_on; exit 0; fi
+
 if [ "$action" = remove ]; then
+    portal_off
     if [ "$(explicit)" = vitreus-files.desktop ]; then
         case "$(cat "$prev" 2> /dev/null || true)" in
             "explicit "*) old=$(cat "$prev"); old=${old#explicit }; xdg-mime default "$old" inode/directory && say "folders open in $old again" ;;

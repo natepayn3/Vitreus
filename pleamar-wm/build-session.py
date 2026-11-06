@@ -12,7 +12,7 @@ What it adds to pleamar-wm's scene:
   * the room the shell's frame keeps round each monitor (fr.MONITOR.EDGE), added wherever the scene reads `win.reserved`;
   * the window styles (wst): 0 Vitreus glass, 1 Water, 2 Borderless, 3 Glow; and their corners, border, shadow, opacity and frost;
   * title bars on tiled windows (tbt), which pleamar-wm only gives to free ones;
-  * focus_slot and close_slot, which the shell's task list emits to bring up or close a window by its slot;
+  * focus_slot and close_slot, which the shell's task list emits to bring up or close a window by its slot; to_monitor, which sends one to a monitor;
   * a right press on the bare desktop, counted for Vitreus (desk_n, desk_x, desk_y, desk_mon), which opens the desktop menu.
 """
 import os, re, subprocess, shutil, sys, tempfile
@@ -67,6 +67,9 @@ once("    windows win max 16 placement manual\n", """    windows win max 16 plac
     event close_slot
     on focus_slot(v) { focus win(v) }
     on close_slot(v) { close win(v) }
+    // A window sent to a monitor: slot * 16 + monitor (Files' dialogs for other programs, bin/vitreus-portal: on the monitor of the window that asked, not where the compositor last saw the pointer).
+    event to_monitor
+    on to_monitor(v) { send win(floor(v / 16)) to mod(v, 16) }
 
     // The room Vitreus's glass frame keeps round each monitor, beyond what programs' bars reserve (Vitreus sets it).
 """ + frame + """

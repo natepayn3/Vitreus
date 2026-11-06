@@ -5537,7 +5537,7 @@ do
         hy_dirty = false
         fact.hy_layout = hy.layout
         fact.hy_gaps = hy.gaps
-        fact.hy_round = hy.round
+        fact.hy_round = (not on_hyprland and not on_niri and pwm_round) or hy.round      -- (on pleamar-wm the shell's corners are its windows', Settings > Pleamar-WM: wm_send)
         fact.hy_border = hy.border
         fact.hy_blur = hy.blur_on and hy.blur or 0
         text.hy_blur_text = hy.blur_on and string.format("%d", hy.blur) or "Off"
@@ -5905,6 +5905,8 @@ do
         say("fact bw " .. wm.bw)
         say("fact ba " .. wm.ba)
         say("fact rad " .. wm.rad)
+        -- The shell's own corners (the frame round the windows, Files, View) go with the windows' on pleamar-wm, as they go with Hyprland's rounding there. A global: this chunk is at its limit of locals.
+        if not on_hyprland and not on_niri then pwm_round = wm.rad; fact.hy_round = wm.rad end
         say("fact shd " .. wm.shd)
         say("fact tb " .. wm.tb)
         say("fact tbo " .. wm.tbo)

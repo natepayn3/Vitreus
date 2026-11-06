@@ -16,3 +16,9 @@ pictures and archives.
 
 The installer offers it, or run `sh files/integrate.sh --set`. Then folders opened from other programs, and their «Show in folder»
 (`org.freedesktop.FileManager1`), come up in Files. `sh files/integrate.sh --remove` puts the old opener back.
+
+## Other programs' file dialogs
+
+Run `sh files/integrate.sh --portal` and the «Open», «Upload» and «Save as» dialogs of a browser (and of any program that asks the desktop for one) come up in Files, with a strip at the
+bottom: the name to save as, the kinds of file to show, Cancel, and Open or Save. Double-click a file to choose it; Escape or closing the window cancels. `--remove` puts the desktop's
+own dialog back.

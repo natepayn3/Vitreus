@@ -208,7 +208,7 @@ local function sorted(items)
     local q = s.mode == "filter" and s.qtext ~= "" and s.qtext:lower() or nil
     local kind = (s.mode == "filter") and s.so.kind or 0
     for _, e in ipairs(items) do
-        if (s.hidden or not e.hidden or s.list) and (not q or e.name:lower():find(q, 1, true)) and kind_ok(e, kind) then out[#out + 1] = e end
+        if (s.hidden or not e.hidden or s.list) and (not q or e.name:lower():find(q, 1, true)) and kind_ok(e, kind) and F.ch_shows(e) then out[#out + 1] = e end
     end
     if s.list == "recent" then
         table.sort(out, function(a, b) return (a.rank or 0) < (b.rank or 0) end)
@@ -309,6 +309,7 @@ end
 
 -- The place something is "in" when it is in a list made of places (a search, the recent files): the folder it is in, as a line under the count.
 function F.set_status()
+    if s.ch then F.ch_hint() end
     if s.tick < s.flash_until and s.flash_msg then text.status = s.flash_msg return end
     local n = #s.items
     local list = picked_list()
@@ -1041,7 +1042,159 @@ function F.watch(path)
 end
 
 function F.open_item(e)
-    if e.dir then F.go(e.path) else spawn("xdg-open", { e.path }, function() end, function() end) end
+    if e.dir then F.go(e.path)
+    elseif s.ch then F.ch_file(e)          -- choosing for another program: a file opened is the answer
+    else spawn("xdg-open", { e.path }, function() end, function() end) end
+end
+
+-- ── choosing for another program ──
+-- bin/vitreus-portal answers a browser's «Open» and «Save as» (the desktop's file chooser portal) by starting Files with $FILES_CHOOSE, a file of `key=value` lines: mode (open, save, folder, or
+-- savemany: a folder for several files), multi, name (to save as), ok (the button's word), title, filter (a name and its patterns, tab apart), current (which filter first), out. The answer is written
+-- to `out` as NUL-ended entries: `filter:N` and then the paths chosen. Cancel (or Escape, or closing the window) writes nothing, and the portal tells the program so.
+local function glob_pat(g)
+    local out, i = { "^" }, 1
+    g = g:lower()
+    while i <= #g do
+        local c = g:sub(i, i)
+        if c == "*" then out[#out + 1] = ".*"
+        elseif c == "?" then out[#out + 1] = "."
+        elseif c == "[" and g:find("]", i + 1, true) then
+            local j = g:find("]", i + 1, true)
+            out[#out + 1] = "[" .. g:sub(i + 1, j - 1):gsub("%%", "%%%%") .. "]"
+            i = j
+        elseif c:match("[%^%$%(%)%%%.%+%-%[%]]") then out[#out + 1] = "%" .. c
+        else out[#out + 1] = c end
+        i = i + 1
+    end
+    out[#out + 1] = "$"
+    return table.concat(out)
+end
+function F.ch_shows(e)
+    local c = s.ch
+    if not c or e.dir then return true end
+    if c.mode == "folder" or c.mode == "savemany" then return false end
+    local f = c.filters[c.fi]
+    if not f or #f.pats == 0 then return true end
+    local n = e.name:lower()
+    for _, p in ipairs(f.pats) do if n:match(p) then return true end end
+    return false
+end
+function F.ch_hint()
+    local c = s.ch
+    if not c or c.mode == "save" then return end
+    local list = picked_list()
+    if c.mode == "open" then
+        local names = {}
+        for _, e in ipairs(list) do if not e.dir then names[#names + 1] = e.name end end
+        if #names > 0 then text["ch.hint"] = table.concat(names, ", ")
+        else text["ch.hint"] = c.multi and "Choose files to open (Ctrl or Shift for several)" or (c.title ~= "" and c.title or "Choose a file to open") end
+    else
+        local here = s.list and "" or basename(s.path)
+        if #list == 1 and list[1].dir then text["ch.hint"] = list[1].name
+        else text["ch.hint"] = here ~= "" and ("This folder: " .. here) or "Choose a folder" end
+    end
+end
+function F.ch_finish(paths)
+    local c = s.ch
+    if not c or c.finishing then return end
+    c.finishing = true
+    local args = { "-c", 'out=$1; shift; printf "%s\\0" "$@" > "$out"', "sh", c.out, "filter:" .. tostring(c.fi) }
+    for _, p in ipairs(paths) do args[#args + 1] = p end
+    run("sh", args, function(_, code)
+        if code ~= 0 then c.finishing = false; say("The answer could not be written") return end
+        fact["ch.done"] = true
+    end)
+end
+function F.ch_cancel() if s.ch then fact["ch.done"] = true end end       -- Cancel: nothing is written, and the program is told so
+function F.ch_typing(on)
+    s.ch_typing = on
+    fact["ch.typing"] = on
+    if on then after(60, function() focus("chname") end) else focus() end
+end
+on("fact:ch.typing", function(v) s.ch_typing = v == true end)
+function F.ch_file(e)
+    local c = s.ch
+    if c.mode == "open" then
+        local list, files = picked_list(), {}
+        if c.multi and s.picked[e.path] then for _, x in ipairs(list) do if not x.dir then files[#files + 1] = x.path end end end
+        F.ch_finish(#files > 0 and files or { e.path })
+    elseif c.mode == "save" then
+        text.chname = e.name
+        F.ch_ok()
+    end
+end
+function F.ch_ok()
+    local c = s.ch
+    if not c then return end
+    local list = picked_list()
+    if c.mode == "open" then
+        local files = {}
+        for _, e in ipairs(list) do if not e.dir then files[#files + 1] = e.path end end
+        if #files > 0 then F.ch_finish(c.multi and files or { files[1] })
+        elseif #list == 1 and list[1].dir then F.go(list[1].path)
+        else say("Choose a file first") end
+    elseif c.mode == "folder" or c.mode == "savemany" then
+        if #list == 1 and list[1].dir then F.ch_finish({ list[1].path })
+        elseif not s.list and s.path:sub(1, 1) == "/" then F.ch_finish({ s.path })
+        else say("Choose a folder") end
+    else
+        local name = trim(text.chname)
+        if name == "" then say("Give it a name"); F.ch_typing(true) return end
+        if name:find("/", 1, true) then say("A name cannot have / in it") return end
+        if s.list or s.path:sub(1, 1) ~= "/" or fact["in.trash"] == true then say("Open a folder to save in") return end
+        local path = join(s.path, name)
+        run("find", { "-L", path, "-maxdepth", "0", "-printf", "%y" }, function(o, code)
+            local y = trim(o)
+            if code ~= 0 or y == "" then F.ch_finish({ path })
+            elseif y == "d" then text.chname = ""; F.go(path)          -- a folder's name: into it
+            else
+                F.confirm("Replace \"" .. name .. "\"?", "There is already a file with that name in " .. basename(s.path) .. ". Saving replaces what is in it.", "Replace",
+                    function() F.ch_finish({ path }) end)
+            end
+        end)
+    end
+end
+function F.ch_filter_step()
+    local c = s.ch
+    if not c or #c.filters < 2 then return end
+    c.fi = c.fi % #c.filters + 1
+    text["ch.filter"] = c.filters[c.fi].name
+    s.items = F.visible()
+    F.show_rows()
+end
+-- reads what was asked, if anything was, and then goes on (`cb`)
+function F.read_chooser(cb)
+    run("printenv", { "FILES_CHOOSE" }, function(o, code)
+        local spec = trim(o)
+        if code ~= 0 or spec == "" then cb() return end
+        run("cat", { spec }, function(out, ccode)
+            if ccode ~= 0 then cb() return end
+            local c = { mode = "open", multi = false, name = "", ok = "", title = "", filters = {}, fi = 1, out = "" }
+            for line in (out or ""):gmatch("[^\n]+") do
+                local k, v = line:match("^(%w+)=(.*)$")
+                if k == "filter" then
+                    local parts = {}
+                    for p in v:gmatch("[^\t]+") do parts[#parts + 1] = p end
+                    local f = { name = parts[1] or "Files", pats = {} }
+                    for i = 2, #parts do f.pats[#f.pats + 1] = glob_pat(parts[i]) end
+                    c.filters[#c.filters + 1] = f
+                elseif k == "multi" then c.multi = v == "1"
+                elseif k == "current" then c.fi = tonumber(v) or 1
+                elseif k then c[k] = v end
+            end
+            if c.out == "" then cb() return end
+            if c.fi < 1 or c.fi > #c.filters then c.fi = 1 end
+            s.ch = c
+            local words = { open = "Open", save = "Save", folder = "Select", savemany = "Save here" }
+            text["ch.ok"] = c.ok ~= "" and c.ok:gsub("_", "") or words[c.mode] or "Open"
+            text["ch.filter"] = c.filters[c.fi] and c.filters[c.fi].name or ""
+            fact["ch.filt"] = #c.filters > 1
+            fact["ch.save"] = c.mode == "save"
+            fact["ch.on"] = true
+            if c.mode == "save" then text.chname = c.name; F.ch_typing(true) end
+            cb()
+        end)
+    end)
 end
 
 -- ── the places on the left ──
@@ -1264,7 +1417,7 @@ function F.start()
                             -- the bookmarks of the other file managers (GTK's) are the first folders pinned, once
                             local function begin()
                                 F.build_places(found)
-                                run("printenv", { "FILES_START" }, function(o, code)
+                                F.read_chooser(function() run("printenv", { "FILES_START" }, function(o, code)
                                     local start_at = trim(o)
                                     local want = code == 0 and start_at:sub(1, 1) == "/" and start_at or s.home
                                     s.tabs = { { path = want, name = basename(want), back = {}, fwd = {} } }
@@ -1276,7 +1429,7 @@ function F.start()
                                     end)
                                     F.poll_devices()
                                     every(4000, F.poll_devices)
-                                end)
+                                end) end)
                             end
                             if s.pins_set then begin() return end
                             run("cat", { s.home .. "/.config/gtk-3.0/bookmarks" }, function(out)
@@ -1464,6 +1617,8 @@ on("tile", function(i)
     end
     local e = s.items[i + 1]
     if not e then return end
+    if s.ch_typing then F.ch_typing(false) end
+    if s.ch and s.ch.mode == "save" and not e.dir then text.chname = e.name end      -- a file clicked while saving: its name, to save over it
     local shift, ctrl = mods()
     local double = s.last_i == i and s.tick - s.last_tick < 9 and not shift and not ctrl
     s.last_i, s.last_tick = i, s.tick
@@ -3548,7 +3703,8 @@ function F.escape()
     elseif s.menu then F.close_menu()
     elseif s.loc then F.loc_end()
     elseif s.mode then F.close_search()
-    elseif next(s.picked) then s.picked = {}; F.show_rows() end
+    elseif next(s.picked) then s.picked = {}; F.show_rows()
+    elseif s.ch then F.ch_cancel() end          -- choosing for another program: Escape with nothing else open is Cancel
 end
 
 -- ── what the buttons, the menus and the keys ask for ──
@@ -3572,6 +3728,10 @@ ACT[6] = function()
 end
 ACT[7] = function()
     local list = picked_list()
+    if s.ch then
+        if #list == 1 and list[1].dir then F.go(list[1].path) else F.ch_ok() end
+        return
+    end
     if #list == 1 then F.open_item(list[1])
     else
         for _, e in ipairs(list) do
@@ -3711,6 +3871,9 @@ ACT[72] = function() s.sort = "type"; s.sortrev = false; F.apply_sort() end
 ACT[73] = function() s.sort = "date"; s.sortrev = false; F.apply_sort() end
 ACT[74] = function() s.sortrev = not s.sortrev; F.apply_sort() end
 ACT[75] = function() s.dirfirst = not s.dirfirst; F.apply_sort() end
+ACT[90] = function() F.ch_cancel() end
+ACT[91] = function() F.ch_ok() end
+ACT[92] = function() F.ch_filter_step() end
 
 on("act", function(k)
     k = math.floor(tonumber(k) or 0)
@@ -3746,6 +3909,7 @@ on("key", function(name, txt)
     if MODKEYS[b] then return end
     local lb = #b == 1 and b:lower() or b
     if lb == "Escape" then F.escape() return end
+    if s.ch_typing and not s.ask and not s.cf then return end      -- the name to save as is being typed: the keys are its own (Enter is its `submit`)
     -- a question that waits for its answer
     if s.cf then return end
     if s.ask then
@@ -3851,9 +4015,13 @@ end)
 -- the window's corners: Hyprland's rounding (Vitreus sets it from the theme), so the glass meets the window's border; elsewhere the theme's own (`wr` -1)
 local function ask_round()
     run("hyprctl", { "getoption", "decoration:rounding", "-j" }, function(out, code)
-        if code ~= 0 or not out then return end
-        local n = tonumber(out:match('"int"%s*:%s*(%-?%d+)'))
-        if n and n >= 0 then fact.wr = n end
+        local n = code == 0 and out and tonumber(out:match('"int"%s*:%s*(%-?%d+)'))
+        if n and n >= 0 then fact.wr = n return end
+        -- not Hyprland (pleamar-wm): the shell knows the windows' corners (Settings > Pleamar-WM)
+        run("pleamar", { "--say", "vitreus", "get hy_round" }, function(o, c)
+            local r = c == 0 and o and tonumber(o:match("%-?[%d.]+"))
+            if r and r >= 0 then fact.wr = r end
+        end)
     end)
 end
 -- coming back to this window: what was dragged out or in from another one shows

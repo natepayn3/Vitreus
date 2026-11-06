@@ -441,9 +441,13 @@ end
 -- the window's corners, as Hyprland rounds them
 local function ask_round()
     run("hyprctl", { "getoption", "decoration:rounding", "-j" }, function(out, code)
-        if code ~= 0 or not out then return end
-        local n = tonumber(out:match('"int"%s*:%s*(%-?%d+)'))
-        if n and n >= 0 then fact.wr = n end
+        local n = code == 0 and out and tonumber(out:match('"int"%s*:%s*(%-?%d+)'))
+        if n and n >= 0 then fact.wr = n return end
+        -- not Hyprland (pleamar-wm): the shell knows the windows' corners (Settings > Pleamar-WM)
+        run("pleamar", { "--say", "vitreus", "get hy_round" }, function(o, c)
+            local r = c == 0 and o and tonumber(o:match("%-?[%d.]+"))
+            if r and r >= 0 then fact.wr = r end
+        end)
     end)
 end
 

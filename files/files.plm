@@ -111,6 +111,17 @@ scene Files {
     text pv.path = ""
     fact pv.n = 0                    // which of how many (so that the arrows say there is more)
     fact pv.of = 0
+    //  Choosing for another program: a browser's «Open» or «Save as» (bin/vitreus-portal starts Files so, with $FILES_CHOOSE). A strip at the bottom says what is asked, and holds the name to save as,
+    //  the kinds of file shown, Cancel and the button that answers.
+    fact ch.on = false               // this window was opened to choose
+    fact ch.save = false             // ... a place to save to: there is a name to give
+    fact ch.filt = false             // there are kinds of file to choose between (the pill cycles them)
+    fact ch.typing = false           // the name field has the writing cursor (the logic then leaves the keys to it)
+    fact ch.done = false             // answered, or cancelled: the window goes
+    text ch.ok = "Open"
+    text ch.hint = ""
+    text ch.filter = ""
+    text chname = ""
     event search_go ->               // Enter in it: look in the folders under this one too
     event loc_go ->                  // Enter in the path being typed
 
@@ -1132,7 +1143,7 @@ scene Files {
     let slim = W < 720
     let side = if(slim, 60, 212)         // the places: only their pictures when it is narrow
     let tb = 60                          // the toolbar
-    let sbh = 30                         // the bar under the folder
+    let sbh = if(ch.on, 88, 30)          // the bar under the folder (and the strip that answers, when choosing for another program)
     let tabsh = if(tabs.count > 1, 36, 0)        // the strip of tabs, when there is more than one
     let fsh = if(searching, 38, 0)               // the search's choices
     let trsh = if(in.trash, 40, 0)               // the trash's two buttons
@@ -1578,6 +1589,35 @@ scene Files {
     zone box zoutz { from: W - 192, H - 28; size: 22, 22; corner: 8 * rr; cursor: pointer; label: "Smaller" }
     on press zinz { emit act(51) }
     on press zoutz { emit act(52) }
+
+    // ── choosing for another program: what is asked, the name, the kinds of file, Cancel and Open / Save ──
+    let chy = H - 84
+    let chfw = if(ch.filt, 170, 0)
+    let chw = W - side - 24 - 240 - if(ch.filt, chfw + 14, 0)      // the name field, or the line that says what is asked
+    group {
+        show: ch.on
+        box { from: side + 12, chy; size: W - side - 24, 52; corner: 14 * rr; color: ink; opacity: 6% }
+        box { from: side + 18, chy + 6; size: chw, 40; corner: 12 * rr; color: deep; opacity: 45%; show: ch.save }
+        box { from: side + 18, chy + 6; size: chw, 40; corner: 12 * rr; stroke: 1.2; color: mint; opacity: if(ch.typing, 75%, 35%); show: ch.save }
+        input chname { at: side + 30, chy + 16; width: chw - 24; size: 15; weight: 500; color: ink; placeholder: "File name"; show: ch.save; family: "Space Grotesk"; label: "File name" }
+        zone box chz { from: side + 18, chy + 6; size: chw, 40; corner: 12 * rr; cursor: text; active: ch.save and not ch.typing; label: "File name" }
+        on press chz { ch.typing = true; focus chname }
+        on submit chname { emit act(91) }
+        text ch.hint { at: side + 30, chy + 26; anchor: left center; size: 13.5; weight: 500; color: ink; opacity: 85%; lines: 1; width: chw - 24; show: not ch.save; family: "Space Grotesk" }
+        group {
+            show: ch.filt
+            let fx = W - 246 - chfw
+            prop fh = 0 ~quick
+            follow fh = chfz.hover
+            box { from: fx, chy + 9; size: chfw, 34; corner: 12 * rr; color: mix(ink, mint, fh); opacity: 9% + 9% * fh }
+            text ch.filter { at: fx + chfw / 2, chy + 26; anchor: center; size: 12.5; weight: 600; color: mix(faint, ink, 0.5 + 0.5 * fh); family: "Space Grotesk" }
+            zone box chfz { from: fx, chy + 9; size: chfw, 34; corner: 12 * rr; cursor: pointer; label: "Kind of file: {ch.filter}" }
+            on press chfz { emit act(92) }
+        }
+        Btn(W - 12 - 222, chy + 9, 100, "Cancel", 0, act, 90)
+        Btn(W - 12 - 114, chy + 9, 108, ch.ok, 1, act, 91)
+    }
+    on change ch.done while ch.done { quit }
 
     // ── the name dialog: a new folder, a new name, a place to connect to, or a question ──
     prop ao = 0 ~calm

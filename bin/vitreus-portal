@@ -1,0 +1,344 @@
+#!/usr/bin/env python3
+"""Answers the desktop's file chooser (org.freedesktop.impl.portal.FileChooser) with Vitreus's Files, so «Open», «Upload», «Save as» and «Save image as» in a browser (and in any other program
+that asks through xdg-desktop-portal) come up in Files instead of GTK's dialog.
+
+xdg-desktop-portal finds it by ~/.local/share/xdg-desktop-portal/portals/vitreus.portal and uses it for files because ~/.config/xdg-desktop-portal/<desktop>-portals.conf says
+`org.freedesktop.impl.portal.FileChooser=vitreus` (files/integrate.sh --portal writes both, and --remove takes them away). D-Bus starts it when it is first asked
+(~/.local/share/dbus-1/services/org.freedesktop.impl.portal.desktop.vitreus.service), and it ends a minute after the last dialog has closed.
+
+  OpenFile(handle, app_id, parent, title, options)    a Files window that chooses one file, several (`multiple`) or a folder (`directory`), showing the kinds of file the program asks for
+  SaveFile(...)                                       one that asks for a name (`current_name`) in a folder (`current_folder`, or that of `current_file`)
+  SaveFiles(...)                                      one that chooses the folder the files (`files`) go to
+
+Each window is `pleamar --scene files/files.plm` with $FILES_CHOOSE naming a small file that says what is asked; it writes what was chosen to a file beside it and closes. A window closed any other
+way is a cancel, and so is the program's own Close on the request.
+"""
+import os
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import urllib.parse
+
+import gi
+
+gi.require_version("Gio", "2.0")
+gi.require_version("GLib", "2.0")
+from gi.repository import Gio, GLib  # noqa: E402
+
+NAME, PATH = "org.freedesktop.impl.portal.desktop.vitreus", "/org/freedesktop/portal/desktop"
+IDLE_SECONDS = 60
+XML = """<node>
+  <interface name="org.freedesktop.impl.portal.FileChooser">
+    <method name="OpenFile">
+      <arg type="o" name="handle" direction="in"/><arg type="s" name="app_id" direction="in"/><arg type="s" name="parent_window" direction="in"/>
+      <arg type="s" name="title" direction="in"/><arg type="a{sv}" name="options" direction="in"/>
+      <arg type="u" name="response" direction="out"/><arg type="a{sv}" name="results" direction="out"/>
+    </method>
+    <method name="SaveFile">
+      <arg type="o" name="handle" direction="in"/><arg type="s" name="app_id" direction="in"/><arg type="s" name="parent_window" direction="in"/>
+      <arg type="s" name="title" direction="in"/><arg type="a{sv}" name="options" direction="in"/>
+      <arg type="u" name="response" direction="out"/><arg type="a{sv}" name="results" direction="out"/>
+    </method>
+    <method name="SaveFiles">
+      <arg type="o" name="handle" direction="in"/><arg type="s" name="app_id" direction="in"/><arg type="s" name="parent_window" direction="in"/>
+      <arg type="s" name="title" direction="in"/><arg type="a{sv}" name="options" direction="in"/>
+      <arg type="u" name="response" direction="out"/><arg type="a{sv}" name="results" direction="out"/>
+    </method>
+    <property name="version" type="u" access="read"/>
+  </interface>
+</node>"""
+REQUEST_XML = """<node><interface name="org.freedesktop.impl.portal.Request"><method name="Close"/></interface></node>"""
+
+here = os.path.dirname(os.path.realpath(__file__))
+scene = os.path.join(here, "..", "files", "files.plm")
+loop = GLib.MainLoop()
+idle_id = None
+open_dialogs = {}          # the request's object path: the dialog
+
+
+def environment():
+    """What a Files window needs to find the screen and pleamar: D-Bus's own environment may lack them (it was started before the desktop)."""
+    env = dict(os.environ)
+    env["PATH"] = os.path.expanduser("~/.local/bin") + ":" + env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
+    run = env.get("XDG_RUNTIME_DIR") or "/run/user/%d" % os.getuid()
+    env.setdefault("XDG_RUNTIME_DIR", run)
+    if not env.get("WAYLAND_DISPLAY"):
+        try:
+            sockets = sorted(n for n in os.listdir(run) if n.startswith("wayland-") and not n.endswith(".lock"))
+        except OSError:
+            sockets = []
+        if sockets:
+            env["WAYLAND_DISPLAY"] = sockets[0]
+    for k in ("FILES_START", "FILES_PICK", "FILES_CHOOSE"):
+        env.pop(k, None)
+    return env
+
+
+# ── the kinds of file: the program gives patterns, or types (image/png, image/*), which shared-mime-info's list turns into patterns ──
+_globs = None
+
+
+def mime_globs():
+    global _globs
+    if _globs is None:
+        _globs = {}
+        for base in [os.path.expanduser("~/.local/share")] + (os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share").split(":"):
+            try:
+                with open(os.path.join(base, "mime", "globs2"), encoding="utf-8") as f:
+                    for line in f:
+                        if line.startswith("#"):
+                            continue
+                        parts = line.rstrip("\n").split(":")
+                        if len(parts) >= 3:
+                            _globs.setdefault(parts[1], [])
+                            if parts[2] not in _globs[parts[1]]:
+                                _globs[parts[1]].append(parts[2])
+            except OSError:
+                pass
+    return _globs
+
+
+def patterns_of(rules):
+    out = []
+    for kind, value in rules:
+        if kind == 0:
+            pats = [value]
+        elif value.endswith("/*"):
+            pats = [g for m, gs in mime_globs().items() if m.startswith(value[:-1]) for g in gs]
+        else:
+            pats = mime_globs().get(value, [])
+        for p in pats:
+            if p and "\t" not in p and "\n" not in p and p not in out:
+                out.append(p)
+    return out
+
+
+def from_bytes(v):
+    """A path given as bytes (`ay`, ending in NUL)."""
+    if v is None:
+        return ""
+    if isinstance(v, (bytes, bytearray)):
+        b = bytes(v)
+    else:
+        b = bytes(bytearray(v))
+    return b.rstrip(b"\0").decode("utf-8", "surrogateescape")
+
+
+def clean(s):
+    return (s or "").replace("\n", " ").replace("\t", " ")
+
+
+# ── which monitor: pleamar-wm opens a window where it last saw the pointer over its own scene, which over the shell's surfaces (a panel, a bar) may be the other
+# monitor. So the dialog is sent to the monitor of the window that has the keyboard (the program that asked), as a dialog with a parent would be. ──
+SLOTS = 16
+
+
+def wm_ask(*commands):
+    """Answers of the window manager's scene, one line each; [] when it is not pleamar-wm or does not answer."""
+    try:
+        r = subprocess.run(["pleamar-wm", "--say", "wm", *commands], env=environment(), capture_output=True, text=True, timeout=2)
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    lines = r.stdout.splitlines()
+    return lines if r.returncode == 0 and len(lines) == len(commands) else []
+
+
+def wm_windows():
+    """{slot: (open, app, screen)} and the slot with the keyboard."""
+    asks = ["get win.focus"] + [f"get win.{k}.{w}" for k in range(SLOTS) for w in ("open", "app", "screen")]
+    a = wm_ask(*asks)
+    if not a:
+        return None, -1
+    try:
+        focus = int(float(a[0]))
+    except ValueError:
+        focus = -1
+    wins = {}
+    for k in range(SLOTS):
+        o, app, sc = a[1 + 3 * k: 4 + 3 * k]
+        try:
+            wins[k] = (o.strip() == "true", app.strip(), int(float(sc)))
+        except ValueError:
+            pass
+    return wins, focus
+
+
+class Dialog:
+    def __init__(self, method, handle, title, options, invocation, conn):
+        self.method, self.handle, self.options, self.invocation, self.conn = method, handle, options, invocation, conn
+        self.dir = tempfile.mkdtemp(prefix="vitreus-chooser-", dir=os.environ.get("XDG_RUNTIME_DIR") or None)
+        self.out = os.path.join(self.dir, "result")
+        self.filters = options.get("filters") or []
+        self.proc, self.reg, self.answered = None, None, False
+        self.start(title)
+
+    def start(self, title):
+        o = self.options
+        lines, start, pick = [], "", ""
+        if self.method == "OpenFile":
+            mode = "folder" if o.get("directory") else "open"
+            lines.append("multi=%d" % (1 if o.get("multiple") else 0))
+        elif self.method == "SaveFile":
+            mode = "save"
+            name = o.get("current_name") or ""
+            cur = from_bytes(o.get("current_file"))
+            if cur:
+                start, name = os.path.dirname(cur), name or os.path.basename(cur)
+            lines.append("name=" + clean(name))
+        else:
+            mode = "savemany"
+        start = from_bytes(o.get("current_folder")) or start
+        if not start or not os.path.isdir(start):
+            start = os.path.expanduser("~")
+        lines += ["mode=" + mode, "title=" + clean(title), "ok=" + clean(o.get("accept_label") or ""), "out=" + self.out]
+        if mode in ("open", "save"):
+            current = o.get("current_filter")
+            for i, (fname, rules) in enumerate(self.filters):
+                pats = patterns_of(rules)
+                lines.append("filter=" + "\t".join([clean(fname) or "Files"] + pats))
+                if current and current[0] == fname:
+                    lines.append("current=%d" % (i + 1))
+            if self.filters and not any(not patterns_of(r) or "*" in patterns_of(r) for _, r in self.filters):
+                lines.append("filter=All files")        # what was asked for, and everything (the programs' own lists often end so; when they do not, one can still find a file)
+        spec = os.path.join(self.dir, "ask")
+        with open(spec, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+        env = environment()
+        env.update(FILES_CHOOSE=spec, FILES_START=start, VITREUS_FILES_FALLBACK="1")
+        wins, focus = wm_windows()
+        self.target = wins[focus][2] if wins and focus in wins and wins[focus][0] else None
+        self.before = {k for k, w in (wins or {}).items() if w[0]}
+        self.tries = 0
+        pleamar = os.environ.get("VITREUS_PORTAL_PLEAMAR") or shutil.which("pleamar", path=env["PATH"])       # (the first: a stand-in, for testing)
+        if not pleamar or not os.path.isfile(scene):
+            self.reply(2)
+            return
+        self.proc = subprocess.Popen([pleamar, "--scene", os.path.realpath(scene), "--no-hud"], env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                     stderr=subprocess.DEVNULL, start_new_session=True)
+        GLib.child_watch_add(GLib.PRIORITY_DEFAULT, self.proc.pid, self.ended)
+        if self.target is not None:
+            GLib.timeout_add(60, self.place)
+        try:
+            node = Gio.DBusNodeInfo.new_for_xml(REQUEST_XML)
+            self.reg = self.conn.register_object(self.handle, node.interfaces[0], self.on_request, None, None)
+        except GLib.Error:
+            self.reg = None
+        open_dialogs[self.handle] = self
+
+    def place(self):
+        """Once the window is there (a slot that was not open, of Files), it goes to the monitor of the window that asked."""
+        self.tries += 1
+        if self.answered or self.tries > 60:
+            return False
+        wins, _ = wm_windows()
+        for k, (o, app, sc) in (wins or {}).items():
+            if o and k not in self.before and app == "vitreus.files":
+                if sc != self.target:
+                    wm_ask(f"emit to_monitor {k * 16 + self.target}")
+                return False
+        return True
+
+    def on_request(self, conn, sender, path, iface, method, params, invocation):
+        invocation.return_value(None)
+        if self.proc and self.proc.poll() is None:
+            try:
+                os.killpg(self.proc.pid, signal.SIGTERM)
+            except OSError:
+                pass
+        self.reply(2)
+
+    def ended(self, pid, status):
+        entries = []
+        try:
+            with open(self.out, "rb") as f:
+                entries = [e.decode("utf-8", "surrogateescape") for e in f.read().split(b"\0") if e]
+        except OSError:
+            pass
+        paths = [e for e in entries if e.startswith("/")]
+        if not paths:
+            self.reply(1)
+            return
+        results = {}
+        fi = next((e for e in entries if e.startswith("filter:")), "")
+        try:
+            k = int(fi[len("filter:"):]) - 1
+            if 0 <= k < len(self.filters):
+                results["current_filter"] = GLib.Variant("(sa(us))", tuple(self.filters[k]))
+        except ValueError:
+            pass
+        if self.method == "SaveFiles":
+            folder = paths[0]
+            names = [os.path.basename(from_bytes(b)) for b in (self.options.get("files") or [])]
+            paths = [os.path.join(folder, n) for n in names if n]
+        results["uris"] = GLib.Variant("as", ["file://" + urllib.parse.quote(p) for p in paths])
+        if self.method == "OpenFile":
+            results["writable"] = GLib.Variant("b", False)
+        self.reply(0, results)
+
+    def reply(self, response, results=None):
+        if self.answered:
+            return
+        self.answered = True
+        self.invocation.return_value(GLib.Variant("(ua{sv})", (response, results or {})))
+        if self.reg:
+            self.conn.unregister_object(self.reg)
+            self.reg = None
+        open_dialogs.pop(self.handle, None)
+        shutil.rmtree(self.dir, ignore_errors=True)
+        touch()
+
+
+def touch():
+    """Ends the service when no dialog is open and nothing has asked for a while."""
+    global idle_id
+    if idle_id is not None:
+        GLib.source_remove(idle_id)
+    idle_id = GLib.timeout_add_seconds(IDLE_SECONDS, idle)
+
+
+def idle():
+    global idle_id
+    idle_id = None
+    if open_dialogs:
+        touch()
+    else:
+        loop.quit()
+    return False
+
+
+def on_call(conn, sender, path, iface, method, params, invocation):
+    if method not in ("OpenFile", "SaveFile", "SaveFiles"):
+        invocation.return_dbus_error("org.freedesktop.DBus.Error.UnknownMethod", "No such method: " + method)
+        return
+    handle, _app, _parent, title, options = params.unpack()
+    touch()
+    Dialog(method, handle, title, options, invocation, conn)
+
+
+def on_get(conn, sender, path, iface, prop):
+    return GLib.Variant("u", 4) if prop == "version" else None
+
+
+def on_bus(conn, name):
+    node = Gio.DBusNodeInfo.new_for_xml(XML)
+    conn.register_object(PATH, node.interfaces[0], on_call, on_get, None)
+
+
+def on_lost(conn, name):
+    loop.quit()
+
+
+def main():
+    if "--help" in sys.argv[1:]:
+        print(__doc__)
+        return 0
+    Gio.bus_own_name(Gio.BusType.SESSION, NAME, Gio.BusNameOwnerFlags.NONE, on_bus, None, on_lost)
+    touch()
+    loop.run()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
