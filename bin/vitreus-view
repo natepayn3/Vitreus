@@ -38,7 +38,7 @@ is_video() {
 }
 if [ -f "$p" ] && is_video "$p" && command -v mpv > /dev/null 2>&1; then
     pal="$shell/palette.plm"
-    o=",vitreus-player-palette=$pal"           # (watched by the player: a new theme reaches it while it plays)
+    o=",vitreus-player-palette=$pal,vitreus-player-shell=$shell"           # (watched by the player: a new theme reaches it while it plays)
     for k in ink faint mint minthi onmint tint panel deep alert; do
         c=$(sed -n "s/^ *let $k *= *#\([0-9a-fA-F]\{6\}\).*/\1/p" "$pal" 2> /dev/null | head -n 1)
         [ -n "$c" ] && o="$o,vitreus-player-$k=$c"

@@ -15,6 +15,7 @@ local opts = {
     look = 0,
     ink = "dfefdf", faint = "dfe4ea", mint = "e9e4d1", minthi = "faf9f5", onmint = "10161a",
     tint = "2f4056", panel = "3c526d", deep = "1a232f", alert = "d1be94",
+    shell = "",            -- the shell's folder (Peek's button opens Files from it)
     palette = "",          -- the shell's palette.plm: watched, so a new theme (or a new wallpaper's colours) reaches a video that is already playing
 }
 require("mp.options").read_options(opts, "vitreus-player")
@@ -43,7 +44,8 @@ local C = {
 local THEMED = { "ink", "faint", "mint", "minthi", "onmint", "tint", "panel", "deep", "alert" }
 local function derive()
     C.pink_shadow = mix(C.deep, "ff6ec7", 0.75)
-    mp.set_property("background-color", "#" .. mix(C.tint, C.black, 0.75))     -- the bars beside a video: the theme's tint, nearly black (its `deep` is a colour on some themes: Cyber's is magenta)
+    -- the bars beside a video: the theme's deep colour, nearly black (on Cyber its deep is magenta, and its tint is the near-black instead)
+    mp.set_property("background-color", "#" .. mix(look == 3 and C.tint or C.deep, C.black, 0.75))
 end
 derive()
 
@@ -528,14 +530,158 @@ local function draw_info(out)
     end
 end
 
-local function draw_error(out)
+-- ── Peek, when a video cannot be played: View's cat (view.plm, «nothing to show»), drawn here line for line ──
+-- A picture frame that is a cat: ears on its top corners (pink inside, pricking up while it is petted), its paws over the frame's lower edge, a tail from
+-- behind its right side, and on the picture (a night sky with a moon, two hills, faint stripes) a cat's face, awake with a «?» by its ear, because
+-- something went wrong. It breathes. Under the pointer it is petted: it squashes a little and purrs, its eyes turn to happy arches, the tail wags
+-- faster and pixel hearts float up. Under it, why, on View's card, and a button to Files, at the file that would not play.
+local PK = { pet = 0 }
+local function qcurve(pts, x0, y0, x1, y1, qx, qy, steps)     -- a quadratic curve from (x0, y0) to (x1, y1) by (qx, qy), as points
+    for i = 1, steps do
+        local t = i / steps
+        local a, b, c = (1 - t) * (1 - t), 2 * (1 - t) * t, t * t
+        pts[#pts + 1] = { a * x0 + b * qx + c * x1, a * y0 + b * qy + c * y1 }
+    end
+end
+local function poly(pts)
+    local f = { "m", n(pts[1][1]), n(pts[1][2]) }
+    for i = 2, #pts do f[#f + 1] = "l"; f[#f + 1] = n(pts[i][1]); f[#f + 1] = n(pts[i][2]) end
+    return table.concat(f, " ")
+end
+local function oval(cx, cy, rx, ry)
+    local pts = {}
+    for i = 0, 31 do
+        local a = math.rad(i * 360 / 32)
+        pts[#pts + 1] = { cx + rx * math.cos(a), cy + ry * math.sin(a) }
+    end
+    return pts
+end
+
+local function draw_peek(out)
     if not st.err then return end
-    local s = st.s
-    local w, h = 460 * s, 76 * s
-    local x, y = (st.w - w) / 2, (st.h - h) / 2
-    card(out, x, y, w, h, corner(22 * s))
-    out[#out + 1] = text(st.w / 2, y + 28 * s, 5, 17 * s, C.ink, 1, "This video could not be played", true)
-    out[#out + 1] = text(st.w / 2, y + 52 * s, 5, 12.5 * s, C.faint, 0.75, st.err)
+    local t = now()
+    local u = st.s * math.min(1, st.h / 640, st.w / 600)           -- one unit: View's pixels, smaller in a small window
+    local cx = st.w / 2
+    local my = st.h / 2 - 66 * u
+    local pet = PK.pet
+    local br = (math.sin(math.rad(t * 70)) + 1) / 2 * 0.5 + pet * 1.5
+    local tw = math.sin(math.rad(t * 55)) * (1 + 3 * pet)
+    local cr = ({ [0] = 34, 6, 38, 8, 4 })[look] * u
+    local olw = ({ [0] = 2, 3, 4, 1.4, 2.6 })[look] * u
+    local olc = ({ [0] = C.ink, C.deep, "a77bd6", C.mint, C.ink })[look]
+    local olo = ({ [0] = 0.3, 1, 1, 0.9, 1 })[look]
+    local eye = mix(C.deep, "ffffff", 0.9)
+    -- the glow behind it, like a watermark
+    for g = 0, 4 do out[#out + 1] = shape(poly(oval(cx, my - 10 * u, (250 - g * 34) * u, (250 - g * 34) * u)), C.mint, 0.016) end
+    -- its shadow on the floor
+    out[#out + 1] = shape(poly(oval(cx, my + 112 * u, 120 * u, 12 * u)), C.black, 0.2, 0, nil, 0, 3 * u)
+    -- everything of the cat, squashed about its feet while it breathes and purrs
+    local px0, py0 = cx, my + 100 * u
+    local sx, sy = 1 + 0.012 * br + 0.04 * pet, 1 + 0.02 * br - 0.03 * pet
+    local jx, jy = 0.6 * pet * math.sin(math.rad(t * 2880)) * u, 0.2 * pet * math.sin(math.rad(t * 2160)) * u
+    local function B(x, y) return { px0 + (cx + x * u - px0) * sx + jx, py0 + (my + y * u - py0) * sy + jy } end
+    local function Bs(list) local r = {} for i, q in ipairs(list) do r[i] = B(q[1], q[2]) end return r end
+    local function rbox(x, y, w, h, r)                               -- a rounded box about (x, y), in the cat's units, as points
+        local pts = {}
+        local function c(ccx, ccy, a0) for i = 0, 6 do local a = math.rad(a0 + 90 * i / 6); pts[#pts + 1] = B(ccx + r * math.cos(a), ccy + r * math.sin(a)) end end
+        c(x + w / 2 - r, y - h / 2 + r, -90); c(x + w / 2 - r, y + h / 2 - r, 0); c(x - w / 2 + r, y + h / 2 - r, 90); c(x - w / 2 + r, y - h / 2 + r, 180)
+        return pts
+    end
+    local function closed(pts) local r = {} for i, q in ipairs(pts) do r[i] = q end r[#r + 1] = pts[1] return r end
+    -- the tail, from behind the frame's right side, curling up
+    local tail = { B(100, 74) }
+    do
+        local raw = { { 100, 74 } }
+        qcurve(raw, 100, 74, 152, 64, 140, 96, 10)
+        qcurve(raw, 152, 64, 146 + 8 * tw, 12, 170, 36, 10)
+        tail = Bs(raw)
+    end
+    out[#out + 1] = stroke(tail, 15 * u + 2 * olw, olc, olo)
+    out[#out + 1] = stroke(tail, 15 * u, C.tint, 1)
+    -- the ears
+    for side = -1, 1, 2 do
+        local ex, ey = 84 * side, -84
+        local up = 3 * pet
+        out[#out + 1] = shape(poly(Bs({ { ex - side * 30, ey + 8 }, { ex - side * 4, ey - 38 - up }, { ex + side * 26, ey + 4 } })), C.tint, 1)
+        out[#out + 1] = stroke(Bs({ { ex - side * 30, ey + 6 }, { ex - side * 4, ey - 38 - up }, { ex + side * 26, ey + 2 } }), olw, olc, olo)
+        out[#out + 1] = shape(poly(Bs({ { ex - side * 18, ey + 4 }, { ex - side * 5, ey - 22 - up }, { ex + side * 12, ey + 2 } })), "ff9bb3", 0.55)
+    end
+    -- the frame, with the look's shadow, and its outline
+    local frame = rbox(0, 0, 232, 184, cr / u)
+    local shd = ({ [0] = { 0, 14, 34, 0.4, C.black }, { 5, 6, 0, 0.55, C.deep }, { 5, 6, 0, 0.9, C.pink_shadow }, { 0, 0, 16, 0.45, C.mint }, { 4, 4, 0, 1, C.ink } })[look]
+    local moved = {}
+    for i, q in ipairs(frame) do moved[i] = { q[1] + shd[1] * u, q[2] + shd[2] * u } end
+    out[#out + 1] = shape(poly(moved), shd[5], shd[4], 0, nil, 0, shd[3] * u * 0.5)
+    out[#out + 1] = shape(poly(frame), C.tint, 1)
+    out[#out + 1] = stroke(closed(frame), olw, olc, olo)
+    -- the picture in it: a night sky, a moon, two hills, faint stripes (the hills and stripes kept inside it)
+    local pr = math.max(cr / u - 14, 2)
+    out[#out + 1] = shape(poly(rbox(0, -4, 184, 136, pr)), C.deep, 1)
+    local tl, br_ = B(-92 + pr * 0.3, -72), B(92 - pr * 0.3, 64)
+    local clip = string.format("\\clip(%d,%d,%d,%d)", math.floor(tl[1]), math.floor(tl[2]), math.ceil(br_[1]), math.ceil(br_[2]))
+    local function clipped(ev) return (ev:gsub("^{\\an7", "{\\an7" .. clip, 1)) end
+    local function boval(x, y, rx, ry) local r = {} for i, q in ipairs(oval(x, y, rx, ry)) do r[i] = B(q[1], q[2]) end return r end
+    out[#out + 1] = clipped(shape(poly(boval(62, -48, 13, 13)), C.alert, 0.7))
+    out[#out + 1] = clipped(shape(poly(boval(68, -52, 11, 11)), C.deep, 1))
+    out[#out + 1] = clipped(shape(poly(Bs({ { -100, 64 }, { -100, 30 }, { -50, 2 }, { -10, 30 }, { 30, 12 }, { 100, 46 }, { 100, 64 } })), C.panel, 0.7))
+    for k = 0, 2 do out[#out + 1] = clipped(shape(poly(rbox(-20 + k * 20, -66, 8, 22, 4)), C.mint, 0.12)) end
+    -- the face: awake, round eyes with a glint; petted, happy arches
+    local ey = -6
+    local hp = math.max(0, math.min(1, pet * 4 - 1))
+    local op = 1 - math.max(0, math.min(1, pet * 4))
+    for side = -1, 1, 2 do
+        local fx = 40 * side
+        out[#out + 1] = shape(poly(rbox(fx, ey - 2, 20, 24, 10)), eye, op)
+        out[#out + 1] = shape(poly(boval(fx + 4, ey - 8, 3.5, 3.5)), C.deep, 0.9 * op)
+        local arcp = {}
+        qcurve(arcp, fx - 12, ey + 4, fx + 12, ey + 4, fx, ey - 14, 10)
+        table.insert(arcp, 1, { fx - 12, ey + 4 })
+        out[#out + 1] = stroke(Bs(arcp), 4 * u, eye, hp)
+        out[#out + 1] = shape(poly(boval(66 * side, 14, 14.3, 7.7)), "ff8fc0", 0.4)
+        out[#out + 1] = stroke(Bs({ { 58 * side, 16 }, { 128 * side, 8 } }), 2 * u, C.ink, 0.45)
+        out[#out + 1] = stroke(Bs({ { 58 * side, 22 }, { 126 * side, 28 } }), 2 * u, C.ink, 0.45)
+    end
+    -- the nose, and an «o» of a mouth (awake, and surprised)
+    out[#out + 1] = shape(poly(Bs({ { -6, 9 }, { 6, 9 }, { 0, 16 } })), "ff9bb3", 1)
+    out[#out + 1] = shape(poly(boval(0, 25, 4.5, 5.4)), eye, 1)
+    -- the paws, over the frame's lower edge
+    for side = -1, 1, 2 do
+        local px = 46 * side
+        local paw = rbox(px, 92 - 2 * pet, 46, 26, 13)
+        out[#out + 1] = shape(poly(paw), C.tint, 1)
+        out[#out + 1] = stroke(closed(paw), olw, olc, olo)
+        out[#out + 1] = stroke(Bs({ { px - 7, 96 - 2 * pet }, { px - 7, 103 - 2 * pet } }), 2 * u, olc, olo)
+        out[#out + 1] = stroke(Bs({ { px + 7, 96 - 2 * pet }, { px + 7, 103 - 2 * pet } }), 2 * u, olc, olo)
+    end
+    -- a «?» by its ear
+    out[#out + 1] = text(cx + 132 * u, my - 118 * u, 5, 34 * u, C.mint, 0.85, "?", true)
+    -- petted: pixel hearts floating up
+    for h = 0, 2 do
+        local p = (t * 0.9 + h / 3) % 1
+        local o = pet * math.sin(math.rad(p * 180))
+        if o > 0.01 then
+            local hx, hy, q = cx + (-70 + h * 70 + 9 * math.sin(math.rad(p * 360))) * u, my + (-104 - p * 70) * u, 4 * u
+            for _, r in ipairs({ { -2, -1, 1, 1 }, { 1, -1, 1, 1 }, { -2.5, 0, 5, 1 }, { -1.5, 1, 3, 1 }, { -0.5, 2, 1, 1 } }) do
+                out[#out + 1] = shape(rr(hx + r[1] * q, hy + r[2] * q, r[3] * q, r[4] * q, 0), "ff9bb3", o)
+            end
+        end
+    end
+    hit(cx - 130 * u, my - 126 * u, 260 * u, 240 * u, "peek")
+    -- why, on View's card, and the way to the file
+    card(out, cx - 250 * u, my + 130 * u, 500 * u, 68 * u, corner(20 * u))
+    out[#out + 1] = text(cx, my + 150 * u, 5, 18 * u, C.ink, 1, "This video could not be played", true)
+    out[#out + 1] = text(cx, my + 178 * u, 5, 13 * u, C.faint, 0.7, st.err)
+    if st.err_path then
+        local bw, bh, by = 260 * u, 46 * u, my + 240 * u
+        local hv = st.hover == "peek_files"
+        local bc = (look == 1 or look == 3 or look == 4) and 8 * u or 23 * u
+        out[#out + 1] = shape(rr(cx - bw / 2, by - bh / 2 + (4 + 2 * (hv and 1 or 0)) * u, bw, bh, bc), C.deep, 0.3, 0, nil, 0, 7 * u)
+        out[#out + 1] = shape(rr(cx - bw / 2, by - bh / 2, bw, bh, bc), hv and C.minthi or C.mint, 1)
+        local fx = cx - 86 * u
+        out[#out + 1] = stroke({ { fx - 10 * u, by - 7 * u }, { fx - 3 * u, by - 7 * u }, { fx, by - 4 * u }, { fx + 10 * u, by - 4 * u }, { fx + 10 * u, by + 7 * u }, { fx - 10 * u, by + 7 * u }, { fx - 10 * u, by - 7 * u } }, 1.8 * u, C.onmint, 1)
+        out[#out + 1] = text(cx + 10 * u, by, 5, 14 * u, C.onmint, 1, "Show it in Files", true)
+        hit(cx - bw / 2, by - bh / 2, bw, bh, "peek_files")
+    end
 end
 
 render = function()
@@ -549,7 +695,7 @@ render = function()
     end
     st.shown = 1                                          -- these stay up whatever the controls do
     draw_toast(out)
-    draw_error(out)
+    draw_peek(out)
     st.shown = keep
     draw_tip(out)
     overlay.res_x, overlay.res_y = st.w, st.h
@@ -573,6 +719,7 @@ local function wanted()
 end
 local ticker
 ticker = mp.add_periodic_timer(1 / 30, function()
+    PK.pet = PK.pet + (((st.err and st.hover == "peek") and 1 or 0) - PK.pet) * 0.22    -- Peek's petting comes and goes softly
     st.want = wanted()
     local d = st.want - st.shown
     if math.abs(d) > 0.01 then
@@ -660,6 +807,9 @@ local function press(id)
     elseif id == "speed" then if prop("speed", 1) >= SPEEDS[#SPEEDS] then mp.set_property_number("speed", 1); say("Speed 1×") else cycle_speed(true) end
     elseif id == "subs" then cycle_track("sub", "Subtitles")
     elseif id == "mute" then mp.command("cycle mute")
+    elseif id == "peek_files" and st.err_path then
+        local files = (opts.shell ~= "" and (opts.shell .. "/bin/vitreus-files")) or "vitreus-files"
+        mp.command_native_async({ name = "subprocess", args = { "setsid", files, st.err_path }, detach = true, playback_only = false }, function() end)
     end
     wake()
 end
@@ -725,7 +875,7 @@ mp.observe_property("display-hidpi-scale", "native", size)
 for _, p in ipairs({ "pause", "eof-reached", "fullscreen", "volume", "mute", "speed", "loop-file", "playlist-pos", "track-list", "duration" }) do
     mp.observe_property(p, "native", function() wake() end)
 end
-mp.register_event("start-file", function() st.err = nil; st.moved = now(); wake() end)
+mp.register_event("start-file", function() st.err = nil; st.err_path = mp.get_property("path"); st.moved = now(); wake() end)
 mp.register_event("end-file", function(e)
     if e.reason == "error" then
         st.err = e.file_error or "mpv could not read it"
@@ -758,7 +908,7 @@ local function ask_look()
             local v = tonumber((r.stdout or ""):match("%-?%d+"))
             if v then
                 local new = LOOK_OF[v] or 0
-                if new ~= look then look = new; wake() end
+                if new ~= look then look = new; derive(); wake() end
             end
         end)
 end

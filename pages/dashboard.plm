@@ -773,71 +773,85 @@ part Dashboard {
                     }
                 }
                 box { from: dD.l + dD.w - 9, dDv.t + 4 + nt_s / max(dDv.c, 1) * (dDv.h - 8); size: 3, (dDv.h - 8) * min(1, dDv.h / max(dDv.c, 1)); corner: 1.5; color: ink; opacity: 0.3; show: dDv.c > dDv.h }
-                //  Nothing kept: a pixel cat asleep on the ground, breathing, its tail drifting, and a few z's rising from it. Under the pointer it is being
-                //  petted (dsh_pet follows the zone's hover): the back arches, the whole cat squashes a little and purrs, its eyes turn to happy arches,
-                //  its tail wags faster and hearts float up. Over the head itself (dsh_cathead; the body's zone starts where the head's ends, so only one of them has the pointer) the head
-                //  lifts and tips up into the hand as well (dsh_hup).
+                //  Nothing kept: Peek (View's cat, view/view.plm) asleep, its body an envelope waiting for mail: the flap folded down to a heart-shaped wax seal,
+                //  its ears on the top corners, its paws over the lower edge, a tail from behind, and under the flap a sleeping face. It breathes. Under the
+                //  pointer it is petted (dsh_pet follows the zone's hover): it squashes a little and purrs, its eyes turn to happy arches, its tail wags faster
+                //  and hearts float up. Over its head (dsh_cathead; the body's zone starts where the head's ends, so only one of them has the pointer) the
+                //  ears prick up and it lifts into the hand (dsh_hup).
                 group {
                     show: nt_hist.count < 1
-                    let dNc.u = 5.5                                   // one pixel of the picture
-                    let dNc.gy = dD.t + dD.h / 2 + 34                 // the ground
-                    let dNc.cx = dD.l + dD.w / 2 - dNc.u * 8                 // the cat's head: the body, head to tail tip, spans -4 to 20 of its pixels, so -8 puts its middle on the tile's (whiskers left out)
-                    let dNc.pet = dsh_pet                                       // 0 to 1: how much it is being petted
-                    let dNc.hu = dsh_hup                                        // 0 to 1: the pointer is over its head: it lifts into the hand (the back stays as it is)
-                    let dNc.love = max(dNc.pet, dNc.hu)                         // either way it is happy: the eyes and the hearts
-                    let dNc.br = (sin(time * 70) + 1) / 2 * dNc.u * 0.8 + dNc.pet * dNc.u * 2.2   // breathing: the back rises a little, a lot when petted
-                    let dNc.tw = sin(time * 55) * dNc.u * 0.7 * (1 + 3 * dNc.pet)         // the tail's tip
+                    let dPk.k = clamp(min((dD.h - 80) / 225, dD.w / 320), 0.42, 0.9)     // its unit: View's Peek is about three times as big
+                    let dPk.x = dD.l + dD.w / 2
+                    let dPk.y = dD.t + 62 + (dD.h - 62) / 2 + 4 * dPk.k              // the envelope's middle
+                    let dPk.w = 140 * dPk.k
+                    let dPk.h = 92 * dPk.k
+                    let dPk.pet = dsh_pet
+                    let dPk.hu = dsh_hup
+                    let dPk.love = max(dPk.pet, dPk.hu)
+                    let dPk.br = (sin(time * 70) + 1) / 2 + dPk.pet * 1.5            // breathing (more when petted)
+                    let dPk.tw = sin(time * 55) * (1 + 3 * dPk.pet)                   // the tail's sway
+                    //  its shadow on the ground
+                    ellipse { at: dPk.x, dPk.y + dPk.h / 2 + 12 * dPk.k; radius: 74 * dPk.k; scale: 1, 0.12; color: #000000; opacity: 16% }
                     group {
-                        pivot: dNc.cx + dNc.u * 8, dNc.gy
-                        scale: 1 + 0.05 * dNc.pet, 1 - 0.04 * dNc.pet
-                        move: 0.55 * dNc.pet * sin(time * 2880), 0.15 * dNc.pet * sin(time * 2160)
-                        box { from: dNc.cx + dNc.u * 2, dNc.gy - dNc.u * 1; size: dNc.u * 15, dNc.u * 1; color: faint }
-                        box { from: dNc.cx + dNc.u * 1, dNc.gy - dNc.u * 3; size: dNc.u * 17, dNc.u * 2; color: faint }
-                        box { from: dNc.cx + dNc.u * 2, dNc.gy - dNc.u * 4; size: dNc.u * 15, dNc.u * 1; color: faint }
-                        box { from: dNc.cx + dNc.u * 4, dNc.gy - dNc.u * 5 - dNc.br; size: dNc.u * 11, dNc.u * 1 + dNc.br; color: faint }
-                        box { from: dNc.cx + dNc.u * 7, dNc.gy - dNc.u * 6 - dNc.br; size: dNc.u * 6, dNc.u * 1 + dNc.br; color: faint }
-                        box { from: dNc.cx + dNc.u * 6, dNc.gy - dNc.u * 5 - dNc.br; size: dNc.u * 1, dNc.u * 3 + dNc.br; color: mint; opacity: 0.35 }
-                        box { from: dNc.cx + dNc.u * 9, dNc.gy - dNc.u * 6 - dNc.br; size: dNc.u * 1, dNc.u * 4 + dNc.br; color: mint; opacity: 0.35 }
-                        box { from: dNc.cx + dNc.u * 12, dNc.gy - dNc.u * 5 - dNc.br; size: dNc.u * 1, dNc.u * 3 + dNc.br; color: mint; opacity: 0.35 }
-                        box { from: dNc.cx + dNc.u * 17, dNc.gy - dNc.u * 1; size: dNc.u * 3, dNc.u * 1; color: faint }
-                        box { from: dNc.cx + dNc.u * 19, dNc.gy - dNc.u * 4 + dNc.tw; size: dNc.u, dNc.u * 4; color: faint }
-                        group {
-                            pivot: dNc.cx + dNc.u * 2, dNc.gy - dNc.u * 1
-                            move: 0, -dNc.hu * dNc.u * 1.6
-                            rotate: -2.5deg * dNc.hu
-                            box { from: dNc.cx + dNc.u * -3, dNc.gy - dNc.u * 1; size: dNc.u * 7, dNc.u * 1; color: faint }
-                            box { from: dNc.cx + dNc.u * -4, dNc.gy - dNc.u * 3; size: dNc.u * 9, dNc.u * 2; color: faint }
-                            box { from: dNc.cx + dNc.u * -3, dNc.gy - dNc.u * 4; size: dNc.u * 7, dNc.u * 1; color: faint }
-                            box { from: dNc.cx + dNc.u * -3, dNc.gy - dNc.u * 5; size: dNc.u * 3, dNc.u * 1; color: faint }
-                            box { from: dNc.cx + dNc.u * -3, dNc.gy - dNc.u * 6; size: dNc.u * 1, dNc.u * 1; color: faint }
-                            box { from: dNc.cx + dNc.u * 1, dNc.gy - dNc.u * 5; size: dNc.u * 3, dNc.u * 1; color: faint }
-                            box { from: dNc.cx + dNc.u * 3, dNc.gy - dNc.u * 6; size: dNc.u * 1, dNc.u * 1; color: faint }
-                            box { from: dNc.cx - dNc.u * 3.6, dNc.gy - dNc.u * 2.2; size: dNc.u * 1.8, dNc.u * 0.6; color: onmint; opacity: 1 - clamp(dNc.love * 4, 0, 1) }
-                            box { from: dNc.cx + dNc.u * 1.6, dNc.gy - dNc.u * 2.2; size: dNc.u * 1.8, dNc.u * 0.6; color: onmint; opacity: 1 - clamp(dNc.love * 4, 0, 1) }
-                            box { from: dNc.cx - dNc.u * 0.5, dNc.gy - dNc.u * 1.3; size: dNc.u, dNc.u * 0.7; color: mint }
-                            line { from: dNc.cx - dNc.u * 4, dNc.gy - dNc.u * 1.3; to: dNc.cx - dNc.u * 8, dNc.gy - dNc.u * 1.9; width: 1; color: ink; opacity: 0.5 }
-                            line { from: dNc.cx - dNc.u * 4, dNc.gy - dNc.u * 0.9; to: dNc.cx - dNc.u * 8, dNc.gy - dNc.u * 0.5; width: 1; color: ink; opacity: 0.5 }
-                            line { from: dNc.cx + dNc.u * 5, dNc.gy - dNc.u * 1.3; to: dNc.cx + dNc.u * 7, dNc.gy - dNc.u * 1.9; width: 1; color: ink; opacity: 0.5 }
-                            box { from: dNc.cx + dNc.u * -3.6, dNc.gy - dNc.u * 2.0; size: dNc.u * 0.7, dNc.u * 0.6; color: onmint; opacity: clamp(dNc.love * 4 - 1, 0, 1) }
-                            box { from: dNc.cx + dNc.u * -2.9000000000000004, dNc.gy - dNc.u * 2.6; size: dNc.u * 0.8, dNc.u * 0.6; color: onmint; opacity: clamp(dNc.love * 4 - 1, 0, 1) }
-                            box { from: dNc.cx + dNc.u * -2.1, dNc.gy - dNc.u * 2.0; size: dNc.u * 0.7, dNc.u * 0.6; color: onmint; opacity: clamp(dNc.love * 4 - 1, 0, 1) }
-                            box { from: dNc.cx + dNc.u * 1.6, dNc.gy - dNc.u * 2.0; size: dNc.u * 0.7, dNc.u * 0.6; color: onmint; opacity: clamp(dNc.love * 4 - 1, 0, 1) }
-                            box { from: dNc.cx + dNc.u * 2.3, dNc.gy - dNc.u * 2.6; size: dNc.u * 0.8, dNc.u * 0.6; color: onmint; opacity: clamp(dNc.love * 4 - 1, 0, 1) }
-                            box { from: dNc.cx + dNc.u * 3.1, dNc.gy - dNc.u * 2.0; size: dNc.u * 0.7, dNc.u * 0.6; color: onmint; opacity: clamp(dNc.love * 4 - 1, 0, 1) }
+                        pivot: dPk.x, dPk.y + dPk.h / 2 + 8 * dPk.k
+                        scale: 1 + 0.012 * dPk.br + 0.04 * dPk.pet, 1 + 0.02 * dPk.br - 0.03 * dPk.pet
+                        move: 0.55 * dPk.pet * sin(time * 2880), -dPk.hu * 3 * dPk.k + 0.15 * dPk.pet * sin(time * 2160)
+                        //  the tail, from behind its right side, curling up
+                        path { at: dPk.x + 62 * dPk.k, dPk.y + 30 * dPk.k; stroke: 13.5 * dPk.k; color: ink; opacity: 0.6; move 0, 0; curve 34 * dPk.k, -6 * dPk.k via 26 * dPk.k, 16 * dPk.k; curve (30 + 6 * dPk.tw) * dPk.k, -42 * dPk.k via 46 * dPk.k, -24 * dPk.k }
+                        path { at: dPk.x + 62 * dPk.k, dPk.y + 30 * dPk.k; stroke: 10.5 * dPk.k; color: faint; move 0, 0; curve 34 * dPk.k, -6 * dPk.k via 26 * dPk.k, 16 * dPk.k; curve (30 + 6 * dPk.tw) * dPk.k, -42 * dPk.k via 46 * dPk.k, -24 * dPk.k }
+                        //  the ears, pink inside, pricking up under the hand
+                        repeat e in 0..2 {
+                            let dPe.s = if(e == 0, -1, 1)
+                            let dPe.x = dPk.x + dPe.s * 48 * dPk.k
+                            let dPe.y = dPk.y - dPk.h / 2 + 4 * dPk.k
+                            path { at: dPe.x, dPe.y; color: faint; move -dPe.s * 20 * dPk.k, 6 * dPk.k; line -dPe.s * 3 * dPk.k, (-26 - 5 * dPk.hu) * dPk.k; line dPe.s * 18 * dPk.k, 4 * dPk.k; close }
+                            path { at: dPe.x, dPe.y; stroke: 1.5 * dPk.k; color: ink; opacity: 0.6; move -dPe.s * 20 * dPk.k, 5 * dPk.k; line -dPe.s * 3 * dPk.k, (-26 - 5 * dPk.hu) * dPk.k; line dPe.s * 18 * dPk.k, 3 * dPk.k }
+                            path { at: dPe.x, dPe.y; color: #ff9bb3; opacity: 0.55; move -dPe.s * 12 * dPk.k, 3 * dPk.k; line -dPe.s * 3.5 * dPk.k, (-15 - 3 * dPk.hu) * dPk.k; line dPe.s * 8 * dPk.k, 2 * dPk.k; close }
+                        }
+                        //  the envelope
+                        box { at: dPk.x, dPk.y; size: dPk.w, dPk.h; corner: 10 * dPk.k; color: faint }
+                        box { at: dPk.x, dPk.y; size: dPk.w, dPk.h; corner: 10 * dPk.k; stroke: 1.6 * dPk.k; color: ink; opacity: 0.6 }
+                        //  its flap, folded down to the seal, and the two folds at the bottom corners
+                        path { at: dPk.x, dPk.y; stroke: 1.5 * dPk.k; color: ink; opacity: 0.42; move -dPk.w / 2 + 5 * dPk.k, -dPk.h / 2 + 5 * dPk.k; line 0, 2 * dPk.k; line dPk.w / 2 - 5 * dPk.k, -dPk.h / 2 + 5 * dPk.k }
+                        line { from: dPk.x - dPk.w / 2 + 6 * dPk.k, dPk.y + dPk.h / 2 - 6 * dPk.k; to: dPk.x - 26 * dPk.k, dPk.y + 14 * dPk.k; width: 1.2 * dPk.k; color: ink; opacity: 0.22 }
+                        line { from: dPk.x + dPk.w / 2 - 6 * dPk.k, dPk.y + dPk.h / 2 - 6 * dPk.k; to: dPk.x + 26 * dPk.k, dPk.y + 14 * dPk.k; width: 1.2 * dPk.k; color: ink; opacity: 0.22 }
+                        //  the wax seal: a little heart
+                        ellipse { at: dPk.x - 3 * dPk.k, dPk.y + 1 * dPk.k; radius: 3.6 * dPk.k; color: #ff7aa8 }
+                        ellipse { at: dPk.x + 3 * dPk.k, dPk.y + 1 * dPk.k; radius: 3.6 * dPk.k; color: #ff7aa8 }
+                        path { at: dPk.x, dPk.y; color: #ff7aa8; move -6.4 * dPk.k, 2.2 * dPk.k; line 6.4 * dPk.k, 2.2 * dPk.k; line 0, 9 * dPk.k; close }
+                        //  the face, under the flap. Asleep: two closed curves; petted: happy arches.
+                        repeat i in 0..2 {
+                            let dPf.x = dPk.x + if(i == 0, -30, 30) * dPk.k
+                            let dPf.y = dPk.y + 18 * dPk.k
+                            path { at: dPf.x, dPf.y; stroke: 2.6 * dPk.k; color: onmint; opacity: 1 - clamp(dPk.love * 4, 0, 1); move -8 * dPk.k, -1 * dPk.k; curve 8 * dPk.k, -1 * dPk.k via 0, 6 * dPk.k }
+                            path { at: dPf.x, dPf.y; stroke: 2.6 * dPk.k; color: onmint; opacity: clamp(dPk.love * 4 - 1, 0, 1); move -8 * dPk.k, 3 * dPk.k; curve 8 * dPk.k, 3 * dPk.k via 0, -9 * dPk.k }
+                            ellipse { at: dPk.x + if(i == 0, -46, 46) * dPk.k, dPk.y + 27 * dPk.k; radius: 7 * dPk.k; scale: 1.3, 0.7; color: #ff8fc0; opacity: 40% }
+                            //  whiskers, out past its sides
+                            line { from: dPk.x + if(i == 0, -38, 38) * dPk.k, dPk.y + 28 * dPk.k; to: dPk.x + if(i == 0, -84, 84) * dPk.k, dPk.y + 23 * dPk.k; width: 1.2 * dPk.k; color: ink; opacity: 0.5 }
+                            line { from: dPk.x + if(i == 0, -38, 38) * dPk.k, dPk.y + 32 * dPk.k; to: dPk.x + if(i == 0, -82, 82) * dPk.k, dPk.y + 36 * dPk.k; width: 1.2 * dPk.k; color: ink; opacity: 0.5 }
+                        }
+                        //  the nose, and a small «ω»
+                        path { at: dPk.x, dPk.y + 27 * dPk.k; color: #ff9bb3; move -3.5 * dPk.k, -2 * dPk.k; line 3.5 * dPk.k, -2 * dPk.k; line 0, 2.5 * dPk.k; close }
+                        path { at: dPk.x, dPk.y + 31 * dPk.k; stroke: 1.8 * dPk.k; color: onmint; move -7 * dPk.k, 0; curve 0, 0 via -3.5 * dPk.k, 4.5 * dPk.k; curve 7 * dPk.k, 0 via 3.5 * dPk.k, 4.5 * dPk.k }
+                        //  the paws, over its lower edge
+                        repeat i in 0..2 {
+                            let dPp.x = dPk.x + if(i == 0, -32, 32) * dPk.k
+                            let dPp.y = dPk.y + dPk.h / 2 - (1 + 1.5 * dPk.pet) * dPk.k
+                            box { at: dPp.x, dPp.y; size: 28 * dPk.k, 16 * dPk.k; corner: 8 * dPk.k; color: faint }
+                            box { at: dPp.x, dPp.y; size: 28 * dPk.k, 16 * dPk.k; corner: 8 * dPk.k; stroke: 1.4 * dPk.k; color: ink; opacity: 0.6 }
+                            line { from: dPp.x - 4.5 * dPk.k, dPp.y + 2 * dPk.k; to: dPp.x - 4.5 * dPk.k, dPp.y + 6.5 * dPk.k; width: 1.3 * dPk.k; color: ink; opacity: 0.5 }
+                            line { from: dPp.x + 4.5 * dPk.k, dPp.y + 2 * dPk.k; to: dPp.x + 4.5 * dPk.k, dPp.y + 6.5 * dPk.k; width: 1.3 * dPk.k; color: ink; opacity: 0.5 }
                         }
                     }
-                    repeat k in 0..3 {
-                        let dNz.p = fract(time * 0.22 + k / 3)
-                        text "z" { at: dNc.cx + dNc.u * 4 + dNz.p * 44 + 7 * sin(dNz.p * 360), dNc.gy - dNc.u * 9 - dNz.p * 56; anchor: center; size: 9 + dNz.p * 9; weight: 700; family: "Space Grotesk"; color: mint; opacity: sin(dNz.p * 180) * 0.8 }
+                    repeat h in 0..3 {
+                        let dPh.p = fract(time * 0.9 + h / 3)
+                        GHeart(dPk.x + (-44 + h * 44) * dPk.k + 5 * sin(dPh.p * 360), dPk.y - dPk.h / 2 - 22 * dPk.k - dPh.p * 40, (14) / 24, #ff9bb3, dPk.love * sin(dPh.p * 180), 0)
                     }
-                    repeat h in 0..2 {
-                        let dNh.p = fract(time * 0.9 + h / 2)
-                        GHeart(dNc.cx + dNc.u * (1 + h * 5) + 5 * sin(dNh.p * 360), dNc.gy - dNc.u * 7 - dNh.p * 38, (14) / 24, #ff9bb3, dNc.love * sin(dNh.p * 180), 0)
-                    }
+                    text "No notifications" { at: dPk.x, dPk.y + dPk.h / 2 + 30 * dPk.k + 8; anchor: center; size: 13; family: "Space Grotesk"; color: faint }
                     follow dsh_pet = dsh_cat.hover
                     follow dsh_hup = dsh_cathead.hover
-                    zone box dsh_cat { from: dNc.cx + dNc.u * 5, dNc.gy - dNc.u * 8; size: dNc.u * 16, dNc.u * 9; corner: 12; cursor: pointer; active: dash_open and nt_hist.count < 1; label: "Pet the cat" }
-                    zone box dsh_cathead { from: dNc.cx - dNc.u * 5, dNc.gy - dNc.u * 8; size: dNc.u * 10, dNc.u * 9; corner: 10; cursor: pointer; active: dash_open and nt_hist.count < 1; label: "Pet the cat's head" }
+                    zone box dsh_cat { from: dPk.x - dPk.w / 2 - 10 * dPk.k, dPk.y - dPk.h / 2 + 12 * dPk.k; size: dPk.w + 20 * dPk.k, dPk.h; corner: 12; cursor: pointer; active: dash_open and nt_hist.count < 1; label: "Pet Peek" }
+                    zone box dsh_cathead { from: dPk.x - dPk.w / 2 - 10 * dPk.k, dPk.y - dPk.h / 2 - 34 * dPk.k; size: dPk.w + 20 * dPk.k, 46 * dPk.k; corner: 10; cursor: pointer; active: dash_open and nt_hist.count < 1; label: "Pet Peek's head" }
                 }
             }
 
