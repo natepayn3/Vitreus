@@ -250,6 +250,13 @@ class Dialog:
         self.reply(2)
 
     def ended(self, pid, status):
+        try:
+            self.answer()
+        except Exception as e:      # (the program is told it failed rather than left waiting)
+            print("vitreus-portal: %s" % e, file=sys.stderr)
+            self.reply(2)
+
+    def answer(self):
         entries = []
         try:
             with open(self.out, "rb") as f:
@@ -272,7 +279,7 @@ class Dialog:
             folder = paths[0]
             names = [os.path.basename(from_bytes(b)) for b in (self.options.get("files") or [])]
             paths = [os.path.join(folder, n) for n in names if n]
-        results["uris"] = GLib.Variant("as", ["file://" + urllib.parse.quote(p) for p in paths])
+        results["uris"] = GLib.Variant("as", ["file://" + urllib.parse.quote(os.fsencode(p)) for p in paths])      # (bytes: a name that is not UTF-8 is kept as it is)
         if self.method == "OpenFile":
             results["writable"] = GLib.Variant("b", False)
         self.reply(0, results)
@@ -314,7 +321,14 @@ def on_call(conn, sender, path, iface, method, params, invocation):
         return
     handle, _app, _parent, title, options = params.unpack()
     touch()
-    Dialog(method, handle, title, options, invocation, conn)
+    try:
+        Dialog(method, handle, title, options, invocation, conn)
+    except Exception as e:          # whatever went wrong, the program is answered: otherwise its dialog waits for ever
+        print("vitreus-portal: %s: %s" % (method, e), file=sys.stderr)
+        try:
+            invocation.return_value(GLib.Variant("(ua{sv})", (2, {})))
+        except Exception:
+            pass                    # (it had answered already)
 
 
 def on_get(conn, sender, path, iface, prop):

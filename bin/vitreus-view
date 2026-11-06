@@ -51,7 +51,7 @@ if [ -f "$p" ] && is_video "$p" && command -v mpv > /dev/null 2>&1; then
     start=$(printf '%s\n' "$list" | grep -n -x -F -- "$(basename "$p")" | head -n 1 | cut -d: -f1)
     if [ -n "$start" ]; then
         pl=$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/vitreus-view-list.XXXXXX")
-        printf '%s\n' "$list" | sed "s|^|$dir/|" > "$pl"
+        printf '%s\n' "$list" | while IFS= read -r f; do printf '%s/%s\n' "$dir" "$f"; done > "$pl"       # (not sed: an & or | in the folder's name would be read as sed's own)
         ( sleep 30; rm -f "$pl" ) > /dev/null 2>&1 &
         setsid mpv --config-dir="$shell/view/player" --script-opts="vitreus-player-look=$look$o" \
             --playlist="$pl" --playlist-start=$((start - 1)) > /dev/null 2>&1 &
