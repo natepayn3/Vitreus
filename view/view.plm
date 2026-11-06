@@ -620,11 +620,18 @@ scene View {
         text sub { at: 32, 43; anchor: left center; size: 11.5; weight: 500; color: ink; opacity: 62%; family: "Space Grotesk"; measure: sb }
     }
 
+    // ── the close button, at the top right: Settings' X (a faint ring that darkens under the pointer, a thin cross), at Settings' size on a 1080p screen ──
+    ellipse { at: W - 36, 34; radius: 17.5; color: ink; opacity: 5% + 10% * view_x.hover }
+    line { from: W - 42, 28; to: W - 30, 40; width: 2; color: ink; opacity: 60% + 40% * view_x.hover }
+    line { from: W - 30, 28; to: W - 42, 40; width: 2; color: ink; opacity: 60% + 40% * view_x.hover }
+    zone box view_x { at: W - 36, 34; size: 38, 38; corner: 19; cursor: pointer; label: "Close"; role: button }
+    on press view_x { quit }
+
     // ── the details, at the top right ──
     prop io = 0 ~quick
     follow io = if(info_on, 1, 0)
     let iw_ = 360
-    let ix = W - 16 - iw_
+    let ix = W - 60 - iw_                                   // left of the close button
     let ih_ = 50 + info_n * 25
     group {
         opacity: io
