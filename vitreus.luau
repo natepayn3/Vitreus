@@ -7974,6 +7974,7 @@ end)()
 
     -- Pictures of the windows on the workspace in front, for a moment: so each has one when its workspace is not in front.
     local want_gen = 0
+    local last_front = { sig = "", at = 0 }                              -- the windows last copied this way, and when
     local function want_front(ms)
         if open then return end
         want_gen = want_gen + 1
@@ -7982,6 +7983,12 @@ end)()
             if g ~= want_gen or open then return end                     -- a newer ask came while this one read: that one decides
             match()
             if #front_ids == 0 then return sys.call("thumbnails.want") end   -- nothing here to copy: let go of the last workspace's windows
+            -- The same windows copied less than a minute ago: their pictures are fresh enough (the overview, opened, makes them live anyway).
+            -- Something that hides the desktop behind an empty workspace and gives it back (a full-screen launcher opened and shut, again
+            -- and again) brought you back here each time, and each time every window was copied again for a second and a half.
+            local sig = table.concat(front_ids, ",")
+            if sig == last_front.sig and os.time() - last_front.at < 60 then return end
+            last_front = { sig = sig, at = os.time() }
             THUMB_UNTIL = os.time() + math.ceil(ms / 1000) + 4           -- these captures are ours: the screen-sharing light ignores them
             sys.call("thumbnails.want", front_ids)
             after(ms,function() if g == want_gen and not open then sys.call("thumbnails.want") end end)
