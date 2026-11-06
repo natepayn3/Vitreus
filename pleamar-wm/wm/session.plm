@@ -269,9 +269,9 @@ scene Session {
         on press right desk.$dzk { desk_x = pointer.x; desk_y = pointer.y; desk_mon = screen.index; desk_n = desk_n + 1 }
     }
 
-    let ink = #f5f7f5
-    let mint = #9ed6bd
-    let coral = #ef7a66
+    let ink = wm_ink                     // (the theme's: wm-palette.plm)
+    let mint = wm_mint
+    let coral = wm_alert
     let amber = #e8c26a
     let marea = #151616                  // Marea's skin (her palette's coal)
     // Windows start this far from the top (under what other programs' bars keep).
@@ -486,7 +486,7 @@ scene Session {
         blur: 160
         opacity: 12% * min(win.count, 1) * (fscreen == screen.index) * (win.focus >= 0)
         mode: screen
-        ellipse { at: lx, ly; radius: 420; color: #9ed6bd }
+        ellipse { at: lx, ly; radius: 420; color: mint }
     }
 
     // ── wires, on a canvas: which windows are wired to each other —both
@@ -1342,7 +1342,7 @@ scene Session {
             z: 99980
             show: wv < 0.999 and screen.index == s and bot - top > 0.5 and bot > -reach and top < H + reach
             body {
-                gradient: 0, top to 0, bot, #121517, #0c0e10 35%, #0a0b0d
+                gradient: 0, top to 0, bot, mix(wm_panel, wm_ink, 0.04), wm_panel 35%, mix(wm_panel, wm_deep, 0.35)
                 rim: 14%
                 shadow: 0, 0, 36, 45%
                 box { from: -60, top; size: W + 120, bot - top }
@@ -1381,7 +1381,7 @@ scene Session {
             opacity: flash.$s
             move: 12 * (1 - flash.$s), 0
             body {
-                color: #0c0e10
+                color: wm_panel
                 rim: 10%
                 shadow: 0, 8, 24, 45%
                 box { at: W - 28, H / 2; size: 24, nd * 18 + 14; corner: 12 }
@@ -1536,7 +1536,7 @@ scene Session {
             z: 99982
             show: shore.$s > 0.01 and screen.index == s
             body {
-                gradient: if(dkvert, dk.cr.$s + dk.cs.$s * (dk.q.$s + dkpl / 2), 0), if(dkvert, 0, dk.cr.$s + dk.cs.$s * (dk.q.$s + dkpl / 2)) to if(dkvert, dk.cr.$s + dk.cs.$s * (dk.q.$s - dkpl / 2), 0), if(dkvert, 0, dk.cr.$s + dk.cs.$s * (dk.q.$s - dkpl / 2)), #15181b, #0c0e10 45%, #0a0b0d
+                gradient: if(dkvert, dk.cr.$s + dk.cs.$s * (dk.q.$s + dkpl / 2), 0), if(dkvert, 0, dk.cr.$s + dk.cs.$s * (dk.q.$s + dkpl / 2)) to if(dkvert, dk.cr.$s + dk.cs.$s * (dk.q.$s - dkpl / 2), 0), if(dkvert, 0, dk.cr.$s + dk.cs.$s * (dk.q.$s - dkpl / 2)), mix(wm_panel, wm_ink, 0.04), wm_panel 45%, mix(wm_panel, wm_deep, 0.35)
                 rim: 12%
                 shadow: 0, 12, 34, 42%
                 box { from: if(dkvert, if(dock.side == 1, -140, screen.$s.width), -80), if(dkvert, -80, screen.$s.height); size: if(dkvert, 140, screen.$s.width + 160), if(dkvert, screen.$s.height + 160, 140) }
@@ -1562,7 +1562,7 @@ scene Session {
             repeat j in 0..8 {
                 ellipse { at: if(dkvert, dk.cr.$s + dk.cs.$s * (dk.q.$s), dkp.a[s][j]), if(dkvert, dkp.a[s][j], dk.cr.$s + dk.cs.$s * (dk.q.$s)); radius: 8; stroke: 1.3; color: ink; opacity: if((j + 1) == dk.p.$s and win.used.$s < (j + 1), 22%, 45%); show: j < dk.p.$s and win.shown.$s != (j + 1) }
                 ellipse { at: if(dkvert, dk.cr.$s + dk.cs.$s * (dk.q.$s), dkp.a[s][j]), if(dkvert, dkp.a[s][j], dk.cr.$s + dk.cs.$s * (dk.q.$s)); radius: 8; color: mint; opacity: 90%; show: j < dk.p.$s and win.shown.$s == (j + 1) }
-                text "{j + 1}" { at: if(dkvert, dk.cr.$s + dk.cs.$s * (dk.q.$s), dkp.a[s][j]), if(dkvert, dkp.a[s][j], dk.cr.$s + dk.cs.$s * (dk.q.$s)); anchor: center; size: 9; weight: 700; color: #0c0e10; show: j < dk.p.$s and win.shown.$s == (j + 1) }
+                text "{j + 1}" { at: if(dkvert, dk.cr.$s + dk.cs.$s * (dk.q.$s), dkp.a[s][j]), if(dkvert, dkp.a[s][j], dk.cr.$s + dk.cs.$s * (dk.q.$s)); anchor: center; size: 9; weight: 700; color: wm_onmint; show: j < dk.p.$s and win.shown.$s == (j + 1) }
                 zone ellipse dkpool.$j.$s { at: if(dkvert, dk.cr.$s + dk.cs.$s * (dk.q.$s), dkp.a[s][j]), if(dkvert, dkp.a[s][j], dk.cr.$s + dk.cs.$s * (dk.q.$s)); radius: 12; cursor: pointer; active: shore.$s > 0.6 and j < dk.p.$s and not overview; label: "Workspace {j + 1}" }
             }
         }
@@ -1657,7 +1657,7 @@ scene Session {
                 group {
                     show: dk.on.$s and dk.hk.$s == j and j < dk.n.$s and pv.$s < 0 and dmenu.$s < 0 and dkdrag.$s < 0
                     body {
-                        color: #0c0e10
+                        color: wm_panel
                         rim: 12%
                         shadow: 0, 6, 16, 40%
                         box { at: if(dkvert, dk.cr.$s + dk.cs.$s * (dki.q[s][j] + dki.sz[s][j] / 2 + 14 + (tip.$s.$j.width + 22) / 2), dki.a[s][j]), if(dkvert, dki.a[s][j], dk.cr.$s + dk.cs.$s * (dki.q[s][j] + dki.sz[s][j] / 2 + 41)); size: (tip.$s.$j.width + 22), 26; corner: 13 }
@@ -1668,7 +1668,7 @@ scene Session {
                 group {
                     show: win.dock.$s.$j.badge > 0 and j < dk.n.$s
                     body {
-                        color: #ef7a66
+                        color: coral
                         rim: 20%
                         shadow: 0, 2, 5, 40%
                         ellipse { at: if(dkvert, dk.cr.$s + dk.cs.$s * (dki.q[s][j]), dki.a[s][j]) + 0.39 * dki.sz[s][j], if(dkvert, dki.a[s][j], dk.cr.$s + dk.cs.$s * (dki.q[s][j])) - 0.39 * dki.sz[s][j]; radius: 8.5 }
@@ -1701,7 +1701,7 @@ scene Session {
                 pivot: if(dkvert, dk.cr.$s + dk.cs.$s * (dk.q.$s), mn.ia.$s), if(dkvert, mn.ia.$s, dk.cr.$s + dk.cs.$s * (dk.q.$s))
                 scale: 0.9 + 0.1 * mnup.$s
                 body {
-                    color: #0c0e10
+                    color: wm_panel
                     rim: 12%
                     shadow: 0, 10, 26, 45%
                     box { from: mn.x.$s, mn.y.$s; size: 220, mn.h.$s; corner: 12 }
@@ -1714,7 +1714,7 @@ scene Session {
                 zone box dmr2.$s { from: mn.x.$s + 6, mn.y.$s + mn.base.$s + 2 * 28; size: 208, 28; corner: 8; cursor: pointer; active: dmenu.$s >= 0 and mn.run.$s; label: "A dock menu item" }
                 box { from: mn.x.$s + 6, mn.y.$s + mn.base.$s + 2 * 28; size: 208, 28; corner: 8; color: ink; opacity: 8% * dmr2.$s.hover; show: mn.run.$s }
                 zone box dmr3.$s { from: mn.x.$s + 6, mn.y.$s + mn.base.$s + 3 * 28; size: 208, 28; corner: 8; cursor: pointer; active: dmenu.$s >= 0 and mn.run.$s; label: "A dock menu item" }
-                box { from: mn.x.$s + 6, mn.y.$s + mn.base.$s + 3 * 28; size: 208, 28; corner: 8; color: #ef7a66; opacity: 12% * dmr3.$s.hover; show: mn.run.$s }
+                box { from: mn.x.$s + 6, mn.y.$s + mn.base.$s + 3 * 28; size: 208, 28; corner: 8; color: coral; opacity: 12% * dmr3.$s.hover; show: mn.run.$s }
                 text "New window" { at: mn.x.$s + 18, mn.y.$s + mn.base.$s + 0 * 28 + 14; anchor: left center; size: 12; weight: 500; color: ink; show: mn.run.$s }
                 text "Open" { at: mn.x.$s + 18, mn.y.$s + mn.base.$s + 0 * 28 + 14; anchor: left center; size: 12; weight: 500; color: ink; show: not mn.run.$s }
                 text "Hide" { at: mn.x.$s + 18, mn.y.$s + mn.base.$s + 1 * 28 + 14; anchor: left center; size: 12; weight: 500; color: ink; show: mn.run.$s }
@@ -1722,7 +1722,7 @@ scene Session {
                 text "Keep on the shore" { at: mn.x.$s + 18, mn.y.$s + mn.base.$s + 1 * 28 + 14; anchor: left center; size: 12; weight: 500; color: ink; show: not mn.run.$s and not mn.pin.$s }
                 text "Take off the shore" { at: mn.x.$s + 18, mn.y.$s + mn.base.$s + 2 * 28 + 14; anchor: left center; size: 12; weight: 500; color: ink; show: mn.run.$s and mn.pin.$s }
                 text "Keep on the shore" { at: mn.x.$s + 18, mn.y.$s + mn.base.$s + 2 * 28 + 14; anchor: left center; size: 12; weight: 500; color: ink; show: mn.run.$s and not mn.pin.$s }
-                text "Close windows" { at: mn.x.$s + 18, mn.y.$s + mn.base.$s + 3 * 28 + 14; anchor: left center; size: 12; weight: 500; color: #ef7a66; show: mn.run.$s }
+                text "Close windows" { at: mn.x.$s + 18, mn.y.$s + mn.base.$s + 3 * 28 + 14; anchor: left center; size: 12; weight: 500; color: coral; show: mn.run.$s }
             }
         }
         on press dmr0.$s while mn.run.$s { dock dmk.$s on s new }
@@ -1784,7 +1784,7 @@ scene Session {
                     opacity: smooth(0.05 * k, 0.05 * k + 0.55, ov) * if(pdrag.s == s and pdrag.k == k, 40%, 100%)
                     move: 70 * (1 - smooth(0.05 * k, 0.05 * k + 0.55, ov)), 0
                     body {
-                        color: #0c0e10
+                        color: wm_panel
                         rim: 10% + 12% * max(pcard.$k.$s.hover, (overview and drop.ok and mon == s and drop.k == (k + 1) and (ovdrag >= 0 or pdrag.s >= 0)))
                         shadow: 0, 10 + 6 * pcard.$k.$s.hover, 28, 45%
                         box { from: pc.x.$s, (pc.y.$s + k * (pc.h.$s + 20)); size: pc.w.$s, pc.h.$s; corner: 10 }
@@ -1816,7 +1816,7 @@ scene Session {
         show: pdrag.s >= 0 and screen.index == mon
         opacity: 90%
         body {
-            color: #0c0e10
+            color: wm_panel
             rim: 18%
             shadow: 0, 18, 40, 55%
             box { at: mouse.x, mouse.y; size: pc.w[max(pdrag.s, 0)], pc.h[max(pdrag.s, 0)]; corner: 10 }
@@ -2362,7 +2362,7 @@ scene Session {
             let wfrost = if(wfr > 0 and wop < 0.995, 1, 0)
             let wglass = if(wst == 1, 0, 1)
             body {
-                color: #0c0e10
+                color: wm_deep
                 opacity: wop
                 shadow: 0, 14 + 8 * lit.$i + 10 * lift.$i, 34 + 18 * lift.$i, (45% + 20% * lit.$i + 10% * lift.$i) * shd / 100
                 show: water >= 0.999 and wfrost < 0.5
@@ -2373,7 +2373,7 @@ scene Session {
                 glass: wfr * 1%
                 lens: false
                 rim: 10%
-                color: #0c0e10
+                color: wm_deep
                 opacity: 60% + 40% * wop * wop * wop * wop * wop * wop
                 shadow: 0, 14 + 8 * lit.$i + 10 * lift.$i, 34 + 18 * lift.$i, (45% + 20% * lit.$i + 10% * lift.$i) * shd / 100
                 show: water >= 0.999 and wfrost > 0.5
@@ -2386,7 +2386,7 @@ scene Session {
                 show: water < 0.999
                 mask: x, fill.y + 18 to x, fill.y + 6
                 body {
-                    color: #0c0e10
+                    color: wm_deep
                     shadow: 0, 14 + 8 * lit.$i + 10 * lift.$i, 34 + 18 * lift.$i, (45% + 20% * lit.$i + 10% * lift.$i) * shd / 100
                     box { from: x, y; size: w, h; corner: rad }
                 }
@@ -2397,9 +2397,9 @@ scene Session {
                 show: wet <= 0.001 and cold <= 0.001
                 shader: tide, water while water < 0.999
                 clip box { from: x, y; size: w, h; corner: rad }
-                box { from: x, y; size: w, tb * hb.$i; color: mix(#1a1e22, #1d2b27, lit.$i); show: hb.$i > 0.01 and wglass < 0.5 }
+                box { from: x, y; size: w, tb * hb.$i; color: mix(wm_tint, wm_mint, 0.07 * lit.$i); show: hb.$i > 0.01 and wglass < 0.5 }
                 body {
-                    color: mix(#0b1015, #0f1d1a, lit.$i)
+                    color: mix(wm_tint, wm_mint, 0.06 * lit.$i)
                     glass: 85%
                     lens: false
                     rim: 14%
@@ -2416,9 +2416,9 @@ scene Session {
                 show: wet > 0.001
                 shader: rain, wet * pour
                 clip box { from: x, y; size: w, h; corner: rad }
-                box { from: x, y; size: w, tb * hb.$i; color: mix(#1a1e22, #1d2b27, lit.$i); show: hb.$i > 0.01 and wglass < 0.5 }
+                box { from: x, y; size: w, tb * hb.$i; color: mix(wm_tint, wm_mint, 0.07 * lit.$i); show: hb.$i > 0.01 and wglass < 0.5 }
                 body {
-                    color: mix(#0b1015, #0f1d1a, lit.$i)
+                    color: mix(wm_tint, wm_mint, 0.06 * lit.$i)
                     glass: 85%
                     lens: false
                     rim: 14%
@@ -2435,9 +2435,9 @@ scene Session {
                 show: cold > 0.001 and wet <= 0.001
                 shader: snow, cold
                 clip box { from: x, y; size: w, h; corner: rad }
-                box { from: x, y; size: w, tb * hb.$i; color: mix(#1a1e22, #1d2b27, lit.$i); show: hb.$i > 0.01 and wglass < 0.5 }
+                box { from: x, y; size: w, tb * hb.$i; color: mix(wm_tint, wm_mint, 0.07 * lit.$i); show: hb.$i > 0.01 and wglass < 0.5 }
                 body {
-                    color: mix(#0b1015, #0f1d1a, lit.$i)
+                    color: mix(wm_tint, wm_mint, 0.06 * lit.$i)
                     glass: 85%
                     lens: false
                     rim: 14%
@@ -2456,7 +2456,7 @@ scene Session {
                 mode: screen
                 clip box { from: x, y; size: w, h; corner: rad }
                 ellipse { at: x + w - 40, y + tb / 2; radius: 20 + wave.$i * (w + h); stroke: 44 * (1 - wave.$i) + 4; color: mint; opacity: 55% * (1 - wave.$i) }
-                ellipse { at: x + w - 40, y + tb / 2; radius: 10 + max(wave.$i - 0.2, 0) * (w + h); stroke: 20 * (1 - wave.$i) + 2; color: #dffaf0; opacity: 40% * (1 - wave.$i) }
+                ellipse { at: x + w - 40, y + tb / 2; radius: 10 + max(wave.$i - 0.2, 0) * (w + h); stroke: 20 * (1 - wave.$i) + 2; color: wm_minthi; opacity: 40% * (1 - wave.$i) }
             }
             // Its three buttons, three drops of water: put away (into
             // Marea), to the front (free, the whole monitor), and away for
@@ -2500,13 +2500,13 @@ scene Session {
                     ellipse { at: x + w - 60, by; radius: 6 + 1.5 * mini_zone.$i.hover }
                 }
                 body {
-                    gradient: radial x + w - 42, by - 3 radius 10, #e8fff5, mint 45%, #3f8f76
+                    gradient: radial x + w - 42, by - 3 radius 10, wm_minthi, mint 45%, mix(wm_mintlo, wm_deep, 0.35)
                     rim: 35%
                     shadow: 0, 1, 3, 40%
                     ellipse { at: x + w - 40, by; radius: 6 + 1.5 * lead_zone.$i.hover }
                 }
                 body {
-                    gradient: radial x + w - 22, by - 3 radius 10, #ffe4dc, coral 45%, #b0412f
+                    gradient: radial x + w - 22, by - 3 radius 10, mix(coral, #ffffff, 0.7), coral 45%, mix(coral, wm_deep, 0.35)
                     rim: 35%
                     shadow: 0, 1, 3, 40%
                     ellipse { at: x + w - 20, by; radius: 6 + 1.5 * close_zone.$i.hover }
@@ -2516,11 +2516,11 @@ scene Session {
                 ellipse { at: x + w - 22, by - 3; radius: 2; scale: 1.3, 0.75; color: #fff; opacity: 75% }
                 // What each does, over the one the mouse is on.
                 box { at: x + w - 60, by + 0.5; size: 6.5, 1.6; corner: 0.8; color: #4a3308; opacity: mini_zone.$i.hover }
-                box { at: x + w - 40, by + 0.5; size: 6.5, 6.5; corner: 1.5; stroke: 1.4; color: #0f3d2f; opacity: lead_zone.$i.hover * (1 - maxed.$i) }
-                box { at: x + w - 41.2, by + 1.7; size: 5, 5; corner: 1.2; stroke: 1.3; color: #0f3d2f; opacity: lead_zone.$i.hover * maxed.$i }
-                box { at: x + w - 38.8, by - 0.7; size: 5, 5; corner: 1.2; stroke: 1.3; color: #0f3d2f; opacity: lead_zone.$i.hover * maxed.$i * 0.6 }
-                box { at: x + w - 20, by + 0.3; size: 7.5, 1.6; corner: 0.8; rotate: 45deg; color: #4a140b; opacity: close_zone.$i.hover }
-                box { at: x + w - 20, by + 0.3; size: 7.5, 1.6; corner: 0.8; rotate: -45deg; color: #4a140b; opacity: close_zone.$i.hover }
+                box { at: x + w - 40, by + 0.5; size: 6.5, 6.5; corner: 1.5; stroke: 1.4; color: mix(mint, wm_deep, 0.7); opacity: lead_zone.$i.hover * (1 - maxed.$i) }
+                box { at: x + w - 41.2, by + 1.7; size: 5, 5; corner: 1.2; stroke: 1.3; color: mix(mint, wm_deep, 0.7); opacity: lead_zone.$i.hover * maxed.$i }
+                box { at: x + w - 38.8, by - 0.7; size: 5, 5; corner: 1.2; stroke: 1.3; color: mix(mint, wm_deep, 0.7); opacity: lead_zone.$i.hover * maxed.$i * 0.6 }
+                box { at: x + w - 20, by + 0.3; size: 7.5, 1.6; corner: 0.8; rotate: 45deg; color: mix(coral, wm_deep, 0.7); opacity: close_zone.$i.hover }
+                box { at: x + w - 20, by + 0.3; size: 7.5, 1.6; corner: 0.8; rotate: -45deg; color: mix(coral, wm_deep, 0.7); opacity: close_zone.$i.hover }
             }
             // The border, by style: Vitreus's thin line in the palette's colour, the Water style's mint one, none at all, or a soft glow for the focused one.
             box { from: x, y; size: w, h; corner: rad; stroke: bw; color: wm_border; opacity: lit.$i * ba / 100 * (1 - ov) * smooth(0.75, 1, water); show: wst == 0 and bw > 0.01 }
@@ -2548,7 +2548,7 @@ scene Session {
                 box { from: x, y + tb / 2 - 1; size: 10, 2; corner: 1; color: mint; opacity: 50% + 40% * max(port.$i.hover, wiring == i) }
                 ellipse { at: x + 18, y + tb / 2; radius: 8 + 2 * max(port.$i.hover, wiring == i); stroke: 1.6; color: mint; opacity: 55% + 40% * max(port.$i.hover, wiring == i) }
                 body {
-                    gradient: radial x + 17, y + tb / 2 - 1.5 radius 7, #e8fff5, mint 45%, #3f8f76
+                    gradient: radial x + 17, y + tb / 2 - 1.5 radius 7, wm_minthi, mint 45%, mix(wm_mintlo, wm_deep, 0.35)
                     rim: 35%
                     ellipse { at: x + 18, y + tb / 2; radius: 3.5 + 1.2 * min(nwired, 1) + 1.5 * max(port.$i.hover, wiring == i) }
                 }
@@ -2557,7 +2557,7 @@ scene Session {
                     show: port.$i.hover > 0.01 and wiring < 0
                     opacity: port.$i.hover
                     body {
-                        color: #0c0e10
+                        color: wm_panel
                         rim: 16%
                         shadow: 0, 4, 12, 45%
                         box { from: x + 6, y - 30; size: 196, 24; corner: 12 }
@@ -2576,7 +2576,7 @@ scene Session {
                 group {
                     clip box { from: x + w - 98, y + tb / 2 - 6; size: 14, 12; corner: 3.5 }
                     box { from: x + w - 98, y + tb / 2 - 6 + 12 - ag.lvl * 1; size: 14, 12; color: if(ag.$i > 2.5, amber, mint); opacity: 85% }
-                    ellipse { at: x + w - 98 + 7 + 5 * sin(fxclock * 260), y + tb / 2 - 6 + 12 - ag.lvl * 1; radius: 4; scale: 1.7, 0.45; color: #dffaf0; opacity: 70%; show: ag.$i > 0.5 and ag.$i < 1.5 }
+                    ellipse { at: x + w - 98 + 7 + 5 * sin(fxclock * 260), y + tb / 2 - 6 + 12 - ag.lvl * 1; radius: 4; scale: 1.7, 0.45; color: wm_minthi; opacity: 70%; show: ag.$i > 0.5 and ag.$i < 1.5 }
                 }
                 box { from: x + w - 98, y + tb / 2 - 6; size: 14, 12; corner: 3.5; stroke: 1.2; color: if(ag.$i > 2.5, amber, mint); opacity: 85% }
             }
@@ -2591,7 +2591,7 @@ scene Session {
                         show: wire.$q.a >= 0 and (wire.$q.a == i or wire.$q.b == i)
                         let pm.x = x + 14 + pm.n * 106
                         body {
-                            color: #0c0e10
+                            color: wm_panel
                             rim: 14%
                             box { from: pm.x, y - gap + 1; size: 100, gap - 2; corner: 5 }
                         }
@@ -2617,7 +2617,7 @@ scene Session {
                 show: ansv.$i > 0.01
                 opacity: ansv.$i
                 body {
-                    color: #0c0e10
+                    color: wm_panel
                     rim: 16%
                     shadow: 0, 6, 16, 50%
                     box { at: x + w / 2, y + tb + 26; size: 236, 28; corner: 14 }
@@ -2633,7 +2633,7 @@ scene Session {
                 show: ag.far > 0.01
                 opacity: ag.far
                 body {
-                    color: #0c0e10
+                    color: wm_panel
                     rim: 14%
                     shadow: 0, 8, 22, 50%
                     box { at: x + w / 2, y + h / 2; size: 190, 46; corner: 23 }
@@ -2642,7 +2642,7 @@ scene Session {
                 group {
                     clip box { from: x + w / 2 - 82, y + h / 2 - 12; size: 28, 24; corner: 7.0 }
                     box { from: x + w / 2 - 82, y + h / 2 - 12 + 24 - ag.lvl * 2; size: 28, 24; color: if(ag.$i > 2.5, amber, mint); opacity: 85% }
-                    ellipse { at: x + w / 2 - 82 + 14 + 10 * sin(fxclock * 260), y + h / 2 - 12 + 24 - ag.lvl * 2; radius: 8; scale: 1.7, 0.45; color: #dffaf0; opacity: 70%; show: ag.$i > 0.5 and ag.$i < 1.5 }
+                    ellipse { at: x + w / 2 - 82 + 14 + 10 * sin(fxclock * 260), y + h / 2 - 12 + 24 - ag.lvl * 2; radius: 8; scale: 1.7, 0.45; color: wm_minthi; opacity: 70%; show: ag.$i > 0.5 and ag.$i < 1.5 }
                 }
                 box { from: x + w / 2 - 82, y + h / 2 - 12; size: 28, 24; corner: 7.0; stroke: 2.4; color: if(ag.$i > 2.5, amber, mint); opacity: 85% }
                 text pick(max(ag.$i - 1, 0), "Working", "Ready", "Waiting for you") { at: x + w / 2 - 44, y + h / 2 - 6; anchor: left center; size: 14; weight: 650; color: ink }
@@ -2677,12 +2677,12 @@ scene Session {
                     scale: 0.9 + 0.1 * choose.$i.hover
                     pivot: x + w / 2, y + h / 2
                     body {
-                        color: #0c0e10
+                        color: wm_panel
                         rim: 10%
                         shadow: 0, 6, 18, 45%
                         box { at: x + w / 2, y + h / 2; size: 176, 40; corner: 20 }
                     }
-                    ellipse { at: x + w / 2 - 66, y + h / 2; radius: 5; color: #ef7a66 }
+                    ellipse { at: x + w / 2 - 66, y + h / 2; radius: 5; color: coral }
                     text "Share this window" { at: x + w / 2 + 8, y + h / 2; anchor: center; size: 13; weight: 600; color: ink }
                 }
             }
@@ -2791,7 +2791,7 @@ scene Session {
             show: ov > 0.01 and win.$i.open and sc == screen.index and not win.$i.dialog and not win.$i.minimized and mk >= 0 and ovdrag != i
             opacity: ma * if(pdrag.s == sc and pdrag.k == mk, 40%, 100%)
             move: 70 * (1 - ma), 0
-            box { from: mx0 + 1, my0 + 1; size: max(mw0 - 2, 2), max(mh0 - 2, 2); corner: 3; color: #1d2226 }
+            box { from: mx0 + 1, my0 + 1; size: max(mw0 - 2, 2), max(mh0 - 2, 2); corner: 3; color: mix(wm_tint, wm_ink, 0.05) }
             box { from: mx0 + 1, my0 + 1; size: max(mw0 - 2, 2), max(mh0 - 2, 2); corner: 3; stroke: 1; color: if(win.$i.focused, mint, ink); opacity: if(win.$i.focused, 80%, 18%) }
             image appicon.$i { at: mx0 + mw0 / 2 - min(28, min(mw0, mh0) * 0.55) / 2, my0 + mh0 / 2 - min(28, min(mw0, mh0) * 0.55) / 2; size: min(28, min(mw0, mh0) * 0.55), min(28, min(mw0, mh0) * 0.55) }
         }
@@ -3294,7 +3294,7 @@ scene Session {
         opacity: dqo
         box { from: dqx, dqy; size: max(dqw, 1), max(dqh, 1); corner: 12; color: mint; opacity: if(dq.side == 4, 10%, 16%) }
         box { from: dqx, dqy; size: max(dqw, 1), max(dqh, 1); corner: 12; stroke: 2; color: mint; opacity: 75% }
-        box { from: dqx + 10, dqy + 6; size: max(dqw - 20, 1), 2; corner: 1; color: #e9fff6; opacity: if(dq.side == 4, 0, 55%) }
+        box { from: dqx + 10, dqy + 6; size: max(dqw - 20, 1), 2; corner: 1; color: wm_minthi; opacity: if(dq.side == 4, 0, 55%) }
         // (A group: the two side by side, smaller, in that box.)
         box { from: dqx + dqw * 0.12, dqy + dqh * 0.2; size: max(dqw * 0.36, 1), max(dqh * 0.6, 1); corner: 8; color: mint; opacity: if(dq.side == 4, 30%, 0) }
         box { from: dqx + dqw * 0.52, dqy + dqh * 0.2; size: max(dqw * 0.36, 1), max(dqh * 0.6, 1); corner: 8; color: mint; opacity: if(dq.side == 4, 30%, 0) }
@@ -3308,7 +3308,7 @@ scene Session {
         box { from: mgx, mgy + max(mgh, 1) * 0.55; size: max(mgw, 1), max(mgh, 1) * 0.45; corner: 14; color: mint; opacity: 10% }
         box { from: mgx, mgy; size: max(mgw, 1), max(mgh, 1); corner: 14; stroke: 2; color: mint; opacity: 75% }
         // The water's edge, gently moving, along its top.
-        box { from: mgx + 10, mgy + 6; size: max(mgw - 20, 1), 2; corner: 1; color: #e9fff6; opacity: 55% }
+        box { from: mgx + 10, mgy + 6; size: max(mgw - 20, 1), 2; corner: 1; color: wm_minthi; opacity: 55% }
     }
 
     // The window being carried, over all the others: lifted, a little smaller
@@ -3327,7 +3327,7 @@ scene Session {
             pivot: x + w / 2, y + h / 2
             scale: 1
             body {
-                color: #0c0e10
+                color: wm_panel
                 shadow: 0, 26, 50, 60%
                 box { from: x, y; size: w, h; corner: rad }
             }
@@ -3335,7 +3335,7 @@ scene Session {
             group {
                 show: wet <= 0.001 and cold <= 0.001
                 clip box { from: x, y; size: w, h; corner: rad }
-                box { from: x, y; size: w, tb * hb.$i; color: #1d2b27; show: hb.$i > 0.01 }
+                box { from: x, y; size: w, tb * hb.$i; color: mix(wm_tint, wm_mint, 0.07); show: hb.$i > 0.01 }
                 text win.$i.title { at: x + 14, y + tb / 2 - tb * (1 - hb.$i); anchor: left center; size: 12; weight: 500; width: max(w - 90, 10); lines: 1; color: ink; opacity: hb.$i; show: hb.$i > 0.01 }
                 window win.$i { at: x, y + tb * hb.$i; size: w, max(h - tb * hb.$i, 1); ask: win.$i.width, win.$i.height; show: carried and wet <= 0.001 and cold <= 0.001 }
             }
@@ -3344,7 +3344,7 @@ scene Session {
                 show: wet > 0.001
                 shader: rain, wet * pour, mouse.x - lag.x, mouse.y - lag.y
                 clip box { from: x, y; size: w, h; corner: rad }
-                box { from: x, y; size: w, tb * hb.$i; color: #1d2b27; show: hb.$i > 0.01 }
+                box { from: x, y; size: w, tb * hb.$i; color: mix(wm_tint, wm_mint, 0.07); show: hb.$i > 0.01 }
                 text win.$i.title { at: x + 14, y + tb / 2 - tb * (1 - hb.$i); anchor: left center; size: 12; weight: 500; width: max(w - 90, 10); lines: 1; color: ink; opacity: hb.$i; show: hb.$i > 0.01 }
                 window win.$i { at: x, y + tb * hb.$i; size: w, max(h - tb * hb.$i, 1); ask: win.$i.width, win.$i.height; show: carried and wet > 0.001 }
             }
@@ -3353,7 +3353,7 @@ scene Session {
                 show: cold > 0.001 and wet <= 0.001
                 shader: snow, cold, mouse.x - lag.x, mouse.y - lag.y
                 clip box { from: x, y; size: w, h; corner: rad }
-                box { from: x, y; size: w, tb * hb.$i; color: #1d2b27; show: hb.$i > 0.01 }
+                box { from: x, y; size: w, tb * hb.$i; color: mix(wm_tint, wm_mint, 0.07); show: hb.$i > 0.01 }
                 text win.$i.title { at: x + 14, y + tb / 2 - tb * (1 - hb.$i); anchor: left center; size: 12; weight: 500; width: max(w - 90, 10); lines: 1; color: ink; opacity: hb.$i; show: hb.$i > 0.01 }
                 window win.$i { at: x, y + tb * hb.$i; size: w, max(h - tb * hb.$i, 1); ask: win.$i.width, win.$i.height; show: carried and cold > 0.001 and wet <= 0.001 }
             }
@@ -3366,12 +3366,12 @@ scene Session {
     // shows how it would be ──
     prop strip = 0 ~160ms
     follow strip = if(dragging >= 0 and not dfl and free[mon] < 0.5, 1, 0)
-    let ico = #f5f7f5
+    let ico = wm_ink
     group {
         show: strip > 0.01 and screen.index == mon
         opacity: strip
         body {
-            color: #0d1013
+            color: wm_panel
             shadow: 0, 10, 28, 45%
             box { from: strip.x - 6, strip.y - 4; size: 9 * 60 + 12, 52; corner: 14; opacity: 90% }
         }
@@ -3556,24 +3556,24 @@ scene Session {
             opacity: share.in
             move: 0, -14 * (1 - share.in)
             body {
-                color: #0c0e10
+                color: wm_panel
                 rim: 8%
                 shadow: 0, 10, 30, 50%
                 box { at: W / 2, band.y; size: band.w, 56; corner: 28 }
             }
             // A red dot, as a camera that is about to see.
-            ellipse { at: W / 2 - band.w / 2 + 28, band.y; radius: 6; color: #ef7a66 }
-            ellipse { at: W / 2 - band.w / 2 + 28, band.y; radius: 10; stroke: 1.5; color: #ef7a66; opacity: 40% }
+            ellipse { at: W / 2 - band.w / 2 + 28, band.y; radius: 6; color: coral }
+            ellipse { at: W / 2 - band.w / 2 + 28, band.y; radius: 10; stroke: 1.5; color: coral; opacity: 40% }
             text pick(win.picking - 1, "Share a screen", "Choose a window", "Choose what to share") { at: W / 2 - band.w / 2 + 48, band.y - 8; anchor: left center; size: 13.5; weight: 600; color: ink }
-            text pick(win.picking - 1, "This one, or another", "Press the one to share", "Press a window, or share a whole screen") { at: W / 2 - band.w / 2 + 48, band.y + 10; anchor: left center; size: 11; color: #8b8f95 }
+            text pick(win.picking - 1, "This one, or another", "Press the one to share", "Press a window, or share a whole screen") { at: W / 2 - band.w / 2 + 48, band.y + 10; anchor: left center; size: 11; color: wm_faint }
             group {
                 show: share.screens
-                box { at: W / 2 + band.w / 2 - 190, band.y; size: 150, 36; corner: 18; color: mix(#1a2a25, #24524a, screen_glow.$s) }
+                box { at: W / 2 + band.w / 2 - 190, band.y; size: 150, 36; corner: 18; color: mix(mix(wm_panel, mint, 0.1), mix(wm_panel, mint, 0.32), screen_glow.$s) }
                 box { at: W / 2 + band.w / 2 - 190, band.y; size: 150, 36; corner: 18; stroke: 1.2; color: mint; opacity: 50% + 50% * screen_glow.$s }
                 text "This whole screen" { at: W / 2 + band.w / 2 - 190, band.y; anchor: center; size: 12; weight: 600; color: ink }
                 zone box share_screen.$s { at: W / 2 + band.w / 2 - 190, band.y; size: 150, 36; corner: 18; cursor: pointer; agent: no }
             }
-            box { at: W / 2 + band.w / 2 - 62, band.y; size: 88, 36; corner: 18; color: mix(#1c1d1f, #3a2424, cancel_glow.$s) }
+            box { at: W / 2 + band.w / 2 - 62, band.y; size: 88, 36; corner: 18; color: mix(mix(wm_panel, wm_ink, 0.05), mix(wm_panel, coral, 0.28), cancel_glow.$s) }
             text "Cancel" { at: W / 2 + band.w / 2 - 62, band.y; anchor: center; size: 12; weight: 500; color: ink }
             zone box share_cancel.$s { at: W / 2 + band.w / 2 - 62, band.y; size: 88, 36; corner: 18; cursor: pointer }
         }
@@ -3651,13 +3651,13 @@ scene Session {
             move: (tx - x - w / 2) * m, (ty - y - h / 2) * (2 * m - m * m)
             scale: s0 * (1 - 0.2 * sin(180 * m)), s0 * (1 + 0.25 * sin(180 * m))
             body {
-                color: #0c0e10
+                color: wm_panel
                 shadow: 0, 18 * (1 - q), 44, 55%
                 box { from: x, y; size: w, h; corner: round }
             }
             group {
                 clip box { from: x, y; size: w, h; corner: round }
-                box { from: x, y; size: w, tb * hb.$i; color: #1d2b27; show: hb.$i > 0.01 }
+                box { from: x, y; size: w, tb * hb.$i; color: mix(wm_tint, wm_mint, 0.07); show: hb.$i > 0.01 }
                 text win.$i.title { at: x + 14, y + tb / 2 - tb * (1 - hb.$i); anchor: left center; size: 12; weight: 500; width: max(w - 110, 10); lines: 1; color: ink; opacity: hb.$i; show: hb.$i > 0.01 }
                 // Its program keeps the size it has while it shrinks into the drop: the
                 // picture is scaled, not the program asked (a browser asked for
@@ -3697,7 +3697,7 @@ scene Session {
             show: dock.into < 0.5 and win.$i.minimized and win.$i.open and win.$i.minat >= 0 and mini.$i > 0.7 and sc == screen.index and shore[sc] > 0.3
             opacity: smooth(0.7, 0.95, mini.$i)
             body {
-                color: #0c0e10
+                color: wm_panel
                 rim: 14%
                 shadow: 0, 3, 10, 40%
                 // (Lifted a little, out from the edge, under the mouse.)
@@ -3732,7 +3732,7 @@ scene Session {
                 pivot: pvx, pvy + 70
                 scale: 0.92 + 0.08 * pvup + 0.03 * dockpv.$i.hover
                 body {
-                    color: #0c0e10
+                    color: wm_panel
                     rim: 12% + 10% * dockpv.$i.hover
                     shadow: 0, 12, 28, 45%
                     box { at: pvx, pvy + 10; size: 222, 170; corner: 14 }
@@ -3831,13 +3831,13 @@ scene Session {
             pivot: dx + dw / 2, dy + dh / 2
             scale: 0.94 + 0.06 * dlg.$i
             body {
-                color: #0c0e10
+                color: wm_panel
                 shadow: 0, 18, 44, 55%
                 box { from: dx, dy; size: dw, dh; corner: rad }
             }
             group {
                 clip box { from: dx, dy; size: dw, dh; corner: rad }
-                box { from: dx, dy; size: dw, tb; color: #1d2b27 }
+                box { from: dx, dy; size: dw, tb; color: mix(wm_tint, wm_mint, 0.07) }
                 text win.$i.title { at: dx + 14, dy + tb / 2; anchor: left center; size: 12; weight: 500; width: max(dw - 40, 10); lines: 1; color: ink }
                 window win.$i { at: dx, dy + tb; size: win.$i.width, win.$i.height; ask: 0, 0; show: win.$i.dialog and win.$i.open and win.$i.screen == screen.index and dlg.ws }
             }
@@ -4005,19 +4005,19 @@ scene Session {
                 curve wv.p1x, wv.p1y via wv.c2x, wv.c2y
             }
             ellipse { at: wv.p0x, wv.p0y; radius: 5.5; color: if(wv.wait, amber, mint) }
-            ellipse { at: wv.p0x, wv.p0y; radius: 2.2; color: #f2fffa }
+            ellipse { at: wv.p0x, wv.p0y; radius: 2.2; color: wm_minthi }
             ellipse { at: wv.p1x, wv.p1y; radius: 5.5; color: if(wv.wait, amber, mint) }
-            ellipse { at: wv.p1x, wv.p1y; radius: 2.2; color: #f2fffa }
+            ellipse { at: wv.p1x, wv.p1y; radius: 2.2; color: wm_minthi }
             // What goes along it: a drop of light and its trail.
             group {
                 show: wv.go
-                ellipse { at: if((max(wv.s - 0.06, 0)) < 0.5, (1 - (max(wv.s - 0.06, 0)) * 2) * (1 - (max(wv.s - 0.06, 0)) * 2) * wv.p0x + 2 * (max(wv.s - 0.06, 0)) * 2 * (1 - (max(wv.s - 0.06, 0)) * 2) * wv.c1x + (max(wv.s - 0.06, 0)) * 2 * (max(wv.s - 0.06, 0)) * 2 * wv.mx, (1 - ((max(wv.s - 0.06, 0)) * 2 - 1)) * (1 - ((max(wv.s - 0.06, 0)) * 2 - 1)) * wv.mx + 2 * ((max(wv.s - 0.06, 0)) * 2 - 1) * (1 - ((max(wv.s - 0.06, 0)) * 2 - 1)) * wv.c2x + ((max(wv.s - 0.06, 0)) * 2 - 1) * ((max(wv.s - 0.06, 0)) * 2 - 1) * wv.p1x), if((max(wv.s - 0.06, 0)) < 0.5, (1 - (max(wv.s - 0.06, 0)) * 2) * (1 - (max(wv.s - 0.06, 0)) * 2) * wv.p0y + 2 * (max(wv.s - 0.06, 0)) * 2 * (1 - (max(wv.s - 0.06, 0)) * 2) * wv.c1y + (max(wv.s - 0.06, 0)) * 2 * (max(wv.s - 0.06, 0)) * 2 * wv.my, (1 - ((max(wv.s - 0.06, 0)) * 2 - 1)) * (1 - ((max(wv.s - 0.06, 0)) * 2 - 1)) * wv.my + 2 * ((max(wv.s - 0.06, 0)) * 2 - 1) * (1 - ((max(wv.s - 0.06, 0)) * 2 - 1)) * wv.c2y + ((max(wv.s - 0.06, 0)) * 2 - 1) * ((max(wv.s - 0.06, 0)) * 2 - 1) * wv.p1y); radius: 2.5; color: #dffaf0; opacity: 35% }
-                ellipse { at: if((max(wv.s - 0.03, 0)) < 0.5, (1 - (max(wv.s - 0.03, 0)) * 2) * (1 - (max(wv.s - 0.03, 0)) * 2) * wv.p0x + 2 * (max(wv.s - 0.03, 0)) * 2 * (1 - (max(wv.s - 0.03, 0)) * 2) * wv.c1x + (max(wv.s - 0.03, 0)) * 2 * (max(wv.s - 0.03, 0)) * 2 * wv.mx, (1 - ((max(wv.s - 0.03, 0)) * 2 - 1)) * (1 - ((max(wv.s - 0.03, 0)) * 2 - 1)) * wv.mx + 2 * ((max(wv.s - 0.03, 0)) * 2 - 1) * (1 - ((max(wv.s - 0.03, 0)) * 2 - 1)) * wv.c2x + ((max(wv.s - 0.03, 0)) * 2 - 1) * ((max(wv.s - 0.03, 0)) * 2 - 1) * wv.p1x), if((max(wv.s - 0.03, 0)) < 0.5, (1 - (max(wv.s - 0.03, 0)) * 2) * (1 - (max(wv.s - 0.03, 0)) * 2) * wv.p0y + 2 * (max(wv.s - 0.03, 0)) * 2 * (1 - (max(wv.s - 0.03, 0)) * 2) * wv.c1y + (max(wv.s - 0.03, 0)) * 2 * (max(wv.s - 0.03, 0)) * 2 * wv.my, (1 - ((max(wv.s - 0.03, 0)) * 2 - 1)) * (1 - ((max(wv.s - 0.03, 0)) * 2 - 1)) * wv.my + 2 * ((max(wv.s - 0.03, 0)) * 2 - 1) * (1 - ((max(wv.s - 0.03, 0)) * 2 - 1)) * wv.c2y + ((max(wv.s - 0.03, 0)) * 2 - 1) * ((max(wv.s - 0.03, 0)) * 2 - 1) * wv.p1y); radius: 3.5; color: #dffaf0; opacity: 55% }
+                ellipse { at: if((max(wv.s - 0.06, 0)) < 0.5, (1 - (max(wv.s - 0.06, 0)) * 2) * (1 - (max(wv.s - 0.06, 0)) * 2) * wv.p0x + 2 * (max(wv.s - 0.06, 0)) * 2 * (1 - (max(wv.s - 0.06, 0)) * 2) * wv.c1x + (max(wv.s - 0.06, 0)) * 2 * (max(wv.s - 0.06, 0)) * 2 * wv.mx, (1 - ((max(wv.s - 0.06, 0)) * 2 - 1)) * (1 - ((max(wv.s - 0.06, 0)) * 2 - 1)) * wv.mx + 2 * ((max(wv.s - 0.06, 0)) * 2 - 1) * (1 - ((max(wv.s - 0.06, 0)) * 2 - 1)) * wv.c2x + ((max(wv.s - 0.06, 0)) * 2 - 1) * ((max(wv.s - 0.06, 0)) * 2 - 1) * wv.p1x), if((max(wv.s - 0.06, 0)) < 0.5, (1 - (max(wv.s - 0.06, 0)) * 2) * (1 - (max(wv.s - 0.06, 0)) * 2) * wv.p0y + 2 * (max(wv.s - 0.06, 0)) * 2 * (1 - (max(wv.s - 0.06, 0)) * 2) * wv.c1y + (max(wv.s - 0.06, 0)) * 2 * (max(wv.s - 0.06, 0)) * 2 * wv.my, (1 - ((max(wv.s - 0.06, 0)) * 2 - 1)) * (1 - ((max(wv.s - 0.06, 0)) * 2 - 1)) * wv.my + 2 * ((max(wv.s - 0.06, 0)) * 2 - 1) * (1 - ((max(wv.s - 0.06, 0)) * 2 - 1)) * wv.c2y + ((max(wv.s - 0.06, 0)) * 2 - 1) * ((max(wv.s - 0.06, 0)) * 2 - 1) * wv.p1y); radius: 2.5; color: wm_minthi; opacity: 35% }
+                ellipse { at: if((max(wv.s - 0.03, 0)) < 0.5, (1 - (max(wv.s - 0.03, 0)) * 2) * (1 - (max(wv.s - 0.03, 0)) * 2) * wv.p0x + 2 * (max(wv.s - 0.03, 0)) * 2 * (1 - (max(wv.s - 0.03, 0)) * 2) * wv.c1x + (max(wv.s - 0.03, 0)) * 2 * (max(wv.s - 0.03, 0)) * 2 * wv.mx, (1 - ((max(wv.s - 0.03, 0)) * 2 - 1)) * (1 - ((max(wv.s - 0.03, 0)) * 2 - 1)) * wv.mx + 2 * ((max(wv.s - 0.03, 0)) * 2 - 1) * (1 - ((max(wv.s - 0.03, 0)) * 2 - 1)) * wv.c2x + ((max(wv.s - 0.03, 0)) * 2 - 1) * ((max(wv.s - 0.03, 0)) * 2 - 1) * wv.p1x), if((max(wv.s - 0.03, 0)) < 0.5, (1 - (max(wv.s - 0.03, 0)) * 2) * (1 - (max(wv.s - 0.03, 0)) * 2) * wv.p0y + 2 * (max(wv.s - 0.03, 0)) * 2 * (1 - (max(wv.s - 0.03, 0)) * 2) * wv.c1y + (max(wv.s - 0.03, 0)) * 2 * (max(wv.s - 0.03, 0)) * 2 * wv.my, (1 - ((max(wv.s - 0.03, 0)) * 2 - 1)) * (1 - ((max(wv.s - 0.03, 0)) * 2 - 1)) * wv.my + 2 * ((max(wv.s - 0.03, 0)) * 2 - 1) * (1 - ((max(wv.s - 0.03, 0)) * 2 - 1)) * wv.c2y + ((max(wv.s - 0.03, 0)) * 2 - 1) * ((max(wv.s - 0.03, 0)) * 2 - 1) * wv.p1y); radius: 3.5; color: wm_minthi; opacity: 55% }
                 group {
                     blur: 4
                     ellipse { at: if((wv.s) < 0.5, (1 - (wv.s) * 2) * (1 - (wv.s) * 2) * wv.p0x + 2 * (wv.s) * 2 * (1 - (wv.s) * 2) * wv.c1x + (wv.s) * 2 * (wv.s) * 2 * wv.mx, (1 - ((wv.s) * 2 - 1)) * (1 - ((wv.s) * 2 - 1)) * wv.mx + 2 * ((wv.s) * 2 - 1) * (1 - ((wv.s) * 2 - 1)) * wv.c2x + ((wv.s) * 2 - 1) * ((wv.s) * 2 - 1) * wv.p1x), if((wv.s) < 0.5, (1 - (wv.s) * 2) * (1 - (wv.s) * 2) * wv.p0y + 2 * (wv.s) * 2 * (1 - (wv.s) * 2) * wv.c1y + (wv.s) * 2 * (wv.s) * 2 * wv.my, (1 - ((wv.s) * 2 - 1)) * (1 - ((wv.s) * 2 - 1)) * wv.my + 2 * ((wv.s) * 2 - 1) * (1 - ((wv.s) * 2 - 1)) * wv.c2y + ((wv.s) * 2 - 1) * ((wv.s) * 2 - 1) * wv.p1y); radius: 9; color: if(wv.wait, amber, mint); opacity: 70% }
                 }
-                ellipse { at: if((wv.s) < 0.5, (1 - (wv.s) * 2) * (1 - (wv.s) * 2) * wv.p0x + 2 * (wv.s) * 2 * (1 - (wv.s) * 2) * wv.c1x + (wv.s) * 2 * (wv.s) * 2 * wv.mx, (1 - ((wv.s) * 2 - 1)) * (1 - ((wv.s) * 2 - 1)) * wv.mx + 2 * ((wv.s) * 2 - 1) * (1 - ((wv.s) * 2 - 1)) * wv.c2x + ((wv.s) * 2 - 1) * ((wv.s) * 2 - 1) * wv.p1x), if((wv.s) < 0.5, (1 - (wv.s) * 2) * (1 - (wv.s) * 2) * wv.p0y + 2 * (wv.s) * 2 * (1 - (wv.s) * 2) * wv.c1y + (wv.s) * 2 * (wv.s) * 2 * wv.my, (1 - ((wv.s) * 2 - 1)) * (1 - ((wv.s) * 2 - 1)) * wv.my + 2 * ((wv.s) * 2 - 1) * (1 - ((wv.s) * 2 - 1)) * wv.c2y + ((wv.s) * 2 - 1) * ((wv.s) * 2 - 1) * wv.p1y); radius: 4.5; color: #f2fffa }
+                ellipse { at: if((wv.s) < 0.5, (1 - (wv.s) * 2) * (1 - (wv.s) * 2) * wv.p0x + 2 * (wv.s) * 2 * (1 - (wv.s) * 2) * wv.c1x + (wv.s) * 2 * (wv.s) * 2 * wv.mx, (1 - ((wv.s) * 2 - 1)) * (1 - ((wv.s) * 2 - 1)) * wv.mx + 2 * ((wv.s) * 2 - 1) * (1 - ((wv.s) * 2 - 1)) * wv.c2x + ((wv.s) * 2 - 1) * ((wv.s) * 2 - 1) * wv.p1x), if((wv.s) < 0.5, (1 - (wv.s) * 2) * (1 - (wv.s) * 2) * wv.p0y + 2 * (wv.s) * 2 * (1 - (wv.s) * 2) * wv.c1y + (wv.s) * 2 * (wv.s) * 2 * wv.my, (1 - ((wv.s) * 2 - 1)) * (1 - ((wv.s) * 2 - 1)) * wv.my + 2 * ((wv.s) * 2 - 1) * (1 - ((wv.s) * 2 - 1)) * wv.c2y + ((wv.s) * 2 - 1) * ((wv.s) * 2 - 1) * wv.p1y); radius: 4.5; color: wm_minthi }
                 // …and rings out where it arrives.
                 ellipse { at: if(wire.$k.flow < 0, wv.p0x, wv.p1x), if(wire.$k.flow < 0, wv.p0y, wv.p1y); radius: 4 + 22 * wv.t; stroke: 2.2 * (1 - wv.t) + 0.3; color: if(wv.wait, amber, mint); opacity: 70% * (1 - wv.t) }
             }
@@ -4038,7 +4038,7 @@ scene Session {
             show: wv.on and wedit != k
             opacity: max(if(wl.has, 1, 0), wl.hov) * (1 - wcut.$k)
             body {
-                color: #0c0e10
+                color: wm_panel
                 rim: 16%
                 shadow: 0, 4, 12, 45%
                 box { at: wv.mx, wv.my; size: wl.w, 24; corner: 12 }
@@ -4058,7 +4058,7 @@ scene Session {
             show: wv.on and wedit != k and wl.hov > 0.01
             opacity: wl.hov * (1 - wcut.$k)
             body {
-                color: #0c0e10
+                color: wm_panel
                 rim: 18%
                 shadow: 0, 4, 12, 45%
                 ellipse { at: wv.mx + wl.w / 2 + 16, wv.my; radius: 11 }
@@ -4071,7 +4071,7 @@ scene Session {
         group {
             show: wv.on and wedit == k
             body {
-                color: #0c0e10
+                color: wm_panel
                 rim: 18%
                 shadow: 0, 6, 16, 50%
                 box { at: wv.mx, wv.my; size: 236, 30; corner: 15 }
@@ -4120,7 +4120,7 @@ scene Session {
                 curve mouse.x, mouse.y via (wg.x + mouse.x) / 2, mouse.y
             }
             body {
-                gradient: radial mouse.x - 2, mouse.y - 2 radius 8, #e8fff5, mint 45%, #3f8f76
+                gradient: radial mouse.x - 2, mouse.y - 2 radius 8, wm_minthi, mint 45%, mix(wm_mintlo, wm_deep, 0.35)
                 rim: 35%
                 shadow: 0, 2, 6, 40%
                 ellipse { at: mouse.x, mouse.y; radius: 6 }
@@ -4763,7 +4763,7 @@ scene Session {
                 show: pour.$i < 0.995 and sc.last.$i == screen.index and win.$i.open and not win.$i.dialog
                 opacity: 1 - smooth(0.65, 1, pour.$i)
                 body {
-                    color: #0c0e10
+                    color: wm_panel
                     shadow: 0, 18, 40, 50%
                     box { at: px, py; size: pw, ph2; corner: 12 + 10 * t }
                 }
@@ -4799,7 +4799,7 @@ scene Session {
             group {
                 clip box { at: cx, cy; size: 106, 208; corner: 19 }
                 ellipse { at: cx - 20 + curtain.float * 2, cy + 74; radius: 90; scale: 1, 0.35; color: #2a6b5b; opacity: 70% }
-                ellipse { at: cx + 26 - curtain.float * 2, cy + 86; radius: 80; scale: 1, 0.3; color: #9ed6bd; opacity: 35% }
+                ellipse { at: cx + 26 - curtain.float * 2, cy + 86; radius: 80; scale: 1, 0.3; color: mint; opacity: 35% }
             }
             text "Your session is on your phone" { at: cx, cy + 160; anchor: center; size: 24; weight: 650; color: ink }
             text "Touch a key or the mouse here to bring it back · it will ask you to unlock" { at: cx, cy + 194; anchor: center; size: 13.5; color: #9aa3a8 }
@@ -4851,14 +4851,14 @@ scene Session {
             opacity: remote.shown
             show: rm.here
             body {
-                color: #0c0f12
+                color: wm_panel
                 rim: 16%
                 shadow: 0, 6, 18, 40%
                 box { at: 186, rm.h - 30; size: 340, 38; corner: 19 }
             }
             ellipse { at: 34, rm.h - 30; radius: 5; color: amber }
             text "Used from elsewhere · {remote.who}" { at: 48, rm.h - 36; anchor: left center; size: 11.5; weight: 600; color: ink }
-            text "Super+Shift+Esc sends them away" { at: 48, rm.h - 22; anchor: left center; size: 10.5; color: #9aa3a8 }
+            text "Super+Shift+Esc sends them away" { at: 48, rm.h - 22; anchor: left center; size: 10.5; color: wm_faint }
         }
     }
 
@@ -4894,7 +4894,7 @@ scene Session {
         opacity: keptv
         move: 0, -20 * (1 - keptv)
         body {
-            color: #0c0e10
+            color: wm_panel
             rim: 16%
             shadow: 0, 10, 28, 50%
             box { at: W / 2, 52; size: 560, 56; corner: 28 }
@@ -4911,7 +4911,7 @@ scene Session {
         text "{kept.n, 0} terminals and {kept.w, 0} wires, with their agents, as you left them" { at: W / 2 - 206, 62; anchor: left center; size: 10.5; color: ink; opacity: 60%; width: 300; lines: 1; show: kept.n > 1.5 and kept.w != 1 }
         zone box kept_go { at: W / 2 + 170, 52; size: 128, 34; cursor: pointer; active: kept.n > 0.5; label: "Bring back your canvas"; role: button }
         box { at: W / 2 + 170, 52; size: 128, 34; corner: 17; color: mint; opacity: 85% + 15% * kept_go.hover }
-        text "Bring back" { at: W / 2 + 170, 52; anchor: center; size: 12; weight: 650; color: #0c1a15 }
+        text "Bring back" { at: W / 2 + 170, 52; anchor: center; size: 12; weight: 650; color: wm_onmint }
         zone ellipse kept_no { at: W / 2 + 254, 52; radius: 13; cursor: pointer; active: kept.n > 0.5; label: "Leave it"; role: button }
         ellipse { at: W / 2 + 254, 52; radius: 13; color: ink; opacity: 8% + 10% * kept_no.hover }
         box { at: W / 2 + 254, 52; size: 9, 1.6; corner: 0.8; rotate: 45deg; color: ink; opacity: 70% }
@@ -4977,7 +4977,7 @@ scene Session {
         let ag.px = W - 196
         let ag.py = H - 30
         body {
-            color: #0c0f12
+            color: wm_panel
             rim: 16%
             shadow: 0, 6, 18, 40%
             box { at: ag.px, ag.py; size: 340, 30; corner: 15 }
@@ -4988,9 +4988,9 @@ scene Session {
         // Not at the default pace, it says so: the hand is not seen travelling.
         text "fast" { at: ag.px + 40, ag.py + 0.5; anchor: left center; size: 10; weight: 700; color: mint; show: agent.pace == 1 }
         text "instant" { at: ag.px + 40, ag.py + 0.5; anchor: left center; size: 10; weight: 700; color: mint; show: agent.pace == 2 }
-        box { at: ag.px + 130, ag.py; size: 64, 22; corner: 11; color: #ef7a66; opacity: 18% + 30% * ag.stop.hover }
-        box { at: ag.px + 109, ag.py; size: 7, 7; corner: 1.5; color: #ef7a66 }
-        text "Stop" { at: ag.px + 136, ag.py + 0.5; anchor: center; size: 11.5; weight: 700; color: #ffb3a6 }
+        box { at: ag.px + 130, ag.py; size: 64, 22; corner: 11; color: coral; opacity: 18% + 30% * ag.stop.hover }
+        box { at: ag.px + 109, ag.py; size: 7, 7; corner: 1.5; color: coral }
+        text "Stop" { at: ag.px + 136, ag.py + 0.5; anchor: center; size: 11.5; weight: 700; color: coral }
     }
     prop ag.stop.hover = 0 ~120ms
     zone box ag_stop { at: W - 66, H - 30; size: 64, 22; cursor: pointer; active: ag.here and agent.quiet < 0.5 and agent.on > 0.5; agent: no }
@@ -5062,7 +5062,7 @@ scene Session {
                     // A soft light under it, so it is found on any window.
                     ellipse { at: ax + 5, ay + 8; radius: 15; color: if(k == 0, mint, #c9b3f2); opacity: 16% }
                     // The arrow: dark edge, mint body, its tip on the point.
-                    path { at: ax - 1.2, ay - 1.6; color: #0c0f12
+                    path { at: ax - 1.2, ay - 1.6; color: wm_deep
                            move 0, 0; line 0, 21; line 5.6, 16; line 9.2, 24.2; line 13, 22.6; line 9.5, 14.6; line 16.4, 14.6; close }
                     path { at: ax, ay; color: if(k == 0, mint, #c9b3f2)
                            move 0, 0; line 0, 17.5; line 4.6, 13.4; line 7.8, 20.6; line 10.2, 19.6; line 7.1, 12.6; line 12.6, 12.6; close }
@@ -5070,7 +5070,7 @@ scene Session {
                 // Its name, up and to the right of the tip: a page's tooltip
                 // opens below the pointer, and the name sat on it.
                 body {
-                    color: #0c0f12
+                    color: wm_panel
                     rim: 14%
                     box { from: ax + 16, ay - 21; size: tag.$k.width + 16, 18; corner: 9 }
                 }

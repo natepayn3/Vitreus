@@ -2946,9 +2946,17 @@ function iris_fx.apply_palette(pal)
         -- shade, which shows on glass). Each of those is another program, and reloads itself on a change.
         pcall(sys.call, "files.write", "palette.plm", text_out)
         run("cp", { d.data .. "/palette.plm", d.conf .. "/palette.plm" }, function() end)
-        local wm_text = "//  Written by Vitreus's logic from the wallpaper (Iris); edits here are overwritten.\n" ..
-            "//  What pleamar-wm's scene takes from it: the colour of the focused window's border.\n\nlibrary WmPalette {\n    let wm_border = " ..
-            pal.minthi .. "\n}\n"
+        -- (and the whole palette as wm_*: its title bars, menus, dock, overview cards and buttons, build-session.py's "theme" pass)
+        local wm_lines = {
+            "//  Written by Vitreus's logic from the wallpaper (Iris); edits here are overwritten.",
+            "//  What pleamar-wm's scene takes from it: the colour of the focused window's border, and the palette its own drawing wears.",
+            "",
+            "library WmPalette {",
+            "    let wm_border = " .. pal.minthi,
+        }
+        for _, k in ipairs(order) do wm_lines[#wm_lines + 1] = string.format("    let wm_%-7s= %s", k, pal[k]) end
+        wm_lines[#wm_lines + 1] = "}"
+        local wm_text = table.concat(wm_lines, "\n") .. "\n"
         if wm_text ~= iris_cfg.last_wm then
             iris_cfg.last_wm = wm_text
             pcall(sys.call, "files.write", "wm-palette.plm", wm_text)

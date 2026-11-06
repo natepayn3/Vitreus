@@ -151,7 +151,7 @@ part Overview {
             box { at: ovc.x, ovc.top + 104 * ovu; size: 290 * ovu, 208 * ovu; corner: 18 * ovu * (1 - 0.73 * cy_k); color: mix(ink, mint, max(ovc.act, ovc.drop)); opacity: 6% + 9% * ovc.act + 14% * ovc.drop + 4% * ov_hz.$c.hover }
             box { at: ovc.x, ovc.top + 104 * ovu; size: 290 * ovu, 208 * ovu; corner: 18 * ovu * (1 - 0.73 * cy_k); stroke: 1.4 * ovu; color: mint; opacity: max(50% * ovc.act, 90% * ovc.drop) }
             //  The 16:9 screen the windows lie on.
-            box { at: ovc.x, ovc.top + 120 * ovu; size: 270 * ovu, 152 * ovu; corner: 10 * ovu * (1 - 0.73 * cy_k); color: #05070d; opacity: 38% }
+            box { at: ovc.x, ovc.top + 120 * ovu; size: 270 * ovu, 152 * ovu; corner: 10 * ovu * (1 - 0.73 * cy_k); color: deep; opacity: 38% }
             text number(c + 1, 0, "") { at: floor(ovc.x - 128 * ovu + 0.5), floor(ovc.top + 22 * ovu + 0.5); anchor: left center; size: 22; weight: 700; color: mix(ink, mint, ovc.act); family: "Space Grotesk" }
             text number(ov_cnt.$c, 0, " windows") { at: floor(ovc.x + 130 * ovu + 0.5), floor(ovc.top + 22 * ovu + 0.5); anchor: right center; align: right; size: 10.5; width: 110 * ovu; lines: 1; color: faint; family: "Space Grotesk"; show: ov_cnt.$c != 1 }
             text "1 window" { at: floor(ovc.x + 130 * ovu + 0.5), floor(ovc.top + 22 * ovu + 0.5); anchor: right center; align: right; size: 10.5; width: 110 * ovu; lines: 1; color: faint; family: "Space Grotesk"; show: ov_cnt.$c == 1 }
@@ -178,7 +178,7 @@ part Overview {
                 show: ovr.on
                 opacity: ovr.lift
                 body {
-                    color: #05070d
+                    color: deep
                     opacity: 40%
                     shadow: 0, 2 * ovu, 8 * ovu, 50%, #000000
                     box { at: ovr.x, ovr.y; size: ovr.tw, ovr.th; corner: 6 * ovu * (1 - 0.73 * cy_k) }
@@ -188,9 +188,9 @@ part Overview {
                     image wthumbs.$n.picture { at: ovr.x - ovr.tw / 2, ovr.y - ovr.th / 2; size: ovr.tw, ovr.th; opacity: if(wthumbs.$n.stale, 70%, 100%); show: ovw.$n.snap }
                     //  No picture taken yet: the app's icon.
                     image ovw.$n.icon { at: floor(ovr.x - 11 * ovu + 0.5), floor(ovr.y - 11 * ovu + 0.5); size: floor(22 * ovu + 0.5), floor(22 * ovu + 0.5); show: not ovw.$n.snap and ovr.tw > 100 * ovu }
-                    box { at: ovr.x, ovr.y; size: ovr.tw, ovr.th; color: #ffffff; opacity: 10% * ov_rz.$n.hover }
+                    box { at: ovr.x, ovr.y; size: ovr.tw, ovr.th; color: ink; opacity: 10% * ov_rz.$n.hover }
                 }
-                box { at: ovr.x, ovr.y; size: ovr.tw, ovr.th; corner: 6 * ovu * (1 - 0.73 * cy_k); stroke: if(ovw.$n.active, 2 * ovu, 1.2 * ovu); color: if(ovw.$n.active, mint, mix(#ffffff, mint, cy_k)); opacity: if(ovw.$n.active, 100%, 16% + 34% * ov_rz.$n.hover + 24% * cy_k) }
+                box { at: ovr.x, ovr.y; size: ovr.tw, ovr.th; corner: 6 * ovu * (1 - 0.73 * cy_k); stroke: if(ovw.$n.active, 2 * ovu, 1.2 * ovu); color: if(ovw.$n.active, mint, mix(ink, mint, cy_k)); opacity: if(ovw.$n.active, 100%, 16% + 34% * ov_rz.$n.hover + 24% * cy_k) }
             }
             zone box ov_rz.$n { at: ovr.x, ovr.y; size: ovr.tw, ovr.th; corner: 6 * ovu * (1 - 0.73 * cy_k); cursor: pointer; active: ovr.on and ov_show > 0.5 }
             on enter ov_rz.$n { ov_hot = n; ov_hotc = ovw.$n.ws }
@@ -220,7 +220,7 @@ part Overview {
                 show: ov_drag == n and ovl.moving > 0
                 opacity: 94%
                 body {
-                    color: #05070d
+                    color: deep
                     opacity: 40%
                     shadow: 0, 12 * ovu, 26 * ovu, 70%, #000000
                     box { at: ovm.x, ovm.y; size: ovg.tw, ovg.th; corner: 9 * ovu * (1 - 0.73 * cy_k) }
@@ -229,8 +229,8 @@ part Overview {
                     clip box { at: ovm.x, ovm.y; size: ovg.tw, ovg.th; corner: 9 * ovu * (1 - 0.73 * cy_k) }
                     image wthumbs.$n.picture { at: ovm.x - ovg.tw / 2, ovm.y - ovg.th / 2; size: ovg.tw, ovg.th; show: ovw.$n.snap }
                     image ovw.$n.icon { at: floor(ovm.x - 11 * ovu + 0.5), floor(ovm.y - 11 * ovu + 0.5); size: floor(22 * ovu + 0.5), floor(22 * ovu + 0.5); show: not ovw.$n.snap }
-                    box { at: ovm.x, ovm.y + ovg.th / 2 - 12 * ovu; size: ovg.tw, 24 * ovu; color: #05070d; opacity: 70% }
-                    text ovw.$n.title { at: floor(ovm.x - ovg.tw / 2 + 10 * ovu + 0.5), floor(ovm.y + ovg.th / 2 - 12 * ovu + 0.5); anchor: left center; size: 10.5; width: ovg.tw - 20 * ovu; lines: 1; color: #f2f4f2; family: "Space Grotesk" }
+                    box { at: ovm.x, ovm.y + ovg.th / 2 - 12 * ovu; size: ovg.tw, 24 * ovu; color: card; opacity: 85% }
+                    text ovw.$n.title { at: floor(ovm.x - ovg.tw / 2 + 10 * ovu + 0.5), floor(ovm.y + ovg.th / 2 - 12 * ovu + 0.5); anchor: left center; size: 10.5; width: ovg.tw - 20 * ovu; lines: 1; color: ink; family: "Space Grotesk" }
                 }
                 box { at: ovm.x, ovm.y; size: ovg.tw, ovg.th; corner: 9 * ovu * (1 - 0.73 * cy_k); stroke: 2 * ovu; color: mint }
             }

@@ -13,7 +13,8 @@ What it adds to pleamar-wm's scene:
   * the window styles (wst): 0 Vitreus glass, 1 Water, 2 Borderless, 3 Glow; and their corners, border, shadow, opacity and frost;
   * title bars on tiled windows (tbt), which pleamar-wm only gives to free ones;
   * focus_slot and close_slot, which the shell's task list emits to bring up or close a window by its slot; to_monitor, which sends one to a monitor;
-  * a right press on the bare desktop, counted for Vitreus (desk_n, desk_x, desk_y, desk_mon), which opens the desktop menu.
+  * a right press on the bare desktop, counted for Vitreus (desk_n, desk_x, desk_y, desk_mon), which opens the desktop menu;
+  * the theme: its fixed chrome colours become Vitreus's palette (wm_* in wm-palette.plm).
 """
 import os, re, subprocess, shutil, sys, tempfile
 
@@ -248,6 +249,55 @@ once("let ag.lvl = pick(max(ag.$i - 1, 0), 6 + 1.5 * sin(fxclock * 300), 3.5, 9.
      "let ag.lvl = if(ag.$i > 0.5, pick(max(ag.$i - 1, 0), 6 + 1.5 * sin(fxclock * 300), 3.5, 9.5), 0)")
 
 # (Upstream now keeps its own clock, `fxclock`, spinning only while an agent works: the patch that took `time` out of the scene is gone, 0.6.3.)
+
+# ── the theme: pleamar-wm's own drawing in Vitreus's palette ───────────────────────────────────────────────────────────────────────────
+# Upstream draws its chrome in fixed colours (its stock mint, coral and near-black). Here they become the palette's (wm_* from wm-palette.plm,
+# which Vitreus writes from the theme or the wallpaper): the title bars wear `tint` like the bar's glass, the menus, the dock, the overview's
+# cards and the hints are `panel` cards, a window's own backing is `deep`, its buttons the accent and `alert`. The phone, the privacy curtain,
+# Marea, the weather, the agents' second colour and amber are left as they are (drawings of their own, on backgrounds of their own).
+# Each line says how many it expects at least; a pattern that upstream took away stops the build and says which.
+def recolour(pat, repl, least=1):
+    global s
+    s, c = re.subn(pat, repl, s)
+    if c < least:
+        sys.exit("build-session (theme): expected at least %d of this, found %d:\n%s" % (least, c, pat))
+
+once("    let ink = #f5f7f5\n    let mint = #9ed6bd\n    let coral = #ef7a66\n",
+     "    let ink = wm_ink                     // (the theme's: wm-palette.plm)\n    let mint = wm_mint\n    let coral = wm_alert\n")
+# A window's backing, under what it shows (seen through a translucent one): the palette's darkest, as stock is near-black.
+recolour(r"color: #0c0e10(\n\s+opacity: (?:wop|60% \+ 40% \* wop))", r"color: wm_deep\1", 2)
+recolour(r"color: #0c0e10(\n\s+shadow: 0, 14 \+ 8 \* lit)", r"color: wm_deep\1", 1)
+# Every other card: menus, tooltips, the dock's hints, the overview's pool cards, the share band, the minimised chips.
+recolour(r"(body \{\n\s+)color: #0c0e10\b", r"\1color: wm_panel", 10)
+recolour(r"(body \{\n\s+)color: #0c0f12\b", r"\1color: wm_panel", 2)
+recolour(r"(body \{\n\s+)color: #0d1013\b", r"\1color: wm_panel", 1)
+# The switch between pools: a wave of the card's colour.
+recolour(r"#1[25]1[58]1[7b], #0c0e10 (\d+)%, #0a0b0d", r"mix(wm_panel, wm_ink, 0.04), wm_panel \1%, mix(wm_panel, wm_deep, 0.35)", 2)
+# Writing on the accent (a pool's number, the "Bring back" button) and the agent's arrow edge.
+recolour(r"weight: 700; color: #0c0e10\b", "weight: 700; color: wm_onmint", 1)
+recolour(r"weight: 650; color: #0c1a15\b", "weight: 650; color: wm_onmint", 1)
+recolour(r"(path \{ at: ax - 1\.2, ay - 1\.6; color: )#0c0f12\b", r"\1wm_deep", 1)
+# Title bars: the bar's glass (`tint`), a touch of the accent on the one with the keyboard.
+recolour(r"mix\(#1a1e22, #1d2b27, lit\.\$i\)", r"mix(wm_tint, wm_mint, 0.07 * lit.$i)", 3)
+recolour(r"mix\(#0b1015, #0f1d1a, lit\.\$i\)", r"mix(wm_tint, wm_mint, 0.06 * lit.$i)", 3)
+recolour(r"color: #1d2b27\b", "color: mix(wm_tint, wm_mint, 0.07)", 3)
+recolour(r"color: #1d2226\b", "color: mix(wm_tint, wm_ink, 0.05)", 1)
+# The window buttons and the cursor's drop: the accent's light, the accent, its deep; the close one in `alert`.
+recolour(r"#e8fff5, mint 45%, #3f8f76", "wm_minthi, mint 45%, mix(wm_mintlo, wm_deep, 0.35)", 2)
+recolour(r"#ffe4dc, coral 45%, #b0412f", "mix(coral, #ffffff, 0.7), coral 45%, mix(coral, wm_deep, 0.35)", 1)
+recolour(r"color: #0f3d2f\b", "color: mix(mint, wm_deep, 0.7)", 2)
+recolour(r"color: #4a140b\b", "color: mix(coral, wm_deep, 0.7)", 2)
+# The accent's light: the ripple a window opens with, the line on the layout boxes, the agent's bubbles and the wire's ends.
+recolour(r"#(?:dffaf0|e9fff6|f2fffa)\b", "wm_minthi", 4)
+recolour(r"#ef7a66\b", "coral", 4)
+recolour(r"color: #9ed6bd\b", "color: mint", 1)
+recolour(r"let ico = #f5f7f5\b", "let ico = wm_ink", 1)
+# The share band: its hint, and the two buttons (the accent's and `alert`'s glow on the card); the remote room's hint.
+recolour(r'(Press a window, or share a whole screen"\) \{[^}]*?color: )#8b8f95', r"\1wm_faint", 1)
+recolour(r"mix\(#1a2a25, #24524a, screen_glow\.\$s\)", r"mix(mix(wm_panel, mint, 0.1), mix(wm_panel, mint, 0.32), screen_glow.$s)", 1)
+recolour(r"mix\(#1c1d1f, #3a2424, cancel_glow\.\$s\)", r"mix(mix(wm_panel, wm_ink, 0.05), mix(wm_panel, coral, 0.28), cancel_glow.$s)", 1)
+recolour(r'("Super\+Shift\+Esc sends them away" \{[^}]*?color: )#9aa3a8', r"\1wm_faint", 1)
+recolour(r'("Stop" \{[^}]*?color: )#ffb3a6', r"\1coral", 1)
 
 os.makedirs(os.path.join(out, "shaders"), exist_ok=True)
 for f in os.listdir(os.path.join(tmp, "shaders")):
