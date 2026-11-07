@@ -104,6 +104,7 @@ return function()
     end
     on("launch_toggle", function() panel_toggle("launch") end)
     on("settings_toggle", function() panel_toggle("settings") end)
+    on("controls_toggle", function() panel_toggle("controls") end)
     on("desk_toggle", function()
         toggle_here(function() return fact.desk_open == true end, function(v)
             if v then fact.desk_tab = tonumber(fact.desk_start) or 6 end   -- it opens on Home, or the tool chosen in Customize

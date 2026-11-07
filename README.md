@@ -75,7 +75,8 @@ Requirements, options, Debian/Ubuntu and setting it up by hand are in **[docs/IN
 | `SUPER + B` | Wallpaper picker |
 | `SUPER + TAB` | Workspace overview |
 | `SUPER + E` | Files |
-| `SUPER + C` / `SUPER + SHIFT + C` | Screenshot / screen recording |
+| `SUPER + C` | Control Center |
+| `SUPER + A` / `SUPER + CTRL + A` / `SUPER + SHIFT + A` | Screenshot of a region (Snap) / of the whole screen / screen recording |
 | `SUPER + L` | Lock |
 
 ---

@@ -25,6 +25,7 @@ return function()
     local ACTS = {
         ["vitreus emit launch_toggle"] = "Launcher",
         ["vitreus emit settings_toggle"] = "Settings",
+        ["vitreus emit controls_toggle"] = "Control Center",
         ["lockscreen fact locked true"] = "Lock screen",
         ["vitreus emit wp_picker_toggle"] = "Wallpaper picker",
         ["vitreus emit desk_toggle"] = "Desk",
@@ -40,23 +41,23 @@ return function()
     local DEFAULTS = {
         hypr = {
             ["vitreus-files"] = { { 1, "e" } },
-            ["vitreus emit launch_toggle"] = { { 1, "space" } }, ["vitreus emit settings_toggle"] = { { 3, "space" } },
+            ["vitreus emit launch_toggle"] = { { 1, "space" } }, ["vitreus emit settings_toggle"] = { { 3, "space" } }, ["vitreus emit controls_toggle"] = { { 1, "c" } },
             ["lockscreen fact locked true"] = { { 1, "l" } }, ["vitreus emit wp_picker_toggle"] = { { 1, "b" } },
             ["vitreus emit desk_toggle"] = { { 1, "d" } }, ["vitreus emit dash_toggle"] = { { 3, "d" } }, ["vitreus emit ov_toggle"] = { { 1, "Tab" } },
-            ["vitreus emit shot 0"] = { { 0, "Print" }, { 1, "c" } }, ["vitreus emit shot 1"] = { { 2, "Print" } }, ["vitreus emit rec_toggle"] = { { 3, "c" } },
+            ["vitreus emit shot 0"] = { { 1, "a" } }, ["vitreus emit shot 1"] = { { 5, "a" } }, ["vitreus emit rec_toggle"] = { { 3, "a" } },
         },
         niri = {
             ["vitreus-files"] = { { 1, "e" } },
-            ["vitreus emit launch_toggle"] = { { 1, "space" } }, ["vitreus emit settings_toggle"] = { { 3, "space" } },
+            ["vitreus emit launch_toggle"] = { { 1, "space" } }, ["vitreus emit settings_toggle"] = { { 3, "space" } }, ["vitreus emit controls_toggle"] = { { 1, "c" } },
             ["lockscreen fact locked true"] = { { 1, "l" } }, ["vitreus emit wp_picker_toggle"] = { { 1, "b" } },
             ["vitreus emit desk_toggle"] = { { 1, "d" } }, ["vitreus emit dash_toggle"] = { { 3, "d" } }, ["vitreus emit ov_toggle"] = { { 1, "Tab" } },
-            ["vitreus emit shot 0"] = { { 0, "Print" }, { 1, "c" } }, ["vitreus emit shot 1"] = { { 2, "Print" } }, ["vitreus emit rec_toggle"] = { { 3, "c" } },
+            ["vitreus emit shot 0"] = { { 1, "a" } }, ["vitreus emit shot 1"] = { { 5, "a" } }, ["vitreus emit rec_toggle"] = { { 3, "a" } },
         },
         pwm = {
-            ["vitreus emit launch_toggle"] = { { 1, "space" } }, ["vitreus emit settings_toggle"] = { { 3, "space" } },
+            ["vitreus emit launch_toggle"] = { { 1, "space" } }, ["vitreus emit settings_toggle"] = { { 3, "space" } }, ["vitreus emit controls_toggle"] = { { 1, "c" } },
             ["lockscreen fact locked true"] = { { 1, "l" } }, ["vitreus emit wp_picker_toggle"] = { { 1, "b" } },
-            ["vitreus emit desk_toggle"] = { { 1, "d" } }, ["vitreus emit dash_toggle"] = { { 3, "d" } }, ["vitreus emit shot 0"] = { { 0, "Print" }, { 1, "c" } },
-            ["vitreus emit shot 1"] = { { 2, "Print" } }, ["vitreus emit rec_toggle"] = { { 3, "c" } },
+            ["vitreus emit desk_toggle"] = { { 1, "d" } }, ["vitreus emit dash_toggle"] = { { 3, "d" } }, ["vitreus emit shot 0"] = { { 1, "a" } },
+            ["vitreus emit shot 1"] = { { 5, "a" } }, ["vitreus emit rec_toggle"] = { { 3, "a" } },
             ["launch vitreus-files"] = { { 1, "e" } },
         },
     }
@@ -169,9 +170,14 @@ return function()
                         local mask, key = parse_combo(combo)
                         if name and mask then
                             seen[act] = (seen[act] or 0) + 1
-                            local d = (DEFAULTS[wm()][act] or {})[seen[act]]
+                            -- A bind is unchanged if it is any of the keys the action ships with (a file may keep only one of two, or have them in another order);
+                            -- otherwise it is compared with the stock key of its place, which "Reset" puts back.
+                            local list = DEFAULTS[wm()][act] or {}
+                            local d, same = list[seen[act]], nil
+                            for _, x in ipairs(list) do if x[1] == mask and x[2] == key then same = x end end
+                            if same then d = same end
                             rows[#rows + 1] = { order = #rows + 1, act = act, name = name, mask = mask, key = key, text = combo, def = d,
-                                changed = d ~= nil and (d[1] ~= mask or d[2] ~= key) }
+                                changed = d ~= nil and same == nil }
                         end
                     end
                 end
