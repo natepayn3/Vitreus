@@ -17,7 +17,7 @@ part Desk {
             scale: max(dz.lf, 0.05)
             zone box desk_band { at: dsk_xc, dsk_y0 + dsk_h / 2; size: dsk_w, dsk_h }
             on leave desk_band { desk_kb = false }
-            on enter desk_band while desk_tab == 4 and term_armed { desk_kb = true; focus term_grab }      // (back over the Desk: the keyboard again)
+            on enter desk_band while desk_tab == 4 and term_armed { desk_kb = true; focus term }      // (back over the Desk: the keyboard again)
             include "desk_screen.plm"          // the screen: its bezel line, the camera, the AI dot, the tool's title
             //  The grip along the top: take the panel by it and pull it off the frame; let go near its place and it snaps back, further away it stays.
             box { at: dsk_xc, dsk_y0 + 11 * du; size: 34 * du, 4 * du; corner: 2 * du; color: ink; opacity: 35% * max(desk_grip.hover, if(desk_hold, 1, 0)) }
@@ -719,28 +719,23 @@ part Desk {
                     move: 0, (1 - fd1) * 12 * du
                 box { at: dsk_xc, tm_y0 + tt_h / 2; size: tm_w, tt_h; corner: 14 * du; color: deep; opacity: 42% + 8% * tm_on }
                 box { at: dsk_xc, tm_y0 + tt_h / 2; size: tm_w, tt_h; corner: 14 * du; stroke: 1.2; color: mint; opacity: 22% * tm_on }
-                zone box term_zone { at: dsk_xc, tm_y0 + tt_h / 2; size: tm_w, tt_h; corner: 14 * du; cursor: text }
-                on press term_zone { desk_kb = true; term_armed = true; focus term_grab }
-                //  Term's own field: passive (it takes no key) and out of sight; focusing it is what lends the shell the keyboard (vitreus.plm)
-                input term_grab { at: dsk_xc, dsk_y0 + 70 * du; width: 2; size: 1; color: ink; opacity: 0; passive: true; agent: hidden }
-                on scroll term_zone { emit term_scroll(wheel) }
-                for c in term_runs {
-                    box { at: tm_gx + (c.x + c.n / 2) * tm_cw, tm_gy + c.y * tm_ch; size: c.n * tm_cw, tm_ch; color: rgb(c.br, c.bg, c.bb); show: c.hasbg }
-                    group { scale: rs; pivot: tm_gx + c.x * tm_cw, tm_gy + c.y * tm_ch; text c.t { at: tm_gx + c.x * tm_cw, tm_gy + c.y * tm_ch; anchor: left center; size: 11.75; weight: 400; color: if(c.fg, rgb(c.r, c.g, c.b), ink); family: "SpaceMono Nerd Font"; show: not c.bold } }
-                    group { scale: rs; pivot: tm_gx + c.x * tm_cw, tm_gy + c.y * tm_ch; text c.t { at: tm_gx + c.x * tm_cw, tm_gy + c.y * tm_ch; anchor: left center; size: 11.75; weight: 700; color: if(c.fg, rgb(c.r, c.g, c.b), ink); family: "SpaceMono Nerd Font"; show: c.bold } }
+                //  The terminal is pleamar's own (`terminal`): a real shell in its own pty, drawn by the scene with the engine's letters. It has the
+                //  mouse, the selection, the history and the keyboard protocols; the logic only starts it, restarts it and types the AUR update.
+                terminal term {
+                    at: dsk_xc - tm_w / 2 + 10 * du, tm_y0 + 10 * du
+                    size: tm_w - 20 * du, tt_h - 20 * du
+                    family: "SpaceMono Nerd Font"; font_size: 11.75 * rs; line_height: 1.362
+                    colors: #d8dedb, #101614, #4a5552, #e0655a, #9ed6bd, #e3c27a, #7fa8e0, #c79ae0, #8fd3d0, #d8dedb, #6f7a77, #f08a80, #b9ecd4, #f2d79a, #a3c2f0, #dbb8f0, #b0e8e5, #f5f7f5
+                    cursor: mint; selection: mint
+                    run: term_wanted
+                    show: term.alive > 0
                 }
-                box { at: tm_gx + (term_cx + 0.5) * tm_cw, tm_gy + term_cy * tm_ch; size: tm_cw, tm_ch; corner: 1.5; color: mint; opacity: 80%; show: term_cur and desk_kb }
-                box { at: tm_gx + (term_cx + 0.5) * tm_cw, tm_gy + term_cy * tm_ch; size: tm_cw - 1, tm_ch - 1; corner: 1.5; stroke: 1; color: mint; opacity: 70%; show: term_cur and not desk_kb }
-                //  Scrolled back: a pill at the bottom says so, and how to come back.
-                group {
-                    show: term_scrolled > 0
-                    box { at: dsk_xc, tm_y0 + tt_h - 22 * du; size: 214 * du, 26 * du; corner: 13 * du; color: mint; opacity: 90% }
-                    group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(tm_y0 + tt_h - 22 * du + 0.5); text "Scrolled back · type to return" { at: floor(dsk_xc + 0.5), floor(tm_y0 + tt_h - 22 * du + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: off; family: "Space Grotesk" } }
-                }
-                //  Not running: the shell has ended, or the terminal cannot start (pyte missing).
-                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(tm_y0 + tt_h / 2 - 12 * du + 0.5); text "The shell has ended" { at: floor(dsk_xc + 0.5), floor(tm_y0 + tt_h / 2 - 12 * du + 0.5); anchor: center; align: center; size: 15; weight: 600; color: ink; family: "Space Grotesk"; show: term_state == 2 } }
-                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(tm_y0 + tt_h / 2 + 12 * du + 0.5); text "Click here and press any key to start a new one" { at: floor(dsk_xc + 0.5), floor(tm_y0 + tt_h / 2 + 12 * du + 0.5); anchor: center; align: center; size: 12; color: faint; family: "Space Grotesk"; show: term_state == 2 } }
-                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(tm_y0 + tt_h / 2 + 0.5); text term_msg { at: floor(dsk_xc + 0.5), floor(tm_y0 + tt_h / 2 + 0.5); anchor: center; align: center; size: 12.5; width: (tm_w - 48 * du) / rs; color: faint; family: "Space Grotesk"; show: term_state == 3 } }
+                on press term { desk_kb = true; term_armed = true }
+                //  The shell has ended: a press on the card starts a new one.
+                zone box term_zone { at: dsk_xc, tm_y0 + tt_h / 2; size: tm_w, tt_h; corner: 14 * du; cursor: pointer; show: term_wanted and term.alive == 0 }
+                on press term_zone { desk_kb = true; term_armed = true; emit term_restart }
+                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(tm_y0 + tt_h / 2 - 12 * du + 0.5); text "The shell has ended" { at: floor(dsk_xc + 0.5), floor(tm_y0 + tt_h / 2 - 12 * du + 0.5); anchor: center; align: center; size: 15; weight: 600; color: ink; family: "Space Grotesk"; show: term_wanted and term.alive == 0 } }
+                group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(tm_y0 + tt_h / 2 + 12 * du + 0.5); text "Click here to start a new one" { at: floor(dsk_xc + 0.5), floor(tm_y0 + tt_h / 2 + 12 * du + 0.5); anchor: center; align: center; size: 12; color: faint; family: "Space Grotesk"; show: term_wanted and term.alive == 0 } }
                 }
             }
             include "desk_home.plm"
