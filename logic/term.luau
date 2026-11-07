@@ -10,8 +10,10 @@ return function(key)
     -- A terminal that is not running yet is started first, and given a moment for its prompt.
     on("aur_update", function()
         local cmd = desk_aur_cmd and desk_aur_cmd() or "paru -Sua"
-        local fresh = fact.term_wanted ~= true or fact["term.alive"] == 0
+        -- the terminal of the monitor the Desk is on (each copy of the scene has its own, `tm.<n>`)
+        local name = "tm." .. tostring(math.floor(tonumber(fact.panel_scr) or 0))
+        local fresh = fact.term_wanted ~= true or fact[name .. ".alive"] == 0
         if fresh then fact.term_wanted = true end
-        after(fresh and 900 or 0, function() sys.call("terminal.write", "term", cmd .. "\r") end)
+        after(fresh and 900 or 0, function() sys.call("terminal.write", name, cmd .. "\r") end)
     end)
 end

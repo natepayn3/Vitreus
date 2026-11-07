@@ -6091,8 +6091,10 @@ scene Vitreus {
     //  Term takes the keyboard as soon as it is shown (from Home, the AUR card, or as the Desk's first app), not on a click on its card: a field of
     //  its own (`term_grab`, passive and out of sight) is focused, which has the compositor lend the shell the keyboard while `desk_kb` holds,
     //  and the rule below takes the cursor away again, so the keys go to the terminal. Declared after the line above, so they win over it.
-    on change desk_tab while desk_tab == 4 { term_wanted = true; desk_kb = true; term_armed = true; focus term }
-    on change desk_open while desk_open and desk_tab == 4 { term_wanted = true; desk_kb = true; term_armed = true; focus term }
+    on change desk_tab while desk_tab == 4 { term_wanted = true; desk_kb = true; term_armed = true }
+    on change desk_open while desk_open and desk_tab == 4 { term_wanted = true; desk_kb = true; term_armed = true }
+    on change desk_tab while desk_tab == 4 and pown > 0.5 { focus tm.$screen }
+    on change desk_open while desk_open and desk_tab == 4 and pown > 0.5 { focus tm.$screen }
     on change desk_open while not desk_open { desk_kb = false; term_armed = false }
     //  Settings and the launcher are wide (316.5 * pu each side of the middle), so on a smaller screen they reach the desk's side and the two glasses
     //  melt into each other. Whichever of the two was opened last stays; the other one goes.
@@ -6107,14 +6109,18 @@ scene Vitreus {
     //  Space Mono (the monospaced sibling of Space Grotesk, as the Nerd Font build so prompts keep their icons) at 11.75 px, 7.19 by 16
     //  px each, which is what fits the desk's card; the logic starts the shell at that size.
     fact term_wanted = false                                // the Term tab was shown once: its shell lives from then on (`run:`), the tab shut or not
-    text term.title = ""
-    fact term.alive = 0                                     // 1 while its shell lives
-    fact term.focus = 0                                     // 1 while it has the keys
+    //  Each monitor's copy of the scene has its own terminal (`tm.$screen`) and its own state: facts are shared by the copies, so with one name the copy whose
+    //  terminal was not drawn kept writing "not alive" over the one that was.
+    repeat i in 0..4 {
+        text tm.$i.title = ""
+        fact tm.$i.alive = 0                                // 1 while its shell lives
+        fact tm.$i.focus = 0                                // 1 while it has the keys
+    }
     event term_restart ->                                   // a press on the card of an ended shell
     //  Keys typed in the terminal reach the logic only if no input has the writing cursor, and gaining the keyboard gives it to the
     //  first input there is (the task field, even hidden). So when it is the terminal that takes the keyboard, the cursor is taken
     //  away again; only then: the desk stays on Term while the search or another panel opens, and theirs must keep it.
-    on focus while desk_open and desk_tab == 4 and desk_kb and panel == none and term.focus == 0 { focus term }
+    on focus while desk_open and desk_tab == 4 and desk_kb and panel == none and pown > 0.5 and tm.$screen.focus == 0 { focus tm.$screen }
     fact ft_dnd = true                                      // silence notifications while it runs
     fact ft_caf = true                                      // keep the machine awake while it runs
     text ft_time = "30:00"
