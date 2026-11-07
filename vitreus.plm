@@ -6098,9 +6098,15 @@ scene Vitreus {
     on change desk_open while not desk_open { desk_kb = false; term_armed = false }
     //  Settings and the launcher are wide (316.5 * pu each side of the middle), so on a smaller screen they reach the desk's side and the two glasses
     //  melt into each other. Whichever of the two was opened last stays; the other one goes.
-    let desk_clash = if(fm > 0.5 and ccx + 316.5 * pu > dsk_hx0 - 8 * du, 1, 0)
+    //  A Desk that has been pulled off its place (moved, or made smaller, which only a detached one can be) is where its owner put it: nothing closes it, and it closes nothing.
+    let desk_det = if(abs(desk_gx) + abs(desk_gy) > 0.5 or desk_gs < 0.999, 1, 0)
+    let desk_clash = if(fm > 0.5 and desk_det < 0.5 and ccx + 316.5 * pu > dsk_hx0 - 8 * du, 1, 0)
     on change desk_open while desk_open and desk_clash > 0.5 and (panel == settings or panel == launch) { panel = none }
     on change panel while (panel == settings or panel == launch) and desk_open and desk_clash > 0.5 { desk_open = false }
+    //  The control center (`panel == controls`) is not wide, but it comes down over the Desk's header: attached, the Desk gives way to it, whichever was opened last staying (as
+    //  Settings and the launcher do). A detached Desk stays.
+    on change panel while panel == controls and desk_open and desk_det < 0.5 { desk_open = false }
+    on change desk_open while desk_open and panel == controls and desk_det < 0.5 { panel = none }
     //  The terminal follows the mouse, as Hyprland's windows do here: once it has been clicked, the pointer coming back over the desk
     //  gives it the keyboard again, and leaving lets it go (`desk_band`), until the desk shuts or another tab is chosen.
     fact term_armed = false
