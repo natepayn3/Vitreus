@@ -1,6 +1,6 @@
 -- Home's slideshow (pages/desk_home.plm), at the top of Home: the pictures of one folder, shuffled, one after another
--- every twelve seconds (eighteen for a tall one, which glides down) while the Desk shows Home, cross-fading (the scene has two slots, `pf_a` and `pf_b`, and `pf_which` says which is on top).
--- Each picture is scaled once into the cache, keeping its shape (at least 900 by 260, at most 2700 on a side) (shelf/ beside the Shelf's, by a hash of its path), so a big photo is not
+-- every twelve seconds (eighteen for a tall one, which glides down), counted by the scene (`pf_due`, pages/desk_decl.plm) while the Desk shows Home, cross-fading (the scene has two slots, `pf_a` and `pf_b`, and `pf_which` says which is on top).
+-- Each picture is scaled once into the cache, keeping its shape (at least 700 by 210, close to the size it is shown at, so a picture that moves is not shrunk past what the card samples, at most 2700 on a side) (shelf/ beside the Shelf's, by a hash of its path), so a big photo is not
 -- read again at every turn. The folder is one of three (Customize's row, `pf_folder`): 0 the Camera's photos (Pictures/myPad), 1 Pictures,
 -- 2 Pictures/Wallpapers; kept in desk-frame.json. A press opens the picture shown; `pf_next` goes on to the next at once.
 return function(with_dirs)
@@ -13,7 +13,6 @@ return function(with_dirs)
     text.pf_folder_name = NAMES[cfg.folder]
     local list, at, listed, cur = {}, 0, 0, ""
     local busy = false
-    local left = 12                                          -- seconds until the next picture: 18 for one that glides, 12 otherwise
     local function hash(str)
         local h = 5381
         for i = 1, #str do h = (h * 33 + str:byte(i)) % 4294967296 end
@@ -42,7 +41,7 @@ return function(with_dirs)
         local src = list[at]
         with_dirs(function(d)
             local dir = (d.cache:gsub("/wp$", "")) .. "/shelf"
-            local out = dir .. "/frame2-" .. hash(src) .. ".jpg"
+            local out = dir .. "/frame3-" .. hash(src) .. ".jpg"
             local function put()
                 run("magick", { "identify", "-ping", "-format", "%w %h", out }, function(dims)
                     busy = false
@@ -52,7 +51,6 @@ return function(with_dirs)
                     local top = fact.pf_which == true
                     if top then fact.pf_ar_a = ar; text.pf_a = out else fact.pf_ar_b = ar; text.pf_b = out end
                     fact.pf_which = not top
-                    left = (ar > 0.32) and 18 or 12
                     text.pf_name = src:match("([^/]+)$") or src
                     fact.pf_has = true
                 end)
@@ -60,7 +58,7 @@ return function(with_dirs)
             run("test", { "-s", out }, function(_, c)
                 if c == 0 then put(); return end
                 run("mkdir", { "-p", dir }, function()
-                    run("magick", { "-limit", "thread", "1", src .. "[0]", "-auto-orient", "-resize", "900x260^", "-gravity", "center", "-crop", "2700x2700+0+0", "+repage", "-quality", "86", out },
+                    run("magick", { "-limit", "thread", "1", src .. "[0]", "-auto-orient", "-resize", "700x210^", "-gravity", "center", "-crop", "2700x2700+0+0", "+repage", "-quality", "86", out },
                         function(_, mc) if mc == 0 then put() else busy = false; table.remove(list, at); at = at - 1 end end)
                 end)
             end)
@@ -81,11 +79,6 @@ return function(with_dirs)
             end)
         end)
     end
-    every(1000, function()
-        if not showing() then return end
-        left = left - 1
-        if left <= 0 then left = 12; show_next() end
-    end)
     on("desk_shown", function() if showing() then load(false) end end)
     on("pf_next", show_next)
     on("pf_open", function()

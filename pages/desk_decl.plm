@@ -133,17 +133,21 @@ part DeskDecl {
     image pf_im_b = from pf_b, 0, 0
     fact pf_ar_a = 0.29                                    // each slot's height over its width (logic/desk_frame.luau)
     fact pf_ar_b = 0.29
-    prop pf_clk_a = 18                                     // each slot's own clock, in seconds since its picture came up: a steady count, so the glide is even
-    prop pf_clk_b = 18                                     // (it stops at 18, and while the Desk is closed, so nothing paints for it at rest)
-    spin pf_clk_a by if(desk_open and pf_clk_a < 18, 1, 0)
-    spin pf_clk_b by if(desk_open and pf_clk_b < 18, 1, 0)
+    prop pf_clk_a = 20                                     // each slot's own clock, in seconds since its picture came up: a steady count, so the glide is even
+    prop pf_clk_b = 20                                     // (it stops at 20, and whenever Home is not on show, the same moments the slideshow's own count waits through (logic/desk_frame.luau), so nothing paints for it at rest)
+    spin pf_clk_a by if(desk_open and desk_tab == 6 and pf_clk_a < 20, 1, 0)
+    spin pf_clk_b by if(desk_open and desk_tab == 6 and pf_clk_b < 20, 1, 0)
     on change pf_which while not pf_which { pf_clk_a: 0 ~0ms }
     on change pf_which while pf_which { pf_clk_b: 0 ~0ms }
-    //  0 its top in the frame, 1 its foot: a second's wait, then 16 s at an even pace, a little softer at both ends (a picture that glides stays 18 s, logic/desk_frame.luau)
-    let pf_u_a = clamp((pf_clk_a - 1) / 16, 0, 1)
-    let pf_u_b = clamp((pf_clk_b - 1) / 16, 0, 1)
-    let pf_pan_a = mix(pf_u_a, pf_u_a * pf_u_a * (3 - 2 * pf_u_a), 0.4)
-    let pf_pan_b = mix(pf_u_b, pf_u_b * pf_u_b * (3 - 2 * pf_u_b), 0.4)
+    //  0 its top in the frame, 1 its foot: one even pace the whole time it is up, with no wait and no easing at the foot, still moving while the next picture fades over it (a picture that glides stays 18 s, logic/desk_frame.luau)
+    let pf_u_a = clamp(pf_clk_a / 19.5, 0, 1)
+    let pf_u_b = clamp(pf_clk_b / 19.5, 0, 1)
+    let pf_pan_a = pf_u_a
+    let pf_pan_b = pf_u_b
+    //  the turn to the next picture is the scene's own, off the same clock the glide runs on (the logic's one-second timer ran late and left it waiting at the foot):
+    //  18 s for one that glides, 12 otherwise
+    let pf_due = if(pf_which, pf_clk_b >= if(pf_ar_b > 0.32, 18, 12), pf_clk_a >= if(pf_ar_a > 0.32, 18, 12))
+    on change pf_due while pf_due { emit pf_next }
     fact pf_which = false                                  // false: `pf_a` is the one shown
     prop pf_mix = 0 ~1200ms
     follow pf_mix = if(pf_which, 1, 0)
