@@ -188,32 +188,21 @@ part DeskDecl {
         box { from: x, y; size: w, h; corner: r; color: ink; opacity: (8% + 6% * lit) * k }
         box { from: x, y; size: w, h; corner: r; stroke: 1; color: ink; opacity: (10% + 10% * lit) * k }
     }
-    //  A tool's icon, in pencil like the shell's: 7 Notes (a tick: its Reminders), 0 Pad (a pencil: it draws), 1 Shelf, 2 Clip, 3 Focus, 4 Term, 5 Ask, 8 Camera, 6 Home.
-    component DIcon(id: number, x: number, y: number, z: number, c: color, o: number) {
-        group { show: id == 7; GCheck(x, y, z, c, o, 0) }
-        group { show: id == 0; GPencil(x, y, z, c, o, 0) }
-        group { show: id == 1; GFolder(x, y, z, c, o, 0) }
-        group {
-            show: id == 2
-            box { at: x, y + 1 * z; size: 13 * z, 16 * z; corner: 2.5 * z; stroke: 1.6 * z; color: c; opacity: o }
-            box { at: x, y - 7 * z; size: 7 * z, 4 * z; corner: 1.5 * z; color: c; opacity: o }
-        }
-        group { show: id == 3; GTimer(x, y, z, c, o, 0) }
-        group { show: id == 4; GKeyboard(x, y, z, c, o, 0) }
-        path { at: x, y; color: c; opacity: o; show: id == 5; move 0, -10 * z; curve 10 * z, 0 via 1.6 * z, -1.6 * z; curve 0, 10 * z via 1.6 * z, 1.6 * z; curve -10 * z, 0 via -1.6 * z, 1.6 * z; curve 0, -10 * z via -1.6 * z, -1.6 * z; close }
-        group { show: id == 6; GHome(x, y, z, c, o, 0) }
-        group {
-            show: id == 9
-            box { at: x, y - 3 * z; size: 8 * z, 13 * z; corner: 4 * z; stroke: 1.6 * z; color: c; opacity: o }
-            path { at: x, y + 1 * z; stroke: 1.6 * z; color: c; opacity: o; move -6.5 * z, -2 * z; curve 6.5 * z, -2 * z via 0, 8 * z }
-            line { from: x, y + 5.5 * z; to: x, y + 9 * z; width: 1.6 * z; color: c; opacity: o }
-        }
-        group {
-            show: id == 8
-            box { at: x, y + 1.5 * z; size: 20 * z, 14 * z; corner: 3.5 * z; stroke: 1.6 * z; color: c; opacity: o }
-            box { at: x - 3 * z, y - 7 * z; size: 7 * z, 3.5 * z; corner: 1.2 * z; color: c; opacity: o }
-            ellipse { at: x, y + 1.5 * z; radius: 4.2 * z; stroke: 1.6 * z; color: c; opacity: o }
-        }
+    //  A tool's icon, in the shell's boiled pencil (pages/desk_icons.plm, made by dev/gen_desk_icons.py): 7 Notes, 0 Pad, 1 Shelf, 2 Clip, 3 Focus, 4 Term, 5 Ask,
+    //  8 Camera, 9 Memos, 10 Settings, 6 Home. `z` is pixels to a unit of 24 (the icon spans about 22 of them). It rests still and redraws about five times a second
+    //  while `hot` (the pointer on its tile).
+    component DIcon(id: number, x: number, y: number, z: number, c: color, o: number, hot: number = 0) {
+        group { show: id == 7; DGNotes(x, y, hot, z, c, o) }
+        group { show: id == 0; DGPad(x, y, hot, z, c, o) }
+        group { show: id == 1; DGShelf(x, y, hot, z, c, o) }
+        group { show: id == 2; DGClip(x, y, hot, z, c, o) }
+        group { show: id == 3; DGFocus(x, y, hot, z, c, o) }
+        group { show: id == 4; DGTerm(x, y, hot, z, c, o) }
+        group { show: id == 5; DGAsk(x, y, hot, z, c, o) }
+        group { show: id == 6; DGHome(x, y, hot, z, c, o) }
+        group { show: id == 8; DGCamera(x, y, hot, z, c, o) }
+        group { show: id == 9; DGMemos(x, y, hot, z, c, o) }
+        group { show: id == 10; DGSettings(x, y, hot, z, c, o) }
     }
     //  One note in the Notes list: its title, its first line and when it was last changed; pressed it opens, its cross deletes it.
     component NoteRow(n: record, open: event, del: event) {

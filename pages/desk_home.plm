@@ -112,27 +112,15 @@ part DeskHome {
                             move: 0, -2 * du * hm_ic.$t.hover
                             //  flat: one colour, a little lighter at the top, a soft shadow; no gloss (a squircle's corner, about a quarter of its side)
                             body { gradient: at.x, at.y - 22 * du to at.x, at.y + 22 * du, mix(at.c, #ffffff, 0.08), mix(at.c, #000000, 0.06); shadow: 0, 2 * du + 2 * du * hm_ic.$t.hover, 6 * du + 4 * du * hm_ic.$t.hover, 28%; box { at: at.x, at.y; size: 44 * du, 44 * du; corner: 13 * du * (1 - 0.5 * sq) } }
-                            group { show: at.id < 9; DIcon(at.id, at.x, at.y, (20 * du) / 24, if(at.id == 6, #26303a, #ffffff), 1) }
-                            //  Memo: a microphone (a square while it records)
-                            group {
-                                show: at.id == 9
-                                box { at: at.x, at.y - 3 * du; size: 9 * du, 15 * du; corner: 4.5 * du; color: #ffffff; show: not memo_rec }
-                                path { at: at.x, at.y + 2 * du; stroke: 1.6 * du; color: #ffffff; show: not memo_rec; move -7 * du, -3 * du; curve 7 * du, -3 * du via 0, 8 * du }
-                                line { from: at.x, at.y + 6.5 * du; to: at.x, at.y + 10 * du; width: 1.6 * du; color: #ffffff; show: not memo_rec }
-                                box { at: at.x, at.y; size: 13 * du, 13 * du; corner: 3 * du; color: #ffffff; show: memo_rec }
-                            }
-                            //  Settings: a gear, plain
-                            group {
-                                show: at.id == 10
-                                ellipse { at: at.x, at.y; radius: 6.5 * du; stroke: 2.4 * du; color: #ffffff }
-                                repeat g in 0..8 {
-                                    group { pivot: at.x, at.y; rotate: g * 45deg; box { at: at.x, at.y - 9.5 * du; size: 3.6 * du, 4 * du; corner: 1 * du; color: #ffffff } }
-                                }
-                            }
+                            DIcon(at.id, at.x, at.y, 1.05 * du, if(at.id == 6, #26303a, #ffffff), if(at.id == 9 and memo_rec, 0, 1), hm_ic.$t.hover)
+                            //  Memo: the microphone gives way to a square while it records
+                            box { at: at.x, at.y; size: 13 * du, 13 * du; corner: 3 * du; color: #ffffff; show: at.id == 9 and memo_rec }
                         }
                         DTC(pick(at.id, "Pad", "Shelf", "Clip", "Focus", "Term", "Ask", "Home", "Notes", "Camera", "Memos", "Settings"), at.x, at.y + 31 * du, 10.5, 600, ink, if(at.id == 9 and memo_rec, 0, 0.95), 58 * du)
                         DTC(memo_t, at.x, at.y + 31 * du, 10.5, 600, #ff6b7a, if(at.id == 9 and memo_rec, 1, 0), 58 * du)
                         zone box hm_ic.$t { at: at.x, at.y + 5 * du; size: 56 * du, 60 * du; corner: 12 * du; cursor: pointer; label: pick(at.id, "Pad", "Shelf", "Clip", "Focus", "Term", "Ask", "Home", "Notes", "Camera", "Memos", "Settings") }
+                        on enter hm_ic.$t { hm_hot = hm_hot + 1 }
+                        on leave hm_ic.$t { hm_hot = max(hm_hot - 1, 0) }
                         on press hm_ic.$t while at.id < 9 { desk_tab = at.id }
                         on press hm_ic.$t while at.id == 9 { desk_tab = 9 }
                         on press hm_ic.$t while at.id == 10 { desk_edit = true }
