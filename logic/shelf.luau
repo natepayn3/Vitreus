@@ -75,6 +75,9 @@ return function(with_dirs)
             fact["shelf." .. k .. ".thumbed"] = th ~= nil and th ~= false
             fact["shelf." .. k .. ".has"] = it ~= nil
             fact["shelf." .. k .. ".askable"] = it ~= nil and (it.tag == "TXT" or it.tag == "URL")
+            local kd = it and it.tag ~= "TXT" and it.tag ~= "URL" and kind_of(it.path) or nil
+            fact["shelf." .. k .. ".img"] = kd == "img"
+            fact["shelf." .. k .. ".vid"] = kd == "vid"
             if it then make_thumb(it) end
         end
         fact.shelf_n = locked and 0 or #items
@@ -96,7 +99,7 @@ return function(with_dirs)
         if ok and type(saved) == "table" and type(saved.items) == "table" then
             for _, x in ipairs(saved.items) do
                 if type(x) == "table" and type(x.path) == "string" and #items < MAX then
-                    items[#items + 1] = { name = tostring(x.name or x.path), path = x.path, tag = tostring(x.tag or "FILE") }
+                    items[#items + 1] = { name = tostring(x.name or x.path), path = x.path, tag = tostring(x.tag or "FILE"), len = type(x.len) == "string" and x.len or nil }
                 end
             end
         end
@@ -157,6 +160,70 @@ return function(with_dirs)
         if not it or not (it.tag == "TXT" or it.tag == "URL") then return end
         ask_attach_from(it.tag == "URL" and "Link" or "Shelf text", it.path)
     end)
+    -- ── What can be done with a file on the shelf (pages/desk.plm: its menu), `shelf_act(k * 10 + what)` ──
+    -- A picture: 0 as PNG, 1 as JPG, 2 at half its size, 3 the text in it (tesseract; it goes on the shelf as text, and is copied). A video: 4 a short GIF, 5 its sound. What is made is written next to the original and put on the shelf, newest first.
+    local function add_file(p, tag, len)
+        local name = p:match("([^/]+)$") or p
+        add({ name = name, path = p, tag = tag or ((name:match("%.(%w+)$") or "FILE"):sub(1, 4):upper()), len = len })
+        save()
+        render()
+    end
+    local function free_name(base, ext, done)
+        -- base-1.ext, base-2.ext ... the first that is not there
+        local function try(n)
+            local p = base .. (n > 0 and ("-" .. n) or "") .. "." .. ext
+            run("test", { "-e", p }, function(_, c) if c ~= 0 or n > 50 then done(p) else try(n + 1) end end)
+        end
+        try(0)
+    end
+    -- A file put on the shelf from elsewhere on the Desk (the Camera's photos), as a global: the modules cannot hear each other's events.
+    function desk_shelf_add(p) if not locked then add_file(p) end end
+    on("shelf_act", function(v)
+        v = tonumber(v) or -1
+        local k, what = math.floor(v / 10), v % 10
+        local it = (not locked) and items[k + 1]
+        fact.shelf_menu = -1
+        if not it then return end
+        local kd = kind_of(it.path)
+        local base = it.path:gsub("%.[^./]+$", "")
+        local function done(msg) text.shelf_busy = msg; after(2600, function() if text.shelf_busy == msg then text.shelf_busy = "" end end) end
+        if kd == "img" and (what == 0 or what == 1) then
+            text.shelf_busy = "Converting…"
+            free_name(base, what == 0 and "png" or "jpg", function(out)
+                run("magick", { it.path .. "[0]", out }, function(_, c) if c == 0 then add_file(out); done("Made " .. out:match("([^/]+)$")) else done("It could not be converted") end end)
+            end)
+        elseif kd == "img" and what == 2 then
+            text.shelf_busy = "Resizing…"
+            local ext = it.path:match("%.(%w+)$") or "png"
+            free_name(base .. "-half", ext, function(out)
+                run("magick", { it.path .. "[0]", "-resize", "50%", out }, function(_, c) if c == 0 then add_file(out); done("Half the size") else done("It could not be resized") end end)
+            end)
+        elseif kd == "img" and what == 3 then
+            text.shelf_busy = "Reading the text…"
+            run("tesseract", { it.path, "-", "--psm", "3" }, function(out, c)
+                local t = ((out or ""):gsub("\f", ""):gsub("^%s+", ""):gsub("%s+$", ""))
+                if c ~= 0 or t == "" then done("No text found"); return end
+                add({ name = (t:gsub("%s+", " ")):sub(1, 40), path = t, tag = "TXT" })
+                save()
+                render()
+                run("wl-copy", { "--", t }, function() end)
+                done("Text copied, and on the shelf")
+            end)
+        elseif kd == "vid" and what == 4 then
+            text.shelf_busy = "Making a GIF…"
+            free_name(base, "gif", function(out)
+                run("ffmpeg", { "-y", "-loglevel", "error", "-t", "8", "-i", it.path, "-vf", "fps=12,scale=480:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse", out },
+                    function(_, c) if c == 0 then add_file(out); done("GIF made") else done("No GIF: ffmpeg said no") end end)
+            end)
+        elseif kd == "vid" and what == 5 then
+            text.shelf_busy = "Taking the sound out…"
+            free_name(base, "mp3", function(out)
+                run("ffmpeg", { "-y", "-loglevel", "error", "-i", it.path, "-vn", "-q:a", "2", out },
+                    function(_, c) if c == 0 then add_file(out); done("Sound saved") else done("It has no sound to take") end end)
+            end)
+        end
+    end)
+
     on("shelf_clear", function() if locked then return end items = {}; save(); render() end)
 
     -- The locker. Ticking the box shuts it at once; unticking needs it open (the box is only there then).

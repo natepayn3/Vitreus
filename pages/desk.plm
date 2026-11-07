@@ -17,60 +17,10 @@ part Desk {
             scale: max(dz.lf, 0.05)
             zone box desk_band { at: dsk_xc, dsk_y0 + dsk_h / 2; size: dsk_w, dsk_h }
             on leave desk_band { desk_kb = false }
-            on enter desk_band while desk_tab == 4 and term_armed { desk_kb = true }
-            group {
-                opacity: fd0
-                move: 0, (1 - fd0) * 12 * du
-            //  The tabs: one track like the notifications' bar, with a divider between stops, and a thumb that slides to the one in use
-            //  and stretches on the way.
-            let dt_y   = dsk_y0 + 40 * du
-            let dt_w   = (dsk_w - 72 * du) / 6
-            let dt_cx  = dsk_xc - 18 * du
-            let dt_str = clamp(abs(desk_tab - desk_sel), 0, 2)
-            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_p3, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * du * dd_k, ink; shadow: 0, 2 * du, 7 * du, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: dt_cx, dt_y; size: dsk_w - 72 * du, 34 * du; corner: 17 * du } }
-            DdCard(dt_cx, dt_y, dsk_w - 72 * du, 34 * du, 778.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_p3, dd_k), (obs) * dd_k, du) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: dt_cx, dt_y; size: dsk_w - 72 * du, 34 * du; corner: 17 * du; color: ink; opacity: (veil) * (1 - obs) }
-            group {
-                clip inset 0 box { at: dt_cx, dt_y; size: dsk_w - 72 * du, 34 * du; corner: 17 * du }
-                repeat i in 0..5 {
-                    box { at: dt_cx + (i - 2) * dt_w, dt_y; size: 1 * du, 10 * du; corner: 0.5 * du; color: ink; opacity: 12% }
-                }
-            }
-            body {
-                color: mint
-                shadow: 0, 0, 10 * du, 48%, mint
-                rim: 16%
-                opacity: 1 - px_k
-                box { at: dt_cx + (desk_sel - 2.5) * dt_w, dt_y; size: (dt_w - 8 * du) + 10 * du * dt_str, 26 * du - 3 * du * clamp(dt_str, 0, 1); corner: 10 * du }
-            }
-            //  The Proxy's thumb: a slanted slab, as the HUD's selectors have it, its corners rounded by a stroke of the same colour round a smaller fill.
-            group {
-                show: px_k > 0.01
-                opacity: px_k
-                let dp.w = (dt_w + 4 * du) + 10 * du * dt_str
-                let dp.h = 38 * du - 3 * du * clamp(dt_str, 0, 1)        // taller than the 34 * du track: the chosen one stands out of it
-                let dp.x = dt_cx + (desk_sel - 2.5) * dt_w - dp.w / 2
-                let dp.y = dt_y - dp.h / 2
-                let dp.sk = 9 * du
-                path { at: dp.x + 2 * du, dp.y + 2 * du; color: mint; move dp.sk, 0; line dp.w - 4 * du, 0; line dp.w - 4 * du - dp.sk, dp.h - 4 * du; line 0, dp.h - 4 * du; close }
-                path { at: dp.x + 2 * du, dp.y + 2 * du; stroke: 4 * du; color: mint; move dp.sk, 0; line dp.w - 4 * du, 0; line dp.w - 4 * du - dp.sk, dp.h - 4 * du; line 0, dp.h - 4 * du; line dp.sk, 0 }
-            }
-            repeat i in 0..6 {
-                let tl  = dt_cx + (i - 2.5) * dt_w
-                let tsl = clamp(1 - abs(desk_sel - i), 0, 1)
-                group { scale: rs; pivot: floor(tl + 0.5), floor(dt_y + 0.5); text pick(i, "Pad", "Shelf", "Clip", "Focus", "Term", "Ask") { at: floor(tl + 0.5), floor(dt_y + 0.5); anchor: center; align: center; size: 12.5; weight: 600; color: mix(ink, off, tsl); opacity: 62% + 38% * tsl + 30% * desk_tab_z.$i.hover; family: "Space Grotesk" } }
-                zone box desk_tab_z.$i { at: tl, dt_y; size: dt_w, 34 * du; cursor: pointer }
-                on press desk_tab_z.$i { desk_tab = i }
-            }
-
-            }
-            //  Close: a small round button (the desk stays open when you click elsewhere, so you can pick up a file in another window and drop it here).
-            ellipse { at: dsk_xc + 143 * du, dt_y; radius: 13 * du; color: ink; opacity: 8% + 12% * desk_close_z.hover }
-            path { at: dsk_xc + 143 * du, dt_y; stroke: 1.5 * du; color: ink; opacity: 70% + 30% * desk_close_z.hover; move -3.4 * du, -3.4 * du; line 3.4 * du, 3.4 * du }
-            path { at: dsk_xc + 143 * du, dt_y; stroke: 1.5 * du; color: ink; opacity: 70% + 30% * desk_close_z.hover; move 3.4 * du, -3.4 * du; line -3.4 * du, 3.4 * du }
+            on enter desk_band while desk_tab == 4 and term_armed { desk_kb = true; focus term_grab }      // (back over the Desk: the keyboard again)
+            include "desk_screen.plm"          // the screen: its bezel line, the camera, the AI dot, the tool's title
             //  The grip along the top: take the panel by it and pull it off the frame; let go near its place and it snaps back, further away it stays.
-            box { at: dsk_xc, dsk_y0 + 11 * du; size: 34 * du, 4 * du; corner: 2 * du; color: ink; opacity: 20% + 35% * max(desk_grip.hover, if(desk_hold, 1, 0)) }
+            box { at: dsk_xc, dsk_y0 + 11 * du; size: 34 * du, 4 * du; corner: 2 * du; color: ink; opacity: 35% * max(desk_grip.hover, if(desk_hold, 1, 0)) }
             zone box desk_grip { at: if(desk_hold, dsk_x0 + (desk_hx - dsk_x0) / desk_s, dsk_xc), if(desk_hold, dsk_y0 + (desk_hy - dsk_y0) / desk_s, dsk_y0 + 11 * du); size: dsk_w - 46 * du, 22 * du; cursor: grab }       // between the corner handles, not under them
             on press desk_grip { desk_rk = -1; desk_rhold = false; desk_bx = desk_gx; desk_by = desk_gy; desk_hx = dsk_x0 + (dsk_xc - dsk_x0) * desk_s; desk_hy = dsk_y0 + 11 * du * desk_s; desk_hold = true }
             on drag desk_grip while desk_hold and desk_rk < 0 { desk_gx = clamp(desk_bx + drag.dx, mix(desk_xmin, -(dsk_w * (1 - desk_gs)), rt), mix(dsk_w * (1 - desk_gs), -desk_xmin, rt)); desk_gy = clamp(desk_by + drag.dy, mix(desk_ymin, -desk_ymax, bt), mix(desk_ymax, -desk_ymin, bt)) }
@@ -94,8 +44,6 @@ part Desk {
                 }
                 on release desk_resize.$i { desk_rhold = false; desk_rk = -1 }
             }
-            zone box desk_close_z { at: dsk_xc + 143 * du, dt_y; size: 28 * du, 28 * du; cursor: pointer }
-            on press desk_close_z { desk_open = false }
             //  Shelf: drop things on it, drag them back out anywhere.
             group {
                 show: desk_tab == 1
@@ -170,6 +118,11 @@ part Desk {
                         group { scale: rs; pivot: cx_ - 36 * du, cy_ - 34 * du; text "Ask" { at: cx_ - 36 * du, cy_ - 34 * du; anchor: center; align: center; size: 11; weight: 700; color: mint; opacity: 95% * max(shelf_card.$k.hover, shelf_ask.$k.hover); family: "Space Grotesk"; show: shelf.$k.askable } }
                         zone box shelf_ask.$k { at: cx_ - 36 * du, cy_ - 34 * du; size: 30 * du, 18 * du; cursor: pointer; active: shelf.$k.askable }
                         on press shelf_ask.$k { emit shelf_ask(k) }
+                        //  A picture or a video has things that can be done with it: a small ••• at the top of the tile opens them.
+                        box { at: cx_, cy_ - 34 * du; size: 30 * du, 16 * du; corner: 8 * du; color: deep; opacity: 60% * max(shelf_card.$k.hover, shelf_mn.$k.hover); show: shelf.$k.img or shelf.$k.vid }
+                        repeat q in 0..3 { ellipse { at: cx_ + (q - 1) * 6 * du, cy_ - 34 * du; radius: 1.6 * du; color: mint; opacity: max(shelf_card.$k.hover, shelf_mn.$k.hover); show: shelf.$k.img or shelf.$k.vid } }
+                        zone box shelf_mn.$k { at: cx_, cy_ - 34 * du; size: 32 * du, 20 * du; cursor: pointer; active: shelf.$k.img or shelf.$k.vid; label: "What can be done with it" }
+                        on press shelf_mn.$k { shelf_menu = if(shelf_menu == k, -1, k) }
                         on press shelf_x.$k { emit shelf_del(k) }
                     }
                 }
@@ -201,52 +154,43 @@ part Desk {
                 }
             }
 
-            //  Pad has two things: a short task list and a drawing board, with a small switch for which.
+            //  The Shelf's menu for one file (`shelf_menu`): a picture can be turned into PNG or JPG, halved, or read for its text;
+            //  a video gives a short GIF or its sound (logic/shelf.luau). A press outside the card closes it. Under the tiles, what it is doing.
             group {
-                show: desk_tab == 0
-                opacity: fd1
-                move: 0, (1 - fd1) * 12 * du
-                let pm_y = dsk_y0 + 84 * du
-                let pm_str = clamp(abs(pad_mode - pad_sel), 0, 1)
-                //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-                body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_p2, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * du * dd_k, ink; shadow: 0, 2 * du, 7 * du, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: dsk_xc, pm_y; size: 168 * du, 28 * du; corner: 14 * du } }
-                DdCard(dsk_xc, pm_y, 168 * du, 28 * du, 51.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_p2, dd_k), (obs) * dd_k, du) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-                box { at: dsk_xc, pm_y; size: 168 * du, 28 * du; corner: 14 * du; color: ink; opacity: (veil) * (1 - obs) }
-                body {
-                    color: mint
-                    shadow: 0, 0, 8 * du, 38%, mint
-                    rim: 16%
-                    box { at: dsk_xc + (pad_sel - 0.5) * 82 * du, pm_y; size: (74 + 8 * pm_str) * du, 21 * du; corner: 8.5 * du }
-                    opacity: 1 - px_k
-                }
-                //  The Proxy's thumb, as on the tabs above: a slanted slab taller than its track, corners rounded by a stroke round a smaller fill.
+                show: desk_tab == 1
+                DTC(shelf_busy, dsk_xc, dsk_y0 + 392 * du, 11.5, 600, mint, 1, 300 * du)
                 group {
-                    show: px_k > 0.01
-                    opacity: px_k
-                    let pp.w = (84 + 8 * pm_str) * du
-                    let pp.h = 32 * du
-                    let pp.x = dsk_xc + (pad_sel - 0.5) * 82 * du - pp.w / 2
-                    let pp.y = pm_y - pp.h / 2
-                    let pp.sk = 9 * du
-                    path { at: pp.x + 2 * du, pp.y + 2 * du; color: mint; move pp.sk, 0; line pp.w - 4 * du, 0; line pp.w - 4 * du - pp.sk, pp.h - 4 * du; line 0, pp.h - 4 * du; close }
-                    path { at: pp.x + 2 * du, pp.y + 2 * du; stroke: 4 * du; color: mint; move pp.sk, 0; line pp.w - 4 * du, 0; line pp.w - 4 * du - pp.sk, pp.h - 4 * du; line 0, pp.h - 4 * du; line pp.sk, 0 }
-                }
-                repeat i in 0..2 {
-                    let pl_ = dsk_xc + (i - 0.5) * 82 * du
-                    let psl_ = clamp(1 - abs(pad_sel - i), 0, 1)
-                    group { scale: rs; pivot: floor(pl_ + 0.5), floor(pm_y + 0.5); text pick(i, "Tasks", "Draw") { at: floor(pl_ + 0.5), floor(pm_y + 0.5); anchor: center; align: center; size: 12; weight: 600; color: mix(ink, off, psl_); opacity: 62% + 38% * psl_ + 30% * pad_mode_z.$i.hover; family: "Space Grotesk" } }
-                    zone box pad_mode_z.$i { at: pl_, pm_y; size: 84 * du, 28 * du; cursor: pointer }
-                    on press pad_mode_z.$i { pad_mode = i }
+                    show: shelf_menu >= 0
+                    let shm.img = pick(clamp(shelf_menu, 0, 7), shelf.0.img, shelf.1.img, shelf.2.img, shelf.3.img, shelf.4.img, shelf.5.img, shelf.6.img, shelf.7.img)
+                    let shm.n = if(shm.img, 4, 2)
+                    let shm.h = (shm.n * 32 + 46) * du
+                    let shm.y = dsk_y0 + 250 * du - shm.h / 2
+                    zone box shelf_mn_out { from: dsk_x0, dsk_y0; size: dsk_w, dsk_h; label: "Close the menu" }
+                    on press shelf_mn_out { shelf_menu = -1 }
+                    body { color: deep; opacity: 92%; shadow: 0, 8 * du, 24 * du, 45%; box { from: dsk_xc - 120 * du, shm.y; size: 240 * du, shm.h; corner: 18 * du } }
+                    box { from: dsk_xc - 120 * du, shm.y; size: 240 * du, shm.h; corner: 18 * du; stroke: 1; color: ink; opacity: 14% }
+                    DTC(pick(clamp(shelf_menu, 0, 7), shelf.0.name, shelf.1.name, shelf.2.name, shelf.3.name, shelf.4.name, shelf.5.name, shelf.6.name, shelf.7.name), dsk_xc, shm.y + 22 * du, 12, 600, ink, 1, 210 * du)
+                    repeat q in 0..4 {
+                        let smy = shm.y + (46 + q * 32) * du
+                        group {
+                            show: q < shm.n
+                            box { from: dsk_xc - 108 * du, smy; size: 216 * du, 28 * du; corner: 12 * du; color: mint; opacity: 10% + 14% * shelf_do.$q.hover }
+                            DTC(pick(q, "As PNG", "As JPG", "Half the size", "Read the text in it"), dsk_xc, smy + 14 * du, 12.5, 600, ink, if(shm.img, 1, 0), 210 * du)
+                            DTC(pick(q, "A short GIF (8 s)", "Its sound, as MP3", "", ""), dsk_xc, smy + 14 * du, 12.5, 600, ink, if(shm.img, 0, 1), 210 * du)
+                            zone box shelf_do.$q { from: dsk_xc - 108 * du, smy; size: 216 * du, 28 * du; corner: 12 * du; cursor: pointer; label: "Do this with the file" }
+                            on press shelf_do.$q { emit shelf_act(shelf_menu * 10 + if(shm.img, q, 4 + q)) }
+                        }
+                    }
                 }
             }
             //  The board: draw with the pointer; five pens, two thicknesses, undo and clear. The Desk is drawn scaled by `desk_s` about its top left corner, but the pointer is
             //  in screen pixels: it is taken back into the layout's own pixels (the ones `bd_x`, `bd_y` and the strokes are in) before it is used.
             group {
-                show: desk_tab == 0 and pad_mode == 1
+                show: desk_tab == 0                             // the Pad is the drawing board (its to-do list is Notes' Reminders now)
                 opacity: fd2
                 move: 0, (1 - fd2) * 12 * du
                 let bd_x = dsk_xc - 156 * du
-                let bd_y = dsk_y0 + 118 * du
+                let bd_y = dsk_y0 + 92 * du
                 body {
                     color: ink
                     opacity: 6%
@@ -271,8 +215,8 @@ part Desk {
                 on drag dr_pad { dr_px = (dsk_pvx + ((pointer.x - tx.dsk) - dsk_pvx) / desk_s); dr_py = (dsk_pvy + ((pointer.y - ty.dsk) - dsk_pvy) / desk_s); emit dr_pt(floor(((dsk_pvx + ((pointer.x - tx.dsk) - dsk_pvx) / desk_s) - bd_x) / du * 2) * 1000 + floor(((dsk_pvy + ((pointer.y - ty.dsk) - dsk_pvy) / desk_s) - bd_y) / du * 2)) }
                 on release dr_pad { dr_held = false; emit dr_up }
                 //  The tools: a rainbow of eight pens on one row; two thicknesses, undo and clear on the next.
-                let tl_y = dsk_y0 + 380 * du
-                let tl2_y = dsk_y0 + 420 * du
+                let tl_y = dsk_y0 + 356 * du
+                let tl2_y = dsk_y0 + 396 * du
                 repeat i in 0..8 {
                     let px_ = dsk_xc + (i - 3.5) * 37 * du
                     ellipse { at: px_, tl_y; radius: 9 * du; color: pick(i, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb) }
@@ -318,18 +262,18 @@ part Desk {
                 on press dr_clear_b { emit dr_clear }
             }
 
-            //  Pad: a short task list.
+            //  Notes' Reminders: a short to-do list (it was the Pad's; logic/pad.luau still keeps it, in desk-tasks.json).
             group {
-                show: desk_tab == 0 and pad_mode == 0
+                show: desk_tab == 7 and nt_mode == 1
                 opacity: fd2
                 move: 0, (1 - fd2) * 12 * du
                 let tk_y = dsk_y0 + 128 * du
                 //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-                body { color: mix(mix(obsidian, ink, (veil + 4% * task_zone.hover) * 1.6), dd_p3, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * du * dd_k, ink; shadow: 0, 2 * du, 7 * du, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: dsk_xc, tk_y; size: dsk_w - 28 * du, 36 * du; corner: 14 * du } }
-                DdCard(dsk_xc, tk_y, dsk_w - 28 * du, 36 * du, 863.5, mix(mix(obsidian, ink, (veil + 4% * task_zone.hover) * 1.6), dd_p3, dd_k), (obs) * dd_k, du) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-                box { at: dsk_xc, tk_y; size: dsk_w - 28 * du, 36 * du; corner: 14 * du; color: ink; opacity: (veil + 4% * task_zone.hover) * (1 - obs) }
-                input task_in { at: floor(dsk_xc - (dsk_w - 28 * du) / 2 + 14 * du + 0.5), floor(tk_y - 6.5 * du + 0.5); width: dsk_w - 70 * du; size: 13; color: ink; family: "Space Grotesk"; placeholder: "Add a task and press Enter" }
-                zone box task_zone { at: dsk_xc, tk_y; size: dsk_w - 28 * du, 36 * du; cursor: text }
+                body { color: mix(mix(obsidian, ink, (veil + 4% * task_zone.hover) * 1.6), dd_p3, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * du * dd_k, ink; shadow: 0, 2 * du, 7 * du, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: dsk_xc, tk_y; size: 312 * du, 36 * du; corner: 14 * du } }
+                DdCard(dsk_xc, tk_y, 312 * du, 36 * du, 863.5, mix(mix(obsidian, ink, (veil + 4% * task_zone.hover) * 1.6), dd_p3, dd_k), (obs) * dd_k, du) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+                box { at: dsk_xc, tk_y; size: 312 * du, 36 * du; corner: 14 * du; color: ink; opacity: (veil + 4% * task_zone.hover) * (1 - obs) }
+                input task_in { at: floor(dsk_xc - (312 * du) / 2 + 14 * du + 0.5), floor(tk_y - 6.5 * du + 0.5); width: 270 * du; size: 13; color: ink; family: "Space Grotesk"; placeholder: "Add a reminder and press Enter" }
+                zone box task_zone { at: dsk_xc, tk_y; size: 312 * du, 36 * du; cursor: text }
                 on press task_zone { focus task_in; desk_kb = true }
                 group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(dsk_y0 + 260 * du + 0.5); text "Nothing to do. Nice." { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 260 * du + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: task_n < 1 } }
                 repeat k in 0..9 {
@@ -338,24 +282,32 @@ part Desk {
                         show: task.$k.has
                         opacity: 1 - clamp(task.$k.out, 0, 1)
                         move: 70 * du * task.$k.out, task.$k.dy
-                        box { at: dsk_xc, ty_; size: dsk_w - 28 * du, 28 * du; corner: 11 * du; color: ink; opacity: 5% * max(task_row.$k.hover, task_x.$k.hover) }
+                        box { at: dsk_xc, ty_; size: 312 * du, 28 * du; corner: 11 * du; color: ink; opacity: 5% * max(task_row.$k.hover, task_x.$k.hover) }
                         //  The check: a rounded square that fills and shows a tick.
                         body {
                             color: mix(ink, mint, clamp(task.$k.p, 0, 1))
                             opacity: 14% + 86% * clamp(task.$k.p, 0, 1)
                             rim: 22%
-                            box { at: dsk_xc - (dsk_w - 28 * du) / 2 + 20 * du, ty_; size: 17 * du, 17 * du; corner: 6 * du }
+                            box { at: dsk_xc - (312 * du) / 2 + 20 * du, ty_; size: 17 * du, 17 * du; corner: 6 * du }
                         }
-                        path { at: dsk_xc - (dsk_w - 28 * du) / 2 + 20 * du, ty_; stroke: 1.8 * du; color: off; opacity: clamp(task.$k.p, 0, 1); move -3.6 * du, 0.2 * du; line -1.1 * du, 2.8 * du; line 3.8 * du, -2.6 * du }
-                        group { scale: rs; pivot: floor(dsk_xc - (dsk_w - 28 * du) / 2 + 38 * du + 0.5), floor(ty_ + 0.5); text task.$k.text { at: floor(dsk_xc - (dsk_w - 28 * du) / 2 + 38 * du + 0.5), floor(ty_ + 0.5); anchor: left center; size: 12.5; weight: 500; width: (226 * du) / rs; lines: 1; color: ink; opacity: 92% - 52% * clamp(task.$k.p, 0, 1); family: "Space Grotesk" } }
-                        zone box task_row.$k { at: dsk_xc, ty_; size: dsk_w - 28 * du, 28 * du; cursor: pointer }
+                        path { at: dsk_xc - (312 * du) / 2 + 20 * du, ty_; stroke: 1.8 * du; color: off; opacity: clamp(task.$k.p, 0, 1); move -3.6 * du, 0.2 * du; line -1.1 * du, 2.8 * du; line 3.8 * du, -2.6 * du }
+                        group { scale: rs; pivot: floor(dsk_xc - (312 * du) / 2 + 38 * du + 0.5), floor(ty_ + 0.5); text task.$k.text { at: floor(dsk_xc - (312 * du) / 2 + 38 * du + 0.5), floor(ty_ + 0.5); anchor: left center; size: 12.5; weight: 500; width: (226 * du) / rs; lines: 1; color: ink; opacity: 92% - 52% * clamp(task.$k.p, 0, 1); family: "Space Grotesk" } }
+                        zone box task_row.$k { at: dsk_xc, ty_; size: 312 * du, 28 * du; cursor: pointer }
                         on press task_row.$k { emit task_toggle(k) }
                         //  The x: a round backdrop that grows under the pointer and shrinks and turns red under the finger, and a cross that turns.
-                        ellipse { at: dsk_xc + (dsk_w - 28 * du) / 2 - 14 * du, ty_; radius: 8 * du; color: ink; opacity: 14% * task_x.$k.hover }
-                        path { at: dsk_xc + (dsk_w - 28 * du) / 2 - 14 * du, ty_; stroke: 1.4 * du; color: ink; opacity: (60% + 40% * task_x.$k.hover) * max(task_row.$k.hover, task_x.$k.hover); move -2.6 * du, -2.6 * du; line 2.6 * du, 2.6 * du }
-                        path { at: dsk_xc + (dsk_w - 28 * du) / 2 - 14 * du, ty_; stroke: 1.4 * du; color: ink; opacity: (60% + 40% * task_x.$k.hover) * max(task_row.$k.hover, task_x.$k.hover); move 2.6 * du, -2.6 * du; line -2.6 * du, 2.6 * du }
-                        zone box task_x.$k { at: dsk_xc + (dsk_w - 28 * du) / 2 - 14 * du, ty_; size: 22 * du, 24 * du; cursor: pointer }
+                        ellipse { at: dsk_xc + (312 * du) / 2 - 14 * du, ty_; radius: 8 * du; color: ink; opacity: 14% * task_x.$k.hover }
+                        path { at: dsk_xc + (312 * du) / 2 - 14 * du, ty_; stroke: 1.4 * du; color: ink; opacity: (60% + 40% * task_x.$k.hover) * max(task_row.$k.hover, task_x.$k.hover); move -2.6 * du, -2.6 * du; line 2.6 * du, 2.6 * du }
+                        path { at: dsk_xc + (312 * du) / 2 - 14 * du, ty_; stroke: 1.4 * du; color: ink; opacity: (60% + 40% * task_x.$k.hover) * max(task_row.$k.hover, task_x.$k.hover); move 2.6 * du, -2.6 * du; line -2.6 * du, 2.6 * du }
+                        zone box task_x.$k { at: dsk_xc + (312 * du) / 2 - 14 * du, ty_; size: 22 * du, 24 * du; cursor: pointer }
                         on press task_x.$k { emit task_del(k) }
+                        //  Focus on it: a small timer, while the row is under the pointer. The Focus tab opens, its timer starts, and it says what it is on.
+                        ellipse { at: dsk_xc + (312 * du) / 2 - 38 * du, ty_; radius: 9 * du; color: mint; opacity: 16% * task_fz.$k.hover }
+                        GTimer(dsk_xc + (312 * du) / 2 - 38 * du, ty_, (12 * du) / 24, mint, max(task_row.$k.hover, task_fz.$k.hover) * if(task.$k.done, 0, 1), 0)
+                        zone box task_fz.$k { at: dsk_xc + (312 * du) / 2 - 38 * du, ty_; size: 22 * du, 24 * du; cursor: pointer; active: not task.$k.done; label: "Focus on this reminder" }
+                        on press task_fz.$k { desk_tab = 3; ft_mode = 0; emit focus_task(k) }
+                        on press task_fz.$k while ft_state == 0 or ft_state == 3 { emit ft_toggle(ft_len) }
+                        on press task_fz.$k while (ft_state == 0 or ft_state == 3) and ft_dnd and dnd_len != ft_len { emit dnd_for(ft_len) }
+                        on press task_fz.$k while (ft_state == 0 or ft_state == 3) and ft_caf and caf_len != ft_len { emit caf_for(ft_len) }
                     }
                 }
             }
@@ -403,6 +355,18 @@ part Desk {
                 group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(fr_y - 6 * du + 0.5); text sw_time { at: floor(dsk_xc + 0.5), floor(fr_y - 6 * du + 0.5); anchor: center; align: center; size: 38; weight: 700; color: ink; family: "Space Grotesk"; show: ft_mode == 2 } }
                 group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(fr_y + 26 * du + 0.5); text pick(ft_state + 4 * min(ft_mode, 1), "READY", "FOCUSING", "PAUSED", "DONE", "READY", "TIMING", "PAUSED", "DONE") { at: floor(dsk_xc + 0.5), floor(fr_y + 26 * du + 0.5); anchor: center; align: center; size: 11; weight: 700; color: if(ft_state == 1, mint, faint); family: "Space Grotesk"; show: ft_mode != 2 } }
                 group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(fr_y + 26 * du + 0.5); text pick(sw_state, "READY", "RUNNING", "PAUSED") { at: floor(dsk_xc + 0.5), floor(fr_y + 26 * du + 0.5); anchor: center; align: center; size: 11; weight: 700; color: if(sw_state == 1, mint, faint); family: "Space Grotesk"; show: ft_mode == 2 } }
+                //  Focusing on a task: what it is on, under the ring's words; when it is over, a press ticks it off on the Pad.
+                group {
+                    show: ft_mode == 0 and ft_has_task
+                    DTC("on: {ft_task}", dsk_xc, fr_y + 44 * du, 11, 600, mint, if(ft_state == 3, 0, 0.95), 120 * du)
+                    group {
+                        show: ft_state == 3
+                        box { at: dsk_xc, fr_y + 46 * du; size: 104 * du, 22 * du; corner: 11 * du; color: mint; opacity: 26% + 14% * ft_tick.hover }
+                        DTC("Tick it off", dsk_xc, fr_y + 46 * du, 11.5, 600, ink, 1, 100 * du)
+                        zone box ft_tick { at: dsk_xc, fr_y + 46 * du; size: 104 * du, 24 * du; cursor: pointer; label: "Tick the task off" }
+                        on press ft_tick { emit focus_task_done }
+                    }
+                }
 
                 }
                 group {
@@ -661,7 +625,7 @@ part Desk {
                     at: dsk_x0 + 20 * du, dsk_y0 + 124 * du + ask_dy + 8 * du
                     view: 300 * du, ak_vh - 16 * du
                     gap: 6
-                    for r in ask_rows { AskRow(r, copy: ask_copy) }
+                    for r in ask_rows { AskRow(r, copy: ask_copy, note: ask_note) }
                 }
                 on change ask_col.content while ask_follow { ask_col.scroll: max(0, ask_col.content - (ak_vh - 16 * du)) }
                 on change ask_col.scroll { ask_follow = ask_col.scroll >= ask_col.content - (ak_vh - 16 * du) - 12 }
@@ -712,7 +676,29 @@ part Desk {
                     at: dsk_x0 + 20 * du, dsk_y0 + 98 * du
                     view: 300 * du, 330 * du
                     gap: 4
-                    for r in clip_rows { ClipRow(r, copy: clip_copy, pin: clip_pin, ask: clip_ask, del: clip_del) }
+                    for r in clip_rows { ClipRow(r, copy: clip_copy, pin: clip_pin, ask: clip_ask, del: clip_del, menu: clip_menu_open) }
+                }
+                //  An entry's menu (`clip_menu`, logic/clipboard.luau): a text changed and copied back, or kept as a note; a picture's text read out.
+                group {
+                    show: clip_menu >= 0
+                    let cm.n = if(clip_menu_img, 1, 7)
+                    let cm.h = (cm.n * 30 + 24) * du
+                    let cm.y = dsk_y0 + 250 * du - cm.h / 2
+                    zone box clip_mn_out { from: dsk_x0, dsk_y0; size: dsk_w, dsk_h; label: "Close the menu" }
+                    on press clip_mn_out { clip_menu = -1 }
+                    body { color: deep; opacity: 92%; shadow: 0, 8 * du, 24 * du, 45%; box { from: dsk_xc - 110 * du, cm.y; size: 220 * du, cm.h; corner: 18 * du } }
+                    box { from: dsk_xc - 110 * du, cm.y; size: 220 * du, cm.h; corner: 18 * du; stroke: 1; color: ink; opacity: 14% }
+                    repeat q in 0..7 {
+                        let cmy = cm.y + (12 + q * 30) * du
+                        group {
+                            show: q < cm.n
+                            box { from: dsk_xc - 98 * du, cmy; size: 196 * du, 26 * du; corner: 11 * du; color: mint; opacity: 10% + 14% * clip_do.$q.hover }
+                            DTC(pick(q, "UPPER CASE", "lower case", "Trim the spaces", "Tidy the JSON", "Decode a URL", "Decode Base64", "Keep as a note"), dsk_xc, cmy + 13 * du, 12, 600, ink, if(clip_menu_img, 0, 1), 190 * du)
+                            DTC("Read the text in it", dsk_xc, cmy + 13 * du, 12, 600, ink, if(clip_menu_img, 1, 0), 190 * du)
+                            zone box clip_do.$q { from: dsk_xc - 98 * du, cmy; size: 196 * du, 26 * du; corner: 11 * du; cursor: pointer; label: "Do this with it" }
+                            on press clip_do.$q { emit clip_act(clip_menu * 10 + if(clip_menu_img, 6, if(q == 6, 7, q))) }
+                        }
+                    }
                 }
             }
             //  Term: the shell, in a dark card under the tabs. Each stretch of one colour is a text at its cell (and a box behind it when it
@@ -721,8 +707,8 @@ part Desk {
             group {
                 show: desk_tab == 4
                 let tm_y0 = dsk_y0 + 66 * du                    // the card, under the tabs
-                let tt_h  = dsk_h - 87 * du                     // its bottom 21 above the desk's, where the Focus tab's last row ends
-                let tm_w  = dsk_w - 28 * du
+                let tt_h  = (460 - 87) * du                     // its bottom 21 above the desk's, where the Focus tab's last row ends
+                let tm_w  = 312 * du
                 let tm_ch = 16 * rs                              // a cell's height
                 let tm_cw = 11.75 * 0.612 * rs                  // a cell's width: Space Mono is 0.612 of its size wide, every glyph alike
                 let tm_gx = dsk_xc - 64 * tm_cw / 2             // the grid's left edge and the middle of its first row
@@ -734,7 +720,9 @@ part Desk {
                 box { at: dsk_xc, tm_y0 + tt_h / 2; size: tm_w, tt_h; corner: 14 * du; color: deep; opacity: 42% + 8% * tm_on }
                 box { at: dsk_xc, tm_y0 + tt_h / 2; size: tm_w, tt_h; corner: 14 * du; stroke: 1.2; color: mint; opacity: 22% * tm_on }
                 zone box term_zone { at: dsk_xc, tm_y0 + tt_h / 2; size: tm_w, tt_h; corner: 14 * du; cursor: text }
-                on press term_zone { desk_kb = true; term_armed = true; blur }
+                on press term_zone { desk_kb = true; term_armed = true; focus term_grab }
+                //  Term's own field: passive (it takes no key) and out of sight; focusing it is what lends the shell the keyboard (vitreus.plm)
+                input term_grab { at: dsk_xc, dsk_y0 + 70 * du; width: 2; size: 1; color: ink; opacity: 0; passive: true; agent: hidden }
                 on scroll term_zone { emit term_scroll(wheel) }
                 for c in term_runs {
                     box { at: tm_gx + (c.x + c.n / 2) * tm_cw, tm_gy + c.y * tm_ch; size: c.n * tm_cw, tm_ch; color: rgb(c.br, c.bg, c.bb); show: c.hasbg }
@@ -755,6 +743,11 @@ part Desk {
                 group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(tm_y0 + tt_h / 2 + 0.5); text term_msg { at: floor(dsk_xc + 0.5), floor(tm_y0 + tt_h / 2 + 0.5); anchor: center; align: center; size: 12.5; width: (tm_w - 48 * du) / rs; color: faint; family: "Space Grotesk"; show: term_state == 3 } }
                 }
             }
+            include "desk_home.plm"
+            include "desk_notes.plm"
+            include "desk_camera.plm"
+            include "desk_memos.plm"
+            include "desk_dock.plm"
             //  Anything carried over the panel, on any tab, can be let go to keep it on the shelf. This is declared last so that, while a
             //  drag is over, it is the zone on top (the cards and buttons below keep their own presses the rest of the time: it is off then).
             group {
@@ -776,6 +769,8 @@ part Desk {
             }
             }
         }
+        //  The tablet's buttons, outside its glass: after it, so that their presses win over the grip and the corner handles that reach under them.
+        include "desk_body.plm"
     }
     }
 }

@@ -183,7 +183,9 @@ on("note_new", function()
         x = math.max(m.x, math.min(m.x + m.w - W, x))
         y = math.max(m.y, math.min(m.y + m.h - H, y))
         made = made + 1
-        slots[free] = { t = "", x = math.floor(x + 0.5), y = math.floor(y + 0.5), c = (made - 1) % 6, f = math.random(0, 3) }
+        local seed = trim((tostring(text.nt_seed or "")):gsub("\\n", "\n"))
+        text.nt_seed = ""
+        slots[free] = { t = seed, x = math.floor(x + 0.5), y = math.floor(y + 0.5), c = (made - 1) % 6, f = math.random(0, 3) }
         publish(free)
         fact.ztop = (tonumber(fact.ztop) or 0) + 1       -- a new one comes to the front
         fact["sz" .. free] = fact.ztop

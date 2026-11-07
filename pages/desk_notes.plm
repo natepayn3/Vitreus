@@ -1,0 +1,129 @@
+part DeskNotes {
+    //  ── Notes (logic/notes.luau) ──
+    //  The list, newest first; or one note open as ten lines, its first its title (Enter goes to the next line, each line is kept as it is typed).
+    //  Notes has two sides, the notes and Reminders (a to-do list: pages/desk.plm draws it). Under an open note: Copy to desktop (a sticker of it, not linked to it), Delete, and, with the
+    //  local AI, three ways to rewrite it.
+    let nt.l  = dsk_x0 + 24 * du
+    let nt.r  = dsk_x0 + dsk_w - 24 * du
+    let nt.w = nt.r - nt.l
+    group {
+        show: desk_tab == 7
+        opacity: fd1
+        move: 0, (1 - fd1) * 12 * du
+        //  Notes or Reminders: a switch under the title, always there (in an open note, either side goes back to the list)
+        group {
+            let nm.y = dsk_y0 + 84 * du
+            box { at: dsk_xc, nm.y; size: 200 * du, 28 * du; corner: 14 * du; color: ink; opacity: 8% }
+            box { at: dsk_xc + (nt_msel - 0.5) * 98 * du, nm.y; size: 94 * du, 22 * du; corner: 11 * du; color: mint; opacity: 32% }
+            repeat i in 0..2 {
+                DTC(pick(i, "Notes", "Reminders"), dsk_xc + (i - 0.5) * 98 * du, nm.y, 12, 600, ink, if(nt_mode == i, 1, 0.65), 92 * du)
+                zone box nt_mz.$i { at: dsk_xc + (i - 0.5) * 98 * du, nm.y; size: 98 * du, 28 * du; corner: 14 * du; cursor: pointer; role: tab; selected: nt_mode == i; label: pick(i, "Notes", "Reminders") }
+                on press nt_mz.$i while note_sel >= 0 { emit note_back }
+                on press nt_mz.$i { nt_mode = i }
+            }
+        }
+        //  + : a new note in Notes (an open one is left for it), a new reminder in Reminders (its line, ready to type)
+        ellipse { at: nt.r - 20 * du, dsk_y0 + 50 * du; radius: (10 + 1 * nt_top.hover - 1 * nt_top.pressed) * du; color: mint; opacity: 85% + 15% * nt_top.hover }
+        box { at: nt.r - 20 * du, dsk_y0 + 50 * du; size: 9 * du, 2 * du; corner: 1 * du; color: onmint }
+        box { at: nt.r - 20 * du, dsk_y0 + 50 * du; size: 2 * du, 9 * du; corner: 1 * du; color: onmint }
+        zone ellipse nt_top { at: nt.r - 20 * du, dsk_y0 + 50 * du; radius: 13 * du; cursor: pointer; label: if(nt_mode == 0, "New note", "New reminder") }
+        on press nt_top while nt_mode == 0 { emit note_new }
+        on press nt_top while nt_mode == 1 { focus task_in; desk_kb = true }
+        //  in an open note: a back arrow where the app's icon is, to the list
+        group {
+            show: note_sel >= 0
+            ellipse { at: dsk_x0 + 36 * du, dsk_y0 + 48 * du; radius: 13 * du; color: ink; opacity: 6% + 10% * nt_back.hover }
+            path { at: dsk_x0 + 36 * du, dsk_y0 + 48 * du; stroke: 2.2 * du; color: mint; move 3 * du, -6 * du; line -3 * du, 0; line 3 * du, 6 * du }
+            zone ellipse nt_back { at: dsk_x0 + 36 * du, dsk_y0 + 48 * du; radius: 15 * du; cursor: pointer; label: "Back to the notes" }
+            on press nt_back { emit note_back }
+        }
+        //  the list
+        group {
+            show: note_sel < 0 and nt_mode == 0
+            DTC("No notes yet: + makes one", dsk_xc, dsk_y0 + 200 * du, 12, 400, faint, if(note_n > 0, 0, 0.85), nt.w)
+            column note_col {
+                at: nt.l, dsk_y0 + 108 * du
+                view: nt.w, 330 * du
+                gap: 0
+                for n in notes { NoteRow(n, open: note_open, del: note_del) }
+            }
+        }
+        //  a note
+        group {
+            show: note_sel >= 0
+            DPlate(nt.l, dsk_y0 + 104 * du, nt.w, 262 * du, 16 * du, 0.8, 0)
+                input nl.0 { at: floor(nt.l + 8 * du + 0.5), floor(dsk_y0 + 120 * du - 8.0 * rs + 0.5); width: nt.w - 16 * du; size: 16; weight: 600; color: ink; family: "Space Grotesk"; placeholder: "Title"; label: "Line 1 of the note" }
+                box { from: nt.l + 6 * du, dsk_y0 + 131 * du; size: nt.w - 12 * du, 1; color: ink; opacity: 18% }
+                zone box nl_z.0 { from: nt.l, dsk_y0 + 108 * du; size: nt.w, 24 * du; cursor: text; label: "Line 1 of the note" }
+                on press nl_z.0 { focus nl.0; desk_kb = true }
+                on submit nl.0 { focus nl.1 }
+                input nl.1 { at: floor(nt.l + 8 * du + 0.5), floor(dsk_y0 + 146 * du - 6.5 * rs + 0.5); width: nt.w - 16 * du; size: 13; weight: 400; color: ink; family: "Space Grotesk"; placeholder: "Write here…"; label: "Line 2 of the note" }
+                box { from: nt.l + 6 * du, dsk_y0 + 157 * du; size: nt.w - 12 * du, 1; color: ink; opacity: 9% }
+                zone box nl_z.1 { from: nt.l, dsk_y0 + 134 * du; size: nt.w, 24 * du; cursor: text; label: "Line 2 of the note" }
+                on press nl_z.1 { focus nl.1; desk_kb = true }
+                on submit nl.1 { focus nl.2 }
+                input nl.2 { at: floor(nt.l + 8 * du + 0.5), floor(dsk_y0 + 171 * du - 6.5 * rs + 0.5); width: nt.w - 16 * du; size: 13; weight: 400; color: ink; family: "Space Grotesk"; placeholder: ""; label: "Line 3 of the note" }
+                box { from: nt.l + 6 * du, dsk_y0 + 182 * du; size: nt.w - 12 * du, 1; color: ink; opacity: 9% }
+                zone box nl_z.2 { from: nt.l, dsk_y0 + 159 * du; size: nt.w, 24 * du; cursor: text; label: "Line 3 of the note" }
+                on press nl_z.2 { focus nl.2; desk_kb = true }
+                on submit nl.2 { focus nl.3 }
+                input nl.3 { at: floor(nt.l + 8 * du + 0.5), floor(dsk_y0 + 196 * du - 6.5 * rs + 0.5); width: nt.w - 16 * du; size: 13; weight: 400; color: ink; family: "Space Grotesk"; placeholder: ""; label: "Line 4 of the note" }
+                box { from: nt.l + 6 * du, dsk_y0 + 207 * du; size: nt.w - 12 * du, 1; color: ink; opacity: 9% }
+                zone box nl_z.3 { from: nt.l, dsk_y0 + 184 * du; size: nt.w, 24 * du; cursor: text; label: "Line 4 of the note" }
+                on press nl_z.3 { focus nl.3; desk_kb = true }
+                on submit nl.3 { focus nl.4 }
+                input nl.4 { at: floor(nt.l + 8 * du + 0.5), floor(dsk_y0 + 221 * du - 6.5 * rs + 0.5); width: nt.w - 16 * du; size: 13; weight: 400; color: ink; family: "Space Grotesk"; placeholder: ""; label: "Line 5 of the note" }
+                box { from: nt.l + 6 * du, dsk_y0 + 232 * du; size: nt.w - 12 * du, 1; color: ink; opacity: 9% }
+                zone box nl_z.4 { from: nt.l, dsk_y0 + 209 * du; size: nt.w, 24 * du; cursor: text; label: "Line 5 of the note" }
+                on press nl_z.4 { focus nl.4; desk_kb = true }
+                on submit nl.4 { focus nl.5 }
+                input nl.5 { at: floor(nt.l + 8 * du + 0.5), floor(dsk_y0 + 246 * du - 6.5 * rs + 0.5); width: nt.w - 16 * du; size: 13; weight: 400; color: ink; family: "Space Grotesk"; placeholder: ""; label: "Line 6 of the note" }
+                box { from: nt.l + 6 * du, dsk_y0 + 257 * du; size: nt.w - 12 * du, 1; color: ink; opacity: 9% }
+                zone box nl_z.5 { from: nt.l, dsk_y0 + 234 * du; size: nt.w, 24 * du; cursor: text; label: "Line 6 of the note" }
+                on press nl_z.5 { focus nl.5; desk_kb = true }
+                on submit nl.5 { focus nl.6 }
+                input nl.6 { at: floor(nt.l + 8 * du + 0.5), floor(dsk_y0 + 271 * du - 6.5 * rs + 0.5); width: nt.w - 16 * du; size: 13; weight: 400; color: ink; family: "Space Grotesk"; placeholder: ""; label: "Line 7 of the note" }
+                box { from: nt.l + 6 * du, dsk_y0 + 282 * du; size: nt.w - 12 * du, 1; color: ink; opacity: 9% }
+                zone box nl_z.6 { from: nt.l, dsk_y0 + 259 * du; size: nt.w, 24 * du; cursor: text; label: "Line 7 of the note" }
+                on press nl_z.6 { focus nl.6; desk_kb = true }
+                on submit nl.6 { focus nl.7 }
+                input nl.7 { at: floor(nt.l + 8 * du + 0.5), floor(dsk_y0 + 296 * du - 6.5 * rs + 0.5); width: nt.w - 16 * du; size: 13; weight: 400; color: ink; family: "Space Grotesk"; placeholder: ""; label: "Line 8 of the note" }
+                box { from: nt.l + 6 * du, dsk_y0 + 307 * du; size: nt.w - 12 * du, 1; color: ink; opacity: 9% }
+                zone box nl_z.7 { from: nt.l, dsk_y0 + 284 * du; size: nt.w, 24 * du; cursor: text; label: "Line 8 of the note" }
+                on press nl_z.7 { focus nl.7; desk_kb = true }
+                on submit nl.7 { focus nl.8 }
+                input nl.8 { at: floor(nt.l + 8 * du + 0.5), floor(dsk_y0 + 321 * du - 6.5 * rs + 0.5); width: nt.w - 16 * du; size: 13; weight: 400; color: ink; family: "Space Grotesk"; placeholder: ""; label: "Line 9 of the note" }
+                box { from: nt.l + 6 * du, dsk_y0 + 332 * du; size: nt.w - 12 * du, 1; color: ink; opacity: 9% }
+                zone box nl_z.8 { from: nt.l, dsk_y0 + 309 * du; size: nt.w, 24 * du; cursor: text; label: "Line 9 of the note" }
+                on press nl_z.8 { focus nl.8; desk_kb = true }
+                on submit nl.8 { focus nl.9 }
+                input nl.9 { at: floor(nt.l + 8 * du + 0.5), floor(dsk_y0 + 346 * du - 6.5 * rs + 0.5); width: nt.w - 16 * du; size: 13; weight: 400; color: ink; family: "Space Grotesk"; placeholder: ""; label: "Line 10 of the note" }
+                box { from: nt.l + 6 * du, dsk_y0 + 357 * du; size: nt.w - 12 * du, 1; color: ink; opacity: 9% }
+                zone box nl_z.9 { from: nt.l, dsk_y0 + 334 * du; size: nt.w, 24 * du; cursor: text; label: "Line 10 of the note" }
+                on press nl_z.9 { focus nl.9; desk_kb = true }
+            //  what can be done with it
+            let nt.ty = dsk_y0 + 386 * du
+            repeat i in 0..2 {
+                let tx0 = nt.l + i * (nt.w / 2 + 3 * du)
+                DPlate(tx0, nt.ty - 13 * du, nt.w / 2 - 3 * du, 26 * du, 13 * du, 1, nt_do.$i.hover)
+                DTC(pick(i, "Copy to desktop", "Delete"), tx0 + (nt.w / 2 - 3 * du) / 2, nt.ty, 11.5, 600, if(i == 1, alert, ink), 1, nt.w / 2 - 8 * du)
+                zone box nt_do.$i { from: tx0, nt.ty - 13 * du; size: nt.w / 2 - 3 * du, 26 * du; corner: 13 * du; cursor: pointer; label: pick(i, "Copy it to the desktop as a sticky (the two are not linked)", "Delete this note") }
+            }
+            on press nt_do.0 { emit note_sticky }
+            on press nt_do.1 { emit note_del(note_sel) }
+            group {
+                show: desk_ai
+                let nt.ay = dsk_y0 + 420 * du
+                repeat i in 0..3 {
+                    let ax0 = nt.l + i * 104 * du
+                    box { from: ax0, nt.ay - 13 * du; size: 100 * du, 26 * du; corner: 13 * du; color: mint; opacity: if(desk_ai_busy, 8%, 16%) + 12% * nt_ai.$i.hover }
+                    path { at: ax0 + 16 * du, nt.ay; color: mint; move 0, -6 * du; curve 6 * du, 0 via 1 * du, -1 * du; curve 0, 6 * du via 1 * du, 1 * du; curve -6 * du, 0 via -1 * du, 1 * du; curve 0, -6 * du via -1 * du, -1 * du; close }
+                    DTC(pick(i, "Tidy", "Shorter", "Continue"), ax0 + 54 * du, nt.ay, 11.5, 600, ink, if(desk_ai_busy, 0.5, 1), 80 * du)
+                    zone box nt_ai.$i { from: ax0, nt.ay - 13 * du; size: 100 * du, 26 * du; corner: 13 * du; cursor: pointer; active: not desk_ai_busy; label: pick(i, "Tidy this note with the local AI", "Make it shorter with the local AI", "Let the local AI continue it") }
+                    on press nt_ai.$i { emit note_ai(i) }
+                }
+            }
+            DTC(desk_ai_msg, dsk_xc, dsk_y0 + 452 * du, 11, 400, if(desk_ai_busy, minthi, faint), 0.9, nt.w)
+        }
+    }
+}

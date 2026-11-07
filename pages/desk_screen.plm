@@ -1,0 +1,42 @@
+part DeskScreen {
+    //  The tablet's face: a screen, opaque, in a glossy gradient of the theme's own colours (not glass: a faux display), set in the glass body with
+    //  a deeper bezel at the top (the camera) and the foot (the home button, desk_dock.plm) than at the sides. In a tool, its name in large type
+    //  at the top. (The power button on the top edge closes the Desk.)
+    let dsc.x = dsk_x0 + 10 * du
+    let dsc.y = dsk_y0 + 30 * du
+    let dsc.w = dsk_w - 20 * du
+    let dsc.h = dsk_h - 60 * du
+    let dsc.r = 26 * du * (1 - 0.6 * sq)
+    group {
+        opacity: fd0
+        //  the display: lit from the top left, darker to the bottom right
+        body { gradient: dsc.x, dsc.y to dsc.x + dsc.w, dsc.y + dsc.h, mix(mintlo, deep, 0.5), mix(tint, deep, 0.2) 45%, mix(deep, #000000, 0.35); box { from: dsc.x, dsc.y; size: dsc.w, dsc.h; corner: dsc.r } }
+        //  its shine: a soft glow at the top, and a broad band of reflected light across it, the way a glossy screen catches a window
+        group {
+            clip inset 0 box { from: dsc.x, dsc.y; size: dsc.w, dsc.h; corner: dsc.r }
+            body { gradient: radial dsc.x + dsc.w * 0.3, dsc.y radius dsc.w * 0.9, minthi 0%, mint 25%, deep 100%; opacity: 16%; box { from: dsc.x, dsc.y; size: dsc.w, dsc.h } }
+            group {
+                pivot: dsc.x + dsc.w / 2, dsc.y + dsc.h / 2
+                rotate: -28deg
+                box { at: dsc.x + dsc.w * 0.32, dsc.y + dsc.h / 2; size: 90 * du, dsc.h * 1.7; color: #ffffff; opacity: 4.5% }
+                box { at: dsc.x + dsc.w * 0.32 + 62 * du, dsc.y + dsc.h / 2; size: 14 * du, dsc.h * 1.7; color: #ffffff; opacity: 3.5% }
+            }
+        }
+        box { from: dsc.x, dsc.y; size: dsc.w, dsc.h; corner: dsc.r; stroke: 1.4; color: #000000; opacity: 55% }
+        box { from: dsc.x + 1, dsc.y + 1; size: dsc.w - 2, dsc.h - 2; corner: dsc.r - 1; stroke: 1; color: #ffffff; opacity: 9% }
+        ellipse { at: dsk_xc, dsk_y0 + 15 * du; radius: 2.6 * du; color: #05080c; opacity: 85% }
+        //  while the camera is on: a green light beside the lens, as a real tablet has (the bar's privacy light says it too)
+        ellipse { at: dsk_xc + 7 * du, dsk_y0 + 15 * du; radius: 3.6 * du; color: #4cd97b; opacity: 25% * cam_on }
+        ellipse { at: dsk_xc + 7 * du, dsk_y0 + 15 * du; radius: 1.5 * du; color: #4cd97b; opacity: cam_on }
+        ellipse { at: dsk_xc - 0.7 * du, dsk_y0 + 14.3 * du; radius: 0.9 * du; color: #6f8fb5; opacity: 60% }
+        //  a faint light across the screen when the tool changes
+        box { from: dsc.x, dsc.y; size: dsc.w, dsc.h; corner: dsc.r; color: #ffffff; opacity: 5% * dk_flash }
+        //  the status bar
+        //  the tool's name (not on Home, which has its own header)
+        group {
+            show: desk_tab != 6
+            DIcon(desk_tab, dsc.x + 26 * du, dsk_y0 + 48 * du, (17 * du) / 24, mint, if(desk_tab == 7 and note_sel >= 0, 0, 1))      // (an open note has its back arrow here)
+            DTL(pick(desk_tab, "Pad", "Shelf", "Clip", "Focus", "Term", "Ask", "Home", "Notes", "Camera", "Memos"), dsc.x + 44 * du, dsk_y0 + 48 * du, 20, 600, ink, 1, 200 * du)
+        }
+    }
+}

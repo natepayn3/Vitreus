@@ -56,7 +56,7 @@ scene DesktopEdit {
     fact shy0 = 0
     fact emon = -1             // which monitor shows the shelf (`screen.index`; -1: the first)
     fact hov = -1              // the tile under the pointer (-1 none, 5 Done)
-    fact on0 = false           // what each tile shows: the clock, the system monitor, the audio visualiser, the webcam
+    fact on0 = false           // what each tile shows: the clock, the system monitor, the audio visualiser, (3, the webcam: no longer a tile)
     fact on1 = false
     fact on2 = false
     fact on3 = false
@@ -144,12 +144,12 @@ scene DesktopEdit {
     //  The add-ons' tiles (up to four): the shelf grows by a tile for each, up to the screen's width less 80 px. Past that the tiles get narrower, down to 74 px
     //  (84 a tile); an add-on that would need them narrower still has no tile, and a line over Done says how many (Vitreus's log names add-ons past the fourth).
     //  The shelf is 422 px of its own (the hints, the gaps and Done) and a pitch for each tile: 1220 with the shell's seven at 114.
-    let awn = clamp(min(aw.count, floor((sw - 80 - 422) / 84) - 7), 0, 4)
-    let shw = min(sw - 80, 1220 + 114 * awn)
+    let awn = clamp(min(aw.count, floor((sw - 80 - 422) / 84) - 6), 0, 4)
+    let shw = min(sw - 80, 1106 + 114 * awn)           // (six tiles: the webcam is the Desk's Camera now, not a widget)
     let shh = 150
     let sx0 = clamp((sw - shw) / 2 + shx, 8, max(8, sw - shw - 8))      // dragged by its bare parts (`shx`, `shy`), and kept on the screen
     let sy0 = clamp(sh - shh - 48 + shy, 8, max(8, sh - shh - 8))
-    let tp = min(114, (shw - 422) / (7 + awn))       // a tile's pitch: 114, less on a narrow monitor
+    let tp = min(114, (shw - 422) / (6 + awn))       // a tile's pitch: 114, less on a narrow monitor
     let tw = tp - 10
     let tx0 = sx0 + 262
     let ed.still = ed_under < 0.002 and (ed_rh < 0.01 or ed_rq >= 0.999)
@@ -182,14 +182,14 @@ scene DesktopEdit {
     on press shelf { shx0 = shx; shy0 = shy }
     on drag shelf { shx = clamp(shx0 + drag.dx, 8 - (sw - shw) / 2, (sw - shw) / 2 - 8); shy = clamp(shy0 + drag.dy, 8 - (sh - shh - 48), sh - shh - 8 - (sh - shh - 48)) }
     repeat i in 0..7 {
-        zone box tz.$i { at: tx0 + i * tp + tw / 2, sy0 + 26 + 52; size: tw, 104; corner: 16; cursor: pointer; active: open and eo > 0.6 and mine; label: pick(i, "Clock", "System monitor", "Audio visualiser", "Webcam", "Calendar", "Reminders", "New sticky note") }
+        zone box tz.$i { at: tx0 + (i - if(i > 3, 1, 0)) * tp + tw / 2, sy0 + 26 + 52; size: tw, 104; corner: 16; cursor: pointer; active: open and eo > 0.6 and mine and i != 3; label: pick(i, "Clock", "System monitor", "Audio visualiser", "Webcam", "Calendar", "Reminders", "New sticky note") }
         on press tz.$i { emit tile_do(i) }
         on hover tz.$i for 1ms { hov = i }
         on leave tz.$i { hov = -1 }
     }
     repeat k in 0..4 {
-        zone box atz.$k { at: tx0 + (7 + k) * tp + tw / 2, sy0 + 26 + 52; size: tw, 104; corner: 16; cursor: pointer; active: open and eo > 0.6 and mine and k < awn; label: "{aw.$k.name}" }
-        on press atz.$k { awx = round(tx0 + (7 + k) * tp + tw / 2); awy = round(sy0); emit aw_do(k) }
+        zone box atz.$k { at: tx0 + (6 + k) * tp + tw / 2, sy0 + 26 + 52; size: tw, 104; corner: 16; cursor: pointer; active: open and eo > 0.6 and mine and k < awn; label: "{aw.$k.name}" }
+        on press atz.$k { awx = round(tx0 + (6 + k) * tp + tw / 2); awy = round(sy0); emit aw_do(k) }
         on hover atz.$k for 1ms { hov = 8 + k }
         on leave atz.$k { hov = -1 }
     }
@@ -275,12 +275,13 @@ scene DesktopEdit {
 
         //  the tiles
         repeat i in 0..7 {
-            let cx = tx0 + i * tp + tw / 2
+            let cx = tx0 + (i - if(i > 3, 1, 0)) * tp + tw / 2       // (tile 3, the webcam, is gone: the ones after it move up)
             let cy = sy0 + 26 + 52
             let hv = if(hov == i, 1, 0)
             let on = pick(i, tn.0, tn.1, tn.2, tn.3, tn.4, tn.5, 0)
             let ec = pick(i, ec.0, ec.1, ec.2, ec.3, ec.4, ec.5, ec.6)
             group {
+            show: i != 3
             pivot: cx, cy
             scale: 0.9 + 0.1 * ec
             opacity: ec
@@ -355,7 +356,7 @@ scene DesktopEdit {
 
         //  the add-ons' tiles: their own picture (tinted like the shell's pictures) and name, and the same badge
         repeat k in 0..4 {
-            let cx = tx0 + (7 + k) * tp + tw / 2
+            let cx = tx0 + (6 + k) * tp + tw / 2
             let cy = sy0 + 26 + 52
             let hv = if(hov == 8 + k, 1, 0)
             let on = if(aw.$k.on, 1, 0)

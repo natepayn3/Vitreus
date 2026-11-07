@@ -359,6 +359,24 @@ return function()
         end
         if type(str) == "string" and str ~= "" then run("wl-copy", { "--", str }, function() end) end
     end)
+    -- An answer kept as a note on the Desk (logic/notes.luau's `desk_note_add`): titled with the question it answered, its lines the answer's.
+    on("ask_note", function(i)
+        local r = model.ask_rows[(tonumber(i) or -1) + 1]
+        if type(r) ~= "table" or not desk_note_add then return end
+        local m = state.history[r.mi]
+        if not m or type(m.text) ~= "string" or m.text == "" then return end
+        local q = ""
+        for k = (r.mi or 1) - 1, 1, -1 do
+            local p = state.history[k]
+            if p and p.role == "user" then q = p.text or ""; break end
+        end
+        local title = (q:match("[^\n]+") or "From Ask"):sub(1, 40)
+        local lines = {}
+        for line in (m.text .. "\n"):gmatch("([^\n]*)\n") do
+            if line:match("%S") and #lines < 9 then lines[#lines + 1] = line end
+        end
+        desk_note_add(title, lines)
+    end)
     -- Something to ask about, from elsewhere in the shell (the launcher's clipboard command, a card on the Shelf): it waits as a chip above the
     -- question and goes with the next one. It is never sent by itself: it may be a password.
     -- Shared with the rest of the logic, which cannot hear this module's events: `ask_attach_from("Clipboard", text)`.

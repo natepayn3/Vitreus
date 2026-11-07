@@ -1,0 +1,68 @@
+part DeskCamera {
+    //  ── Camera (logic/desk_cam.luau) ──
+    //  Your face in a square pane, mirrored by default as a mirror is (Mirror is the round button in its corner); under it the looks, two rows of
+    //  round previews of your face with each; and, well under them, the shutter (a photo, with its look, to Pictures/myPad and onto the Shelf: the screen flashes
+    //  white). A look is ffmpeg's own filter on the camera's stream, so changing it starts the camera again (a moment of "Starting…").
+    let cmr.s = 232 * du                                       // the pane's side
+    let cmr.l = dsk_xc - cmr.s / 2
+    let cmr.t = dsk_y0 + 62 * du
+    let cmr.r = 24 * du * (1 - 0.6 * sq)
+    group {
+        show: desk_tab == 8
+        opacity: fd1
+        move: 0, (1 - fd1) * 12 * du
+        group {
+            clip inset 0 box { from: cmr.l, cmr.t; size: cmr.s, cmr.s; corner: cmr.r }
+            box { from: cmr.l, cmr.t; size: cmr.s, cmr.s; color: deep; opacity: 85% }
+            image cam_img { at: cmr.l, cmr.t; size: cmr.s, cmr.s; fit: cover; show: cam_live }
+            box { from: cmr.l, cmr.t; size: cmr.s, cmr.s; color: #ffffff; opacity: 85% * cam_flash }
+        }
+        box { from: cmr.l, cmr.t; size: cmr.s, cmr.s; corner: cmr.r; stroke: 1.2; color: ink; opacity: 16% }
+        group {
+            show: not cam_live
+            DIcon(8, dsk_xc, cmr.t + cmr.s / 2 - 12 * du, (36 * du) / 24, faint, 0.7)
+            DTC(cam_msg, dsk_xc, cmr.t + cmr.s / 2 + 22 * du, 12, 600, faint, 0.9, cmr.s - 40 * du)
+        }
+        //  Mirror: a round button in the pane's top right corner, as a camera app has it (lit while the picture is mirrored)
+        let mi.x = cmr.l + cmr.s - 22 * du
+        let mi.y = cmr.t + 22 * du
+        ellipse { at: mi.x, mi.y; radius: 14 * du; color: if(cam_mirror, mint, #000000); opacity: if(cam_mirror, 85%, 45%) + 10% * cf_mir.hover }
+        path { at: mi.x, mi.y; stroke: 1.6 * du; color: if(cam_mirror, onmint, #ffffff); move -6 * du, -2.5 * du; line 6 * du, -2.5 * du; line 3 * du, -5.5 * du }
+        path { at: mi.x, mi.y; stroke: 1.6 * du; color: if(cam_mirror, onmint, #ffffff); move 6 * du, 3 * du; line -6 * du, 3 * du; line -3 * du, 6 * du }
+        zone ellipse cf_mir { at: mi.x, mi.y; radius: 16 * du; cursor: pointer; role: toggle; checked: cam_mirror; label: "Mirror the picture" }
+        on press cf_mir { emit cam_flip }
+        //  the looks: your own face with each, in a round preview (made every two seconds, logic/desk_cam.luau), its name under it; the one in
+        //  use has the accent's ring. Before the first previews come, each is a disc in its colours. Five on the first row, four on the second.
+        repeat f in 0..9 {
+            let lk.x = if(f < 5, dsk_xc + (f - 2) * 60 * du, dsk_xc + (f - 6.5) * 60 * du)
+            let lk.y = cmr.t + cmr.s + 32 * du + if(f < 5, 0, 56 * du)
+            let lk.on = if(cam_filter == f, 1, 0)
+            group {
+                pivot: lk.x, lk.y
+                scale: 1 + 0.06 * cf_z.$f.hover - 0.06 * cf_z.$f.pressed
+                ellipse { at: lk.x, lk.y; radius: 24.5 * du; stroke: 2.4 * du; color: mint; opacity: lk.on }
+                body {
+                    gradient: lk.x - 20 * du, lk.y - 20 * du to lk.x + 20 * du, lk.y + 20 * du, pick(f, #f2c49b, #f4f4f4, #9a9a9a, #f0d3a4, #ffffff, #ff5a5f, #3a1e78, #ff3ea5, #ff2d55), pick(f, #5a7ea8, #3a3a3a, #000000, #5e3e22, #aeb7c2, #4da3ff, #ffe15a, #20d4ff, #00e5ff)
+                    shadow: 0, 2 * du, 6 * du, 30%
+                    ellipse { at: lk.x, lk.y; radius: 20 * du }
+                }
+                group {
+                    show: cam_pv_on
+                    clip inset 0 box { at: lk.x, lk.y; size: 40 * du, 40 * du; corner: 20 * du }
+                    image cam_pvi.$f { at: lk.x - 20 * du, lk.y - 20 * du; size: 40 * du, 40 * du }
+                }
+                ellipse { at: lk.x, lk.y; radius: 20 * du; stroke: 1; color: #ffffff; opacity: 18% }
+            }
+            DTC(pick(f, "Normal", "Mono", "Noir", "Sepia", "Sketch", "Pixel", "Thermal", "Pop", "Glitch"), lk.x, lk.y + 30 * du, 10, 600, if(lk.on > 0.5, mint, ink), if(lk.on > 0.5, 1, 0.8), 56 * du)
+            zone ellipse cf_z.$f { at: lk.x, lk.y + 4 * du; radius: 26 * du; cursor: pointer; role: toggle; checked: lk.on > 0.5; label: pick(f, "Normal", "Mono", "Noir", "Sepia", "Sketch", "Pixel", "Thermal", "Pop", "Glitch") }
+            on press cf_z.$f { emit cam_filter_set(f) }
+        }
+        //  the shutter: a white disc in a ring; it sinks as it is pressed
+        let cmr.y = dsk_y0 + 460 * du                    // well under the looks
+        ellipse { at: dsk_xc, cmr.y; radius: 21 * du; stroke: 2.4 * du; color: #ffffff; opacity: if(cam_live, 90%, 35%) }
+        ellipse { at: dsk_xc, cmr.y; radius: (16 - 2 * cm_shut.pressed + 1 * cm_shut.hover) * du; color: #ffffff; opacity: if(cam_live, 95%, 30%) }
+        zone ellipse cm_shut { at: dsk_xc, cmr.y; radius: 23 * du; cursor: pointer; active: cam_live; label: "Take a photo" }
+        on press cm_shut { emit cam_snap }
+        DTL(if(cam_live, cam_msg, ""), dsk_xc + 30 * du, cmr.y, 10, 600, mint, 0.95, 130 * du)
+    }
+}

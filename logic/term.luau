@@ -69,6 +69,18 @@ return function(key)
         end
         write(proc, "k " .. tostring(name) .. " " .. hex(typed or "") .. "\n")
     end)
+    -- Home's AUR card: the update typed into the shell and Enter pressed, as you would (the helper asks for your password and what to do).
+    -- A terminal that is not running yet is started first, and given a moment for its prompt.
+    on("aur_update", function()
+        local cmd = desk_aur_cmd and desk_aur_cmd() or "paru -Sua"
+        local fresh = proc == nil
+        if fresh then start() end
+        after(fresh and 700 or 0, function()
+            if not proc then return end
+            write(proc, "k a " .. hex(cmd) .. "\n")
+            write(proc, "k Return 0d\n")
+        end)
+    end)
     on("term_scroll", function(n)
         if proc and type(n) == "number" and n ~= 0 then write(proc, "s " .. (n > 0 and "3" or "-3") .. "\n") end
     end)

@@ -1,0 +1,370 @@
+part DeskHome {
+    //  ── Home: the tablet's home screen ──
+    //  You at the top (your picture, myPad, and today's date); under it the slideshow; then the apps, an icon each (with Memo
+    //  and Settings); and at the foot the player, as bright as the cover it plays (Peek while nothing does). Settings opens Customize (the apps, where it opens, and the slideshow's folder). The dock does the rest. Customize takes the player's and the board's place with
+    //  the dock's tools, which one the Desk opens on, and the local AI.
+    let hm.l  = dsk_x0 + 24 * du
+    let hm.r  = dsk_x0 + dsk_w - 24 * du
+    let hm.w = hm.r - hm.l
+    //  where the pointer is in the Desk's own drawing (it may be carried or made smaller)
+    let hm.ptx = dsk_pvx + ((pointer.x - tx.dsk) - dsk_pvx) / desk_s
+    let hm.pty = dsk_pvy + ((pointer.y - ty.dsk) - dsk_pvy) / desk_s
+    group {
+        show: desk_tab == 6
+        //  ── you: the name and the date (your picture is drawn after the slideshow, below, so that it sits over its top edge) ──
+        group {
+            opacity: fd1
+            move: 0, (1 - fd1) * 12 * du
+            group { scale: rs; pivot: floor(hm.l + 90 * du + 0.5), floor(dsk_y0 + 62 * du + 0.5); text "myPad" { at: floor(hm.l + 90 * du + 0.5), floor(dsk_y0 + 62 * du + 0.5); anchor: left center; size: 27; weight: 600; color: ink; shadow: 0, 2, 6, 35%; letter_move: letter * 0.4, 0; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(hm.l + 91 * du + 0.5), floor(dsk_y0 + 83 * du + 0.5); text datelong { at: floor(hm.l + 91 * du + 0.5), floor(dsk_y0 + 83 * du + 0.5); anchor: left center; size: 12; weight: 600; color: minthi; opacity: 80%; letter_move: letter * 0.5, 0; family: "Space Grotesk" } }
+            //  the AUR card, at the right: how many AUR updates there are (logic/aur.luau); pressed, with some, the update runs in Term (to be seen
+            //  and confirmed there), with none it checks again. While the pointer is on it, the packages, under it.
+            let au.x = hm.r - 40 * du
+            let au.y = dsk_y0 + 68 * du
+            let au.up = if(aur_state == 2 and aur_n > 0, 1, 0)
+            group {
+                pivot: au.x, au.y
+                scale: 1 + 0.03 * hm_aur.hover - 0.04 * hm_aur.pressed
+                //  a pill: a round badge with the package at its left, the words at its right
+                DPlate(au.x - 42 * du, au.y - 19 * du, 84 * du, 38 * du, 19 * du, 1.2, hm_aur.hover)
+                ellipse { at: au.x - 23 * du, au.y; radius: 14 * du; color: if(au.up > 0.5, mint, ink); opacity: if(au.up > 0.5, 100%, 12%) }
+                GPackage(au.x - 23 * du, au.y, (15 * du) / 24, if(au.up > 0.5, onmint, ink), if(au.up > 0.5, 1, 0.75), 0)
+                //  how many, on the badge's corner
+                group {
+                    show: au.up > 0.5
+                    ellipse { at: au.x - 12 * du, au.y - 11 * du; radius: 6.5 * du; color: alert }
+                    ellipse { at: au.x - 12 * du, au.y - 11 * du; radius: 6.5 * du; stroke: 1.4; color: deep }
+                    group { scale: rs; pivot: floor(au.x - 12 * du + 0.5), floor(au.y - 11 * du + 0.5); text number(aur_n, 0, "") { at: floor(au.x - 12 * du + 0.5), floor(au.y - 11 * du + 0.5); anchor: center; align: center; size: 9; weight: 600; color: #ffffff; family: "Space Grotesk" } }
+                }
+                //  the words, from a little right of the badge: AUR the title, what it says under it, softer (the accent while there are updates)
+                DTL("AUR", au.x + 1 * du, au.y - 6 * du, 13.5, 600, ink, 1, 40 * du)
+                DTL(if(aur_state == 1, "Checking…", aur_msg), au.x + 1 * du, au.y + 7.5 * du, 10, 400, if(au.up > 0.5, mint, faint), if(au.up > 0.5, 1, 0.85), 42 * du)
+            }
+            zone box hm_aur { at: au.x, au.y; size: 86 * du, 40 * du; corner: 20 * du; cursor: pointer; label: if(aur_n > 0, "Update the AUR packages in Term", "Check the AUR again") }
+            on press hm_aur while aur_state == 2 and aur_n > 0 { emit aur_update }
+            on press hm_aur while not (aur_state == 2 and aur_n > 0) { emit aur_check }
+        }
+
+        group {
+            show: not desk_edit
+            //  ── the slideshow: one folder's pictures, one after another (logic/desk_frame.luau), cross-fading; its name at the foot and a › to
+            //  skip on, while the pointer is on it; a press opens the picture. With no picture there, Peek keeps the frame warm. ──
+            group {
+                opacity: fd2
+                move: 0, (1 - fd2) * 12 * du
+                let mc.x = hm.l                                     // the same edges as the icons and the player
+                let mc.w = hm.w
+                let mc.y = dsk_y0 + 98 * du
+                let mc.h = 92 * du
+                box { from: mc.x, mc.y; size: mc.w, mc.h; corner: 20 * du; color: deep; opacity: 55% }
+                box { from: mc.x, mc.y; size: mc.w, mc.h; corner: 20 * du; stroke: 1.2; color: ink; opacity: 14% }
+                //  the photo frame: one folder's pictures, one after another (logic/desk_frame.luau), cross-fading; its name at the foot, and a › to skip
+                //  on, while the pointer is on it. A press opens the picture. With no picture there, Peek keeps the frame warm.
+                group {
+                    show: pf_has
+                    group {
+                        clip inset 0 box { from: mc.x, mc.y; size: mc.w, mc.h; corner: 20 * du }
+                        image pf_im_a { at: mc.x, mc.y; size: mc.w, mc.h; fit: cover; opacity: 1 - pf_mix }
+                        image pf_im_b { at: mc.x, mc.y; size: mc.w, mc.h; fit: cover; opacity: pf_mix }
+                        repeat q in 0..8 { box { from: mc.x, mc.y + mc.h - (q + 1) * 5 * du; size: mc.w, (q + 1) * 5 * du; color: #000000; opacity: 7% * hm_pf.hover } }      // darker to the foot, layered the same way
+                    }
+                    box { from: mc.x, mc.y; size: mc.w, mc.h; corner: 20 * du; stroke: 1.2; color: #ffffff; opacity: 18% }
+                    DTL(pf_name, mc.x + 14 * du, mc.y + mc.h - 12 * du, 10.5, 600, #ffffff, hm_pf.hover, mc.w - 70 * du)
+                    zone box hm_pf { from: mc.x, mc.y; size: mc.w, mc.h; corner: 20 * du; cursor: pointer; label: "Open this picture" }
+                    on press hm_pf { emit pf_open }
+                    ellipse { at: mc.x + mc.w - 22 * du, mc.y + mc.h / 2; radius: 13 * du; color: #000000; opacity: (35% + 20% * hm_pfn.hover) * max(hm_pf.hover, hm_pfn.hover) }
+                    path { at: mc.x + mc.w - 22 * du, mc.y + mc.h / 2; stroke: 2 * du; color: #ffffff; opacity: max(hm_pf.hover, hm_pfn.hover); move -2.5 * du, -5 * du; line 2.5 * du, 0; line -2.5 * du, 5 * du }
+                    zone ellipse hm_pfn { at: mc.x + mc.w - 22 * du, mc.y + mc.h / 2; radius: 15 * du; cursor: pointer; label: "Next picture" }
+                    on press hm_pfn { emit pf_next }
+                }
+                group {
+                    show: not pf_has
+                    DTL("No pictures yet", mc.x + 18 * du, mc.y + 38 * du, 15, 600, ink, 0.95, 180 * du)
+                    DTL("Add pictures to {pf_folder_path}", mc.x + 18 * du, mc.y + 56 * du, 11.5, 400, faint, 0.85, 200 * du)
+                    DPeek(mc.x + mc.w - 70 * du, mc.y + 46 * du, 0.3 * du, hm_peek2.hover)
+                    zone box hm_peek2 { at: mc.x + mc.w - 70 * du, mc.y + 46 * du; size: 96 * du, 86 * du; label: "Peek, the Desk's cat" }
+                }
+            }
+
+            //  ── the home screen's apps: an icon each, in the order and with the ones Customize keeps, then Memos (red, with the time, while it records)
+            //  and Settings (Customize). Five across, two rows. Flat squircles, each in its own colour; an icon lifts under the pointer (its shadow
+            //  grows) and sinks as it is pressed. ──
+            group {
+                opacity: fd3
+                move: 0, (1 - fd3) * 12 * du
+                let ic.p = (hm.w - 44 * du) / 4                        // the pitch: the outer icons' edges on the column's
+                let ic.x0 = hm.l + 22 * du
+                let ic.y0 = dsk_y0 + 224 * du
+                repeat t in 0..10 {
+                    //  0..7 the dock's places (`dk.$t`), 8 Memo, 9 Settings
+                    let at.id = if(t < 8, pick(t, dk.0.id, dk.1.id, dk.2.id, dk.3.id, dk.4.id, dk.5.id, dk.6.id, dk.7.id), if(t == 8, 9, 10))
+                    let at.on = if(t < 8, pick(t, dk.0.on, dk.1.on, dk.2.on, dk.3.on, dk.4.on, dk.5.on, dk.6.on, dk.7.on), true)
+                    let at.s = if(t < 8, pick(t, dk.0.x, dk.1.x, dk.2.x, dk.3.x, dk.4.x, dk.5.x, dk.6.x, dk.7.x), dk_n + t - 8)
+                    let at.x = ic.x0 + mod(at.s, 5) * ic.p
+                    let at.y = ic.y0 + floor(at.s / 5) * 64 * du
+                    let at.c = pick(at.id, #4fb36b, #3d8fe0, #8d6fe0, #ef7050, #2e3a48, mintlo, #f0f0f0, #f2b93b, #77869a, if(memo_rec, #ff3b4f, #e2475f), #6d7a8a)
+                    group {
+                        show: at.on
+                        group {
+                            pivot: at.x, at.y
+                            scale: 1 + 0.06 * hm_ic.$t.hover - 0.08 * hm_ic.$t.pressed
+                            move: 0, -2 * du * hm_ic.$t.hover
+                            //  flat: one colour, a little lighter at the top, a soft shadow; no gloss (a squircle's corner, about a quarter of its side)
+                            body { gradient: at.x, at.y - 22 * du to at.x, at.y + 22 * du, mix(at.c, #ffffff, 0.08), mix(at.c, #000000, 0.06); shadow: 0, 2 * du + 2 * du * hm_ic.$t.hover, 6 * du + 4 * du * hm_ic.$t.hover, 28%; box { at: at.x, at.y; size: 44 * du, 44 * du; corner: 13 * du * (1 - 0.5 * sq) } }
+                            group { show: at.id < 9; DIcon(at.id, at.x, at.y, (20 * du) / 24, if(at.id == 6, #26303a, #ffffff), 1) }
+                            //  Memo: a microphone (a square while it records)
+                            group {
+                                show: at.id == 9
+                                box { at: at.x, at.y - 3 * du; size: 9 * du, 15 * du; corner: 4.5 * du; color: #ffffff; show: not memo_rec }
+                                path { at: at.x, at.y + 2 * du; stroke: 1.6 * du; color: #ffffff; show: not memo_rec; move -7 * du, -3 * du; curve 7 * du, -3 * du via 0, 8 * du }
+                                line { from: at.x, at.y + 6.5 * du; to: at.x, at.y + 10 * du; width: 1.6 * du; color: #ffffff; show: not memo_rec }
+                                box { at: at.x, at.y; size: 13 * du, 13 * du; corner: 3 * du; color: #ffffff; show: memo_rec }
+                            }
+                            //  Settings: a gear, plain
+                            group {
+                                show: at.id == 10
+                                ellipse { at: at.x, at.y; radius: 6.5 * du; stroke: 2.4 * du; color: #ffffff }
+                                repeat g in 0..8 {
+                                    group { pivot: at.x, at.y; rotate: g * 45deg; box { at: at.x, at.y - 9.5 * du; size: 3.6 * du, 4 * du; corner: 1 * du; color: #ffffff } }
+                                }
+                            }
+                        }
+                        DTC(pick(at.id, "Pad", "Shelf", "Clip", "Focus", "Term", "Ask", "Home", "Notes", "Camera", "Memos", "Settings"), at.x, at.y + 31 * du, 10.5, 600, ink, if(at.id == 9 and memo_rec, 0, 0.95), 58 * du)
+                        DTC(memo_t, at.x, at.y + 31 * du, 10.5, 600, #ff6b7a, if(at.id == 9 and memo_rec, 1, 0), 58 * du)
+                        zone box hm_ic.$t { at: at.x, at.y + 5 * du; size: 56 * du, 60 * du; corner: 12 * du; cursor: pointer; label: pick(at.id, "Pad", "Shelf", "Clip", "Focus", "Term", "Ask", "Home", "Notes", "Camera", "Memos", "Settings") }
+                        on press hm_ic.$t while at.id < 9 { desk_tab = at.id }
+                        on press hm_ic.$t while at.id == 9 { desk_tab = 9 }
+                        on press hm_ic.$t while at.id == 10 { desk_edit = true }
+                    }
+                }
+            }
+
+            //  ── the player, where the Notes widget was: the cover's own colours as its backdrop (darkened at the left, where the words are), a big
+            //  cover, the song, bright buttons, and the spectrum along the foot. Nothing loaded: Peek, asleep. (No glow or blur: the Desk is under
+            //  the Retro theme's pixelation, and effects do not nest.) ──
+            group {
+                opacity: fd3
+                move: 0, (1 - fd3) * 12 * du
+                let md.x = hm.l
+                let md.w = hm.w
+                let md.y = dsk_y0 + 340 * du
+                let md.h = 142 * du
+                let md.cs = 104 * du                                // the cover's side
+                let md.cx = md.x + 14 * du + md.cs / 2
+                let md.cy = md.y + md.h / 2
+                group {
+                    clip inset 0 box { from: md.x, md.y; size: md.w, md.h; corner: 20 * du }
+                    box { from: md.x, md.y; size: md.w, md.h; color: deep; opacity: 55% }
+                    body { gradient: md.x, md.y to md.x + md.w, md.y + md.h, mintlo, deep; opacity: 55% * media_open * (1 - art_on); box { from: md.x, md.y; size: md.w, md.h } }
+                    image art { at: md.x, md.y - (md.w - md.h) / 2; size: md.w, md.w; opacity: media_open * art_on }
+                    repeat q in 0..16 { box { from: md.x, md.y; size: md.w * (16 - q) / 16, md.h; color: deep; opacity: 7% * media_open * art_on } }      // darker to the left: layers from the left edge, each shorter (side by side, their edges drew lines)
+                }
+                box { from: md.x, md.y; size: md.w, md.h; corner: 20 * du; stroke: 1.2; color: if(media_on, mint, ink); opacity: if(media_on, 35%, 14%) }
+                group {
+                    show: media_on
+                    opacity: media_open
+                    //  the cover
+                    group {
+                        show: not art_on
+                        body { gradient: md.cx - md.cs / 2, md.cy - md.cs / 2 to md.cx + md.cs / 2, md.cy + md.cs / 2, off, deep; rim: 14%; box { at: md.cx, md.cy; size: md.cs, md.cs; corner: 14 * du } }
+                        GNote(md.cx, md.cy, (28 * du) / 24, ink, 0.8, 0)
+                    }
+                    group {
+                        pivot: md.cx, md.cy
+                        scale: (0.7 + 0.3 * clamp(swap, 0, 1.12)) * (1 + 0.05 * pulse * playf)
+                        rotate: (1 - clamp(swap, 0, 1.12)) * -12deg
+                        opacity: art_on
+                        body { color: deep; shadow: 0, 6 * du, 16 * du, 55%; box { at: md.cx, md.cy; size: md.cs, md.cs; corner: 14 * du } }
+                        group {
+                            clip inset 0 box { at: md.cx, md.cy; size: md.cs, md.cs; corner: 14 * du }
+                            image art { at: md.cx - md.cs / 2, md.cy - md.cs / 2; size: md.cs, md.cs }
+                        }
+                        box { at: md.cx, md.cy; size: md.cs, md.cs; corner: 14 * du; stroke: 1.2; color: #ffffff; opacity: 22% }
+                    }
+                    //  the song
+                    let md.tx = md.x + 134 * du
+                    group { scale: rs; pivot: floor(md.tx + 0.5), floor(md.y + 34 * du + 0.5); text media.title { at: floor(md.tx + 0.5), floor(md.y + 34 * du + 0.5); anchor: left center; size: 16; weight: 600; width: (md.w - 146 * du) / rs; lines: 1; color: #ffffff; family: "Space Grotesk" } }
+                    group { scale: rs; pivot: floor(md.tx + 0.5), floor(md.y + 54 * du + 0.5); text media.artist { at: floor(md.tx + 0.5), floor(md.y + 54 * du + 0.5); anchor: left center; size: 12.5; weight: 600; width: (md.w - 146 * du) / rs; lines: 1; color: minthi; family: "Space Grotesk" } }
+                    //  previous, play or pause, next
+                    let md.by = md.y + 88 * du
+                    let md.px = md.tx + 10 * du
+                    let md.pp = md.tx + 40 * du
+                    let md.pn = md.tx + 70 * du
+                    box { at: md.px - 4.8 * du, md.by; size: 1.8 * du, 10 * du; corner: 0.9 * du; color: #ffffff; opacity: 80% + 20% * hm_mp.0.hover }
+                    path { at: md.px, md.by; color: #ffffff; opacity: 80% + 20% * hm_mp.0.hover; move 4 * du, -5 * du; line -3.6 * du, 0; line 4 * du, 5 * du; close }
+                    ellipse { at: md.pp, md.by; radius: (13 + 1.4 * hm_mp.1.hover - 1.2 * hm_mp.1.pressed) * du; color: mint }
+                    path { at: md.pp, md.by; color: onmint; show: not media.playing; move -3.2 * du, -6.2 * du; line 6.4 * du, 0; line -3.2 * du, 6.2 * du; close }
+                    box { at: md.pp - 3 * du, md.by; size: 3 * du, 11 * du; corner: 1.2 * du; color: onmint; show: media.playing }
+                    box { at: md.pp + 3 * du, md.by; size: 3 * du, 11 * du; corner: 1.2 * du; color: onmint; show: media.playing }
+                    path { at: md.pn, md.by; color: #ffffff; opacity: 80% + 20% * hm_mp.2.hover; move -4 * du, -5 * du; line 3.6 * du, 0; line -4 * du, 5 * du; close }
+                    box { at: md.pn + 4.8 * du, md.by; size: 1.8 * du, 10 * du; corner: 0.9 * du; color: #ffffff; opacity: 80% + 20% * hm_mp.2.hover }
+                    zone box hm_mp.0 { at: md.px, md.by; size: 28 * du, 30 * du; cursor: pointer; label: "Previous" }
+                    zone box hm_mp.1 { at: md.pp, md.by; size: 30 * du, 30 * du; cursor: pointer; label: "Play or pause" }
+                    zone box hm_mp.2 { at: md.pn, md.by; size: 28 * du, 30 * du; cursor: pointer; label: "Next" }
+                    on press hm_mp.0 { emit mcmd(0) }
+                    on press hm_mp.1 { emit mcmd(1) }
+                    on press hm_mp.2 { emit mcmd(2) }
+                    //  the spectrum, at the right of the buttons, in the accent going to white as it rises
+                    repeat i in 0..24 {
+                        let hlv = clamp(spec.s.$i * (0.8 + 0.7 * i / 23), 0, 1)
+                        let hbh = (2 + 26 * hlv) * du
+                        box { at: md.tx + 2 * du + i * 6.9 * du, md.y + md.h - 14 * du - hbh / 2; size: 3.6 * du, hbh; corner: 1.4 * du; color: mix(mint, #ffffff, hlv * 0.8); opacity: (0.45 + 0.55 * playf) * (55% + 45% * hlv) }
+                    }
+                }
+                group {
+                    opacity: 1 - media_open
+                    show: media_open < 0.99
+                    DTL("Nothing playing", md.x + 18 * du, md.y + 60 * du, 15, 600, ink, 0.95, 180 * du)
+                    DTL("Play something and Peek listens along", md.x + 18 * du, md.y + 80 * du, 11.5, 400, faint, 0.85, 190 * du)
+                    DPeek(md.x + md.w - 72 * du, md.y + md.h / 2 + 6 * du, 0.3 * du, hm_peek.hover, 1)
+                    zone box hm_peek { at: md.x + md.w - 72 * du, md.y + md.h / 2; size: 100 * du, 96 * du; label: "Peek, the Desk's cat" }
+                }
+            }
+
+        }
+
+        //  ── Customize ──
+        group {
+            show: desk_edit
+            opacity: fd2
+            DTL("SHOW, ORDER, AND WHERE IT OPENS", hm.l + 92 * du, dsk_y0 + 112 * du, 10, 600, faint, 0.8, hm.w - 160 * du)
+            box { at: hm.r - 26 * du, dsk_y0 + 112 * du; size: 52 * du, 18 * du; corner: 10 * du; color: mint; opacity: 26% + 14% * ce_done.hover }
+            DTC("Done", hm.r - 26 * du, dsk_y0 + 112 * du, 11, 600, ink, 1, 50 * du)
+            zone box ce_done { at: hm.r - 26 * du, dsk_y0 + 112 * du; size: 54 * du, 22 * du; corner: 10 * du; cursor: pointer; label: "Done" }
+            on press ce_done { desk_edit = false }
+            //  Home first (the home button's), then the eight apps in their order.
+            repeat s in 0..9 {
+                let ry = dsk_y0 + (142 + s * 25) * du
+                let tid = if(s == 0, 6, pick(s - 1, dk.0.id, dk.1.id, dk.2.id, dk.3.id, dk.4.id, dk.5.id, dk.6.id, dk.7.id))
+                let ton = if(s == 0, true, pick(s - 1, dk.0.on, dk.1.on, dk.2.on, dk.3.on, dk.4.on, dk.5.on, dk.6.on, dk.7.on))
+                DPlate(hm.l, ry - 11 * du, hm.w, 22 * du, 8 * du, 0.7, 0)
+                DIcon(tid, hm.l + 14 * du, ry, (12 * du) / 24, if(ton, mint, faint), if(ton, 1, 0.5))
+                DTL(pick(tid, "Pad", "Shelf", "Clip", "Focus", "Term", "Ask", "Home", "Notes", "Camera"), hm.l + 30 * du, ry, 12, 600, ink, if(ton, 1, 0.45), 100 * du)
+                //  opens on it: a ring, filled for the one
+                ellipse { at: hm.l + 150 * du, ry; radius: 5.5 * du; stroke: 1.3; color: mint; opacity: 80% }
+                ellipse { at: hm.l + 150 * du, ry; radius: 3 * du; color: mint; opacity: if(desk_start == tid, 100%, 0%) }
+                zone box ce_start.$s { at: hm.l + 150 * du, ry; size: 22 * du, 22 * du; cursor: pointer; label: "Open the Desk on this" }
+                on press ce_start.$s { emit desk_start_set(tid) }
+                group {
+                    show: s > 0
+                    //  shown: a small switch
+                    box { at: hm.l + 200 * du, ry; size: 26 * du, 14 * du; corner: 7 * du; color: if(ton, mint, ink); opacity: if(ton, 45%, 14%) }
+                    ellipse { at: hm.l + 200 * du + if(ton, 6, -6) * du, ry; radius: 5 * du; color: ink }
+                    zone box ce_on.$s { at: hm.l + 200 * du, ry; size: 32 * du, 22 * du; cursor: pointer; label: "Show this in the dock" }
+                    on press ce_on.$s { emit dk_toggle(s - 1) }
+                    //  up and down
+                    path { at: hm.l + 252 * du, ry; stroke: 1.5 * du; color: ink; opacity: if(s > 1, 70%, 20%) + 30% * ce_up.$s.hover; move -4 * du, 2 * du; line 0, -2.5 * du; line 4 * du, 2 * du }
+                    path { at: hm.l + 280 * du, ry; stroke: 1.5 * du; color: ink; opacity: if(s < 8, 70%, 20%) + 30% * ce_dn.$s.hover; move -4 * du, -2 * du; line 0, 2.5 * du; line 4 * du, -2 * du }
+                    zone box ce_up.$s { at: hm.l + 252 * du, ry; size: 24 * du, 22 * du; cursor: pointer; active: s > 1; label: "Move up" }
+                    zone box ce_dn.$s { at: hm.l + 280 * du, ry; size: 24 * du, 22 * du; cursor: pointer; active: s < 8; label: "Move down" }
+                    on press ce_up.$s { emit dk_move((s - 1) * 10) }
+                    on press ce_dn.$s { emit dk_move((s - 1) * 10 + 1) }
+                }
+            }
+            let hm.ay = dsk_y0 + 380 * du
+            //  the photo frame's folder: a press goes to the next of the three
+            let hm.fy = hm.ay
+            DPlate(hm.l, hm.fy - 13 * du, hm.w, 26 * du, 9 * du, 0.7, 0)
+            DTL("Photo frame  ·  {pf_folder_name}", hm.l + 12 * du, hm.fy, 11.5, 600, ink, 1, 200 * du)
+            box { at: hm.r - 30 * du, hm.fy; size: 52 * du, 18 * du; corner: 9 * du; color: mint; opacity: 22% + 14% * ce_pf.hover }
+            DTC("Change", hm.r - 30 * du, hm.fy, 10.5, 600, ink, 1, 50 * du)
+            zone box ce_pf { at: hm.r - 30 * du, hm.fy; size: 54 * du, 22 * du; corner: 9 * du; cursor: pointer; label: "Change the photo frame's folder" }
+            on press ce_pf { emit pf_folder }
+        }
+
+        //  ── your picture: big, in a bright ring, sitting over the slideshow's top edge; pressed, it opens the chooser (a pencil shows while the
+        //  pointer is on it) ──
+        group {
+            opacity: fd1
+            move: 0, (1 - fd1) * 12 * du
+            let av.x = hm.l + 40 * du
+            let av.y = dsk_y0 + 86 * du
+            let av.r = 36 * du
+            body { color: deep; shadow: 0, 4 * du, 14 * du, 45%; ellipse { at: av.x, av.y; radius: av.r + 3.5 * du } }
+            ellipse { at: av.x, av.y; radius: av.r + 3.5 * du; color: mix(minthi, #ffffff, 0.5) }
+            ellipse { at: av.x, av.y; radius: av.r; color: deep }
+            group {
+                show: sm_has_avatar
+                clip inset 0 box { at: av.x, av.y; size: av.r * 2, av.r * 2; corner: av.r }
+                image sm_av { at: av.x - av.r, av.y - av.r; size: av.r * 2, av.r * 2 }
+            }
+            group { show: not sm_has_avatar; GPerson(av.x, av.y, (40 * du) / 24, faint, 0.8, 0) }
+            ellipse { at: av.x, av.y; radius: av.r; color: #000000; opacity: 45% * hm_face.hover }
+            GPencil(av.x, av.y, (20 * du) / 24, #ffffff, hm_face.hover, 0)
+            zone ellipse hm_face { at: av.x, av.y; radius: av.r + 4 * du; cursor: pointer; label: "Change your picture" }
+            on press hm_face { desk_face = true; dfp_to = 0; emit face_list }
+        }
+        //  the AUR card's packages, while the pointer is on it: a little list hanging under it
+        group {
+            show: aur_state == 2 and aur_n > 0
+            opacity: hm_aur.hover
+            let al.x = hm.r - 120 * du
+            let al.y = dsk_y0 + 92 * du
+            body { color: mix(deep, #000000, 0.3); shadow: 0, 6 * du, 16 * du, 45%; box { from: al.x, al.y; size: 120 * du, (12 + min(aur_n, 6) * 16) * du; corner: 12 * du } }
+            repeat k in 0..6 {
+                group {
+                    show: aur_n > k
+                    DTL(aur_list.$k.name, al.x + 10 * du, al.y + (14 + k * 16) * du, 10.5, 600, ink, 1, 64 * du)
+                    group { scale: rs; pivot: floor(al.x + 112 * du + 0.5), floor(al.y + (14 + k * 16) * du + 0.5); text aur_list.$k.ver { at: floor(al.x + 112 * du + 0.5), floor(al.y + (14 + k * 16) * du + 0.5); anchor: right center; align: right; size: 9.5; width: (46 * du) / rs; lines: 1; color: mint; family: "SpaceMono Nerd Font" } }
+                }
+            }
+        }
+
+        //  ── the picture chooser, over Home: folders and pictures, four across; a folder opens, a picture is chosen (it is your picture
+        //  everywhere: ~/.face, the dashboard, the lock and login screens). Up a folder, home, where it is, and a cross. ──
+        group {
+            show: desk_face
+            let fp.l = dsk_x0 + 14 * du
+            let fp.w = dsk_w - 28 * du
+            let fp.t = dsk_y0 + 34 * du
+            let fp.h = dsk_h - 68 * du
+            let fp.vt = fp.t + 52 * du                          // the grid's view
+            let fp.vh = fp.h - 60 * du
+            let fp.cw = (fp.w - 24 * du) / 4                     // a cell
+            let fp.ch = ceil(face_pics.count / 4) * (fp.cw + 4 * du)
+            //  under it all: presses on the bare chooser go nowhere, and the wheel scrolls
+            zone box dfp_bg { from: fp.l, fp.t; size: fp.w, fp.h; corner: 22 * du; label: "Choose a picture" }
+            on scroll dfp_bg { dfp_to = clamp(dfp_to - wheel * 50 * du, 0, max(0, fp.ch - fp.vh + 4 * du)) }
+            body { color: mix(deep, #000000, 0.25); shadow: 0, 8 * du, 26 * du, 50%; box { from: fp.l, fp.t; size: fp.w, fp.h; corner: 22 * du } }
+            box { from: fp.l, fp.t; size: fp.w, fp.h; corner: 22 * du; stroke: 1; color: ink; opacity: 14% }
+            ellipse { at: fp.l + 26 * du, fp.t + 26 * du; radius: 14 * du; color: ink; opacity: (0.07 + 0.1 * dfp_up.hover) * if(face_at_top, 0.4, 1) }
+            GArrowTo(fp.l + 26 * du, fp.t + 26 * du, 270, (14 * du) / 24, ink, if(face_at_top, 0.4, 1), 0)
+            zone ellipse dfp_up { at: fp.l + 26 * du, fp.t + 26 * du; radius: 16 * du; cursor: pointer; active: not face_at_top; label: "Up a folder" }
+            on press dfp_up { dfp_to = 0; emit face_up }
+            ellipse { at: fp.l + 60 * du, fp.t + 26 * du; radius: 14 * du; color: ink; opacity: 0.07 + 0.1 * dfp_hm.hover }
+            GHome(fp.l + 60 * du, fp.t + 26 * du, (14 * du) / 24, ink, 1, 0)
+            zone ellipse dfp_hm { at: fp.l + 60 * du, fp.t + 26 * du; radius: 16 * du; cursor: pointer; label: "Home folder" }
+            on press dfp_hm { dfp_to = 0; emit face_home }
+            DTL(face_path, fp.l + 84 * du, fp.t + 26 * du, 13, 600, ink, 1, fp.w - 130 * du)
+            ellipse { at: fp.l + fp.w - 26 * du, fp.t + 26 * du; radius: 14 * du; color: ink; opacity: 0.07 + 0.1 * dfp_x.hover }
+            GClose(fp.l + fp.w - 26 * du, fp.t + 26 * du, (14 * du) / 24, ink, 1, 0)
+            zone ellipse dfp_x { at: fp.l + fp.w - 26 * du, fp.t + 26 * du; radius: 16 * du; cursor: pointer; label: "Close" }
+            on press dfp_x { desk_face = false }
+            DTC("Nothing here", dsk_xc, fp.vt + 60 * du, 12, 400, faint, if(face_pics.count < 1, 0.85, 0), fp.w)
+            group {
+                clip inset 0 box { from: fp.l + 6 * du, fp.vt; size: fp.w - 12 * du, fp.vh; corner: 14 * du }
+                repeat i in 0..72 {
+                    let fq.x = fp.l + 12 * du + mod(i, 4) * fp.cw
+                    let fq.y = fp.vt + floor(i / 4) * (fp.cw + 4 * du) - dfp_s
+                    let fq.s = fp.cw - 6 * du
+                    group {
+                        show: face_pics.count > i
+                        box { from: fq.x, fq.y; size: fq.s, fq.s; corner: 12 * du; color: ink; opacity: 0.07 }
+                        group { show: face_pics.$i.dir; GFolder(fq.x + fq.s / 2, fq.y + fq.s * 0.4, (26 * du) / 24, mint, 1, 0) }
+                        DTC(face_pics.$i.name, fq.x + fq.s / 2, fq.y + fq.s * 0.78, 10, 600, ink, if(face_pics.$i.dir, 1, 0), fq.s - 6 * du)
+                        group {
+                            show: not face_pics.$i.dir
+                            clip inset 0 box { from: fq.x, fq.y; size: fq.s, fq.s; corner: 12 * du }
+                            image face_pics.$i.thumb { at: fq.x, fq.y; size: fq.s, fq.s }
+                        }
+                        box { from: fq.x, fq.y; size: fq.s, fq.s; corner: 12 * du; color: mint; opacity: 0.25 * dfp_c.$i.hover }
+                    }
+                    zone box dfp_c.$i { from: fq.x, fq.y; size: fq.s, fq.s; corner: 12 * du; cursor: pointer; active: face_pics.count > i and fq.y > fp.vt - fq.s * 0.6 and fq.y < fp.vt + fp.vh - fq.s * 0.4; label: "Open or choose" }
+                    on press dfp_c.$i while face_pics.$i.dir { dfp_to = 0; emit face_nav(i) }
+                    on press dfp_c.$i while not face_pics.$i.dir { emit face_set(i); desk_face = false }
+                }
+            }
+            box { from: fp.l + fp.w - 8 * du, fp.vt + 4 * du + dfp_s / max(fp.ch, 1) * (fp.vh - 8 * du); size: 3 * du, (fp.vh - 8 * du) * min(1, fp.vh / max(fp.ch, 1)); corner: 1.5 * du; color: ink; opacity: 0.35; show: fp.ch > fp.vh }
+        }
+    }
+}

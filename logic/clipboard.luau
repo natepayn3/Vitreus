@@ -200,6 +200,111 @@ return function(with_dirs)
         with_text(r, function(t) ask_attach_from("Clipboard history", t) end)
     end)
     local confirm = 0
+    -- ── What can be done with an entry (its ••• in the Desk's Clip tab), `clip_act(row * 10 + what)` ──
+    -- A text is changed and copied back (it is the newest entry then): 0 UPPER, 1 lower, 2 trimmed, 3 tidy JSON, 4 a URL decoded, 5 Base64
+    -- decoded; 7 kept as a note. A picture: 6 the text in it (tesseract), copied.
+    local B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    local function unb64(t)
+        t = t:gsub("[^%w%+/=_%-]", ""):gsub("%-", "+"):gsub("_", "/")
+        local bits, out = 0, {}
+        local acc = 0
+        for i = 1, #t do
+            local c = t:sub(i, i)
+            if c == "=" then break end
+            local v = B64:find(c, 1, true)
+            if not v then return nil end
+            acc = acc * 64 + (v - 1)
+            bits = bits + 6
+            if bits >= 8 then
+                bits = bits - 8
+                local b = math.floor(acc / 2 ^ bits) % 256
+                out[#out + 1] = string.char(b)
+                acc = acc % (2 ^ bits)
+            end
+        end
+        return table.concat(out)
+    end
+    local function pretty(v, ind)
+        ind = ind or ""
+        local nx = ind .. "  "
+        if type(v) == "table" then
+            if #v > 0 or next(v) == nil then
+                if next(v) == nil then return "[]" end
+                local parts = {}
+                for _, x in ipairs(v) do parts[#parts + 1] = nx .. pretty(x, nx) end
+                return "[\n" .. table.concat(parts, ",\n") .. "\n" .. ind .. "]"
+            end
+            local keys = {}
+            for k in pairs(v) do keys[#keys + 1] = tostring(k) end
+            table.sort(keys)
+            local parts = {}
+            for _, k in ipairs(keys) do parts[#parts + 1] = nx .. json.encode(k) .. ": " .. pretty(v[k], nx) end
+            return "{\n" .. table.concat(parts, ",\n") .. "\n" .. ind .. "}"
+        end
+        return json.encode(v)
+    end
+    on("clip_menu_open", function(i)
+        i = tonumber(i) or -1
+        local r = shown[i + 1]
+        if not r or tonumber(fact.clip_menu) == i then fact.clip_menu = -1; return end
+        fact.clip_menu_img = r.image == true
+        fact.clip_menu = i
+    end)
+    on("clip_act", function(v)
+        v = tonumber(v) or -1
+        local i, what = math.floor(v / 10), v % 10
+        local r = shown[i + 1]
+        fact.clip_menu = -1
+        if not r then return end
+        if r.image then
+            if what ~= 6 then return end
+            local function ocr(file)
+                run("tesseract", { file, "-", "--psm", "3" }, function(out, c)
+                    local t = ((out or ""):gsub("\f", ""):gsub("^%s+", ""):gsub("%s+$", ""))
+                    if c ~= 0 or t == "" then msg("No text found"); return end
+                    run("wl-copy", { "--", t }, function() msg("Text copied") end)
+                end)
+            end
+            if r.file then ocr(r.file)
+            else
+                with_dirs(function(d)
+                    local f = (d.cache:gsub("/wp$", "")) .. "/clip-ocr.png"
+                    run("vitreus-clipimg", { "save", r.id, f }, function(_, c) if c == 0 then ocr(f) else msg("It could not be read") end end)
+                end)
+            end
+            return
+        end
+        with_text(r, function(t)
+            if what == 7 then
+                if not desk_note_add then return end
+                local first = (t:match("[^\n]+") or t):sub(1, 40)
+                local lines = {}
+                for line in (t .. "\n"):gmatch("([^\n]*)\n") do if #lines < 9 then lines[#lines + 1] = line end end
+                if lines[1] and lines[1]:sub(1, 40) == first then table.remove(lines, 1) end
+                desk_note_add(first, lines)
+                msg("Kept as a note")
+                return
+            end
+            local out
+            if what == 0 then out = t:upper()
+            elseif what == 1 then out = t:lower()
+            elseif what == 2 then out = (t:gsub("^%s+", ""):gsub("%s+$", ""):gsub("[ \t]+\n", "\n"))
+            elseif what == 3 then
+                local ok, d = pcall(json.decode, t)
+                if not ok then msg("That is not JSON"); return end
+                out = pretty(d)
+            elseif what == 4 then out = (t:gsub("%+", " "):gsub("%%(%x%x)", function(h) return string.char(tonumber(h, 16)) end))
+            elseif what == 5 then
+                out = unb64(t)
+                if not out or out == "" then msg("That is not Base64"); return end
+            end
+            if not out then return end
+            run("wl-copy", { "--", out }, function()
+                msg(({ [0] = "UPPER copied", "lower copied", "Trimmed and copied", "Tidied and copied", "Decoded and copied", "Decoded and copied" })[what] or "Copied")
+                after(400, function() if refresh then refresh() end end)
+            end)
+        end)
+    end)
     on("clip_clear", function()
         if not fact.clip_confirm then
             fact.clip_confirm = true

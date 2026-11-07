@@ -1,10 +1,10 @@
 -- The desktop editor's logic: it does what the tiles say, by telling Vitreus (which knows how to start a desktop card that is not running) and the widgets' own scenes.
--- A tile is a position: 0 clock, 1 system monitor, 2 audio visualiser (the bottom edge rising into the music), 3 webcam, 4 a new sticky note.
+-- A tile is a position: 0 clock, 1 system monitor, 2 audio visualiser (the bottom edge rising into the music), 3 (the webcam, now the Desk's Camera: no tile), 4 a new sticky note.
 -- (the calendar and the reminders, 4 and 5, are cards of desktopcards.plm: they are switched by its own facts, `cal_shown` and `rem_shown`)
 local EVENTS = { "dclock_toggle", "dsys_toggle", "fw_toggle", "cam_toggle", false, false, "sticky_new" }
 local CARD_FACT = { [4] = "cal_shown", [5] = "rem_shown" }
-local SCENES = { "desktopclock", "desktopsysmon", "vitreus", "webcam" }
-local SHOWN = { "shown", "shown", "fw_on", "shown" }      -- the fact that says whether each is on the desktop (the audio visualiser is Vitreus's own: the bottom edge)
+local SCENES = { "desktopclock", "desktopsysmon", "vitreus", "vitreus" }
+local SHOWN = { "shown", "shown", "fw_on", "cam_on" }      -- the fact that says whether each is on (the audio visualiser is Vitreus's own: the bottom edge; 3 has no tile)
 -- The scenes whose cards can be dragged in place (`fact edit`): they show the cells they take while the editor is open.
 local MOVABLE = { "desktopclock", "desktopsysmon", "desktopcards", "desktopnotes" }
 

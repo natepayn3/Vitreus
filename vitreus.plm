@@ -2626,7 +2626,7 @@ scene Vitreus {
 
     //  One row of the Ask tab's conversation (logic/ask.luau cuts it): a message, or the prose or the code of an answer. The first row of a message has its
     //  name above it (and, on an answer, Copy); a piece of code is in a card of its own with its own Copy. As tall as its text needs.
-    component AskRow(m: record, copy: event) {
+    component AskRow(m: record, copy: event, note: event) {
         size: 300 * du, (if(m.first, 20, 0)) + if(m.kind == 2, 26 * du + floor(cwrap.height + 0.5) + 12 * du, floor(wrap.height + 0.5) + 6)
         let hh   = if(m.first, 20, 0)
         let ph   = floor(if(m.kind == 2, cwrap.height, wrap.height) + 0.5)
@@ -2634,6 +2634,9 @@ scene Vitreus {
         group { scale: rs; pivot: 300 * du - 2, 10; text "Copy" { at: 300 * du - 2, 10; anchor: right center; align: right; size: 11; weight: 600; color: mix(faint, mint, hc.hover); family: "Space Grotesk"; show: m.first and m.kind == 1 } }
         zone box hc { at: 300 * du - 22 * du, 10; size: 44 * du, 20; cursor: pointer; active: m.first and m.kind == 1 }
         on press hc { emit copy(m.index) }
+        group { scale: rs; pivot: 300 * du - 46 * du, 10; text "Note" { at: 300 * du - 46 * du, 10; anchor: right center; align: right; size: 11; weight: 600; color: mix(faint, mint, hn.hover); family: "Space Grotesk"; show: m.first and m.kind == 1 } }
+        zone box hn { at: 300 * du - 60 * du, 10; size: 32 * du, 20; cursor: pointer; active: m.first and m.kind == 1; label: "Keep this answer as a note" }
+        on press hn { emit note(m.index) }
         column wrap {
             at: 2, hh + 2
             text m.body { size: 13; width: 292 * du; lines: 400; line_height: 1.25; color: if(m.kind == 3, faint, ink); family: "Space Grotesk"; show: m.kind != 2 }
@@ -2655,7 +2658,7 @@ scene Vitreus {
     }
 
     //  One row of the Desk's Clip tab: a dot (filled when pinned), the text, Ask, and a cross. Pressing the row copies it again.
-    component ClipRow(c: record, copy: event, pin: event, ask: event, del: event) {
+    component ClipRow(c: record, copy: event, pin: event, ask: event, del: event, menu: event) {
         //  A picture's row is taller: its thumbnail, then what it is (format and size in pixels) over its weight.
         size: 300 * du, (if(c.image, 52, 34) * du)
         zone box touch { from: 0, 0; size: 300 * du, (if(c.image, 52, 34) * du); corner: 11 * du; cursor: pointer }
@@ -2679,6 +2682,10 @@ scene Vitreus {
         on press pin_z { emit pin(c.index) }
         on press ask_z { emit ask(c.index) }
         on press del_z { emit del(c.index) }
+        //  ••• : what can be done with it (changed and copied back, kept as a note, a picture's text)
+        repeat q in 0..3 { ellipse { at: (200 + (q - 1) * 5) * du, (if(c.image, 26, 17) * du); radius: 1.5 * du; color: mix(faint, mint, mn_z.hover) } }
+        zone box mn_z { at: 200 * du, (if(c.image, 26, 17) * du); size: 26 * du, 30 * du; cursor: pointer; label: "What can be done with it" }
+        on press mn_z { emit menu(c.index) }
     }
 
     //  One row of the output dropdown: a dot if it is the current one, its name.
@@ -5001,8 +5008,8 @@ scene Vitreus {
     let dl.cL = mix(th.l / 2, th.l + 24 * u + 231.5 * pu, dsl)        // the middle of what a left-notch drawer holds: it leaves the frame and ends 24 out from it
     let ds.cL = mix(th.l / 2, th.l + 24 * u + 316.5 * pu, dsl)
     let ku = if(lp_k == 1 or lp_k == 2, pu, if(lp_k == 9 or (lp_k >= 3 and lp_k <= 6), cu, u))                      // the unit of the panel that is open: the Settings and the launcher are larger
-    let dsk_w = 340 * du                                   // the desk's width and height, once out
-    let dsk_h = 460 * du
+    let dsk_w = 356 * du                                   // the desk's width and height, once out: a tablet, its screen 10 in from each side
+    let dsk_h = 524 * du
     let lp.gx0 = lf.x
     let lp.gxf = ccx - (pw_x / 2 + 6.5) * ku
     let lp.xl = mix(lp.gx0 + (lp.gxf - lp.gx0) * dsl, lf.x, att)
@@ -5997,7 +6004,8 @@ scene Vitreus {
     fact desk_open = false
     event desk_toggle ->                                   // from a key bind (SUPER + D)
     //  desk_toggle: in the logic (logic/panel_monitor.luau), which opens the desk on the focused monitor.
-    fact desk_tab = 3                                      // 0 Pad, 1 Shelf, 2 Clip, 3 Focus, 4 Term, 5 Ask
+    fact desk_tab = 6                                      // 0 Pad, 1 Shelf, 2 Clip, 3 Focus, 4 Term, 5 Ask, 6 Home, 7 Notes, 8 Actions
+    include "pages/desk_decl.plm"
     prop desk_sel = 3 ~slide                               // which tab the thumb is on
     //  Carrying the desk: `desk_gx`, `desk_gy` is where it is being taken to (an offset from its place in the frame), `desk_ox`, `desk_oy` where it
     //  is, on a loose spring, so it trails the pointer like a drop and lands past its place when it is let go near it and snaps back.
@@ -6053,7 +6061,7 @@ scene Vitreus {
     prop nt_hold_r.3 = 0 ~280ms
     follow nt_hold_r.$screen = if(max(ntz_r.hover, ntn_r.hover) > 0.5, 1, 0)
     follow nt_vis_r.$screen = if(nt_hold_r.$screen > 0.3 and not desk_open, 1, 0)
-    on press ntn_r { panel_scr = screen.index; desk_open = true }
+    on press ntn_r { panel_scr = screen.index; desk_tab = desk_start; desk_open = true }
     //  The focus timer (see the Focus section of vitreus.luau).
     event ft_toggle ->                                      // start, pause or resume; carries the minutes
     event ft_reset ->
@@ -6076,6 +6084,11 @@ scene Vitreus {
     fact sw_nlaps = 0
     fact desk_kb = false                                    // typing in the desk (the task field, the terminal): only then does it take the keyboard
     on change desk_tab { desk_kb = false; term_armed = false }
+    //  Term takes the keyboard as soon as it is shown (from Home, the AUR card, or as the Desk's first app), not on a click on its card: a field of
+    //  its own (`term_grab`, passive and out of sight) is focused, which has the compositor lend the shell the keyboard while `desk_kb` holds,
+    //  and the rule below takes the cursor away again, so the keys go to the terminal. Declared after the line above, so they win over it.
+    on change desk_tab while desk_tab == 4 { desk_kb = true; term_armed = true; focus term_grab }
+    on change desk_open while desk_open and desk_tab == 4 { desk_kb = true; term_armed = true; focus term_grab }
     on change desk_open while not desk_open { desk_kb = false; term_armed = false }
     //  Settings and the launcher are wide (316.5 * pu each side of the middle), so on a smaller screen they reach the desk's side and the two glasses
     //  melt into each other. Whichever of the two was opened last stays; the other one goes.
@@ -6136,6 +6149,8 @@ scene Vitreus {
         text shelf.$k.thumb = ""                       // a picture of what it is (an image's, or a video's first moments), once the logic has made it
         image shelf.$k.im = from shelf.$k.thumb, 104, 104
         fact shelf.$k.thumbed = false
+        fact shelf.$k.img = false                      // a picture or a video: what its actions can do (logic/shelf.luau)
+        fact shelf.$k.vid = false
         //  The same for the shelf's cards: one that is dismissed slides off and fades, and the ones after it glide into its place.
         fact shelf.$k.gone = false
         prop shelf.$k.out = 0 ~180ms
@@ -7184,7 +7199,7 @@ scene Vitreus {
             box { at: screen.width - 41 * cu + 5 * cu, os.stop + 20 * u - 4.25 * cu; size: 7 * cu, 5.5 * cu; corner: 1.8 * cu; color: mix(ink, mint, clamp(dz0, 0, 1)); opacity: 70% + 30% * desk_open_z.hover }
             box { at: screen.width - 41 * cu + 5 * cu, os.stop + 20 * u + 4.25 * cu; size: 7 * cu, 5.5 * cu; corner: 1.8 * cu; color: mix(ink, mint, clamp(dz0, 0, 1)); opacity: 55% + 45% * desk_open_z.hover }
             zone box desk_open_z { at: screen.width - 41 * cu, os.stop + 20 * u; size: 32 * cu, 32 * cu; corner: 16 * cu; cursor: pointer; active: fm < 0.5 }
-            on press desk_open_z { panel_scr = screen.index; desk_open = not desk_open }
+            on press desk_open_z { panel_scr = screen.index; desk_tab = if(desk_open, desk_tab, desk_start); desk_open = not desk_open }
         }
     include "pages/desk.plm"
 

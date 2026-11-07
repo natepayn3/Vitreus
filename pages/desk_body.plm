@@ -1,0 +1,28 @@
+part DeskBody {
+    //  The tablet's side buttons, drawn outside its glass, matte like rubber (DHwBtn): one on the top edge (it closes the Desk) and two on the free side (the left, or the
+    //  right when the Desk comes out of the left frame), which are the volume. They grow and move with the drawer as what is inside it does (the
+    //  same pivot and scale), so they stay fixed to its edges as it comes out and goes back.
+    group {
+        show: dz0 > 0.02
+        opacity: fd1                                                   // in with the contents, once the glass has landed (and out with them)
+        pivot: mix(mix(screen.width - 7.5 * du, screen.width + 26 * du, fm) + dox, 2 * dsk_xc - (mix(screen.width - 7.5 * du, screen.width + 26 * du, fm) + dox), rt), dz.ey
+        scale: max(dz.lf, 0.05)
+        let dbd.s = 1 - 2 * rt                                         // which way is in, towards the glass: 1 on the left edge, -1 on the right
+        //  (the glass is 6.5 wider than the Desk's box on each side, not taller: the side buttons sit across that edge, half out, as the top one does)
+        let dbd.x = if(rt > 0.5, dsk_x0 + dsk_w + 6.5 * du - 5.5 * du, dsk_x0 - 6.5 * du - 5.5 * du)
+        //  The power button, on the top edge, half out: pressed, it sinks into the glass and the Desk closes.
+        DHwBtn(dsk_x0 + if(rt > 0.5, 46 * du, dsk_w - 94 * du), dsk_y0 - 5.5 * du + 2.5 * du * desk_pwr.pressed, 48 * du, 11 * du, 0, desk_pwr.hover)
+        //  The side buttons are the volume: the upper one up, the lower one down, a step a press, and the wheel over either. Pressed, one sinks
+        //  into the glass a little.
+        DHwBtn(dbd.x + dbd.s * 2.5 * du * desk_vu.pressed, dsk_y0 + 96 * du, 11 * du, 36 * du, 1, desk_vu.hover)
+        DHwBtn(dbd.x + dbd.s * 2.5 * du * desk_vd.pressed, dsk_y0 + 140 * du, 11 * du, 36 * du, 1, desk_vd.hover)
+        zone box desk_vu { from: dbd.x - 5 * du, dsk_y0 + 93 * du; size: 21 * du, 42 * du; cursor: pointer; label: "Volume up" }
+        zone box desk_vd { from: dbd.x - 5 * du, dsk_y0 + 137 * du; size: 21 * du, 42 * du; cursor: pointer; label: "Volume down" }
+        on press desk_vu { emit setvol(clamp(audio.volume + 0.05, 0, 1)) }
+        on press desk_vd { emit setvol(clamp(audio.volume - 0.05, 0, 1)) }
+        on scroll desk_vu { emit setvol(clamp(audio.volume + 0.03 * wheel, 0, 1)) }
+        on scroll desk_vd { emit setvol(clamp(audio.volume + 0.03 * wheel, 0, 1)) }
+        zone box desk_pwr { from: dsk_x0 + if(rt > 0.5, 40 * du, dsk_w - 100 * du), dsk_y0 - 12 * du; size: 60 * du, 22 * du; cursor: pointer; label: "Close the Desk" }
+        on press desk_pwr { desk_open = false }
+    }
+}

@@ -259,7 +259,8 @@ local last = 0
 local spec_last = {}
 local watching = false      -- the player's panel is open: when the equalizer is worth feeding (or while its card floats, `eq_float`)
 function fw_on() return fact.fw_on == true or fact.fw_on == 1 end    -- the bottom frame rises into waves with the music (`fw_on`: Frame layout)
-function eq_float() return fact.mf_out == true or fact.mf_out == 1 or fact.dash_open == true end    -- the media card is floating on the desktop (a global: this chunk is at Luau's limit of locals)
+-- the media card is floating on the desktop, or the dashboard or the Desk's Home (its player) is showing the spectrum (a global: this chunk is at Luau's limit of locals)
+function eq_float() return fact.mf_out == true or fact.mf_out == 1 or fact.dash_open == true or (fact.desk_open == true and fact.desk_tab == 6) end
 
 -- cava wants its config as a file. It is kept here rather than in a file next to the scene, so
 -- nothing depends on where Vitreus is installed: it is written into the scene's own data folder (where
@@ -841,7 +842,19 @@ FACE_MAX = 72
 -- The home folder is asked of the system once: the system monitor (`sm_face`) only runs while the dashboard or the System page is open,
 -- so the Wallpaper page's browser cannot count on it.
 FACE.h = ""
-run("printenv", { "HOME" }, function(out, code) if code == 0 then FACE.h = ((out or ""):gsub("%s+$", "")) end end)
+-- With it, the picture is looked for at once (~/.face, then ~/.face.icon), so the Desk's Home shows it from the start, not only once the
+-- system monitor has run and said where it is.
+run("printenv", { "HOME" }, function(out, code)
+    if code ~= 0 then return end
+    FACE.h = ((out or ""):gsub("%s+$", ""))
+    local function try(names, i)
+        if i > #names or fact.sm_has_avatar then return end
+        run("test", { "-f", names[i] }, function(_, c)
+            if c == 0 and not fact.sm_has_avatar then text.sm_avatar = names[i]; fact.sm_has_avatar = true else try(names, i + 1) end
+        end)
+    end
+    if FACE.h ~= "" then try({ FACE.h .. "/.face", FACE.h .. "/.face.icon" }, 1) end
+end)
 function FACE.home() return FACE.h ~= "" and FACE.h or (text.sm_face:match("^(.*)/[^/]*$") or "") end
 function FACE.show(ready)
     local rows = {}
@@ -2246,12 +2259,12 @@ function watch_urgent()
         end)
     end)
 end
--- The desktop's own scenes (the right-click menu on the wallpaper and the stickers, which live under the windows, and the webcam, which lives over them) are programs of their own, since a scene has one layer. They are
+-- The desktop's own scenes (the right-click menu on the wallpaper and the stickers, which live under the windows) are programs of their own, since a scene has one layer. They are
 -- not in the autostart file: this starts whichever of them is not running, once, a few seconds after the shell does. (The clock and the system monitor are started by the
 -- autostart file, as before.)
 after(4000, function()
     if not on_hyprland then return end
-    for _, dir in ipairs({ "desktopmenu", "desktopnotes", "webcam", "desktopedit", "desktopcards" }) do
+    for _, dir in ipairs({ "desktopmenu", "desktopnotes", "desktopedit", "desktopcards" }) do
         -- (Hyprland runs the menu's own copy, desktopmenu_hypr.plm: background layer, wallpaper zone always live)
         local file = dir == "desktopmenu" and "desktopmenu_hypr" or dir
         run("pgrep", { "-f", dir .. "/" .. file .. ".plm" }, function(_, code)
@@ -2285,6 +2298,10 @@ on("fact:tasks_watch", function(v)
     cava_want()
 end)
 on("fact:bar_anchor", function() cava_want() end)
+-- The Desk's Home has a player with the spectrum: the scene says when the Desk comes out, changes tool or goes (its own events, so a Desk opened
+-- by the logic is heard too).
+on("desk_shown", function() cava_want() end)
+on("desk_gone", function() cava_want() end)
 on("fact:fw_on", function() cava_want() end)
 on("fact:dash_open", function() cava_want() end)
 every(1000, function() if watching then refresh_tasks() end end)
@@ -6490,7 +6507,7 @@ end
             run("pleamar", { "--say", name, "fact shown " .. (on and "false" or "true") }, function() end)
         end)
     end
-    on("cam_toggle", function() toggle_scene("webcam", "webcam") end)
+    -- (`cam_toggle`, the webcam: the Desk's Camera now, pages/desk_decl.plm opens it; logic/desk_cam.luau runs the camera)
     -- A new sticky note: the sticker scene is started if it is not running, then asked for one where the menu said (or the middle).
     local function new_sticker(mon, x, y)
         local function send()
@@ -6520,6 +6537,12 @@ end
                 send()
             end
         end)
+    end
+    -- The Desk's Notes put a note on the desktop with this (a global: the modules cannot hear this chunk's events): the sticker scene gets the
+    -- text first, then a new sticker in the middle of the screen the pointer is on.
+    function desk_sticky_new(str)
+        local one = (tostring(str or ""):gsub("\r", ""):gsub("\n", "\\n"))
+        run("pleamar", { "--say", "desktopnotes", "text nt_seed " .. one }, function() new_sticker(0, -1, -1) end)
     end
     on("sticky_new", function()
         new_sticker(math.floor((tonumber(fact.sn_mon) or 0) + 0.5), math.floor(tonumber(fact.sn_x) or -1), math.floor(tonumber(fact.sn_y) or -1))
@@ -6578,8 +6601,7 @@ end
             end)
         end, "system monitor desktop widget card cpu memory gpu network show hide on off" },
         { "Audio visualiser: toggle", "action", function() spawn('pleamar --say vitreus "emit fw_toggle"') end, "audio visualiser visualizer cava spectrum music bars wave equalizer desktop widget show hide on off" },
-        { "Webcam: toggle", "action", function() spawn('pleamar --say vitreus "emit cam_toggle"') end, "webcam camera self view mirror face round window record screen show hide on off" },
-        { "Webcam: mirror on/off", "action", function() spawn('pleamar --say webcam "emit cam_mirror"') end, "webcam camera mirror flip self view" },
+        { "Camera (on the Desk)", "action", function() spawn('pleamar --say vitreus "emit cam_toggle"') end, "webcam camera self view mirror face round window record screen show hide on off" },
         { "Sticky note: new", "action", function() spawn('pleamar --say vitreus "emit sticky_new"') end, "sticky note sticker new add notes desktop paper write" },
         { "Files", "action", function() spawn('PATH="$HOME/.local/bin:$PATH" vitreus-files') end, "files file manager folder folders browse explorer home documents downloads search sonda nautilus" },
         { "Ask about the clipboard", "action", function()
@@ -8754,6 +8776,14 @@ require("logic/term")(key)
 require("logic/ask")()
 -- clipboard history and pins, for the Desk's Clip tab: see logic/clipboard.luau
 require("logic/clipboard")(with_dirs)
+-- the Desk as a tablet: its local AI (Ollama, optional), Home, Notes, the Camera, Home's photo frame: see each module
+require("logic/desk_llm")()
+require("logic/desk_home")()
+require("logic/notes")()
+require("logic/desk_cam")()
+require("logic/desk_frame")(with_dirs)
+require("logic/memos")(with_dirs)
+require("logic/aur")()
 -- the charger, read from the kernel instead of pleamar's 20 s battery poll: see logic/charger.luau
 require("logic/charger")()
 -- Demo mode: ~/.config/vitreus/demo exists -> a made-up battery (69 %, on battery) and the user shown as "user" (globals: this chunk is at Luau's limit of locals)

@@ -1,0 +1,350 @@
+part DeskDecl {
+    //  ── The Desk as a tablet (desk_screen.plm, desk_home.plm, desk_notes.plm, desk_actions.plm, desk_dock.plm) ──
+    //  A glass body (the drawer's own glass) with a bezel line round its screen, which is the same frosted glass; Home is its home screen (a
+    //  player across its top, or Peek while nothing plays), and the
+    //  tools are apps in a dock along the foot. The tools keep their numbers (`desk_tab`): 0 Pad, 1 Shelf, 2 Clip, 3 Focus, 4 Term, 5 Ask, and
+    //  the new ones 6 Home, 7 Notes, 8 Camera, 9 Memos.
+
+    //  Home: your title and line (inputs `desk_title_in`, `desk_line_in`, kept by logic/desk_home.luau in desk-home.json), under the player.
+    text desk_title_in = ""
+    text term_grab = ""
+    text desk_line_in = ""
+    repeat i in 0..10 { text nl.$i = "" }
+    text desk_title = "My Desk"                            // what the status bar says (the title, or "My Desk" while it is empty)
+
+    //  The dock: which tool is in each of its eight places (`dk.$s.id`), whether it is shown, and how many are. Home is not in it: the home bar is.
+    //  Kept in desk-home.json with the tool the Desk opens on (`desk_start`, 6 Home).
+    repeat s in 0..8 {
+        fact dk.$s.id = 0
+        fact dk.$s.on = true
+        fact dk.$s.x = 0                                   // its place among the shown ones (where it is drawn)
+    }
+    fact dk_n = 8
+    fact desk_start = 6
+    fact desk_edit = false                                 // Home is showing Customize
+    event dk_move ->                                       // (place * 10 + 0 up, 1 down)
+    event dk_toggle ->                                     // (place): show or hide that tool
+    event desk_start_set ->                                // (tool)
+
+    //  Local AI (logic/desk_llm.luau): on when Ollama answers with a model and it has not been turned off in Customize. `desk_ai_model` is the
+    //  model's name; `desk_ai_busy` while a request is out; `desk_ai_msg` says what happened.
+    fact desk_ai = false
+    fact desk_ai_have = false
+    text desk_ai_model = ""
+    fact desk_ai_busy = false
+    text desk_ai_msg = ""
+
+    //  Recording a memo (logic/memos.luau): it goes in Memos when it stops.
+    fact memo_rec = false
+    text memo_t = "0:00"
+    event memo_toggle ->
+    on note_new { focus nl.0; desk_kb = true }
+
+    //  Notes (logic/notes.luau, desk-notes.json): a list, or one open as ten lines (`nl.0` .. `nl.9`, its first line its title).
+    model notes max 16 { title: text; sub: text; body: text; when: text; c: number }     // `body` its lines after the title; `c` its own look, 0..19: the colour (c mod 5) and the tilt
+    //  A slip on Home's board being carried: which (`nd_k`, -1 none), whether it has moved yet (a press that does not is an open), and how far.
+    fact nd_k = -1
+    repeat k in 0..8 { measure sk_tm.$k }               // each slip's title, measured: its words start under it
+    fact nd_moved = false
+    fact nd_dx = 0
+    fact nd_dy = 0
+    event note_move ->                                     // (from * 100 + to): a note to another place in the order
+    //  Memos (logic/memos.luau): the recordings, newest first; which one is playing (`memo_pk`, -1 none) and how far it has got.
+    model memos max 30 { name: text; len: text; playing: bool }
+    fact memo_n = 0
+    fact memo_pk = -1
+    fact memo_pp = 0
+    event memo_play ->
+    event memo_del ->
+    fact note_n = 0
+    fact note_sel = -1                                     // the note open, -1 the list
+    fact nt_mode = 0                                       // what Notes shows: 0 the notes, 1 Reminders (the to-do list)
+    prop nt_msel = 0 ~slide
+    follow nt_msel = nt_mode
+    event note_new ->
+    event note_open ->
+    event note_del ->
+    event note_back ->
+    event note_ai ->                                       // (0 tidy, 1 shorter, 2 continue): the open note, rewritten by the local AI
+    event note_sticky ->                                   // the open note as a sticky on the desktop
+    event ask_note ->                                      // (row) an answer in Ask, kept as a note
+    event clip_note ->                                     // (row) a Clip entry, kept as a note
+
+
+    //  Shelf and Clip actions: (row * 10 + what) — on the Shelf 0 PNG, 1 JPG, 2 half the size, 3 the text in a picture, 4 a GIF, 5 the sound;
+    //  on Clip 0 UPPER, 1 lower, 2 trimmed, 3 tidy JSON, 4 decode URL, 5 decode Base64, 6 the text in a picture.
+    event shelf_act ->
+    event clip_act ->
+    fact shelf_menu = -1                                   // the tile whose actions are open
+    fact clip_menu = -1
+    fact clip_menu_img = false
+    event clip_menu_open ->                                // (row): its menu, opened or shut (logic/clipboard.luau)
+    text shelf_busy = ""                                   // what it is doing ("Converting…"), or what it did
+
+    //  Camera (logic/desk_cam.luau): the tablet's camera, your face on its screen. It is only open while the Camera app is showing (`cam_on`; the
+    //  light in the bezel and the bar's privacy light say so). The picture is the camera's frames, which ffmpeg writes over one file about fifteen
+    //  times a second; the scene loads it again each time (`cam_path` with a new number after the `?`).
+    fact cam_on = false
+    fact cam_live = false                                  // frames are coming
+    fact cam_mirror = true
+    fact cam_filter = 0                                    // the look: 0 Normal, 1 Mono, 2 Noir, 3 Sepia, 4 Sketch, 5 Pixel, 6 Thermal, 7 Pop, 8 Glitch
+    event cam_filter_set ->
+    //  the looks' previews: your face with each, small, made again every two seconds while the camera runs
+    fact cam_pv_on = false
+    repeat f in 0..9 {
+        text cam_pv.$f = ""
+        image cam_pvi.$f = from cam_pv.$f, 120, 120
+    }
+    text cam_path = ""
+    image cam_img = from cam_path, 480, 480
+    text cam_msg = ""
+    event cam_snap ->                                      // a photo: to Pictures, and onto the Shelf
+    event cam_flip ->                                      // mirrored or not
+    prop cam_flash = 0 ~500ms
+    on cam_snap { cam_flash: 1 ~0ms; cam_flash: 0 after 40ms }
+    //  From the desktop's right-click menu, the desktop editor and the launcher: the Desk on its Camera, or the Desk away if it is already there.
+    on cam_toggle while desk_open and desk_tab == 8 { desk_open = false }
+    on cam_toggle while not (desk_open and desk_tab == 8) { desk_tab = 8; desk_open = true }
+
+    //  Your picture, chosen on Home (a press on it): the dashboard's chooser (the `face_*` events and `face_pics`, vitreus.luau), drawn on the
+    //  tablet's screen. `desk_face` is it open; `dfp_s` how far its grid is scrolled.
+    fact desk_face = false
+    fact dfp_to = 0
+    prop dfp_s = 0 ~quick
+    follow dfp_s = dfp_to
+    on change desk_tab { desk_face = false }
+    on change desk_open while not desk_open { desk_face = false }
+    on key Escape while desk_face { desk_face = false }
+
+    //  Home's AUR card (logic/aur.luau): 0 not asked yet, 1 checking, 2 known (`aur_n` updates), 3 the AUR could not be reached, 4 no helper.
+    fact aur_state = 0
+    fact aur_n = 0
+    text aur_msg = ""
+    text aur_line = ""                                     // the same for the desktop system monitor widget ("AUR · 3 updates")
+    model aur_list max 6 { name: text; ver: text }
+    event aur_check ->
+    event aur_update ->
+    on aur_update { desk_tab = 4 }
+
+    //  Home's photo frame (logic/desk_frame.luau): two slots to cross-fade between, which is on top, the picture's name, and the folder.
+    text pf_a = ""
+    text pf_b = ""
+    image pf_im_a = from pf_a, 900, 260
+    image pf_im_b = from pf_b, 900, 260
+    fact pf_which = false                                  // false: `pf_a` is the one shown
+    prop pf_mix = 0 ~1200ms
+    follow pf_mix = if(pf_which, 1, 0)
+    fact pf_has = false
+    text pf_name = ""
+    text pf_folder_name = "myPad photos"
+    text pf_folder_path = "~/Pictures/myPad"                // the same, as a path
+    event pf_next ->
+    event pf_open ->
+    event pf_folder ->
+
+    //  Focus on a task: the task a focus is on (its line in the Focus tab), and when it ends, whether to tick it off.
+    text ft_task = ""
+    fact ft_has_task = false
+    event focus_task ->                                    // (task)
+    event focus_task_done ->
+
+    //  Motion: the dock's icons rise as they are pressed, the screen flashes faintly when the tool changes.
+    prop dk_flash = 0 ~420ms
+    on change desk_tab { dk_flash: 1 ~0ms; dk_flash: 0 after 40ms; desk_edit = false; shelf_menu = -1; clip_menu = -1 }
+    //  The logic hears this when the Desk comes out or changes tool (a fact the logic sets itself does not reach its own handlers): Notes and the
+    //  Pad read their files again then, so what another tool added to them (an answer kept as a note, a captured task) is there.
+    event desk_shown ->
+    on change desk_open while desk_open { emit desk_shown }
+    event desk_gone ->
+    on change desk_open while not desk_open { emit desk_gone }
+    on change desk_tab { emit desk_shown }
+
+    //  Text on the tablet, at the Desk's scale: left-aligned (`DTL`) or centred (`DTC`), one line `w` wide at most.
+    component DTL(s: text, x: number, y: number, sz: number, wt: number, c: color, o: number, w: number) {
+        group { scale: rs; pivot: floor(x + 0.5), floor(y + 0.5); text s { at: floor(x + 0.5), floor(y + 0.5); anchor: left center; size: sz; weight: wt; color: c; opacity: o; width: w / rs; lines: 1; family: "Space Grotesk" } }
+    }
+    component DTC(s: text, x: number, y: number, sz: number, wt: number, c: color, o: number, w: number) {
+        group { scale: rs; pivot: floor(x + 0.5), floor(y + 0.5); text s { at: floor(x + 0.5), floor(y + 0.5); anchor: center; align: center; size: sz; weight: wt; color: c; opacity: o; width: w / rs; lines: 1; family: "Space Grotesk" } }
+    }
+    //  A plate on the screen, the frosted look of the slab: a light veil of ink with a hairline edge, brighter under the pointer (`lit`). `x`, `y` its
+    //  top left; `k` how strong the veil is (1 the usual 8 %). In the flat themes it is the same veil, which their own glass-less body carries.
+    component DPlate(x: number, y: number, w: number, h: number, r: number, k: number, lit: number) {
+        box { from: x, y; size: w, h; corner: r; color: ink; opacity: (8% + 6% * lit) * k }
+        box { from: x, y; size: w, h; corner: r; stroke: 1; color: ink; opacity: (10% + 10% * lit) * k }
+    }
+    //  A tool's icon, in pencil like the shell's: 7 Notes (a tick: its Reminders), 0 Pad (a pencil: it draws), 1 Shelf, 2 Clip, 3 Focus, 4 Term, 5 Ask, 8 Camera, 6 Home.
+    component DIcon(id: number, x: number, y: number, z: number, c: color, o: number) {
+        group { show: id == 7; GCheck(x, y, z, c, o, 0) }
+        group { show: id == 0; GPencil(x, y, z, c, o, 0) }
+        group { show: id == 1; GFolder(x, y, z, c, o, 0) }
+        group {
+            show: id == 2
+            box { at: x, y + 1 * z; size: 13 * z, 16 * z; corner: 2.5 * z; stroke: 1.6 * z; color: c; opacity: o }
+            box { at: x, y - 7 * z; size: 7 * z, 4 * z; corner: 1.5 * z; color: c; opacity: o }
+        }
+        group { show: id == 3; GTimer(x, y, z, c, o, 0) }
+        group { show: id == 4; GKeyboard(x, y, z, c, o, 0) }
+        path { at: x, y; color: c; opacity: o; show: id == 5; move 0, -10 * z; curve 10 * z, 0 via 1.6 * z, -1.6 * z; curve 0, 10 * z via 1.6 * z, 1.6 * z; curve -10 * z, 0 via -1.6 * z, 1.6 * z; curve 0, -10 * z via -1.6 * z, -1.6 * z; close }
+        group { show: id == 6; GHome(x, y, z, c, o, 0) }
+        group {
+            show: id == 9
+            box { at: x, y - 3 * z; size: 8 * z, 13 * z; corner: 4 * z; stroke: 1.6 * z; color: c; opacity: o }
+            path { at: x, y + 1 * z; stroke: 1.6 * z; color: c; opacity: o; move -6.5 * z, -2 * z; curve 6.5 * z, -2 * z via 0, 8 * z }
+            line { from: x, y + 5.5 * z; to: x, y + 9 * z; width: 1.6 * z; color: c; opacity: o }
+        }
+        group {
+            show: id == 8
+            box { at: x, y + 1.5 * z; size: 20 * z, 14 * z; corner: 3.5 * z; stroke: 1.6 * z; color: c; opacity: o }
+            box { at: x - 3 * z, y - 7 * z; size: 7 * z, 3.5 * z; corner: 1.2 * z; color: c; opacity: o }
+            ellipse { at: x, y + 1.5 * z; radius: 4.2 * z; stroke: 1.6 * z; color: c; opacity: o }
+        }
+    }
+    //  One note in the Notes list: its title, its first line and when it was last changed; pressed it opens, its cross deletes it.
+    component NoteRow(n: record, open: event, del: event) {
+        size: 308 * du, 46 * du
+        zone box touch { from: 0, 0; size: 308 * du, 42 * du; corner: 13 * du; cursor: pointer }
+        DPlate(0, 0, 308 * du, 42 * du, 13 * du, 1, touch.hover)
+        DTL(n.title, 14 * du, 14 * du, 14, 600, ink, 1, 220 * du)
+        DTL(n.sub, 14 * du, 29 * du, 11.5, 400, faint, 0.85, 220 * du)
+        group { scale: rs; pivot: floor(264 * du + 0.5), floor(14 * du + 0.5); text n.when { at: floor(264 * du + 0.5), floor(14 * du + 0.5); anchor: right center; align: right; size: 10.5; color: faint; opacity: 75%; family: "Space Grotesk" } }
+        ellipse { at: 286 * du, 21 * du; radius: 10 * du; color: alert; opacity: 6% + 22% * del_z.hover }
+        line { from: 282 * du, 17 * du; to: 290 * du, 25 * du; width: 1.6 * du; color: mix(ink, alert, del_z.hover); opacity: 55% + 45% * del_z.hover }
+        line { from: 290 * du, 17 * du; to: 282 * du, 25 * du; width: 1.6 * du; color: mix(ink, alert, del_z.hover); opacity: 55% + 45% * del_z.hover }
+        zone box del_z { at: 286 * du, 21 * du; size: 26 * du, 30 * du; cursor: pointer; label: "Delete this note" }
+        on press touch { emit open(n.index) }
+        on press del_z { emit del(n.index) }
+    }
+    //  Peek, petted (Home's `hm_peek`, the player's, and `hm_peek2`, the slideshow's): three hearts float up, one every half second, and it purrs (a small shake). Springs relaunched by rules
+    //  that only run while the pointer is on it, so nothing keeps the scene painting once it stops being petted.
+    prop dh.0 = 1 ~1400ms
+    prop dh.1 = 1 ~1400ms
+    prop dh.2 = 1 ~1400ms
+    prop dpk_wig = 0 ~pop
+    follow dpk_wig = 0
+    on enter hm_peek { dh.0: 0 ~0ms; dh.0: 1 after 20ms; dh.1: 0 ~0ms after 500ms; dh.1: 1 after 520ms; dh.2: 0 ~0ms after 1000ms; dh.2: 1 after 1020ms }
+    on enter hm_peek2 { dh.0: 0 ~0ms; dh.0: 1 after 20ms; dh.1: 0 ~0ms after 500ms; dh.1: 1 after 520ms; dh.2: 0 ~0ms after 1000ms; dh.2: 1 after 1020ms }
+    every 1500ms while hm_peek.hover > 0.5 or hm_peek2.hover > 0.5 { dh.0: 0 ~0ms; dh.0: 1 after 20ms; dh.1: 0 ~0ms after 500ms; dh.1: 1 after 520ms; dh.2: 0 ~0ms after 1000ms; dh.2: 1 after 1020ms }
+    every 240ms while hm_peek.hover > 0.5 or hm_peek2.hover > 0.5 { impulse dpk_wig 60 }
+
+    //  Peek, View's picture-frame cat (view/view.plm), small, keeping Home's player company while nothing plays: ears on the frame's top corners,
+    //  paws over its lower edge, a tail from behind it, and a sleeping face on a night sky. Drawn at View's own size and scaled by `k` about its
+    //  middle. `mu` 1 is Peek for the player: headphones on, a record and the bars of a spectrum in its frame for the night sky, and notes for
+    //  hearts. Under the pointer (`pet`, 0 to 1) it squashes a little, its eyes turn to happy arches, its ears prick up, it purrs and hearts float
+    //  up (`dh.*`, `dpk_wig`). It does not breathe: a loop would keep the whole scene painting while the Desk is shut.
+    component DPeek(cx: number, cy: number, k: number, pet: number, mu: number = 0) {
+        let dpe = mix(deep, #ffffff, 0.9)
+        let dpc = 34 * (1 - 0.73 * sq)
+        group {
+            pivot: cx, cy
+            scale: k
+            ellipse { at: cx, cy + 112; radius: 120; scale: 1, 0.1; color: #000000; opacity: 20% }
+            group {
+                pivot: cx, cy + 100
+                scale: 1 + 0.04 * pet, 1 - 0.03 * pet
+                move: 0.04 * dpk_wig * pet, 0
+                path { at: cx + 100, cy + 74; stroke: 19; color: ink; opacity: 30%; move 0, 0; curve 52, -10 via 40, 22; curve 46 + 10 * pet, -62 via 70, -38 }
+                path { at: cx + 100, cy + 74; stroke: 15; color: tint; move 0, 0; curve 52, -10 via 40, 22; curve 46 + 10 * pet, -62 via 70, -38 }
+                repeat e in 0..2 {
+                    let pe.s = if(e == 0, -1, 1)
+                    path { at: cx + pe.s * 84, cy - 84; color: tint; move pe.s * -30, 8; line pe.s * -4, -38 - 6 * pet; line pe.s * 26, 4; close }
+                    path { at: cx + pe.s * 84, cy - 84; stroke: 2; color: ink; opacity: 30%; move pe.s * -30, 6; line pe.s * -4, -38 - 6 * pet; line pe.s * 26, 2 }
+                    path { at: cx + pe.s * 84, cy - 84; color: #ff9bb3; opacity: 55%; move pe.s * -18, 4; line pe.s * -5, -22 - 6 * pet; line pe.s * 12, 2; close }
+                }
+                body { color: tint; shadow: 0, 14, 34, 40%; box { at: cx, cy; size: 232, 184; corner: dpc } }
+                box { at: cx, cy; size: 232, 184; corner: dpc; stroke: 2; color: ink; opacity: 30% }
+                box { at: cx, cy - 4; size: 184, 136; corner: max(dpc - 14, 2); color: deep }
+                group {
+                    clip box { at: cx, cy - 4; size: 184, 136; corner: max(dpc - 14, 2) }
+                    ellipse { at: cx + 62, cy - 48; radius: 13; color: alert; opacity: 70% * (1 - mu) }
+                    ellipse { at: cx + 68, cy - 52; radius: 11; color: deep; opacity: 1 - mu }
+                    //  music: a record turning in the corner, and the bars of a spectrum along the foot
+                    group {
+                        show: mu > 0.5
+                        ellipse { at: cx + 66, cy - 40; radius: 30; color: #101418 }
+                        repeat r in 0..3 { ellipse { at: cx + 66, cy - 40; radius: 26 - r * 6; stroke: 1.2; color: #ffffff; opacity: 10% } }
+                        ellipse { at: cx + 66, cy - 40; radius: 8; color: alert; opacity: 85% }
+                        ellipse { at: cx + 66, cy - 40; radius: 2; color: #101418 }
+                        repeat b in 0..9 { box { at: cx - 80 + b * 20, cy + 56 - pick(b, 10, 22, 34, 18, 28, 14, 24, 12, 8) / 2; size: 10, pick(b, 10, 22, 34, 18, 28, 14, 24, 12, 8); corner: 3; color: mint; opacity: 40% } }
+                    }
+                    path { at: cx, cy + 64; color: mix(tint, ink, 0.15); opacity: 70% * (1 - mu); move -100, 0; line -100, -34; line -50, -62; line -10, -34; line 30, -52; line 100, -18; line 100, 0; close }
+                    repeat t in 0..3 { box { at: cx - 20 + t * 20, cy - 66; size: 8, 22; corner: 4; color: mint; opacity: 12% } }
+                }
+                //  music: headphones, the band over the frame's top between the ears, a cup on each side
+                group {
+                    show: mu > 0.5
+                    arc { at: cx, cy - 40; radius: 128; span: 150deg; width: 13; color: #2b333d }
+                    arc { at: cx, cy - 40; radius: 128; span: 120deg; width: 3; color: mint; opacity: 55% }
+                    repeat e in 0..2 {
+                        let hc.x = cx + (e * 2 - 1) * 124
+                        box { at: hc.x, cy - 6; size: 34, 66; corner: 14; color: #2b333d }
+                        box { at: hc.x + (e * 2 - 1) * 4, cy - 6; size: 18, 46; corner: 8; color: mint; opacity: 70% }
+                    }
+                }
+                repeat i in 0..2 {
+                    let pf.x = cx + if(i == 0, -40, 40)
+                    path { at: pf.x, cy - 6; stroke: 4; color: dpe; opacity: 1 - clamp(pet * 4, 0, 1); move -13, -2; curve 13, -2 via 0, 10 }
+                    path { at: pf.x, cy - 6; stroke: 4; color: dpe; opacity: clamp(pet * 4 - 1, 0, 1); move -12, 4; curve 12, 4 via 0, -14 }
+                    ellipse { at: cx + if(i == 0, -66, 66), cy + 14; radius: 11; scale: 1.3, 0.7; color: #ff8fc0; opacity: 40% + 25% * pet }
+                    line { from: cx + if(i == 0, -58, 58), cy + 16; to: cx + if(i == 0, -128, 128), cy + 8; width: 2; color: ink; opacity: 45% }
+                    line { from: cx + if(i == 0, -58, 58), cy + 22; to: cx + if(i == 0, -126, 126), cy + 28; width: 2; color: ink; opacity: 45% }
+                }
+                path { at: cx, cy + 12; color: #ff9bb3; move -6, -3; line 6, -3; line 0, 4; close }
+                path { at: cx, cy + 18; stroke: 2.6; color: dpe; move -11, 0; curve 0, 0 via -5.5, 7; curve 11, 0 via 5.5, 7 }
+                repeat i in 0..2 {
+                    let pp.x = cx + if(i == 0, -46, 46)
+                    body { color: tint; box { at: pp.x, cy + 92 - pet * 2; size: 46, 26; corner: 13 } }
+                    box { at: pp.x, cy + 92 - pet * 2; size: 46, 26; corner: 13; stroke: 2; color: ink; opacity: 30% }
+                }
+            }
+            //  petted: hearts floating up over it, one after another (`dh.*`, 0 at the start of its way up, 1 gone), swaying as they rise
+            repeat h in 0..3 {
+                let hp = pick(h, dh.0, dh.1, dh.2)
+                let hx = cx - 70 + h * 70 + 14 * sin(hp * 360)
+                let hy = cy - 110 - hp * 90
+                group {
+                    pivot: hx, hy
+                    scale: 1.2 + 0.4 * hp
+                    opacity: pet * sin(hp * 180)
+                    path { at: hx, hy; color: #ff8fc0; show: mu < 0.5; move 0, 10; curve -14, -4 via -14, 4; curve 0, -6 via -12, -14; curve 14, -4 via 12, -14; curve 0, 10 via 14, 4; close }
+                    //  a note: its head, its stem, and (every other one) a flag
+                    group {
+                        show: mu > 0.5
+                        ellipse { at: hx - 5, hy + 8; radius: 7; scale: 1.25, 0.95; color: mint }
+                        box { from: hx + 2, hy - 18; size: 3.2, 26; corner: 1.6; color: mint }
+                        path { at: hx + 3.6, hy - 18; stroke: 3.4; color: mint; show: mod(h, 2) == 0; move 0, 0; curve 10, 12 via 12, 2 }
+                        box { from: hx - 22, hy - 18; size: 3.2, 24; corner: 1.6; color: mint; show: mod(h, 2) == 1 }
+                        box { from: hx - 22, hy - 18; size: 27, 4.4; corner: 2; color: mint; show: mod(h, 2) == 1 }
+                        ellipse { at: hx - 26, hy + 6; radius: 7; scale: 1.25, 0.95; color: mint; show: mod(h, 2) == 1 }
+                    }
+                }
+            }
+        }
+    }
+    //  One memo in Memos: play (pause while it plays, and a bar filling along its foot), when, how long, and a cross that puts it in the Trash.
+    component MemoRow(m: record, play: event, del: event) {
+        size: 308 * du, 44 * du
+        DPlate(0, 0, 308 * du, 40 * du, 13 * du, 1, max(pl_z.hover, 0))
+        ellipse { at: 22 * du, 20 * du; radius: 13 * du; color: mint; opacity: 85% + 15% * pl_z.hover }
+        path { at: 22 * du, 20 * du; color: onmint; show: not m.playing; move -3 * du, -5.5 * du; line 5.5 * du, 0; line -3 * du, 5.5 * du; close }
+        box { at: 19 * du, 20 * du; size: 2.8 * du, 9.5 * du; corner: 1.2 * du; color: onmint; show: m.playing }
+        box { at: 25 * du, 20 * du; size: 2.8 * du, 9.5 * du; corner: 1.2 * du; color: onmint; show: m.playing }
+        zone ellipse pl_z { at: 22 * du, 20 * du; radius: 15 * du; cursor: pointer; label: if(m.playing, "Stop", "Play") }
+        on press pl_z { emit play(m.index) }
+        DTL(m.name, 46 * du, 15 * du, 12.5, 600, ink, 1, 180 * du)
+        DTL(m.len, 46 * du, 29 * du, 10.5, 400, faint, 0.9, 80 * du)
+        //  how far it has played
+        box { from: 46 * du, 35 * du; size: 216 * du, 2 * du; corner: 1 * du; color: ink; opacity: if(m.playing, 14%, 0%) }
+        box { from: 46 * du, 35 * du; size: 216 * du * memo_pp, 2 * du; corner: 1 * du; color: mint; opacity: if(m.playing, 100%, 0%) }
+        line { from: 282 * du, 16 * du; to: 290 * du, 24 * du; width: 1.5 * du; color: mix(ink, alert, del_z.hover); opacity: 45% + 55% * del_z.hover }
+        line { from: 290 * du, 16 * du; to: 282 * du, 24 * du; width: 1.5 * du; color: mix(ink, alert, del_z.hover); opacity: 45% + 55% * del_z.hover }
+        zone box del_z { at: 286 * du, 20 * du; size: 26 * du, 30 * du; cursor: pointer; label: "Put it in the Trash" }
+        on press del_z { emit del(m.index) }
+    }
+    //  A hardware button on the tablet's edge: matte, like rubber, one solid colour from the theme (its body colour, lifted towards the text
+    //  colour), a soft shadow under it and a darker edge, no shine. `v` is kept for which way it stands (it does not change the look). `lit`
+    //  lightens it a little under the pointer.
+    component DHwBtn(x: number, y: number, w: number, h: number, v: number, lit: number) {
+        body { color: mix(tint, ink, 0.28 + 0.1 * lit); shadow: 0, 1.5 * du, 3 * du, 40%; box { from: x, y; size: w, h; corner: min(w, h) * 0.45 } }
+        box { from: x, y; size: w, h; corner: min(w, h) * 0.45; stroke: 1; color: mix(tint, #000000, 0.55); opacity: 60% }
+    }
+}

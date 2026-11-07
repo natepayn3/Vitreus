@@ -1,0 +1,18 @@
+part DeskDock {
+    //  ── The home button: round, in the bezel under the screen, as a classic tablet has it ──
+    //  From any app it goes Home (and out of Customize). Matte, in the theme's colours like the side buttons; it sinks as it is pressed, and lights under the pointer.
+    let hb.y = dsk_y0 + dsk_h - 15 * du
+    group {
+        opacity: fd0
+        group {
+            pivot: dsk_xc, hb.y
+            scale: 1 - 0.06 * dk_home.pressed
+            //  a matte disc in the bezel, the same rubber as the side buttons, and the rounded square on it
+            body { color: mix(tint, ink, 0.28 + 0.1 * dk_home.hover); shadow: 0, 1.5 * du, 3 * du, 40%; ellipse { at: dsk_xc, hb.y; radius: 11.5 * du - 0.5 * du * dk_home.pressed } }
+            ellipse { at: dsk_xc, hb.y; radius: 11.5 * du - 0.5 * du * dk_home.pressed; stroke: 1; color: mix(tint, #000000, 0.55); opacity: 60% }
+            box { at: dsk_xc, hb.y; size: 7 * du, 7 * du; corner: 2 * du; stroke: 1.3; color: mix(ink, mint, 0.3); opacity: 70% + 25% * dk_home.hover }
+        }
+        zone ellipse dk_home { at: dsk_xc, hb.y; radius: 13 * du; cursor: pointer; label: "Home" }
+        on press dk_home { desk_tab = 6; desk_edit = false }
+    }
+}

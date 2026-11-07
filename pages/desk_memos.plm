@@ -1,0 +1,44 @@
+part DeskMemos {
+    //  ── Memos (logic/memos.luau) ──
+    //  A big record button at the top (red while it records, with the time), and your recordings under it, newest first: each a row with a play
+    //  button (a pause while it plays, and a bar along its foot that fills as it goes), when it was made, how long it is, and a cross that puts
+    //  it in the Trash.
+    let mm.l = dsk_x0 + 24 * du
+    let mm.w = dsk_w - 48 * du
+    group {
+        show: desk_tab == 9
+        opacity: fd1
+        move: 0, (1 - fd1) * 12 * du
+        //  the record button
+        let mm.ry = dsk_y0 + 136 * du
+        group {
+            pivot: dsk_xc, mm.ry
+            scale: 1 + 0.04 * mm_rec.hover - 0.05 * mm_rec.pressed
+            ellipse { at: dsk_xc, mm.ry; radius: 38 * du; stroke: 3 * du; color: #ffffff; opacity: 85% }
+            ellipse { at: dsk_xc, mm.ry; radius: 30 * du; color: #e2475f; show: not memo_rec }
+            box { at: dsk_xc, mm.ry; size: 28 * du, 28 * du; corner: 6 * du; color: #e2475f; show: memo_rec }
+        }
+        zone ellipse mm_rec { at: dsk_xc, mm.ry; radius: 40 * du; cursor: pointer; role: toggle; checked: memo_rec; label: if(memo_rec, "Stop recording", "Record a memo") }
+        on press mm_rec { emit memo_toggle }
+        DTC(if(memo_rec, "Recording  {memo_t}", "Press to record"), dsk_xc, mm.ry + 56 * du, 12.5, 600, if(memo_rec, #ff6b7a, faint), 1, mm.w)
+        //  the microphone is muted: a memo would be silence, so it says so, with the way to unmute it
+        group {
+            show: audio.input_muted
+            box { at: dsk_xc, dsk_y0 + 66 * du; size: mm.w, 26 * du; corner: 13 * du; color: alert; opacity: 22% }
+            DTL("Your microphone is muted", mm.l + 14 * du, dsk_y0 + 66 * du, 11.5, 600, ink, 1, 180 * du)
+            box { at: mm.l + mm.w - 36 * du, dsk_y0 + 66 * du; size: 60 * du, 18 * du; corner: 9 * du; color: alert; opacity: 45% + 20% * mm_unmute.hover }
+            DTC("Unmute", mm.l + mm.w - 36 * du, dsk_y0 + 66 * du, 10.5, 600, ink, 1, 58 * du)
+            zone box mm_unmute { at: mm.l + mm.w - 36 * du, dsk_y0 + 66 * du; size: 62 * du, 22 * du; corner: 9 * du; cursor: pointer; label: "Unmute the microphone" }
+            on press mm_unmute { emit mic_toggle }
+        }
+        //  the recordings
+        DTL("YOUR MEMOS", mm.l + 2 * du, dsk_y0 + 214 * du, 10, 600, faint, 0.8, 200 * du)
+        DTC("Nothing recorded yet", dsk_xc, dsk_y0 + 290 * du, 12, 400, faint, if(memo_n > 0, 0, 0.85), mm.w)
+        column mm_col {
+            at: mm.l, dsk_y0 + 226 * du
+            view: mm.w, 256 * du
+            gap: 0
+            for m in memos { MemoRow(m, play: memo_play, del: memo_del) }
+        }
+    }
+}

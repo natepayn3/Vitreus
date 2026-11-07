@@ -226,29 +226,15 @@ local function on_line(line)
     fact.net_step = fact.net_step + 1
 end
 
--- The AUR, asked once an hour while the card is shown (`yay -Qua` reads only: one request to the AUR's RPC, a second or so). Its exit code is 1 both for
--- "nothing to update" and for an error, so the words it prints say which: lines with "->" are updates, "error" is a failure and the last answer stays.
-local aur_checked = false
-local function check_aur()
-    run("sh", { "-c", "yay -Qua 2>&1" }, function(out)
-        out = out or ""
-        local n = 0
-        for line in out:gmatch("[^\n]+") do
-            if line:find("->", 1, true) then n = n + 1 end
-        end
-        if n > 0 then
-            text.aur_txt = string.format("AUR · %d update%s", n, n == 1 and "" or "s")
-            fact.aur_on = true
-            aur_checked = true
-        elseif not out:lower():find("error", 1, true) and not out:lower():find("failed", 1, true) then
-            text.aur_txt = "AUR · up to date"
-            fact.aur_on = true
-            aur_checked = true
-        end
+-- The AUR: Vitreus asks it, once for the shell (logic/aur.luau, every half hour), and tells this card each time (`aur_txt`, `aur_on`), so the
+-- widget and the Desk never ask twice or disagree. Started after Vitreus, or shown again, the card asks Vitreus for the last answer.
+local function ask_aur()
+    run("pleamar", { "--say", "vitreus", "get aur_line" }, function(out, code)
+        local t = tostring(out or ""):gsub("%s+$", "")
+        if code == 0 and t ~= "" and t:sub(1, 1) ~= "?" then text.aur_txt = t; fact.aur_on = true end
     end)
 end
-every(3600000, function() if fact.shown then check_aur() end end)
-after(10000, function() if fact.shown and not aur_checked then check_aur() end end)
+after(6000, function() if fact.shown then ask_aur() end end)
 
 -- It runs while the card is shown, so nothing is read when it is not.
 local proc = nil
@@ -267,7 +253,7 @@ end
 refresh()
 
 -- What the Settings page tells it (it does not fire for what is set from here).
-on("fact:shown", function(v) cfg.shown = v and true or false; save(); refresh(); if cfg.shown and not aur_checked then check_aur() end end)
+on("fact:shown", function(v) cfg.shown = v and true or false; save(); refresh(); if cfg.shown then ask_aur() end end)
 on("fact:where", function(v) if POSITIONS[v] then cfg.position = v; save() end end)
 on("fact:gx", function(v) if type(v) == "number" then cfg.gx = v; save() end end)
 on("fact:gy", function(v) if type(v) == "number" then cfg.gy = v; save() end end)

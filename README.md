@@ -92,7 +92,7 @@ Requirements, options, Debian/Ubuntu and setting it up by hand are in **[docs/IN
 
 **Bigger panels**
 * **Dashboard**: one screen of glass cards (clock, weather, notifications, system monitor, what's playing).
-* **Desk**: a side panel with a focus timer, notes and drawing, a terminal, clipboard history, and **Ask**, an AI chat using whichever assistant you have (Claude Code, Ollama, Codex or Gemini).
+* **myPad** (SUPER + D): the Desk as a tablet out of the frame. A home screen with your picture, a slideshow, your AUR updates, the apps and what is playing, and apps for notes and reminders, drawing, the shelf, the clipboard, focus, a terminal, Ask (an AI chat with whichever assistant you have: Claude Code, Ollama, Codex or Gemini), a camera with live looks, and voice memos.
 * **Wallpaper picker**: a honeycomb of glass hexagons, or a row of cards that previews each wallpaper live.
 * **Workspace overview**: a card per workspace; drag windows between them.
 
@@ -104,7 +104,7 @@ Requirements, options, Debian/Ubuntu and setting it up by hand are in **[docs/IN
 **Around the edges**
 * **Lock screen**, a matching **login screen** ([SDDM theme](sddm/README.md)), and a **polkit** password dialog.
 * **Audio visualiser**: the bottom edge of the screen rises with the music.
-* **Desktop**: right-click the wallpaper for sticky notes, a webcam bubble, a clock and a system monitor.
+* **Desktop**: right-click the wallpaper for sticky notes, a clock and a system monitor.
 * **Night mode** and a **desktop clock**.
 
 ---

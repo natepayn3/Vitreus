@@ -106,6 +106,7 @@ return function()
     on("settings_toggle", function() panel_toggle("settings") end)
     on("desk_toggle", function()
         toggle_here(function() return fact.desk_open == true end, function(v)
+            if v then fact.desk_tab = tonumber(fact.desk_start) or 6 end   -- it opens on Home, or the tool chosen in Customize
             fact.desk_open = v
             if v and snd_hook and snd_hook.chime then snd_hook.chime() end   -- set from the logic, so the fact handler does not hear it
         end)
