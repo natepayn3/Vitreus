@@ -64,9 +64,10 @@ part DeskHome {
                     show: pf_has
                     group {
                         clip inset 0 box { from: mc.x, mc.y; size: mc.w, mc.h; corner: 20 * du }
-                        image pf_im_a { at: mc.x, mc.y; size: mc.w, mc.h; fit: cover; opacity: 1 - pf_mix }
-                        image pf_im_b { at: mc.x, mc.y; size: mc.w, mc.h; fit: cover; opacity: pf_mix }
-                        repeat q in 0..8 { box { from: mc.x, mc.y + mc.h - (q + 1) * 5 * du; size: mc.w, (q + 1) * 5 * du; color: #000000; opacity: 7% * hm_pf.hover } }      // darker to the foot, layered the same way
+                        //  a picture taller than the frame is shown whole across, its top first, and glides down to its foot; a wider one is cut to the frame
+                        image pf_im_a { at: mc.x, mc.y - max(0, mc.w * pf_ar_a - mc.h) * pf_pan_a; size: mc.w, max(mc.h, mc.w * pf_ar_a); fit: cover; opacity: 1 - pf_mix }
+                        image pf_im_b { at: mc.x, mc.y - max(0, mc.w * pf_ar_b - mc.h) * pf_pan_b; size: mc.w, max(mc.h, mc.w * pf_ar_b); fit: cover; opacity: pf_mix }
+                        repeat q in 0..26 { box { from: mc.x, mc.y + mc.h - (q + 1) * mc.h * 0.022; size: mc.w, (q + 1) * mc.h * 0.022; color: #000000; opacity: 2% * hm_pf.hover } }      // darker to the foot, under the name: 26 layers of about 2 px, too fine to see as steps
                     }
                     box { from: mc.x, mc.y; size: mc.w, mc.h; corner: 20 * du; stroke: 1.2; color: #ffffff; opacity: 18% }
                     DTL(pf_name, mc.x + 14 * du, mc.y + mc.h - 12 * du, 10.5, 600, #ffffff, hm_pf.hover, mc.w - 70 * du)
