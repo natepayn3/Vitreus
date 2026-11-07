@@ -223,10 +223,10 @@ part DeskHome {
             on press ce_done { desk_edit = false }
             //  Home first (the home button's), then the eight apps in their order.
             repeat s in 0..9 {
-                let ry = dsk_y0 + (142 + s * 25) * du
+                let ry = dsk_y0 + (142 + s * 25) * du + if(s == 0, 0, if(dr_s == s, dr_c, pick(max(s - 1, 0), dk_sh.0, dk_sh.1, dk_sh.2, dk_sh.3, dk_sh.4, dk_sh.5, dk_sh.6, dk_sh.7)))
                 let tid = if(s == 0, 6, pick(s - 1, dk.0.id, dk.1.id, dk.2.id, dk.3.id, dk.4.id, dk.5.id, dk.6.id, dk.7.id))
                 let ton = if(s == 0, true, pick(s - 1, dk.0.on, dk.1.on, dk.2.on, dk.3.on, dk.4.on, dk.5.on, dk.6.on, dk.7.on))
-                DPlate(hm.l, ry - 11 * du, hm.w, 22 * du, 8 * du, 0.7, 0)
+                DPlate(hm.l, ry - 11 * du, hm.w, 22 * du, 8 * du, 0.7, if(dr_s == s, 1, 0))
                 DIcon(tid, hm.l + 14 * du, ry, (12 * du) / 24, if(ton, mint, faint), if(ton, 1, 0.5))
                 DTL(pick(tid, "Pad", "Shelf", "Clip", "Focus", "Term", "Ask", "Home", "Notes", "Camera"), hm.l + 30 * du, ry, 12, 600, ink, if(ton, 1, 0.45), 100 * du)
                 //  opens on it: a ring, filled for the one
@@ -237,17 +237,30 @@ part DeskHome {
                 group {
                     show: s > 0
                     //  shown: a small switch
-                    box { at: hm.l + 200 * du, ry; size: 26 * du, 14 * du; corner: 7 * du; color: if(ton, mint, ink); opacity: if(ton, 45%, 14%) }
-                    ellipse { at: hm.l + 200 * du + if(ton, 6, -6) * du, ry; radius: 5 * du; color: ink }
                     zone box ce_on.$s { at: hm.l + 200 * du, ry; size: 32 * du, 22 * du; cursor: pointer; label: "Show this in the dock" }
                     on press ce_on.$s { emit dk_toggle(s - 1) }
-                    //  up and down
-                    path { at: hm.l + 252 * du, ry; stroke: 1.5 * du; color: ink; opacity: if(s > 1, 70%, 20%) + 30% * ce_up.$s.hover; move -4 * du, 2 * du; line 0, -2.5 * du; line 4 * du, 2 * du }
-                    path { at: hm.l + 280 * du, ry; stroke: 1.5 * du; color: ink; opacity: if(s < 8, 70%, 20%) + 30% * ce_dn.$s.hover; move -4 * du, -2 * du; line 0, 2.5 * du; line 4 * du, -2 * du }
-                    zone box ce_up.$s { at: hm.l + 252 * du, ry; size: 24 * du, 22 * du; cursor: pointer; active: s > 1; label: "Move up" }
-                    zone box ce_dn.$s { at: hm.l + 280 * du, ry; size: 24 * du, 22 * du; cursor: pointer; active: s < 8; label: "Move down" }
-                    on press ce_up.$s { emit dk_move((s - 1) * 10) }
-                    on press ce_dn.$s { emit dk_move((s - 1) * 10 + 1) }
+                    //  the shell's own switch (Settings', the control center's), shrunk to the row: its right edge stays put
+                    group {
+                        pivot: hm.l + 213 * du, ry
+                        scale: 0.46
+                        SettingsSwitch(hm.l + 213 * du, ry, pick(max(s - 1, 0), dk_pill.0, dk_pill.1, dk_pill.2, dk_pill.3, dk_pill.4, dk_pill.5, dk_pill.6, dk_pill.7), ce_on.$s.pressed, ce_on.$s.hover, mint)
+                    }
+                    on enter ce_on.$s { hm_hot = hm_hot + 1 }
+                    on leave ce_on.$s { hm_hot = max(hm_hot - 1, 0) }
+                    //  the grip: take the row by it (or by its name) and drag it to where it should be; the others stand aside
+                    repeat gx in 0..2 {
+                        repeat gy in 0..3 {
+                            ellipse { at: hm.l + (263 + gx * 5) * du, ry + (gy - 1) * 4.5 * du; radius: 1.2 * du; color: ink; opacity: 40% + 30% * max(ce_gr.$s.hover, ce_dg.$s.hover) + 30% * if(dr_s == s, 1, 0) }
+                        }
+                    }
+                    zone box ce_gr.$s { at: hm.l + 268 * du, ry; size: 52 * du, 22 * du; cursor: grab; label: "Drag to reorder" }
+                    zone box ce_dg.$s { at: hm.l + 67 * du, ry; size: 134 * du, 22 * du; cursor: grab; label: "Drag to reorder" }
+                    on press ce_gr.$s { dr_s = s; dr_dy = 0 }
+                    on press ce_dg.$s { dr_s = s; dr_dy = 0 }
+                    on drag ce_gr.$s while dr_s == s { dr_dy = drag.dy / desk_s }
+                    on drag ce_dg.$s while dr_s == s { dr_dy = drag.dy / desk_s }
+                    on release ce_gr.$s while dr_s == s { emit dk_reorder(s * 10 + dr_t); dr_s = 0; dr_dy = 0; repeat k in 0..8 { dk_sh.$k: 0 ~0ms } }
+                    on release ce_dg.$s while dr_s == s { emit dk_reorder(s * 10 + dr_t); dr_s = 0; dr_dy = 0; repeat k in 0..8 { dk_sh.$k: 0 ~0ms } }
                 }
             }
             let hm.ay = dsk_y0 + 380 * du

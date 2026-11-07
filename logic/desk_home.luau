@@ -60,12 +60,13 @@ return function()
         save_soon()
     end)
     on("text:desk_line_in", function(v) st.line = tostring(v or ""); save_soon() end)
-    on("dk_move", function(v)
+    -- A tool dragged from one place to another in Customize (`dk_reorder`, from * 10 + to, places 1 to 8): it is taken out and put in at the new place.
+    on("dk_reorder", function(v)
         v = tonumber(v) or -1
-        local s, dir = math.floor(v / 10), v % 10
-        local j = dir == 0 and s - 1 or s + 1
-        if s < 0 or s > #TOOLS - 1 or j < 0 or j > #TOOLS - 1 then return end
-        st.order[s + 1], st.order[j + 1] = st.order[j + 1], st.order[s + 1]
+        local from, to = math.floor(v / 10), v % 10
+        if from < 1 or from > #TOOLS or to < 1 or to > #TOOLS or from == to then return end
+        local id = table.remove(st.order, from)
+        table.insert(st.order, to, id)
         save(); render()
     end)
     on("dk_toggle", function(s)
