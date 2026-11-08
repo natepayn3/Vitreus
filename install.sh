@@ -10,7 +10,7 @@
 #   ./install.sh --no-binds        don't touch ~/.config/hypr (the key binds, and what Settings saves there)
 #   ./install.sh --no-wm           don't set up pleamar-wm (its login-screen entry, keys, window scene and autostart lines)
 #   ./install.sh --no-login        don't install the login screen (the SDDM theme)
-#   ./install.sh --refresh         what Settings > About runs after it has pulled: no questions, no sudo, nothing downloaded; it
+#   ./install.sh --refresh         what Settings > About runs after it has pulled: no questions, no sudo, nothing downloaded but the bundled add-ons' newest releases; it
 #                                  links the new helpers, adds the new autostart lines and binds, and lists the packages that are missing
 #   ./install.sh --force           install even when another Quickshell desktop shell is in use
 #   ./install.sh --test            try it next to another shell (Quickshell): no autostart, key binds or pleamar-wm; stops that
@@ -900,6 +900,9 @@ elif [ -d "$dest/.git" ]; then
         fi
         # Anything else of yours (a tuned pleamar-wm scene or keys.conf, which are linked here, or your own edits) is set aside for
         # the pull and put back on top of it. If it no longer fits the new version, nothing is updated and your changes stay.
+        # The add-ons that live in their own repositories were replaced by their newest release the last time: back to what git has, so
+        # that they are not "your changes" and never stand in the pull's way (they are fetched again after it).
+        "$dest/bin/vitreus-sync-addons" restore 2> /dev/null || true
         stashed=false
         held=false
         if ! { g diff --quiet && g diff --cached --quiet; }; then
@@ -933,6 +936,17 @@ else
     say "fetching Vitreus into $dest"
     run mkdir -p "$(dirname "$dest")"
     run git clone --quiet --depth 1 "$repo" "$dest"
+fi
+
+# ── 4b. the add-ons that live in their own repositories ────────────────────
+# addons/bundled.toml pins each one, and the pin is what the copy in git holds. Here the newest release of each is fetched instead (BUNDLING.md),
+# so a new install starts on what the author last published. Offline, or with no release, the pinned copy stays.
+stage "bundled add-ons"
+if $dry; then would "run: bin/vitreus-sync-addons latest (each bundled add-on's newest release)"
+elif have python3 && [ -x "$dest/bin/vitreus-sync-addons" ]; then
+    "$dest/bin/vitreus-sync-addons" latest || warn "some add-ons stayed on the release pinned in addons/bundled.toml"
+else
+    warn "python3 is needed to fetch the add-ons' newest releases: the pinned ones are used"
 fi
 
 # ── 5. the palettes ────────────────────────────────────────────────────────

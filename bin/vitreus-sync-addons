@@ -2,6 +2,10 @@
 """Keep the add-ons that live in their own repositories up to date in addons/.
 
   vitreus-sync-addons sync [id]    fetch each add-on in addons/bundled.toml at its pinned sha into addons/<id>/
+  vitreus-sync-addons latest [id] fetch each add-on's newest release (not the pin) into addons/<id>/, leaving bundled.toml alone; the installer runs this,
+                                   and a failure (offline, no release) keeps the pinned copy that is already there
+  vitreus-sync-addons newer [id]   print "id: installed -> tag" for each add-on whose newest release is newer than the installed copy (Settings > About uses it); unreachable ones are skipped
+  vitreus-sync-addons restore      put the folders `latest` replaced back as git has them (the installer does this before it pulls)
   vitreus-sync-addons bump [id]    move the pin to the newest release tag (rewrites bundled.toml), then sync it
   vitreus-sync-addons check        list add-ons with a newer release than the pin; exit 1 if any
   vitreus-sync-addons lint [id]    check a bundled add-on (or every one in bundled.toml) against addons/_template_drawer/STYLE.md; exit 1 on errors
@@ -169,6 +173,35 @@ def main():
     if cmd == "sync":
         for id, e in entries.items():
             fetch(id, e)
+    elif cmd == "latest":
+        failed = False
+        for id, e in entries.items():
+            try:
+                new = latest(e)
+                if not new:
+                    raise RuntimeError("no release published")
+                fetch(id, dict(e, tag=new[0], sha=new[1]))
+            except (Exception, SystemExit) as err:          # fetch() exits on a bad add-on: that one stays as pinned, the others go on
+                failed = True
+                print("%s: kept the pinned %s (%s)" % (id, e["tag"], err), file=sys.stderr)
+        sys.exit(1 if failed else 0)
+    elif cmd == "newer":
+        def nums(v):
+            return [int(n) for n in re.findall(r"\d+", str(v))]
+        for id, e in entries.items():
+            try:
+                with open(os.path.join(ADDONS, id, "addon.toml"), "rb") as f:
+                    have = str(tomllib.load(f).get("version", e["tag"]))
+                new = latest(e)
+            except Exception:
+                continue
+            if new and nums(new[0]) > nums(have):
+                print("%s: %s -> %s" % (id, have, new[0]))
+    elif cmd == "restore":
+        for id in entries:
+            d = "addons/" + id
+            subprocess.run(["git", "-C", ROOT, "checkout", "--quiet", "HEAD", "--", d], check=False)
+            subprocess.run(["git", "-C", ROOT, "clean", "-fdq", "--", d], check=False)
     elif cmd in ("bump", "check"):
         behind = False
         for id, e in entries.items():

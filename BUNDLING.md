@@ -2,7 +2,7 @@
 
 Anyone can write a Vitreus add-on and share it from their own repository, in any style. Nothing here applies to that: it works from `~/.config/pleamar/vitreus-addons/<id>/` as it is.
 
-This page is for an add-on that is **included natively** (listed in Settings > Add-ons from the first start, off until switched on). You keep hosting it in your own repository; Vitreus keeps a pinned copy and follows your releases. Being included is by agreement, and either side can start the conversation.
+This page is for an add-on that is **included natively** (listed in Settings > Add-ons from the first start, off until switched on). You keep hosting it in your own repository; Vitreus keeps a pinned copy (the fallback) and follows your releases: the installer fetches your newest release when someone installs or updates the shell. Being included is by agreement, and either side can start the conversation.
 
 ## What I ask of you
 
@@ -25,6 +25,7 @@ Errors have to be fixed; warnings are for a person to judge. It checks what a pr
 
 ## What I do in return
 
+- Fetch your newest published release when the shell is installed or updated (`bin/vitreus-sync-addons latest`), so people get what you last released without waiting for me. If that fails (offline, no release), the pinned copy is used.
 - Pin your release in `addons/bundled.toml` (repository, tag and exact commit) and copy it into `addons/<id>/`.
 - Open a pull request when you publish a newer release, and read the diff before it ships. The style check runs on it, so a release that drifts from the style is caught there.
 - Credit you on the card (your name, and a link to your repository) and keep your licence in the folder.

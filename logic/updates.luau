@@ -137,10 +137,17 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
                                     local unbuilt = have ~= nil and src ~= nil and newer(src, have)
                                     local waiting = A.pl_behind
                                     if unbuilt and waiting == 0 then waiting = 1 end
-                                    fact.about_behind = A.shell_behind + waiting
+                                    -- The bundled add-ons live in their own repositories: a newer release of one counts as an update too.
+                                    run(A.dir .. "/bin/vitreus-sync-addons", { "newer" }, function(aout)
+                                    local newer_addons = lines(aout)
+                                    A.addons_behind = #newer_addons
+                                    fact.about_behind = A.shell_behind + waiting + A.addons_behind
                                     A.pl_behind = waiting
                                     local parts = {}
                                     if msg then parts[#parts + 1] = msg end
+                                    for _, l in ipairs(newer_addons) do
+                                        if l:match("^[%w%-]+: [%w%.]+ %-> [%w%.]+$") then parts[#parts + 1] = "Add-on " .. l .. "." end
+                                    end
                                     if unbuilt then
                                         parts[#parts + 1] = "pleamar " .. src .. " is downloaded but not installed (you have " .. have .. ")."
                                     elseif waiting > 0 then
@@ -152,6 +159,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
                                     if pl_unreachable then parts[#parts + 1] = "Couldn't reach pleamar's source to look for newer ones." end
                                     busy(false, #parts > 0 and table.concat(parts, " ") or "Up to date.")
                                     if after then after() end
+                                    end)
                                 end)
                             end)
                             return
@@ -234,7 +242,9 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         busy(true, "Updating…")
         if A.shell_behind <= 0 then
             pcall(sys.call, "files.write", "update-pending.json", { pending = false })
-            return restart()
+            if (A.addons_behind or 0) <= 0 then return restart() end
+            -- Only add-ons are behind: no pull, but install.sh --refresh fetches their newest releases.
+            return run("setsid", { "-w", "sh", A.dir .. "/install.sh", "--refresh" }, function() restart() end)
         end
         -- Which monitors show the bar and the lock screen is kept in the `screens:` line of each scene (the Bar and Lock
         -- screen pages write it, and the choice itself is in bar.json / the lock screen's settings). A line changed that way
