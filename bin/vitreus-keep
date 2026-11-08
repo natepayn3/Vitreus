@@ -126,6 +126,13 @@ while :; do
         undo_gaps
         exit 1
     fi
+    # A bar of more copies than fit in one scene (`screens: each max N`: every copy is the whole scene again) does not load at all, so
+    # its logic never gets to shrink it (issue #60: three monitors, no bar). It is put back to one copy, and the logic grows it again
+    # to what fits.
+    if [ "$name" = vitreus ] && [ "$L" != /dev/null ] && tail -n 40 "$L" 2> /dev/null | grep -q "properties, and no more than" \
+        && grep -qE "^    surface \{.*screens: each max [2-9];" "$P"; then
+        sed -i --follow-symlinks -E '/^    surface \{/s/screens: each max [0-9]+;/screens: each max 1;/' "$P" && say "too many copies to load: back to each max 1"
+    fi
     say "stopped (exit $code): starting it again"
     sleep 2
 done

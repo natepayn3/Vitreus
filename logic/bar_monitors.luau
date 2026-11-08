@@ -15,7 +15,8 @@ return function(with_dirs)
     local FPS_FREE = 480             -- `rate:`'s ceiling in the language: the scene is left to the monitor
     local FPS = { FPS_FREE, 120, 60 } -- what the page offers, in the order of its chips (`rate:` in the scene has a line for each)
                                      -- `rate:` clause is honoured, so there is one value to choose besides "Screen"
-    local B = { pref = nil, file = nil, mons = {}, busy = false, awake = false, others = false, may_shrink = true }
+    local B = { pref = nil, file = nil, mons = {}, busy = false, awake = false, others = false, may_shrink = true, fit = nil }
+    local LIMIT = 65536              -- the properties a scene can hold (pleamar): every copy has all of the scene's own, so N copies cost N times it
     local RESTART = [[
 P="$1"; L="$2"
 export PATH="$HOME/.local/bin:$PATH"
@@ -46,13 +47,33 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         end
         return out
     end
-    -- How many copies the scene should hold: one for every monitor that is plugged in, so a desk of three or four
-    -- is served and a desk of one does not pay for copies it has no monitors for. Growing happens as soon as a
-    -- monitor appears, because a monitor without a copy of its own shows nothing at all, not even the frame;
-    -- shrinking happens only in the first settle after starting, so unplugging a monitor in the middle of the day
+    -- Where a monitor's copy is: copy K goes to the K-th monitor in the compositor's order (not left to right), so a scene of N copies
+    -- covers the first N of them. A copy that has landed says which one it is on (`screen.K.name`); for the others, the compositor's
+    -- own numbering (Hyprland's `id`, pleamar-wm's `ID`) is the same order. A monitor that is not plugged in comes after them all.
+    local function slot(name)
+        for k = 0, MAX - 1 do
+            if text["screen." .. k .. ".name"] == name then return k end
+        end
+        local order = {}
+        for _, m in ipairs(B.mons) do order[#order + 1] = m end
+        table.sort(order, function(a, b) return (a.id or 0) < (b.id or 0) end)
+        for i, m in ipairs(order) do if m.name == name then return i - 1 end end
+        return nil
+    end
+    -- How many copies the scene should hold. With the frame on the other monitors (`others`), one for every monitor that is plugged in;
+    -- without it, the copies of the monitors that are not chosen would only be closed, so just enough for the chosen ones to have
+    -- theirs (up to the last of them in the compositor's order). Every copy is the whole scene again, and three of it no longer fit in
+    -- a scene (issue #60: a desk of three had no bar at all): so never more than fit (`B.fit`, measured once at the start).
+    -- Growing happens as soon as a monitor appears, because a monitor without a copy of its own shows nothing at all, not even the
+    -- frame; shrinking happens only in the first settle after starting, so unplugging a monitor in the middle of the day
     -- does not restart the bar. (A file from before says one monitor's name, and is moved over.)
     local function want()
-        local n = #B.mons
+        local n = 0
+        if B.others then n = #B.mons end
+        for _, name in ipairs(chosen()) do
+            local k = slot(name)
+            if k and k + 1 > n then n = k + 1 end
+        end
         -- A chosen monitor that is not plugged in keeps a copy waiting for it: switched on after the session started (or plugged in again), it gets
         -- that copy and the bar moves to it at once. Without it the bar was first shrunk to the others, then started again to grow back, and for a
         -- second or two it was gone, then on every monitor, before it settled on the chosen one.
@@ -66,6 +87,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
             local have = tonumber((B.file or ""):match("^each max (%d+)") or "")
             if have and have > n then n = have end
         end
+        if B.fit and n > B.fit then n = B.fit end
         return n
     end
     local function file_for()
@@ -136,6 +158,14 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
             local gone = {}
             for _, n in ipairs(B.pref or {}) do if #B.mons > 0 and not connected(n) then gone[#gone + 1] = n end end
             text.bar_msg = #gone > 0 and (table.concat(gone, ", ") .. (#gone > 1 and " aren't" or " isn't") .. " plugged in: the bar waits for " .. (#gone > 1 and "them" or "it") .. ".") or ""
+            -- More copies wanted than fit (want() stops at B.fit): say so, rather than a monitor left bare without a word.
+            if text.bar_msg == "" and B.fit and B.fit < MAX then
+                local need = B.others and #B.mons or 0
+                for _, name in ipairs(chosen()) do local k = slot(name); if k and k + 1 > need then need = k + 1 end end
+                if need > B.fit then
+                    text.bar_msg = "The shell fits on " .. B.fit .. " monitor" .. (B.fit > 1 and "s" or "") .. " at once: " .. (B.others and "turn off the frame on the others, or " or "") .. "choose fewer."
+                end
+            end
         end
     end
 
@@ -171,7 +201,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
     -- first seconds after starting, so a monitor that is still waking up does not send it back and forth.
     local function settle()
         if B.busy or B.file == nil or #B.mons == 0 then return end
-        if not B.awake then return end
+        if not B.awake or B.fit == nil then return end
         local value = file_for()
         B.may_shrink = false
         if value ~= B.file then restart(value) else publish() end
@@ -189,13 +219,13 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
                     local sc = (j.scale and j.scale > 0) and j.scale or 1
                     local w, h = math.floor((j.width or 0) / sc + 0.5), math.floor((j.height or 0) / sc + 0.5)
                     if tall then w, h = h, w end
-                    mons[#mons + 1] = { name = j.name, x = j.x or 0, y = j.y or 0, tall = tall, w = w, h = h }
+                    mons[#mons + 1] = { name = j.name, id = j.id, x = j.x or 0, y = j.y or 0, tall = tall, w = w, h = h }
                 end
             else
                 -- pleamar-wm's `hyprctl monitors` is text, even with -j: "Monitor <name> (ID 1):", "2560x1440@164.83 at 1440x733" (its sizes already turned by the rotation).
-                for name, body in (out .. "\n\n"):gmatch("Monitor (%S+) %(ID %d+%):\n(.-)\n\n") do
+                for name, id, body in (out .. "\n\n"):gmatch("Monitor (%S+) %(ID (%d+)%):\n(.-)\n\n") do
                     local w, h, x, y = body:match("(%d+)x(%d+)@[%d%.]+ at (%-?%d+)x(%-?%d+)")
-                    if w then mons[#mons + 1] = { name = name, x = tonumber(x), y = tonumber(y), tall = tonumber(h) > tonumber(w), w = tonumber(w), h = tonumber(h) } end
+                    if w then mons[#mons + 1] = { name = name, id = tonumber(id), x = tonumber(x), y = tonumber(y), tall = tonumber(h) > tonumber(w), w = tonumber(w), h = tonumber(h) } end
                 end
             end
             if #mons == 0 then return end
@@ -266,11 +296,14 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         if B.file ~= nil and file_for() ~= B.file then restart() else publish() end
     end)
 
-    -- Settings > Bar's switch: the frame on the other monitors, or nothing there. The scene is on every monitor already, so it is at once.
+    -- Settings > Bar's switch: the frame on the other monitors, or nothing there. Turned on, the monitors without a copy need one
+    -- (without the frame only the chosen ones have theirs), and the bar is started again for them; otherwise it is at once.
     on("bar_others_toggle", function()
+        if B.busy then return end
         B.others = not B.others
         save(B.pref or chosen())
-        publish()
+        show()
+        if B.file ~= nil and B.fit ~= nil and file_for() ~= B.file then restart() else publish() end
     end)
 
     local ok, saved = pcall(sys.ask, "files.read", "bar.json", "json")
@@ -294,6 +327,16 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
             local v = (out or ""):match("screens:%s*(.-)%s*;")
             if v == nil then return end
             B.file = v
+            -- How many copies fit: what this file holds now, said by `pleamar --check`, over the copies it has (the little the scene
+            -- holds once for all of them is counted in each, which only errs low). Without an answer, as many as the page offers.
+            local have = tonumber(v:match("^each max (%d+)") or "") or 1
+            run("pleamar", { "--check", d.conf .. "/vitreus.plm" }, function(chk)
+                local props = tonumber((chk or ""):match("ok · (%d+) properties") or "")
+                B.fit = props and props > 0 and math.max(1, math.min(MAX, math.floor(LIMIT * have / props))) or MAX
+                if B.fit < MAX then log("bar · " .. B.fit .. " copies fit (" .. tostring(props) .. " properties for " .. have .. ")") end
+                show()
+                settle()
+            end)
             local named = v:match('^"([^"]+)"')
             if B.pref == nil and named then B.pref = { named } end
             show()
