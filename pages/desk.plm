@@ -44,6 +44,11 @@ part Desk {
                 }
                 on release desk_resize.$i { desk_rhold = false; desk_rk = -1 }
             }
+            //  Everything the screen shows is one thing that is pushed: an app slides in from the right, going deeper; Home comes back from the left
+            //  (`ap`, 0 to 1, started by the screen changing, `ap_home` for Home; the grip, the handles and the dock stay put outside it).
+            group {
+            move: (1 - ap) * dsk_w * 0.4 * if(ap_home, -1, 1), 0
+            opacity: 0.1 + 0.9 * min(1, ap * 1.5)
             //  Shelf: drop things on it, drag them back out anywhere.
             group {
                 show: desk_tab == 1
@@ -208,12 +213,15 @@ part Desk {
                     for sg in dr_segs2 {
                         line { from: bd_x + sg.x0 * du / 2, bd_y + sg.y0 * du / 2; to: bd_x + sg.x1 * du / 2, bd_y + sg.y1 * du / 2; width: (1.8 + 2.6 * sg.w) * du; color: pick(sg.c, ink, #ff5a5f, #ff9f43, #ffd93d, #4cd97b, #4da3ff, #a66bff, #ff6bcb) }
                     }
-                    ellipse { at: dr_px, dr_py; radius: pick(dr_thick, 7, 12, 20) * du; stroke: 1.4 * du; color: ink; opacity: if(dr_held and dr_tool == 1, 85%, 0%) }
+                    ellipse { at: dr_px, dr_py; radius: pick(dr_thick, 7, 12, 20, 28, 36) * du; stroke: 1.4 * du; color: ink; opacity: if(dr_held and dr_tool == 1, 85%, 0%) }
                 }
                 zone box dr_pad { at: dsk_xc, bd_y + 118 * du; size: 312 * du, 236 * du; cursor: pointer }
                 on press dr_pad { dr_held = true; dr_px = (dsk_pvx + ((pointer.x - tx.dsk) - dsk_pvx) / desk_s); dr_py = (dsk_pvy + ((pointer.y - ty.dsk) - dsk_pvy) / desk_s); emit dr_down(floor(((dsk_pvx + ((pointer.x - tx.dsk) - dsk_pvx) / desk_s) - bd_x) / du * 2) * 1000 + floor(((dsk_pvy + ((pointer.y - ty.dsk) - dsk_pvy) / desk_s) - bd_y) / du * 2)) }
                 on drag dr_pad { dr_px = (dsk_pvx + ((pointer.x - tx.dsk) - dsk_pvx) / desk_s); dr_py = (dsk_pvy + ((pointer.y - ty.dsk) - dsk_pvy) / desk_s); emit dr_pt(floor(((dsk_pvx + ((pointer.x - tx.dsk) - dsk_pvx) / desk_s) - bd_x) / du * 2) * 1000 + floor(((dsk_pvy + ((pointer.y - ty.dsk) - dsk_pvy) / desk_s) - bd_y) / du * 2)) }
                 on release dr_pad { dr_held = false; emit dr_up }
+                //  a right click on the board is Undo, and the wheel over it changes the pen's size
+                on press right dr_pad { emit dr_undo }
+                on scroll dr_pad { dr_thick = clamp(dr_thick + if(wheel > 0, 1, -1), 0, 4) }
                 //  The tools: a rainbow of eight pens on one row; two thicknesses, undo and clear on the next.
                 let tl_y = dsk_y0 + 356 * du
                 let tl2_y = dsk_y0 + 396 * du
@@ -224,10 +232,10 @@ part Desk {
                     zone box dr_pen.$i { at: px_, tl_y; size: 34 * du, 30 * du; cursor: pointer }
                     on press dr_pen.$i { dr_col = i; dr_tool = 0 }
                 }
-                repeat i in 0..3 {
-                    let tx_ = dsk_xc - 138 * du + i * 26 * du
-                    ellipse { at: tx_, tl2_y; radius: (2.2 + 2.2 * i) * du; color: ink; opacity: if(dr_thick == i, 100%, 40%) }
-                    zone box dr_th.$i { at: tx_, tl2_y; size: 25 * du, 28 * du; cursor: pointer }
+                repeat i in 0..5 {
+                    let tx_ = dsk_xc - 150 * du + i * 21 * du
+                    ellipse { at: tx_, tl2_y; radius: (1.8 + 1.5 * i) * du; color: ink; opacity: if(dr_thick == i, 100%, 40%) }
+                    zone box dr_th.$i { at: tx_, tl2_y; size: 21 * du, 28 * du; cursor: pointer; label: "Pen size {i + 1}" }
                     on press dr_th.$i { dr_thick = i }
                 }
                 //  The eraser takes out whatever of a stroke it passes over; it lights up while it is the tool.
@@ -260,6 +268,21 @@ part Desk {
                 group { scale: rs; pivot: floor(dsk_xc + 120 * du + 0.5), floor(tl2_y + 0.5); text "Clear" { at: floor(dsk_xc + 120 * du + 0.5), floor(tl2_y + 0.5); anchor: center; align: center; size: 11.5; weight: 600; color: ink; opacity: 88%; family: "Space Grotesk" } }
                 zone box dr_clear_b { at: dsk_xc + 120 * du, tl2_y; size: 58 * du, 30 * du; corner: 12 * du; cursor: pointer }
                 on press dr_clear_b { emit dr_clear }
+                //  Row three: keep the drawing. A picture of it (on paper) goes to the Shelf, or to the slideshow's folder as a photo; what happened is said under them.
+                let sv_y = dsk_y0 + 436 * du
+                repeat i in 0..2 {
+                    let sv_x = dsk_xc + (i - 0.5) * 118 * du
+                    body {
+                        color: ink
+                        opacity: 9% + 10% * dr_sv.$i.hover
+                        rim: 22%
+                        box { at: sv_x, sv_y; size: 108 * du, 28 * du; corner: 11 * du }
+                    }
+                    DTC(if(i == 0, "To the Shelf", "As a photo"), sv_x, sv_y, 11.5, 600, ink, 0.88, 100 * du)
+                    zone box dr_sv.$i { at: sv_x, sv_y; size: 110 * du, 30 * du; corner: 12 * du; cursor: pointer; label: if(i == 0, "Put the drawing on the Shelf", "Save the drawing as a photo for the slideshow") }
+                    on press dr_sv.$i { emit dr_save(i) }
+                }
+                DTC(dr_msg, dsk_xc, sv_y + 26 * du, 11, 400, faint, 0.9, 300 * du)
             }
 
             //  Notes' Reminders: a short to-do list (it was the Pad's; logic/pad.luau still keeps it, in desk-tasks.json).
@@ -742,6 +765,7 @@ part Desk {
             include "desk_notes.plm"
             include "desk_camera.plm"
             include "desk_memos.plm"
+            }
             include "desk_dock.plm"
             //  Anything carried over the panel, on any tab, can be let go to keep it on the shelf. This is declared last so that, while a
             //  drag is over, it is the zone on top (the cards and buttons below keep their own presses the rest of the time: it is off then).

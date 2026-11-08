@@ -13,6 +13,7 @@ part DeskDock {
             box { at: dsk_xc, hb.y; size: 7 * du, 7 * du; corner: 2 * du; stroke: 1.3; color: mix(ink, mint, 0.3); opacity: 70% + 25% * dk_home.hover }
         }
         zone ellipse dk_home { at: dsk_xc, hb.y; radius: 13 * du; cursor: pointer; label: "Home" }
-        on press dk_home { desk_tab = 6; desk_edit = false }
+        //  Only when the screen really changes: the animation is started again by that change, so resetting it on Home itself would leave it shrunk and dim.
+        on press dk_home while desk_tab != 6 or desk_edit { ap: 0 ~0ms; ap_home = true; desk_tab = 6; desk_edit = false }
     }
 }

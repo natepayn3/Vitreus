@@ -14,6 +14,7 @@ part DeskDecl {
     //  Customize: a row is taken by its name or its grip and dragged to another place (`dr_s` the place it was taken from, 1 to 9; 0 none). `dr_dy` is how far it
     //  has been pulled (layout px, kept inside the list), `dr_t` the place it would land in. Let go, the logic moves the tool there (`dk_reorder`).
     fact dr_s = 0
+    text dr_msg = ""                                     // what saving the drawing said (logic/draw.luau)
     fact dr_dy = 0
     let dr_c = clamp(dr_dy, (1 - dr_s) * 25 * du, (9 - dr_s) * 25 * du)
     let dr_t = if(dr_s > 0, clamp(dr_s + floor(dr_c / (25 * du) + 0.5), 1, 9), 0)
@@ -64,6 +65,14 @@ part DeskDecl {
     fact memo_pk = -1
     fact memo_pp = 0
     event memo_play ->
+    event memo_seek ->                                     // a press on the wave while one plays: where, 0 to 1000
+    //  The wave across the top of Memos: 44 bars, the level of what is being recorded (rolling), or the shape of the memo that plays. `wv_mode`: 0 idle, 1 recording, 2 playing.
+    fact wv_mode = 0
+    repeat i in 0..44 {
+        fact wv.$i = 0
+        prop wv.$i.s = 0 ~90ms
+        follow wv.$i.s = wv.$i
+    }
     event memo_del ->
     fact note_n = 0
     fact note_sel = -1                                     // the note open, -1 the list
@@ -176,6 +185,13 @@ part DeskDecl {
 
     //  Motion: the dock's icons rise as they are pressed, the screen flashes faintly when the tool changes.
     prop dk_flash = 0 ~420ms
+    //  The screen opens: an app out of the icon that was pressed (`ap_x`, `ap_y`; 0 when it was not an icon), Home as an app leaves.
+    fact ap_x = 0
+    fact ap_y = 0
+    fact ap_home = false                                   // it opens from the home button (going Home) rather than from an icon
+    prop ap = 1 ~300ms
+    on change desk_tab { ap: 0 ~0ms; ap: 1 ~300ms after 30ms }
+    on change desk_edit { ap: 0 ~0ms; ap: 1 ~300ms after 30ms }          // Settings (Customize) opens and closes like an app
     on change desk_tab { dk_flash: 1 ~0ms; dk_flash: 0 after 40ms; desk_edit = false; shelf_menu = -1; clip_menu = -1 }
     //  The logic hears this when the Desk comes out or changes tool (a fact the logic sets itself does not reach its own handlers): Notes and the
     //  Pad read their files again then, so what another tool added to them (an answer kept as a note, a captured task) is there.

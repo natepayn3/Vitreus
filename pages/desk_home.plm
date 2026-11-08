@@ -121,9 +121,9 @@ part DeskHome {
                         zone box hm_ic.$t { at: at.x, at.y + 5 * du; size: 56 * du, 60 * du; corner: 12 * du; cursor: pointer; label: pick(at.id, "Pad", "Shelf", "Clip", "Focus", "Term", "Ask", "Home", "Notes", "Camera", "Memos", "Settings") }
                         on enter hm_ic.$t { hm_hot = hm_hot + 1 }
                         on leave hm_ic.$t { hm_hot = max(hm_hot - 1, 0) }
-                        on press hm_ic.$t while at.id < 9 { desk_tab = at.id }
-                        on press hm_ic.$t while at.id == 9 { desk_tab = 9 }
-                        on press hm_ic.$t while at.id == 10 { desk_edit = true }
+                        on press hm_ic.$t while at.id < 9 { ap: 0 ~0ms; ap_home = false; ap_x = at.x; ap_y = at.y; desk_tab = at.id }
+                        on press hm_ic.$t while at.id == 9 { ap: 0 ~0ms; ap_home = false; ap_x = at.x; ap_y = at.y; desk_tab = 9 }
+                        on press hm_ic.$t while at.id == 10 { ap: 0 ~0ms; ap_home = false; ap_x = at.x; ap_y = at.y; desk_edit = true }
                     }
                 }
             }
@@ -220,7 +220,7 @@ part DeskHome {
             box { at: hm.r - 26 * du, dsk_y0 + 112 * du; size: 52 * du, 18 * du; corner: 10 * du; color: mint; opacity: 26% + 14% * ce_done.hover }
             DTC("Done", hm.r - 26 * du, dsk_y0 + 112 * du, 11, 600, ink, 1, 50 * du)
             zone box ce_done { at: hm.r - 26 * du, dsk_y0 + 112 * du; size: 54 * du, 22 * du; corner: 10 * du; cursor: pointer; label: "Done" }
-            on press ce_done { desk_edit = false }
+            on press ce_done { ap: 0 ~0ms; ap_home = true; desk_edit = false }
             //  Home first (the home button's), then the nine apps in their order.
             repeat s in 0..10 {
                 let ry = dsk_y0 + (142 + s * 25) * du + if(s == 0, 0, if(dr_s == s, dr_c, pick(max(s - 1, 0), dk_sh.0, dk_sh.1, dk_sh.2, dk_sh.3, dk_sh.4, dk_sh.5, dk_sh.6, dk_sh.7, dk_sh.8)))

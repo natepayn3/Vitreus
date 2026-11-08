@@ -5,7 +5,7 @@
 -- away the last stroke that is still there. With the eraser as the tool, the same points take out whatever segments they pass near.
 return function()
     local LIMIT, W, H, STEP = 768, 624, 472, 3
-    local REACH = { [0] = 14, 24, 40 }                    -- the eraser's reach in half units, by size
+    local REACH = { [0] = 14, 24, 40, 56, 72 }                    -- the eraser's reach in half units, by size
     local segs = {}                                       -- { x0, y0, x1, y1, c, w, k }
     local stroke, last, dirty = 0, nil, false
     local function clamp(v, a, b) return math.max(a, math.min(b, v)) end
@@ -108,6 +108,47 @@ return function()
         segs, last = {}, nil
         dirty = true
         save()
+    end)
+    -- ── keeping it ──
+    -- The drawing as a picture (magick draws the segments on paper, twice the board's half units), then to the Shelf (0) or into the slideshow's
+    -- folder, Pictures/myPad (1), where Home's photo frame and the Camera's photos live.
+    local INK = { [0] = "#23272e", "#ff5a5f", "#ff9f43", "#ffd93d", "#4cd97b", "#4da3ff", "#a66bff", "#ff6bcb" }
+    local function say(m)
+        text.dr_msg = m
+        after(2500, function() if text.dr_msg == m then text.dr_msg = "" end end)
+    end
+    local saving = false
+    on("dr_save", function(where)
+        if saving then return end
+        if #segs == 0 then say("Nothing drawn yet"); return end
+        saving = true
+        run("xdg-user-dir", { "PICTURES" }, function(out)
+            local pics = ((out or ""):gsub("%s+$", ""))
+            if pics == "" then saving = false; say("The picture could not be saved"); return end
+            local dir = pics .. "/myPad"
+            local file = dir .. "/drawing-" .. os.date("%Y%m%d-%H%M%S") .. ".png"
+            local args = { "-size", (W * 2) .. "x" .. (H * 2), "xc:#fbf9f3", "-fill", "none", "-stroke", INK[0], "-linecap", "round" }
+            local cur_c, cur_w
+            for _, s in ipairs(segs) do
+                if s.c ~= cur_c then cur_c = s.c; args[#args + 1] = "-stroke"; args[#args + 1] = INK[s.c] or INK[0] end
+                if s.w ~= cur_w then cur_w = s.w; args[#args + 1] = "-strokewidth"; args[#args + 1] = tostring((1.8 + 2.6 * s.w) * 4) end
+                args[#args + 1] = "-draw"
+                args[#args + 1] = string.format("line %d,%d %d,%d", s.x0 * 2, s.y0 * 2, s.x1 * 2, s.y1 * 2)
+            end
+            args[#args + 1] = file
+            run("mkdir", { "-p", dir }, function()
+                run("magick", args, function(_, c)
+                    saving = false
+                    if c ~= 0 then say("The picture could not be saved"); return end
+                    if tonumber(where) == 0 then
+                        if desk_shelf_add then desk_shelf_add(file) end
+                        say("Drawing put on the Shelf")
+                    else
+                        say("Saved to Pictures/myPad, for the slideshow")
+                    end
+                end)
+            end)
+        end)
     end)
     every(40, flush)
     flush()

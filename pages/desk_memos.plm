@@ -9,6 +9,18 @@ part DeskMemos {
         show: desk_tab == 9
         opacity: fd1
         move: 0, (1 - fd1) * 12 * du
+        //  the wave: 22 bars to the left of the record button and 22 to the right; the level of what is recorded rolls through them, and a memo that plays
+        //  shows its whole shape, the part played in the accent. A press on it, while one plays, goes to that place.
+        let wv.pitch = (mm.w - 92 * du) / 44
+        group {
+            repeat i in 0..44 {
+                let wv.x = if(i < 22, mm.l + (i + 0.5) * wv.pitch, dsk_xc + 46 * du + (i - 22 + 0.5) * wv.pitch)
+                let wv.h = max(3 * du, wv.$i.s * 60 * du)
+                box { at: wv.x, dsk_y0 + 136 * du; size: max(2 * du, wv.pitch * 0.55), wv.h; corner: wv.pitch * 0.28; color: if(wv_mode == 1, #ff6b7a, if(wv_mode == 2 and (i + 0.5) / 44 <= memo_pp, mint, ink)); opacity: if(wv_mode == 1, 90%, if(wv_mode == 2, if((i + 0.5) / 44 <= memo_pp, 100%, 38%), 14%)) }
+            }
+        }
+        zone box mm_wv { from: mm.l, dsk_y0 + 104 * du; size: mm.w, 64 * du; cursor: pointer; active: wv_mode == 2; label: "Go to a place in the memo" }
+        on press mm_wv { emit memo_seek(clamp((local.x - mm.l) / mm.w, 0, 1) * 1000) }
         //  the record button
         let mm.ry = dsk_y0 + 136 * du
         group {
