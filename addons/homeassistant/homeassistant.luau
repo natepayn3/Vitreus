@@ -25,6 +25,11 @@ local content = 0
 local busy = false
 local tick = 0
 local hold_until = {}       -- by tile: until which tick (seconds) a poll must not overwrite what a click just changed
+-- The panel's rows keep their order while the panel lives (`keys`: the tiles' entities, `#2` for a second tile of the same one): a tile carried
+-- elsewhere moves on its spring instead of trading places with another row. `rowmap`: row (from 1) -> its tile in config.json's order. `mv`: the
+-- tile being carried in edit mode, and the order it would leave behind if it were let go of now (shown live: the others make room).
+local hl = { keys = {}, rowmap = {}, mv = nil, wrote = nil }      -- (`wrote`: config.json as a move left it, already shown: not read again)
+local function row_item(k) return hl.rowmap[(tonumber(k) or -1) + 1] end
 local open = false
 local last_sig = ""
 
@@ -46,6 +51,9 @@ local ICONS = {
 </svg>]],
     ["reproductor.svg"] = [[<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
 <rect x="3" y="3" width="18" height="18" rx="4.6"/><path d="M9 8.4v6.1a1.6 1.6 0 0 0 1.6 1.6h.5"/><path d="M7.4 10.6h3.3"/><path d="M12.6 10.6l2 5.4 2-5.4"/>
+</svg>]],
+    ["altavoz.svg"] = [[<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+<rect x="5.5" y="2.5" width="13" height="19" rx="2.4"/><circle cx="12" cy="14.5" r="4.2"/><circle cx="12" cy="14.5" r="1.1" fill="#ffffff" stroke="none"/><circle cx="12" cy="7" r="1.7" stroke-width="1.5"/>
 </svg>]],
     ["lampara-pie.svg"] = [[<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
 <path d="M8.2 3.2h7.6l2.2 6.3H6z"/><path d="M12 9.5v10.3"/><path d="M8.3 20.6h7.4"/><path d="M14.6 9.5v1.8"/>
@@ -69,7 +77,7 @@ local EXAMPLE = [[{
   "_insecure": "true only for https with a certificate of your own (self-signed).",
   "insecure": false,
   "_rooms": "The rooms, in order. name: its title. temperature and humidity (optional): a sensor whose reading is shown beside the name. items: its tiles.",
-  "_items": "type: \"light\" (a click toggles it, a right click opens its brightness) or \"toggle\" (input_boolean, switch, plug, media player...). icon: drawn in Vitreus's pencil, by name: lightbulb, floor_lamp, power, bedtime, mode_fan, tv, power_outlet, door_front, home (anything else is a bulb for a light, a power sign for a switch), or one of the add-on's own (led-strip.svg and the rest, see its README), or an .svg of yours. color: true on a light whose colour can change (an RGB bulb or LED strip): its right click card shows the colours too. tint: true draws that light's tile and card in its own colour instead of the accent. apple_tv: on an Apple TV's tile, { \"remote\": \"remote.living_room\" } gives it a card (right click) with what plays, its buttons and a remote. on_text and off_text are optional. A tile's size is changed on the panel, with the pencil.",
+  "_items": "type: \"light\" (a click toggles it, a right click opens its brightness) or \"toggle\" (input_boolean, switch, plug, media player...). icon: drawn in Vitreus's pencil, by name: lightbulb, floor_lamp, power, bedtime, mode_fan, tv, power_outlet, door_front, home (anything else is a bulb for a light, a power sign for a switch), or one of the add-on's own (led-strip.svg and the rest, see its README), or an .svg of yours. color: true on a light whose colour can change (an RGB bulb or LED strip): its right click card shows the colours too. tint: true draws that light's tile and card in its own colour instead of the accent. apple_tv: on an Apple TV's tile, { \"remote\": \"remote.living_room\" } gives it a card (right click) with what plays, its buttons and a remote. \"type\": \"speaker\" on a DLNA renderer's media_player (a Mi Smart Clock, a network speaker): a click plays or pauses it, a right click opens its card with the artwork, play/pause, next and a volume slider; its icon is speaker.svg. on_text and off_text are optional. A tile's size is changed on the panel, with the pencil.",
   "rooms": [
     {
       "name": "Living room",
@@ -130,7 +138,7 @@ local STR = {
         st_add_ent = "+ Entidad", st_add_room = "+ Habitación", st_no_room = "Sin habitación", st_n_tile = "%d ficha", st_n_tiles = "%d fichas",
         st_new_ent = "Nueva entidad", st_edit_ent = "Editar entidad", st_new_room = "Nueva habitación", st_edit_room = "Editar habitación",
         st_entity = "Entidad de Home Assistant", st_entity_ph = "Escribe para buscar: salón, light.…", st_name = "Nombre", st_name_ph = "Cómo se llama en el panel",
-        st_type = "Tipo", st_light = "Luz", st_toggle = "Interruptor", st_room = "Habitación", st_icon = "Icono",
+        st_type = "Tipo", st_light = "Luz", st_toggle = "Interruptor", st_speaker = "Altavoz (DLNA)", st_room = "Habitación", st_icon = "Icono",
         st_own_icon = "Usa un icono propio (%s): elige otro aquí para cambiarlo.",
         st_color = "Cambiar el color desde su tarjeta", st_tint = "Ficha del color de la luz", st_tv = "Tarjeta de reproductor y mando (Apple TV)",
         st_remote = "Mando (entidad remote.…)", st_printer = "Tarjeta de impresora 3D", st_printer_pick = "Impresora (Bambu Lab) encontrada en Home Assistant:",
@@ -139,6 +147,9 @@ local STR = {
         st_save = "Guardar", st_add = "Añadir", st_cancel = "Cancelar", st_delete = "Eliminar", st_up = "Subir", st_down = "Bajar",
         st_delete_room_sure = "¿Eliminar con sus %d fichas?", st_room_name = "Nombre de la habitación", st_room_name_ph = "Salón, Dormitorio…",
         st_temp = "Sensor de temperatura (opcional)", st_hum = "Sensor de humedad (opcional)",
+        st_act_name = "Nombre del botón %d (opcional)", st_act_icon = "Icono del botón %d · pulsa el elegido para volver al suyo",
+        st_acts = "Dos botones con el clic derecho", st_act1 = "Botón 1", st_act2 = "Botón 2", st_act_ph = "Una entidad, o shell_command.…",
+        st_acts_note = "En fichas de 1 x 1 o más grandes. Cada botón enciende o apaga su entidad; un shell_command, un script, una escena o un botón se ejecuta.",
         st_need_entity = "Falta la entidad, o no es válida (dominio.nombre, p. ej. light.salon).", st_need_name = "Falta el nombre de la habitación.",
         st_broken = "config.json tiene un error y no se puede leer aquí: ábrelo en el editor para arreglarlo.",
         demo = "Demostración", demo_title = "Modo demostración: todavía sin conectar",
@@ -147,7 +158,7 @@ local STR = {
         tv_off = "Apagado", tv_on = "Encendido", tv_playing = "Reproduciendo", tv_paused = "En pausa", tv_nothing = "No se está reproduciendo nada",
         tab_media = "Reproducción", tab_remote = "Mando", kb_hint = "Teclado: flechas, Intro, Retroceso (atrás) y Espacio (reproducir/pausa)",
         power = "Encender o apagar", up = "Arriba", down = "Abajo", left = "Izquierda", right = "Derecha", select = "Seleccionar", back = "Atrás",
-        home = "TV (inicio)", playpause = "Reproducir o pausar", volup = "Subir el volumen", voldown = "Bajar el volumen", mute = "Silenciar", prev = "Anterior", next = "Siguiente",
+        home = "TV (inicio)", playpause = "Reproducir o pausar", volup = "Subir el volumen", voldown = "Bajar el volumen", mute = "Silenciar", prev = "Anterior", next = "Siguiente", volume = "Volumen", spk_ready = "Listo",
     },
     en = {
         connecting = "Connecting…", connected = "Connected · %d of %d %s", tile = "tile", tiles = "tiles", no_tiles = "Connected · no tiles",
@@ -183,7 +194,7 @@ local STR = {
         st_add_ent = "+ Entity", st_add_room = "+ Room", st_no_room = "No room", st_n_tile = "%d tile", st_n_tiles = "%d tiles",
         st_new_ent = "New entity", st_edit_ent = "Edit entity", st_new_room = "New room", st_edit_room = "Edit room",
         st_entity = "Home Assistant entity", st_entity_ph = "Type to search: living, light.…", st_name = "Name", st_name_ph = "What the panel calls it",
-        st_type = "Kind", st_light = "Light", st_toggle = "Switch", st_room = "Room", st_icon = "Icon",
+        st_type = "Kind", st_light = "Light", st_toggle = "Switch", st_speaker = "Speaker (DLNA)", st_room = "Room", st_icon = "Icon",
         st_own_icon = "Uses an icon of its own (%s): pick another here to change it.",
         st_color = "Change its colour from its card", st_tint = "Tile in the light's colour", st_tv = "Player card and remote (Apple TV)",
         st_remote = "Remote (remote.… entity)", st_printer = "3D printer card", st_printer_pick = "Printer (Bambu Lab) found in Home Assistant:",
@@ -192,6 +203,9 @@ local STR = {
         st_save = "Save", st_add = "Add", st_cancel = "Cancel", st_delete = "Delete", st_up = "Move up", st_down = "Move down",
         st_delete_room_sure = "Delete with its %d tiles?", st_room_name = "Room name", st_room_name_ph = "Living room, Bedroom…",
         st_temp = "Temperature sensor (optional)", st_hum = "Humidity sensor (optional)",
+        st_act_name = "Button %d's name (optional)", st_act_icon = "Button %d's icon · press the chosen one to go back to its own",
+        st_acts = "Two buttons on a right click", st_act1 = "Button 1", st_act2 = "Button 2", st_act_ph = "An entity, or shell_command.…",
+        st_acts_note = "On tiles of 1 x 1 or bigger. Each button toggles its entity; a shell_command, a script, a scene or a button is run.",
         st_need_entity = "The entity is missing, or not valid (domain.name, e.g. light.living_room).", st_need_name = "The room needs a name.",
         st_broken = "config.json has an error and can't be read here: open it in the editor to fix it.",
         demo = "Demo", demo_title = "Demo mode: not connected yet",
@@ -200,7 +214,7 @@ local STR = {
         tv_off = "Off", tv_on = "On", tv_playing = "Playing", tv_paused = "Paused", tv_nothing = "Nothing playing",
         tab_media = "Now playing", tab_remote = "Remote", kb_hint = "Keyboard: arrows, Return, BackSpace (back) and Space (play/pause)",
         power = "Power", up = "Up", down = "Down", left = "Left", right = "Right", select = "Select", back = "Back",
-        home = "TV (home)", playpause = "Play or pause", volup = "Volume up", voldown = "Volume down", mute = "Mute", prev = "Previous", next = "Next",
+        home = "TV (home)", playpause = "Play or pause", volup = "Volume up", voldown = "Volume down", mute = "Mute", prev = "Previous", next = "Next", volume = "Volume", spk_ready = "Ready",
     },
 }
 local WORDS = {
@@ -297,6 +311,7 @@ local WORDS = {
     "st_type",
     "st_light",
     "st_toggle",
+    "st_speaker",
     "st_room",
     "st_icon",
     "st_own_icon",
@@ -323,6 +338,13 @@ local WORDS = {
     "st_hum",
     "st_need_entity",
     "st_need_name",
+    "st_acts",
+    "st_act1",
+    "st_act2",
+    "st_act_ph",
+    "st_acts_note",
+    "st_act_name",
+    "st_act_icon",
     "st_broken",
     "demo",
     "demo_title",
@@ -351,6 +373,8 @@ local WORDS = {
     "mute",
     "prev",
     "next",
+    "volume",
+    "spk_ready",
     "wg_title",
     "wg_hint",
 }
@@ -427,7 +451,7 @@ end
 local ALIAS = {
     ["led-strip.svg"] = "tira-led.svg", ["wall-lantern.svg"] = "farol-pared.svg", ["pendant-lamp.svg"] = "lampara-pergola.svg",
     ["floor-lamp.svg"] = "lampara-pie.svg", ["3d-printer.svg"] = "impresora-3d.svg", ["tv-box.svg"] = "reproductor.svg",
-    ["terrarium.svg"] = "terrario.svg", ["fan-heater.svg"] = "calefactor.svg",
+    ["terrarium.svg"] = "terrario.svg", ["fan-heater.svg"] = "calefactor.svg", ["speaker.svg"] = "altavoz.svg",
 }
 
 
@@ -446,7 +470,7 @@ local PENCIL = {
 }
 -- The add-on's own icons (its .svg files) are drawn in pencil too, from ha-icons.plm's HDev; any other .svg or .png is drawn as it is.
 local DEV = { ["tira-led.svg"] = 0, ["farol-pared.svg"] = 1, ["lampara-pergola.svg"] = 2, ["lampara-pie.svg"] = 3, ["impresora-3d.svg"] = 4,
-    ["reproductor.svg"] = 5, ["terrario.svg"] = 6, ["calefactor.svg"] = 7 }
+    ["reproductor.svg"] = 5, ["terrario.svg"] = 6, ["calefactor.svg"] = 7, ["altavoz.svg"] = 8 }
 local function dev_k(it)
     if not it.file then return -1 end
     return DEV[it.file] or -1
@@ -494,7 +518,7 @@ local function scene_words()
     text.t_tab1 = T("tab_remote")
     text.t_kb = T("kb_hint")
     text.t_power = T("power")
-    for _, k in ipairs({ "up", "down", "left", "right", "select", "back", "home", "playpause", "volup", "voldown", "mute", "prev", "next", "wg_title", "wg_hint" }) do
+    for _, k in ipairs({ "up", "down", "left", "right", "select", "back", "home", "playpause", "volup", "voldown", "mute", "prev", "next", "volume", "wg_title", "wg_hint" }) do
         text["t_" .. k] = T(k)
     end
 end
@@ -502,6 +526,13 @@ on("fact:hl_editing", function() text.t_ed = fact.hl_editing == true and T("ed_d
 
 -- an entity id is a domain, a dot and a name: anything else could break the template it is written into
 local function valid(e) return type(e) == "string" and e:match("^[%a_]+%.[%w_]+$") ~= nil end
+local parse_actions          -- (below, with the printer's)
+-- (a tile's buttons) what is only run, not switched; and a name made from an id, "shell_command.reboot_pc" → "Reboot pc"
+local RUN = { shell_command = true, script = true, scene = true, button = true, input_button = true, automation = true }
+local function humane(id)                  -- "shell_command.reboot_pc" → "Reboot pc"
+    local n = (tostring(id):match("%.(.+)$") or tostring(id)):gsub("_", " ")
+    return (n:gsub("^%l", string.upper))
+end
 
 local function decimal(v, places)
     local s = string.format("%." .. places .. "f", v)
@@ -517,8 +548,9 @@ local function columns()
 end
 
 -- Lay the tiles out: room by room, each under its head (a room with no name has none), each tile in the first place it fits, left to right and
--- top to bottom, so a small one fills the hole a big one left.
-local function layout()
+-- top to bottom, so a small one fills the hole a big one left. `ord` (a list of { i = tile, room = room }) lays them out in another order, and
+-- another room, than config.json's: the order a tile being carried would leave behind.
+local function layout(ord)
     place, room_yu = {}, {}
     content = 0
     if not cfg then return end
@@ -540,8 +572,10 @@ local function layout()
         end
         local rows = 0
         local halves = cols * 2          -- (in half columns: a tile takes one, the icon alone, or two, a column, or more; its size is kept in columns, 0.5 for a half)
-        for i, it in ipairs(cfg.items) do
-            if it.room == k then
+        for n = 1, #(ord or cfg.items) do
+            local i = ord and ord[n].i or n
+            local it = cfg.items[i]
+            if (ord and ord[n].room or it.room) == k then
                 local sz = sizes[it.entity] or {}
                 local cs = math.max(1, math.min(halves, math.floor((tonumber(sz[1]) or 1) * 2 + 0.5)))
                 local rs = math.max(1, math.min(3, tonumber(sz[2]) or 1))
@@ -608,7 +642,7 @@ end
 -- half written) and shown with a version, so the same name is read again.
 local pr_pic_n, pr_shown, pr_busy = 0, "", false
 local function pr_item()
-    local it = cfg and cfg.items[(tonumber(fact.pr_i) or -1) + 1]
+    local it = cfg and cfg.items[row_item(fact.pr_i) or 0]
     return it and it.printer and it or nil
 end
 local function pr_fetch(pic)
@@ -669,6 +703,7 @@ local tvs = {}              -- by media player: { st, title, artist, series, app
 local TV_CODE = { off = 0, standby = 0, unavailable = 0, unknown = 0, idle = 1, on = 1, playing = 2, buffering = 2, paused = 3 }
 local TV_LABEL = { [0] = "tv_off", "tv_on", "tv_playing", "tv_paused" }
 local tv_busy, tv_pic_n, tv_shown, tv_pbusy, tv_retry = false, 0, "", false, nil
+local tv_vol_until = nil    -- the volume slider was just moved: its value stands until Home Assistant has caught up
 local function tv_code(t) return t and (TV_CODE[t.st] or 1) or 0 end
 local function tv_now(t)                -- where it is now, in seconds (-1: it does not say)
     if not t or t.dur <= 0 or t.pos < 0 then return -1 end
@@ -683,7 +718,7 @@ local function clock(sec)
     return string.format("%d:%02d", m, x)
 end
 local function tv_item()
-    local it = cfg and cfg.items[(tonumber(fact.tv_i) or -1) + 1]
+    local it = cfg and cfg.items[row_item(fact.tv_i) or 0]
     return it and it.tv and it or nil
 end
 local function tv_fetch(pic)
@@ -884,6 +919,9 @@ local function tv_fill()
     text.tv_icon = it.file and "" or it.icon
     fact.tv_custom = own_pic(it)
     fact.tv_has_rm = it.tv.remote ~= nil
+    fact.tv_spk = it.tv.spk == true
+    if tv_vol_until and tick >= tv_vol_until then tv_vol_until = nil end
+    if not tv_vol_until and fact.tv_vdirty ~= true and t and t.vol >= 0 then fact.tv_vol = t.vol end
     fact.tv_st = code
     local app = t and t.app or ""
     text.tv_app = code > 0 and app or ""
@@ -956,7 +994,7 @@ local function tv_poll()
 end
 
 show = function()
-    local rows, heads = {}, {}
+    local rows, heads, byitem = {}, {}, {}
     if cfg then
         for i, it in ipairs(cfg.items) do
             local s = state[i] or { on = false, bri = 0, avail = false }
@@ -985,12 +1023,45 @@ show = function()
                 if code >= 2 then          -- playing or paused: that, and what (or in which app), instead of the tile's line
                     local what = (t.title ~= "" and t.title) or t.app
                     sub = T(TV_LABEL[code]) .. (what ~= "" and (" · " .. what) or "")
+                elseif it.spk and s.avail then  -- a speaker with nothing to play: ready for music
+                    sub = code == 1 and T("spk_ready") or T("tv_off")
                 end
             end
-            rows[#rows + 1] = { name = it.name, icon = it.file and "" or it.icon, img = it.file and (folder .. "/" .. it.file) or "", custom = own_pic(it) and 1 or 0, dk = dev_k(it), sub = sub, on = s.on and 1 or 0, kind = it.kind, bri = s.bri or 0,
+            byitem[#byitem + 1] = { name = it.name, icon = it.file and "" or it.icon, img = it.file and (folder .. "/" .. it.file) or "", custom = own_pic(it) and 1 or 0, dk = dev_k(it), sub = sub, on = s.on and 1 or 0, kind = it.kind, bri = s.bri or 0,
                 avail = (s.avail and not it.bad) and 1 or 0, col = p.col, cs = p.cs, rs = p.rs, yu = p.yu, prn = it.printer and 1 or 0, pp = pp,
                 cc = it.color and 1 or 0, ct = it.tint and 1 or 0, hk = ((it.color or it.tint) and s.hs) and 1 or 0, hu = s.hs and s.hs.h or 0, sa = s.hs and s.hs.s or 0,
                 tvr = it.tv and 1 or 0, pk = pencil_k(it) }
+            -- its two buttons (a right click brings them out), each with its name, its icon, whether it is on (lit), and whether it is only run (lit a moment)
+            local row = byitem[#byitem]
+            local acts = (not it.bad) and it.acts or nil
+            row.qa = acts and #acts or 0
+            for n = 1, 2 do
+                local a = acts and acts[n]
+                local e = a and est[a.entity]
+                row["an" .. n] = a and (a.name or (e and e.name ~= "" and e.name) or humane(a.entity)) or ""
+                row["ak" .. n] = a and a.pk or 0
+                row["ad" .. n] = a and a.dk or -1
+                row["ai" .. n] = (a and a.file) and (folder .. "/" .. a.file) or ""
+                row["ar" .. n] = (a and a.run) and 1 or 0
+                local st = e and e.st or ""
+                row["ao" .. n] = (a and not a.run and (st == "on" or st == "open" or st == "playing" or st == "home" or st == "unlocked")) and 1 or 0
+                row["av" .. n] = (a and (a.dom == "shell_command" or cfg.demo or (e and st ~= "unavailable"))) and 1 or 0
+            end
+        end
+        -- the rows keep their order while the same tiles are there (moved, they only change place); tiles added or taken away start it again
+        local keys, at, seen = {}, {}, {}
+        for i, it in ipairs(cfg.items) do
+            seen[it.entity] = (seen[it.entity] or 0) + 1
+            keys[i] = it.entity .. "#" .. seen[it.entity]
+            at[keys[i]] = i
+        end
+        local same = #hl.keys == #keys
+        for _, key in ipairs(hl.keys) do if not at[key] then same = false end end
+        if not same then hl.keys = keys end
+        hl.rowmap = {}
+        for k, key in ipairs(hl.keys) do
+            hl.rowmap[k] = at[key]
+            rows[k] = byitem[at[key]]
         end
         for k, room in ipairs(cfg.rooms) do
             if room.name ~= "" then
@@ -1004,10 +1075,12 @@ show = function()
                 heads[#heads + 1] = { name = room.name, temp = t, hum = h, has_t = t ~= "" and 1 or 0, has_h = h ~= "" and 1 or 0, yu = room_yu[k] or 0 }
             end
         end
+    else
+        hl.rowmap = {}
     end
     pr_fill()
     tv_fill()
-    if wg then wg.rows(rows) end
+    if wg then wg.rows(byitem) end
     -- (only what changed: the poll answers every few seconds, mostly with the same)
     local sig = json.encode({ rows, heads, content })
     if sig == last_sig then return end
@@ -1057,6 +1130,7 @@ local function poll()
     for _, room in ipairs(cfg.rooms) do want(room.temp); want(room.hum) end
     for _, it in ipairs(cfg.items) do
         if it.printer then for _, k in ipairs(PR_POLL) do want(it.printer[k]) end end
+        for _, a in ipairs(it.acts or {}) do if a.dom ~= "shell_command" then want(a.entity) end end      -- (a shell_command is no entity: nothing to read)
     end
     tv_poll()
     if #ids == 0 then
@@ -1068,7 +1142,7 @@ local function poll()
     for k, e in ipairs(ids) do quoted[k] = '"' .. e .. '"' end
     -- The state, the brightness (0 to 255), the unit, the picture's address (an image's or a camera's), the colour (hue and saturation, a light's) and, for a time, when it is (HH:MM, or dd/mm HH:MM
     -- another day, in Home Assistant's time zone) of each entity, as a JSON list, in the order of `ids`.
-    local tpl = "[{% for e in [" .. table.concat(quoted, ",") .. "] %}{% set ts = as_timestamp(states(e), none) %}[{{ states(e) | tojson }},{{ (state_attr(e, 'brightness') or 0) | int }},{{ (state_attr(e, 'unit_of_measurement') or '') | tojson }},{{ (state_attr(e, 'entity_picture') or '') | tojson }},{{ (state_attr(e, 'hs_color') or []) | list | tojson }},{% if ts is not none %}{{ (ts | timestamp_custom('%H:%M') if (ts | timestamp_custom('%Y%m%d')) == now().strftime('%Y%m%d') else ts | timestamp_custom('%d/%m %H:%M')) | tojson }}{% else %}\"\"{% endif %}]{{ ',' if not loop.last }}{% endfor %}]"
+    local tpl = "[{% for e in [" .. table.concat(quoted, ",") .. "] %}{% set ts = as_timestamp(states(e), none) %}[{{ states(e) | tojson }},{{ (state_attr(e, 'brightness') or 0) | int }},{{ (state_attr(e, 'unit_of_measurement') or '') | tojson }},{{ (state_attr(e, 'entity_picture') or '') | tojson }},{{ (state_attr(e, 'hs_color') or []) | list | tojson }},{% if ts is not none %}{{ (ts | timestamp_custom('%H:%M') if (ts | timestamp_custom('%Y%m%d')) == now().strftime('%Y%m%d') else ts | timestamp_custom('%d/%m %H:%M')) | tojson }}{% else %}\"\"{% endif %},{{ (state_attr(e, 'friendly_name') or '') | tojson }}]{{ ',' if not loop.last }}{% endfor %}]"
     busy = true
     call("/api/template", json.encode({ template = tpl }), function(ok, out, err)
         busy = false
@@ -1084,7 +1158,7 @@ local function poll()
         end
         for k, e in ipairs(ids) do
             local row = list[k]
-            if type(row) == "table" then est[e] = { st = tostring(row[1] or "unknown"), bri = tonumber(row[2]) or 0, unit = tostring(row[3] or ""), pic = tostring(row[4] or ""), hs = row[5], tm = tostring(row[6] or "") } end
+            if type(row) == "table" then est[e] = { st = tostring(row[1] or "unknown"), bri = tonumber(row[2]) or 0, unit = tostring(row[3] or ""), pic = tostring(row[4] or ""), hs = row[5], tm = tostring(row[6] or ""), name = tostring(row[7] or "") } end
         end
         local count = 0
         for i, it in ipairs(cfg.items) do
@@ -1095,6 +1169,7 @@ local function poll()
                 s.known = true
                 s.avail = st ~= "unavailable" and st ~= "unknown"
                 s.on = st == "on" or st == "open" or st == "playing" or st == "paused" or st == "idle" or st == "buffering" or st == "home"
+                if it.spk then s.on = st == "playing" or st == "buffering" end          -- a speaker is lit while it plays
                 if it.kind == 0 then s.bri = s.on and math.max(0.01, e.bri / 255) or 0 end
                 -- its colour, when it says one (a light that is off says none: the last one is kept)
                 local hs = e.hs
@@ -1108,6 +1183,30 @@ local function poll()
         set_state(1, T("connected", count, #cfg.items, #cfg.items == 1 and T("tile") or T("tiles")))
         show()
     end)
+end
+
+-- A tile's "actions": up to two buttons that a right click brings out of it (on a tile of a column or more). Each one an entity id, or { "entity", "name",
+-- "icon" }. A button toggles its entity; one that is only run (a shell_command, a script, a scene, a button…) is run, and lights up a moment. None: nil.
+parse_actions = function(list)
+    if type(list) ~= "table" then return nil end
+    local out = {}
+    for _, a in ipairs(list) do
+        local e, name, icon = nil, nil, nil
+        if type(a) == "string" then e = a
+        elseif type(a) == "table" then e, name, icon = a.entity, a.name, a.icon end
+        if valid(e) and #out < 2 then
+            local dom = e:match("^([%a_]+)%.")
+            -- an icon: one of the pencil's by name, or one of the add-on's own drawings by its file (reproductor.svg, the Apple TV's, and the rest)
+            local dk = type(icon) == "string" and DEV[ALIAS[icon] or icon] or nil
+            local pk = PENCIL[type(icon) == "string" and icon or ""]
+            if dk then pk = 0 end
+            if pk == nil then
+                pk = ({ light = 0, fan = 4, climate = 4, media_player = 5, switch = 6, cover = 7, lock = 7 })[dom] or (RUN[dom] and -1 or 2)
+            end
+            out[#out + 1] = { entity = e, dom = dom, run = RUN[dom] == true, name = type(name) == "string" and name ~= "" and name or nil, pk = pk, dk = dk or -1, file = dk and (ALIAS[icon] or icon) or nil }
+        end
+    end
+    return #out > 0 and out or nil
 end
 
 -- A tile's "printer": the entities it names (any of PR_KEYS), the ones that are valid ids. None: no printer.
@@ -1145,14 +1244,17 @@ local function load()
             if type(sz) == "table" then sizes[e] = { tonumber(sz[1]) or 1, tonumber(sz[2]) or 1 } end
         end
     end
+    -- (read again after a change, a tile keeps what was known of it: it does not go blank until the next answer)
+    local known, was_url = {}, cfg and fact.hl_state == 1 and cfg.url or nil
+    if cfg then for i, it in ipairs(cfg.items) do known[it.entity] = { s = state[i], h = hold_until[i] } end end
+    hl.mv = nil
     local ok, c = pcall(sys.ask, "files.read", CONFIG, "json")
     lang_files()
     use_lang(ok and type(c) == "table" and c.language or nil)
     scene_words()
     cfg = nil
     state = {}
-    est = {}
-    tvs = {}
+    hold_until = {}
     last_sig = ""
     if not ok or type(c) ~= "table" then
         set_state(3, T("not_set"), T("unreadable", (tostring(c):gsub("^.-: ", ""))))
@@ -1179,20 +1281,25 @@ local function load()
             if type(it) == "table" and type(it.entity) == "string" and #items < MAX_ITEMS then
                 local entity = it.entity
                 local kind = (it.type == "light" or (it.type == nil and entity:match("^light%."))) and 0 or 1
+                -- a speaker (a DLNA Digital Media Renderer, such as the Mi Smart Clock): a click plays or pauses, a right click opens its card
+                local spk = it.type == "speaker" and entity:match("^media_player%.") ~= nil
+                local icon = type(it.icon) == "string" and it.icon ~= "" and it.icon or (spk and "speaker.svg") or (kind == 0 and "lightbulb" or "toggle_on")
                 items[#items + 1] = {
                     kind = kind,
                     entity = entity,
                     name = type(it.name) == "string" and it.name or entity,
-                    icon = type(it.icon) == "string" and it.icon ~= "" and it.icon or (kind == 0 and "lightbulb" or "toggle_on"),
+                    icon = icon,
                     -- an icon of its own: a file in the data folder (only a plain name: the folder is all a scene may read)
-                    file = type(it.icon) == "string" and it.icon:match("^[%w%._%-]+%.[sp][vn]g$") and (ALIAS[it.icon] or it.icon) or nil,
+                    file = icon:match("^[%w%._%-]+%.[sp][vn]g$") and (ALIAS[icon] or icon) or nil,
                     on_text = type(it.on_text) == "string" and it.on_text or nil,
                     off_text = type(it.off_text) == "string" and it.off_text or nil,
                     bad = not valid(entity),
                     printer = parse_printer(it.printer),
                     color = kind == 0 and it.color == true,          -- its colour is chosen in the card too
                     tint = kind == 0 and it.tint == true,            -- its tile and card are drawn in its own colour, not the accent
-                    tv = parse_tv(it.apple_tv, entity),
+                    tv = spk and { media = entity, spk = true } or parse_tv(it.apple_tv, entity),
+                    spk = spk,
+                    acts = parse_actions(it.actions),
                     room = k,
                     croom = croom, cidx = n,         -- where it is in config.json: the room there (0: the top level's items) and its place in it
                 }
@@ -1217,6 +1324,15 @@ local function load()
         end
     end
     cfg = { url = url, insecure = c.insecure == true, rooms = rooms, items = items, art_search = c.artwork_search ~= false and not demo, demo = demo }
+    if url ~= was_url then
+        est = {}
+        tvs = {}
+    else
+        for i, it in ipairs(items) do
+            local k = known[it.entity]
+            if k then state[i] = k.s; hold_until[i] = k.h end
+        end
+    end
     if demo then
         -- The demo: config.json's own rooms (the example's, the first time), every tile working here and nowhere else: lights on and off at different levels, a colour
         -- on the ones that have one, a print half way, and something playing on a player.
@@ -1246,10 +1362,18 @@ local function load()
         set_state(2, T("offline"), T("no_auth"))
         return
     end
-    set_state(0, T("connecting"))
+    if url ~= was_url then set_state(0, T("connecting")) end
     layout()
     show()
     poll()
+end
+
+-- Play or pause, by what it is doing: media_pause or media_play. Home Assistant only takes media_play_pause from a player that says it can do both
+-- at once, and many DLNA renderers say only the one that fits their state (playing: pause; paused: play). Unknown: play_pause, and let it decide.
+local function play_or_pause(code)
+    if code == 2 then return "/api/services/media_player/media_pause" end
+    if code == 3 or code == 1 then return "/api/services/media_player/media_play" end
+    return "/api/services/media_player/media_play_pause"
 end
 
 -- What the tiles and the slider ask for
@@ -1258,6 +1382,22 @@ local function tap(k)
     local it = cfg and cfg.items[i]
     local s = state[i]
     if not it or it.bad or not s or not s.avail then return end
+    if it.spk then                                        -- a speaker: play or pause, at once on the tile; Home Assistant confirms it
+        local t = tvs[it.entity]
+        local code = tv_code(t)
+        local svc = play_or_pause(code)
+        if t and code == 2 then t.pos = tv_now(t); t.el = 0; t.at = tick; t.st = "paused"
+        elseif t and code == 3 then t.st = "playing"; t.at = tick; t.el = 0 end
+        s.on = t ~= nil and t.st == "playing"
+        hold_until[i] = tick + 3
+        show()
+        call(svc, json.encode({ entity_id = it.entity }), function(ok, _, err)
+            if not ok then set_state(2, T("offline"), err) end
+            hold_until[i] = nil
+            after(800, poll)
+        end)
+        return
+    end
     s.on = not s.on
     if it.kind == 0 and s.on and (s.bri or 0) <= 0 then s.bri = 1 end
     hold_until[i] = tick + 3
@@ -1269,7 +1409,33 @@ local function tap(k)
         after(700, poll)
     end)
 end
-on("hl_tap", tap)
+on("hl_tap", function(k) local i = row_item(k); if i then tap(i - 1) end end)       -- (a row of the panel; the desktop cards tap by tile)
+
+-- One of a tile's two buttons, pressed (`v`: the tile's row × 10 + the button, 1 or 2). One that is only run is run (a shell_command by its own service);
+-- any other is toggled, and shown so at once, as a tile is.
+on("qa_tap", function(v)
+    v = math.floor(tonumber(v) or 0)
+    local i = row_item(v // 10)
+    local it = i and cfg and cfg.items[i]
+    local a = it and it.acts and it.acts[v % 10]
+    if not a then return end
+    local dom, name = a.entity:match("^([%a_]+)%.(.+)$")
+    local path, body = "/api/services/homeassistant/toggle", { entity_id = a.entity }
+    if dom == "shell_command" then path, body = "/api/services/shell_command/" .. name, {}
+    elseif dom == "script" or dom == "scene" then path = "/api/services/" .. dom .. "/turn_on"
+    elseif dom == "button" or dom == "input_button" then path = "/api/services/" .. dom .. "/press"
+    elseif dom == "automation" then path = "/api/services/automation/trigger"
+    else
+        local e = est[a.entity] or { st = "off", bri = 0, unit = "", pic = "", tm = "", name = "" }      -- (the demo has read nothing: off to begin with)
+        e.st = (e.st == "on") and "off" or "on"
+        est[a.entity] = e
+        show()
+    end
+    call(path, next(body) and json.encode(body) or "{}", function(ok, _, err)          -- (an empty table would go as [], which is no object)
+        if not ok then set_state(2, T("offline"), err) end
+        after(700, poll)
+    end)
+end)
 
 -- A light's brightness (0 to 1), from the card's slider or the desktop widget's wheel
 local function bri_to(i, v)
@@ -1289,12 +1455,12 @@ local function bri_to(i, v)
         after(900, function() hold_until[i] = nil; poll() end)
     end)
 end
-on("hl_bri", function(v) bri_to((tonumber(fact.sl_i) or -1) + 1, v) end)
+on("hl_bri", function(v) bri_to(row_item(fact.sl_i) or 0, v) end)
 
 -- A colour chosen in the card: hue in degrees times 1000 plus saturation in percent. Home Assistant takes it as hs_color; a light that is off is turned
 -- on with it, at full brightness.
 on("hl_color", function(v)
-    local i = (tonumber(fact.sl_i) or -1) + 1
+    local i = row_item(fact.sl_i) or 0
     local it = cfg and cfg.items[i]
     if not it or not it.color or it.bad then return end
     v = math.floor(tonumber(v) or 0)
@@ -1319,48 +1485,144 @@ function size_words(hs, rs)
     return ((whole > 0 and tostring(whole) or "") .. (half and "½" or "")) .. " × " .. tostring(rs)
 end
 on("fact:rz_i", function(v)
-    local i = (tonumber(v) or -1) + 1
+    local i = row_item(v) or 0
     local p = place[i]
     if p then text.t_rz = size_words(p.cs, p.rs) end
 end)
 
--- A tile carried to another place in edit mode: it takes the place of the tile it was dropped on (into that one's room), or goes to the end of the room it
--- was dropped in. config.json is written (settings.luau keeps it in order) and read again.
-on("hl_move", function(code)
-    code = math.floor(tonumber(code) or -1)
-    if code < 0 or not cfg then return end
-    local i = math.floor(code / 10000000) + 1
-    local px, py = math.floor(code % 10000000 / 10000), code % 10000
-    local it = cfg.items[i]
-    if not it or not st then return end
+-- A tile carried to another place in edit mode. While it is carried the others make room for it at once (on their springs): over another tile it takes
+-- that one's place (that one and the ones between move up or down by one), over another room with no tile under it, it goes to the end of that room;
+-- the place it would land on is where the scene shows its outline. Let go of, it goes there: config.json is written (settings.luau keeps it in order)
+-- and read again, which leaves everything where it already is.
+local function cell_w()
     local cols = columns()
     local W = (tonumber(fact.slot_w) or 520) / 1.1
-    local tw = (W - 28 - (cols - 1) * GAP) / cols
-    local hw = (tw - GAP) / 2
-    local target = nil
+    return ((W - 28 - (cols - 1) * GAP) / cols - GAP) / 2           -- half a column (unscaled)
+end
+local function preview()
+    local m = hl.mv
+    if not m or not cfg then return end
+    local px, py = (tonumber(fact.mv_cx) or 0) / 1.1, (tonumber(fact.mv_cy) or 0) / 1.1      -- the carried tile's middle, unscaled, from the list's top left
+    local hw = cell_w()
+    local over = nil
     for j, p in pairs(place) do
-        local x0, y0 = 14 + p.col * (hw + GAP), p.yu
-        local w, h = p.cs * hw + (p.cs - 1) * GAP, p.rs * TH + (p.rs - 1) * GAP
-        if j ~= i and px >= x0 and px <= x0 + w and py >= y0 and py <= y0 + h then target = j; break end
+        if j ~= m.i then
+            local x0, y0 = 14 + p.col * (hw + GAP), p.yu
+            if px >= x0 and px <= x0 + p.cs * hw + (p.cs - 1) * GAP and py >= y0 and py <= y0 + p.rs * TH + (p.rs - 1) * GAP then over = j; break end
+        end
     end
-    if target then
-        local to = cfg.items[target]
-        st.move_item(it.croom, it.cidx, to.croom, to.cidx)
+    local ord = m.ord
+    local function pos(i) for n, o in ipairs(ord) do if o.i == i then return n end end end
+    if over then
+        -- (once it has made room, the tile it was over has to be left before it counts again: two tiles of different sizes would otherwise swap back and forth)
+        if over == m.last then return end
+        m.last = over
+        local b = pos(over)
+        local me = table.remove(ord, pos(m.i))
+        for _, o in ipairs(ord) do if o.i == over then me.room = o.room end end
+        table.insert(ord, b, me)          -- (after it, when it came from before; before it, when it came from after)
+    else
+        m.last = nil
+        local room = nil
+        for k = 1, #cfg.rooms do if py >= (room_yu[k] or 0) then room = k end end
+        local n = pos(m.i)
+        if not room or room == ord[n].room then return end
+        local me = table.remove(ord, n)
+        me.room = room
+        ord[#ord + 1] = me                -- (the last of that room: the layout takes each room's tiles in this order)
+    end
+    layout(ord)
+    show()
+end
+on("fact:mv_cx", preview)
+on("fact:mv_cy", preview)
+on("fact:mv_i", function(v)
+    v = tonumber(v) or -1
+    if v >= 0 then
+        local i = row_item(v)
+        hl.mv = nil
+        if not cfg or not i then return end
+        local ord = {}
+        for n, it in ipairs(cfg.items) do ord[n] = { i = n, room = it.room } end
+        hl.mv = { i = i, ord = ord }
+    elseif hl.mv and not hl.mv.done then
+        -- let go of without an `hl_move` (it comes before this when there is one): everything back
+        local m = hl.mv
+        after(120, function() if hl.mv == m and not m.done then hl.mv = nil; layout(); show() end end)
+    end
+end)
+on("hl_move", function()
+    local m = hl.mv
+    if not m or not cfg or not st then return end
+    m.done = true
+    local it = cfg.items[m.i]
+    if not it then hl.mv = nil return end
+    local ord = m.ord
+    local n0 = 1
+    for n, o in ipairs(ord) do if o.i == m.i then n0 = n end end
+    local room = ord[n0].room
+    local nxt, was = nil, nil            -- the tile it goes before in its room (none: the last), and the one it was before
+    for n = n0 + 1, #ord do if ord[n].room == room then nxt = ord[n].i; break end end
+    for j = m.i + 1, #cfg.items do if cfg.items[j].room == it.room then was = j; break end end
+    if not cfg.rooms[room] or (room == it.room and nxt == was) then
+        hl.mv = nil
+        layout()
+        show()
         return
     end
-    -- no tile there: the room it was dropped in (the last whose head is above it)
-    local room = nil
-    for k = 1, #cfg.rooms do
-        local top = room_yu[k] or 0
-        if py >= top then room = k end
+    local ti = nil
+    if nxt then
+        local to = cfg.items[nxt]
+        ti = to.cidx
+        if to.croom == it.croom and to.cidx > it.cidx then ti = ti - 1 end      -- (taken out first, the ones after it move up by one)
     end
-    if room and cfg.rooms[room] then st.move_item(it.croom, it.cidx, cfg.rooms[room].croom, nil) end
+    local txt, c = st.move_item(it.croom, it.cidx, cfg.rooms[room].croom, ti)
+    if txt and c then
+        -- The tile is already where it goes: config.json's order is put in place here, and the file is not read again (reading it all again, every
+        -- entity and room, held the panel for about a second). Only if what was written is not what the panel has does it read it again.
+        local items, nstate, nhold = {}, {}, {}
+        for k, rm in ipairs(cfg.rooms) do
+            local n = 0
+            for _, o in ipairs(ord) do
+                if o.room == k then
+                    local x = cfg.items[o.i]
+                    n = n + 1
+                    x.room, x.croom, x.cidx = k, rm.croom, n
+                    items[#items + 1] = x
+                    nstate[#items], nhold[#items] = state[o.i], hold_until[o.i]
+                end
+            end
+        end
+        cfg.items, state, hold_until = items, nstate, nhold
+        hl.mv = nil
+        layout()
+        show()
+        local same = true
+        for k, rm in ipairs(cfg.rooms) do
+            local list = rm.croom == 0 and c.items or (type(c.rooms) == "table" and type(c.rooms[rm.croom]) == "table" and c.rooms[rm.croom].items) or {}
+            local n = 0
+            for _, x in ipairs(cfg.items) do
+                if x.room == k then
+                    n = n + 1
+                    if type(list[n]) ~= "table" or list[n].entity ~= x.entity then same = false end
+                end
+            end
+            if #list ~= n then same = false end
+        end
+        hl.wrote = same and txt or nil
+        if not same then load() end
+        return
+    end
+    -- not written: everything back to how it was
+    hl.mv = nil
+    layout()
+    show()
 end)
 
 -- A tile pulled to a new size in edit mode: the others make room at once, and it is kept
 local save_due = false
 on("hl_resize", function(k)
-    local it = cfg and cfg.items[(tonumber(k) or -1) + 1]
+    local it = cfg and cfg.items[row_item(k) or 0]
     if not it then return end
     local hs = math.max(1, math.min(8, math.floor((tonumber(fact.rz_w) or 2) + 0.5)))       -- in half columns
     local rs = math.max(1, math.min(3, math.floor((tonumber(fact.rz_h) or 1) + 0.5)))
@@ -1425,6 +1687,32 @@ local tv_muted = false
 local TV_REMOTE = { [0] = "up", "down", "left", "right", "select", "menu", "home", "play_pause", "volume_up", "volume_down" }
 on("fact:tv_open", function(v) if v == true then tv_shown = ""; art_shown = ""; fact.tv_has_pic = false; fact.tv_has_appic = false; model.tv_pic = {}; tv_fill(); tv_poll() end end)
 on("fact:tv_i", function() if fact.tv_open == true then tv_shown = ""; art_shown = ""; tv_fill() end end)
+on("tv_vol", function(v)                                  -- the card's volume slider (a speaker's): 0 to 1
+    local it = tv_item()
+    local media = it and it.tv.media
+    if not media then return end
+    v = math.max(0, math.min(1, tonumber(v) or 0))
+    local t = tvs[media]
+    if t then t.vol = v end
+    tv_vol_until = tick + 4
+    call("/api/services/media_player/volume_set", json.encode({ entity_id = media, volume_level = math.floor(v * 100 + 0.5) / 100 }), function(ok, _, err)
+        if not ok then set_state(2, T("offline"), err) end
+        after(900, tv_poll)
+    end)
+end)
+on("tv_seek", function(x)                                 -- the card's progress bar clicked: there, 0 to 1 of what plays
+    local it = tv_item()
+    local media = it and it.tv.media
+    local t = media and tvs[media]
+    if not t or t.dur <= 0 then return end
+    local to = math.floor(math.max(0, math.min(1, tonumber(x) or 0)) * t.dur + 0.5)
+    t.pos = to; t.el = 0; t.at = tick                     -- (at once on the card; Home Assistant confirms it)
+    tv_fill()
+    call("/api/services/media_player/media_seek", json.encode({ entity_id = media, seek_position = to }), function(ok, _, err)
+        if not ok then set_state(2, T("offline"), err) end
+        after(1200, tv_poll)
+    end)
+end)
 on("tv_cmd", function(c)
     c = tonumber(c) or -1
     local it = tv_item()
@@ -1460,7 +1748,7 @@ on("tv_cmd", function(c)
     elseif TV_REMOTE[c] and remote then
         svc, body = "/api/services/remote/send_command", { entity_id = remote, command = TV_REMOTE[c] }
     elseif media and (c == 7 or c == 8 or c == 9) then     -- no remote: the media player's own
-        svc = "/api/services/media_player/" .. ({ [7] = "media_play_pause", [8] = "volume_up", [9] = "volume_down" })[c]
+        svc = c == 7 and play_or_pause(tv_code(t)) or ("/api/services/media_player/" .. ({ [8] = "volume_up", [9] = "volume_down" })[c])
         body = { entity_id = media }
     end
     if not svc then return end
@@ -1477,12 +1765,17 @@ on("tv_cmd", function(c)
 end)
 
 on("fact:sl_i", function(v)
-    local it = cfg and cfg.items[(tonumber(v) or -1) + 1]
+    local it = cfg and cfg.items[row_item(v) or 0]
     if it then
         text.sl_name = it.name
         text.sl_icon = it.file and "" or it.icon
         fact.sl_custom = own_pic(it)
     end
+end)
+
+-- Esc with nothing else open in the panel: the drawer is shut, as its X does (only if it is this add-on's: `slot_open`)
+on("hl_esc", function()
+    if fact.slot_open == true then run("pleamar", { "--say", "vitreus", "fact ax_open false" }, function() end) end
 end)
 
 on("hl_refresh", function()
@@ -1531,7 +1824,7 @@ local last_w = -1
 on("fact:slot_w", function(v)
     if not cfg or tonumber(v) == last_w then return end
     last_w = tonumber(v) or -1
-    layout()
+    layout(hl.mv and hl.mv.ord)
     show()
     if st then st.width_changed() end
 end)
@@ -1579,7 +1872,15 @@ st = require("settings")({
 
 lang_reload = function() load(); if st then st.refresh() end end
 sys.watch("files:" .. CONFIG, function()
-    after(150, function() load(); if st then st.refresh() end end)
+    after(150, function()
+        if hl.wrote then
+            local ok, now = pcall(sys.ask, "files.read", CONFIG)
+            if ok and (now == hl.wrote or now .. "\n" == hl.wrote) then return end           -- (a tile moved here: the panel already shows it)
+            hl.wrote = nil
+        end
+        load()
+        if st then st.refresh() end
+    end)
 end)
 
 every(1000, function()

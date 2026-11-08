@@ -1,6 +1,6 @@
 # Home Assistant for Vitreus
 
-A [Vitreus](https://github.com/natepayn3/Vitreus) add-on that brings your Home Assistant home into the shell: lights, switches, an Apple TV and a 3D printer, grouped by room, in a panel made of Vitreus's own glass.
+A [Vitreus](https://github.com/natepayn3/Vitreus) add-on that brings your Home Assistant home into the shell: lights, switches, an Apple TV, DLNA speakers and a 3D printer, grouped by room, in a panel made of Vitreus's own glass.
 
 It speaks English by default and ships with a Spanish translation already installed (see [Languages](#languages)).
 
@@ -12,8 +12,10 @@ It speaks English by default and ships with a Spanish translation already instal
 - [Install and update](#install-and-update)
 - [Setting it up](#setting-it-up)
 - [Using the panel](#using-the-panel) (and the desktop widgets)
+- [Two buttons on a right click](#two-buttons-on-a-right-click)
 - [Lights and colours](#lights-and-colours)
 - [Apple TV](#apple-tv)
+- [Speakers (DLNA)](#speakers-dlna)
 - [3D printer](#3d-printer)
 - [Icons](#icons)
 - [Languages](#languages)
@@ -27,6 +29,7 @@ It speaks English by default and ships with a Spanish translation already instal
 - **Rooms and tiles.** Each room has a title and, optionally, its temperature and humidity. A click turns a tile on or off.
 - **Lights.** A right click opens a brightness card. Colour lights can also get a colour picker, and their tiles can be tinted in the colour they have.
 - **Apple TV.** A card shows what is playing, with artwork, progress, transport controls and volume. A second tab holds a remote laid out like the Siri Remote, which the keyboard can drive too.
+- **Speakers (DLNA).** A click plays or pauses a DLNA renderer (a Mi Smart Clock, a network speaker). A right click opens a card with the artwork, play/pause, next and a volume slider.
 - **3D printer.** A card shows the print's cover or the live camera, its progress and times, and Pause / Resume / Stop buttons.
 - **Settings menu.** The gear opens a settings page where you set everything from the panel itself, with no JSON needed. Your entities are suggested as you type.
 - **Edit mode.** You can resize tiles in half columns, down to icon-only tiles, and drag them to rearrange.
@@ -67,9 +70,10 @@ Click the **gear** to open the settings. It has two tabs.
 - **+ Room** and **+ Entity** add one. Click an existing room or tile to edit it.
 - An entity is found by typing. The suggestions are your Home Assistant entities, matched by id or by name.
 - For each tile you choose:
-  - its name, kind (light or switch), room and icon;
+  - its name, kind (light, switch or speaker), room and icon;
   - the on/off texts;
   - the options that fit it: colour picker and tint for a light, card and remote for a media player, card for a printer.
+- A DLNA renderer (Home Assistant's *DLNA Digital Media Renderer* integration) is detected automatically and set up as a speaker.
 - A Bambu Lab printer is detected automatically, and all its entities are filled in for you.
 - A room has a name and optional temperature and humidity sensors. Rooms can be moved up or down, or deleted.
 
@@ -94,7 +98,9 @@ Until a token is set, the panel runs as a demo. A banner explains what is missin
 ## Using the panel
 
 - **Click** a tile to toggle it.
-- **Right click** a light, an Apple TV or a printer to open its card.
+- **Click** a speaker to play or pause it.
+- **Right click** a light, an Apple TV, a speaker or a printer to open its card.
+- **Right click** a tile with [two buttons](#two-buttons-on-a-right-click) to bring them out of it.
 - The **refresh** button reloads states from Home Assistant.
 
 ### Edit mode
@@ -133,6 +139,33 @@ Drag the add-ons piece onto the bar (**Settings > Bar > Island layout**), and th
 hl.unbind("SUPER + H")
 hl.bind("SUPER + H", hl.dsp.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --say vitreus \"emit ax_toggle\""))
 ```
+
+## Two buttons on a right click
+
+Any tile can carry two buttons of its own, for whatever you want at hand next to it: another light, a switch, or a command. A right click on the tile brings them out
+of its middle: two half tiles that pop out and land side by side over it, each with its icon and its name under it. A click outside them, a right click or Escape puts
+them back.
+
+- A button for an entity (a light, a switch, an `input_boolean`…) **toggles** it, and is lit while it is on.
+- A button for something that is only run, a **`shell_command`**, a `script`, a `scene`, a `button` or an `automation`, runs it. It lights up for a few seconds, with a
+  ring of light going out from its icon, so you can see it went.
+
+It works on tiles one column wide or more (1 × 1 and up): a half-column tile, only an icon, keeps its usual right click. On a light, a printer or an Apple TV, the buttons
+take the right click's place, and their cards stay out of reach until the buttons are turned off again.
+
+Turn it on in the settings: open the tile in **Entities**, switch on **Two buttons on a right click**, and write an entity in **Button 1** and **Button 2**. The suggestions
+include your shell commands. Under each one you can give the button a **name** of its own (left empty, it is the entity's) and pick its **icon**: the panel's nine, or the Apple TV's
+(`reproductor.svg`), for a button that switches to it (press the chosen one again to go back to its own). Or in `config.json`:
+
+```json
+{ "type": "light", "name": "Lamp", "entity": "light.lamp",
+  "actions": [ "light.led_strip", { "entity": "shell_command.shutdown_pc", "name": "Shut down", "icon": "power" } ] }
+```
+
+Each button is an entity id, or `{ "entity", "name", "icon" }` to give it a name (otherwise it is the entity's own name in Home Assistant, or for a shell command
+one made from its id) and an icon (a pencil icon's name, or one of the add-on's own files such as `reproductor.svg`; otherwise one that fits its
+kind, and a command gets a prompt). The shell commands themselves are set up in Home Assistant, under
+`shell_command:` in its `configuration.yaml`.
 
 ## Lights and colours
 
@@ -217,6 +250,26 @@ What the app sends sets the limit. Netflix and Crunchyroll, for example, don't s
 
 Turn the lookup off with `"artwork_search": false`, or with its switch in the settings.
 
+## Speakers (DLNA)
+
+For a media player from Home Assistant's [DLNA Digital Media Renderer](https://www.home-assistant.io/integrations/dlna_dmr/) integration (a [Mi Smart Clock running Casa](https://github.com/datingesp-hash/MiSmartClock-CasaApp), a network speaker, a TV's renderer…), set `"type": "speaker"`:
+
+```json
+{ "type": "speaker", "name": "Mi Smart Clock", "icon": "speaker.svg", "entity": "media_player.mi_smart_clock" }
+```
+
+- **A click** plays or pauses it. The tile is lit while it plays, and says what: *Playing · Song*.
+- **A right click** opens its card:
+  - the artwork, the title and the artist, and the live progress: **click the bar to jump** forwards or backwards in the song;
+  - play/pause and next;
+  - a volume slider, with a quieter and a louder button at its ends (5 % each). The mouse wheel anywhere on the card changes the volume too.
+
+There is no power button: a DLNA renderer is not switched on or off. Without an `icon`, a speaker gets the pencil speaker (`speaker.svg`). In the settings menu, picking an entity of the DLNA integration sets all of this for you.
+
+![The speaker card](docs/img/speaker.png)
+
+<sub>Playing “Carefree” by Kevin MacLeod ([incompetech.com](https://incompetech.com)), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).</sub>
+
 ## 3D printer
 
 Add a `printer` block to a tile. Every entity is optional: leave out the ones your printer doesn't have.
@@ -270,6 +323,7 @@ Every icon in the panel is drawn in Vitreus's pencil style, and it sketches itse
    | TV box | `tv-box.svg` |
    | Terrarium | `terrarium.svg` |
    | Fan heater | `fan-heater.svg` |
+   | Speaker | `speaker.svg` |
 
    Their Spanish file names (`tira-led.svg`, `impresora-3d.svg`…) work too.
 3. **Your own**: put any white `.svg` in `~/.local/share/pleamar/homeassistant/` and use its file name.
@@ -314,7 +368,7 @@ Each tile:
 
 | Key | Meaning |
 | --- | --- |
-| `type` | `"light"` (with brightness) or `"toggle"`. |
+| `type` | `"light"` (with brightness), `"toggle"`, or `"speaker"` (a DLNA renderer: play/pause on a click, see [Speakers](#speakers-dlna)). |
 | `name` | The tile's label. |
 | `entity` | The entity id, e.g. `light.living_room`. |
 | `icon` | An icon name or `.svg` file (see [Icons](#icons)). |
@@ -323,10 +377,11 @@ Each tile:
 | `tint` | Lights only: draw the tile and card in the light's colour. |
 | `apple_tv` | `{ "remote": "remote.…" }`: the Apple TV card (see [Apple TV](#apple-tv)). |
 | `printer` | The printer card's entities (see [3D printer](#3d-printer)). |
+| `actions` | Up to two buttons a right click brings out of the tile (see [Two buttons on a right click](#two-buttons-on-a-right-click)). |
 
 Tile sizes set in edit mode are kept apart, in `layout.json`. A plain `items` list at the top level (outside any room) also works: it is shown first, with no title.
 
-Lights use `light.toggle` and `light.turn_on`. Everything else (`switch`, `input_boolean`, `media_player`, scripts…) uses `homeassistant.toggle`.
+Lights use `light.toggle` and `light.turn_on`. Speakers use `media_player.media_play` / `media_pause` (by their state: many renderers do not take `media_play_pause`), `media_next_track`, `media_seek` and `volume_set`. Everything else (`switch`, `input_boolean`, `media_player`, scripts…) uses `homeassistant.toggle`.
 
 ## Privacy
 
