@@ -11,15 +11,15 @@ part DeskDecl {
     repeat i in 0..10 { text nl.$i = "" }
     text desk_title = "My Desk"                            // what the status bar says (the title, or "My Desk" while it is empty)
 
-    //  Customize: a row is taken by its name or its grip and dragged to another place (`dr_s` the place it was taken from, 1 to 8; 0 none). `dr_dy` is how far it
+    //  Customize: a row is taken by its name or its grip and dragged to another place (`dr_s` the place it was taken from, 1 to 9; 0 none). `dr_dy` is how far it
     //  has been pulled (layout px, kept inside the list), `dr_t` the place it would land in. Let go, the logic moves the tool there (`dk_reorder`).
     fact dr_s = 0
     fact dr_dy = 0
-    let dr_c = clamp(dr_dy, (1 - dr_s) * 25 * du, (8 - dr_s) * 25 * du)
-    let dr_t = if(dr_s > 0, clamp(dr_s + floor(dr_c / (25 * du) + 0.5), 1, 8), 0)
-    //  The dock: which tool is in each of its eight places (`dk.$s.id`), whether it is shown, and how many are. Home is not in it: the home bar is.
+    let dr_c = clamp(dr_dy, (1 - dr_s) * 25 * du, (9 - dr_s) * 25 * du)
+    let dr_t = if(dr_s > 0, clamp(dr_s + floor(dr_c / (25 * du) + 0.5), 1, 9), 0)
+    //  The dock: which tool is in each of its nine places (`dk.$s.id`), whether it is shown, and how many are. Home is not in it: the home bar is.
     //  Kept in desk-home.json with the tool the Desk opens on (`desk_start`, 6 Home).
-    repeat s in 0..8 {
+    repeat s in 0..9 {
         fact dk.$s.id = 0
         fact dk.$s.on = true
         fact dk.$s.x = 0                                   // its place among the shown ones (where it is drawn)
@@ -28,10 +28,10 @@ part DeskDecl {
         prop dk_sh.$s = 0 ~calm                            // how far its row stands aside (px) while another is dragged past it in Customize
         follow dk_sh.$s = if(dr_s > 0 and dr_s != s + 1, if(s + 1 > dr_s and s + 1 <= dr_t, -25 * du, if(s + 1 < dr_s and s + 1 >= dr_t, 25 * du, 0)), 0)
     }
-    fact dk_n = 8
+    fact dk_n = 9
     fact desk_start = 6
     fact desk_edit = false                                 // Home is showing Customize
-    event dk_reorder ->                                    // (from * 10 + to): the places, 1 to 8, a tool was dragged from and to
+    event dk_reorder ->                                    // (from * 10 + to): the places, 1 to 9, a tool was dragged from and to
     event dk_toggle ->                                     // (place): show or hide that tool
     event desk_start_set ->                                // (tool)
 

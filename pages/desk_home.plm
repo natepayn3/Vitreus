@@ -87,8 +87,8 @@ part DeskHome {
                 }
             }
 
-            //  ── the home screen's apps: an icon each, in the order and with the ones Customize keeps, then Memos (red, with the time, while it records)
-            //  and Settings (Customize). Five across, two rows. Flat squircles, each in its own colour; an icon lifts under the pointer (its shadow
+            //  ── the home screen's apps: an icon each, in the order and with the ones Customize keeps (Memos red, with the time, while it records),
+            //  then Settings (Customize). Five across, two rows. Flat squircles, each in its own colour; an icon lifts under the pointer (its shadow
             //  grows) and sinks as it is pressed. ──
             group {
                 opacity: fd3
@@ -97,10 +97,10 @@ part DeskHome {
                 let ic.x0 = hm.l + 22 * du
                 let ic.y0 = dsk_y0 + 224 * du
                 repeat t in 0..10 {
-                    //  0..7 the dock's places (`dk.$t`), 8 Memo, 9 Settings
-                    let at.id = if(t < 8, pick(t, dk.0.id, dk.1.id, dk.2.id, dk.3.id, dk.4.id, dk.5.id, dk.6.id, dk.7.id), if(t == 8, 9, 10))
-                    let at.on = if(t < 8, pick(t, dk.0.on, dk.1.on, dk.2.on, dk.3.on, dk.4.on, dk.5.on, dk.6.on, dk.7.on), true)
-                    let at.s = if(t < 8, pick(t, dk.0.x, dk.1.x, dk.2.x, dk.3.x, dk.4.x, dk.5.x, dk.6.x, dk.7.x), dk_n + t - 8)
+                    //  0..8 the dock's places (`dk.$t`, Memos among them), 9 Settings
+                    let at.id = if(t < 9, pick(t, dk.0.id, dk.1.id, dk.2.id, dk.3.id, dk.4.id, dk.5.id, dk.6.id, dk.7.id, dk.8.id), 10)
+                    let at.on = if(t < 9, pick(t, dk.0.on, dk.1.on, dk.2.on, dk.3.on, dk.4.on, dk.5.on, dk.6.on, dk.7.on, dk.8.on), true)
+                    let at.s = if(t < 9, pick(t, dk.0.x, dk.1.x, dk.2.x, dk.3.x, dk.4.x, dk.5.x, dk.6.x, dk.7.x, dk.8.x), dk_n)
                     let at.x = ic.x0 + mod(at.s, 5) * ic.p
                     let at.y = ic.y0 + floor(at.s / 5) * 64 * du
                     let at.c = pick(at.id, #4fb36b, #3d8fe0, #8d6fe0, #ef7050, #2e3a48, mintlo, #f0f0f0, #f2b93b, #77869a, if(memo_rec, #ff3b4f, #e2475f), #6d7a8a)
@@ -221,14 +221,14 @@ part DeskHome {
             DTC("Done", hm.r - 26 * du, dsk_y0 + 112 * du, 11, 600, ink, 1, 50 * du)
             zone box ce_done { at: hm.r - 26 * du, dsk_y0 + 112 * du; size: 54 * du, 22 * du; corner: 10 * du; cursor: pointer; label: "Done" }
             on press ce_done { desk_edit = false }
-            //  Home first (the home button's), then the eight apps in their order.
-            repeat s in 0..9 {
-                let ry = dsk_y0 + (142 + s * 25) * du + if(s == 0, 0, if(dr_s == s, dr_c, pick(max(s - 1, 0), dk_sh.0, dk_sh.1, dk_sh.2, dk_sh.3, dk_sh.4, dk_sh.5, dk_sh.6, dk_sh.7)))
-                let tid = if(s == 0, 6, pick(s - 1, dk.0.id, dk.1.id, dk.2.id, dk.3.id, dk.4.id, dk.5.id, dk.6.id, dk.7.id))
-                let ton = if(s == 0, true, pick(s - 1, dk.0.on, dk.1.on, dk.2.on, dk.3.on, dk.4.on, dk.5.on, dk.6.on, dk.7.on))
+            //  Home first (the home button's), then the nine apps in their order.
+            repeat s in 0..10 {
+                let ry = dsk_y0 + (142 + s * 25) * du + if(s == 0, 0, if(dr_s == s, dr_c, pick(max(s - 1, 0), dk_sh.0, dk_sh.1, dk_sh.2, dk_sh.3, dk_sh.4, dk_sh.5, dk_sh.6, dk_sh.7, dk_sh.8)))
+                let tid = if(s == 0, 6, pick(s - 1, dk.0.id, dk.1.id, dk.2.id, dk.3.id, dk.4.id, dk.5.id, dk.6.id, dk.7.id, dk.8.id))
+                let ton = if(s == 0, true, pick(s - 1, dk.0.on, dk.1.on, dk.2.on, dk.3.on, dk.4.on, dk.5.on, dk.6.on, dk.7.on, dk.8.on))
                 DPlate(hm.l, ry - 11 * du, hm.w, 22 * du, 8 * du, 0.7, if(dr_s == s, 1, 0))
                 DIcon(tid, hm.l + 14 * du, ry, (12 * du) / 24, if(ton, mint, faint), if(ton, 1, 0.5))
-                DTL(pick(tid, "Pad", "Shelf", "Clip", "Focus", "Term", "Ask", "Home", "Notes", "Camera"), hm.l + 30 * du, ry, 12, 600, ink, if(ton, 1, 0.45), 100 * du)
+                DTL(pick(tid, "Pad", "Shelf", "Clip", "Focus", "Term", "Ask", "Home", "Notes", "Camera", "Memos"), hm.l + 30 * du, ry, 12, 600, ink, if(ton, 1, 0.45), 100 * du)
                 //  opens on it: a ring, filled for the one
                 ellipse { at: hm.l + 150 * du, ry; radius: 5.5 * du; stroke: 1.3; color: mint; opacity: 80% }
                 ellipse { at: hm.l + 150 * du, ry; radius: 3 * du; color: mint; opacity: if(desk_start == tid, 100%, 0%) }
@@ -243,7 +243,7 @@ part DeskHome {
                     group {
                         pivot: hm.l + 213 * du, ry
                         scale: 0.46
-                        SettingsSwitch(hm.l + 213 * du, ry, pick(max(s - 1, 0), dk_pill.0, dk_pill.1, dk_pill.2, dk_pill.3, dk_pill.4, dk_pill.5, dk_pill.6, dk_pill.7), ce_on.$s.pressed, ce_on.$s.hover, mint)
+                        SettingsSwitch(hm.l + 213 * du, ry, pick(max(s - 1, 0), dk_pill.0, dk_pill.1, dk_pill.2, dk_pill.3, dk_pill.4, dk_pill.5, dk_pill.6, dk_pill.7, dk_pill.8), ce_on.$s.pressed, ce_on.$s.hover, mint)
                     }
                     on enter ce_on.$s { hm_hot = hm_hot + 1 }
                     on leave ce_on.$s { hm_hot = max(hm_hot - 1, 0) }
@@ -259,11 +259,11 @@ part DeskHome {
                     on press ce_dg.$s { dr_s = s; dr_dy = 0 }
                     on drag ce_gr.$s while dr_s == s { dr_dy = drag.dy / desk_s }
                     on drag ce_dg.$s while dr_s == s { dr_dy = drag.dy / desk_s }
-                    on release ce_gr.$s while dr_s == s { emit dk_reorder(s * 10 + dr_t); dr_s = 0; dr_dy = 0; repeat k in 0..8 { dk_sh.$k: 0 ~0ms } }
-                    on release ce_dg.$s while dr_s == s { emit dk_reorder(s * 10 + dr_t); dr_s = 0; dr_dy = 0; repeat k in 0..8 { dk_sh.$k: 0 ~0ms } }
+                    on release ce_gr.$s while dr_s == s { emit dk_reorder(s * 10 + dr_t); dr_s = 0; dr_dy = 0; repeat k in 0..9 { dk_sh.$k: 0 ~0ms } }
+                    on release ce_dg.$s while dr_s == s { emit dk_reorder(s * 10 + dr_t); dr_s = 0; dr_dy = 0; repeat k in 0..9 { dk_sh.$k: 0 ~0ms } }
                 }
             }
-            let hm.ay = dsk_y0 + 380 * du
+            let hm.ay = dsk_y0 + 404 * du
             //  the photo frame's folder: a press goes to the next of the three
             let hm.fy = hm.ay
             DPlate(hm.l, hm.fy - 13 * du, hm.w, 26 * du, 9 * du, 0.7, 0)

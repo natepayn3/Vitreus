@@ -1,7 +1,7 @@
 -- The Desk's Home (pages/desk_home.plm) and the tablet round it: your title and line, which tools the dock shows and in what order, which one
 -- the Desk opens on, and whether the local AI is on, all kept in desk-home.json.
 return function()
-    local TOOLS = { 7, 0, 1, 2, 3, 4, 5, 8 }            -- the dock's tools, in their first order: Notes, Pad, Shelf, Clip, Focus, Term, Ask, Camera
+    local TOOLS = { 7, 0, 1, 2, 3, 4, 5, 8, 9 }         -- the dock's tools, in their first order: Notes, Pad, Shelf, Clip, Focus, Term, Ask, Camera, Memos
     local st = { title = "", line = "", order = {}, off = {}, start = 6, ai = true }
     local function save()
         pcall(sys.call, "files.write", "desk-home.json", { title = st.title, line = st.line, order = st.order, off = st.off, start = st.start, ai = st.ai })
