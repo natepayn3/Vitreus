@@ -138,7 +138,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
                                     local waiting = A.pl_behind
                                     if unbuilt and waiting == 0 then waiting = 1 end
                                     -- The bundled add-ons live in their own repositories: a newer release of one counts as an update too.
-                                    run(A.dir .. "/bin/vitreus-sync-addons", { "newer" }, function(aout)
+                                    run("vitreus-sync-addons", { "newer" }, function(aout)
                                     local newer_addons = lines(aout)
                                     A.addons_behind = #newer_addons
                                     fact.about_behind = A.shell_behind + waiting + A.addons_behind

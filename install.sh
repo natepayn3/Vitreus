@@ -457,6 +457,7 @@ if [ "$action" = uninstall ]; then
     if [ -L "$HOME/.local/bin/vitreus-wallhaven" ]; then run rm -f "$HOME/.local/bin/vitreus-wallhaven"; fi
     if [ -L "$HOME/.local/bin/vitreus-edit" ]; then run rm -f "$HOME/.local/bin/vitreus-edit"; fi
     if [ -L "$HOME/.local/bin/vitreus-addons" ]; then run rm -f "$HOME/.local/bin/vitreus-addons"; fi
+    if [ -L "$HOME/.local/bin/vitreus-sync-addons" ]; then run rm -f "$HOME/.local/bin/vitreus-sync-addons"; fi
     if [ -L "$HOME/.local/bin/vitreus-feedfetch" ]; then run rm -f "$HOME/.local/bin/vitreus-feedfetch"; fi
     if [ -L "$HOME/.local/bin/vitreus-tvremote" ]; then run rm -f "$HOME/.local/bin/vitreus-tvremote"; fi
     if [ -L "$HOME/.local/bin/vitreus-eq" ]; then run rm -f "$HOME/.local/bin/vitreus-eq"; fi
@@ -983,6 +984,7 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
     [ -x "$dest/bin/vitreus-wallhaven" ] && run ln -sf "$dest/bin/vitreus-wallhaven" "$HOME/.local/bin/vitreus-wallhaven"       # Settings > Wallpaper > Wallhaven fetches through it
     [ -x "$dest/bin/vitreus-edit" ] && run ln -sf "$dest/bin/vitreus-edit" "$HOME/.local/bin/vitreus-edit"             # opens a file in the person's editor (add-ons' settings gears)
     [ -x "$dest/bin/vitreus-addons" ] && run ln -sf "$dest/bin/vitreus-addons" "$HOME/.local/bin/vitreus-addons"       # and the add-ons in ~/.config/pleamar/vitreus-addons (never touched here)
+    [ -x "$dest/bin/vitreus-sync-addons" ] && run ln -sf "$dest/bin/vitreus-sync-addons" "$HOME/.local/bin/vitreus-sync-addons"
     [ -x "$dest/bin/vitreus-feedfetch" ] && run ln -sf "$dest/bin/vitreus-feedfetch" "$HOME/.local/bin/vitreus-feedfetch"       # the News & Weather add-on (addons/news-weather) reads its feeds through it
     [ -x "$dest/bin/vitreus-tvremote" ] && run ln -sf "$dest/bin/vitreus-tvremote" "$HOME/.local/bin/vitreus-tvremote"       # the TV Remote add-on (addons/tvremote) talks to the TV through it
     [ -x "$dest/bin/vitreus-eq" ] && run ln -sf "$dest/bin/vitreus-eq" "$HOME/.local/bin/vitreus-eq"       # the Equalizer add-on (addons/eq) filters the sound through it
