@@ -1128,6 +1128,7 @@ scene Vitreus {
     shader pixelate = file "pixelate.wgsl"
     shader matrix = file "matrix.wgsl"                  // the Cyber theme's digital rain
     shader paper = file "paper.wgsl"                    // the Paper theme's worn sheet: rubbed edges, fibres, specks
+    shader halftone = file "halftone.wgsl"              // the UwU theme's pop-art dots and corner tape
     shader pencilhatch = file "pencilhatch.wgsl"            // the pencil shading inside the sliders (PSlider)
     //  The frosting behind the glass, as wide as the Glass page's blur slider says (`hy_blur`, 0 to 20; 0 is off): see blur.wgsl.
     blur = file "blur.wgsl" {
@@ -7008,7 +7009,7 @@ scene Vitreus {
         }
         //  The UwU's candy plastic over it: a pastel gradient across the whole screen (pink, lilac, sky, mint), a thick grape outline, a lit lip and a hard pink shadow.
         body {
-            gradient: 0, 0 to screen.width, screen.height, #ffcfe8, #e6d6ff 38%, #cfeaff 68%, #d2fff0
+            gradient: 0, 0 to screen.width, screen.height, #ffb3dc, #cfc4ff 38%, #aab4ff 68%, #ffd0ea
             rim: 55% * uwu_k
             border: 3 * u * uwu_k, deep
             shadow: 4 * u * uwu_k, 5 * u * uwu_k, 0, 90% * uwu_k, mix(deep, #ff6ec7, 0.75)
@@ -7052,6 +7053,15 @@ scene Vitreus {
         shader paper { at: pedaxl - 8, pedaxt - 8; size: pedaxw + 16, pedaxh + 16; values: 1, 9.1, 8, mix(min(dax.ew, dax.eh) / 2, rc, clamp(dax0 * 1.6 - 0.1, 0, 1)); colors: obsidian, deep }
     }
     group {
+        show: uwu_k > 0.01 and dax0 > 0.004
+        opacity: uwu_k
+        let uwhaxw = dax.ew * (1 + dj.stretch - 0.07 * dax.bell + 0.003 * wobble) + dax.bl + dax.br
+        let uwhaxh = dax.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble) + dax.bt + dax.bb
+        let uwhaxl = dax.ex + (dax.br - dax.bl) / 2 - uwhaxw / 2
+        let uwhaxt = dax.ey + (dax.bb - dax.bt) / 2 - uwhaxh / 2
+        shader halftone { at: uwhaxl - 8, uwhaxt - 8; size: uwhaxw + 16, uwhaxh + 16; values: 1, 9.1, 8, mix(min(dax.ew, dax.eh) / 2, rc, clamp(dax0 * 1.6 - 0.1, 0, 1)); colors: mint, deep }
+    }
+    group {
         show: pp_k > 0.01 and do0 > 0.004
         opacity: pp_k
         let pedow = do.ew * (1 + do.stretch - 0.07 * do.bell + 0.003 * wobble)
@@ -7059,6 +7069,15 @@ scene Vitreus {
         let pedol = do.ex - pedow / 2
         let pedot = do.ey - pedoh / 2
         shader paper { at: pedol - 8, pedot - 8; size: pedow + 16, pedoh + 16; values: 1, 12.3, 8, mix(min(do.ew, do.eh) / 2, rc, clamp(do0 * 1.6 - 0.1, 0, 1)); colors: obsidian, deep }
+    }
+    group {
+        show: uwu_k > 0.01 and do0 > 0.004
+        opacity: uwu_k
+        let uwhow = do.ew * (1 + do.stretch - 0.07 * do.bell + 0.003 * wobble)
+        let uwhoh = do.eh * (1 - do.stretch * 0.5 - 0.002 * wobble)
+        let uwhol = do.ex - uwhow / 2
+        let uwhot = do.ey - uwhoh / 2
+        shader halftone { at: uwhol - 8, uwhot - 8; size: uwhow + 16, uwhoh + 16; values: 1, 12.3, 8, mix(min(do.ew, do.eh) / 2, rc, clamp(do0 * 1.6 - 0.1, 0, 1)); colors: mint, deep }
     }
     //  The Paper's worn sheet and tape on the add-on panel and the volume / notification banner, as on the other drawers (see bar_glass.plm).
     group {
@@ -7263,10 +7282,10 @@ scene Vitreus {
     group {
         pivot: at.clock, bar.y
         scale: 1 + 0.08 * bar_hit.hover
-        text bar_date { at: floor(clock.r - clock.col / 2 + 0.5), floor(bar.y - 8 * bz + 0.5); anchor: center; size: 11 * bz; weight: 700; measure: cdw; color: faint; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-        text bar_ap { at: floor(clock.r - clock.col / 2 + 0.5), floor(bar.y + 7 * bz + 0.5); anchor: center; size: 14 * bz; weight: 600; measure: caw; color: faint; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-        text clock_mm { at: floor(clock.r - clock.col - 3 * bz + 0.5), floor(bar.y + 3 * bz + 0.5); anchor: right center; size: 26 * bz; weight: 700; measure: cmw; letter_move: 3 * bz * ((letters - 1 - letter) - if(letter == 0, 1, 0)), 0; color: mint; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-        text clock_h { at: floor(clock.r - clock.col - cmw.width + 0.5), floor(bar.y + 0.5); anchor: right center; size: 40 * bz; weight: 700; measure: chw; color: ink; opacity: bs.clock * (1 - lm); shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        text bar_date { at: floor(clock.r - clock.col / 2 + 0.5), floor(bar.y - 8 * bz + 0.5); anchor: center; size: 11 * bz; weight: 700; measure: cdw; color: faint; opacity: bs.clock * (1 - lm); shadow: 2 * uwu_k, 1 - 0.5 * uwu_k, 3 * (1 - uwu_k), 40% + 50% * uwu_k, mix(deep, #3d5bff, uwu_k); family: "Space Grotesk" }
+        text bar_ap { at: floor(clock.r - clock.col / 2 + 0.5), floor(bar.y + 7 * bz + 0.5); anchor: center; size: 14 * bz; weight: 600; measure: caw; color: faint; opacity: bs.clock * (1 - lm); shadow: 2 * uwu_k, 1 - 0.5 * uwu_k, 3 * (1 - uwu_k), 40% + 50% * uwu_k, mix(deep, #3d5bff, uwu_k); family: "Space Grotesk" }
+        text clock_mm { at: floor(clock.r - clock.col - 3 * bz + 0.5), floor(bar.y + 3 * bz + 0.5); anchor: right center; size: 26 * bz; weight: 700; measure: cmw; letter_move: 3 * bz * ((letters - 1 - letter) - if(letter == 0, 1, 0)), 0; color: mint; opacity: bs.clock * (1 - lm); shadow: 2 * uwu_k, 1 - 0.5 * uwu_k, 3 * (1 - uwu_k), 40% + 50% * uwu_k, mix(deep, #3d5bff, uwu_k); family: "Space Grotesk" }
+        text clock_h { at: floor(clock.r - clock.col - cmw.width + 0.5), floor(bar.y + 0.5); anchor: right center; size: 40 * bz; weight: 700; measure: chw; color: ink; opacity: bs.clock * (1 - lm); shadow: 2 * uwu_k, 1 - 0.5 * uwu_k, 3 * (1 - uwu_k), 40% + 50% * uwu_k, mix(deep, #3d5bff, uwu_k); family: "Space Grotesk" }
         PBLine(clock.left + (chw.width + cmw.width) / 2, bar.y + mix(0.43, 0.286, sg) * bar.h, bar_hit.hover, chw.width + cmw.width, 0.5 * bs.clock * (1 - lm) * (1 - sg))
         //  In the Notches layout the line under the clock is gone, and a smaller one sits between the day and the am/pm instead.
         PBLine(clock.r - clock.col / 2, bar.y - 0.5, bar_hit.hover, clock.col * 0.6, 0.5 * bs.clock * (1 - lm) * sg)
@@ -7871,7 +7890,7 @@ scene Vitreus {
         }
         //  The UwU's candy plastic over it: a pastel gradient across the whole screen (pink, lilac, sky, mint), a thick grape outline, a lit lip and a hard pink shadow.
         body {
-            gradient: 0, 0 to screen.width, screen.height, #ffcfe8, #e6d6ff 38%, #cfeaff 68%, #d2fff0
+            gradient: 0, 0 to screen.width, screen.height, #ffb3dc, #cfc4ff 38%, #aab4ff 68%, #ffd0ea
             rim: 55% * uwu_k
             border: 3 * u * uwu_k, deep
             shadow: 4 * u * uwu_k, 5 * u * uwu_k, 0, 90% * uwu_k, mix(deep, #ff6ec7, 0.75)

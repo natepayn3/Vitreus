@@ -273,7 +273,7 @@ part BarGlass {
         }
         //  The UwU's candy plastic over it: a pastel gradient across the whole screen (pink, lilac, sky, mint), a thick grape outline, a lit lip and a hard pink shadow.
         body {
-            gradient: 0, 0 to screen.width, screen.height, #ffcfe8, #e6d6ff 38%, #cfeaff 68%, #d2fff0
+            gradient: 0, 0 to screen.width, screen.height, #ffb3dc, #cfc4ff 38%, #aab4ff 68%, #ffd0ea
             rim: 55% * uwu_k
             border: 3 * u * uwu_k, deep
             shadow: 4 * u * uwu_k, 5 * u * uwu_k, 0, 90% * uwu_k, mix(deep, #ff6ec7, 0.75)
@@ -282,7 +282,7 @@ part BarGlass {
             include "bar_shapes.plm"
         }
         body {
-            gradient: 0, 0 to screen.width, screen.height, #ffcfe8, #e6d6ff 38%, #cfeaff 68%, #d2fff0
+            gradient: 0, 0 to screen.width, screen.height, #ffb3dc, #cfc4ff 38%, #aab4ff 68%, #ffd0ea
             rim: 55% * uwu_k
             border: 3 * u * uwu_k, deep
             shadow: 4 * u * uwu_k, 5 * u * uwu_k, 0, 90% * uwu_k, mix(deep, #ff6ec7, 0.75)
@@ -292,7 +292,7 @@ part BarGlass {
             include "bar_waves_12.plm"
         }
         body {
-            gradient: 0, 0 to screen.width, screen.height, #ffcfe8, #e6d6ff 38%, #cfeaff 68%, #d2fff0
+            gradient: 0, 0 to screen.width, screen.height, #ffb3dc, #cfc4ff 38%, #aab4ff 68%, #ffd0ea
             rim: 55% * uwu_k
             border: 3 * u * uwu_k, deep
             shadow: 4 * u * uwu_k, 5 * u * uwu_k, 0, 90% * uwu_k, mix(deep, #ff6ec7, 0.75)
@@ -302,7 +302,7 @@ part BarGlass {
             include "bar_waves_24.plm"
         }
         body {
-            gradient: 0, 0 to screen.width, screen.height, #ffcfe8, #e6d6ff 38%, #cfeaff 68%, #d2fff0
+            gradient: 0, 0 to screen.width, screen.height, #ffb3dc, #cfc4ff 38%, #aab4ff 68%, #ffd0ea
             rim: 55% * uwu_k
             border: 3 * u * uwu_k, deep
             shadow: 4 * u * uwu_k, 5 * u * uwu_k, 0, 90% * uwu_k, mix(deep, #ff6ec7, 0.75)
@@ -552,6 +552,15 @@ part BarGlass {
             shader paper { at: pedkl - 8, pedkt - 8; size: pedkw + 16, pedkh + 16; values: 1, 1, 8, mix(min(dk.ew, dk.eh) / 2, rc, clamp(dk0 * 1.6 - 0.1, 0, 1)); colors: obsidian, deep }
         }
         group {
+            show: uwu_k > 0.01 and dk0 > 0.004
+            opacity: uwu_k
+            let uwhkw = dk.ew * (1 + dj.stretch - 0.07 * dk.bell + 0.003 * wobble * (1 - sg)) * dk.tail
+            let uwhkh = (dk.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble * (1 - sg)) + sg.up) * dk.tail
+            let uwhkl = dk.ex - uwhkw / 2
+            let uwhkt = dk.ey - sg.up / 2 - uwhkh / 2
+            shader halftone { at: uwhkl - 8, uwhkt - 8; size: uwhkw + 16, uwhkh + 16; values: 1, 1, 8, mix(min(dk.ew, dk.eh) / 2, rc, clamp(dk0 * 1.6 - 0.1, 0, 1)); colors: mint, deep }
+        }
+        group {
             show: pp_k > 0.01 and dc0 > 0.004
             opacity: pp_k
             let pedcw = dc.ew * (1 + dj.stretch - 0.07 * dc.bell + 0.003 * wobble)
@@ -559,6 +568,15 @@ part BarGlass {
             let pedcl = dc.ex - pedcw / 2
             let pedct = dc.ey - sg.up / 2 - pedch / 2
             shader paper { at: pedcl - 8, pedct - 8; size: pedcw + 16, pedch + 16; values: 1, 4.7, 8, mix(min(dc.ew, dc.eh) / 2, rc, clamp(dc0 * 1.6 - 0.1, 0, 1)); colors: obsidian, deep }
+        }
+        group {
+            show: uwu_k > 0.01 and dc0 > 0.004
+            opacity: uwu_k
+            let uwhcw = dc.ew * (1 + dj.stretch - 0.07 * dc.bell + 0.003 * wobble)
+            let uwhch = dc.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble) + sg.up
+            let uwhcl = dc.ex - uwhcw / 2
+            let uwhct = dc.ey - sg.up / 2 - uwhch / 2
+            shader halftone { at: uwhcl - 8, uwhct - 8; size: uwhcw + 16, uwhch + 16; values: 1, 4.7, 8, mix(min(dc.ew, dc.eh) / 2, rc, clamp(dc0 * 1.6 - 0.1, 0, 1)); colors: mint, deep }
         }
         group {
             show: pp_k > 0.01 and ds0 > 0.004
@@ -570,6 +588,15 @@ part BarGlass {
             shader paper { at: pedsl - 8, pedst - 8; size: pedsw + 16, pedsh + 16; values: 1, 8.4, 8, mix(min(ds.ew, ds.eh) / 2, rc, clamp(ds0 * 1.6 - 0.1, 0, 1)); colors: obsidian, deep }
         }
         group {
+            show: uwu_k > 0.01 and ds0 > 0.004
+            opacity: uwu_k
+            let uwhsw = ds.ew * (1 + dj.stretch - 0.07 * ds.bell + 0.003 * wobble)
+            let uwhsh = ds.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble)
+            let uwhsl = ds.ex - uwhsw / 2
+            let uwhst = ds.ey - uwhsh / 2
+            shader halftone { at: uwhsl - 8, uwhst - 8; size: uwhsw + 16, uwhsh + 16; values: 1, 8.4, 8, mix(min(ds.ew, ds.eh) / 2, rc, clamp(ds0 * 1.6 - 0.1, 0, 1)); colors: mint, deep }
+        }
+        group {
             show: pp_k > 0.01 and dl0 > 0.004
             opacity: pp_k
             let pedlw = dl.ew * (1 + dj.stretch - 0.07 * dl.bell + 0.003 * wobble)
@@ -577,6 +604,15 @@ part BarGlass {
             let pedll = dl.ex - pedlw / 2
             let pedlt = dl.ey - pedlh / 2
             shader paper { at: pedll - 8, pedlt - 8; size: pedlw + 16, pedlh + 16; values: 1, 12.1, 8, mix(min(dl.ew, dl.eh) / 2, rc, clamp(dl0 * 1.6 - 0.1, 0, 1)); colors: obsidian, deep }
+        }
+        group {
+            show: uwu_k > 0.01 and dl0 > 0.004
+            opacity: uwu_k
+            let uwhlw = dl.ew * (1 + dj.stretch - 0.07 * dl.bell + 0.003 * wobble)
+            let uwhlh = dl.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble)
+            let uwhll = dl.ex - uwhlw / 2
+            let uwhlt = dl.ey - uwhlh / 2
+            shader halftone { at: uwhll - 8, uwhlt - 8; size: uwhlw + 16, uwhlh + 16; values: 1, 12.1, 8, mix(min(dl.ew, dl.eh) / 2, rc, clamp(dl0 * 1.6 - 0.1, 0, 1)); colors: mint, deep }
         }
         group {
             show: pp_k > 0.01 and dm0 > 0.004
@@ -588,6 +624,15 @@ part BarGlass {
             shader paper { at: pedml - 8, pedmt - 8; size: pedmw + 16, pedmh + 16; values: 1, 15.8, 8, mix(min(dm.ew, dm.eh) / 2, rc, clamp(dm0 * 1.6 - 0.1, 0, 1)); colors: obsidian, deep }
         }
         group {
+            show: uwu_k > 0.01 and dm0 > 0.004
+            opacity: uwu_k
+            let uwhmw = dm.ew * (1 + dj.stretch - 0.07 * dm.bell + 0.003 * wobble)
+            let uwhmh = dm.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble) + sg.up
+            let uwhml = dm.ex - uwhmw / 2
+            let uwhmt = dm.ey - sg.up / 2 - uwhmh / 2
+            shader halftone { at: uwhml - 8, uwhmt - 8; size: uwhmw + 16, uwhmh + 16; values: 1, 15.8, 8, mix(min(dm.ew, dm.eh) / 2, rc, clamp(dm0 * 1.6 - 0.1, 0, 1)); colors: mint, deep }
+        }
+        group {
             show: pp_k > 0.01 and dz0 > 0.004
             opacity: pp_k
             let pedzw = dz.fw * (1 + dz.stretch - 0.07 * dz.bell)
@@ -595,6 +640,15 @@ part BarGlass {
             let pedzl = dz.fx - pedzw / 2
             let pedzt = dz.fcy - pedzh / 2
             shader paper { at: pedzl - 8, pedzt - 8; size: pedzw + 16, pedzh + 16; values: 1, 19.5, 8, mix(min(dz.fw, dz.fh) / 2, 26 * u * desk_s * (1 - 0.73 * sq), clamp(dz0 * 1.6 - 0.1, 0, 1)); colors: obsidian, deep }
+        }
+        group {
+            show: uwu_k > 0.01 and dz0 > 0.004
+            opacity: uwu_k
+            let uwhzw = dz.fw * (1 + dz.stretch - 0.07 * dz.bell)
+            let uwhzh = dz.fh * (1 - dz.stretch * 0.5)
+            let uwhzl = dz.fx - uwhzw / 2
+            let uwhzt = dz.fcy - uwhzh / 2
+            shader halftone { at: uwhzl - 8, uwhzt - 8; size: uwhzw + 16, uwhzh + 16; values: 1, 19.5, 8, mix(min(dz.fw, dz.fh) / 2, 26 * u * desk_s * (1 - 0.73 * sq), clamp(dz0 * 1.6 - 0.1, 0, 1)); colors: mint, deep }
         }
         //  The Paper's torn edge on the shell's notches and on the two docks (the app dock and the add-on dock), so they are worn like the drawers. The side that is buried in the frame
         //  is kept clean (the 100s in the seed are a mask of the sides, see paper.wgsl), so the tear only runs on the part that shows.
