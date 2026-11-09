@@ -175,6 +175,18 @@ return function(with_dirs)
     every(1000, function() if rec then text.memo_t = clock(os.time() - rec_t0) end end)
 
     -- ── playing ──
+    -- How far the memo being played has got, four times a second, by a timer that only exists while one plays (it ends itself when none does).
+    local play_t
+    local function play_watch()
+        if play_t then return end
+        play_t = every(250, function()
+            if not playing then cancel(play_t); play_t = nil; return end
+            if play_len > 0 then
+                play_el = play_el + 0.25
+                fact.memo_pp = math.min(1, play_el / play_len)
+            end
+        end)
+    end
     local function stop_play()
         if playing then kill(playing, "term") end
         playing, play_k = nil, -1
@@ -197,6 +209,7 @@ return function(with_dirs)
             render()
         end)
         playing, play_k, play_el, play_len = mine, i, from or 0, m.secs or 0
+        play_watch()
         fact.memo_pp = play_len > 0 and math.min(1, play_el / play_len) or 0
         render()
     end
@@ -222,12 +235,6 @@ return function(with_dirs)
         playing = nil                                        -- (its ending is not ours to hear)
         kill(old, "term")
         start_play(i, f * play_len)
-    end)
-    every(250, function()
-        if playing and play_len > 0 then
-            play_el = play_el + 0.25
-            fact.memo_pp = math.min(1, play_el / play_len)
-        end
     end)
     on("memo_del", function(i)
         i = tonumber(i) or -1

@@ -1046,40 +1046,40 @@ part Dashboard {
             group {
                 show: face_k > 0.004
                 opacity: face_k
-                let fp.w = 700
-                let fp.h = 460
-                let fp.l = dsh.sl + dsh.tw / 2 - fp.w / 2
-                let fp.t = dsh.y0 + dsh.gh / 2 - fp.h / 2 + 12 * (1 - face_k)
-                let fp.vt = fp.t + 64                                  // the grid's top and height
-                let fp.vh = fp.h - 64 - 14
-                let fp.ch = ceil(face_pics.count / 6) * 108            // all of it
+                let dfp.w = 700
+                let dfp.h = 460
+                let dfp.l = dsh.sl + dsh.tw / 2 - dfp.w / 2
+                let dfp.t = dsh.y0 + dsh.gh / 2 - dfp.h / 2 + 12 * (1 - face_k)
+                let dfp.vt = dfp.t + 64                                  // the grid's top and height
+                let dfp.vh = dfp.h - 64 - 14
+                let dfp.ch = ceil(face_pics.count / 6) * 108            // all of it
                 box { from: dsh.sl, dsh.y0; size: dsh.tw, dsh.gh; corner: 30; color: #000000; opacity: 0.35 }
                 zone box dsh_fpout { from: dsh.sl, dsh.y0; size: dsh.tw, dsh.gh; active: face_open }
                 on press dsh_fpout { face_open = false }
-                DshTile(fp.l, fp.t, fp.w, fp.h, 1) {
+                DshTile(dfp.l, dfp.t, dfp.w, dfp.h, 1) {
                     //  Under everything else, so the buttons and pictures are above it.
-                    zone box dsh_fpbg { from: fp.l, fp.t; size: fp.w, fp.h; corner: 26; active: face_open }
-                    on scroll dsh_fpbg { fp_to = clamp(fp_to - wheel * 54, 0, max(0, fp.ch - fp.vh + 4)) }
+                    zone box dsh_fpbg { from: dfp.l, dfp.t; size: dfp.w, dfp.h; corner: 26; active: face_open }
+                    on scroll dsh_fpbg { fp_to = clamp(fp_to - wheel * 54, 0, max(0, dfp.ch - dfp.vh + 4)) }
                     //  Up a folder, home, and where we are.
-                    ellipse { at: fp.l + 36, fp.t + 32; radius: 16; color: ink; opacity: (0.07 + 0.1 * dsh_fpu.hover) * if(face_at_top, 0.4, 1) }
-                    GArrowTo(fp.l + 36, fp.t + 32, 270, (16) / 24, ink, if(face_at_top, 0.4, 1), 0)
-                    zone ellipse dsh_fpu { at: fp.l + 36, fp.t + 32; radius: 18; cursor: pointer; active: face_open and not face_at_top; label: "Up a folder" }
+                    ellipse { at: dfp.l + 36, dfp.t + 32; radius: 16; color: ink; opacity: (0.07 + 0.1 * dsh_fpu.hover) * if(face_at_top, 0.4, 1) }
+                    GArrowTo(dfp.l + 36, dfp.t + 32, 270, (16) / 24, ink, if(face_at_top, 0.4, 1), 0)
+                    zone ellipse dsh_fpu { at: dfp.l + 36, dfp.t + 32; radius: 18; cursor: pointer; active: face_open and not face_at_top; label: "Up a folder" }
                     on press dsh_fpu { emit face_up }
-                    ellipse { at: fp.l + 76, fp.t + 32; radius: 16; color: ink; opacity: 0.07 + 0.1 * dsh_fph.hover }
-                    GHome(fp.l + 76, fp.t + 32, (16) / 24, ink, 1, 0)
-                    zone ellipse dsh_fph { at: fp.l + 76, fp.t + 32; radius: 18; cursor: pointer; active: face_open; label: "Home folder" }
+                    ellipse { at: dfp.l + 76, dfp.t + 32; radius: 16; color: ink; opacity: 0.07 + 0.1 * dsh_fph.hover }
+                    GHome(dfp.l + 76, dfp.t + 32, (16) / 24, ink, 1, 0)
+                    zone ellipse dsh_fph { at: dfp.l + 76, dfp.t + 32; radius: 18; cursor: pointer; active: face_open; label: "Home folder" }
                     on press dsh_fph { emit face_home }
-                    text face_path { at: fp.l + 106, fp.t + 32; anchor: left center; size: 16; weight: 600; width: fp.w - 106 - 66; lines: 1; family: "Space Grotesk"; color: ink }
-                    ellipse { at: fp.l + fp.w - 34, fp.t + 32; radius: 16; color: ink; opacity: 0.07 + 0.1 * dsh_fpx.hover }
-                    GClose(fp.l + fp.w - 34, fp.t + 32, (16) / 24, ink, 1, 0)
-                    zone ellipse dsh_fpx { at: fp.l + fp.w - 34, fp.t + 32; radius: 18; cursor: pointer; active: face_open; label: "Close" }
+                    text face_path { at: dfp.l + 106, dfp.t + 32; anchor: left center; size: 16; weight: 600; width: dfp.w - 106 - 66; lines: 1; family: "Space Grotesk"; color: ink }
+                    ellipse { at: dfp.l + dfp.w - 34, dfp.t + 32; radius: 16; color: ink; opacity: 0.07 + 0.1 * dsh_fpx.hover }
+                    GClose(dfp.l + dfp.w - 34, dfp.t + 32, (16) / 24, ink, 1, 0)
+                    zone ellipse dsh_fpx { at: dfp.l + dfp.w - 34, dfp.t + 32; radius: 18; cursor: pointer; active: face_open; label: "Close" }
                     on press dsh_fpx { face_open = false }
-                    text "Nothing here" { at: fp.l + fp.w / 2, fp.t + fp.h / 2 + 20; anchor: center; size: 14; family: "Space Grotesk"; color: faint; show: face_pics.count < 1 }
+                    text "Nothing here" { at: dfp.l + dfp.w / 2, dfp.t + dfp.h / 2 + 20; anchor: center; size: 14; family: "Space Grotesk"; color: faint; show: face_pics.count < 1 }
                     group {
-                        clip inset 0 box { from: fp.l + 8, fp.vt; size: fp.w - 16, fp.vh; corner: 18 }
+                        clip inset 0 box { from: dfp.l + 8, dfp.vt; size: dfp.w - 16, dfp.vh; corner: 18 }
                         repeat i in 0..72 {
-                            let fpi.x = fp.l + 24 + (i - floor(i / 6) * 6) * 112
-                            let fpi.y = fp.vt + floor(i / 6) * 108 - fp_s
+                            let fpi.x = dfp.l + 24 + (i - floor(i / 6) * 6) * 112
+                            let fpi.y = dfp.vt + floor(i / 6) * 108 - fp_s
                             group {
                                 show: face_pics.count > i
                                 box { from: fpi.x, fpi.y; size: 100, 100; corner: 18; color: ink; opacity: 0.07 }
@@ -1092,13 +1092,13 @@ part Dashboard {
                                 }
                                 box { from: fpi.x, fpi.y; size: 100, 100; corner: 18; color: mint; opacity: 0.22 * dsh_fp.$i.hover }
                             }
-                            zone box dsh_fp.$i { from: fpi.x, fpi.y; size: 100, 100; corner: 18; cursor: pointer; active: face_open and face_pics.count > i and fpi.y > fp.vt - 40 and fpi.y < fp.vt + fp.vh - 60; label: "Open or choose" }
+                            zone box dsh_fp.$i { from: fpi.x, fpi.y; size: 100, 100; corner: 18; cursor: pointer; active: face_open and face_pics.count > i and fpi.y > dfp.vt - 40 and fpi.y < dfp.vt + dfp.vh - 60; label: "Open or choose" }
                             on press dsh_fp.$i while face_pics.$i.dir { emit face_nav(i) }
                             on press dsh_fp.$i while not face_pics.$i.dir { emit face_set(i); face_open = false }
                         }
                     }
                     //  Where the scroll has got to.
-                    box { from: fp.l + fp.w - 10, fp.vt + 4 + fp_s / max(fp.ch, 1) * (fp.vh - 8); size: 4, (fp.vh - 8) * min(1, fp.vh / max(fp.ch, 1)); corner: 2; color: ink; opacity: 0.35; show: fp.ch > fp.vh }
+                    box { from: dfp.l + dfp.w - 10, dfp.vt + 4 + fp_s / max(dfp.ch, 1) * (dfp.vh - 8); size: 4, (dfp.vh - 8) * min(1, dfp.vh / max(dfp.ch, 1)); corner: 2; color: ink; opacity: 0.35; show: dfp.ch > dfp.vh }
                 }
             }
         }

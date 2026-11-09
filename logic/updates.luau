@@ -18,6 +18,10 @@ i=0
 while pgrep -f "^([^ ]*/)?pleamar --scene $P" >/dev/null && [ $i -lt 15 ]; do sleep 0.2; i=$((i+1)); done
 pkill -f "^([^ ]*/)?pleamar --scene $P"
 pkill -f "^([^ ]*/)?pleamar --scene .*/vitreus/desktop"  # the desktop widgets restart with the shell (their keepers start them again)
+# and the add-ons that are running, the shell's own and the person's: an update has just rewritten their files under them, and a scene read
+# again in place keeps the surfaces it was started with (one that went from a copy per monitor to a single panel kept all its copies, #62)
+pkill -f "^([^ ]*/)?pleamar --scene .*/vitreus/addons/"
+pkill -f "^([^ ]*/)?pleamar --scene .*/pleamar/vitreus-addons/"
 sleep 0.3
 [ "$(stat -c %s "$L" 2>/dev/null || echo 0)" -gt 1048576 ] && mv -f "$L" "$L.1"
 # under its keeper when there is one (bin/vitreus-keep): a keeper already looking after it starts it again itself

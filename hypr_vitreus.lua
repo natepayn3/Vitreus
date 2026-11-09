@@ -82,11 +82,10 @@ if hl.plugin and hl.plugin.hyprglass then
     hl.window_rule({ name = "vitreus-files-hyprglass", match = { class = "^vitreus\\.files$" }, tag = "+hyprglass_enabled" })
 end
 
--- What starts with the session: pleamar runs ~/.config/pleamar/autostart (the Vitreus scene, lock screen and desktop widgets), and the
--- daemons the shell relies on (wallpaper, idle lock, clipboard history). Hyprland's PATH has no ~/.local/bin, hence the export.
+-- What starts with the session: pleamar runs ~/.config/pleamar/autostart (the Vitreus scene, lock screen and desktop widgets, and the
+-- daemons the shell relies on: wallpaper, idle lock, clipboard history). Hyprland's PATH has no ~/.local/bin, hence the export.
+-- The daemons are not started from here as well: the installer's lines in autostart start each one only if it is not already running,
+-- and a second `hypridle` beside one from the person's own hyprland.lua ran every idle step (lock, screen off) twice.
 hl.on("hyprland.start", function ()
     hl.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --autostart")
-    hl.exec_cmd("hypridle")
-    hl.exec_cmd("awww-daemon")
-    hl.exec_cmd("wl-paste --watch cliphist store")
 end)

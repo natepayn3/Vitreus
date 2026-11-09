@@ -1461,6 +1461,10 @@ scene Vitreus {
     follow ws.pv = if(ws.new > 0 and not ws_empty and not ws.special, 1, 0)
     prop ws.sp = 0 ~lively                              // how much the special workspace's mark is there
     follow ws.sp = if(ws.special, 1, 0)
+    //  The special workspace's mark is drawn again five times a second for as long as it is there. Its own step, not the scene's `time`: a clock that turns
+    //  makes the whole scene be put together at the monitor's pace (a quarter of a core, all day, for one small mark); this wakes it five times a second.
+    fact ws_boil = 0
+    every 200ms while ws.sp > 0.01 { ws_boil = mod(ws_boil + 1, 1000) }
     prop ws.spa = 0 ~lively                             // which mark it is: the sparkle (magic, and any other), the music notes, the crossed-out eye (private)
     prop ws.spm = 0 ~lively
     prop ws.spp = 0 ~lively
@@ -3444,10 +3448,12 @@ scene Vitreus {
     //  gives the window the keyboard; a middle press, or the cross, closes it.
     component MiniWin(t: record, k: number, n: number, focus: event, kill: event) {
         let cols = if(n <= 1, 1, if(n <= 4, 2, if(n <= 6, 3, 4)))
-        let rws = floor((n + cols - 1) / cols)
+        //  (At least one line and one window to a line: a slot of the model that holds no window has `n` 0, and dividing by nothing gave sizes that are
+        //  not numbers. A value that is not a number never comes to rest, so the scene ran its rules sixty times a second for as long as it lived.)
+        let rws = max(1, floor((n + cols - 1) / cols))
         let rr = floor(t.wi / cols)
         let cc = t.wi - rr * cols
-        let cnt = if(rr == rws - 1, n - cols * (rws - 1), cols)
+        let cnt = max(1, if(rr == rws - 1, n - cols * (rws - 1), cols))
         let cwu = (187 - 4 * (cnt - 1)) / cnt
         let chu = (92 - 4 * (rws - 1)) / rws
         let ox = (10 + cc * (cwu + 4)) * cu
@@ -3909,9 +3915,9 @@ scene Vitreus {
     }
 
     //  The special workspace's mark: a four-pointed sparkle and a small one at its shoulder, in pencil like the rest (a line and a fainter copy a hair off, the points
-    //  redrawn about five times a second all the time while it is there, as a workspace mark's are under the pointer). `k` is the big one's radius, so the mark grows from nothing with it.
+    //  redrawn about five times a second all the time while it is there (`ws_boil`, its own step: see where it is declared). `k` is the big one's radius, so the mark grows from nothing with it.
     component PBSpark(cx: number, cy: number, k: number, o: number) {
-        let fr = floor(time * 5)
+        let fr = ws_boil
         let jt = 0.4 * u
         path { at: cx + 0 + 0, cy + 0 + 0; stroke: 1.5 * u; color: mint; opacity: o; move 0 + jt * sin(fr * 67 + 31037), -1 * k + jt * sin(fr * 54 + 31074); curve 1 * k + jt * sin(fr * 73 + 31111), 0 + jt * sin(fr * 62 + 31148) via 0.12 * k + jt * sin(fr * 52 + 31185), -0.12 * k + jt * sin(fr * 69 + 31222); curve 0 + jt * sin(fr * 59 + 31259), 1 * k + jt * sin(fr * 47 + 31296) via 0.12 * k + jt * sin(fr * 67 + 31333), 0.12 * k + jt * sin(fr * 54 + 31370); curve -1 * k + jt * sin(fr * 73 + 31407), 0 + jt * sin(fr * 62 + 31444) via -0.12 * k + jt * sin(fr * 52 + 31481), 0.12 * k + jt * sin(fr * 69 + 31518); curve 0 + jt * sin(fr * 59 + 31555), -1 * k + jt * sin(fr * 47 + 31592) via -0.12 * k + jt * sin(fr * 67 + 31629), -0.12 * k + jt * sin(fr * 54 + 31666); close }
         path { at: cx + 0 + 0.5 * u, cy + 0 + 0.4 * u; stroke: 0.7 * (1.5 * u); color: mint; opacity: o * 0.34; move 0 + jt * sin(fr * 73 + 31703), -1 * k + jt * sin(fr * 62 + 31740); curve 1 * k + jt * sin(fr * 52 + 31777), 0 + jt * sin(fr * 69 + 31814) via 0.12 * k + jt * sin(fr * 59 + 31851), -0.12 * k + jt * sin(fr * 47 + 31888); curve 0 + jt * sin(fr * 67 + 31925), 1 * k + jt * sin(fr * 54 + 31962) via 0.12 * k + jt * sin(fr * 73 + 31999), 0.12 * k + jt * sin(fr * 62 + 32036); curve -1 * k + jt * sin(fr * 52 + 32073), 0 + jt * sin(fr * 69 + 32110) via -0.12 * k + jt * sin(fr * 59 + 32147), 0.12 * k + jt * sin(fr * 47 + 32184); curve 0 + jt * sin(fr * 67 + 32221), -1 * k + jt * sin(fr * 54 + 32258) via -0.12 * k + jt * sin(fr * 73 + 32295), -0.12 * k + jt * sin(fr * 62 + 32332); close }
@@ -3921,7 +3927,7 @@ scene Vitreus {
 
     //  The music special workspace's mark: a pair of eighth notes joined by a beam, in pencil like PBSpark.
     component PBNote(cx: number, cy: number, k: number, o: number) {
-        let fr = floor(time * 5)
+        let fr = ws_boil
         let jt = 0.4 * u
         path { at: cx, cy; stroke: 1.5 * u; color: mint; opacity: o; move -0.4 * k + jt * sin(fr * 67 + 41037), 0.45 * k + jt * sin(fr * 54 + 41074); line -0.4 * k + jt * sin(fr * 73 + 41111), -0.75 * k + jt * sin(fr * 62 + 41148); }
         path { at: cx + 0.5 * u, cy + 0.4 * u; stroke: 0.7 * (1.5 * u); color: mint; opacity: o * 0.34; move -0.4 * k + jt * sin(fr * 52 + 41185), 0.45 * k + jt * sin(fr * 69 + 41222); line -0.4 * k + jt * sin(fr * 59 + 41259), -0.75 * k + jt * sin(fr * 47 + 41296); }
@@ -3937,7 +3943,7 @@ scene Vitreus {
 
     //  The private special workspace's mark: an eye crossed out, in pencil like PBSpark.
     component PBHide(cx: number, cy: number, k: number, o: number) {
-        let fr = floor(time * 5)
+        let fr = ws_boil
         let jt = 0.4 * u
         path { at: cx, cy; stroke: 1.5 * u; color: mint; opacity: o; move -1 * k + jt * sin(fr * 67 + 42221), 0 * k + jt * sin(fr * 54 + 42258); curve 1 * k + jt * sin(fr * 73 + 42295), 0 * k + jt * sin(fr * 62 + 42332) via 0 * k + jt * sin(fr * 52 + 42369), -1.15 * k + jt * sin(fr * 69 + 42406); curve -1 * k + jt * sin(fr * 59 + 42443), 0 * k + jt * sin(fr * 47 + 42480) via 0 * k + jt * sin(fr * 67 + 42517), 1.15 * k + jt * sin(fr * 54 + 42554); close }
         path { at: cx + 0.5 * u, cy + 0.4 * u; stroke: 0.7 * (1.5 * u); color: mint; opacity: o * 0.34; move -1 * k + jt * sin(fr * 73 + 42591), 0 * k + jt * sin(fr * 62 + 42628); curve 1 * k + jt * sin(fr * 52 + 42665), 0 * k + jt * sin(fr * 69 + 42702) via 0 * k + jt * sin(fr * 59 + 42739), -1.15 * k + jt * sin(fr * 47 + 42776); curve -1 * k + jt * sin(fr * 67 + 42813), 0 * k + jt * sin(fr * 54 + 42850) via 0 * k + jt * sin(fr * 73 + 42887), 1.15 * k + jt * sin(fr * 62 + 42924); close }
@@ -5170,7 +5176,7 @@ scene Vitreus {
     //  Click away. The surface is the whole screen (its input region is only what has a zone, so the rest lets clicks through), and this
     //  zone, declared before everything else so that everything else wins over it, closes the panel on a press anywhere that is not
     //  the panel or the bar. A second surface for this would take Escape away from the panel, so it is done here.
-    zone box away_z { at: screen.width / 2, screen.height / 2; size: screen.width, screen.height; active: (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or dash_open or (ax_open and axb > 0.5 and not ax_free) }
+    zone box away_z { label: "Close what is open"; at: screen.width / 2, screen.height / 2; size: screen.width, screen.height; active: (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or dash_open or (ax_open and axb > 0.5 and not ax_free) }
     //  On the Island the add-on's drawer is one of the bar's panels until it is pulled away from the bar (`ax_free`): a press away shuts it, and so does another
     //  panel opening, and it shuts the bar's panel when it opens, so that they never stack. Once pulled away it stays, like the Desk.
     on press away_z { panel = none; wp_picker_open = false; ov_open = false; dash_open = false; ax_open = ax_open and (axb < 0.5 or ax_free) }
@@ -6505,13 +6511,13 @@ scene Vitreus {
     group {
         show: sb > 0.5
         move: rt * (screen.width - 2 * lf.x), 0
-    zone box ctl_btn_z { at: lf.w / 2, lv.ctl; size: lf.w, 36 * u; cursor: pointer; active: lm > 0.5 }
+    zone box ctl_btn_z { label: "Control Center"; at: lf.w / 2, lv.ctl; size: lf.w, 36 * u; cursor: pointer; active: lm > 0.5 }
     on press ctl_btn_z { panel_scr = screen.index; panel = if(panel == controls, none, controls) }
-    zone box cal_btn_z { at: lf.w / 2, lv.clk + 30 * u; size: lf.w, 104 * u; cursor: pointer; active: lm > 0.5 }
+    zone box cal_btn_z { label: "Dashboard: calendar, media and windows"; at: lf.w / 2, lv.clk + 30 * u; size: lf.w, 104 * u; cursor: pointer; active: lm > 0.5 }
     on press cal_btn_z { panel_scr = screen.index; panel = if(panel == calendar, none, calendar) }
     //  The window title (and the player's buttons over it) the same way: a click on it opens the player's panel.
     //  At least as long as an edge notch (`nt_w`), so a short title ("Signal") is still easy to find and to hit, and an empty workspace (no title at all) still opens the list of windows.
-    zone box pl_btn_z { at: lf.w / 2, (lv.zt + lv.zb) / 2; size: lf.w, lv.zb - lv.zt; cursor: pointer; active: lm > 0.5 and bv.title }
+    zone box pl_btn_z { label: "Dashboard: calendar, media and windows"; at: lf.w / 2, (lv.zt + lv.zb) / 2; size: lf.w, lv.zb - lv.zt; cursor: pointer; active: lm > 0.5 and bv.title }
     }
     on press pl_btn_z { panel_scr = screen.index; panel = if(panel == calendar, none, calendar) }
     //  A small tab out of the strip's right edge beside the title, while the pointer is on it: the edge notches' way of
@@ -7523,7 +7529,7 @@ scene Vitreus {
     }
     include "pages/bar_icons.plm"
     //  The clock runs while something needs it. It is here, after the bar's zones, because it reads their hover: the bar's icons only boil under the pointer.
-    let need_clock = (fr_wv > 0 and fm > 0.5) or (cy_on > 0.01) or bar_hit.hover > 0.01 or adk_hot > 0.5 or wsh.1.$screen > 0.01 or wsh.2.$screen > 0.01 or wsh.3.$screen > 0.01 or wsh.4.$screen > 0.01 or wsh.5.$screen > 0.01 or wsh.6.$screen > 0.01 or wsh.7.$screen > 0.01 or wsh.8.$screen > 0.01 or wsh.9.$screen > 0.01 or wsh.10.$screen > 0.01 or ws.sp > 0.01 or set_hit.hover > 0.01 or sr_hit.hover > 0.01 or ctl_hit.hover > 0.01 or ov_btn.hover > 0.01 or bp.prev.hover > 0.01 or bp.play.hover > 0.01 or bp.next.hover > 0.01 or vm_prev.hover > 0.01 or vm_play.hover > 0.01 or vm_next.hover > 0.01 or ds > 0.01 or dl > 0.01 or dk > 0.01 or hm_hot > 0.5 or ((wifi_scanning or bt_scanning or bt_working or caf_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or osd_kind == note or nt_urgent)) or (set_pgd > 0.01 and disp.h > set.h) or time - pw_b0 < 1.5 or time - pw_b1 < 1.5 or time - pw_b2 < 1.5 or time - pw_b3 < 1.5 or time - pw_b4 < 1.5 or rec_on or (dsh_rise > 0.01 and (dsh_rise < 0.995 or dsh_under > 0.002 or media.playing or dsh_hv > 0.5)) or (mf.vis > 0.01 and media.playing)
+    let need_clock = (fr_wv > 0 and fm > 0.5) or (cy_on > 0.01) or bar_hit.hover > 0.01 or adk_hot > 0.5 or wsh.1.$screen > 0.01 or wsh.2.$screen > 0.01 or wsh.3.$screen > 0.01 or wsh.4.$screen > 0.01 or wsh.5.$screen > 0.01 or wsh.6.$screen > 0.01 or wsh.7.$screen > 0.01 or wsh.8.$screen > 0.01 or wsh.9.$screen > 0.01 or wsh.10.$screen > 0.01 or set_hit.hover > 0.01 or sr_hit.hover > 0.01 or ctl_hit.hover > 0.01 or ov_btn.hover > 0.01 or bp.prev.hover > 0.01 or bp.play.hover > 0.01 or bp.next.hover > 0.01 or vm_prev.hover > 0.01 or vm_play.hover > 0.01 or vm_next.hover > 0.01 or ds > 0.01 or dl > 0.01 or dk > 0.01 or hm_hot > 0.5 or ((wifi_scanning or bt_scanning or bt_working or caf_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or osd_kind == note or nt_urgent)) or (set_pgd > 0.01 and disp.h > set.h) or time - pw_b0 < 1.5 or time - pw_b1 < 1.5 or time - pw_b2 < 1.5 or time - pw_b3 < 1.5 or time - pw_b4 < 1.5 or rec_on or (dsh_rise > 0.01 and (dsh_rise < 0.995 or dsh_under > 0.002 or media.playing or dsh_hv > 0.5)) or (mf.vis > 0.01 and media.playing)
     spin time by if(need_clock, 1, 0)
 
 

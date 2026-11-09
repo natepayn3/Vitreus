@@ -6,7 +6,7 @@ part Glass {
             opacity: set_pg
             let gsl.x0 = spx + 14 * pu
             let gsl.w = 336 * pu
-            let gh = 10 * pu
+            let gls_gh = 10 * pu
             let gl.sc = clamp(gl_scroll, 0, max(0, gl.h - set.h))
             let gl.off = floor(gl.sc * pu + 0.5)        // whole pixels: text that is shifted by a fraction of one is resampled, and looks soft
             clip box { at: spx + 224 * pu, sby + set.h / 2 * pu; size: 456 * pu, set.h * pu }
@@ -41,7 +41,7 @@ part Glass {
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 224 * pu + 0.5); text "Hyprland's blur, for the flat look and glass that doesn't bend; see Frost" { at: floor(spx + 14 * pu + 0.5), floor(sby + 224 * pu + 0.5); anchor: left center; size: 14; color: faint; opacity: 100%; family: "Space Grotesk" } }
             group {
                 opacity: 100%
-                PSlider(gsl.x0, sby + 241 * pu, gsl.w, clamp(clamp(hy_blur / 20, 0, 1), 0, 1), glass_hit2.hover, cu, gh, 0)
+                PSlider(gsl.x0, sby + 241 * pu, gsl.w, clamp(clamp(hy_blur / 20, 0, 1), 0, 1), glass_hit2.hover, cu, gls_gh, 0)
             }
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 212 * pu + 0.5); text hy_blur_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 212 * pu + 0.5); anchor: right center; size: 20; weight: 600; color: ink; opacity: 100%; family: "Space Grotesk" } }
             zone box glass_hit2 { at: gsl.x0 + gsl.w / 2, sby + 241 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: (sby + 241 * pu) - gl.off > sby and (sby + 241 * pu) - gl.off < sby + set.h * pu }
@@ -63,11 +63,11 @@ part Glass {
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 282 * pu + 0.5); text "How solid; the first 30% can't be picked, the glass would vanish" { at: floor(spx + 14 * pu + 0.5), floor(sby + 282 * pu + 0.5); anchor: left center; size: 14; color: faint; opacity: 100%; family: "Space Grotesk" } }
             group {
                 opacity: 100%
-                PSlider(gsl.x0, sby + 299 * pu, gsl.w, clamp(clamp(glass_op, 0, 1), 0, 1), glass_hit1.hover, cu, gh, 0)
+                PSlider(gsl.x0, sby + 299 * pu, gsl.w, clamp(clamp(glass_op, 0, 1), 0, 1), glass_hit1.hover, cu, gls_gh, 0)
             }
             //  The first 30 % of this track cannot be picked: it is shaded, with a tick where the range starts.
-            box { from: gsl.x0, sby + 299 * pu - gh / 2; size: gsl.w * 0.3, gh; corner: gh / 2; color: #000000; opacity: 38% }
-            box { at: gsl.x0 + gsl.w * 0.3, sby + 299 * pu; size: 1.5 * pu, gh + 6 * pu; corner: 0.75 * pu; color: ink; opacity: 45% }
+            box { from: gsl.x0, sby + 299 * pu - gls_gh / 2; size: gsl.w * 0.3, gls_gh; corner: gls_gh / 2; color: #000000; opacity: 38% }
+            box { at: gsl.x0 + gsl.w * 0.3, sby + 299 * pu; size: 1.5 * pu, gls_gh + 6 * pu; corner: 0.75 * pu; color: ink; opacity: 45% }
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 270 * pu + 0.5); text glass_op_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 270 * pu + 0.5); anchor: right center; size: 20; weight: 600; color: ink; opacity: 100%; family: "Space Grotesk" } }
             zone box glass_hit1 { at: gsl.x0 + gsl.w / 2, sby + 299 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: (obs < 0.5) and (sby + 299 * pu) - gl.off > sby and (sby + 299 * pu) - gl.off < sby + set.h * pu }
             on press glass_hit1 { emit glass_op_set(clamp(((pointer.x - tx.pnl) - gsl.x0) / gsl.w, 0, 1)) }
@@ -83,7 +83,7 @@ part Glass {
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 340 * pu + 0.5); text "How bright the light along the glass edge is" { at: floor(spx + 14 * pu + 0.5), floor(sby + 340 * pu + 0.5); anchor: left center; size: 14; color: faint; opacity: 100%; family: "Space Grotesk" } }
             group {
                 opacity: 100%
-                PSlider(gsl.x0, sby + 357 * pu, gsl.w, clamp(clamp(glass_rim / 2, 0, 1), 0, 1), glass_hit3.hover, cu, gh, 0)
+                PSlider(gsl.x0, sby + 357 * pu, gsl.w, clamp(clamp(glass_rim / 2, 0, 1), 0, 1), glass_hit3.hover, cu, gls_gh, 0)
             }
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 328 * pu + 0.5); text glass_rim_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 328 * pu + 0.5); anchor: right center; size: 20; weight: 600; color: ink; opacity: 100%; family: "Space Grotesk" } }
             zone box glass_hit3 { at: gsl.x0 + gsl.w / 2, sby + 357 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: (obs < 0.5) and (sby + 357 * pu) - gl.off > sby and (sby + 357 * pu) - gl.off < sby + set.h * pu }
@@ -100,7 +100,7 @@ part Glass {
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 398 * pu + 0.5); text "How much the edge bends what is behind it" { at: floor(spx + 14 * pu + 0.5), floor(sby + 398 * pu + 0.5); anchor: left center; size: 14; color: faint; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" } }
             group {
                 opacity: 100% * (0.35 + 0.65 * glass_bend_k)
-                PSlider(gsl.x0, sby + 415 * pu, gsl.w, clamp(clamp(glass_refr / 3, 0, 1), 0, 1), glass_hit4.hover, cu, gh, 0)
+                PSlider(gsl.x0, sby + 415 * pu, gsl.w, clamp(clamp(glass_refr / 3, 0, 1), 0, 1), glass_hit4.hover, cu, gls_gh, 0)
             }
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 386 * pu + 0.5); text glass_refr_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 386 * pu + 0.5); anchor: right center; size: 20; weight: 600; color: ink; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" } }
             zone box glass_hit4 { at: gsl.x0 + gsl.w / 2, sby + 415 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: (obs < 0.5) and (sby + 415 * pu) - gl.off > sby and (sby + 415 * pu) - gl.off < sby + set.h * pu }
@@ -117,7 +117,7 @@ part Glass {
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 456 * pu + 0.5); text "How far red, green and blue split at the edge" { at: floor(spx + 14 * pu + 0.5), floor(sby + 456 * pu + 0.5); anchor: left center; size: 14; color: faint; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" } }
             group {
                 opacity: 100% * (0.35 + 0.65 * glass_bend_k)
-                PSlider(gsl.x0, sby + 473 * pu, gsl.w, clamp(clamp(glass_disp / 2.5, 0, 1), 0, 1), glass_hit5.hover, cu, gh, 0)
+                PSlider(gsl.x0, sby + 473 * pu, gsl.w, clamp(clamp(glass_disp / 2.5, 0, 1), 0, 1), glass_hit5.hover, cu, gls_gh, 0)
             }
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 444 * pu + 0.5); text glass_disp_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 444 * pu + 0.5); anchor: right center; size: 20; weight: 600; color: ink; opacity: 100% * (0.35 + 0.65 * glass_bend_k); family: "Space Grotesk" } }
             zone box glass_hit5 { at: gsl.x0 + gsl.w / 2, sby + 473 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: (obs < 0.5) and (sby + 473 * pu) - gl.off > sby and (sby + 473 * pu) - gl.off < sby + set.h * pu }
@@ -170,7 +170,7 @@ part Glass {
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 514 * pu + 0.5); text "How frosted inside the edge; 0% is clear glass" { at: floor(spx + 14 * pu + 0.5), floor(sby + 514 * pu + 0.5); anchor: left center; size: 14; color: faint; opacity: 100% * (0.35 + 0.65 * glass_bend_k) * (1 - 0.55 * glass_auto_pill); family: "Space Grotesk" } }
             group {
                 opacity: 100% * (0.35 + 0.65 * glass_bend_k) * (1 - 0.55 * glass_auto_pill)
-                PSlider(gsl.x0, sby + 531 * pu, gsl.w, clamp(clamp(glass_clear, 0, 1), 0, 1), glass_hit6.hover, cu, gh, 0)
+                PSlider(gsl.x0, sby + 531 * pu, gsl.w, clamp(clamp(glass_clear, 0, 1), 0, 1), glass_hit6.hover, cu, gls_gh, 0)
             }
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 502 * pu + 0.5); text glass_clear_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 502 * pu + 0.5); anchor: right center; size: 20; weight: 600; color: ink; opacity: 100% * (0.35 + 0.65 * glass_bend_k) * (1 - 0.55 * glass_auto_pill); family: "Space Grotesk" } }
             zone box glass_hit6 { at: gsl.x0 + gsl.w / 2, sby + 531 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: (obs < 0.5 and glass_bend and not glass_auto) and (sby + 531 * pu) - gl.off > sby and (sby + 531 * pu) - gl.off < sby + set.h * pu }
@@ -203,7 +203,7 @@ part Glass {
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 626 * pu + 0.5); text "Magnifies what is behind, towards the middle" { at: floor(spx + 14 * pu + 0.5), floor(sby + 626 * pu + 0.5); anchor: left center; size: 14; color: faint; opacity: 100%; family: "Space Grotesk" } }
             group {
                 opacity: 100%
-                PSlider(gsl.x0, sby + 643 * pu, gsl.w, clamp(glass_dome, 0, 1), glass_hit7.hover, cu, gh, 0)
+                PSlider(gsl.x0, sby + 643 * pu, gsl.w, clamp(glass_dome, 0, 1), glass_hit7.hover, cu, gls_gh, 0)
             }
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 614 * pu + 0.5); text glass_dome_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 614 * pu + 0.5); anchor: right center; size: 20; weight: 600; color: ink; opacity: 100%; family: "Space Grotesk" } }
             zone box glass_hit7 { at: gsl.x0 + gsl.w / 2, sby + 643 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: (obs < 0.5) and (sby + 643 * pu) - gl.off > sby and (sby + 643 * pu) - gl.off < sby + set.h * pu }
@@ -221,7 +221,7 @@ part Glass {
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 690 * pu + 0.5); text "A milky veil inside the glass" { at: floor(spx + 14 * pu + 0.5), floor(sby + 690 * pu + 0.5); anchor: left center; size: 14; color: faint; opacity: 100%; family: "Space Grotesk" } }
             group {
                 opacity: 100%
-                PSlider(gsl.x0, sby + 707 * pu, gsl.w, clamp(clamp(glass_milk / 1, 0, 1), 0, 1), glass_hit8.hover, cu, gh, 0)
+                PSlider(gsl.x0, sby + 707 * pu, gsl.w, clamp(clamp(glass_milk / 1, 0, 1), 0, 1), glass_hit8.hover, cu, gls_gh, 0)
             }
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 678 * pu + 0.5); text glass_milk_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 678 * pu + 0.5); anchor: right center; size: 20; weight: 600; color: ink; opacity: 100%; family: "Space Grotesk" } }
             zone box glass_hit8 { at: gsl.x0 + gsl.w / 2, sby + 707 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: (obs < 0.5) and (sby + 707 * pu) - gl.off > sby and (sby + 707 * pu) - gl.off < sby + set.h * pu }
@@ -238,7 +238,7 @@ part Glass {
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 890 * pu + 0.5); text "Least time between two captures: longer is lighter on the panels" { at: floor(spx + 14 * pu + 0.5), floor(sby + 890 * pu + 0.5); anchor: left center; size: 14; color: faint; opacity: 100%; family: "Space Grotesk" } }
             group {
                 opacity: 100%
-                PSlider(gsl.x0, sby + 907 * pu, gsl.w, clamp(if(lens_interval_ms <= 16, 0, lens_interval_ms / 1000), 0, 1), glass_hit9.hover, cu, gh, 0)
+                PSlider(gsl.x0, sby + 907 * pu, gsl.w, clamp(if(lens_interval_ms <= 16, 0, lens_interval_ms / 1000), 0, 1), glass_hit9.hover, cu, gls_gh, 0)
             }
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 878 * pu + 0.5); text glass_cap_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 878 * pu + 0.5); anchor: right center; size: 20; weight: 600; color: ink; opacity: 100%; family: "Space Grotesk" } }
             zone box glass_hit9 { at: gsl.x0 + gsl.w / 2, sby + 907 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: (obs < 0.5) and (sby + 907 * pu) - gl.off > sby and (sby + 907 * pu) - gl.off < sby + set.h * pu }

@@ -27,10 +27,19 @@ return function()
             model["dr_segs" .. part] = list
         end
     end
+    -- Something changed: the lists are given to the scene 40 ms later, once for everything that changes meanwhile (a stroke reports many points
+    -- a second). A timer of its own each time, not one that turns for ever: forty wake-ups a second all day, for a board that is rarely open.
+    local pending = false
+    local function mark()
+        dirty = true
+        if pending then return end
+        pending = true
+        after(40, function() pending = false; flush() end)
+    end
     local function add(x0, y0, x1, y1)
         if #segs >= LIMIT then return end
         segs[#segs + 1] = { x0 = x0, y0 = y0, x1 = x1, y1 = y1, c = tonumber(fact.dr_col) or 0, w = tonumber(fact.dr_thick) or 0, k = stroke }
-        dirty = true
+        mark()
     end
     local function near(s, x, y, r)                       -- is the point within `r` of the segment?
         local dx, dy = s.x1 - s.x0, s.y1 - s.y0
@@ -45,7 +54,7 @@ return function()
         for _, s in ipairs(segs) do
             if not near(s, x, y, r) then kept[#kept + 1] = s end
         end
-        if #kept ~= #segs then segs = kept; dirty = true end
+        if #kept ~= #segs then segs = kept; mark() end
     end
     local function erase_line(x0, y0, x1, y1)             -- along the way, so a quick sweep does not skip anything
         local r = REACH[tonumber(fact.dr_thick) or 0] or REACH[0]
@@ -64,7 +73,7 @@ return function()
                     if k > stroke then stroke = k end
                 end
             end
-            dirty = true
+            mark()
         end
     end
     on("dr_down", function(v)
@@ -101,12 +110,12 @@ return function()
             if s.k ~= top then kept[#kept + 1] = s end
         end
         segs = kept
-        dirty = true
+        mark()
         save()
     end)
     on("dr_clear", function()
         segs, last = {}, nil
-        dirty = true
+        mark()
         save()
     end)
     -- ── keeping it ──
@@ -150,6 +159,5 @@ return function()
             end)
         end)
     end)
-    every(40, flush)
     flush()
 end

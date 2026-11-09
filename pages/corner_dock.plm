@@ -2,7 +2,7 @@ part CornerDock {
     //  The corner dock's icons (the glass is in bar_shapes.plm, `cdk.*` in vitreus.plm): one row along the screen's horizontal edge (down a side strip, one column along the vertical one), drawn upright where the mirror
     //  image of the glass falls on the right and the bottom (`rt`, `bt`). The zone under them is the pill itself, so it can be taken hold of by what is between the icons.
     follow dk_lv = if(cdk_bg.hover > 0.01 or adk_bg.hover > 0.01 or cdk_down > 0.5 or adk_down > 0.5 or cdk_drag > 0.5 or adk_drag > 0.5 or (cdk_ga > 0.002 and cdk_ga < 0.998) or (adk_ga > 0.002 and adk_ga < 0.998), 1, 0)
-    zone box cdk_bg { at: cdk.rcx, cdk.rcy; size: cdk.W, cdk.H; cursor: pointer; active: cdk.g > 0.6 }
+    zone box cdk_bg { label: "The corner dock: drag to move it"; at: cdk.rcx, cdk.rcy; size: cdk.W, cdk.H; cursor: pointer; active: cdk.g > 0.6 }
     on press cdk_bg { cdk_down = 1; cdk_drag = 0; cdk_hx = pointer.x - cdk.rcx; cdk_hy = pointer.y - cdk.rcy }
     on drag cdk_bg while cdk_down > 0.5 { cdk_px = clamp(pointer.x - cdk_hx, 0, screen.width); cdk_py = clamp(pointer.y - cdk_hy, 0, screen.height); cdk_drag = if(cdk_drag > 0.5 or abs(drag.dx) + abs(drag.dy) > 8, 1, 0) }
     on release cdk_bg while cdk_down > 0.5 { cdk_corner = if(cdk_drag > 0.5, cdk.pick, cdk_corner); cdk_down = 0; cdk_drag = 0 }

@@ -54,13 +54,13 @@ part ControlsDrawer {
             let msl.w = 170 * cu
             let mth = 16 * u                                  // the volume banner's thickness
             PSlider(msl.x0, micy, msl.w, if(mic_lock > 0.5, mic_ui, clamp(audio.input, 0, 1)), mic_sl.hover, u, mth, if(audio.input_muted, 1, 0))
-            zone box mic_sl { at: msl.x0 + msl.w / 2, micy; size: msl.w + 28 * cu, 34 * cu; cursor: pointer }
+            zone box mic_sl { label: "Microphone level"; at: msl.x0 + msl.w / 2, micy; size: msl.w + 28 * cu, 34 * cu; cursor: pointer }
             on press mic_sl { mic_ui = clamp(((pointer.x - tx.pnl) - msl.x0) / msl.w, 0, 1); mic_lock: 1 ~1ms; emit setmic(clamp(((pointer.x - tx.pnl) - msl.x0) / msl.w, 0, 1)) }
             on drag mic_sl { mic_ui = clamp(((pointer.x - tx.pnl) - msl.x0) / msl.w, 0, 1); mic_lock: 1 ~1ms; emit setmic(clamp(((pointer.x - tx.pnl) - msl.x0) / msl.w, 0, 1)) }
             on release mic_sl { mic_lock: 0 ~1ms after 900ms }
             //  The icon is the mute button, declared after the track's zone so it wins where they meet.
             PMic(pcx - 118 * cu, micy, mic_hit.hover, if(audio.input_muted, 1, 0), mic_hit.hover)
-            zone box mic_hit { at: pcx - 118 * cu, micy; size: 28 * cu, 32 * cu; corner: 13 * cu; cursor: pointer }
+            zone box mic_hit { label: "Mute the microphone"; at: pcx - 118 * cu, micy; size: 28 * cu, 32 * cu; corner: 13 * cu; cursor: pointer }
             on press mic_hit { emit mic_toggle }
             text number(mic_shown * 100, 0, "%") { at: floor(pcx + 120 * cu + 0.5), floor(micy + 0.5); anchor: right center; size: 18.5; weight: 600; color: ink; family: "Space Grotesk"; show: not audio.input_muted }
             text "Muted" { at: floor(pcx + 120 * cu + 0.5), floor(micy + 0.5); anchor: right center; size: 18.5; weight: 600; color: faint; family: "Space Grotesk"; show: audio.input_muted }
@@ -80,7 +80,7 @@ part ControlsDrawer {
             //  The zone that takes the click: the whole track and a little more each side, so it is easy to hit; on the press and all through a drag it turns where the pointer is into a volume.
             zone box vol_plate { at: pcx, ck + (vol_top + (vp.h + bri_cut - 82 + 8 * dd_k) / 2) * cu; size: 288 * cu, (vp.h + bri_cut - 82 + 8 * dd_k) * cu; corner: pr }
             on press right vol_plate { vm_open = not vm_open; dd_open = false }
-            zone box vol_hit { at: sl.x0 + sl.w / 2, sy; size: sl.w + 16 * cu, 24 * cu; cursor: pointer }
+            zone box vol_hit { label: "Volume"; at: sl.x0 + sl.w / 2, sy; size: sl.w + 16 * cu, 24 * cu; cursor: pointer }
             on press vol_hit { vol_ui = clamp(((pointer.x - tx.pnl) - sl.x0) / sl.w, 0, 1); vol_lock: 1 ~1ms; emit setvol(clamp(((pointer.x - tx.pnl) - sl.x0) / sl.w, 0, 1)) }
             on press right vol_hit { vm_open = not vm_open; dd_open = false }
             on drag vol_hit { vol_ui = clamp(((pointer.x - tx.pnl) - sl.x0) / sl.w, 0, 1); vol_lock: 1 ~1ms; emit setvol(clamp(((pointer.x - tx.pnl) - sl.x0) / sl.w, 0, 1)) }
@@ -91,19 +91,19 @@ part ControlsDrawer {
             }
             //  While it is open the dots give way to an arrow pointing up: press it to fold the mixer away.
             path { at: pcx, vol_cy + (vp.h + bri_cut - 110.5 + 8 * dd_k) * cu; stroke: 1.6 * cu; color: mint; opacity: (55% + 40% * mix_hit.hover) * clamp(vm * 1.6 - 0.6, 0, 1) * clamp(mvis, 0, 1); move -4.5 * cu, 1.8 * cu; line 0, -1.8 * cu; line 4.5 * cu, 1.8 * cu }
-            zone box mix_hit { at: pcx, vol_cy + (vp.h + bri_cut - 110.5 + 8 * dd_k) * cu; size: 40 * cu, 9 * cu; corner: 4.5 * cu; cursor: pointer; active: mixer.count > 0 or vm_open }
+            zone box mix_hit { label: "Volume of each app"; at: pcx, vol_cy + (vp.h + bri_cut - 110.5 + 8 * dd_k) * cu; size: 40 * cu, 9 * cu; corner: 4.5 * cu; cursor: pointer; active: mixer.count > 0 or vm_open }
             on press mix_hit { vm_open = not vm_open; dd_open = false }
             on press right mix_hit { vm_open = not vm_open; dd_open = false }
             //  The speaker is a mute button. Declared after the track's zone, which reaches a little way under it, so the icon wins there.
             PSpk(pcx - 128 * cu, sy, max(vol_hit.hover, mute_hit.hover), 0.7 + 0.3 * mute_hit.hover, if(audio.muted, 0, 25% + 75% * clamp(volume_level * 12, 0, 1)), if(audio.muted, 0, 20% + 80% * clamp((volume_level - 0.35) * 4, 0, 1)), if(audio.muted, 1, 0))
-            zone box mute_hit { at: pcx - 118 * cu, sy; size: 28 * cu, 32 * cu; cursor: pointer }
+            zone box mute_hit { label: "Mute the sound"; at: pcx - 118 * cu, sy; size: 28 * cu, 32 * cu; cursor: pointer }
             on press mute_hit { emit mute }
             on press right mute_hit { vm_open = not vm_open; dd_open = false }
             text number(if(vol_lock > 0.5, vol_ui, audio.volume) * 100, 0, "%") { at: floor(pcx + 120 * cu + 0.5), floor(vol_cy + 0.5); anchor: right center; size: 18.5; weight: 600; color: ink; family: "Space Grotesk"; show: not audio.muted }
             text "Muted" { at: floor(pcx + 120 * cu + 0.5), floor(vol_cy + 0.5); anchor: right center; size: 18.5; weight: 600; color: faint; family: "Space Grotesk"; show: audio.muted }
             //  The chevron at the end of the row opens the list of outputs (which one is in use is marked there).
             path { at: pcx + 133 * cu, vol_cy; stroke: 1.5 * cu; color: ink; opacity: 55% + 40% * out_hit.hover; move -3.5 * cu, -2 * cu; line 0, 2 * cu; line 3.5 * cu, -2 * cu }
-            zone box out_hit { at: pcx + 133 * cu, vol_cy; size: 20 * cu, 30 * cu; cursor: pointer }
+            zone box out_hit { label: "Sound output"; at: pcx + 133 * cu, vol_cy; size: 20 * cu, 30 * cu; cursor: pointer }
             on press out_hit { toggle dd_open; vm_open = false }
             on press right out_hit { vm_open = not vm_open; dd_open = false }
         }
@@ -288,7 +288,7 @@ part ControlsDrawer {
             line { from: gbt_kx - 5 * cu, gbt_cy - 5 * cu; to: gbt_kx + 5 * cu, gbt_cy + 5 * cu; width: 1.4 * cu; color: gbt_dk; opacity: glyph_a * (0.8 * (1 - bt_on)) }
             zone box bt_tile_hit { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; cursor: pointer }
             on press bt_tile_hit { panel_sub = if(panel_sub == btview, none, btview) }
-            zone box bt_toggle_hit { at: tb1 - 1 * cu, tile2_cy - 17 * cu; size: 46 * cu, 30 * cu; cursor: pointer }
+            zone box bt_toggle_hit { label: "Bluetooth"; at: tb1 - 1 * cu, tile2_cy - 17 * cu; size: 46 * cu, 30 * cu; cursor: pointer }
             on press bt_toggle_hit { emit togglebt(not bt.powered) }
             on press bt_toggle_hit { bt_press: 1; bt_rx = (pointer.x - tx.pnl); bt_ry = (pointer.y - ty.att); bt_rip: 0 ~0ms; bt_rip: 1 ~700ms after 40ms }
             on release bt_toggle_hit { bt_press: 0 }
@@ -355,7 +355,7 @@ part ControlsDrawer {
             line { from: gdn_kx - 5.5 * cu, gdn_cy - 5.5 * cu; to: gdn_kx + 5.5 * cu, gdn_cy + 5.5 * cu; width: 1.5 * cu; color: gdn_dk; opacity: glyph_a * dnd_pill }
             zone box dnd_hit { at: tb2 - 21 * cu, s2_cy; size: 94 * cu, st_h * cu; cursor: pointer }
             on press dnd_hit { panel_sub = if(panel_sub == notifview, none, notifview) }
-            zone box dnd_toggle_hit { at: tb2 - 1 * cu, s2_cy - 15 * cu; size: 46 * cu, 30 * cu; cursor: pointer }
+            zone box dnd_toggle_hit { label: "Do Not Disturb"; at: tb2 - 1 * cu, s2_cy - 15 * cu; size: 46 * cu, 30 * cu; cursor: pointer }
             on press dnd_toggle_hit { emit togglednd }
             on press dnd_toggle_hit { dnd_press: 1; dnd_rx = (pointer.x - tx.pnl); dnd_ry = (pointer.y - ty.att); dnd_rip: 0 ~0ms; dnd_rip: 1 ~700ms after 40ms }
             on release dnd_toggle_hit { dnd_press: 0 }
@@ -429,7 +429,7 @@ part ControlsDrawer {
                 PKnobCup(gcf_kx, gcf_cy, caf_pill, glyph_a)
                 zone box caf_hit { at: tb2 - 21 * cu, s1_cy; size: 94 * cu, st_h * cu; cursor: pointer; active: caf_avail }
                 on press caf_hit { panel_sub = if(panel_sub == cafview, none, cafview) }
-                zone box caf_toggle_hit { at: tb2 - 1 * cu, s1_cy - 15 * cu; size: 46 * cu, 30 * cu; cursor: pointer; active: caf_avail }
+                zone box caf_toggle_hit { label: "Caffeine"; at: tb2 - 1 * cu, s1_cy - 15 * cu; size: 46 * cu, 30 * cu; cursor: pointer; active: caf_avail }
                 on press caf_toggle_hit { emit togglecaf }
                 on press caf_toggle_hit { caf_press: 1; caf_rx = (pointer.x - tx.pnl); caf_ry = (pointer.y - ty.att); caf_rip: 0 ~0ms; caf_rip: 1 ~700ms after 40ms }
                 on release caf_toggle_hit { caf_press: 0 }
@@ -451,7 +451,7 @@ part ControlsDrawer {
             box { at: tb2 + 8 * cu, s3_cy - 15 * cu; size: (10 - 2 * rec_pill) * cu, (10 - 2 * rec_pill) * cu; corner: (5 - 3 * rec_pill) * cu; color: mint; opacity: 65% + 35% * rec_pill - rec_pill * 0.25 * (0.5 + 0.5 * sin(time * 300)) }
             zone box cap_hit { at: tb2 - 21 * cu, s3_cy; size: 94 * cu, st_h * cu; cursor: pointer }
             on press cap_hit { panel_sub = if(panel_sub == capview, none, capview) }
-            zone box cap_rec_hit { at: tb2 + 8 * cu, s3_cy - 15 * cu; size: 34 * cu, 30 * cu; corner: 15 * cu; cursor: pointer }
+            zone box cap_rec_hit { label: "Start or stop a screen recording"; at: tb2 + 8 * cu, s3_cy - 15 * cu; size: 34 * cu, 30 * cu; corner: 15 * cu; cursor: pointer }
             on press cap_rec_hit { emit rec_toggle }
 
             //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
@@ -520,7 +520,7 @@ part ControlsDrawer {
                 PKnobMoon(gnm_kx, gnm_cy, nm_pill, glyph_a)
                 zone box nm_hit { at: tb3 - 21 * cu, s1_cy; size: 94 * cu, st_h * cu; cursor: pointer; active: 1 > 0.5 }
                 on press nm_hit { emit night_toggle }
-                zone box nm_toggle_hit { at: tb3 - 1 * cu, s1_cy - 15 * cu; size: 46 * cu, 30 * cu; cursor: pointer; active: 1 > 0.5 }
+                zone box nm_toggle_hit { label: "Night mode"; at: tb3 - 1 * cu, s1_cy - 15 * cu; size: 46 * cu, 30 * cu; cursor: pointer; active: 1 > 0.5 }
                 on press nm_toggle_hit { emit night_toggle }
                 on press nm_hit { nm_press: 1; nm_rx = (pointer.x - tx.pnl); nm_ry = (pointer.y - ty.att); nm_rip: 0 ~0ms; nm_rip: 1 ~700ms after 40ms }
                 on release nm_hit { nm_press: 0 }
@@ -578,7 +578,7 @@ part ControlsDrawer {
                 PKnobPad(ggm_kx, ggm_cy, gm_pill, glyph_a)
                 zone box gm_hit { at: tb3 - 21 * cu, s2_cy; size: 94 * cu, st_h * cu; cursor: pointer; active: game_k > 0.5 }
                 on press gm_hit { emit game_toggle }
-                zone box gm_toggle_hit { at: tb3 - 1 * cu, s2_cy - 15 * cu; size: 46 * cu, 30 * cu; cursor: pointer; active: game_k > 0.5 }
+                zone box gm_toggle_hit { label: "Game Mode"; at: tb3 - 1 * cu, s2_cy - 15 * cu; size: 46 * cu, 30 * cu; cursor: pointer; active: game_k > 0.5 }
                 on press gm_toggle_hit { emit game_toggle }
                 on press gm_hit { gm_press: 1; gm_rx = (pointer.x - tx.pnl); gm_ry = (pointer.y - ty.att); gm_rip: 0 ~0ms; gm_rip: 1 ~700ms after 40ms }
                 on release gm_hit { gm_press: 0 }

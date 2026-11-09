@@ -7,7 +7,7 @@ part Hyprland {
             opacity: set_pgh
             let hsl.x0 = spx + 122 * pu
             let hsl.w = 250 * pu
-            let hh = 12 * pu
+            let hyp_hh = 12 * pu
 
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
             body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 115 * pu; size: 438 * pu, 230 * pu; corner: 14 * pu } }
@@ -38,7 +38,7 @@ part Hyprland {
 
             //  Gaps, 0 to 30 px.
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 74 * pu + 0.5); text "Gaps" { at: floor(spx + 14 * pu + 0.5), floor(sby + 74 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
-            PSlider(hsl.x0, sby + 74 * pu, hsl.w, clamp(hy_gaps / 30, 0, 1), hy_gaps_hit.hover, cu, hh, 0)
+            PSlider(hsl.x0, sby + 74 * pu, hsl.w, clamp(hy_gaps / 30, 0, 1), hy_gaps_hit.hover, cu, hyp_hh, 0)
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 74 * pu + 0.5); text hy_gaps_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 74 * pu + 0.5); anchor: right center; size: 19.5; weight: 600; color: ink; family: "Space Grotesk" } }
             zone box hy_gaps_hit { at: hsl.x0 + hsl.w / 2, sby + 74 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
             on press hy_gaps_hit { emit hy_gaps_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
@@ -46,7 +46,7 @@ part Hyprland {
 
             //  Corner rounding, 0 to 30 px.
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 106 * pu + 0.5); text "Corner rounding" { at: floor(spx + 14 * pu + 0.5), floor(sby + 106 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
-            PSlider(hsl.x0, sby + 106 * pu, hsl.w, clamp(hy_round / 30, 0, 1), hy_round_hit.hover, cu, hh, 0)
+            PSlider(hsl.x0, sby + 106 * pu, hsl.w, clamp(hy_round / 30, 0, 1), hy_round_hit.hover, cu, hyp_hh, 0)
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 106 * pu + 0.5); text hy_round_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 106 * pu + 0.5); anchor: right center; size: 19.5; weight: 600; color: ink; family: "Space Grotesk" } }
             zone box hy_round_hit { at: hsl.x0 + hsl.w / 2, sby + 106 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
             on press hy_round_hit { emit hy_round_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
@@ -54,7 +54,7 @@ part Hyprland {
 
             //  Border thickness, 0 to 10 px.
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 138 * pu + 0.5); text "Border thickness" { at: floor(spx + 14 * pu + 0.5), floor(sby + 138 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
-            PSlider(hsl.x0, sby + 138 * pu, hsl.w, clamp(hy_border / 10, 0, 1), hy_border_hit.hover, cu, hh, 0)
+            PSlider(hsl.x0, sby + 138 * pu, hsl.w, clamp(hy_border / 10, 0, 1), hy_border_hit.hover, cu, hyp_hh, 0)
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 138 * pu + 0.5); text hy_border_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 138 * pu + 0.5); anchor: right center; size: 19.5; weight: 600; color: ink; family: "Space Grotesk" } }
             zone box hy_border_hit { at: hsl.x0 + hsl.w / 2, sby + 138 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
             on press hy_border_hit { emit hy_border_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
@@ -62,8 +62,8 @@ part Hyprland {
 
             //  Sensitivity, -1 to 1.
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 354 * pu + 0.5); text "Sensitivity" { at: floor(spx + 14 * pu + 0.5), floor(sby + 354 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
-            PSlider(hsl.x0, sby + 354 * pu, hsl.w, clamp((hy_sens + 1) / 2, 0, 1), hy_sens_hit.hover, cu, hh, 0)
-            box { at: hsl.x0 + hsl.w / 2, sby + 354 * pu; size: 1.5 * pu, hh + 6 * pu; corner: 0.75 * pu; color: ink; opacity: 40% }
+            PSlider(hsl.x0, sby + 354 * pu, hsl.w, clamp((hy_sens + 1) / 2, 0, 1), hy_sens_hit.hover, cu, hyp_hh, 0)
+            box { at: hsl.x0 + hsl.w / 2, sby + 354 * pu; size: 1.5 * pu, hyp_hh + 6 * pu; corner: 0.75 * pu; color: ink; opacity: 40% }
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 354 * pu + 0.5); text hy_sens_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 354 * pu + 0.5); anchor: right center; size: 19.5; weight: 600; color: ink; family: "Space Grotesk" } }
             zone box hy_sens_hit { at: hsl.x0 + hsl.w / 2, sby + 354 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
             on press hy_sens_hit { emit hy_sens_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }

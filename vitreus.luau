@@ -4478,7 +4478,8 @@ every(1000, function()
         local f = wp_random_pick()
         if f then wp_apply(f) end
     end
-    wp_show_refresh()
+    -- the countdown is only words on the Wallpaper page: written every second with the page shut, it had the scene put together again each time
+    if fact.panel == "settings" and fact.set_page == "pg_wall" then wp_show_refresh() end
 end)
 
 wp_load()
@@ -7128,12 +7129,19 @@ end
         end
     end
 
-    every(90, function()
-        if cur_panel ~= "launch" then return end
-        if lq() ~= S.last then search() end
-    end)
+    -- What is typed is looked at every 90 ms, but only while the launcher is open: the timer starts when it opens or something is typed in it, and
+    -- ends itself once it has shut (one that turned for ever woke the logic eleven times a second all day).
+    local function watch_query()
+        if S.poll then return end
+        S.poll = every(90, function()
+            if cur_panel ~= "launch" then cancel(S.poll); S.poll = nil; return end
+            if lq() ~= S.last then search() end
+        end)
+    end
+    on("text:lq", watch_query)
 
     on("launch_open", function()
+        watch_query()
         text.lq = ""
         S.last = nil
         S.sel = 1

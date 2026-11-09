@@ -1912,15 +1912,15 @@ part BarGlass {
             //  A zone as long as the slot and its share of the gap, so the zones touch.
             let wa = if(i == 1, ws.a1, if(i == 2, ws.a2, if(i == 3, ws.a3, if(i == 4, ws.a4, if(i == 5, ws.a5, if(i == 6, ws.a6, if(i == 7, ws.a7, if(i == 8, ws.a8, if(i == 9, ws.a9, ws.a10)))))))))
             let wsz = (if(i == 1, ws.s1, if(i == 2, ws.s2, if(i == 3, ws.s3, if(i == 4, ws.s4, if(i == 5, ws.s5, if(i == 6, ws.s6, if(i == 7, ws.s7, if(i == 8, ws.s8, if(i == 9, ws.s9, ws.s10))))))))) + ws.g) * ws.vis.$i
-            zone box ws.hit.$i { at: mix(wa, lf.x, lm), mix(bar.y, wa, lm); size: mix(wsz, 40 * bu, lm), mix(bar.h, wsz, lm); cursor: pointer; active: bs.ws > 0.5 and ws.vis.$i > 0.5 }
+            zone box ws.hit.$i { label: pick(i - 1, "Workspace 1", "Workspace 2", "Workspace 3", "Workspace 4", "Workspace 5", "Workspace 6", "Workspace 7", "Workspace 8", "Workspace 9", "Workspace 10"); at: mix(wa, lf.x, lm), mix(bar.y, wa, lm); size: mix(wsz, 40 * bu, lm), mix(bar.h, wsz, lm); cursor: pointer; active: bs.ws > 0.5 and ws.vis.$i > 0.5 }
             on press ws.hit.$i { emit go(i) }
             follow wsh.$i.$screen = ws.hit.$i.hover
             follow wsp.$i.$screen = ws.hit.$i.hover
         }
-        zone box ws_plus { at: mix(ws.a11, lf.x, lm), mix(bar.y, ws.a11, lm); size: mix(ws.sv11 + ws.g, 40 * bu, lm), mix(bar.h, ws.sv11 + ws.g, lm); cursor: pointer; active: bs.ws > 0.5 and ws.pv > 0.5 }
+        zone box ws_plus { label: "New workspace"; at: mix(ws.a11, lf.x, lm), mix(bar.y, ws.a11, lm); size: mix(ws.sv11 + ws.g, 40 * bu, lm), mix(bar.h, ws.sv11 + ws.g, lm); cursor: pointer; active: bs.ws > 0.5 and ws.pv > 0.5 }
         on press ws_plus { emit go(ws.new) }
         follow wspl.$screen = ws_plus.hover
-        zone box ov_btn { at: ob.x, ob.y; size: ob.s + 8 * bu, ob.s + 8 * bu; cursor: pointer; active: bs.ws > 0.5 }
+        zone box ov_btn { label: "Workspace overview"; at: ob.x, ob.y; size: ob.s + 8 * bu, ob.s + 8 * bu; cursor: pointer; active: bs.ws > 0.5 }
         on press ov_btn { emit ov_toggle }
         follow ovp.$screen = ov_btn.hover
         follow ws_lv = if(abs(pl.tail - ws.active) > 0.02 or abs(pl.head - ws.active) > 0.02, 1, 0)
@@ -1952,7 +1952,7 @@ part BarGlass {
         //  buttons, declared after it, are still their own). Down the left they stay what they were.
         let win.hl = min(win.zc - win.zw / 2, if(bs.clock > 0.5, at.clock - fw.clock / 2 - 4 * bu, 99999))
         let win.hr = max(win.zc + win.zw / 2, if(bs.clock > 0.5, at.clock + fw.clock / 2 + 4 * bu, -99999))
-        zone box win_hit { at: mix((win.hl + win.hr) / 2, win.zc, lm), bar.y; size: mix(win.hr - win.hl, win.zw, lm), bar.h; cursor: pointer; active: bs.title > 0.5 }
+        zone box win_hit { label: "Dashboard: calendar, media and windows"; at: mix((win.hl + win.hr) / 2, win.zc, lm), bar.y; size: mix(win.hr - win.hl, win.zw, lm), bar.h; cursor: pointer; active: bs.title > 0.5 }
         on press right win_hit { panel = none }
         on press win_hit { pending = none; panel_scr = screen.index; panel = if(panel == calendar, none, calendar) }
         follow ptab_hold.$screen = 0       // the title's small tab that came out on hover is gone: it never comes out (its glass in bar_shapes.plm stays off the screen)
@@ -1962,9 +1962,9 @@ part BarGlass {
         group {
             opacity: mshow * bs.media
             //  In the title button's top right (`mcx`, `mcy`), and small: 17 between centres.
-            zone box bp.prev { at: mcx - 17 * bu, mcy; size: 17 * bu, 18 * bu; cursor: pointer }
-            zone box bp.play { at: mcx, mcy; size: 17 * bu, 18 * bu; cursor: pointer }
-            zone box bp.next { at: mcx + 17 * bu, mcy; size: 17 * bu, 18 * bu; cursor: pointer }
+            zone box bp.prev { label: "Previous track"; at: mcx - 17 * bu, mcy; size: 17 * bu, 18 * bu; cursor: pointer }
+            zone box bp.play { label: "Play or pause"; at: mcx, mcy; size: 17 * bu, 18 * bu; cursor: pointer }
+            zone box bp.next { label: "Next track"; at: mcx + 17 * bu, mcy; size: 17 * bu, 18 * bu; cursor: pointer }
             on press bp.prev { emit mcmd(0) }
             on press bp.play { emit mcmd(1) }
             on press bp.next { emit mcmd(2) }
@@ -1972,18 +1972,18 @@ part BarGlass {
 
         zone box vt_hit { at: lf.x, lv.tm; size: lf.w - 6 * bu, max(1, lv.span); cursor: pointer; active: lm > 0.5 and bv.title and lv.span > 20 * bu }
         on press vt_hit { pending = none; panel_scr = screen.index; panel = if(panel == calendar, none, calendar) }
-        zone box vm_prev { at: lf.x, lv.mid + 17 * bcu; size: 30 * bcu, 17 * bcu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
-        zone box vm_play { at: lf.x, lv.mid; size: 30 * bcu, 17 * bcu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
-        zone box vm_next { at: lf.x, lv.mid - 17 * bcu; size: 30 * bcu, 17 * bcu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
+        zone box vm_prev { label: "Previous track"; at: lf.x, lv.mid + 17 * bcu; size: 30 * bcu, 17 * bcu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
+        zone box vm_play { label: "Play or pause"; at: lf.x, lv.mid; size: 30 * bcu, 17 * bcu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
+        zone box vm_next { label: "Next track"; at: lf.x, lv.mid - 17 * bcu; size: 30 * bcu, 17 * bcu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
         on press vm_prev { emit mcmd(0) }
         on press vm_play { emit mcmd(1) }
         on press vm_next { emit mcmd(2) }
-        zone box set_hit { at: mix(set.x, lf.x, lm), mix(bar.y, lv.set, lm); size: mix(24 * bu, 36 * bu, lm), mix(bar.h, 30 * bu, lm); cursor: pointer }
+        zone box set_hit { label: "Settings"; at: mix(set.x, lf.x, lm), mix(bar.y, lv.set, lm); size: mix(24 * bu, 36 * bu, lm), mix(bar.h, 30 * bu, lm); cursor: pointer }
         on press set_hit { panel_scr = screen.index; panel = if(panel == settings, none, settings) }
 
-        zone box sr_hit { at: mix(sr.x, lf.x, lm), mix(bar.y, lv.sr, lm); size: mix(24 * bu, 36 * bu, lm), mix(bar.h, 30 * bu, lm); cursor: pointer; active: bs.sr > 0.5 }
+        zone box sr_hit { label: "Launcher"; at: mix(sr.x, lf.x, lm), mix(bar.y, lv.sr, lm); size: mix(24 * bu, 36 * bu, lm), mix(bar.h, 30 * bu, lm); cursor: pointer; active: bs.sr > 0.5 }
         on press sr_hit { panel_scr = screen.index; panel = if(panel == launch, none, launch) }
-        zone box ctl_hit { at: mix(ctl.x, lf.x, lm), mix(bar.y, lv.ctl, lm); size: mix(26 * bu, 36 * bu, lm), mix(bar.h, 30 * bu, lm); cursor: pointer; active: bs.ctl > 0.5 }
+        zone box ctl_hit { label: "Control Center"; at: mix(ctl.x, lf.x, lm), mix(bar.y, lv.ctl, lm); size: mix(26 * bu, 36 * bu, lm), mix(bar.h, 30 * bu, lm); cursor: pointer; active: bs.ctl > 0.5 }
         on press ctl_hit { pending = none; panel_scr = screen.index; panel = if(panel == controls, none, controls) }
 
         //  The calendar's button is the clock and a little around it: 4 more at each side.

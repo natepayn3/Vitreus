@@ -21,7 +21,7 @@ part Desk {
             include "desk_screen.plm"          // the screen: its bezel line, the camera, the AI dot, the tool's title
             //  The grip along the top: take the panel by it and pull it off the frame; let go near its place and it snaps back, further away it stays.
             box { at: dsk_xc, dsk_y0 + 11 * du; size: 34 * du, 4 * du; corner: 2 * du; color: ink; opacity: 35% * max(desk_grip.hover, if(desk_hold, 1, 0)) }
-            zone box desk_grip { at: if(desk_hold, dsk_x0 + (desk_hx - dsk_x0) / desk_s, dsk_xc), if(desk_hold, dsk_y0 + (desk_hy - dsk_y0) / desk_s, dsk_y0 + 11 * du); size: dsk_w - 46 * du, 22 * du; cursor: grab }       // between the corner handles, not under them
+            zone box desk_grip { label: "The Desk: drag to move it"; at: if(desk_hold, dsk_x0 + (desk_hx - dsk_x0) / desk_s, dsk_xc), if(desk_hold, dsk_y0 + (desk_hy - dsk_y0) / desk_s, dsk_y0 + 11 * du); size: dsk_w - 46 * du, 22 * du; cursor: grab }       // between the corner handles, not under them
             on press desk_grip { desk_rk = -1; desk_rhold = false; desk_bx = desk_gx; desk_by = desk_gy; desk_hx = dsk_x0 + (dsk_xc - dsk_x0) * desk_s; desk_hy = dsk_y0 + 11 * du * desk_s; desk_hold = true }
             on drag desk_grip while desk_hold and desk_rk < 0 { desk_gx = clamp(desk_bx + drag.dx, mix(desk_xmin, -(dsk_w * (1 - desk_gs)), rt), mix(dsk_w * (1 - desk_gs), -desk_xmin, rt)); desk_gy = clamp(desk_by + drag.dy, mix(desk_ymin, -desk_ymax, bt), mix(desk_ymax, -desk_ymin, bt)) }
             on release desk_grip while length(desk_gx * (1 - 2 * rt) - dsk_w * (1 - desk_gs), desk_gy * (1 - 2 * bt)) < 80 * du { desk_gx = 0; desk_gy = 0; desk_gs = 1 }
@@ -672,7 +672,7 @@ part Desk {
                 DdCard(dsk_xc, ak_y, 312 * du, 36 * du, 364.5, mix(mix(obsidian, ink, (veil + 4% * ask_zone.hover) * 1.6), dd_cream, dd_k), (obs) * dd_k, du) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
                 box { at: dsk_xc, ak_y; size: 312 * du, 36 * du; corner: 14 * du; color: ink; opacity: (veil + 4% * ask_zone.hover) * (1 - obs) }
                 input ask_in { at: floor(dsk_xc - 156 * du + 14 * du + 0.5), floor(ak_y - 6.5 * du + 0.5); width: 284 * du; size: 13; color: ink; family: "Space Grotesk"; placeholder: "Ask something and press Enter" }
-                zone box ask_zone { at: dsk_xc, ak_y; size: 312 * du, 36 * du; cursor: text }
+                zone box ask_zone { label: "Ask the assistant"; at: dsk_xc, ak_y; size: 312 * du, 36 * du; cursor: text }
                 on press ask_zone { focus ask_in; desk_kb = true }
             }
             //  Clip: the clipboard history (logic/clipboard.luau), pinned entries first. A row copies it again; its dot pins it, Ask sends it to the Ask tab as an

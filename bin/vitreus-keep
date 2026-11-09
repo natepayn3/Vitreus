@@ -7,8 +7,10 @@
 #     leaves, and the first starts the scene again once it has stopped.
 #   - A scene that is already running, started by hand, is left alone: the keeper ends.
 #   - When the compositor has gone (the session ended), it ends too.
-#   - Five quick stops in a row (each within 30 s of starting) and it gives up: a scene that cannot start
-#     is not started forever.
+#   - Five quick failures in a row (each within 30 s of starting) and it gives up: a scene that cannot start
+#     is not started forever. A quick stop that ended well (exit 0: the shell stopping a widget to start it again
+#     with a new theme or typeface) is not a failure: twenty of those in a row are needed, so going through the
+#     themes one after another no longer leaves a widget gone until the next login.
 #   - A scene that is still running but no longer answers (its render stuck: a frozen bar that never exits) is stopped, and so
 #     started again: every 30 s it is asked something only its render can answer, and three times in a row without an answer
 #     in 20 s (after a minute's grace at each start) is taken as hung. `VITREUS_KEEP_WATCH=0` turns this off
@@ -120,9 +122,12 @@ while :; do
     kill "$wpid" 2> /dev/null
     wpid=""
     alive || exit 0
-    if [ $(( $(date +%s) - started )) -lt 30 ]; then quick=$((quick + 1)); else quick=0; fi
-    if [ "$quick" -ge 5 ]; then
-        say "stopped five times in a row within 30 s of starting (last exit $code): giving up"
+    # (a failure weighs four, a stop that ended well one, and twenty is the end: five failures, or twenty clean stops)
+    if [ $(( $(date +%s) - started )) -lt 30 ]; then
+        if [ "$code" -eq 0 ]; then quick=$((quick + 1)); else quick=$((quick + 4)); fi
+    else quick=0; fi
+    if [ "$quick" -ge 20 ]; then
+        say "kept stopping within 30 s of starting (last exit $code): giving up"
         undo_gaps
         exit 1
     fi

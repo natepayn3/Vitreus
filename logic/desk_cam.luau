@@ -38,8 +38,16 @@ return function()
     local pv_busy, pv_n = false, 0
     local function showing() return fact.desk_open == true and tonumber(fact.desk_tab) == 8 end
     local start
+    -- The frame is read again about fifteen times a second, by a timer that only exists while the camera runs (`ticking`): one that turned
+    -- for ever woke the logic fifteen times a second all day for a camera that is rarely on.
+    local tick, tick_t
+    local function ticking(on)
+        if on and not tick_t then tick_t = every(66, function() tick() end)
+        elseif not on and tick_t then cancel(tick_t); tick_t = nil end
+    end
     local function stop()
         if proc then kill(proc, "term"); proc = nil end
+        ticking(false)
         fact.cam_on = false
         fact.cam_live = false
         fact.cam_pv_on = false
@@ -64,6 +72,7 @@ return function()
             function()
                 if proc ~= mine then return end
                 proc = nil
+                ticking(false)
                 fact.cam_live = false
                 -- it stopped while it should be running (the camera is busy, or was just let go of): tried again a few times, then given up
                 if showing() then
@@ -80,6 +89,7 @@ return function()
                 end
             end)
         proc = mine
+        ticking(true)
     end
     local function want()
         if showing() then tries = 0; start() else stop() end
@@ -93,7 +103,7 @@ return function()
         run("mkdir", { "-p", frame_dir }, function() want() end)
     end)
     -- the frame, read again about fifteen times a second while the camera runs; the first one that is there turns the picture on
-    every(66, function()
+    tick = function()
         if not proc or not frame_file then return end
         n = n + 1
         if not got then
@@ -105,7 +115,7 @@ return function()
             return
         end
         text.cam_path = frame_file .. "?" .. n
-    end)
+    end
     every(2000, function()
         if not (proc and got and raw_file) or pv_busy then return end
         pv_busy = true
