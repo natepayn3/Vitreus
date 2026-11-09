@@ -149,10 +149,11 @@ part MediaFloat {
                 text mp_el { at: floor(mf.cx - 132 * cu + 0.5), floor(mfk_y + 0.5); anchor: left center; size: 11.5; weight: 600; width: 34 * cu; lines: 1; color: faint; family: "Space Grotesk" }
                 text mp_tot { at: floor(mf.cx + 132 * cu + 0.5), floor(mfk_y + 0.5); anchor: right center; align: right; size: 11.5; weight: 600; width: 34 * cu; lines: 1; color: faint; family: "Space Grotesk"; show: mp_len > 0 }
                 text "Live" { at: floor(mf.cx + 132 * cu + 0.5), floor(mfk_y + 0.5); anchor: right center; align: right; size: 11.5; weight: 700; color: mint; family: "Space Grotesk"; show: mp_len <= 0 }
-                box { at: s0 + sw_ / 2, mfk_y; size: sw_, (4 + 2 * mfk_hot) * cu; corner: 3 * cu; color: ink; opacity: 14%; show: mp_len > 0 }
-                //  The part played is a wave that runs along it, as the dashboard's: 192 short lines over the played length, each a little ahead of the
-                //  last in the ripple, fading to flat at both ends so it meets the faint line and the knob. Its length stays the same however far the
-                //  song has got, so it is the swing that moves, not the crests squeezing. A stream with no end has the wave the whole way, breathing.
+                //  The track is the shell's pencil slider (PSlider), as the dashboard's: the pinched track, the hatching as far as the song has got, the squeezed
+                //  knob. It boils while the song plays (drawn again five times a second, more under the pointer or while dragged), and rests when it is paused.
+                group { show: mp_len > 0; PSlider(s0, mfk_y, sw_, sf, max(mfk_hot, if(media.playing, 0.6, 0)), cu, 7 * cu, 0) }
+                //  A stream with no end has no track: a wave runs the whole way along it, breathing: 192 short lines, each a little ahead of the last in
+                //  the ripple, fading to flat at both ends.
                 let mfw_xf = sw_ * sf
                 let mfw_seg = max(mfw_xf, 1) / 192
                 let mfw_wf = 360 / (26 * cu)
@@ -163,9 +164,8 @@ part MediaFloat {
                     let mfw_xb = mfw_xa + mfw_seg
                     let mfw_ea = clamp((mfw_xa - s0) / mfw_f0, 0, 1) * clamp((s0 + mfw_xf - mfw_xa) / mfw_f0, 0, 1)
                     let mfw_eb = clamp((mfw_xb - s0) / mfw_f0, 0, 1) * clamp((s0 + mfw_xf - mfw_xb) / mfw_f0, 0, 1)
-                    line { from: mfw_xa, mfk_y + mfw_wa * mfw_ea * sin((mfw_xa - s0) * mfw_wf - time * 120); to: mfw_xb, mfk_y + mfw_wa * mfw_eb * sin((mfw_xb - s0) * mfw_wf - time * 120); width: (4 + 2 * mfk_hot) * cu; color: mint; opacity: min(1, mfw_xf / (6 * cu)) * if(mp_len > 0, 1, 0.8 + 0.2 * sin(time * 120)) }
+                    line { from: mfw_xa, mfk_y + mfw_wa * mfw_ea * sin((mfw_xa - s0) * mfw_wf - time * 120); to: mfw_xb, mfk_y + mfw_wa * mfw_eb * sin((mfw_xb - s0) * mfw_wf - time * 120); width: (4 + 2 * mfk_hot) * cu; color: mint; opacity: min(1, mfw_xf / (6 * cu)) * (0.8 + 0.2 * sin(time * 120)); show: mp_len <= 0 }
                 }
-                box { at: clamp(s0 + mfw_xf, s0 + 2 * cu, s0 + sw_ - 2 * cu), mfk_y; size: 5 * cu, (15 + 3 * mfk_hot) * cu; corner: 2.5 * cu; color: ink; show: mp_len > 0 }
                 zone box mp.seek { at: s0 + sw_ / 2, mfk_y; size: sw_ + 16 * cu, 22 * cu; cursor: pointer; active: mp_len > 0 and media_open > 0.5 }
                 on press mp.seek { mp_drag = true; mp_df = clamp((pointer.x - s0) / sw_, 0, 1) }
                 on drag mp.seek { mp_df = clamp((pointer.x - s0) / sw_, 0, 1) }
