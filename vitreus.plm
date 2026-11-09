@@ -1249,6 +1249,7 @@ scene Vitreus {
     //  The media card can be pulled off its panel and floated about the desktop (pages/media_float.plm): `mf_out` is whether it is, `mf_gx`, `mf_gy` where
     //  its middle is being taken to, `mf_px`, `mf_py` where it is, on a loose spring; `mfl` is 0 in the panel and 1 floating.
     fact mf_out = false
+    prop mf_hv = 0 ~80ms             // the pointer is over one of the card's buttons or its track (pages/media_float.plm follows it): they boil there, and need the clock
     fact mf_gx = 0
     fact mf_gy = 0
     fact mf_bx = 0                 // where it was when it was grabbed
@@ -3746,6 +3747,23 @@ scene Vitreus {
         //  The knob: a pencil ring squeezed into a rounded upright bar, in the cut, stretched out behind it while it moves.
         box { from: kl, y - kh / 2; size: kq - kl, kh; corner: kw * 0.45; color: mix(ink, dd_cream, dd_k); opacity: 0.14 + 0.86 * dd_k }
         PPinchSeg(kl, kq, y, kh, kw * 0.45, kw * 0.45, fr, jt, k, 31700, true, 1.5, ink, 0)
+    }
+
+    //  PSlider's track for something with no end (a stream being played): the whole length as one pencil piece, hatched all the way, with no cut and no knob,
+    //  drawn again about five times a second and breathing a little. `hot` as PSlider's (how hard it boils), `k` the unit, `h` the track's thickness.
+    component PStream(x0: number, y: number, w: number, hot: number, k: number, h: number) {
+        prop a = 0 ~calm
+        follow a = hot
+        let fr = if(a > 0.02, floor(time * 5), 0)
+        let jt = (0.18 + 0.25 * a) * cu * (1 - dd_k)
+        let sp = max(2.5 * k, (w - h) / 86)
+        let br = 0.85 + 0.15 * sin(time * 120)
+        group {
+            opacity: br
+            PPinchSeg(x0, x0 + w, y, h, h / 2, h / 2, fr, jt, k, 15900, true, 1, mint, dd_k)
+            shader pencilhatch { at: x0 - 6, y - h; size: w + 12, 2 * h; values: h * 0.5 + 6, w - h * 0.5 + 6, sp, h, jt, fr, 1.1 * k, 0; colors: mint; opacity: 0.5 * (1 - dd_k); show: 1 - dd_k > 0.002 }
+            shader pencilhatch { at: x0 - 6 + 0.3 * cu, y - h + 0.25 * cu; size: w + 12, 2 * h; values: h * 0.5 + 6, w - h * 0.5 + 6, sp, h, jt, fr, 0.8 * k, 1; colors: mint; opacity: 0.22 * (1 - dd_k); show: 1 - dd_k > 0.002 }
+        }
     }
 
     //  One piece of PSlider's track in pencil: a rounded box from `xa` to `xb` round `y`, `h` tall, corner `rl` on its left and `rr` on its right, drawn twice (the second
@@ -7529,7 +7547,7 @@ scene Vitreus {
     }
     include "pages/bar_icons.plm"
     //  The clock runs while something needs it. It is here, after the bar's zones, because it reads their hover: the bar's icons only boil under the pointer.
-    let need_clock = (fr_wv > 0 and fm > 0.5) or (cy_on > 0.01) or bar_hit.hover > 0.01 or adk_hot > 0.5 or wsh.1.$screen > 0.01 or wsh.2.$screen > 0.01 or wsh.3.$screen > 0.01 or wsh.4.$screen > 0.01 or wsh.5.$screen > 0.01 or wsh.6.$screen > 0.01 or wsh.7.$screen > 0.01 or wsh.8.$screen > 0.01 or wsh.9.$screen > 0.01 or wsh.10.$screen > 0.01 or set_hit.hover > 0.01 or sr_hit.hover > 0.01 or ctl_hit.hover > 0.01 or ov_btn.hover > 0.01 or bp.prev.hover > 0.01 or bp.play.hover > 0.01 or bp.next.hover > 0.01 or vm_prev.hover > 0.01 or vm_play.hover > 0.01 or vm_next.hover > 0.01 or ds > 0.01 or dl > 0.01 or dk > 0.01 or hm_hot > 0.5 or ((wifi_scanning or bt_scanning or bt_working or caf_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or osd_kind == note or nt_urgent)) or (set_pgd > 0.01 and disp.h > set.h) or time - pw_b0 < 1.5 or time - pw_b1 < 1.5 or time - pw_b2 < 1.5 or time - pw_b3 < 1.5 or time - pw_b4 < 1.5 or rec_on or (dsh_rise > 0.01 and (dsh_rise < 0.995 or dsh_under > 0.002 or media.playing or dsh_hv > 0.5)) or (mf.vis > 0.01 and media.playing)
+    let need_clock = (fr_wv > 0 and fm > 0.5) or (cy_on > 0.01) or bar_hit.hover > 0.01 or adk_hot > 0.5 or wsh.1.$screen > 0.01 or wsh.2.$screen > 0.01 or wsh.3.$screen > 0.01 or wsh.4.$screen > 0.01 or wsh.5.$screen > 0.01 or wsh.6.$screen > 0.01 or wsh.7.$screen > 0.01 or wsh.8.$screen > 0.01 or wsh.9.$screen > 0.01 or wsh.10.$screen > 0.01 or set_hit.hover > 0.01 or sr_hit.hover > 0.01 or ctl_hit.hover > 0.01 or ov_btn.hover > 0.01 or bp.prev.hover > 0.01 or bp.play.hover > 0.01 or bp.next.hover > 0.01 or vm_prev.hover > 0.01 or vm_play.hover > 0.01 or vm_next.hover > 0.01 or ds > 0.01 or dl > 0.01 or dk > 0.01 or hm_hot > 0.5 or ((wifi_scanning or bt_scanning or bt_working or caf_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or osd_kind == note or nt_urgent)) or (set_pgd > 0.01 and disp.h > set.h) or time - pw_b0 < 1.5 or time - pw_b1 < 1.5 or time - pw_b2 < 1.5 or time - pw_b3 < 1.5 or time - pw_b4 < 1.5 or rec_on or (dsh_rise > 0.01 and (dsh_rise < 0.995 or dsh_under > 0.002 or media.playing or dsh_hv > 0.5)) or (mf.vis > 0.01 and (media.playing or mf_hv > 0.01))
     spin time by if(need_clock, 1, 0)
 
 

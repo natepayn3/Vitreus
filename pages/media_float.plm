@@ -98,17 +98,11 @@ part MediaFloat {
                 text media.title { at: floor(mf.cx - 50 * cu + 0.5), floor(my - 24 * cu + 0.5); anchor: left center; size: 16.5; weight: 700; width: 186 * cu; lines: 1; color: ink; family: "Space Grotesk" }
                 text media.artist { at: floor(mf.cx - 50 * cu + 0.5), floor(my - 6 * cu + 0.5); anchor: left center; size: 14; width: 186 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk" }
 
-                //  previous
-                box { at: px - 5 * cu, ny; size: 1.8 * cu, 9.6 * cu; corner: 0.9 * cu; color: ink; opacity: 75% + 25% * mp.prev.hover }
-                path { at: px, ny; color: ink; opacity: 75% + 25% * mp.prev.hover; move 4 * cu, -4.8 * cu; line -3.6 * cu, 0; line 4 * cu, 4.8 * cu; close }
-                //  play / pause: a white disc with the mark cut out of it
-                ellipse { at: cxp, ny; radius: (11.5 + 1.2 * mp.play.hover) * cu; color: ink; opacity: 95% }
-                path { at: cxp, ny; color: onmint; show: not media.playing; move -3 * cu, -6 * cu; line 6 * cu, 0; line -3 * cu, 6 * cu; close }
-                box { at: cxp - 3 * cu, ny; size: 3 * cu, 10.5 * cu; corner: 1.2 * cu; color: onmint; show: media.playing }
-                box { at: cxp + 3 * cu, ny; size: 3 * cu, 10.5 * cu; corner: 1.2 * cu; color: onmint; show: media.playing }
-                //  next
-                path { at: nx, ny; color: ink; opacity: 75% + 25% * mp.next.hover; move -4 * cu, -4.8 * cu; line 3.6 * cu, 0; line -4 * cu, 4.8 * cu; close }
-                box { at: nx + 5 * cu, ny; size: 1.8 * cu, 9.6 * cu; corner: 0.9 * cu; color: ink; opacity: 75% + 25% * mp.next.hover }
+                //  The buttons, in pencil as the bar's own (PBPrev, PBPlay, PBNext): each line twice, a hair off, drawn again about five times a second
+                //  under the pointer, and a little bigger there. Pause while it plays, play while it is paused.
+                group { pivot: px, ny; scale: 1 + 0.14 * mp.prev.hover; PBPrev(px, ny, mp.prev.hover, 1.5 * cu, 75% + 25% * mp.prev.hover) }
+                group { pivot: cxp, ny; scale: 1 + 0.14 * mp.play.hover; PBPlay(cxp - if(media.playing, 0, 2 * cu), ny, mp.play.hover, 2.1 * cu, 90% + 10% * mp.play.hover, if(media.playing, 1, 0)) }
+                group { pivot: nx, ny; scale: 1 + 0.14 * mp.next.hover; PBNext(nx, ny, mp.next.hover, 1.5 * cu, 75% + 25% * mp.next.hover) }
 
                 zone box mp.prev { at: px, ny; size: 26 * cu, 30 * cu; cursor: pointer }
                 zone box mp.play { at: cxp, ny; size: 30 * cu, 30 * cu; cursor: pointer }
@@ -152,24 +146,13 @@ part MediaFloat {
                 //  The track is the shell's pencil slider (PSlider), as the dashboard's: the pinched track, the hatching as far as the song has got, the squeezed
                 //  knob. It boils while the song plays (drawn again five times a second, more under the pointer or while dragged), and rests when it is paused.
                 group { show: mp_len > 0; PSlider(s0, mfk_y, sw_, sf, max(mfk_hot, if(media.playing, 0.6, 0)), cu, 7 * cu, 0) }
-                //  A stream with no end has no track: a wave runs the whole way along it, breathing: 192 short lines, each a little ahead of the last in
-                //  the ripple, fading to flat at both ends.
-                let mfw_xf = sw_ * sf
-                let mfw_seg = max(mfw_xf, 1) / 192
-                let mfw_wf = 360 / (26 * cu)
-                let mfw_wa = (3.4 + 1.1 * mfk_hot) * cu
-                let mfw_f0 = max(0.001, min(mfw_xf * 0.2, 9 * cu))
-                repeat i in 0..192 {
-                    let mfw_xa = s0 + i * mfw_seg
-                    let mfw_xb = mfw_xa + mfw_seg
-                    let mfw_ea = clamp((mfw_xa - s0) / mfw_f0, 0, 1) * clamp((s0 + mfw_xf - mfw_xa) / mfw_f0, 0, 1)
-                    let mfw_eb = clamp((mfw_xb - s0) / mfw_f0, 0, 1) * clamp((s0 + mfw_xf - mfw_xb) / mfw_f0, 0, 1)
-                    line { from: mfw_xa, mfk_y + mfw_wa * mfw_ea * sin((mfw_xa - s0) * mfw_wf - time * 120); to: mfw_xb, mfk_y + mfw_wa * mfw_eb * sin((mfw_xb - s0) * mfw_wf - time * 120); width: (4 + 2 * mfk_hot) * cu; color: mint; opacity: min(1, mfw_xf / (6 * cu)) * (0.8 + 0.2 * sin(time * 120)); show: mp_len <= 0 }
-                }
+                //  A stream with no end has no place to show: the whole track in pencil, hatched all the way, boiling and breathing while it plays (PStream).
+                group { show: mp_len <= 0; PStream(s0, mfk_y, sw_, max(mfk_hot, if(media.playing, 0.6, 0)), cu, 7 * cu) }
                 zone box mp.seek { at: s0 + sw_ / 2, mfk_y; size: sw_ + 16 * cu, 22 * cu; cursor: pointer; active: mp_len > 0 and media_open > 0.5 }
                 on press mp.seek { mp_drag = true; mp_df = clamp((pointer.x - s0) / sw_, 0, 1) }
                 on drag mp.seek { mp_df = clamp((pointer.x - s0) / sw_, 0, 1) }
                 on release mp.seek { mp_drag = false; mp_pos = mp_df * mp_len; mp_pf: mp_df ~0ms; emit mp_seek(mp_df) }      // it stays where it was let go: no glide back
+                follow mf_hv = max(max(mp.prev.hover, mp.play.hover), max(mp.next.hover, mp.seek.hover))
             }
 
             //  A new song throws sparks off the cover.
