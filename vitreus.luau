@@ -260,7 +260,7 @@ local spec_last = {}
 local watching = false      -- the player's panel is open: when the equalizer is worth feeding (or while its card floats, `eq_float`)
 function fw_on() return fact.fw_on == true or fact.fw_on == 1 end    -- the bottom frame rises into waves with the music (`fw_on`: Frame layout)
 -- the media card is floating on the desktop, or the dashboard or the Desk's Home (its player) is showing the spectrum (a global: this chunk is at Luau's limit of locals)
-function eq_float() return fact.mf_out == true or fact.mf_out == 1 or fact.dash_open == true or (fact.desk_open == true and fact.desk_tab == 6) end
+function eq_float() return fact.mf_out == true or fact.mf_out == 1 or (fact.panel == "calendar" and fact.dash_tab == "dtab_med") or fact.dash_open == true or (fact.desk_open == true and fact.desk_tab == 6) end
 
 -- cava wants its config as a file. It is kept here rather than in a file next to the scene, so
 -- nothing depends on where Vitreus is installed: it is written into the scene's own data folder (where
@@ -490,11 +490,12 @@ local function mp_read()
 end
 every(1000, function()
     if (fact.mp_len or 0) <= 0 and fact.media_on and cava_playing then mpl.sec = mpl.sec + 1 end
-    if (fact.panel == "player" or fact.mf_out or fact.dash_open == true) and fact.media_on and not fact.mp_drag then
+    if ((fact.panel == "calendar" and fact.dash_tab == "dtab_med") or fact.mf_out or fact.dash_open == true) and fact.media_on and not fact.mp_drag then
         if (fact.mp_len or 0) <= 0 then mp_show(0) else mp_read() end
     end
 end)
-on("fact:panel", function(v) if v == "player" then mp_read() end end)
+on("fact:panel", function(v) if v == "calendar" and fact.dash_tab == "dtab_med" then mp_read() end cava_want() end)
+on("fact:dash_tab", function(v) if v == "dtab_med" and fact.panel == "calendar" then mp_read() end cava_want() end)
 on("fact:mf_out", function(v)
     if eq_float() then mp_read() end
     cava_want()
@@ -2087,6 +2088,19 @@ local function parse_clients(out)
     return list
 end
 
+-- How many windows each workspace row of the dashboard's Apps tab has (`tw.1`..`tw.9`: the ninth holds any other: scratchpad, none).
+function task_ws_counts(rows, keys)
+    local n, by = {}, {}
+    for k = 1, 9 do n[k] = 0; by[k] = {} end
+    for i, r in ipairs(rows) do n[r.wsn] = n[r.wsn] + 1; by[r.wsn][#by[r.wsn] + 1] = i end
+    for k = 1, 9 do
+        -- each window's place among its workspace's (`wi`, for the mock monitors): by a key that does not change while the window lives, so they do not shuffle as the focus moves
+        table.sort(by[k], function(a, b) return tostring(keys[a]) < tostring(keys[b]) end)
+        for j, i in ipairs(by[k]) do rows[i].wi = j - 1 end
+        fact["tw." .. k] = n[k]
+    end
+end
+
 -- Under pleamar-wm the list comes from its scene: every slot (0 to 15) that is open, with its title, program, workspace and focus.
 -- Two connections in all (`say_many`): which slots are open, then the four things about each open one.
 function refresh_tasks_wm()
@@ -2098,11 +2112,12 @@ function refresh_tasks_wm()
             if a.wsn ~= b.wsn then return a.wsn < b.wsn end
             return a.title:lower() < b.title:lower()
         end)
-        local rows = {}
+        local rows, keys = {}, {}
         task_addrs = {}
         for i, w in ipairs(list) do
             if i > 12 then break end
-            rows[i] = { title = w.title, ws = tostring(w.wsn), active = w.active, icon = apps_by_class[w.app:lower()] or w.app:lower() }
+            keys[i] = "s" .. tostring(w.slot)
+            rows[i] = { title = w.title, ws = tostring(w.wsn), wsn = (w.wsn >= 1 and w.wsn <= 8) and w.wsn or 9, active = w.active, icon = apps_by_class[w.app:lower()] or w.app:lower() }
             task_addrs[i] = w
         end
         local sig = {}
@@ -2110,6 +2125,7 @@ function refresh_tasks_wm()
         local joined = table.concat(sig, "\n")
         if joined ~= last_task_sig then
             last_task_sig = joined
+            task_ws_counts(rows, keys)
             model.tasks = rows
         end
     end
@@ -2159,16 +2175,18 @@ local function refresh_tasks()
             if wa ~= wb then return wa < wb end
             return (a.title or ""):lower() < (b.title or ""):lower()
         end)
-        local rows = {}
+        local rows, keys = {}, {}
         task_addrs = {}
         for i, w in ipairs(list) do
             if i > 12 then break end
+            keys[i] = w.addr
             local class = (w.class or ""):lower()
             local title = w.title
             if title == nil or title == "" then title = (w.class ~= nil and w.class ~= "") and w.class or "Window" end
             rows[i] = {
                 title = title,
                 ws = (w.workspace or ""):match("%((.-)%)") or "",
+                wsn = (function() local n = tonumber((w.workspace or ""):match("%((.-)%)") or "") or 0; return (n >= 1 and n <= 8) and n or 9 end)(),
                 active = w.focusHistoryID == "0",
                 icon = apps_by_class[class] or class,
             }
@@ -2181,6 +2199,7 @@ local function refresh_tasks()
         local joined = table.concat(sig, "\n")
         if joined ~= last_task_sig then
             last_task_sig = joined
+            task_ws_counts(rows, keys)
             model.tasks = rows
         end
     end)
@@ -6573,7 +6592,7 @@ end
         { "Settings: Lock screen", "open", open_settings("pg_lock"), "lockscreen lock password mask blur clock date format media player shapes dots asterisks symbols special palette colours colors example live test glyphs vibrant neon pastel monochrome security idle" },
         { "Calendar", "panel", function() set_panel("calendar"); return true end, "date month day reminders schedule" },
         { "Controls", "panel", function() set_panel("controls"); return true end, "quick settings wifi bluetooth volume brightness power profile capture screenshot record" },
-        { "Player", "panel", function() set_panel("player"); return true end, "music media playback spotify song pause play next" },
+        { "Player", "panel", function() fact.dash_tab = "dtab_med"; set_panel("calendar"); return true end, "music media playback spotify song pause play next" },
         { "Wallpaper picker", "action", function() spawn('pleamar --say vitreus "emit wp_picker_toggle"') end, "backgrounds wallpapers hexagons colour choose change" },
         { "Workspace overview", "action", function() spawn('pleamar --say vitreus "emit ov_toggle"') end, "workspaces windows switch expose desktops" },
         { "Random wallpaper", "action", function() local f = wp_random_pick(); if f then wp_apply(f) end end, "shuffle background change surprise" },
@@ -7214,7 +7233,7 @@ end)()
         if M.open then refresh() end
     end)
     -- Listed while Controls is open, open mixer or not: the dots only show when there is an app to turn down.
-    every(1000, function() if M.open or cur_panel == "controls" then refresh() end end)
+    every(1000, function() if M.open or cur_panel == "controls" or (fact.panel == "calendar" and fact.dash_tab == "dtab_med") then refresh() end end)
 
     -- The slider is sent a moment after the last movement, and the row shows the new number at once.
     local function flush()

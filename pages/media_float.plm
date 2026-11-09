@@ -6,16 +6,16 @@ part MediaFloat {
     //  Held, the clip is the whole screen: the panel's would take the grab zone away the moment the pointer left it, upwards first.
     let mfc = max(clamp(mfl, 0, 1), if(mf_hold, 1, 0)) * mf.mine
     group {
-        clip inset 2 box { at: mix(mix(mix(pcx, dm.gx, lm), screen.width - mix(pcx, dm.gx, lm), rt), screen.width / 2, mfc), mix(mix(mix(bar.y + dm.hh / 2, lp.cy, lm), yo + vb - mix(bar.y + dm.hh / 2, lp.cy, lm), bt), vc, mfc); size: mix(mix(dm.w, dm.gw, lm), screen.width + 200, mfc), mix(mix(dm.hh, dm.gh, lm), screen.height + 200, mfc); corner: mix(26 * cu, 0, mfc) }
+        clip inset 2 box { at: mix(mix(mix(pcx, dc.gx, lm), screen.width - mix(pcx, dc.gx, lm), rt), screen.width / 2, mfc), mix(mix(mix(bar.y + dc.hh / 2, lp.cy, lm), yo + vb - mix(bar.y + dc.hh / 2, lp.cy, lm), bt), vc, mfc); size: mix(mix(dc.w, dc.gw, lm), screen.width + 200, mfc), mix(mix(dc.hh, dc.gh, lm), screen.height + 200, mfc); corner: mix(26 * cu, 0, mfc) }
         group {
             pivot: mix(lp.xl, screen.width - lp.xl, rt), mix(lp.cy, yo + vb - lp.cy, bt)
-            scale: mix(mix(1, max(dm.lf, 0.05), lm * att), 1, mfl)
+            scale: mix(mix(1, max(dc.lf, 0.05), lm * att), 1, mfl)
         group {
             show: mf.vis > 0.01
             opacity: mf.vis
             pivot: mf.cx, mf.cy
             scale: mf.k
-            move: 0, (1 - f3) * 12 * cu * (1 - mfl)
+            move: 0, (1 - f1) * 12 * cu * (1 - mfl)
             let my = floor(mf.cy - 24 * cu + 0.5)                    // the song's row (the cover's middle)
             let ax = floor(mf.cx - 96 * cu + 0.5)                    // the cover's centre
             let ny = floor(my + 58 * cu + 0.5)                       // the controls' row: under the cover
@@ -37,7 +37,7 @@ part MediaFloat {
             on press mf_grab while not mf_out { mf_px: mf.cx ~0ms; mf_py: mf.cy ~0ms }
             on drag mf_grab while mf_hold { mf_gx = clamp(mf_bx + drag.dx, mfb.l + 154 * cu * mf_gs, mfb.r - 154 * cu * mf_gs); mf_gy = clamp(mf_by + drag.dy, mfb.t + 84 * cu * mf_gs, mfb.b - 84 * cu * mf_gs) }
             on drag mf_grab while mf_hold and not mf_out and length(drag.dx, drag.dy) > 16 * cu { mf_out = true }
-            on release mf_grab while mf_out and panel == player and abs(pointer.x - mix(dm.ex, screen.width - dm.ex, rt)) < dm.ew / 2 and abs(pointer.y - mix(dm.ey, yo + vb - dm.ey, bt)) < dm.eh / 2 { mf_out = false }
+            on release mf_grab while mf_out and panel == calendar and dash_tab == dtab_med and abs(pointer.x - mix(dc.ex, screen.width - dc.ex, rt)) < dc.ew / 2 and abs(pointer.y - mix(dc.ey, yo + vb - dc.ey, bt)) < dc.eh / 2 { mf_out = false }
             on release mf_grab { mf_hold = false }
             //  The handles in the four corners (invisible; the cursor shows them), only while it floats: pull one in to make the card smaller, out to make it bigger. The corner
             //  across from it stays where it is. They are declared before the pin and the buttons, so those win where they overlap.
@@ -62,7 +62,7 @@ part MediaFloat {
                 ellipse { at: mf.cx + 128 * cu, mf.cy - 65 * cu; radius: 2.6 * cu; stroke: 1.2 * cu; color: ink; opacity: 70% + 30% * mf_pin.hover }
                 line { from: mf.cx + 128 * cu, mf.cy - 62.4 * cu; to: mf.cx + 128 * cu, mf.cy - 58 * cu; width: 1.2 * cu; color: ink; opacity: 70% + 30% * mf_pin.hover }
                 zone box mf_pin { at: mf.cx + 128 * cu, mf.cy - 63 * cu; size: 20 * cu, 20 * cu; corner: 10 * cu; cursor: pointer; active: mfl > 0.5; label: "Put the player back in its panel" }
-                on press mf_pin { mf_out = false; panel_scr = mf_scr; panel = player }
+                on press mf_pin { mf_out = false; panel_scr = mf_scr; dash_tab = dtab_med; panel = calendar }
             }
 
             //  Playing, or paused with something loaded: the full card.
@@ -117,18 +117,23 @@ part MediaFloat {
                 on press mp.play { emit mcmd(1) }
                 on press mp.next { emit mcmd(2) }
 
-                //  The spectrum: 24 bars standing on a centre line to the right of the cover, beside the controls, mirrored about it with the
-                //  lower half shorter and fainter (a reflection). The lows are on the left; the highs, which cava reports smaller, get a little
-                //  more gain. Each bar goes from the accent to white as it rises, and the whole is under a soft glow. Silent, it is a row of dots.
+                //  The spectrum: 24 bars standing on a centre line to the right of the cover, beside the controls, mirrored about it with the lower half shorter and fainter (a
+                //  reflection). The lows are on the left; the highs, which cava reports smaller, get a little more gain. Each bar goes from the accent to white as it rises, stands on
+                //  a faint halo and has a cap that trails it slowly (`gh.*`), and a glow behind swells with the bass. Silent, it is a row of dots.
                 group {
                     let vx = mf.cx - 50 * cu                      // the left edge
                     let mfs_y = my + 38 * cu                         // the centre line
+                    let mbass = clamp((spec.s.0 + spec.s.1 + spec.s.2 + spec.s.3) / 4 * 1.2, 0, 1)
+                    box { at: vx + 91 * cu, mfs_y; size: (150 + 30 * mbass) * cu, (30 + 26 * mbass) * cu; corner: 28 * cu; color: mint; opacity: playf * (4% + 14% * mbass) }
                     repeat i in 0..24 {
                         let lvl = clamp(spec.s.$i * (0.8 + 0.7 * i / 23), 0, 1)
+                        let glv = clamp(gh.$i * (0.8 + 0.7 * i / 23), 0, 1)
                         let bh  = (1.5 + 31 * lvl) * cu
                         let bx  = vx + (i + 0.5) * 7.6 * cu
+                        box { at: bx, mfs_y - bh / 2; size: 6.4 * cu, bh + 3 * cu; corner: 3.2 * cu; color: mint; opacity: playf * lvl * 16% }
                         box { at: bx, mfs_y - bh / 2; size: 4.2 * cu, bh; corner: 2.1 * cu; color: mix(mint, ink, lvl * 0.85); opacity: (0.35 + 0.65 * playf) * (45% + 55% * lvl) }
                         box { at: bx, mfs_y + bh * 0.28 + 2 * cu; size: 4.2 * cu, bh * 0.56; corner: 2.1 * cu; color: mint; opacity: playf * lvl * 28% }
+                        box { at: bx, mfs_y - (1.5 + 31 * max(glv, lvl)) * cu - 3 * cu; size: 4.2 * cu, 1.6 * cu; corner: 0.8 * cu; color: ink; opacity: playf * (20% + 60% * glv) }
                     }
                 }
             }

@@ -10,42 +10,6 @@ part Player {
         group {
             pivot: mix(mix(lp.xl, 2 * pcx - lp.xl, rt), pcx, tu), mix(lp.cy, bar.y + bar.h / 2 + bt * lp.hd, tu)
             scale: mix(1, max(dm.lf, 0.05), att)
-        //  ── the running windows ──
-        group {
-            show: dm_mode == dmm_player
-            opacity: f3
-            move: 0, (1 - f3) * 12 * cu
-            text "No active windows" { at: floor(mdx + 0.5), floor(ck + tasks_list * cu + 16 * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: tasks.count < 1 }
-            column task_col {
-                at: floor(mdx - 144 * cu + 0.5), floor(ck + tasks_list * cu + 0.5)
-                view: 288 * cu, (task_rows * 40 - 4) * cu
-                gap: floor(4 * cu + 0.5)
-                for w in tasks { TaskRow(w, focus: task_focus, kill: task_close) }
-            }
-            //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
-            box { from: mdx + 147 * cu, ck + tasks_list * cu + task_col.scroll / max(task_col.content, 1) * ((task_rows * 40 - 4) * cu); size: 3 * cu, ((task_rows * 40 - 4) * cu) * ((task_rows * 40 - 4) * cu) / max(task_col.content, (task_rows * 40 - 4) * cu); corner: 1.5 * cu; color: ink; opacity: if(task_col.content > ((task_rows * 40 - 4) * cu) + 1, 35%, 0%) }
-            //  The apps that only live in the tray: no window to list, so they get their own section.
-            group {
-                show: trays.count > 0
-                text "BACKGROUND APPS" { at: floor(mdx - 138 * cu + 0.5), floor(ck + tray_top * cu + 11 * cu + 0.5); anchor: left center; size: 15.5; weight: 700; color: ink; family: "Space Grotesk" }
-                column tray_col {
-                    at: floor(mdx - 144 * cu + 0.5), floor(ck + tray_list * cu + 0.5)
-                    view: 288 * cu, (max(1, tray_rows) * 40 - 4) * cu
-                    gap: floor(4 * cu + 0.5)
-                    for a in trays { TrayRow(a, click: tray_click, pin: tray_pin, menu: tray_menu_open) }
-                }
-                //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
-                box { from: mdx + 147 * cu, ck + tray_list * cu + tray_col.scroll / max(tray_col.content, 1) * ((max(1, tray_rows) * 40 - 4) * cu); size: 3 * cu, ((max(1, tray_rows) * 40 - 4) * cu) * ((max(1, tray_rows) * 40 - 4) * cu) / max(tray_col.content, (max(1, tray_rows) * 40 - 4) * cu); corner: 1.5 * cu; color: ink; opacity: if(tray_col.content > ((max(1, tray_rows) * 40 - 4) * cu) + 1, 35%, 0%) }
-                //  What the bar shows of them: every app, or only the pinned ones.
-                box { at: mdx + 96 * cu, ck + tray_top * cu + 11 * cu; size: 86 * cu, 20 * cu; corner: (10 * cu) * (1 - 0.85 * dd_k); color: if(tray_only_pinned, mint, ink); opacity: if(tray_only_pinned, 22%, 8% + 10% * tray_mode_hit.hover) }
-                PPillOutline(mdx + 96 * cu, ck + tray_top * cu + 11 * cu, 86 * cu, 20 * cu, 10 * cu, tray_mode_hit.hover, clamp(3 * (if(tray_only_pinned, 22%, 8% + 10% * tray_mode_hit.hover)), 0, 1), cu)
-                text "Bar: pinned" { at: floor(mdx + 96 * cu + 0.5), floor(ck + tray_top * cu + 11 * cu + 0.5); anchor: center; align: center; size: 13; weight: 600; width: 82 * cu; lines: 1; color: mint; show: tray_only_pinned; family: "Space Grotesk" }
-                text "Bar: all" { at: floor(mdx + 96 * cu + 0.5), floor(ck + tray_top * cu + 11 * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 82 * cu; lines: 1; color: ink; opacity: 85%; show: not tray_only_pinned; family: "Space Grotesk" }
-                zone box tray_mode_hit { at: mdx + 96 * cu, ck + tray_top * cu + 11 * cu; size: 88 * cu, 22 * cu; corner: 11 * cu; cursor: pointer }
-                on press tray_mode_hit { emit tray_mode }
-            }
-        }
-
         //  ── a tray app's menu ──
         group {
             show: dm_mode == dmm_tray

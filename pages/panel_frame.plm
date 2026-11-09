@@ -10,7 +10,11 @@ part PanelFrame {
             shader: pixelate, px.dc
             pivot: mix(mix(lp.xl, 2 * pcx - lp.xl, rt), pcx, tu), mix(lp.cy, bar.y + bar.h / 2 + bt * lp.hd, tu)
             scale: mix(1, max(dc.lf, 0.05), att)
-        //  ── the calendar panel ──
+        //  ── the Calendar tab ──
+        group {
+            show: tf.cal > 0.005
+            opacity: tf.cal
+            move: 0, 44 * cu
         //  Three plates like the volume and media ones, each 8% white and 12 from the panel's
         //  edges: the time and date, the chosen day with its reminders, and the month. The two
         //  on the left and the one on the right share a top and a bottom.
@@ -137,6 +141,131 @@ part PanelFrame {
             text "Add" { at: floor(pcx + 178 * cu + 0.5), floor(cy + 213 * cu + 0.5); anchor: center; size: 14; weight: 700; color: onmint; family: "Space Grotesk" }
             zone box cal_add_btn { at: pcx + 178 * cu, cy + 213 * cu; size: 48 * cu, 28 * cu; corner: pr; cursor: pointer }
             on press cal_add_btn { emit cal_add }
+        }
+        }
+        //  ── the dashboard's tab row and the other two tabs ──
+        //  A recessed rail with an accent capsule that slides to the tab in use, stretching with its speed and overshooting a little; each tab has a small drawn
+        //  icon (a calendar, a note, a grid of apps) that takes the capsule's ink while it is under it.
+        group {
+            opacity: f1
+            move: 0, (1 - f1) * 12 * cu
+            let ty = ck + 26 * cu
+            let tv = clamp(abs(vel(dtab_x)) * 0.06, 0, 0.4)
+            box { at: pcx, ty; size: 356 * cu, 34 * cu; corner: (17 * cu) * (1 - 0.7 * dd_k); color: #000000; opacity: 22% }
+            box { at: pcx, ty; size: 356 * cu, 34 * cu; corner: (17 * cu) * (1 - 0.7 * dd_k); stroke: 1.2 * cu; color: ink; opacity: 14% }
+            box { at: pcx + (dtab_x - 1) * 118 * cu, ty; size: 122 * cu * (1 + tv), 38 * cu * (1 - 0.25 * tv); corner: (19 * cu) * (1 - 0.7 * dd_k); color: mint; opacity: 16% }
+            box { at: pcx + (dtab_x - 1) * 118 * cu, ty; size: 110 * cu * (1 + tv), 28 * cu * (1 - 0.25 * tv); corner: (14 * cu) * (1 - 0.7 * dd_k); color: mint }
+            repeat t in 0..3 {
+                let tx = pcx + (t - 1) * 118 * cu
+                let tk = if(t == 0, tf.cal, if(t == 1, tf.med, tf.app))
+                let ic = mix(ink, onmint, tk)
+                text pick(t, "Calendar", "Media", "Apps") { at: floor(tx + 7 * cu + 0.5), floor(ty + 0.5); anchor: center; align: center; size: 14; weight: 600 + 100 * tk; measure: dtw.$t; color: ic; opacity: 70% + 30% * max(tk, dtab_z.$t.hover); family: "Space Grotesk" }
+                let ix = floor(tx + 7 * cu - dtw.$t.width / 2 - 12 * cu + 0.5)
+                group {
+                    pivot: ix, ty
+                    scale: 1 + 0.12 * tk + 0.08 * dtab_z.$t.hover
+                    opacity: 70% + 30% * max(tk, dtab_z.$t.hover)
+                    group {
+                        show: t == 0
+                        box { at: ix, ty + 0.8 * cu; size: 12 * cu, 11 * cu; corner: 2.5 * cu; stroke: 1.5 * cu; color: ic }
+                        line { from: ix - 6 * cu, ty - 1.2 * cu; to: ix + 6 * cu, ty - 1.2 * cu; width: 1.5 * cu; color: ic }
+                        line { from: ix - 2.6 * cu, ty - 6.2 * cu; to: ix - 2.6 * cu, ty - 3.6 * cu; width: 1.5 * cu; color: ic }
+                        line { from: ix + 2.6 * cu, ty - 6.2 * cu; to: ix + 2.6 * cu, ty - 3.6 * cu; width: 1.5 * cu; color: ic }
+                        ellipse { at: ix, ty + 3.2 * cu; radius: 1.3 * cu; color: ic }
+                    }
+                    group {
+                        show: t == 1
+                        ellipse { at: ix - 2.4 * cu, ty + 3.6 * cu; radius: 2.8 * cu; color: ic }
+                        line { from: ix + 0.3 * cu, ty + 3.4 * cu; to: ix + 0.3 * cu, ty - 6 * cu; width: 1.6 * cu; color: ic }
+                        path { at: ix, ty; stroke: 1.6 * cu; color: ic; move 0.3 * cu, -6 * cu; curve 4.6 * cu, -1.2 * cu via 3.6 * cu, -5.2 * cu }
+                    }
+                    group {
+                        show: t == 2
+                        box { at: ix - 3.4 * cu, ty - 3.4 * cu; size: 5.4 * cu, 5.4 * cu; corner: 1.4 * cu; color: ic }
+                        box { at: ix + 3.4 * cu, ty - 3.4 * cu; size: 5.4 * cu, 5.4 * cu; corner: 1.4 * cu; color: ic }
+                        box { at: ix - 3.4 * cu, ty + 3.4 * cu; size: 5.4 * cu, 5.4 * cu; corner: 1.4 * cu; color: ic }
+                        box { at: ix + 3.4 * cu, ty + 3.4 * cu; size: 5.4 * cu, 5.4 * cu; corner: 1.4 * cu; color: ic }
+                    }
+                }
+                zone box dtab_z.$t { at: tx, ty; size: 116 * cu, 32 * cu; corner: 16 * cu; cursor: pointer }
+            }
+            on press dtab_z.0 { dash_tab = dtab_cal }
+            on press dtab_z.1 { dash_tab = dtab_med }
+            on press dtab_z.2 { dash_tab = dtab_app }
+        }
+        //  The Media tab: the player's card centre stage (it is drawn on its own, made larger, see `MediaFloat`, with the spectrum in it; a plate says so here while there is none).
+        group {
+            show: tf.med > 0.005
+            opacity: tf.med * f1
+            move: 0, (1 - f1) * 12 * cu
+            let mty = ck + 52 * cu                                      // the tab's top
+            DmPlate(pcx, mty + 109.5 * cu, 426 * cu, md_ch * cu, 915.5, 1 - mdk)
+            text "Nothing playing" { at: floor(pcx + 0.5), floor(mty + 109.5 * cu + 0.5); anchor: center; align: center; size: 15; color: faint; opacity: 100% - 100% * mdk; family: "Space Grotesk"; show: media_open < 0.5 }
+            text "The player is floating" { at: floor(pcx + 0.5), floor(mty + 101.5 * cu + 0.5); anchor: center; align: center; size: 15; color: faint; opacity: 100% - 100% * mdk; family: "Space Grotesk"; show: media_open > 0.5 and mdk < 0.5 }
+            text "Drop it here to put it back" { at: floor(pcx + 0.5), floor(mty + 122.5 * cu + 0.5); anchor: center; align: center; size: 12.5; color: faint; opacity: 70% - 70% * mdk; family: "Space Grotesk"; show: media_open > 0.5 and mdk < 0.5 }
+        }
+        //  The Apps tab: the running windows as a map of the workspaces, a row for each one that has windows, with its number in a pill and an icon for each window (the one
+        //  under the pointer opens out to show its title); then the apps that only live in the tray as a row of icons the wheel moves.
+        group {
+            show: tf.app > 0.005
+            opacity: tf.app * f1
+            move: 0, (1 - f1) * 12 * cu
+            text "RUNNING WINDOWS" { at: floor(pcx - 207 * cu + 0.5), floor(ck + (aw_y + 10) * cu + 0.5); anchor: left center; size: 13.5; weight: 700; color: ink; family: "Space Grotesk" }
+            text number(tasks.count, 0, " open") { at: floor(pcx + 207 * cu + 0.5), floor(ck + (aw_y + 10) * cu + 0.5); anchor: right center; align: right; size: 12; weight: 600; color: faint; family: "Space Grotesk" }
+            text "No active windows" { at: floor(pcx + 0.5), floor(ck + (aw_g + 20) * cu + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: wv_n < 1 }
+            row {
+                at: floor(pcx - 213 * cu + 0.5), floor(ck + aw_g * cu + 0.5)
+                wrap: 2
+                gap: floor(12 * cu + 0.5)
+                repeat k in 1..9 {
+                    group {
+                        size: floor(207 * cu + 0.5), floor(wh.all * cu + 0.5)
+                        show: tw.$k > 0
+                        let wka = if(ws.active == k, 1, 0)
+                        box { from: 0, 0; size: 207 * cu, 128 * cu; corner: 12 * cu; color: ink; opacity: 7% + 6% * wka + 4% * wc_z.$k.hover }
+                        box { from: 0, 0; size: 207 * cu, 128 * cu; corner: 12 * cu; stroke: 1.6 * cu; color: mix(ink, mint, wka); opacity: 20% + 80% * wka }
+                        box { from: 6 * cu, 6 * cu; size: 195 * cu, 100 * cu; corner: 7 * cu; color: #000000; opacity: 38% }
+                        box { at: 103.5 * cu, 134 * cu; size: 16 * cu, 12 * cu; corner: 2 * cu; color: ink; opacity: 12% }
+                        box { at: 103.5 * cu, 138.5 * cu; size: 70 * cu, 5 * cu; corner: 2.5 * cu; color: ink; opacity: 16% }
+                        zone box wc_z.$k { from: 0, 0; size: 207 * cu, 140 * cu; corner: pr; cursor: pointer; label: "Go to workspace" }
+                        on press wc_z.$k { emit go(k) }
+                        text number(k, 0) { at: floor(16 * cu + 0.5), floor(117 * cu + 0.5); anchor: left center; size: 14; weight: 700; color: mix(faint, mint, wka); family: "Space Grotesk" }
+                        ellipse { at: 34 * cu, 117 * cu; radius: 3 * cu; color: alert; opacity: if(ws.$k.urgent, 100%, 0%) }
+                        text number(tw.$k, 0, " windows") { at: floor(193 * cu + 0.5), floor(117 * cu + 0.5); anchor: right center; align: right; size: 11.5; weight: 600; color: faint; show: tw.$k > 1; family: "Space Grotesk" }
+                        text "1 window" { at: floor(193 * cu + 0.5), floor(117 * cu + 0.5); anchor: right center; align: right; size: 11.5; weight: 600; color: faint; show: tw.$k == 1; family: "Space Grotesk" }
+                        for w in tasks { MiniWin(w, k, tw.$k, focus: task_focus, kill: task_close) { show: w.wsn == k } }
+                    }
+                }
+            }
+            group {
+                show: tw.9 > 0
+                let wo_y = ck + (aw_g + wg_h + 12) * cu
+                box { at: pcx, wo_y + wo_h * cu / 2; size: 426 * cu, wo_h * cu; corner: pr; color: ink; opacity: 6% }
+                text "Other" { at: floor(pcx - 199 * cu + 0.5), floor(wo_y + 15 * cu + 0.5); anchor: left center; size: 14; weight: 700; color: faint; family: "Space Grotesk" }
+                row {
+                    at: floor(pcx - 203 * cu + 0.5), floor(wo_y + 30 * cu + 0.5)
+                    wrap: 10
+                    gap: floor(6 * cu + 0.5)
+                    for w in tasks { WinChip(w, 9, focus: task_focus, kill: task_close) { show: w.wsn == 9 } }
+                }
+            }
+            group {
+                show: trays.count > 0
+                text "BACKGROUND APPS" { at: floor(pcx - 207 * cu + 0.5), floor(ck + (at_y + 10) * cu + 0.5); anchor: left center; size: 13.5; weight: 700; color: ink; family: "Space Grotesk" }
+                box { at: pcx + 168 * cu, ck + (at_y + 10) * cu; size: 86 * cu, 20 * cu; corner: (10 * cu) * (1 - 0.85 * dd_k); color: if(tray_only_pinned, mint, ink); opacity: if(tray_only_pinned, 22%, 8% + 10% * tray_mode_hit.hover) }
+                PPillOutline(pcx + 168 * cu, ck + (at_y + 10) * cu, 86 * cu, 20 * cu, 10 * cu, tray_mode_hit.hover, clamp(3 * (if(tray_only_pinned, 22%, 8% + 10% * tray_mode_hit.hover)), 0, 1), cu)
+                text "Bar: pinned" { at: floor(pcx + 168 * cu + 0.5), floor(ck + (at_y + 10) * cu + 0.5); anchor: center; align: center; size: 13; weight: 600; width: 82 * cu; lines: 1; color: mint; show: tray_only_pinned; family: "Space Grotesk" }
+                text "Bar: all" { at: floor(pcx + 168 * cu + 0.5), floor(ck + (at_y + 10) * cu + 0.5); anchor: center; align: center; size: 11.5; weight: 600; width: 82 * cu; lines: 1; color: ink; opacity: 85%; show: not tray_only_pinned; family: "Space Grotesk" }
+                zone box tray_mode_hit { at: pcx + 168 * cu, ck + (at_y + 10) * cu; size: 88 * cu, 22 * cu; corner: 11 * cu; cursor: pointer }
+                on press tray_mode_hit { emit tray_mode }
+                row tray_row {
+                    at: floor(pcx - 213 * cu + 0.5), floor(ck + at_g * cu - 26 * cu + 0.5)
+                    view: 426 * cu, 60 * cu
+                    align: end
+                    gap: floor(6 * cu + 0.5)
+                    for a in trays { TrayIcon(a, click: tray_click, pin: tray_pin, menu: tray_menu_open) }
+                }
+            }
         }
         //  Opening the calendar puts the cursor in the field and the grid back on today.
         on change panel while panel == calendar { focus cal_new; emit cal_open }

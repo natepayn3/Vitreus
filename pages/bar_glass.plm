@@ -1948,9 +1948,14 @@ part BarGlass {
         let win.zw = mix(max(48 * bu, win.w - 12 * bu), win.hw, win.have)
         let mcx = mix(win.cm, win.xs - 6 * bu + win.hw - 27.5 * bu, win.have)
         let mcy = mix(bar.y, bar.y - 6.5 * bu, win.have)
-        zone box win_hit { at: win.zc, bar.y; size: win.zw, bar.h; cursor: pointer; active: bs.title > 0.5 }
-        on press win_hit { pending = none; panel_scr = screen.index; panel = if(panel == player, none, player) }
-        follow ptab_hold.$screen = if((pl_btn_z.hover > 0.5 or (win_hit.hover > 0.5 and lm < 0.5)) and panel != player, 1, 0)       // the title's tab (see `ptab_*`): the frame's zone or this one
+        //  The title and the clock are one button along the top and the bottom: it runs from the clock's left edge to the title's right one, with no gap between them (the media
+        //  buttons, declared after it, are still their own). Down the left they stay what they were.
+        let win.hl = min(win.zc - win.zw / 2, if(bs.clock > 0.5, at.clock - fw.clock / 2 - 4 * bu, 99999))
+        let win.hr = max(win.zc + win.zw / 2, if(bs.clock > 0.5, at.clock + fw.clock / 2 + 4 * bu, -99999))
+        zone box win_hit { at: mix((win.hl + win.hr) / 2, win.zc, lm), bar.y; size: mix(win.hr - win.hl, win.zw, lm), bar.h; cursor: pointer; active: bs.title > 0.5 }
+        on press right win_hit { panel = none }
+        on press win_hit { pending = none; panel_scr = screen.index; panel = if(panel == calendar, none, calendar) }
+        follow ptab_hold.$screen = 0       // the title's small tab that came out on hover is gone: it never comes out (its glass in bar_shapes.plm stays off the screen)
 
         // ── the player, small, in the bar ────────────────────────────
         //  While there is a player, playing or paused; they fade in as the title gives them room.
@@ -1966,7 +1971,7 @@ part BarGlass {
         }
 
         zone box vt_hit { at: lf.x, lv.tm; size: lf.w - 6 * bu, max(1, lv.span); cursor: pointer; active: lm > 0.5 and bv.title and lv.span > 20 * bu }
-        on press vt_hit { pending = none; panel_scr = screen.index; panel = if(panel == player, none, player) }
+        on press vt_hit { pending = none; panel_scr = screen.index; panel = if(panel == calendar, none, calendar) }
         zone box vm_prev { at: lf.x, lv.mid + 17 * bcu; size: 30 * bcu, 17 * bcu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
         zone box vm_play { at: lf.x, lv.mid; size: 30 * bcu, 17 * bcu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
         zone box vm_next { at: lf.x, lv.mid - 17 * bcu; size: 30 * bcu, 17 * bcu; cursor: pointer; active: lm > 0.5 and bv.media and mshow > 0.5 }
