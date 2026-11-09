@@ -10,7 +10,7 @@ fn hash(p: vec2<f32>) -> f32 {
     return fract((q.x + q.y) * q.x);
 }
 
-fn shade(s: Shader) -> vec4<f32> {
+fn rain(s: Shader) -> vec4<f32> {
     let cw = 17.0;
     let ch = 24.0;
     let col = floor(s.pos.x / cw);
@@ -46,4 +46,26 @@ fn shade(s: Shader) -> vec4<f32> {
     let tip = 1.0 - smoothstep(0.0, 1.2, behind);
     let rgb = mix(s.color.rgb, s.color2.rgb, tip);
     return vec4<f32>(rgb, on * mix(fade * 0.5, 0.9, tip) * s.a.x);
+}
+
+// The HUD's glass: fine scan lines across the whole drawer, a slow bright band that sweeps down it, and a wash of the second neon (magenta) along its
+// top edge and of the first (cyan) along its bottom one, as a monitor's phosphor would give. The rain falls on top of it.
+fn shade(s: Shader) -> vec4<f32> {
+    let r = rain(s);
+    let k = s.a.x;
+    let lines = 0.5 + 0.5 * cos(s.pos.y * 2.0943951);                  // one line every 3 px
+    let sweep_y = fract(s.time * 0.07) * (s.size.y + 120.0) - 60.0;
+    let band = exp(-pow((s.pos.y - sweep_y) / 34.0, 2.0));
+    let top = pow(1.0 - clamp(s.pos.y / s.size.y, 0.0, 1.0), 3.0);
+    let bot = pow(clamp(s.pos.y / s.size.y, 0.0, 1.0), 3.0);
+    let wash = vec3<f32>(1.0, 0.17, 0.84) * (top * 0.06) + s.color.rgb * (bot * 0.05);
+    let wa = top * 0.06 + bot * 0.05;
+    let ha = (lines * 0.06 + band * 0.07);
+    // base layer: wash and scan lines, premultiplied
+    let base_rgb = wash + s.color2.rgb * ha;
+    let base_a = clamp(wa + ha, 0.0, 1.0);
+    let ra = r.a;
+    let out_a = ra + base_a * (1.0 - ra);
+    let out_rgb = (r.rgb * ra + base_rgb * (1.0 - ra)) / max(out_a, 0.0001);
+    return vec4<f32>(out_rgb, out_a * min(1.0, k * 3.5));
 }

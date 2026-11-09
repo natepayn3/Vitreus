@@ -467,6 +467,30 @@ scene Vitreus {
     let dd_cream = #fffdf6
     //  Doodle's card, drawn by hand: a slightly crooked quad with sharp corners and gently bowed edges, a thin ink outline, and a solid ink shadow: the same shape, moved down and to the right.
     //  `sd` is the card's own seed (fixed where it is used, so the card does not shimmer as it moves), `k` its opacity, `s` the panel's unit.
+    //  The Cyber's HUD furniture for a drawer whose glass is l..r by t..b (see bar_glass.plm; `tag` names it, `cw` is the tag's length in letters, `n` and `on` the drawer's number and
+    //  the flicker clock `cy_on`): a status row under it (a diamond, the tag, a hairline that runs out into a little barcode and `// ONLINE`), a vertical neon bar up its left edge, a
+    //  chasing row of dashes and a hot hairline along its top right, like the readouts of a game's HUD. Everything is outside the glass.
+    component CyHud(l: number, t: number, r: number, b: number, tag: text, cw: number, n: number, on: number, s: number = 1) {
+        let hy = b + 7 * s + 18 * s
+        let hx = l + 22 + 92 * s
+        let cwid = cw * 6.3 * s + 12 * s
+        let ex = hx + 10 * s + cwid + 62 * s
+        path { at: hx, hy; color: mint; move 0, -4 * s; line 4 * s, 0; line 0, 4 * s; line -4 * s, 0; close }
+        path { at: hx + 10 * s, hy; color: mint; move 0, -7 * s; line cwid - 5 * s, -7 * s; line cwid, -2 * s; line cwid, 7 * s; line 5 * s, 7 * s; line 0, 2 * s; close }
+        text tag { at: hx + 10 * s + cwid / 2, hy; anchor: center; size: 9.5; weight: 700; color: onmint; family: "SpaceMono Nerd Font" }
+        text "0{n} / 07" { at: hx + 10 * s + cwid + 8 * s, hy; anchor: left center; size: 9.5; weight: 500; color: faint; family: "SpaceMono Nerd Font" }
+        line { from: ex, hy; to: r - 118 * s, hy; width: 1; color: mint; opacity: 34% }
+        repeat bk in 0..12 {
+            line { from: r - 112 * s + bk * 2.6 * s, hy - 4 * s; to: r - 112 * s + bk * 2.6 * s, hy + 4 * s; width: 0.6 + 1.5 * random(bk * 3.7 + n * 11); color: minthi; opacity: 55% }
+        }
+        text "// ONLINE" { at: r - 24 * s, hy; anchor: right center; size: 9; weight: 500; color: faint; family: "SpaceMono Nerd Font"; opacity: 70% + 30% * on * if(mod(time * 1.7, 1) < 0.5, 1, 0) }
+        box { at: l - 5 * s, t + 64 * s; size: 5 * s, 62 * s; color: mint; opacity: 16% }
+        box { at: l - 5 * s, t + 64 * s; size: 2 * s, 62 * s; color: minthi }
+        box { at: l - 5 * s, t + 64 * s - 36 * s; size: 2 * s, 6 * s; color: deep }
+        repeat ds in 0..9 {
+            line { from: l + 28 * s + ds * 9 * s, t - 7 * s; to: l + 28 * s + ds * 9 * s + 5 * s, t - 7 * s; width: 1.6; color: if(ds > 6, #ffd21f, mint); opacity: 30% + 70% * on * if(mod(floor(time * 9) - ds + 90, 9) < 2, 1, 0) }
+        }
+    }
     component DdCard(cx: number, cy: number, w: number, h: number, sd: number, fill: color, k: number = 1, s: number = 1) {
         let x0 = cx - w / 2
         let y0 = cy - h / 2
