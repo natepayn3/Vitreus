@@ -46,10 +46,28 @@ return function()
     local asked = nil           -- the id whose bin was pressed once: the card asks, and a second press (within 4 s) deletes it
     local sizes = {}            -- the size each add-on's panel was left at (by id): used when it opens again
     local winopen = {}
+    --  One say at a time for each add-on, the newest state once it answers (as `fsend` does for a field's text): each say is a process of its own, and two
+    --  in flight can land in the wrong order. A heartbeat's "the panel is out" overtaking the "it is shut" of a close left the add-on drawing its content
+    --  over bare wallpaper, with the shell's glass already gone, until the panel was opened again. A say that is still waiting is replaced, never queued:
+    --  every push carries the whole state, so only the newest one is worth sending.
+    --  A say that never answers (its process hung) must not hold the add-on's own for good: each one is let go of after a second and a half, whichever
+    --  comes first, so the next state still reaches the add-on.
+    local sbusy, swait, sturn = {}, {}, {}
     local function say_one(sock, cmds)
+        if sbusy[sock] then swait[sock] = cmds; return end
+        sbusy[sock] = true
+        local turn = (sturn[sock] or 0) + 1
+        sturn[sock] = turn
+        local function done()
+            if sturn[sock] ~= turn or not sbusy[sock] then return end       -- (already let go of: the other one of the two carries on)
+            sbusy[sock] = false
+            local next_cmds = swait[sock]
+            if next_cmds then swait[sock] = nil; say_one(sock, next_cmds) end
+        end
         local args = { "--say", sock }
         for _, c in ipairs(cmds) do args[#args + 1] = c end
-        run("pleamar", args, function() end)
+        run("pleamar", args, done)
+        after(1500, done)
     end
     local function cur_pin() return pins[(tonumber(fact.ax_cur) or -1) + 1] end
     local told_open = false
@@ -67,6 +85,13 @@ return function()
                 say_one(a.sock, { "fact slot_open " .. tostring(winopen[a.id] == true) })
             end
         end
+    end
+    --  A close is told again on the next few heartbeats: while the panel is out it is told every two seconds, and nothing told the add-on again once it was
+    --  shut, so a say that never arrived (its process failed) left the content on the screen for good. `shut_left` is how many more heartbeats say so.
+    local shut_left = 0
+    local function push_shut()
+        shut_left = 3
+        push_slot()
     end
     local pill_out = 0            -- whether the add-on pill was out at the last `show_slot`, for the room the windows keep clear of it (`dock_fx`, vitreus.luau)
     local function show_slot()
@@ -89,14 +114,14 @@ return function()
         if (tonumber(fact.ax_cur) or -1) >= 0 and not (cur and cur.drawer) then
             fact.ax_cur = -1
             fact.ax_open = false
-            push_slot()                   -- (a fact the logic sets itself does not fire `on("fact:…")`: the add-on is told here, at once, so its content goes with the glass)
+            push_shut()                   -- (a fact the logic sets itself does not fire `on("fact:…")`: the add-on is told here, at once, so its content goes with the glass)
         end
     end
     local function pin_go(i)
         local a = pins[i + 1]
         if not a then return end
         if a.drawer then
-            if fact.ax_open == true and tonumber(fact.ax_cur) == i then fact.ax_open = false; push_slot(); return end
+            if fact.ax_open == true and tonumber(fact.ax_cur) == i then fact.ax_open = false; push_shut(); return end
             local sz = sizes[a.id]
             fact.ax_w, fact.ax_h = (sz and sz.w or a.drawer.width), (sz and sz.h or a.drawer.height)       -- (before `ax_cur`: the content's place is worked out when that changes)
             text.ax_title = a.name
@@ -117,13 +142,13 @@ return function()
     end)
     -- The shell's scene can be read again (a saved edit) and start with its panel shut without anyone telling the add-on, which would keep its content on the screen: while the
     -- panel was last told to be out, it is told again every two seconds, and once a few seconds after this starts.
-    every(2000, function() if told_open then push_slot() end end)
+    every(2000, function() if told_open then push_slot() elseif shut_left > 0 then shut_left = shut_left - 1; push_slot() end end)
     after(8000, push_slot)
     on("ax_toggle", function()       -- from a key: the first add-on in the pill that has a drawer
         for i, a in ipairs(pins) do if a.drawer then pin_go(i - 1) return end end
     end)
     -- (the rules that work out the content's place have run by then)
-    on("fact:ax_open", function(v) if v == true then after(40, push_slot) else push_slot() end end)       -- (shut: at once, so the content fades with the glass instead of sitting over it as it shrinks)
+    on("fact:ax_open", function(v) if v == true then after(40, push_slot) else push_shut() end end)       -- (shut: at once, so the content fades with the glass instead of sitting over it as it shrinks)
     on("fact:ax_hold", function(v) after(150, push_slot) end)
     -- While the panel is pulled, the content's new middle goes straight to the add-on as the scene works it out (`ax_rx`, `ax_ry`), a message a frame
     -- straight down its socket (no process started: one a frame was what made the shell lag), and the add-on glides there on the glass's own spring.
