@@ -92,6 +92,7 @@ return function()
         save()
         dock_fx.changed()
     end)
+    on("cdk_show_toggle", function() shown = not shown; save(); render() end)
     on("fact:cdk_on", function(v) local b = v == true or v == 1; if b ~= shown then shown = b; save(); render() end end)
 
     -- An icon theme change or an app that came later: refresh the pins' icons from what the apps service says.

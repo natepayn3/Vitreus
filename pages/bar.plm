@@ -88,8 +88,66 @@ part Bar {
                 on press bar_pos_hit.$k { emit bar_pick_pos(k) }
             }
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 262 * pu + 0.5); text "It moves at once; windows make room for the strip." { at: floor(spx + 14 * pu + 0.5), floor(sby + 262 * pu + 0.5); anchor: left center; size: 15; width: (410 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+            //  Which icons the bar shows: four buttons, one for each icon (click to show or hide it; a hidden one is greyed out). Kept by logic/bar_layout.luau.
+            let mscy = sby + 318 * pu
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, mscy; size: 438 * pu, 76 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pu, mscy, 438 * pu, 100 * pu, 885.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pu, mscy; size: 438 * pu, 76 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(mscy - 27 * pu + 0.5); text "ICONS ON THE BAR  ·  click one to show or hide it" { at: floor(spx + 14 * pu + 0.5), floor(mscy - 27 * pu + 0.5); anchor: left center; size: 12.5; weight: 600; color: faint; family: "Space Grotesk" } }
+            //  Desk: a button, lit (mint outline) while the icon is on the bar, and greyed out while it is not
+            let msx0 = spx + 58 * pu
+            box { at: msx0, mscy + 7 * pu; size: 64 * pu, 42 * pu; corner: 11 * pu; color: mix(ink, mint, bsh_dsk_pill); opacity: 7% + 9% * bsh_dsk_pill + 8% * bsh_dsk_hit.hover }
+            box { at: msx0, mscy + 7 * pu; size: 64 * pu, 42 * pu; corner: 11 * pu; stroke: 1.5 * pu; color: mint; opacity: bsh_dsk_pill * 100% }
+            group {
+                opacity: 28% + 72% * bsh_dsk_pill
+                group { pivot: msx0, mscy + 1 * pu; scale: 0.62
+                    GBox(msx0, mscy + 1 * pu, -9, -8, -1.5, 8, 11, 1.1 * pu, ink, 90%, 0)
+                    GBox(msx0, mscy + 1 * pu, 2, -8, 9, -1.5, 15, 1.1 * pu, ink, 90%, 0)
+                    GBox(msx0, mscy + 1 * pu, 2, 1.5, 9, 8, 19, 1.1 * pu, ink, 90%, 0)
+                }
+                group { scale: rs; pivot: floor(msx0 + 0.5), floor(mscy + 19 * pu + 0.5); text "Desk" { at: floor(msx0 + 0.5), floor(mscy + 19 * pu + 0.5); anchor: center; size: 12.5; color: ink; family: "Space Grotesk" } }
+            }
+            zone box bsh_dsk_hit { at: msx0, mscy + 7 * pu; size: 64 * pu, 42 * pu; corner: 11 * pu; cursor: pointer; label: "Desk: show or hide" }
+            on scroll bsh_dsk_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
+            on press bsh_dsk_hit { emit bar_show_dsk }
+            //  Search: a button, lit (mint outline) while the icon is on the bar, and greyed out while it is not
+            let msx1 = spx + 163 * pu
+            box { at: msx1, mscy + 7 * pu; size: 64 * pu, 42 * pu; corner: 11 * pu; color: mix(ink, mint, bsh_sr_pill); opacity: 7% + 9% * bsh_sr_pill + 8% * bsh_sr_hit.hover }
+            box { at: msx1, mscy + 7 * pu; size: 64 * pu, 42 * pu; corner: 11 * pu; stroke: 1.5 * pu; color: mint; opacity: bsh_sr_pill * 100% }
+            group {
+                opacity: 28% + 72% * bsh_sr_pill
+                PBSearch(msx1, mscy + 1 * pu, 0, 1.1 * pu, 0)
+                group { scale: rs; pivot: floor(msx1 + 0.5), floor(mscy + 19 * pu + 0.5); text "Search" { at: floor(msx1 + 0.5), floor(mscy + 19 * pu + 0.5); anchor: center; size: 12.5; color: ink; family: "Space Grotesk" } }
+            }
+            zone box bsh_sr_hit { at: msx1, mscy + 7 * pu; size: 64 * pu, 42 * pu; corner: 11 * pu; cursor: pointer; label: "Search: show or hide" }
+            on scroll bsh_sr_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
+            on press bsh_sr_hit { emit bar_show_sr }
+            //  Settings: a button, lit (mint outline) while the icon is on the bar, and greyed out while it is not
+            let msx2 = spx + 268 * pu
+            box { at: msx2, mscy + 7 * pu; size: 64 * pu, 42 * pu; corner: 11 * pu; color: mix(ink, mint, bsh_set_pill); opacity: 7% + 9% * bsh_set_pill + 8% * bsh_set_hit.hover }
+            box { at: msx2, mscy + 7 * pu; size: 64 * pu, 42 * pu; corner: 11 * pu; stroke: 1.5 * pu; color: mint; opacity: bsh_set_pill * 100% }
+            group {
+                opacity: 28% + 72% * bsh_set_pill
+                PBGear(msx2, mscy + 1 * pu, 0, 1.1 * pu, 0)
+                group { scale: rs; pivot: floor(msx2 + 0.5), floor(mscy + 19 * pu + 0.5); text "Settings" { at: floor(msx2 + 0.5), floor(mscy + 19 * pu + 0.5); anchor: center; size: 12.5; color: ink; family: "Space Grotesk" } }
+            }
+            zone box bsh_set_hit { at: msx2, mscy + 7 * pu; size: 64 * pu, 42 * pu; corner: 11 * pu; cursor: pointer; label: "Settings: show or hide" }
+            on scroll bsh_set_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
+            on press bsh_set_hit { emit bar_show_set }
+            //  Controls: a button, lit (mint outline) while the icon is on the bar, and greyed out while it is not
+            let msx3 = spx + 373 * pu
+            box { at: msx3, mscy + 7 * pu; size: 64 * pu, 42 * pu; corner: 11 * pu; color: mix(ink, mint, bsh_ctl_pill); opacity: 7% + 9% * bsh_ctl_pill + 8% * bsh_ctl_hit.hover }
+            box { at: msx3, mscy + 7 * pu; size: 64 * pu, 42 * pu; corner: 11 * pu; stroke: 1.5 * pu; color: mint; opacity: bsh_ctl_pill * 100% }
+            group {
+                opacity: 28% + 72% * bsh_ctl_pill
+                PBCtl(msx3, mscy + 1 * pu, 0, 1.1 * pu, 0)
+                group { scale: rs; pivot: floor(msx3 + 0.5), floor(mscy + 19 * pu + 0.5); text "Controls" { at: floor(msx3 + 0.5), floor(mscy + 19 * pu + 0.5); anchor: center; size: 12.5; color: ink; family: "Space Grotesk" } }
+            }
+            zone box bsh_ctl_hit { at: msx3, mscy + 7 * pu; size: 64 * pu, 42 * pu; corner: 11 * pu; cursor: pointer; label: "Controls: show or hide" }
+            on scroll bsh_ctl_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
+            on press bsh_ctl_hit { emit bar_show_ctl }
             //  The Island moving to the music: it swells and sends a wave along itself on the bass (cava runs only while it is on). Only the Island does it, so on any other layout the row is dimmed and does nothing.
-            let bbz = sby + 330 * pu
+            let bbz = sby + 418 * pu
             group {
                 opacity: if(bar_frame, 0.45, 1)
                 body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, bbz; size: 438 * pu, 34 * pu; corner: 14 * pu } }
@@ -102,7 +160,7 @@ part Bar {
                 on press bar_beat_hit { emit bar_beat_toggle }
             }
             //  Size: how big the bar is, 70 to 100 % (`bz` in vitreus.plm), a slider on a row of its own under the layouts.
-            let bzy = sby + 290 * pu
+            let bzy = sby + 378 * pu
             let bzx0 = spx + 120 * pu
             let bzw = 250 * pu
             let bzh = 12 * pu
@@ -118,7 +176,7 @@ part Bar {
             on drag bar_size_hit { emit bar_pick_size(clamp(((pointer.x - tx.pnl) - bzx0) / bzw, 0, 1)) }
 
             //  Room for the docks: off (the default), windows keep clear of the app dock and the add-on pill while they are out (on the edge opposite the bar); on, the docks overlap windows. The fact `bar_dockroom` is the room, so the switch is its opposite.
-            let drz = sby + 370 * pu
+            let drz = sby + 458 * pu
             body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, drz; size: 438 * pu, 34 * pu; corner: 14 * pu } }
             DdCard(spx + 219 * pu, drz, 438 * pu, 34 * pu, 880.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: spx + 219 * pu, drz; size: 438 * pu, 34 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
@@ -131,7 +189,7 @@ part Bar {
 
             //  ── How the workspace marks look: a card each, with the marks drawn small (one of four in view, one with a window), as they are on the bar ──
             //  One centred dock (Island only): the app dock and the add-on pill become one pill in the middle of the bottom edge, which is then not pulled about. Dimmed, and does nothing, on the other layouts.
-            let dmz = sby + 410 * pu
+            let dmz = sby + 498 * pu
             group {
                 opacity: if(bar_frame, 0.45, 1)
                 body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, dmz; size: 438 * pu, 34 * pu; corner: 14 * pu } }
@@ -144,7 +202,31 @@ part Bar {
                 on press dock_mid_hit { emit dock_mid_toggle }
             }
 
-            let bwc = sby + 489 * pu
+            let axz = sby + 538 * pu
+            group {
+                opacity: if(bar_frame, 0.45, 1)
+                body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, axz; size: 438 * pu, 34 * pu; corner: 14 * pu } }
+                DdCard(spx + 219 * pu, axz, 438 * pu, 34 * pu, 883.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+                box { at: spx + 219 * pu, axz; size: 438 * pu, 34 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(axz + 0.5); text "Add-on icons on the bar" { at: floor(spx + 14 * pu + 0.5), floor(axz + 0.5); anchor: left center; size: 16.5; width: (340 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                SettingsSwitch(spx + 424 * pu, axz, bar_ax_pill, bar_ax_hit.pressed, bar_ax_hit.hover, mint)
+                zone box bar_ax_hit { at: spx + 405 * pu, axz; size: 46 * pu, 26 * pu; cursor: pointer; active: not bar_frame; label: "Add-on icons on the bar" }
+                on scroll bar_ax_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
+                on press bar_ax_hit { emit bar_ax_toggle }
+            }
+            let cdz = sby + 578 * pu
+            group {
+                opacity: 1
+                body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, cdz; size: 438 * pu, 34 * pu; corner: 14 * pu } }
+                DdCard(spx + 219 * pu, cdz, 438 * pu, 34 * pu, 884.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+                box { at: spx + 219 * pu, cdz; size: 438 * pu, 34 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(cdz + 0.5); text "Show the corner dock" { at: floor(spx + 14 * pu + 0.5), floor(cdz + 0.5); anchor: left center; size: 16.5; width: (340 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                SettingsSwitch(spx + 424 * pu, cdz, cdk_pill, cdk_hit.pressed, cdk_hit.hover, mint)
+                zone box cdk_hit { at: spx + 405 * pu, cdz; size: 46 * pu, 26 * pu; cursor: pointer; active: true; label: "Show the corner dock" }
+                on scroll cdk_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
+                on press cdk_hit { emit cdk_show_toggle }
+            }
+            let bwc = sby + 657 * pu
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
             body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, bwc; size: 438 * pu, 96 * pu; corner: 14 * pu } }
             DdCard(spx + 219 * pu, bwc, 438 * pu, 96 * pu, 807.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card

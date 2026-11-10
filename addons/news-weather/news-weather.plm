@@ -64,7 +64,7 @@ scene NewsWeather {
     fact slot_h = 0
     fact slot_sw = 0                                  // the size of the monitor the panel is on: the scene has a copy on each (`screens: each`, numbered in its own order) and only the copy of that size draws (0: not told yet, every copy does)
     fact slot_sh = 0
-    let onmon = slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh)       // this copy is on the panel's monitor (still told while it shuts)
+    let onmon = slot_sw == 0 or (screen.width == slot_sw and abs(screen.height - slot_sh) < 100)       // (height within 100: depending on the pleamar version a scene's screen is the whole monitor or what is left under the bar's reserve, 62 less) this copy is on the panel's monitor (still told while it shuts)
     let here = if(slot_open and onmon, 1, 0)       // 1 on the copy on the panel's monitor, while the panel is out
     let shown = if(onmon and (slot_open or en1 > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has). `en1` is one for every copy: the monitor test keeps the others shut
 

@@ -752,6 +752,13 @@ scene Vitreus {
     fact bar_beat = true
     event bar_dockroom_toggle ->     // Settings > Bar > "Corner docks overlap windows": windows keep clear of the docks, or go under them (logic/dock.luau)
     fact bar_dockroom = true
+    event bar_show_dsk ->            // Settings > Bar > "Show the icons" (logic/bar_layout.luau)
+    event bar_show_sr ->
+    event bar_show_set ->
+    event bar_show_ctl ->
+    event bar_ax_toggle ->           // Settings > Bar > "Add-on icons on the bar": the add-on pill's icons sit on the Island instead of the corner pill (logic/bar_layout.luau)
+    fact bar_ax = false
+    event cdk_show_toggle ->         // Settings > Bar > "Show the corner dock" (logic/dock.luau)
     //  The bar's layout (Settings > Bar): each piece's place in the row, 0 leftmost, and whether it is shown. The
     //  title is the stretch: what comes before it hugs the left, what comes after it the right.
     //  The bar's pieces are in a fixed order (logic/bar_layout.luau): the workspaces, the clock beside the window title, the tray, search, the gear, the controls.
@@ -764,11 +771,13 @@ scene Vitreus {
     fact bo.sr = 4
     fact bo.set = 5
     fact bo.ctl = 6
-    fact bo.ax = 7                   // the add-ons: the add-on pill's icons, on the Island (hidden: they stay in their pill)
+    fact bo.ax = 3.2                   // the add-ons: the add-on pill's icons, on the Island (hidden: they stay in their pill)
     fact bv.ws = true
     fact bv.title = true
     fact bv.media = true
     fact bv.sr = true
+    fact bv.set = true               // Settings > Bar > "Show the icons": each of these can be hidden (logic/bar_layout.luau keeps what was chosen)
+    fact bv.dsk = true
     fact bv.ctl = true
     fact bv.clock = true
     fact bv.tray = true
@@ -1649,6 +1658,7 @@ scene Vitreus {
     prop bs.title0 = 1 ~calm
     prop bs.media = 1 ~calm
     prop bs.sr = 1 ~calm
+    prop bs.set = 1 ~calm
     prop bs.ctl = 1 ~calm
     prop bs.clock = 1 ~calm
     prop bs.tray = 1 ~calm
@@ -1774,11 +1784,12 @@ scene Vitreus {
     follow bs.media0 = if(bv.media, 1, 0)
     follow bs.title0 = if(bv.title, 1, 0)
     follow bs.sr = if(bv.sr, 1, 0)
+    follow bs.set = if(bv.set, 1, 0)
     follow bs.ctl = if(bv.ctl, 1, 0)
     follow bs.clock = if(bv.clock, 1, 0)
     follow bs.tray = if(bv.tray, 1, 0)
     follow bs.ax = if(bv.ax and not bar_frame, 1, 0)
-    follow bs.dsk = if(bar_frame, 0, 1)
+    follow bs.dsk = if(bar_frame or not bv.dsk, 0, 1)
     follow trn = bartrays.count
     follow cdk_ga = if(cdk_on and cdk_pins.count > 0, 1, 0)
     follow adk_ga = if(adk_pins.count > 0 and not (bv.ax and not bar_frame), 1, 0)       // (not while its icons are on the Island: `bs.ax`)
@@ -1937,6 +1948,18 @@ scene Vitreus {
     prop bbk = 1 ~calm                 // how much of the beat the Island takes (Settings > Bar > "Island moves to the music")
     follow bbk = if(bar_beat, 1, 0)
     prop dock_mid_pill = 0 ~pop
+    prop bar_ax_pill = 0 ~pop
+    prop bsh_dsk_pill = 0 ~pop
+    follow bsh_dsk_pill = if(bv.dsk, 1, 0)
+    prop bsh_sr_pill = 0 ~pop
+    follow bsh_sr_pill = if(bv.sr, 1, 0)
+    prop bsh_set_pill = 0 ~pop
+    follow bsh_set_pill = if(bv.set, 1, 0)
+    prop bsh_ctl_pill = 0 ~pop
+    follow bsh_ctl_pill = if(bv.ctl, 1, 0)
+    follow bar_ax_pill = if(bar_ax, 1, 0)
+    prop cdk_pill = 0 ~pop
+    follow cdk_pill = if(cdk_on, 1, 0)
     follow dock_mid_pill = if(dock_mid, 1, 0)
     prop dkm = 0 ~calm                 // how far the docks are one centred dock (only on the Island: `dock_mid`, and `bar_frame` off)
     follow dkm = if(dock_mid and not bar_frame, 1, 0)
@@ -4783,7 +4806,7 @@ scene Vitreus {
             scale: 1 + 0.16 * touch.hover * (1 - cdk_drag)
             image t.icon { at: 0, 0; size: floor(24 * dbu + 0.5), floor(24 * dbu + 0.5); opacity: 88% + 12% * touch.hover }
         }
-        zone box touch { at: 12 * dbu, 12 * dbu; size: 31 * dbu, 33 * dbu; cursor: pointer; active: cdk.g > 0.6 and ((vert > 0.5) == (lm > 0.5)) }
+        zone box touch { at: 12 * dbu, 12 * dbu; size: 31 * dbu, 33 * dbu; cursor: pointer; active: cdk_ga * sb > 0.6 and ((vert > 0.5) == (lm > 0.5)) }
         on enter touch { cdk_hot = 1 }
         on leave touch { cdk_hot = 0 }
         on press touch { cdk_down = 1; cdk_drag = 0; cdk_hx = pointer.x - cdk.rcx; cdk_hy = pointer.y - cdk.rcy }
@@ -5305,19 +5328,20 @@ scene Vitreus {
     let vw.ws = fw.ws * bs.ws            // what each one draws, now
     let vw.media = fw.media * mshow * bs.media
     let vw.sr = fw.sr * bs.sr
+    let vw.set = fw.set * bs.set
     let vw.ctl = fw.ctl * bs.ctl
     let vw.clock = fw.clock * bs.clock
     let bw.ws = (fw.ws + bar.gap) * bs.ws
     let bw.media = (fw.media + bar.gap) * mshow * bs.media
-    let bw.set = fw.set + bar.gap
+    let bw.set = (fw.set + bar.gap) * bs.set
     let bw.sr = (fw.sr + bar.gap) * bs.sr
     let bw.ctl = (fw.ctl + bar.gap) * bs.ctl
     let bw.clock = (fw.clock + bar.gap) * bs.clock
     //  The Island grows to fit what is on it, each group in a space of its own that nothing else enters: the workspaces' on the left (which grows with their marks), the clock, the title
-    //  (a fixed 150 wide, as in the pieces) and the tray's icons in the middle, and search, the gear and the controls on the right. The two ends are made the same length, so the middle is
-    //  on the middle of the bar and of the screen, and the longer end sets how wide the bar is.
+    //  (a fixed 150 wide, as in the pieces) and the tray's icons in the middle, and search, the gear and the controls on the right. The bar is exactly as wide as the three groups side by side (no empty
+    //  space), and it is centred on the screen; the middle group follows the workspaces' end (`tmx0`), and is on the screen's middle only when the bar is the whole width (`tm`).
     let bar.cw = (fw.clock + 14 * bu) * bs.clock + 150 * bu * bs.title + bar.gap * min(1, tn) + vw.tray
-    let bar.w = mix(32 * bu + 2 * (max(bw.ws, bw.dsk + bw.sr + bw.set + bw.ctl + bw.ax) + 10 * bu) + bar.cw, screen.width - 24 * bu, tm)      // (the 10 on each side: the cards reach 9 past their icons, into the 12 between the groups, which would not be enough for two)
+    let bar.w = mix(32 * bu + bw.ws + (bw.dsk + bw.sr + bw.set + bw.ctl + bw.ax) + 20 * bu + bar.cw, screen.width - 24 * bu, tm)      // (the 10 on each side: the cards reach 9 past their icons, into the 12 between the groups, which would not be enough for two)
     let bar.l = cx - bar.w / 2 + 16 * bu
     let bar.r = cx + bar.w / 2 - 16 * bu
     //  How much of the row comes before each piece (`pre.*`) and after it (`post.*`).
@@ -5338,7 +5362,7 @@ scene Vitreus {
     let post.title = if(bo.ws > bo.title, bw.ws, 0) + if(bo.media > bo.title, bw.media, 0) + if(bo.set > bo.title, bw.set, 0) + if(bo.sr > bo.title, bw.sr, 0) + if(bo.ctl > bo.title, bw.ctl, 0) + if(bo.clock > bo.title, bw.clock, 0) + if(bo.tray > bo.title, bw.tray, 0) + if(bo.ax > bo.title, bw.ax, 0) + if(bo.dsk > bo.title, bw.dsk, 0)
     let pre.tray = if(bo.ws < bo.tray, bw.ws, 0) + if(bo.media < bo.tray, bw.media, 0) + if(bo.set < bo.tray, bw.set, 0) + if(bo.sr < bo.tray, bw.sr, 0) + if(bo.ctl < bo.tray, bw.ctl, 0) + if(bo.clock < bo.tray, bw.clock, 0) + if(bo.ax < bo.tray, bw.ax, 0)
     let pre.ax = if(bo.ws < bo.ax, bw.ws, 0) + if(bo.media < bo.ax, bw.media, 0) + if(bo.set < bo.ax, bw.set, 0) + if(bo.sr < bo.ax, bw.sr, 0) + if(bo.ctl < bo.ax, bw.ctl, 0) + if(bo.clock < bo.ax, bw.clock, 0) + if(bo.tray < bo.ax, bw.tray, 0) + if(bo.dsk < bo.ax, bw.dsk, 0)
-    let post.ax = if(bo.ws > bo.ax, bw.ws, 0) + if(bo.media > bo.ax, bw.media, 0) + if(bo.set > bo.ax, bw.set, 0) + if(bo.sr > bo.ax, bw.sr, 0) + if(bo.ctl > bo.ax, bw.ctl, 0) + if(bo.clock > bo.ax, bw.clock, 0) + if(bo.tray > bo.ax, bw.tray, 0)
+    let post.ax = if(bo.ws > bo.ax, bw.ws, 0) + if(bo.media > bo.ax, bw.media, 0) + if(bo.set > bo.ax, bw.set, 0) + if(bo.sr > bo.ax, bw.sr, 0) + if(bo.ctl > bo.ax, bw.ctl, 0) + if(bo.clock > bo.ax, bw.clock, 0) + if(bo.tray > bo.ax, bw.tray, 0) + if(bo.dsk > bo.ax, bw.dsk, 0)
     let post.tray = if(bo.ws > bo.tray, bw.ws, 0) + if(bo.media > bo.tray, bw.media, 0) + if(bo.set > bo.tray, bw.set, 0) + if(bo.sr > bo.tray, bw.sr, 0) + if(bo.ctl > bo.tray, bw.ctl, 0) + if(bo.clock > bo.tray, bw.clock, 0) + if(bo.ax > bo.tray, bw.ax, 0) + if(bo.dsk > bo.tray, bw.dsk, 0)
     //  The top frame in three pieces (Settings > Bar > Segments): a thin frame, and glass out of it at the left (the workspaces), in the middle (the title, the clock
     //  and the tray: the clock on the middle of the screen, the title after it and the tray after that) and at the right (search, the gear and the controls, ending at the corner).
@@ -5348,7 +5372,7 @@ scene Vitreus {
     let sg.tw = 150 * bu
     let sg.ws = sg.in + sg.pad + vw.ws / 2
     let sg.ctl = screen.width - sg.in - sg.pad - vw.ctl / 2
-    let sg.set = screen.width - sg.in - sg.pad - bw.ctl - fw.set / 2
+    let sg.set = screen.width - sg.in - sg.pad - bw.ctl - vw.set / 2
     let sg.sr = screen.width - sg.in - sg.pad - bw.ctl - bw.set - vw.sr / 2
     let sg.nw = (14 * bu + sg.tw) * bs.title + bw.tray                // what the middle piece holds after the clock: the title (always `sg.tw` wide here, so the notch does not move as the title changes) and the tray
     let sg.ck = cx - sg.nw / 2                                      // the clock's middle: the whole notch (clock, title, tray) is centred on the screen
@@ -5362,7 +5386,7 @@ scene Vitreus {
     //  Each piece's middle: from the left edge before the title, from the right edge after it.
     let at.ws = mix(if(bo.ws < bo.title, bar.l + pre.ws + vw.ws / 2, bar.r - post.ws - vw.ws / 2), sg.ws, sg)
     let mc = if(bo.media < bo.title, bar.l + pre.media + vw.media / 2, bar.r - post.media - vw.media / 2)
-    let set.x = mix(if(bo.set < bo.title, bar.l + pre.set + fw.set / 2, bar.r - post.set - fw.set / 2), sg.set, sg)
+    let set.x = mix(if(bo.set < bo.title, bar.l + pre.set + vw.set / 2, bar.r - post.set - vw.set / 2), sg.set, sg)
     let sr.x = mix(if(bo.sr < bo.title, bar.l + pre.sr + vw.sr / 2, bar.r - post.sr - vw.sr / 2), sg.sr, sg)
     let ctl.x = mix(if(bo.ctl < bo.title, bar.l + pre.ctl + vw.ctl / 2, bar.r - post.ctl - vw.ctl / 2), sg.ctl, sg)
     let dsk.x = bar.r - post.dsk - bar.gap * bs.dsk - vw.dsk / 2
@@ -5377,7 +5401,7 @@ scene Vitreus {
     //  Along the top or the bottom, with a frame or on the Island, the clock and the title (and the tray's icons after it) are one group, centred on the bar as the panels are: the clock, then the title right after it (`tmx0` is
     //  where the group starts, as near the middle as the pieces beside it allow).
     let tmg = (fw.clock + 14 * bu) * bs.clock
-    let tmx0 = cx - ((tmg + win.hw + bar.gap * min(1, tn) + vw.tray)) / 2      // (the clock, the title and the tray's icons after it, as one, on the middle)
+    let tmx0 = mix(bar.l + bw.ws + 10 * bu, cx - ((tmg + win.hw + bar.gap * min(1, tn) + vw.tray)) / 2, tm)      // (the clock, the title and the tray's icons after it, as one, on the middle)
     let win.xs = mix(mix(win.x, clamp(tmx0 + tmg + 6 * bu, win.x, max(win.x, win.x + win.w - win.hw + 6 * bu)), 1), sg.tl + 6 * bu, sg)
     let win.cm = mix(mix(win.x + win.w / 2, clamp(tmx0 + tmg + win.hw / 2, win.x + 24 * bu, max(win.x + 24 * bu, win.x + win.w - 24 * bu)), 1), sg.tl + win.hw / 2, sg)
     let at.clock = mix(mix(if(bo.clock < bo.title, bar.l + pre.clock + vw.clock / 2, bar.r - post.clock - vw.clock / 2), tmx0 + fw.clock / 2, 1), sg.ck, sg)
@@ -5643,7 +5667,7 @@ scene Vitreus {
     let wm.h = 946                     // the Pleamar-WM page: to the bottom of its last card
     let ad.h = 36 + max(1, addons.count) * 74 + 52 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (74 apart), and the line under them
     let ck.h = 1208                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
-    let br.h = 555                     // the Bar page: to the bottom of its last card
+    let br.h = 723                     // the Bar page: to the bottom of its last card
     let gl.h = 990                     // the Glass page: to the bottom of its last card
     let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
@@ -6235,6 +6259,7 @@ scene Vitreus {
     on change ax_cur while axo > 0.5 { ax_rx = mix(axs.fx + ax_gx - axs.rr / 2, screen.width - (axs.fx + ax_gx - axs.rr / 2), rt); ax_ry = mix(axs.fy + ax_gy, yo + vb - (axs.fy + ax_gy), bt) + ((axs.rt + axs.mt) - (axs.rb + axs.m)) / 2; ax_rw = axs.w - 2 * axs.m - axs.rr; ax_rh = axs.h - axs.rt - axs.rb - axs.m - axs.mt; ax_yoff = ax.yoff }
     on change ax_hold while axo > 0.5 { ax_rx = mix(axs.fx + ax_gx - axs.rr / 2, screen.width - (axs.fx + ax_gx - axs.rr / 2), rt); ax_ry = mix(axs.fy + ax_gy, yo + vb - (axs.fy + ax_gy), bt) + ((axs.rt + axs.mt) - (axs.rb + axs.m)) / 2; ax_rw = axs.w - 2 * axs.m - axs.rr; ax_rh = axs.h - axs.rt - axs.rb - axs.m - axs.mt; ax_yoff = ax.yoff }
     on change ax.yoff while axo > 0.5 { ax_yoff = ax.yoff }
+    on change ax_open while ax_open and axo > 0.5 { ax_yoff = ax.yoff }       // (and as it opens: the rule above only fires when the value changes, so until something changed it, the add-on was told 0, matched no copy of its scene by height, and drew nothing)
     //  While the panel is pulled, where its content goes follows the pull, and the add-on is told it as it changes (logic/addons.luau): it glides there on its own `ax_sp`, so the content moves with the glass.
     on change ax_gx while ax_hold and axo > 0.5 { ax_rx = mix(axs.fx + ax_gx - axs.rr / 2, screen.width - (axs.fx + ax_gx - axs.rr / 2), rt) }
     on change ax_gy while ax_hold and axo > 0.5 { ax_ry = mix(axs.fy + ax_gy, yo + vb - (axs.fy + ax_gy), bt) + ((axs.rt + axs.mt) - (axs.rb + axs.m)) / 2 }
@@ -7532,7 +7557,7 @@ scene Vitreus {
         BarCard((bc.cl + bc.cr) / 2, bar.y, bc.cr - bc.cl, hh, 944.5, max(bs.clock, bs.title) * (1 - clamp(dcp + dmp, 0, 1)))
         let hr0 = bc.rl
         let hr1 = bc.rr
-        BarCard((hr0 + hr1) / 2, bar.y, hr1 - hr0, hh, 945.5, max(bs.sr, bs.ctl) * (1 - dkp))
+        BarCard((hr0 + hr1) / 2, bar.y, hr1 - hr0, hh, 945.5, max(bs.sr, max(bs.ctl, bs.set)) * (1 - dkp))
         BarCard(dsk.x, bar.y, vw.dsk + 2 * bc.m, hh, 947.5, bs.dsk * (1 - fm))
     }
     //  The cards behind the two edge groups, down a strip: the same as the title's.
@@ -7555,6 +7580,7 @@ scene Vitreus {
     group {
         show: fm < 0.65 and sb > 0.5
         opacity: clamp(bs.dsk * (1 - fm) * 2 - 1, 0, 1)
+        glow: 2.4 * bu, 110%, deep       // the soft dark halo the bar's other icons have (pages/bar_icons.plm)
         let dsk.k = clamp(dz0, 0, 1)
         let dsk.f = if(desk_open_z.hover > 0.5 or desk_open, floor(time * 8), 0)
         let dsk.c = mix(ink, mint, dsk.k)

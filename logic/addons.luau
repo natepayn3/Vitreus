@@ -69,6 +69,12 @@ return function()
         run("pleamar", args, done)
         after(1500, done)
     end
+    -- How far down the add-on scenes' surfaces start: the bar's reserve on the Island (the same rule as `ax.yoff` in vitreus.plm). Worked out here from the facts, not read from `ax_yoff`:
+    -- that one is set by a scene rule that may not have run yet when the panel's first message is sent, which told News & Weather a height that matched none of its copies.
+    local function yoff()
+        if fact.bar_anchor == "top" and fact.bar_frame ~= true and fact.wm_session ~= true and (tonumber(fact.bar_size) or 1) > 0.995 then return 62 end
+        return 0
+    end
     local function cur_pin() return pins[(tonumber(fact.ax_cur) or -1) + 1] end
     local told_open = false
     local function push_slot()
@@ -81,9 +87,9 @@ return function()
                 -- The panel's monitor's height as the add-on's own surface has it: the bar's reserve (`ax_yoff`) takes the top of it, and an add-on that tells which copy of its scene is
                 -- on the panel's monitor by the size of its screen (News & Weather does) matched none of them, and drew nothing.
                 local sh = tonumber(fact.ax_sh) or 0
-                if sh > 0 then sh = sh - (tonumber(fact.ax_yoff) or 0) end
+                if sh > 0 then sh = sh - yoff() end
                 local mon = text["screen." .. (tonumber(fact.ax_scr) or 0) .. ".name"] or ""       -- the monitor's name, to tell two of the same size apart
-                say_one(a.sock, { "text slot_mon " .. mon, "fact slot_open " .. tostring(mine), "fact slot_sw " .. tostring(tonumber(fact.ax_sw) or 0), "fact slot_sh " .. tostring(sh), "fact slot_x " .. string.format("%.1f", fact.ax_rx or 0), "fact slot_y " .. string.format("%.1f", (fact.ax_ry or 0) - (fact.ax_yoff or 0)),
+                say_one(a.sock, { "text slot_mon " .. mon, "fact slot_open " .. tostring(mine), "fact slot_sw " .. tostring(tonumber(fact.ax_sw) or 0), "fact slot_sh " .. tostring(sh), "fact slot_x " .. string.format("%.1f", fact.ax_rx or 0), "fact slot_y " .. string.format("%.1f", (fact.ax_ry or 0) - yoff()),
                     "fact slot_w " .. string.format("%.1f", fact.ax_rw or 0), "fact slot_h " .. string.format("%.1f", fact.ax_rh or 0) })
             else
                 say_one(a.sock, { "fact slot_open " .. tostring(winopen[a.id] == true) })
@@ -160,7 +166,7 @@ return function()
         if fact.ax_open ~= true or fact.ax_hold ~= true then return end
         local a = cur_pin()
         if not (a and a.drawer) then return end
-        local val = (k == "slot_y") and ((tonumber(v) or 0) - (tonumber(fact.ax_yoff) or 0)) or (tonumber(v) or 0)
+        local val = (k == "slot_y") and ((tonumber(v) or 0) - yoff()) or (tonumber(v) or 0)
         pcall(sys.call, "say", a.sock, "fact " .. k .. " " .. string.format("%.1f", val))
     end
     on("fact:ax_rx", function(v) slide_slot("slot_x", v) end)
