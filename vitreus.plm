@@ -755,6 +755,7 @@ scene Vitreus {
     fact bo.clock = 1
     fact bo.title = 2
     fact bo.media = 2.5
+    fact bo.dsk = 3.5                // the Desk's button (the Island only): its own small card between the title's and search's
     fact bo.tray = 3
     fact bo.sr = 4
     fact bo.set = 5
@@ -1647,6 +1648,7 @@ scene Vitreus {
     prop bs.ctl = 1 ~calm
     prop bs.clock = 1 ~calm
     prop bs.tray = 1 ~calm
+    prop bs.dsk = 0 ~calm             // (the Desk's button: only on the Island; with a frame the desk opens from its tab)
     prop bs.ax = 0 ~calm              // (the add-ons only on the Island: with a frame they stay in their pill)
     //  The scene's own `time`. If a scene only names `time`, pleamar makes one that never stops, and a scene with a
     //  clock that never stops never rests: it paints every frame for as long as it lives. This one turns only while
@@ -1772,6 +1774,7 @@ scene Vitreus {
     follow bs.clock = if(bv.clock, 1, 0)
     follow bs.tray = if(bv.tray, 1, 0)
     follow bs.ax = if(bv.ax and not bar_frame, 1, 0)
+    follow bs.dsk = if(bar_frame, 0, 1)
     follow trn = bartrays.count
     follow cdk_ga = if(cdk_on and cdk_pins.count > 0, 1, 0)
     follow adk_ga = if(adk_pins.count > 0 and not (bv.ax and not bar_frame), 1, 0)       // (not while its icons are on the Island: `bs.ax`)
@@ -5260,6 +5263,9 @@ scene Vitreus {
     let fw.tray = max(0, tn * 24 - 6) * bu               // icons 18 wide, 6 apart
     let vw.tray = fw.tray
     let bw.tray = fw.tray + bar.gap * min(1, tn)
+    let fw.dsk = 13 * bu                                      // the Desk's glyph: one tall tile beside two small ones
+    let vw.dsk = fw.dsk * bs.dsk * (1 - fm)
+    let bw.dsk = (fw.dsk + 2 * bar.gap) * bs.dsk * (1 - fm)     // (a gap each side: the card reaches 9 past the glyph, and search's card 9 past its own, so they keep 6 apart)
     let fw.ax = max(0, adk_pins.count * 24 - 6) * bu          // the add-ons (Settings > Bar): the add-on pill's icons, 18 wide and 6 apart, as the tray's
     let vw.ax = fw.ax * bs.ax * (1 - fm)
     let bw.ax = (fw.ax + bar.gap * min(1, adk_pins.count)) * bs.ax * (1 - fm)
@@ -5299,28 +5305,29 @@ scene Vitreus {
     //  (a fixed 150 wide, as in the pieces) and the tray's icons in the middle, and search, the gear and the controls on the right. The two ends are made the same length, so the middle is
     //  on the middle of the bar and of the screen, and the longer end sets how wide the bar is.
     let bar.cw = (fw.clock + 14 * bu) * bs.clock + 150 * bu * bs.title + bar.gap * min(1, tn) + vw.tray
-    let bar.w = mix(32 * bu + 2 * (max(bw.ws, bw.sr + bw.set + bw.ctl + bw.ax) + 10 * bu) + bar.cw, screen.width - 24 * bu, tm)      // (the 10 on each side: the cards reach 9 past their icons, into the 12 between the groups, which would not be enough for two)
+    let bar.w = mix(32 * bu + 2 * (max(bw.ws, bw.dsk + bw.sr + bw.set + bw.ctl + bw.ax) + 10 * bu) + bar.cw, screen.width - 24 * bu, tm)      // (the 10 on each side: the cards reach 9 past their icons, into the 12 between the groups, which would not be enough for two)
     let bar.l = cx - bar.w / 2 + 16 * bu
     let bar.r = cx + bar.w / 2 - 16 * bu
     //  How much of the row comes before each piece (`pre.*`) and after it (`post.*`).
+    let post.dsk = if(bo.set > bo.dsk, bw.set, 0) + if(bo.sr > bo.dsk, bw.sr, 0) + if(bo.ctl > bo.dsk, bw.ctl, 0) + if(bo.ax > bo.dsk, bw.ax, 0)
     let pre.ws = if(bo.media < bo.ws, bw.media, 0) + if(bo.set < bo.ws, bw.set, 0) + if(bo.sr < bo.ws, bw.sr, 0) + if(bo.ctl < bo.ws, bw.ctl, 0) + if(bo.clock < bo.ws, bw.clock, 0) + if(bo.tray < bo.ws, bw.tray, 0) + if(bo.ax < bo.ws, bw.ax, 0)
-    let post.ws = if(bo.media > bo.ws, bw.media, 0) + if(bo.set > bo.ws, bw.set, 0) + if(bo.sr > bo.ws, bw.sr, 0) + if(bo.ctl > bo.ws, bw.ctl, 0) + if(bo.clock > bo.ws, bw.clock, 0) + if(bo.tray > bo.ws, bw.tray, 0) + if(bo.ax > bo.ws, bw.ax, 0)
+    let post.ws = if(bo.media > bo.ws, bw.media, 0) + if(bo.set > bo.ws, bw.set, 0) + if(bo.sr > bo.ws, bw.sr, 0) + if(bo.ctl > bo.ws, bw.ctl, 0) + if(bo.clock > bo.ws, bw.clock, 0) + if(bo.tray > bo.ws, bw.tray, 0) + if(bo.ax > bo.ws, bw.ax, 0) + if(bo.dsk > bo.ws, bw.dsk, 0)
     let pre.media = if(bo.ws < bo.media, bw.ws, 0) + if(bo.set < bo.media, bw.set, 0) + if(bo.sr < bo.media, bw.sr, 0) + if(bo.ctl < bo.media, bw.ctl, 0) + if(bo.clock < bo.media, bw.clock, 0) + if(bo.tray < bo.media, bw.tray, 0) + if(bo.ax < bo.media, bw.ax, 0)
-    let post.media = if(bo.ws > bo.media, bw.ws, 0) + if(bo.set > bo.media, bw.set, 0) + if(bo.sr > bo.media, bw.sr, 0) + if(bo.ctl > bo.media, bw.ctl, 0) + if(bo.clock > bo.media, bw.clock, 0) + if(bo.tray > bo.media, bw.tray, 0) + if(bo.ax > bo.media, bw.ax, 0)
-    let pre.set = if(bo.ws < bo.set, bw.ws, 0) + if(bo.media < bo.set, bw.media, 0) + if(bo.sr < bo.set, bw.sr, 0) + if(bo.ctl < bo.set, bw.ctl, 0) + if(bo.clock < bo.set, bw.clock, 0) + if(bo.tray < bo.set, bw.tray, 0) + if(bo.ax < bo.set, bw.ax, 0)
+    let post.media = if(bo.ws > bo.media, bw.ws, 0) + if(bo.set > bo.media, bw.set, 0) + if(bo.sr > bo.media, bw.sr, 0) + if(bo.ctl > bo.media, bw.ctl, 0) + if(bo.clock > bo.media, bw.clock, 0) + if(bo.tray > bo.media, bw.tray, 0) + if(bo.ax > bo.media, bw.ax, 0) + if(bo.dsk > bo.media, bw.dsk, 0)
+    let pre.set = if(bo.ws < bo.set, bw.ws, 0) + if(bo.media < bo.set, bw.media, 0) + if(bo.sr < bo.set, bw.sr, 0) + if(bo.ctl < bo.set, bw.ctl, 0) + if(bo.clock < bo.set, bw.clock, 0) + if(bo.tray < bo.set, bw.tray, 0) + if(bo.ax < bo.set, bw.ax, 0) + if(bo.dsk < bo.set, bw.dsk, 0)
     let post.set = if(bo.ws > bo.set, bw.ws, 0) + if(bo.media > bo.set, bw.media, 0) + if(bo.sr > bo.set, bw.sr, 0) + if(bo.ctl > bo.set, bw.ctl, 0) + if(bo.clock > bo.set, bw.clock, 0) + if(bo.tray > bo.set, bw.tray, 0) + if(bo.ax > bo.set, bw.ax, 0)
-    let pre.sr = if(bo.ws < bo.sr, bw.ws, 0) + if(bo.media < bo.sr, bw.media, 0) + if(bo.set < bo.sr, bw.set, 0) + if(bo.ctl < bo.sr, bw.ctl, 0) + if(bo.clock < bo.sr, bw.clock, 0) + if(bo.tray < bo.sr, bw.tray, 0) + if(bo.ax < bo.sr, bw.ax, 0)
+    let pre.sr = if(bo.ws < bo.sr, bw.ws, 0) + if(bo.media < bo.sr, bw.media, 0) + if(bo.set < bo.sr, bw.set, 0) + if(bo.ctl < bo.sr, bw.ctl, 0) + if(bo.clock < bo.sr, bw.clock, 0) + if(bo.tray < bo.sr, bw.tray, 0) + if(bo.ax < bo.sr, bw.ax, 0) + if(bo.dsk < bo.sr, bw.dsk, 0)
     let post.sr = if(bo.ws > bo.sr, bw.ws, 0) + if(bo.media > bo.sr, bw.media, 0) + if(bo.set > bo.sr, bw.set, 0) + if(bo.ctl > bo.sr, bw.ctl, 0) + if(bo.clock > bo.sr, bw.clock, 0) + if(bo.tray > bo.sr, bw.tray, 0) + if(bo.ax > bo.sr, bw.ax, 0)
-    let pre.ctl = if(bo.ws < bo.ctl, bw.ws, 0) + if(bo.media < bo.ctl, bw.media, 0) + if(bo.set < bo.ctl, bw.set, 0) + if(bo.sr < bo.ctl, bw.sr, 0) + if(bo.clock < bo.ctl, bw.clock, 0) + if(bo.tray < bo.ctl, bw.tray, 0) + if(bo.ax < bo.ctl, bw.ax, 0)
+    let pre.ctl = if(bo.ws < bo.ctl, bw.ws, 0) + if(bo.media < bo.ctl, bw.media, 0) + if(bo.set < bo.ctl, bw.set, 0) + if(bo.sr < bo.ctl, bw.sr, 0) + if(bo.clock < bo.ctl, bw.clock, 0) + if(bo.tray < bo.ctl, bw.tray, 0) + if(bo.ax < bo.ctl, bw.ax, 0) + if(bo.dsk < bo.ctl, bw.dsk, 0)
     let post.ctl = if(bo.ws > bo.ctl, bw.ws, 0) + if(bo.media > bo.ctl, bw.media, 0) + if(bo.set > bo.ctl, bw.set, 0) + if(bo.sr > bo.ctl, bw.sr, 0) + if(bo.clock > bo.ctl, bw.clock, 0) + if(bo.tray > bo.ctl, bw.tray, 0) + if(bo.ax > bo.ctl, bw.ax, 0)
     let pre.clock = if(bo.ws < bo.clock, bw.ws, 0) + if(bo.media < bo.clock, bw.media, 0) + if(bo.set < bo.clock, bw.set, 0) + if(bo.sr < bo.clock, bw.sr, 0) + if(bo.ctl < bo.clock, bw.ctl, 0) + if(bo.tray < bo.clock, bw.tray, 0) + if(bo.ax < bo.clock, bw.ax, 0)
-    let post.clock = if(bo.ws > bo.clock, bw.ws, 0) + if(bo.media > bo.clock, bw.media, 0) + if(bo.set > bo.clock, bw.set, 0) + if(bo.sr > bo.clock, bw.sr, 0) + if(bo.ctl > bo.clock, bw.ctl, 0) + if(bo.tray > bo.clock, bw.tray, 0) + if(bo.ax > bo.clock, bw.ax, 0)
+    let post.clock = if(bo.ws > bo.clock, bw.ws, 0) + if(bo.media > bo.clock, bw.media, 0) + if(bo.set > bo.clock, bw.set, 0) + if(bo.sr > bo.clock, bw.sr, 0) + if(bo.ctl > bo.clock, bw.ctl, 0) + if(bo.tray > bo.clock, bw.tray, 0) + if(bo.ax > bo.clock, bw.ax, 0) + if(bo.dsk > bo.clock, bw.dsk, 0)
     let pre.title = if(bo.ws < bo.title, bw.ws, 0) + if(bo.media < bo.title, bw.media, 0) + if(bo.set < bo.title, bw.set, 0) + if(bo.sr < bo.title, bw.sr, 0) + if(bo.ctl < bo.title, bw.ctl, 0) + if(bo.clock < bo.title, bw.clock, 0) + if(bo.tray < bo.title, bw.tray, 0) + if(bo.ax < bo.title, bw.ax, 0)
-    let post.title = if(bo.ws > bo.title, bw.ws, 0) + if(bo.media > bo.title, bw.media, 0) + if(bo.set > bo.title, bw.set, 0) + if(bo.sr > bo.title, bw.sr, 0) + if(bo.ctl > bo.title, bw.ctl, 0) + if(bo.clock > bo.title, bw.clock, 0) + if(bo.tray > bo.title, bw.tray, 0) + if(bo.ax > bo.title, bw.ax, 0)
+    let post.title = if(bo.ws > bo.title, bw.ws, 0) + if(bo.media > bo.title, bw.media, 0) + if(bo.set > bo.title, bw.set, 0) + if(bo.sr > bo.title, bw.sr, 0) + if(bo.ctl > bo.title, bw.ctl, 0) + if(bo.clock > bo.title, bw.clock, 0) + if(bo.tray > bo.title, bw.tray, 0) + if(bo.ax > bo.title, bw.ax, 0) + if(bo.dsk > bo.title, bw.dsk, 0)
     let pre.tray = if(bo.ws < bo.tray, bw.ws, 0) + if(bo.media < bo.tray, bw.media, 0) + if(bo.set < bo.tray, bw.set, 0) + if(bo.sr < bo.tray, bw.sr, 0) + if(bo.ctl < bo.tray, bw.ctl, 0) + if(bo.clock < bo.tray, bw.clock, 0) + if(bo.ax < bo.tray, bw.ax, 0)
-    let pre.ax = if(bo.ws < bo.ax, bw.ws, 0) + if(bo.media < bo.ax, bw.media, 0) + if(bo.set < bo.ax, bw.set, 0) + if(bo.sr < bo.ax, bw.sr, 0) + if(bo.ctl < bo.ax, bw.ctl, 0) + if(bo.clock < bo.ax, bw.clock, 0) + if(bo.tray < bo.ax, bw.tray, 0)
+    let pre.ax = if(bo.ws < bo.ax, bw.ws, 0) + if(bo.media < bo.ax, bw.media, 0) + if(bo.set < bo.ax, bw.set, 0) + if(bo.sr < bo.ax, bw.sr, 0) + if(bo.ctl < bo.ax, bw.ctl, 0) + if(bo.clock < bo.ax, bw.clock, 0) + if(bo.tray < bo.ax, bw.tray, 0) + if(bo.dsk < bo.ax, bw.dsk, 0)
     let post.ax = if(bo.ws > bo.ax, bw.ws, 0) + if(bo.media > bo.ax, bw.media, 0) + if(bo.set > bo.ax, bw.set, 0) + if(bo.sr > bo.ax, bw.sr, 0) + if(bo.ctl > bo.ax, bw.ctl, 0) + if(bo.clock > bo.ax, bw.clock, 0) + if(bo.tray > bo.ax, bw.tray, 0)
-    let post.tray = if(bo.ws > bo.tray, bw.ws, 0) + if(bo.media > bo.tray, bw.media, 0) + if(bo.set > bo.tray, bw.set, 0) + if(bo.sr > bo.tray, bw.sr, 0) + if(bo.ctl > bo.tray, bw.ctl, 0) + if(bo.clock > bo.tray, bw.clock, 0) + if(bo.ax > bo.tray, bw.ax, 0)
+    let post.tray = if(bo.ws > bo.tray, bw.ws, 0) + if(bo.media > bo.tray, bw.media, 0) + if(bo.set > bo.tray, bw.set, 0) + if(bo.sr > bo.tray, bw.sr, 0) + if(bo.ctl > bo.tray, bw.ctl, 0) + if(bo.clock > bo.tray, bw.clock, 0) + if(bo.ax > bo.tray, bw.ax, 0) + if(bo.dsk > bo.tray, bw.dsk, 0)
     //  The top frame in three pieces (Settings > Bar > Segments): a thin frame, and glass out of it at the left (the workspaces), in the middle (the title, the clock
     //  and the tray: the clock on the middle of the screen, the title after it and the tray after that) and at the right (search, the gear and the controls, ending at the corner).
     //  `sg.*` is where each piece goes then; the glass that holds them is further down (`sg.lr`, `sg.cl0`...). The title may not grow past `sg.tw`.
@@ -5346,6 +5353,7 @@ scene Vitreus {
     let set.x = mix(if(bo.set < bo.title, bar.l + pre.set + fw.set / 2, bar.r - post.set - fw.set / 2), sg.set, sg)
     let sr.x = mix(if(bo.sr < bo.title, bar.l + pre.sr + vw.sr / 2, bar.r - post.sr - vw.sr / 2), sg.sr, sg)
     let ctl.x = mix(if(bo.ctl < bo.title, bar.l + pre.ctl + vw.ctl / 2, bar.r - post.ctl - vw.ctl / 2), sg.ctl, sg)
+    let dsk.x = bar.r - post.dsk - bar.gap * bs.dsk - vw.dsk / 2
     let ax.x = if(bo.ax < bo.title, bar.l + pre.ax + vw.ax / 2, bar.r - post.ax - vw.ax / 2)
     //  Where the window title starts, and how far it may reach: the stretch (the gaps are its neighbours').
     let win.x = bar.l + pre.title
@@ -6063,12 +6071,6 @@ scene Vitreus {
     let adk.by = pick(screen.index, adk_cy.0, adk_cy.1) + pick(screen.index, adk_ay.0, adk_ay.1) * cdk.r / 2
     let adk.bw = mix(adk.L * adk.g, cdk.t, lm) + cdk.r * abs(pick(screen.index, adk_ax.0, adk_ax.1))
     let adk.bh = mix(cdk.t, adk.L * adk.g, lm) + cdk.r * abs(pick(screen.index, adk_ay.0, adk_ay.1))
-    //  The Desk's dock: the Island layout's way in to the desk, a one-icon glass pill in the top right corner, the corner docks' twin (the glass is in bar_shapes.plm).
-    let dkd.g = sb * clamp(1 - fm * 1.5, 0, 1)
-    let dkd.W = cdk.p + 8 * bu
-    let dkd.H = cdk.t
-    let dkd.cx = screen.width - dkd.W / 2
-    let dkd.cy = yo + dkd.H / 2
     //  The add-on drawer (`ax_open`): out of the add-on pill, standing in its corner, as wide and tall as the add-on asked, against the frame and on the pill. It grows from the pill as it opens.
     //  With the add-ons on the Island (`axb`, Settings > Bar) it drops from the bar instead, as the bar's own panels do: centred on the bar, against it so the glass
     //  melts into it, and it grows out of the icon (`ax.ix`).
@@ -7438,27 +7440,6 @@ scene Vitreus {
                 ellipse { at: mix(screen.width - th.r / 2 - (th.r + nt_d) / 2 * nt_vis_r.$screen, th.r / 2 + (th.r + nt_d) / 2 * nt_vis_r.$screen, rt), mix(vcc, yo + vb - vcc, bt) + (i - 1) * 6.5 * cu; radius: 1.6 * cu; color: ink; opacity: (35% + 55% * ntn_r.hover) * (1 - clamp(dz0, 0, 1)) }
             }
         }
-        //  The Island layout's way in to the desk: a glass dock in the top right corner, like the add-on dock (its glass is `dkd.*` in bar_shapes.plm), with a dashboard
-        //  glyph in pencil: one tall tile beside two small ones. It rests, and boils (is drawn again about eight times a second) under the pointer and while the desk is
-        //  open, when it is lit as well. Pressing it opens or closes the desk.
-        group {
-            show: fm < 0.65
-            opacity: clamp(dkd.g * 2 - 1, 0, 1)
-            let dkd.k = clamp(dz0, 0, 1)
-            let dkd.f = if(desk_open_z.hover > 0.5 or desk_open, floor(time * 8), 0)
-            let dkd.c = mix(ink, mint, dkd.k)
-            let dkd.o = 80% + 20% * desk_open_z.hover
-            box { at: dkd.cx, dkd.cy; size: 33 * bu, 33 * bu; corner: 10 * bu * (1 - 0.5 * sq); color: ink; opacity: 16% * desk_open_z.hover }
-            group {
-                pivot: dkd.cx, dkd.cy
-                scale: 1 + 0.12 * desk_open_z.hover
-                GBox(dkd.cx, dkd.cy, -9, -8, -1.5, 8, 11, bu, dkd.c, dkd.o, dkd.f)
-                GBox(dkd.cx, dkd.cy, 2, -8, 9, -1.5, 15, bu, dkd.c, dkd.o, dkd.f)
-                GBox(dkd.cx, dkd.cy, 2, 1.5, 9, 8, 19, bu, dkd.c, dkd.o, dkd.f)
-            }
-            zone box desk_open_z { at: dkd.cx, dkd.cy; size: 34 * bu, 36 * bu; corner: 10 * bu; cursor: pointer; active: fm < 0.5 and dkd.g > 0.6; label: "The Desk" }
-            on press desk_open_z { panel_scr = screen.index; desk_tab = if(desk_open, desk_tab, desk_start); desk_open = not desk_open }
-        }
     include "pages/desk.plm"
 
     //  The strip's pieces (icons, clock, title) are laid out down the left; on the right they are slid across to the mirror image of their place, and along the bottom
@@ -7531,6 +7512,7 @@ scene Vitreus {
         let hr0 = bc.rl
         let hr1 = bc.rr
         BarCard((hr0 + hr1) / 2, bar.y, hr1 - hr0, hh, 945.5, max(bs.sr, bs.ctl) * (1 - dkp))
+        BarCard(dsk.x, bar.y, vw.dsk + 2 * bc.m, hh, 947.5, bs.dsk * (1 - fm))
     }
     //  The cards behind the two edge groups, down a strip: the same as the title's.
     group {
@@ -7546,6 +7528,27 @@ scene Vitreus {
         BarCard(lf.x, lv.cm, lf.w - 8 * bu, lv.cb - lv.ct, 940.5, 1 - clamp(dcp + dmp, 0, 1))
     }
     include "pages/bar_icons.plm"
+    //  The Island layout's way in to the desk: a small card in the bar between the title's and search's (`dsk.*`), with a dashboard
+    //  glyph in pencil: one tall tile beside two small ones. It rests, and boils (is drawn again about eight times a second) under the pointer and while the desk is
+    //  open, when it is lit as well. Pressing it opens or closes the desk.
+    group {
+        show: fm < 0.65 and sb > 0.5
+        opacity: clamp(bs.dsk * (1 - fm) * 2 - 1, 0, 1)
+        let dsk.k = clamp(dz0, 0, 1)
+        let dsk.f = if(desk_open_z.hover > 0.5 or desk_open, floor(time * 8), 0)
+        let dsk.c = mix(ink, mint, dsk.k)
+        let dsk.o = 80% + 20% * desk_open_z.hover
+        box { at: dsk.x, bar.y; size: 24 * bu, 24 * bu; corner: 8 * bu * (1 - 0.5 * sq); color: ink; opacity: 16% * desk_open_z.hover }
+        group {
+            pivot: dsk.x, bar.y
+            scale: 0.72 * (1 + 0.12 * desk_open_z.hover)
+            GBox(dsk.x, bar.y, -9, -8, -1.5, 8, 11, bu, dsk.c, dsk.o, dsk.f)
+            GBox(dsk.x, bar.y, 2, -8, 9, -1.5, 15, bu, dsk.c, dsk.o, dsk.f)
+            GBox(dsk.x, bar.y, 2, 1.5, 9, 8, 19, bu, dsk.c, dsk.o, dsk.f)
+        }
+        zone box desk_open_z { at: dsk.x, bar.y; size: 26 * bu, 36 * bu; corner: 10 * bu; cursor: pointer; active: fm < 0.5 and bs.dsk > 0.6; label: "The Desk" }
+        on press desk_open_z { panel_scr = screen.index; desk_tab = if(desk_open, desk_tab, desk_start); desk_open = not desk_open }
+    }
     //  The clock runs while something needs it. It is here, after the bar's zones, because it reads their hover: the bar's icons only boil under the pointer.
     let need_clock = (fr_wv > 0 and fm > 0.5) or (cy_on > 0.01) or bar_hit.hover > 0.01 or adk_hot > 0.5 or wsh.1.$screen > 0.01 or wsh.2.$screen > 0.01 or wsh.3.$screen > 0.01 or wsh.4.$screen > 0.01 or wsh.5.$screen > 0.01 or wsh.6.$screen > 0.01 or wsh.7.$screen > 0.01 or wsh.8.$screen > 0.01 or wsh.9.$screen > 0.01 or wsh.10.$screen > 0.01 or set_hit.hover > 0.01 or sr_hit.hover > 0.01 or ctl_hit.hover > 0.01 or ov_btn.hover > 0.01 or bp.prev.hover > 0.01 or bp.play.hover > 0.01 or bp.next.hover > 0.01 or vm_prev.hover > 0.01 or vm_play.hover > 0.01 or vm_next.hover > 0.01 or ds > 0.01 or dl > 0.01 or dk > 0.01 or hm_hot > 0.5 or ((wifi_scanning or bt_scanning or bt_working or caf_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or osd_kind == note or nt_urgent)) or (set_pgd > 0.01 and disp.h > set.h) or time - pw_b0 < 1.5 or time - pw_b1 < 1.5 or time - pw_b2 < 1.5 or time - pw_b3 < 1.5 or time - pw_b4 < 1.5 or rec_on or (dsh_rise > 0.01 and (dsh_rise < 0.995 or dsh_under > 0.002 or media.playing or dsh_hv > 0.5)) or (mf.vis > 0.01 and (media.playing or mf_hv > 0.01))
     spin time by if(need_clock, 1, 0)
