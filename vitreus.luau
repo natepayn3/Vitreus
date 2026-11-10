@@ -353,7 +353,7 @@ function cava_want()
     -- a dozen times a second forever: the shell never rested and the card never left its top clocks. Now it rests whenever the music does.
     fact.fr_wv = (not game_fx.on and cava_playing and fw_on()) and 1 or 0
     if game_fx.on then hush() return end
-    if cava_playing and ((fact.bar_frame ~= true and (fact.bar_anchor == "top" or fact.bar_anchor == "bottom")) or watching or eq_float() or fw_on()) then listen() else hush() end
+    if cava_playing and ((fact.bar_frame ~= true and fact.bar_beat ~= false and (fact.bar_anchor == "top" or fact.bar_anchor == "bottom")) or watching or eq_float() or fw_on()) then listen() else hush() end
 end
 
 -- The cover. Every player publishes it the same way (MPRIS `mpris:artUrl`), and
@@ -7305,6 +7305,8 @@ require("logic/desk_holes")()
 
 -- bar size: see logic/bar_size.luau
 require("logic/bar_size")()
+-- the Island moving to the music (Settings > Bar): see logic/bar_beat.luau
+require("logic/bar_beat")()
 
 -- bar layout: see logic/bar_layout.luau
 require("logic/bar_layout")()

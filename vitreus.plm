@@ -746,6 +746,8 @@ scene Vitreus {
     event bar_pick_ws ->               // Settings > Bar: how the workspace marks look (logic/bar_monitors.luau)
     fact ws_style = 0                  // 0 glass squares, 1 dots, 2 numbers, 3 lines
     event bar_others_toggle ->       // Settings > Bar: the frame on the monitors without the bar, or nothing there (logic/bar_monitors.luau)
+    event bar_beat_toggle ->         // Settings > Bar: the Island swells on the music, or holds still (logic/bar_beat.luau)
+    fact bar_beat = true
     event bar_dockroom_toggle ->     // Settings > Bar > "Corner docks overlap windows": windows keep clear of the docks, or go under them (logic/dock.luau)
     fact bar_dockroom = true
     //  The bar's layout (Settings > Bar): each piece's place in the row, 0 leftmost, and whether it is shown. The
@@ -1929,6 +1931,10 @@ scene Vitreus {
     prop bar_oth_pill = 0 ~pop
     follow bar_oth_pill = if(bar_others, 1, 0)
     prop bar_dr_pill = 0 ~pop
+    prop bar_beat_pill = 0 ~pop
+    prop bbk = 1 ~calm                 // how much of the beat the Island takes (Settings > Bar > "Island moves to the music")
+    follow bbk = if(bar_beat, 1, 0)
+    follow bar_beat_pill = if(bar_beat, 1, 0)
     on enter bar_hit { fr_hov = true }
     on leave bar_hit { fr_hov = false }
     follow bar_dr_pill = if(bar_dockroom, 0, 1)         // the switch says "Corner docks overlap windows": on when there is no room
@@ -2599,7 +2605,7 @@ scene Vitreus {
     //  Every time the bass hits hard, a wave is born at the player controls (the
     //  bar's shader reads `ring` as how far it has travelled). It
     //  has to fall back below the threshold before the next one can be born.
-    on change bass > 0.6 while bass > 0.6 {
+    on change bass > 0.6 while bass > 0.6 and (bar_beat or bar_frame) {
         ring_mid: 0 ~0ms
         ring: 0 ~16ms
         ring: 1 ~1100ms after 30ms
@@ -5452,7 +5458,7 @@ scene Vitreus {
 
     //  The music only moves the bar: it fades out as the panel opens (gone by a third of
     //  the way), so an open panel sits still.
-    let pv = pulse * (1 - min(1, drop * 3)) * (1 - lm) * (1 - sg)
+    let pv = pulse * bbk * (1 - min(1, drop * 3)) * (1 - lm) * (1 - sg)
     let pop = pv * 6 * u           // how far the bar swells on the beat
     //  The bounce on `dc`/`dk` (below) is free to swing past 1 on the way open - that
     //  overshoot is the spring showing - but a size can't go negative, so anything
@@ -5631,7 +5637,7 @@ scene Vitreus {
     let wm.h = 946                     // the Pleamar-WM page: to the bottom of its last card
     let ad.h = 36 + max(1, addons.count) * 74 + 52 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (74 apart), and the line under them
     let ck.h = 1208                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
-    let br.h = 475                     // the Bar page: to the bottom of its last card
+    let br.h = 515                     // the Bar page: to the bottom of its last card
     let gl.h = 990                     // the Glass page: to the bottom of its last card
     let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.

@@ -165,26 +165,35 @@ part PanelFrame {
                     pivot: ix, ty
                     scale: 1 + 0.12 * tk + 0.08 * dtab_z.$t.hover
                     opacity: 70% + 30% * max(tk, dtab_z.$t.hover)
+                    //  Drawn in pencil like the other glyphs (pencil-glyphs.plm): it boils, redrawn about eight times a second, while the tab is in use or under the pointer.
+                    let tz = 0.7 * cu
+                    let tfm = if(tk > 0.5 or dtab_z.$t.hover > 0.5, floor(time * 8), 0)
                     group {
                         show: t == 0
-                        box { at: ix, ty + 0.8 * cu; size: 12 * cu, 11 * cu; corner: 2.5 * cu; stroke: 1.5 * cu; color: ic }
-                        line { from: ix - 6 * cu, ty - 1.2 * cu; to: ix + 6 * cu, ty - 1.2 * cu; width: 1.5 * cu; color: ic }
-                        line { from: ix - 2.6 * cu, ty - 6.2 * cu; to: ix - 2.6 * cu, ty - 3.6 * cu; width: 1.5 * cu; color: ic }
-                        line { from: ix + 2.6 * cu, ty - 6.2 * cu; to: ix + 2.6 * cu, ty - 3.6 * cu; width: 1.5 * cu; color: ic }
-                        ellipse { at: ix, ty + 3.2 * cu; radius: 1.3 * cu; color: ic }
+                        GBox(ix, ty, -8, -6, 8, 9, 201, tz, ic, 1, tfm)
+                        GLn(ix, ty, -8, -1, 8, -1, 205, tz, ic, 1, tfm)
+                        GLn(ix, ty, -4, -9, -4, -4, 206, tz, ic, 1, tfm)
+                        GLn(ix, ty, 4, -9, 4, -4, 207, tz, ic, 1, tfm)
+                        GArc(ix, ty, 0, 4, 1.4, 0, 360, 208, tz, ic, 1, tfm)
                     }
                     group {
                         show: t == 1
-                        ellipse { at: ix - 2.4 * cu, ty + 3.6 * cu; radius: 2.8 * cu; color: ic }
-                        line { from: ix + 0.3 * cu, ty + 3.4 * cu; to: ix + 0.3 * cu, ty - 6 * cu; width: 1.6 * cu; color: ic }
-                        path { at: ix, ty; stroke: 1.6 * cu; color: ic; move 0.3 * cu, -6 * cu; curve 4.6 * cu, -1.2 * cu via 3.6 * cu, -5.2 * cu }
+                        //  The pair of beamed notes, the shape of the Music workspace's mark (PBNote).
+                        GLn(ix, ty, -4.5, 5, -4.5, -7, 211, tz, ic, 1, tfm)
+                        GLn(ix, ty, 4.5, 3, 4.5, -9, 212, tz, ic, 1, tfm)
+                        GLn(ix, ty, -4.5, -7, 4.5, -9, 213, tz, ic, 1, tfm)
+                        GLn(ix, ty, -4.5, -4.5, 4.5, -6.5, 214, tz, ic, 1, tfm)
+                        GArc(ix, ty, -7, 6, 2.6, 0, 360, 215, tz, ic, 1, tfm)
+                        GArc(ix, ty, -7, 6, 1.3, 0, 360, 216, tz, ic, 1, tfm)
+                        GArc(ix, ty, 2, 4, 2.6, 0, 360, 217, tz, ic, 1, tfm)
+                        GArc(ix, ty, 2, 4, 1.3, 0, 360, 218, tz, ic, 1, tfm)
                     }
                     group {
                         show: t == 2
-                        box { at: ix - 3.4 * cu, ty - 3.4 * cu; size: 5.4 * cu, 5.4 * cu; corner: 1.4 * cu; color: ic }
-                        box { at: ix + 3.4 * cu, ty - 3.4 * cu; size: 5.4 * cu, 5.4 * cu; corner: 1.4 * cu; color: ic }
-                        box { at: ix - 3.4 * cu, ty + 3.4 * cu; size: 5.4 * cu, 5.4 * cu; corner: 1.4 * cu; color: ic }
-                        box { at: ix + 3.4 * cu, ty + 3.4 * cu; size: 5.4 * cu, 5.4 * cu; corner: 1.4 * cu; color: ic }
+                        GBox(ix, ty, -8, -8, -1, -1, 221, tz, ic, 1, tfm)
+                        GBox(ix, ty, 1, -8, 8, -1, 225, tz, ic, 1, tfm)
+                        GBox(ix, ty, -8, 1, -1, 8, 229, tz, ic, 1, tfm)
+                        GBox(ix, ty, 1, 1, 8, 8, 233, tz, ic, 1, tfm)
                     }
                 }
                 zone box dtab_z.$t { at: tx, ty; size: 116 * cu, 32 * cu; corner: 16 * cu; cursor: pointer }
