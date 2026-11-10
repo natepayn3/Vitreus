@@ -6,11 +6,12 @@ return function()
     local MAX = 8
     local pins = {}
     local shown = true
+    local mid_on = false               -- Settings > Bar: on the Island, the app dock and the add-on pill are one dock in the middle of the bottom edge (`dock_mid`)
     local room_on = true               -- Settings > Bar: windows keep clear of the docks (kept here and only written to `dock_fx`: a handler reads that table as it was when it was made)
     local known = {}                  -- id -> the app as the apps service reports it, to keep the icons right
 
     local function save()
-        pcall(sys.call, "files.write", "dock-pins.json", { pins = pins, corner = (fact.cdk_corner == 1 or fact.cdk_corner == true) and 1 or 0, on = shown, room = room_on })
+        pcall(sys.call, "files.write", "dock-pins.json", { pins = pins, corner = (fact.cdk_corner == 1 or fact.cdk_corner == true) and 1 or 0, on = shown, room = room_on, mid = mid_on })
     end
     local was = 0                 -- whether the dock was out at the last `render`, for the room the windows keep clear of it (`dock_fx`, vitreus.luau)
     local function render()
@@ -38,6 +39,7 @@ return function()
         take(saved.b)
         if saved.on == false then shown = false end
         if saved.room == false then room_on = false; dock_fx.enabled = false end
+        if saved.mid == true then mid_on = true end
         fact.cdk_corner = saved.corner == 1 and 1 or 0
     end
     render()
@@ -76,6 +78,12 @@ return function()
     end)
     on("fact:cdk_corner", function() save() end)
     fact.bar_dockroom = room_on
+    fact.dock_mid = mid_on
+    on("dock_mid_toggle", function()
+        mid_on = not mid_on
+        fact.dock_mid = mid_on
+        save()
+    end)
     on("bar_dockroom_toggle", function()       -- Settings > Bar: windows keep clear of the docks, or go under them
         room_on = not room_on
         dock_fx.enabled = room_on

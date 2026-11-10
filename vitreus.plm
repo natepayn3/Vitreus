@@ -746,6 +746,8 @@ scene Vitreus {
     event bar_pick_ws ->               // Settings > Bar: how the workspace marks look (logic/bar_monitors.luau)
     fact ws_style = 0                  // 0 glass squares, 1 dots, 2 numbers, 3 lines
     event bar_others_toggle ->       // Settings > Bar: the frame on the monitors without the bar, or nothing there (logic/bar_monitors.luau)
+    event dock_mid_toggle ->         // Settings > Bar: on the Island, the two corner docks are one centred dock at the bottom (logic/dock.luau)
+    fact dock_mid = false
     event bar_beat_toggle ->         // Settings > Bar: the Island swells on the music, or holds still (logic/bar_beat.luau)
     fact bar_beat = true
     event bar_dockroom_toggle ->     // Settings > Bar > "Corner docks overlap windows": windows keep clear of the docks, or go under them (logic/dock.luau)
@@ -1934,6 +1936,10 @@ scene Vitreus {
     prop bar_beat_pill = 0 ~pop
     prop bbk = 1 ~calm                 // how much of the beat the Island takes (Settings > Bar > "Island moves to the music")
     follow bbk = if(bar_beat, 1, 0)
+    prop dock_mid_pill = 0 ~pop
+    follow dock_mid_pill = if(dock_mid, 1, 0)
+    prop dkm = 0 ~calm                 // how far the docks are one centred dock (only on the Island: `dock_mid`, and `bar_frame` off)
+    follow dkm = if(dock_mid and not bar_frame, 1, 0)
     follow bar_beat_pill = if(bar_beat, 1, 0)
     on enter bar_hit { fr_hov = true }
     on leave bar_hit { fr_hov = false }
@@ -5637,7 +5643,7 @@ scene Vitreus {
     let wm.h = 946                     // the Pleamar-WM page: to the bottom of its last card
     let ad.h = 36 + max(1, addons.count) * 74 + 52 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (74 apart), and the line under them
     let ck.h = 1208                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
-    let br.h = 515                     // the Bar page: to the bottom of its last card
+    let br.h = 555                     // the Bar page: to the bottom of its last card
     let gl.h = 990                     // the Glass page: to the bottom of its last card
     let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
@@ -6024,7 +6030,7 @@ scene Vitreus {
     //  that melts into the frame: `cdk.r` is how far it reaches into it (or off the screen, with no frame), so the two are one piece. Everything here is in the glass's
     //  own (unmirrored) drawing; the icons are drawn where the mirror image falls. `cdk_cx.$screen`, `cdk_cy.$screen` is where its middle is: carried to the pointer while it is
     //  pulled, to its corner otherwise.
-    let cdk.g = cdk_ga * sb                                        // how far out it is on this monitor: only where the bar is (`sb`)
+    let cdk.g = max(cdk_ga, dkm * adk_ga) * sb                                        // how far out it is on this monitor: only where the bar is (`sb`)
     let cdk.s = 24 * bu
     let cdk.p = cdk.s + 6 * bu
     let cdk.t = cdk.s + 10 * bu
@@ -6043,21 +6049,28 @@ scene Vitreus {
     let cdk.pick = if(lm > 0.5, if(mix(cdk_py, yo + vb - cdk_py, bt) > vc, 1, 0), if(mix(cdk_px, screen.width - cdk_px, rt) > screen.width / 2, 1, 0))
     let adk.pick = if(lm > 0.5, if(mix(adk_py, yo + vb - adk_py, bt) > vc, 1, 0), if(mix(adk_px, screen.width - adk_px, rt) > screen.width / 2, 1, 0))
     //  Where each rests: the other is in the opposite corner, and it goes there as soon as the one pulled is nearer the far one (the swap).
-    let cdk.cor = if(adk_drag > 0.5, 1 - adk.pick, cdk_corner)
+    let cdk.cor = if(adk_drag > 0.5, 1 - adk.pick, if(cdk_drag > 0.5 and dkm > 0.5, cdk.pick, cdk_corner))      // (as one centred dock the sides swap while one is pulled across the middle)
     let adk.cor = if(cdk_drag > 0.5, 1 - cdk.pick, 1 - cdk_corner)
     let cdk.sr = if(lm > 0.5, 1, cdk.cor)                       // against the right edge (1) or the left (0)
     let cdk.sb = if(lm > 0.5, cdk.cor, 1)                       // against the bottom (1) or the top (0)
-    let cdk.restx = mix(cdk.xs + cdk.W / 2, cdk.xe - cdk.W / 2, cdk.sr)
+    //  One centred dock (`dkm`, the Island): the two pills side by side, each on the side it was in, as one piece of glass (the app dock's, `cdk.bw`) the width of both; the add-on pill's own glass is gone.
+    let dkm.Wc = cdk.L * cdk_ga * sb
+    let dkm.Wa = (adk_pins.count * cdk.p + 8 * bu) * adk_ga * sb
+    let dkm.W = dkm.Wc + dkm.Wa
+    let dkm.cx = screen.width / 2
+    let cdk.mx = dkm.cx + (2 * cdk.sr - 1) * (dkm.W - dkm.Wc) / 2          // each keeps its side: the app dock on the right if it was in the right corner (`cdk.sr`), else on the left
+    let adk.mx = dkm.cx + (1 - 2 * cdk.sr) * (dkm.W - dkm.Wa) / 2
+    let cdk.restx = mix(mix(cdk.xs + cdk.W / 2, cdk.xe - cdk.W / 2, cdk.sr), cdk.mx, dkm)
     let cdk.resty = mix(cdk.yt + cdk.H / 2, cdk.ye - cdk.H / 2, cdk.sb)
     let cdk.rcx = mix(pick(screen.index, cdk_cx.0, cdk_cx.1), screen.width - pick(screen.index, cdk_cx.0, cdk_cx.1), rt)           // where its middle is on the screen
     let cdk.rcy = mix(pick(screen.index, cdk_cy.0, cdk_cy.1), yo + vb - pick(screen.index, cdk_cy.0, cdk_cy.1), bt)
-    follow cdk_cx.$screen = if(cdk_drag > 0.5, mix(cdk_px, screen.width - cdk_px, rt), cdk.restx)
-    follow cdk_cy.$screen = if(cdk_drag > 0.5, mix(cdk_py, yo + vb - cdk_py, bt), cdk.resty)
-    follow cdk_ax.$screen = if(cdk_drag > 0.5, 0, cdk.sr * 2 - 1)
-    follow cdk_ay.$screen = if(cdk_drag > 0.5, 0, cdk.sb * 2 - 1)
-    let cdk.bx = pick(screen.index, cdk_cx.0, cdk_cx.1) + pick(screen.index, cdk_ax.0, cdk_ax.1) * cdk.r / 2
+    follow cdk_cx.$screen = if(cdk_drag > 0.5 and dkm < 0.5, mix(cdk_px, screen.width - cdk_px, rt), cdk.restx)
+    follow cdk_cy.$screen = if(cdk_drag > 0.5 and dkm < 0.5, mix(cdk_py, yo + vb - cdk_py, bt), cdk.resty)
+    follow cdk_ax.$screen = if(cdk_drag > 0.5 and dkm < 0.5, 0, (cdk.sr * 2 - 1) * (1 - dkm))
+    follow cdk_ay.$screen = if(cdk_drag > 0.5 and dkm < 0.5, 0, cdk.sb * 2 - 1)
+    let cdk.bx = mix(pick(screen.index, cdk_cx.0, cdk_cx.1) + pick(screen.index, cdk_ax.0, cdk_ax.1) * cdk.r / 2, dkm.cx, dkm)
     let cdk.by = pick(screen.index, cdk_cy.0, cdk_cy.1) + pick(screen.index, cdk_ay.0, cdk_ay.1) * cdk.r / 2
-    let cdk.bw = mix(cdk.L * cdk.g, cdk.t, lm) + cdk.r * abs(pick(screen.index, cdk_ax.0, cdk_ax.1))
+    let cdk.bw = mix(mix(cdk.L * cdk.g, cdk.t, lm) + cdk.r * abs(pick(screen.index, cdk_ax.0, cdk_ax.1)), dkm.W + 8 * bu * (1 - min(1, cdk_ga * sb)) * (1 - min(1, adk_ga * sb)), dkm)
     let cdk.bh = mix(cdk.t, cdk.L * cdk.g, lm) + cdk.r * abs(pick(screen.index, cdk_ay.0, cdk_ay.1))
     let cdk.cr = min(cdk.t / 2, fr_in_r)                    // its own corners follow the windows' rounding, like the frame's (`fr_in_r`)
     let adk.L = adk_pins.count * cdk.p + 8 * bu
@@ -6065,19 +6078,19 @@ scene Vitreus {
     let adk.H = mix(cdk.t, adk.L, lm)
     let adk.sr = if(lm > 0.5, 1, adk.cor)
     let adk.sb = if(lm > 0.5, adk.cor, 1)
-    let adk.restx = mix(cdk.xs + adk.W / 2, cdk.xe - adk.W / 2, adk.sr)
+    let adk.restx = mix(mix(cdk.xs + adk.W / 2, cdk.xe - adk.W / 2, adk.sr), adk.mx, dkm)
     let adk.resty = mix(cdk.yt + adk.H / 2, cdk.ye - adk.H / 2, adk.sb)
     let adk.rcx = mix(pick(screen.index, adk_cx.0, adk_cx.1), screen.width - pick(screen.index, adk_cx.0, adk_cx.1), rt)
     let adk.rcy = mix(pick(screen.index, adk_cy.0, adk_cy.1), yo + vb - pick(screen.index, adk_cy.0, adk_cy.1), bt)
-    follow adk_cx.$screen = if(adk_drag > 0.5, mix(adk_px, screen.width - adk_px, rt), adk.restx)
-    follow adk_cy.$screen = if(adk_drag > 0.5, mix(adk_py, yo + vb - adk_py, bt), adk.resty)
-    follow adk_ax.$screen = if(adk_drag > 0.5, 0, adk.sr * 2 - 1)
-    follow adk_ay.$screen = if(adk_drag > 0.5, 0, adk.sb * 2 - 1)
-    let adk.bx = pick(screen.index, adk_cx.0, adk_cx.1) + pick(screen.index, adk_ax.0, adk_ax.1) * cdk.r / 2
+    follow adk_cx.$screen = if(adk_drag > 0.5 and dkm < 0.5, mix(adk_px, screen.width - adk_px, rt), adk.restx)
+    follow adk_cy.$screen = if(adk_drag > 0.5 and dkm < 0.5, mix(adk_py, yo + vb - adk_py, bt), adk.resty)
+    follow adk_ax.$screen = if(adk_drag > 0.5 and dkm < 0.5, 0, (adk.sr * 2 - 1) * (1 - dkm))
+    follow adk_ay.$screen = if(adk_drag > 0.5 and dkm < 0.5, 0, adk.sb * 2 - 1)
+    let adk.bx = pick(screen.index, adk_cx.0, adk_cx.1) + pick(screen.index, adk_ax.0, adk_ax.1) * cdk.r / 2 + if(dkm > 0.95, 30000, 0)
     let adk.by = pick(screen.index, adk_cy.0, adk_cy.1) + pick(screen.index, adk_ay.0, adk_ay.1) * cdk.r / 2
-    let adk.bw = mix(adk.L * adk.g, cdk.t, lm) + cdk.r * abs(pick(screen.index, adk_ax.0, adk_ax.1))
+    let adk.bw = (mix(adk.L * adk.g, cdk.t, lm) + cdk.r * abs(pick(screen.index, adk_ax.0, adk_ax.1))) * (1 - dkm)
     let adk.bh = mix(cdk.t, adk.L * adk.g, lm) + cdk.r * abs(pick(screen.index, adk_ay.0, adk_ay.1))
-    //  The add-on drawer (`ax_open`): out of the add-on pill, standing in its corner, as wide and tall as the add-on asked, against the frame and on the pill. It grows from the pill as it opens.
+    //  The add-on drawer (`ax_open`): out of the add-on pill, standing in its corner (in the middle of the screen, over the dock, when the docks are one: `dkm`), as wide and tall as the add-on asked, against the frame and on the pill. It grows from the pill as it opens.
     //  With the add-ons on the Island (`axb`, Settings > Bar) it drops from the bar instead, as the bar's own panels do: centred on the bar, against it so the glass
     //  melts into it, and it grows out of the icon (`ax.ix`).
     let axb = if(bv.ax and not bar_frame, sb, 0)
@@ -6088,7 +6101,7 @@ scene Vitreus {
     let axs.y0 = mix(cdk.yt, bar.y + bar.h / 2 - 2 * bu, axb)     // against the frame's bottom edge, as the Desk's top is (not under the pieces that hang from it); on the Island, under the bar
     let axs.y1 = mix(mix(vb - th.b, cdk.ye, adk.sb), vb - 12 * bu, axb)
     let axs.h = clamp(if(ax_h > 0, ax_h, 280 * cu), 160, max(160, axs.y1 - axs.y0))
-    let axs.fx = mix(mix(axs.x0 + axs.w / 2, axs.x1 - axs.w / 2, adk.sr), clamp((bar.l + bar.r) / 2, axs.x0 + 12 * bu + axs.w / 2, max(axs.x0 + 12 * bu + axs.w / 2, axs.x1 - 12 * bu - axs.w / 2)), axb)
+    let axs.fx = mix(mix(mix(axs.x0 + axs.w / 2, axs.x1 - axs.w / 2, adk.sr), clamp(dkm.cx, axs.x0 + axs.w / 2, max(axs.x0 + axs.w / 2, axs.x1 - axs.w / 2)), dkm), clamp((bar.l + bar.r) / 2, axs.x0 + 12 * bu + axs.w / 2, max(axs.x0 + 12 * bu + axs.w / 2, axs.x1 - 12 * bu - axs.w / 2)), axb)
     let axs.fy = mix(mix(axs.y0 + axs.h / 2, axs.y1 - axs.h / 2, adk.sb), axs.y0 + axs.h / 2, axb)
     let dax.lf = min(1, dax0 * 1.6) + max(0, dax0 - 1) * 0.6
     let dax.ew = max(0.1, axs.w * dax.lf)

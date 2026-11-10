@@ -52,7 +52,7 @@ part AddonDock {
         on press axf_z { axf_kb = true; blur }
     }
 
-    zone box adk_bg { at: adk.rcx, adk.rcy; size: adk.W, adk.H; cursor: pointer; active: adk.g > 0.6; label: "Add-ons" }
+    zone box adk_bg { at: adk.rcx, adk.rcy; size: adk.W, adk.H; cursor: pointer; active: adk.g > 0.6 and dkm < 0.5; label: "Add-ons" }
     on press adk_bg { adk_down = 1; adk_drag = 0; adk_hx = pointer.x - adk.rcx; adk_hy = pointer.y - adk.rcy }
     on drag adk_bg while adk_down > 0.5 { adk_px = clamp(pointer.x - adk_hx, 0, screen.width); adk_py = clamp(pointer.y - adk_hy, 0, screen.height); adk_drag = if(adk_drag > 0.5 or abs(drag.dx) + abs(drag.dy) > 8, 1, 0) }
     on release adk_bg while adk_down > 0.5 { cdk_corner = if(adk_drag > 0.5, 1 - adk.pick, cdk_corner); adk_down = 0; adk_drag = 0 }
