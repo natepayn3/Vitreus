@@ -71,7 +71,7 @@ scene Equalizer {
     let mon_here = if(screen.index == 0, if(mon_c0, 1, 0), if(screen.index == 1, if(mon_c1, 1, 0), if(screen.index == 2, if(mon_c2, 1, 0), if(mon_c3, 1, 0))))
     let onmon = if(mon_known, mon_here > 0.5, slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh))       // this copy is on the panel's monitor (still told while it shuts)
     let here = if(slot_open and onmon, 1, 0)       // 1 on that copy, while the panel is out
-    let shown = if(onmon and (slot_open or en1 > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has). `en1` is one for every copy: the monitor test keeps the others shut
+    let shown = if(onmon and (slot_open or en1 > 0.004 or tail > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has). `en1` is one for every copy: the monitor test keeps the others shut
 
     let u = 1.1
     //  The pencil's clock, running only while the panel shows: naming pleamar's `time` keeps a scene awake for good, about fifty rounds a second
@@ -87,6 +87,17 @@ scene Equalizer {
     on change here while here > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
     on change here while here < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms; en3: 0 ~80ms after 205ms }
     every 500ms while here > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
+    //  The same again, by the clock: a close whose change was never seen (the panel was shut in the frame the content was still arriving, or two says landed
+    //  together) left `en1` at 1, so `shown` held and the content stayed drawn over bare wallpaper with the glass already gone. The rule above has always had
+    //  this backstop for the way in; this is the one for the way out.
+    every 250ms while here < 0.5 and en1 > 0.004 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms }
+    //  The last frame has to be an empty one. When `shown` stops holding, the surface is closed and the scene stops painting, but what it painted last stays
+    //  on the monitor: the content was left over bare wallpaper, the glass already gone. `tail` keeps the scene awake for a breath after the content has
+    //  faded (`en1` is over in 80 ms, this in ~400), so the frames painted meanwhile are empty ones, and that is what stays.
+    prop tail = 0 ~400ms
+    on change here while here > 0.5 { tail: 1 ~0ms }
+    on change here while here < 0.5 { tail: 0 ~400ms }
+    every 250ms while here < 0.5 and en1 < 0.004 and tail > 0.004 { tail: 0 ~400ms }
 
     //  What eq.luau reports: whether the EQ is on, which preset is lit (-1: your own curve), what to say under the name, and the ten gains in dB.
     fact eq_on = 0
