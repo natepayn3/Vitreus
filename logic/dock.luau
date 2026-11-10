@@ -83,6 +83,7 @@ return function()
         mid_on = not mid_on
         fact.dock_mid = mid_on
         save()
+        dock_fx.changed()          -- (the room the windows keep clear of it follows its height)
     end)
     on("bar_dockroom_toggle", function()       -- Settings > Bar: windows keep clear of the docks, or go under them
         room_on = not room_on

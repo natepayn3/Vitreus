@@ -3013,7 +3013,7 @@ dock_fx = { c = false, a = false, nc = 0, na = 0, enabled = true }     -- `enabl
 -- The corner dock and the add-on pill stand over the windows' area, against the edge opposite the bar (the bottom for the Island and the top frame, the top for the
 -- bottom frame; down a side strip it is the far edge, the right one for the strip on the left and the left one for the strip on the right, where each pill stands upright in the top
 -- or the bottom corner and reaches in as far as it is thick). While one is out, that edge keeps the room for it: how far from the screen's edge the windows start, in pixels:
--- the frame's 8 * u, the pill (`cdk.t`, 34 * bu high, or `cdk.L`, 30 * bu for each icon and 8 * bu, wide; bu being 1.35 at the bar's size) and a few pixels.
+-- the frame's 8 * u, the pill (`cdk.t`, 40 * bu high, or `cdk.L`, 35 * bu for each icon and 9 * bu, wide; bu being 1.35 at the bar's size) and a few pixels.
 -- `nc`, `na`: how many icons the dock and the add-on pill hold while they are out (0 when not). `room()` is `{ top = n, right = n, bottom = n, left = n }` for the edges that need it.
 function dock_fx.room()
     local r = {}
@@ -3021,10 +3021,11 @@ function dock_fx.room()
     if not dock_fx.enabled or not (c or a) then return r end
     local anchor = fact.bar_anchor
     local bu = 1.35 * (bar_fx and bar_fx.size or 1)
+    local k = (fact.bar_seg == true and 36 or (fact.bar_frame == true and 46 or 40)) / 34       -- a dock is as thick as the bar is in each layout (`dbu` in vitreus.plm)
     if anchor == "left" or anchor == "right" then
-        r[anchor == "left" and "right" or "left"] = math.floor(1.35 * 8 + 34 * bu + 13 + 0.5)       -- (the pills stand upright down a side strip: as thick as along the top)
+        r[anchor == "left" and "right" or "left"] = math.floor(1.35 * 8 + 34 * bu * k + 13 + 0.5)       -- (the pills stand upright down a side strip: as thick as along the top)
     else
-        r[anchor == "bottom" and "top" or "bottom"] = math.floor(1.35 * 8 + 34 * bu + 13 + 0.5)
+        r[anchor == "bottom" and "top" or "bottom"] = math.floor(1.35 * 8 + 34 * bu * k + 13 + 0.5)
     end
     return r
 end

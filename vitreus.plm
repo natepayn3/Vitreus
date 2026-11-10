@@ -4776,14 +4776,14 @@ scene Vitreus {
     //  A pinned app in the corner dock. Pressed and let go it starts; pressed and pulled (more than a few pixels) it takes the whole dock with it, which settles in
     //  the nearer of the two corners when let go. A right click unpins it.
     component CdkIcon(t: record, vert: number) {
-        size: floor(24 * bu + 0.5), floor(24 * bu + 0.5)
-        box { at: 12 * bu, 12 * bu; size: 33 * bu, 33 * bu; corner: 10 * bu * (1 - 0.5 * sq); color: ink; opacity: 16% * touch.hover * (1 - cdk_drag) }
+        size: floor(24 * dbu + 0.5), floor(24 * dbu + 0.5)
+        box { at: 12 * dbu, 12 * dbu; size: 33 * dbu, 33 * dbu; corner: 10 * dbu * (1 - 0.5 * sq); color: ink; opacity: 16% * touch.hover * (1 - cdk_drag) }
         group {
-            pivot: 12 * bu, 12 * bu
+            pivot: 12 * dbu, 12 * dbu
             scale: 1 + 0.16 * touch.hover * (1 - cdk_drag)
-            image t.icon { at: 0, 0; size: floor(24 * bu + 0.5), floor(24 * bu + 0.5); opacity: 88% + 12% * touch.hover }
+            image t.icon { at: 0, 0; size: floor(24 * dbu + 0.5), floor(24 * dbu + 0.5); opacity: 88% + 12% * touch.hover }
         }
-        zone box touch { at: 12 * bu, 12 * bu; size: 31 * bu, 33 * bu; cursor: pointer; active: cdk.g > 0.6 and ((vert > 0.5) == (lm > 0.5)) }
+        zone box touch { at: 12 * dbu, 12 * dbu; size: 31 * dbu, 33 * dbu; cursor: pointer; active: cdk.g > 0.6 and ((vert > 0.5) == (lm > 0.5)) }
         on enter touch { cdk_hot = 1 }
         on leave touch { cdk_hot = 0 }
         on press touch { cdk_down = 1; cdk_drag = 0; cdk_hx = pointer.x - cdk.rcx; cdk_hy = pointer.y - cdk.rcy }
@@ -4794,17 +4794,17 @@ scene Vitreus {
     }
 
     component AdkIcon(t: record, vert: number) {
-        size: floor(24 * bu + 0.5), floor(24 * bu + 0.5)
-        box { at: 12 * bu, 12 * bu; size: 33 * bu, 33 * bu; corner: 10 * bu * (1 - 0.5 * sq); color: ink; opacity: 16% * touch.hover * (1 - adk_drag) }
+        size: floor(24 * dbu + 0.5), floor(24 * dbu + 0.5)
+        box { at: 12 * dbu, 12 * dbu; size: 33 * dbu, 33 * dbu; corner: 10 * dbu * (1 - 0.5 * sq); color: ink; opacity: 16% * touch.hover * (1 - adk_drag) }
         group {
-            pivot: 12 * bu, 12 * bu
+            pivot: 12 * dbu, 12 * dbu
             scale: 1 + 0.16 * touch.hover * (1 - adk_drag)
             //  Pencil: the icon twice, a hair off, jumping about eight times a second under the pointer (the clock only runs then: `need_clock`), the second fainter.
             let apf = floor(time * 8)
-            image t.icon { at: 0.7 * bu * sin(apf * 61 + t.index * 50) * touch.hover, 0.7 * bu * sin(apf * 67 + t.index * 30) * touch.hover; size: floor(24 * bu + 0.5), floor(24 * bu + 0.5); opacity: 88% + 12% * touch.hover; tint: ink }
-            image t.icon { at: 1.1 * bu + 0.7 * bu * sin(apf * 47 + t.index * 70) * touch.hover, -0.8 * bu + 0.7 * bu * sin(apf * 43 + t.index * 110) * touch.hover; size: floor(24 * bu + 0.5), floor(24 * bu + 0.5); opacity: 12% + 24% * touch.hover; tint: ink }
+            image t.icon { at: 0.7 * dbu * sin(apf * 61 + t.index * 50) * touch.hover, 0.7 * dbu * sin(apf * 67 + t.index * 30) * touch.hover; size: floor(24 * dbu + 0.5), floor(24 * dbu + 0.5); opacity: 88% + 12% * touch.hover; tint: ink }
+            image t.icon { at: 1.1 * dbu + 0.7 * dbu * sin(apf * 47 + t.index * 70) * touch.hover, -0.8 * dbu + 0.7 * dbu * sin(apf * 43 + t.index * 110) * touch.hover; size: floor(24 * dbu + 0.5), floor(24 * dbu + 0.5); opacity: 12% + 24% * touch.hover; tint: ink }
         }
-        zone box touch { at: 12 * bu, 12 * bu; size: 31 * bu, 33 * bu; cursor: pointer; active: adk.g > 0.6 and ((vert > 0.5) == (lm > 0.5)) }
+        zone box touch { at: 12 * dbu, 12 * dbu; size: 31 * dbu, 33 * dbu; cursor: pointer; active: adk.g > 0.6 and ((vert > 0.5) == (lm > 0.5)) }
         on enter touch { adk_hot = adk_hot + 1 }
         on leave touch { adk_hot = max(0, adk_hot - 1) }
         on press touch { adk_down = 1; adk_drag = 0; adk_hx = pointer.x - adk.rcx; adk_hy = pointer.y - adk.rcy }
@@ -6031,11 +6031,12 @@ scene Vitreus {
     //  own (unmirrored) drawing; the icons are drawn where the mirror image falls. `cdk_cx.$screen`, `cdk_cy.$screen` is where its middle is: carried to the pointer while it is
     //  pulled, to its corner otherwise.
     let cdk.g = max(cdk_ga, dkm * adk_ga) * sb                                        // how far out it is on this monitor: only where the bar is (`sb`)
-    let cdk.s = 24 * bu
-    let cdk.p = cdk.s + 6 * bu
-    let cdk.t = cdk.s + 10 * bu
-    let cdk.r = 12 * bu
-    let cdk.L = cdk_pins.count * cdk.p + 8 * bu
+    let dbu = bu * mix(mix(40, 46, fm), 36, sg) / 34       // the docks' own unit: a dock is as thick as the bar is in each layout (the Island's 40 * bu, the frame strips' 46, the Notches' pieces' 36)
+    let cdk.s = 24 * dbu
+    let cdk.p = cdk.s + 6 * dbu
+    let cdk.t = cdk.s + 10 * dbu
+    let cdk.r = 12 * dbu
+    let cdk.L = cdk_pins.count * cdk.p + 8 * dbu
     //  Along the top or the bottom the pills are a row, `cdk.L` wide and `cdk.t` high; down a side strip (`lm`) they stand upright, `cdk.t` wide and `cdk.L` high: `*.W` and `*.H` are the
     //  size as it is drawn (a blend while the layout changes).
     let cdk.W = mix(cdk.L, cdk.t, lm)
@@ -6055,7 +6056,7 @@ scene Vitreus {
     let cdk.sb = if(lm > 0.5, cdk.cor, 1)                       // against the bottom (1) or the top (0)
     //  One centred dock (`dkm`, the Island): the two pills side by side, each on the side it was in, as one piece of glass (the app dock's, `cdk.bw`) the width of both; the add-on pill's own glass is gone.
     let dkm.Wc = cdk.L * cdk_ga * sb
-    let dkm.Wa = (adk_pins.count * cdk.p + 8 * bu) * adk_ga * sb
+    let dkm.Wa = (adk_pins.count * cdk.p + 8 * dbu) * adk_ga * sb
     let dkm.W = dkm.Wc + dkm.Wa
     let dkm.cx = screen.width / 2
     let cdk.mx = dkm.cx + (2 * cdk.sr - 1) * (dkm.W - dkm.Wc) / 2          // each keeps its side: the app dock on the right if it was in the right corner (`cdk.sr`), else on the left
@@ -6070,10 +6071,10 @@ scene Vitreus {
     follow cdk_ay.$screen = if(cdk_drag > 0.5 and dkm < 0.5, 0, (cdk.sb * 2 - 1) * (1 - dkm))
     let cdk.bx = mix(pick(screen.index, cdk_cx.0, cdk_cx.1) + pick(screen.index, cdk_ax.0, cdk_ax.1) * cdk.r / 2, dkm.cx, dkm)
     let cdk.by = pick(screen.index, cdk_cy.0, cdk_cy.1) + pick(screen.index, cdk_ay.0, cdk_ay.1) * cdk.r / 2
-    let cdk.bw = mix(mix(cdk.L * cdk.g, cdk.t, lm) + cdk.r * abs(pick(screen.index, cdk_ax.0, cdk_ax.1)), dkm.W + 8 * bu * (1 - min(1, cdk_ga * sb)) * (1 - min(1, adk_ga * sb)), dkm)
+    let cdk.bw = mix(mix(cdk.L * cdk.g, cdk.t, lm) + cdk.r * abs(pick(screen.index, cdk_ax.0, cdk_ax.1)), dkm.W + 8 * dbu * (1 - min(1, cdk_ga * sb)) * (1 - min(1, adk_ga * sb)), dkm)
     let cdk.bh = mix(cdk.t, cdk.L * cdk.g, lm) + cdk.r * abs(pick(screen.index, cdk_ay.0, cdk_ay.1))
     let cdk.cr = mix(min(cdk.t / 2, fr_in_r), min(cdk.t / 2, bar.rad), dkm)                    // its own corners follow the windows' rounding, like the frame's (`fr_in_r`); the centred dock has the Island bar's (`bar.rad`)
-    let adk.L = adk_pins.count * cdk.p + 8 * bu
+    let adk.L = adk_pins.count * cdk.p + 8 * dbu
     let adk.W = mix(adk.L, cdk.t, lm)
     let adk.H = mix(cdk.t, adk.L, lm)
     let adk.sr = if(lm > 0.5, 1, adk.cor)
@@ -6099,14 +6100,14 @@ scene Vitreus {
     let axs.x1 = cdk.xe
     let axs.w = clamp(if(ax_w > 0, ax_w, 300 * cu), 240, max(240, axs.x1 - axs.x0))
     let axs.y0 = mix(cdk.yt, bar.y + bar.h / 2 - 2 * bu, axb)     // against the frame's bottom edge, as the Desk's top is (not under the pieces that hang from it); on the Island, under the bar
-    let axs.y1 = mix(mix(mix(vb - th.b, cdk.ye, adk.sb), cdk.ye - 8 - cdk.t + 2 * bu, dkm), vb - 12 * bu, axb)       // (as one centred dock, `dkm`: it stands on the dock, 2 into it so the glass melts, as under the bar)
+    let axs.y1 = mix(mix(mix(vb - th.b, cdk.ye, adk.sb), cdk.ye - 8 - cdk.t + 2 * dbu, dkm), vb - 12 * bu, axb)       // (as one centred dock, `dkm`: it stands on the dock, 2 into it so the glass melts, as under the bar)
     let axs.h = clamp(if(ax_h > 0, ax_h, 280 * cu), 160, max(160, axs.y1 - axs.y0))
     let axs.fx = mix(mix(mix(axs.x0 + axs.w / 2, axs.x1 - axs.w / 2, adk.sr), clamp(dkm.cx, axs.x0 + axs.w / 2, max(axs.x0 + axs.w / 2, axs.x1 - axs.w / 2)), dkm), clamp((bar.l + bar.r) / 2, axs.x0 + 12 * bu + axs.w / 2, max(axs.x0 + 12 * bu + axs.w / 2, axs.x1 - 12 * bu - axs.w / 2)), axb)
     let axs.fy = mix(mix(axs.y0 + axs.h / 2, axs.y1 - axs.h / 2, adk.sb), axs.y0 + axs.h / 2, axb)
     let dax.lf = min(1, dax0 * 1.6) + max(0, dax0 - 1) * 0.6
     let dax.ew = max(0.1, axs.w * dax.lf)
     let dax.eh = max(0.1, axs.h * dax.lf)
-    let ax.dx = adk.restx - (adk_pins.count * cdk.p + 8 * bu) / 2 + 4 * bu + (max(0, ax_cur) + 0.5) * cdk.p        // the open add-on's icon in the centred dock
+    let ax.dx = adk.restx - (adk_pins.count * cdk.p + 8 * dbu) / 2 + 4 * dbu + (max(0, ax_cur) + 0.5) * cdk.p        // the open add-on's icon in the centred dock
     let dax.ex = mix(mix(mix(adk.restx, ax.dx, dkm), ax.ix, axb), axs.fx, dax.lf) + ax_ox * dax.lf
     let dax.ey = mix(mix(adk.resty, bar.y, axb), axs.fy, dax.lf) + ax_oy * dax.lf
     //  Like the control centre and the Desk, it is one piece with a frame it stands against: wherever one of its edges is within a hand of the frame's, the glass runs on into the

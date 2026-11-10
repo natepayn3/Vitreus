@@ -57,18 +57,18 @@ part AddonDock {
     on drag adk_bg while adk_down > 0.5 { adk_px = clamp(pointer.x - adk_hx, 0, screen.width); adk_py = clamp(pointer.y - adk_hy, 0, screen.height); adk_drag = if(adk_drag > 0.5 or abs(drag.dx) + abs(drag.dy) > 8, 1, 0) }
     on release adk_bg while adk_down > 0.5 { cdk_corner = if(adk_drag > 0.5, 1 - adk.pick, cdk_corner); adk_down = 0; adk_drag = 0 }
     group {
-        glow: 2.4 * bu, 110%, deep
+        glow: 2.4 * dbu, 110%, deep
         row adk_row {
-            at: floor(mix(pick(screen.index, adk_cx.0, adk_cx.1) - adk.L / 2 + 7 * bu, screen.width - (pick(screen.index, adk_cx.0, adk_cx.1) - adk.L / 2 + 7 * bu) - (adk.L - 14 * bu), rt) + 0.5), floor(mix(pick(screen.index, adk_cy.0, adk_cy.1) - cdk.s / 2, yo + vb - pick(screen.index, adk_cy.0, adk_cy.1) - cdk.s / 2, bt) + 0.5)
-            gap: floor(6 * bu + 0.5)
+            at: floor(mix(pick(screen.index, adk_cx.0, adk_cx.1) - adk.L / 2 + 7 * dbu, screen.width - (pick(screen.index, adk_cx.0, adk_cx.1) - adk.L / 2 + 7 * dbu) - (adk.L - 14 * dbu), rt) + 0.5), floor(mix(pick(screen.index, adk_cy.0, adk_cy.1) - cdk.s / 2, yo + vb - pick(screen.index, adk_cy.0, adk_cy.1) - cdk.s / 2, bt) + 0.5)
+            gap: floor(6 * dbu + 0.5)
             show: adk.g > 0.02 and lm < 0.5
             opacity: clamp(adk.g * 2 - 1, 0, 1)
             for t in adk_pins { AdkIcon(t, 0) }
         }
         //  Down a side strip the pill stands upright: the same icons in a column along the edge.
         column adk_col {
-            at: floor(mix(pick(screen.index, adk_cx.0, adk_cx.1) - cdk.s / 2, screen.width - pick(screen.index, adk_cx.0, adk_cx.1) - cdk.s / 2, rt) + 0.5), floor(mix(pick(screen.index, adk_cy.0, adk_cy.1) - adk.L / 2 + 7 * bu, yo + vb - (pick(screen.index, adk_cy.0, adk_cy.1) - adk.L / 2 + 7 * bu) - (adk.L - 14 * bu), bt) + 0.5)
-            gap: floor(6 * bu + 0.5)
+            at: floor(mix(pick(screen.index, adk_cx.0, adk_cx.1) - cdk.s / 2, screen.width - pick(screen.index, adk_cx.0, adk_cx.1) - cdk.s / 2, rt) + 0.5), floor(mix(pick(screen.index, adk_cy.0, adk_cy.1) - adk.L / 2 + 7 * dbu, yo + vb - (pick(screen.index, adk_cy.0, adk_cy.1) - adk.L / 2 + 7 * dbu) - (adk.L - 14 * dbu), bt) + 0.5)
+            gap: floor(6 * dbu + 0.5)
             show: adk.g > 0.02 and lm > 0.5
             opacity: clamp(adk.g * 2 - 1, 0, 1)
             for t in adk_pins { AdkIcon(t, 1) }
