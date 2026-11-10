@@ -2237,6 +2237,9 @@ function watch_urgent()
             spawn("socat", { "-u", "UNIX-CONNECT:" .. rt .. "/hypr/" .. sig .. "/.socket2.sock", "-" }, function(line)
                 -- what can change whether the focused window is fullscreen (Do Not Disturb's "while fullscreen")
                 if line:match("^configreloaded>>") and game_fx.hg_check then game_fx.hg_check() end      -- hyprglass loaded or unloaded
+                -- A reload of Hyprland's config (any file of ours written to its folder, such as the Gaps slider's vitreus_hypr.lua) drops what was sent live: the workspace rules
+                -- that carry the bar's and the docks' room. Send them again (only the command: writing the files again would reload it once more).
+                if line:match("^configreloaded>>") and iris_fx and iris_fx.resend_gaps then iris_fx.resend_gaps() end
                 if line:match("^activelayout>>") and LOCKKEYS and LOCKKEYS.layout then LOCKKEYS.layout() end           -- the keyboard layout changed (logic/lockkeys.luau)
                 if line:match("^fullscreen>>") or line:match("^activewindowv2>>") or line:match("^workspacev2>>") or line:match("^closewindow>>") then DQ.poke() end
                 -- A special workspace (the scratchpads) shown or put away: `activespecial>>special:magic,<name>`, with no name when it is put away.
@@ -3243,6 +3246,16 @@ function iris_fx.apply_niri()
                 end)
             end)
         end)
+    end)
+end
+iris_fx.resend_gaps_wait = false
+function iris_fx.resend_gaps()
+    if iris_fx.resend_gaps_wait or on_niri then return end
+    iris_fx.resend_gaps_wait = true
+    after(400, function()          -- (a reload may come as several events: one answer for them all)
+        iris_fx.resend_gaps_wait = false
+        local g = iris_fx.gaps_code()
+        if g then run("hyprctl", { "eval", g }, function() end) end
     end)
 end
 function iris_fx.apply_hypr()
