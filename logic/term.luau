@@ -14,6 +14,8 @@ return function(key)
         local name = "tm." .. tostring(math.floor(tonumber(fact.panel_scr) or 0))
         local fresh = fact.term_wanted ~= true or fact[name .. ".alive"] == 0
         if fresh then fact.term_wanted = true end
-        after(fresh and 900 or 0, function() sys.call("terminal.write", name, cmd .. "\r") end)
+        -- when the update ends, whatever way, the card asks the AUR again (`aur_check`), so it stops showing what was just installed
+        local typed = cmd .. "; pleamar --say vitreus \"emit aur_check\" >/dev/null"
+        after(fresh and 900 or 0, function() sys.call("terminal.write", name, typed .. "\r") end)
     end)
 end
