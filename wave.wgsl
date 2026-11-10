@@ -11,6 +11,11 @@
 // s.a.w the strip's width and s.b.w the frame's thickness: where the opening starts
 
 fn shade(s: Shader) -> vec4<f32> {
+    // s.b.w is the frame's thickness, plus 1000 on the Island (the bar along the top with no frame round the screen): there the glass near the screen's edges does not ripple,
+    // so the dock a few px above the bottom edge does not slide about on every beat while its icons stay where they are.
+    let isl = s.b.w > 500.0;
+    let fth = select(s.b.w, s.b.w - 1000.0, isl);
+    let rip = select(1.0, 0.0, isl);
     let pulse = s.a.x;
     let ring = s.a.y;
     let src = s.a.z * s.size.x;
@@ -42,12 +47,12 @@ fn shade(s: Shader) -> vec4<f32> {
     let wr = exp(-(s.size.x - p.x) / 40.0);
     let ay = 5.0 * (wt + wb) * (0.65 * sin(p.x * 0.0125 - s.time * 2.0) + 0.35 * sin(p.x * 0.0053 + s.time * 1.2 + 1.7));
     let ax = 5.0 * (wl + wr) * (0.65 * sin(p.y * 0.0125 - s.time * 2.0 + 2.0) + 0.35 * sin(p.y * 0.0053 + s.time * 1.2 + 4.1));
-    q = q + vec2<f32>(ax, ay);
+    q = q + vec2<f32>(ax, ay) * rip;
     // The Retro's pixelation: only inside the screen's opening, and a square's width away from its edge, so the frame itself stays still while a drawer
     // turns into squares (the group's box is the whole surface then: bar_glass.plm puts a barely visible box over it).
     let k = s.b.z;
     if (k > 1.5) {
-        let inner = p.x > s.a.w + k && p.x < s.size.x - s.b.w - k && p.y > s.b.w + k && p.y < s.size.y - s.b.w - k;
+        let inner = p.x > s.a.w + k && p.x < s.size.x - fth - k && p.y > fth + k && p.y < s.size.y - fth - k;
         if (inner) {
             q = (floor(q / k) + vec2<f32>(0.5, 0.5)) * k;
         }

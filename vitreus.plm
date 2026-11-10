@@ -6061,31 +6061,31 @@ scene Vitreus {
     let cdk.mx = dkm.cx + (2 * cdk.sr - 1) * (dkm.W - dkm.Wc) / 2          // each keeps its side: the app dock on the right if it was in the right corner (`cdk.sr`), else on the left
     let adk.mx = dkm.cx + (1 - 2 * cdk.sr) * (dkm.W - dkm.Wa) / 2
     let cdk.restx = mix(mix(cdk.xs + cdk.W / 2, cdk.xe - cdk.W / 2, cdk.sr), cdk.mx, dkm)
-    let cdk.resty = mix(cdk.yt + cdk.H / 2, cdk.ye - cdk.H / 2, cdk.sb)
+    let cdk.resty = mix(cdk.yt + cdk.H / 2, cdk.ye - cdk.H / 2, cdk.sb) - 8 * dkm          // (one centred dock floats 8 above the edge, as the Island bar does below the top)
     let cdk.rcx = mix(pick(screen.index, cdk_cx.0, cdk_cx.1), screen.width - pick(screen.index, cdk_cx.0, cdk_cx.1), rt)           // where its middle is on the screen
     let cdk.rcy = mix(pick(screen.index, cdk_cy.0, cdk_cy.1), yo + vb - pick(screen.index, cdk_cy.0, cdk_cy.1), bt)
     follow cdk_cx.$screen = if(cdk_drag > 0.5 and dkm < 0.5, mix(cdk_px, screen.width - cdk_px, rt), cdk.restx)
     follow cdk_cy.$screen = if(cdk_drag > 0.5 and dkm < 0.5, mix(cdk_py, yo + vb - cdk_py, bt), cdk.resty)
     follow cdk_ax.$screen = if(cdk_drag > 0.5 and dkm < 0.5, 0, (cdk.sr * 2 - 1) * (1 - dkm))
-    follow cdk_ay.$screen = if(cdk_drag > 0.5 and dkm < 0.5, 0, cdk.sb * 2 - 1)
+    follow cdk_ay.$screen = if(cdk_drag > 0.5 and dkm < 0.5, 0, (cdk.sb * 2 - 1) * (1 - dkm))
     let cdk.bx = mix(pick(screen.index, cdk_cx.0, cdk_cx.1) + pick(screen.index, cdk_ax.0, cdk_ax.1) * cdk.r / 2, dkm.cx, dkm)
     let cdk.by = pick(screen.index, cdk_cy.0, cdk_cy.1) + pick(screen.index, cdk_ay.0, cdk_ay.1) * cdk.r / 2
     let cdk.bw = mix(mix(cdk.L * cdk.g, cdk.t, lm) + cdk.r * abs(pick(screen.index, cdk_ax.0, cdk_ax.1)), dkm.W + 8 * bu * (1 - min(1, cdk_ga * sb)) * (1 - min(1, adk_ga * sb)), dkm)
     let cdk.bh = mix(cdk.t, cdk.L * cdk.g, lm) + cdk.r * abs(pick(screen.index, cdk_ay.0, cdk_ay.1))
-    let cdk.cr = min(cdk.t / 2, fr_in_r)                    // its own corners follow the windows' rounding, like the frame's (`fr_in_r`)
+    let cdk.cr = mix(min(cdk.t / 2, fr_in_r), min(cdk.t / 2, bar.rad), dkm)                    // its own corners follow the windows' rounding, like the frame's (`fr_in_r`); the centred dock has the Island bar's (`bar.rad`)
     let adk.L = adk_pins.count * cdk.p + 8 * bu
     let adk.W = mix(adk.L, cdk.t, lm)
     let adk.H = mix(cdk.t, adk.L, lm)
     let adk.sr = if(lm > 0.5, 1, adk.cor)
     let adk.sb = if(lm > 0.5, adk.cor, 1)
     let adk.restx = mix(mix(cdk.xs + adk.W / 2, cdk.xe - adk.W / 2, adk.sr), adk.mx, dkm)
-    let adk.resty = mix(cdk.yt + adk.H / 2, cdk.ye - adk.H / 2, adk.sb)
+    let adk.resty = mix(cdk.yt + adk.H / 2, cdk.ye - adk.H / 2, adk.sb) - 8 * dkm
     let adk.rcx = mix(pick(screen.index, adk_cx.0, adk_cx.1), screen.width - pick(screen.index, adk_cx.0, adk_cx.1), rt)
     let adk.rcy = mix(pick(screen.index, adk_cy.0, adk_cy.1), yo + vb - pick(screen.index, adk_cy.0, adk_cy.1), bt)
     follow adk_cx.$screen = if(adk_drag > 0.5 and dkm < 0.5, mix(adk_px, screen.width - adk_px, rt), adk.restx)
     follow adk_cy.$screen = if(adk_drag > 0.5 and dkm < 0.5, mix(adk_py, yo + vb - adk_py, bt), adk.resty)
     follow adk_ax.$screen = if(adk_drag > 0.5 and dkm < 0.5, 0, (adk.sr * 2 - 1) * (1 - dkm))
-    follow adk_ay.$screen = if(adk_drag > 0.5 and dkm < 0.5, 0, adk.sb * 2 - 1)
+    follow adk_ay.$screen = if(adk_drag > 0.5 and dkm < 0.5, 0, (adk.sb * 2 - 1) * (1 - dkm))
     let adk.bx = pick(screen.index, adk_cx.0, adk_cx.1) + pick(screen.index, adk_ax.0, adk_ax.1) * cdk.r / 2 + if(dkm > 0.95, 30000, 0)
     let adk.by = pick(screen.index, adk_cy.0, adk_cy.1) + pick(screen.index, adk_ay.0, adk_ay.1) * cdk.r / 2
     let adk.bw = (mix(adk.L * adk.g, cdk.t, lm) + cdk.r * abs(pick(screen.index, adk_ax.0, adk_ax.1))) * (1 - dkm)
@@ -6099,14 +6099,15 @@ scene Vitreus {
     let axs.x1 = cdk.xe
     let axs.w = clamp(if(ax_w > 0, ax_w, 300 * cu), 240, max(240, axs.x1 - axs.x0))
     let axs.y0 = mix(cdk.yt, bar.y + bar.h / 2 - 2 * bu, axb)     // against the frame's bottom edge, as the Desk's top is (not under the pieces that hang from it); on the Island, under the bar
-    let axs.y1 = mix(mix(vb - th.b, cdk.ye, adk.sb), vb - 12 * bu, axb)
+    let axs.y1 = mix(mix(mix(vb - th.b, cdk.ye, adk.sb), cdk.ye - 8 - cdk.t + 2 * bu, dkm), vb - 12 * bu, axb)       // (as one centred dock, `dkm`: it stands on the dock, 2 into it so the glass melts, as under the bar)
     let axs.h = clamp(if(ax_h > 0, ax_h, 280 * cu), 160, max(160, axs.y1 - axs.y0))
     let axs.fx = mix(mix(mix(axs.x0 + axs.w / 2, axs.x1 - axs.w / 2, adk.sr), clamp(dkm.cx, axs.x0 + axs.w / 2, max(axs.x0 + axs.w / 2, axs.x1 - axs.w / 2)), dkm), clamp((bar.l + bar.r) / 2, axs.x0 + 12 * bu + axs.w / 2, max(axs.x0 + 12 * bu + axs.w / 2, axs.x1 - 12 * bu - axs.w / 2)), axb)
     let axs.fy = mix(mix(axs.y0 + axs.h / 2, axs.y1 - axs.h / 2, adk.sb), axs.y0 + axs.h / 2, axb)
     let dax.lf = min(1, dax0 * 1.6) + max(0, dax0 - 1) * 0.6
     let dax.ew = max(0.1, axs.w * dax.lf)
     let dax.eh = max(0.1, axs.h * dax.lf)
-    let dax.ex = mix(mix(adk.restx, ax.ix, axb), axs.fx, dax.lf) + ax_ox * dax.lf
+    let ax.dx = adk.restx - (adk_pins.count * cdk.p + 8 * bu) / 2 + 4 * bu + (max(0, ax_cur) + 0.5) * cdk.p        // the open add-on's icon in the centred dock
+    let dax.ex = mix(mix(mix(adk.restx, ax.dx, dkm), ax.ix, axb), axs.fx, dax.lf) + ax_ox * dax.lf
     let dax.ey = mix(mix(adk.resty, bar.y, axb), axs.fy, dax.lf) + ax_oy * dax.lf
     //  Like the control centre and the Desk, it is one piece with a frame it stands against: wherever one of its edges is within a hand of the frame's, the glass runs on into the
     //  frame (`dax.bl`, `dax.br`, `dax.bt`, `dax.bb`) so the two melt and the join is a fillet. It lets go of the frame as it is pulled away, and takes hold of another it comes to.
@@ -6116,7 +6117,7 @@ scene Vitreus {
     let dax.nl = clamp(1 - (dax.ex - dax.ew / 2 - cdk.xs - 14 * cu) / (50 * cu), 0, 1)
     let dax.nr = clamp(1 - (cdk.xe - dax.ex - dax.ew / 2 - 14 * cu) / (50 * cu), 0, 1)
     let dax.nt = clamp(1 - (dax.ey - dax.eh / 2 - axs.top - 14 * cu) / (50 * cu), 0, 1) * (1 - axb)      // (not out of the Island: it melts into the bar there, not the screen's edge)
-    let dax.nb = clamp(1 - (cdk.ye - dax.ey - dax.eh / 2 - 14 * cu) / (50 * cu), 0, 1)
+    let dax.nb = clamp(1 - (cdk.ye - dax.ey - dax.eh / 2 - 14 * cu) / (50 * cu), 0, 1) * (1 - dkm * (1 - axb))      // (not out of the centred dock: it melts into the dock, not the screen's edge)
     let dax.k = min(1, dax0 * 3)
     let dax.bl = dax.k * dax.nl * max(0, dax.ex - dax.ew / 2 + 26 * cu)
     let dax.br = dax.k * dax.nr * max(0, screen.width - dax.ex - dax.ew / 2 + 26 * cu)
@@ -6219,7 +6220,7 @@ scene Vitreus {
     let axs.mt = 0 * cu                                    // the margin above the content, under the title bar: none (the add-ons keep a little room of their own at their tops)
     let axs.rt = max(axs.hh, cdk.t * (1 - adk.sb) * (1 - axb) * (1 - lm))   // what the content leaves free: the title bar, or the pill's strip when the pill is at the top, whichever is taller (the strip is inside the title bar's height: added together they left a gap as tall as the pill's strip)
     let axs.rr = cdk.t * lm * (1 - axb)                    // down a side strip the pill stands upright against the frame's edge, in the panel's side: its strip is taken from the panel's width (on the side of the frame, mirrored with `rt`)
-    let axs.rb = cdk.t * adk.sb * (1 - axb) * (1 - lm)     // ... and the pill's strip along the bottom (the pill is in the panel's corner, its icons showing)
+    let axs.rb = cdk.t * adk.sb * (1 - axb) * (1 - lm) * (1 - dkm)     // ... and the pill's strip along the bottom (the pill is in the panel's corner, its icons showing)
     let ax.yoff = if(bar_anchor == top and not bar_frame and bar_size > 0.995 and not wm_session, 62, 0)       // as the shell's own surface reserves (`reserve:` on it): an add-on's scene is laid out below it, so what it is told is moved up by this
     //  How far it may be pulled (offsets from its place, in the glass's drawing): anywhere inside the frame, right up against it, as the Desk can be.
     let axs.xmin = cdk.xs - (axs.fx - axs.w / 2)

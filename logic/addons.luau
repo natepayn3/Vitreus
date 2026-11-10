@@ -78,8 +78,12 @@ return function()
         for _, a in ipairs(pins) do
             if a.drawer then
                 local mine = open and cur == a
+                -- The panel's monitor's height as the add-on's own surface has it: the bar's reserve (`ax_yoff`) takes the top of it, and an add-on that tells which copy of its scene is
+                -- on the panel's monitor by the size of its screen (News & Weather does) matched none of them, and drew nothing.
+                local sh = tonumber(fact.ax_sh) or 0
+                if sh > 0 then sh = sh - (tonumber(fact.ax_yoff) or 0) end
                 local mon = text["screen." .. (tonumber(fact.ax_scr) or 0) .. ".name"] or ""       -- the monitor's name, to tell two of the same size apart
-                say_one(a.sock, { "text slot_mon " .. mon, "fact slot_open " .. tostring(mine), "fact slot_sw " .. tostring(tonumber(fact.ax_sw) or 0), "fact slot_sh " .. tostring(tonumber(fact.ax_sh) or 0), "fact slot_x " .. string.format("%.1f", fact.ax_rx or 0), "fact slot_y " .. string.format("%.1f", (fact.ax_ry or 0) - (fact.ax_yoff or 0)),
+                say_one(a.sock, { "text slot_mon " .. mon, "fact slot_open " .. tostring(mine), "fact slot_sw " .. tostring(tonumber(fact.ax_sw) or 0), "fact slot_sh " .. tostring(sh), "fact slot_x " .. string.format("%.1f", fact.ax_rx or 0), "fact slot_y " .. string.format("%.1f", (fact.ax_ry or 0) - (fact.ax_yoff or 0)),
                     "fact slot_w " .. string.format("%.1f", fact.ax_rw or 0), "fact slot_h " .. string.format("%.1f", fact.ax_rh or 0) })
             else
                 say_one(a.sock, { "fact slot_open " .. tostring(winopen[a.id] == true) })

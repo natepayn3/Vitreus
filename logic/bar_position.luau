@@ -27,7 +27,17 @@ return function()
         elseif saved.left == true then pos = "left" end
     end
     show()
-    run("pgrep", { "-x", "pleamar-wm" }, function(_, code) fact.wm_session = (code == 0) end)
+    -- Running under pleamar-wm: its session, not a headless one (`pleamar-wm headless`, which the test rig starts: with one of those about when this ran, the shell took itself for
+    -- a pleamar-wm session and told the add-ons their panel was not below the bar's reserve, which on Hyprland it is).
+    run("pgrep", { "-xa", "pleamar-wm" }, function(out, code)
+        local session = false
+        if code == 0 then
+            for line in (out or ""):gmatch("[^\n]+") do
+                if not line:find("headless", 1, true) then session = true end
+            end
+        end
+        fact.wm_session = session
+    end)
     -- What the gaps round the windows were, to give back up on the top: read once, before anything of ours changes them (if it already
     -- says what a strip needs, it was us, and the usual 20 does).
     run("hyprctl", { "getoption", "general:gaps_out", "-j" }, function(out, code)
