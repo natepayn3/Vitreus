@@ -245,7 +245,7 @@ part DeskDecl {
         on press touch { emit open(n.index) }
         on press del_z { emit del(n.index) }
     }
-    //  Peek, petted (Home's `hm_peek`, the player's, and `hm_peek2`, the slideshow's): three hearts float up, one every half second, and it purrs (a small shake). Springs relaunched by rules
+    //  Peek, petted (Home's `hm_peek`, the player's, `hm_peek2`, the slideshow's, and `md_peek`, the Media tab's): three hearts float up, one every half second, and it purrs (a small shake). Springs relaunched by rules
     //  that only run while the pointer is on it, so nothing keeps the scene painting once it stops being petted.
     prop dh.0 = 1 ~1400ms
     prop dh.1 = 1 ~1400ms
@@ -254,8 +254,9 @@ part DeskDecl {
     follow dpk_wig = 0
     on enter hm_peek { dh.0: 0 ~0ms; dh.0: 1 after 20ms; dh.1: 0 ~0ms after 500ms; dh.1: 1 after 520ms; dh.2: 0 ~0ms after 1000ms; dh.2: 1 after 1020ms }
     on enter hm_peek2 { dh.0: 0 ~0ms; dh.0: 1 after 20ms; dh.1: 0 ~0ms after 500ms; dh.1: 1 after 520ms; dh.2: 0 ~0ms after 1000ms; dh.2: 1 after 1020ms }
-    every 1500ms while hm_peek.hover > 0.5 or hm_peek2.hover > 0.5 { dh.0: 0 ~0ms; dh.0: 1 after 20ms; dh.1: 0 ~0ms after 500ms; dh.1: 1 after 520ms; dh.2: 0 ~0ms after 1000ms; dh.2: 1 after 1020ms }
-    every 240ms while hm_peek.hover > 0.5 or hm_peek2.hover > 0.5 { impulse dpk_wig 60 }
+    on enter md_peek { dh.0: 0 ~0ms; dh.0: 1 after 20ms; dh.1: 0 ~0ms after 500ms; dh.1: 1 after 520ms; dh.2: 0 ~0ms after 1000ms; dh.2: 1 after 1020ms }
+    every 1500ms while hm_peek.hover > 0.5 or hm_peek2.hover > 0.5 or md_peek.hover > 0.5 { dh.0: 0 ~0ms; dh.0: 1 after 20ms; dh.1: 0 ~0ms after 500ms; dh.1: 1 after 520ms; dh.2: 0 ~0ms after 1000ms; dh.2: 1 after 1020ms }
+    every 240ms while hm_peek.hover > 0.5 or hm_peek2.hover > 0.5 or md_peek.hover > 0.5 { impulse dpk_wig 60 }
 
     //  Peek, View's picture-frame cat (view/view.plm), small, keeping Home's player company while nothing plays: ears on the frame's top corners,
     //  paws over its lower edge, a tail from behind it, and a sleeping face on a night sky. Drawn at View's own size and scaled by `k` about its

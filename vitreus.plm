@@ -1291,7 +1291,7 @@ scene Vitreus {
     follow mf_px = mf_gx
     follow mf_py = mf_gy
     prop mfl = 0 ~drip
-    follow mfl = if(mf_out, 1, 0)
+    follow mfl = if(mf_out and media_on, 1, 0)      // with nothing playing the card is back in its panel (empty, Peek in place of the cover): it floats again when a song starts
     //  Each panel has its own amount, 0 shut .. 1 open. Each one is a drawer that comes out of the
     //  bar and melts into it; the calendar is as wide as the bar, the others are narrower.
     prop dc    = 0 ~drip
@@ -6704,7 +6704,7 @@ scene Vitreus {
     let mf.fw = max(0.1, mf.fr - mf.fl)
     let mf.fcy = (mf.ft + mf.fb) / 2
     let mf.fh = max(0.1, mf.fb - mf.ft)
-    let mf.vis = media_open * mix(tf.med * f1, mf.mine, clamp(mfl, 0, 1))
+    let mf.vis = max(media_open, 1 - clamp(mfl, 0, 1)) * mix(tf.med * f1, mf.mine, clamp(mfl, 0, 1))      // docked it is there even with nothing playing (an empty player)
     //  A held Power button counts its second on this clock, and a recording pulses on it, so they need it too. So does the dashboard's wavy progress bar while a song is playing in it.
     //  The Cyber's terminal readouts (bar_glass.plm) flicker and blink on this clock, so it runs while one of them can be seen: only while a drawer is out (`cy_on`).
     let cy_on = clamp(max(max(dk0, dc0), max(max(ds0, dl0), max(dm0, max(dz0, do0)))) * 50, 0, 1) * cy_k

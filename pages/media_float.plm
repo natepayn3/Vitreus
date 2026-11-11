@@ -13,6 +13,7 @@ part MediaFloat {
     text wk_src = ""                    // what is playing it, as the program names itself (Chrome, Spotify): the logic asks the player
     fact wk_v0 = 0                      // the volume when its wheel was taken
     let mfc = max(clamp(mfl, 0, 1), if(mf_hold, 1, 0)) * mf.mine
+    let wk_e = 1 - media_open             // nothing playing: the player is empty (the cassette out, Peek where the cover goes); it stays in its panel
     group {
         clip inset 2 box { at: mix(mix(mix(pcx, dc.gx, lm), screen.width - mix(pcx, dc.gx, lm), rt), screen.width / 2, mfc), mix(mix(mix(bar.y + dc.hh / 2, lp.cy, lm), yo + vb - mix(bar.y + dc.hh / 2, lp.cy, lm), bt), vc, mfc); size: mix(mix(dc.w, dc.gw, lm), screen.width + 200, mfc), mix(mix(dc.hh, dc.gh, lm), screen.height + 200, mfc); corner: mix(26 * cu, 0, mfc) }
         group {
@@ -33,7 +34,7 @@ part MediaFloat {
 
             //  Take it by anywhere that is not a button, and pull it off the panel; let go over the open panel and it goes back. While it is held its zone is the
             //  whole screen: the surface's input region is only what has a zone, so with no panel open a drag would be lost where the card is not. The buttons and the seek bar are declared after it, so they win.
-            zone box mf_grab { at: if(mf_hold, mf.zx, mf.cx), if(mf_hold, mf.zy, mf.cy); size: if(mf_hold, mf.zw, 288 * cu), if(mf_hold, mf.zh, 148 * cu); cursor: if(mf_grab.pressed > 0.5, grabbing, grab); active: mf.vis > 0.5; label: "Move the player" }
+            zone box mf_grab { at: if(mf_hold, mf.zx, mf.cx), if(mf_hold, mf.zy, mf.cy); size: if(mf_hold, mf.zw, 288 * cu), if(mf_hold, mf.zh, 148 * cu); cursor: if(mf_grab.pressed > 0.5, grabbing, grab); active: mf.vis > 0.5 and media_open > 0.5; label: "Move the player" }
             on press mf_grab { mf_scr = screen.index; mf_bx = mf.cx; mf_by = mf.cy; mf_hx = mf.cx; mf_hy = mf.cy; mf_gx = mf.cx; mf_gy = mf.cy; mf_hold = true }
             on press mf_grab while not mf_out { mf_px: mf.cx ~0ms; mf_py: mf.cy ~0ms }
             on drag mf_grab while mf_hold { mf_gx = clamp(mf_bx + drag.dx, mfb.l + 154 * cu * mf_gs, mfb.r - 154 * cu * mf_gs); mf_gy = clamp(mf_by + drag.dy, mfb.t + 84 * cu * mf_gs, mfb.b - 84 * cu * mf_gs) }
@@ -92,8 +93,8 @@ part MediaFloat {
             //  top of the door (it is cut to the door's shape, so it leaves as through a slot), and the next one slides down in.
             //  The bay behind it, seen while the cassette is out: dark, with the two spindles the reels sit on and the head between them.
             group {
-                show: wk_cas > 0.02
-                opacity: clamp(wk_cas * 1.6, 0, 1)
+                show: max(wk_cas, wk_e) > 0.02
+                opacity: clamp(max(wk_cas, wk_e) * 1.6, 0, 1)
                 box { at: wk_dx, wk_dy; size: 158 * cu, 94 * cu; corner: 7 * cu * wk_r; color: deep; opacity: 55% }
                 repeat r in 0..2 {
                     ellipse { at: wk_dx + (r * 2 - 1) * 29 * cu, wk_hy; radius: 4.2 * cu; color: ink; opacity: 55% }
@@ -107,7 +108,7 @@ part MediaFloat {
             group {
             clip inset 1 box { at: wk_dx, wk_dy; size: 172 * cu, 106 * cu; corner: 11 * cu * wk_r }
             group {
-            move: 0, -108 * cu * clamp(wk_cas, 0, 1)
+            move: 0, -108 * cu * clamp(max(wk_cas, wk_e), 0, 1)      // and with nothing playing it is out
             box { at: wk_dx, wk_dy; size: 154 * cu, 92 * cu; corner: 5 * cu * wk_r; color: deep; opacity: 42% }      // smoked plastic: dark under the veil
             box { at: wk_dx, wk_dy; size: 154 * cu, 92 * cu; corner: 5 * cu * wk_r; color: ink; opacity: 7% }
             box { at: wk_dx, wk_dy; size: 149 * cu, 87 * cu; corner: 3.5 * cu * wk_r; stroke: 1; color: deep; opacity: 70% }      // the moulding's inner edge
@@ -212,6 +213,8 @@ part MediaFloat {
             let ay = floor(mf.cy - 43 * cu + 0.5)
             let sw = clamp(swap, 0, 1.12)
             group {
+                show: wk_e < 0.99
+                opacity: 1 - wk_e
                 saturation: 0.45 + 0.55 * playf
                 pivot: ax, ay
                 scale: (0.7 + 0.3 * sw) * (1 + 0.04 * pulse * playf)
@@ -231,10 +234,20 @@ part MediaFloat {
                 }
             }
 
+            //  Nothing playing: Peek in the cover's place, small, with its headphones on (the Desk's, `DPeek`), waiting for a tape. It can be petted, as on the Desk.
+            group {
+                show: wk_e > 0.01
+                opacity: wk_e
+                DPeek(ax - 2 * cu, ay + 2 * cu, 0.15 * cu, md_peek.hover, 1)
+                zone box md_peek { at: ax - 2 * cu, ay; size: 44 * cu, 44 * cu; active: wk_e > 0.5; label: "Peek, the player's cat" }
+            }
+
             //  The badge, beside the cover: what is playing the song (the program's own name), and whether it is playing or paused (its light is with the other lights, below).
-            text "{upper(wk_src)}" { at: floor(mf.cx + 101.5 * cu + 0.5), floor(mf.cy - 41 * cu + 0.5); anchor: left center; size: 10.5; weight: 700; width: 33 * cu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
-            text "PLAYING" { at: floor(mf.cx + 95.5 * cu + 0.5), floor(mf.cy - 30 * cu + 0.5); anchor: left center; size: 8.5; weight: 600; color: mint; opacity: 90%; family: "SpaceMono Nerd Font"; show: media.playing }
-            text "PAUSED" { at: floor(mf.cx + 95.5 * cu + 0.5), floor(mf.cy - 30 * cu + 0.5); anchor: left center; size: 8.5; weight: 600; color: faint; opacity: 80%; family: "SpaceMono Nerd Font"; show: not media.playing }
+            text "{upper(wk_src)}" { at: floor(mf.cx + 101.5 * cu + 0.5), floor(mf.cy - 41 * cu + 0.5); anchor: left center; size: 10.5; weight: 700; width: 33 * cu; lines: 1; color: ink; opacity: 85% * media_open; family: "Space Grotesk" }
+            text "NO TAPE" { at: floor(mf.cx + 101.5 * cu + 0.5), floor(mf.cy - 41 * cu + 0.5); anchor: left center; size: 10.5; weight: 700; width: 33 * cu; lines: 1; color: ink; opacity: 85% * wk_e; family: "Space Grotesk"; show: wk_e > 0.01 }
+            text "PLAYING" { at: floor(mf.cx + 95.5 * cu + 0.5), floor(mf.cy - 30 * cu + 0.5); anchor: left center; size: 8.5; weight: 600; color: mint; opacity: 90%; family: "SpaceMono Nerd Font"; show: media.playing and media_open > 0.5 }
+            text "PAUSED" { at: floor(mf.cx + 95.5 * cu + 0.5), floor(mf.cy - 30 * cu + 0.5); anchor: left center; size: 8.5; weight: 600; color: faint; opacity: 80%; family: "SpaceMono Nerd Font"; show: not media.playing and media_open > 0.5 }
+            text "STOPPED" { at: floor(mf.cx + 95.5 * cu + 0.5), floor(mf.cy - 30 * cu + 0.5); anchor: left center; size: 8.5; weight: 600; color: faint; opacity: 80%; family: "SpaceMono Nerd Font"; show: media_open <= 0.5 }
 
             //  The keys: previous, play, next. Each sits in a well and goes down under the finger; play stays down and lit while it plays (and shows the pause it would do).
             zone box mp.prev { at: mf.cx + 67.5 * cu, wk_ky; size: 21.5 * cu, 25 * cu; cursor: pointer; label: "Previous" }
@@ -330,16 +343,17 @@ part MediaFloat {
                     box { at: mf.cx + (w * 2 - 1) * 117 * cu, mfk_y; size: 38 * cu, 16 * cu; corner: 3.5 * cu * wk_r; color: deep; opacity: 62% }
                     box { at: mf.cx + (w * 2 - 1) * 117 * cu, mfk_y; size: 38 * cu, 16 * cu; corner: 3.5 * cu * wk_r; stroke: 1; color: ink; opacity: 20% }
                 }
-                text mp_el { at: floor(mf.cx - 117 * cu + 0.5), mfk_y; anchor: center; align: center; size: 12; weight: 700; width: 36 * cu; lines: 1; color: mint; family: "SpaceMono Nerd Font" }
-                text mp_tot { at: floor(mf.cx + 117 * cu + 0.5), mfk_y; anchor: center; align: center; size: 12; weight: 700; width: 36 * cu; lines: 1; color: faint; family: "SpaceMono Nerd Font"; show: mp_len > 0 }
-                text "LIVE" { at: floor(mf.cx + 117 * cu + 0.5), mfk_y; anchor: center; align: center; size: 12; weight: 700; color: wk_hot; family: "SpaceMono Nerd Font"; show: mp_len <= 0 }
+                text mp_el { at: floor(mf.cx - 117 * cu + 0.5), mfk_y; anchor: center; align: center; size: 12; weight: 700; width: 36 * cu; lines: 1; color: mint; family: "SpaceMono Nerd Font"; show: media_open > 0.5 }
+                text mp_tot { at: floor(mf.cx + 117 * cu + 0.5), mfk_y; anchor: center; align: center; size: 12; weight: 700; width: 36 * cu; lines: 1; color: faint; family: "SpaceMono Nerd Font"; show: mp_len > 0 and media_open > 0.5 }
+                text "LIVE" { at: floor(mf.cx + 117 * cu + 0.5), mfk_y; anchor: center; align: center; size: 12; weight: 700; color: wk_hot; family: "SpaceMono Nerd Font"; show: mp_len <= 0 and media_open > 0.5 }
+                repeat w in 0..2 { text "--:--" { at: floor(mf.cx + (w * 2 - 1) * 117 * cu + 0.5), mfk_y; anchor: center; align: center; size: 12; weight: 700; color: faint; opacity: 70%; family: "SpaceMono Nerd Font"; show: media_open <= 0.5 } }
                 //  the scale under the slot, the slot, what of it the song has filled, the knob with its ridges
                 repeat t in 0..11 { box { at: s0 + t * sw_ / 10, mfk_y + 7.2 * cu; size: 1, if(t == 0 or t == 5 or t == 10, 3.4 * cu, 2 * cu); color: ink; opacity: 30% } }
                 box { at: s0 + sw_ / 2, mfk_y; size: sw_ + 6 * cu, 5.6 * cu; corner: 2.8 * cu * wk_r; color: deep; opacity: 70% }
                 box { at: s0 + sw_ / 2, mfk_y; size: sw_ + 6 * cu, 5.6 * cu; corner: 2.8 * cu * wk_r; stroke: 1; color: ink; opacity: 18% }
-                box { from: s0 - 1.4 * cu, mfk_y - 1.4 * cu; size: sf * sw_ + 2.8 * cu, 2.8 * cu; corner: 1.4 * cu * wk_r; color: mint; opacity: if(mp_len > 0, 55% + 35% * playf, 30% + 30% * playf) }
+                box { from: s0 - 1.4 * cu, mfk_y - 1.4 * cu; size: sf * sw_ * media_open + 2.8 * cu, 2.8 * cu; corner: 1.4 * cu * wk_r; color: mint; opacity: if(mp_len > 0, 55% + 35% * playf, 30% + 30% * playf) }
                 group {
-                    show: mp_len > 0
+                    show: mp_len > 0 and media_open > 0.5
                     pivot: s0 + sf * sw_, mfk_y
                     scale: 1 + 0.14 * mfk_hot
                     box { at: s0 + sf * sw_, mfk_y + 1 * cu; size: 9.6 * cu, 15 * cu; corner: 2.6 * cu * wk_r; color: deep; opacity: 55% }
