@@ -4,6 +4,14 @@ part MediaFloat {
     //  pin. With nothing playing there is no card at all. `mfl` is 0 in the panel and 1 floating, `mf.cx`, `mf.cy` is where its middle is.
     //  Docked it is clipped to the drawer's shape and grows with it, as the rest of the panel; floating, neither.
     //  Held, the clip is the whole screen: the panel's would take the grab zone away the moment the pointer left it, upwards first.
+    //  The reels' angle, in degrees: stepped thirty times a second while a song plays and the card is somewhere to be seen, still otherwise.
+    fact wk_rl = 0
+    every 33ms while media.playing and media_open > 0.5 and (mf_out or (panel == calendar and dash_tab == dtab_med)) { wk_rl = mod(wk_rl + 5, 360) }
+    //  A new song changes the tape: the cassette slides up and out of the player (`wk_cas` 1: gone), and the next one slides down into its place.
+    prop wk_cas = 0 ~300ms
+    on trackchange { wk_cas: 1 ~300ms; wk_cas: 0 ~380ms after 440ms }
+    text wk_src = ""                    // what is playing it, as the program names itself (Chrome, Spotify): the logic asks the player
+    fact wk_v0 = 0                      // the volume when its wheel was taken
     let mfc = max(clamp(mfl, 0, 1), if(mf_hold, 1, 0)) * mf.mine
     group {
         clip inset 2 box { at: mix(mix(mix(pcx, dc.gx, lm), screen.width - mix(pcx, dc.gx, lm), rt), screen.width / 2, mfc), mix(mix(mix(bar.y + dc.hh / 2, lp.cy, lm), yo + vb - mix(bar.y + dc.hh / 2, lp.cy, lm), bt), vc, mfc); size: mix(mix(dc.w, dc.gw, lm), screen.width + 200, mfc), mix(mix(dc.hh, dc.gh, lm), screen.height + 200, mfc); corner: mix(26 * cu, 0, mfc) }
@@ -16,13 +24,6 @@ part MediaFloat {
             pivot: mf.cx, mf.cy
             scale: mf.k
             move: 0, (1 - f1) * 12 * cu * (1 - mfl)
-            let my = floor(mf.cy - 24 * cu + 0.5)                    // the song's row (the cover's middle)
-            let ax = floor(mf.cx - 96 * cu + 0.5)                    // the cover's centre
-            let ny = floor(my + 58 * cu + 0.5)                       // the controls' row: under the cover
-            let px = floor(ax - 30.1 * cu + 0.5)                        // previous
-            let cxp = ax                                // play
-            let nx = floor(ax + 30.1 * cu + 0.5)                        // next
-            let sw = clamp(swap, 0, 1.12)
 
             //  The plate it has in the panel: the volume plate's veil. Floating, the glass under it is its plate.
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
@@ -54,109 +55,301 @@ part MediaFloat {
                 on release mf_resize.$i { mf_rk = -1 }
             }
             //  Floating it shows a small grip along its top, and a pin that puts it back in the panel.
-            box { at: mf.cx, mf.cy - 69 * cu; size: 34 * cu, 4 * cu; corner: 2 * cu; color: ink; opacity: mfl * (20% + 35% * max(mf_grab.hover, if(mf_hold, 1, 0))) }
+            box { at: mf.cx, mf.cy - 70.5 * cu; size: 34 * cu, 3 * cu; corner: 1.5 * cu; color: ink; opacity: mfl * (20% + 35% * max(mf_grab.hover, if(mf_hold, 1, 0))) }
             group {
                 show: mfl > 0.05 and mf.mine > 0.5
                 opacity: mfl
-                ellipse { at: mf.cx + 128 * cu, mf.cy - 63 * cu; radius: 8 * cu; color: ink; opacity: 8% + 14% * mf_pin.hover }
-                ellipse { at: mf.cx + 128 * cu, mf.cy - 65 * cu; radius: 2.6 * cu; stroke: 1.2 * cu; color: ink; opacity: 70% + 30% * mf_pin.hover }
-                line { from: mf.cx + 128 * cu, mf.cy - 62.4 * cu; to: mf.cx + 128 * cu, mf.cy - 58 * cu; width: 1.2 * cu; color: ink; opacity: 70% + 30% * mf_pin.hover }
-                zone box mf_pin { at: mf.cx + 128 * cu, mf.cy - 63 * cu; size: 20 * cu, 20 * cu; corner: 10 * cu; cursor: pointer; active: mfl > 0.5; label: "Put the player back in its panel" }
+                ellipse { at: mf.cx + 124 * cu, mf.cy - 58 * cu; radius: 8 * cu; color: ink; opacity: 8% + 14% * mf_pin.hover }
+                ellipse { at: mf.cx + 124 * cu, mf.cy - 60 * cu; radius: 2.6 * cu; stroke: 1.2 * cu; color: ink; opacity: 70% + 30% * mf_pin.hover }
+                line { from: mf.cx + 124 * cu, mf.cy - 57.4 * cu; to: mf.cx + 124 * cu, mf.cy - 53 * cu; width: 1.2 * cu; color: ink; opacity: 70% + 30% * mf_pin.hover }
+                zone box mf_pin { at: mf.cx + 124 * cu, mf.cy - 58 * cu; size: 20 * cu, 20 * cu; corner: 10 * cu; cursor: pointer; active: mfl > 0.5; label: "Put the player back in its panel" }
                 on press mf_pin { mf_out = false; panel_scr = mf_scr; dash_tab = dtab_med; panel = calendar }
             }
 
-            //  Playing, or paused with something loaded: the full card.
-            group {
+            //  ── The walkman ──
+            //  The card is a cassette player lying on its side, in the shell's glass: a door with a smoked cassette behind it (the song on its worn label, the reels turning
+            //  while it plays, the tape passing from the left reel to the right as the song goes), and beside it the cover as a sticker stuck on the case, an LED meter under it, the
+            //  case, and three piano keys that go down under the finger (play stays down, lit, while it plays). Along the foot, the tape counter and the seek slider.
+            //  Everything is laid out in `cu` about the card's middle, inside the same 288 by 148 the card always was.
+            let wk_r  = 1 - 0.7 * sq                              // the themes with tight corners tighten these too
+            let wk_sf = if(mp_len <= 0, 0.5, if(mp_drag, mp_df, mp_pf))   // how far the tape has run (a stream: half and half)
+            let wk_dx = floor(mf.cx - 50 * cu + 0.5)             // the door's middle
+            let wk_dy = floor(mf.cy - 12 * cu + 0.5)
+            let wk_hy = wk_dy + 8 * cu                            // the reels' height
+            let wk_ky = floor(mf.cy + 27 * cu + 0.5)             // the keys' middle
+            let wk_hot = #ff6a3d                                  // the meter's top LED
+            let wk_warm = #ffc04a                                 // and the one under it
 
-                //  No cover yet: a tile with a note on it.
+            //  The case: a seam above the foot, the door's hinges, the headphone jack between them.
+            line { from: mf.cx - 136 * cu, mf.cy + 44 * cu; to: mf.cx + 136 * cu, mf.cy + 44 * cu; width: 1; color: ink; opacity: 10% }
+            ellipse { at: mf.cx - 140.6 * cu, wk_dy; radius: 2.9 * cu; color: deep; opacity: 85% }
+            ellipse { at: mf.cx - 140.6 * cu, wk_dy; radius: 2.9 * cu; stroke: 1; color: ink; opacity: 40% }
+            ellipse { at: mf.cx - 140.6 * cu, wk_dy; radius: 1.2 * cu; color: ink; opacity: 30% }
+            box { at: wk_dx - 88 * cu, wk_dy - 30 * cu; size: 3 * cu, 12 * cu; corner: 1.5 * cu * wk_r; color: ink; opacity: 22% }
+            box { at: wk_dx - 88 * cu, wk_dy + 30 * cu; size: 3 * cu, 12 * cu; corner: 1.5 * cu * wk_r; color: ink; opacity: 22% }
+
+            //  The cassette: a smoked shell, its four screws, the label, the window on the reels, the foot with its holes. On a new song it slides up and out through the
+            //  top of the door (it is cut to the door's shape, so it leaves as through a slot), and the next one slides down in.
+            //  The bay behind it, seen while the cassette is out: dark, with the two spindles the reels sit on and the head between them.
+            group {
+                show: wk_cas > 0.02
+                opacity: clamp(wk_cas * 1.6, 0, 1)
+                box { at: wk_dx, wk_dy; size: 158 * cu, 94 * cu; corner: 7 * cu * wk_r; color: deep; opacity: 55% }
+                repeat r in 0..2 {
+                    ellipse { at: wk_dx + (r * 2 - 1) * 29 * cu, wk_hy; radius: 4.2 * cu; color: ink; opacity: 55% }
+                    ellipse { at: wk_dx + (r * 2 - 1) * 29 * cu, wk_hy; radius: 1.6 * cu; color: deep }
+                    ellipse { at: wk_dx + (r * 2 - 1) * 29 * cu, wk_hy; radius: 8 * cu; stroke: 1; color: ink; opacity: 18% }
+                }
+                box { at: wk_dx, wk_dy + 39 * cu; size: 14 * cu, 9 * cu; corner: 1.5 * cu * wk_r; color: ink; opacity: 40% }
+                ellipse { at: wk_dx + 16 * cu, wk_dy + 39 * cu; radius: 2 * cu; color: ink; opacity: 45% }
+                ellipse { at: wk_dx - 16 * cu, wk_dy + 39 * cu; radius: 1.4 * cu; color: ink; opacity: 35% }
+            }
+            group {
+            clip inset 1 box { at: wk_dx, wk_dy; size: 172 * cu, 106 * cu; corner: 11 * cu * wk_r }
+            group {
+            move: 0, -108 * cu * clamp(wk_cas, 0, 1)
+            box { at: wk_dx, wk_dy; size: 154 * cu, 92 * cu; corner: 5 * cu * wk_r; color: deep; opacity: 42% }      // smoked plastic: dark under the veil
+            box { at: wk_dx, wk_dy; size: 154 * cu, 92 * cu; corner: 5 * cu * wk_r; color: ink; opacity: 7% }
+            box { at: wk_dx, wk_dy; size: 149 * cu, 87 * cu; corner: 3.5 * cu * wk_r; stroke: 1; color: deep; opacity: 70% }      // the moulding's inner edge
+            box { at: wk_dx, wk_dy; size: 154 * cu, 92 * cu; corner: 5 * cu * wk_r; stroke: 1; color: ink; opacity: 30% }
+            repeat s in 0..4 {
+                let sx = wk_dx + if(s == 1 or s == 3, 71, -71) * cu
+                let sy = wk_dy + if(s >= 2, 40, -40) * cu
+                ellipse { at: sx, sy; radius: 2.2 * cu; color: ink; opacity: 28% }
+                box { at: sx, sy; size: 3.2 * cu, 0.8 * cu; rotate: 35deg + s * 50deg; color: deep; opacity: 70% }
+            }
+            //  The label: a paper sticker that has seen some years. Stuck on a little crooked, a corner torn off and another lifting, the print rubbed, scratched and
+            //  stained, the song written on it by hand over the ruled lines.
+            let wk_pap = mix(#efe4c8, mint, 0.14)                 // the paper, with a little of the accent in it
+            let wk_pen = #2a211a                                  // the pen
+            group {
+                pivot: wk_dx, wk_dy - 26 * cu
+                rotate: -0.8deg
+                let wk_lx = wk_dx
+                let wk_ly = wk_dy - 26 * cu
+                //  its thickness, then the sheet: the top right corner is torn away, the bottom left one cut by the fold
+                path { at: wk_lx + 0.5 * cu, wk_ly + 0.9 * cu; color: deep; opacity: 60%; move -66.4 * cu, -15 * cu; line 57 * cu, -15 * cu; line 67 * cu, -8.2 * cu; line 66.7 * cu, 14.7 * cu; line -59.5 * cu, 15 * cu; line -67 * cu, 8.6 * cu; close }
+                path { at: wk_lx, wk_ly; color: wk_pap; move -66.4 * cu, -15 * cu; line -30 * cu, -15.3 * cu; line 12 * cu, -14.8 * cu; line 56 * cu, -15 * cu; line 58.4 * cu, -13 * cu; line 60.2 * cu, -13.3 * cu; line 62.6 * cu, -10.6 * cu; line 64.4 * cu, -10.2 * cu; line 67 * cu, -8.2 * cu; line 66.7 * cu, 14.7 * cu; line 24 * cu, 15.2 * cu; line -22 * cu, 14.8 * cu; line -59.5 * cu, 15 * cu; line -67 * cu, 8.6 * cu; line -66.8 * cu, -6 * cu; close }
+                //  the print: a band in the accent and a thin line under it, the side's letter in its box, two ruled lines
+                box { at: wk_lx - 4.5 * cu, wk_ly - 11.6 * cu; size: 119 * cu, 3.6 * cu; color: mix(mint, wk_pen, 0.3); opacity: 85% }
+                box { at: wk_lx - 4.5 * cu, wk_ly - 8.7 * cu; size: 119 * cu, 0.8 * cu; color: mix(mint, wk_pen, 0.3); opacity: 60% }
+                box { at: wk_lx - 58.5 * cu, wk_ly + 3 * cu; size: 10.5 * cu, 12.5 * cu; corner: 1.6 * cu * wk_r; stroke: 1.2; color: wk_pen; opacity: 62% }
+                text "A" { at: floor(wk_lx - 58.5 * cu + 0.5), floor(wk_ly + 3 * cu + 0.5); anchor: center; align: center; size: 13; weight: 700; color: wk_pen; opacity: 66%; family: "Space Grotesk" }
+                box { at: wk_lx + 7 * cu, wk_ly + 3.6 * cu; size: 113 * cu, 0.6 * cu; color: #4f6f96; opacity: 34% }
+                box { at: wk_lx + 7 * cu, wk_ly + 12 * cu; size: 113 * cu, 0.6 * cu; color: #4f6f96; opacity: 28% }
+                //  the song and who plays it, by hand
+                text media.title { at: floor(wk_lx - 49 * cu + 0.5), floor(wk_ly - 1.6 * cu + 0.5); anchor: left center; size: 16; weight: 700; width: 112 * cu; lines: 1; color: wk_pen; opacity: 90%; family: "Kalam" }
+                text media.artist { at: floor(wk_lx - 49 * cu + 0.5), floor(wk_ly + 8.4 * cu + 0.5); anchor: left center; size: 11.5; weight: 400; width: 112 * cu; lines: 1; color: wk_pen; opacity: 66%; family: "Kalam" }
+                //  the years: where the band is rubbed through to the paper, the edges gone grey from fingers, a ring left by a cup, stains, scratches, and the paper's grain
+                ellipse { at: wk_lx + 18 * cu, wk_ly - 11.4 * cu; radius: 5 * cu; scale: 1.7, 0.42; color: wk_pap; opacity: 70% }
+                ellipse { at: wk_lx - 36 * cu, wk_ly - 12.2 * cu; radius: 4 * cu; scale: 1.5, 0.36; color: wk_pap; opacity: 60% }
+                ellipse { at: wk_lx + 44 * cu, wk_ly - 10.8 * cu; radius: 3 * cu; scale: 1.4, 0.4; color: wk_pap; opacity: 55% }
+                ellipse { at: wk_lx + 62 * cu, wk_ly + 6 * cu; radius: 7 * cu; scale: 0.4, 1.4; color: deep; opacity: 7% }
+                ellipse { at: wk_lx - 62 * cu, wk_ly - 6 * cu; radius: 6 * cu; scale: 0.4, 1.3; color: deep; opacity: 6% }
+                ellipse { at: wk_lx + 6 * cu, wk_ly + 13.4 * cu; radius: 6 * cu; scale: 4.2, 0.3; color: deep; opacity: 11% }
+                ellipse { at: wk_lx + 41 * cu, wk_ly + 3.5 * cu; radius: 6.4 * cu; stroke: 1; color: #7a5326; opacity: 22% }
+                ellipse { at: wk_lx + 41.6 * cu, wk_ly + 3.9 * cu; radius: 5.4 * cu; color: #7a5326; opacity: 5% }
+                ellipse { at: wk_lx - 20 * cu, wk_ly + 6 * cu; radius: 8 * cu; scale: 1.5, 0.7; color: #8a6a3a; opacity: 8% }
+                line { from: wk_lx - 44 * cu, wk_ly - 13 * cu; to: wk_lx - 12 * cu, wk_ly + 2 * cu; width: 0.8; color: #ffffff; opacity: 34% }
+                line { from: wk_lx + 8 * cu, wk_ly + 13 * cu; to: wk_lx + 30 * cu, wk_ly - 6 * cu; width: 0.7; color: deep; opacity: 16% }
+                line { from: wk_lx + 22 * cu, wk_ly - 14 * cu; to: wk_lx + 27 * cu, wk_ly + 4 * cu; width: 0.7; color: #ffffff; opacity: 30% }
+                line { from: wk_lx - 64 * cu, wk_ly + 1 * cu; to: wk_lx - 40 * cu, wk_ly + 4.5 * cu; width: 0.6; color: deep; opacity: 14% }
+                line { from: wk_lx + 46 * cu, wk_ly + 12 * cu; to: wk_lx + 64 * cu, wk_ly + 9 * cu; width: 0.6; color: deep; opacity: 15% }
+                repeat n in 0..26 { ellipse { at: wk_lx + (random(n + 3) * 130 - 65) * cu, wk_ly + (random(n + 71) * 26 - 13) * cu; radius: (0.25 + 0.5 * random(n + 140)) * cu; color: if(mod(n, 3) == 0, #ffffff, deep); opacity: 16% } }
+                //  the corner that is lifting: the back of the sheet folded over, and the line of the fold
+                path { at: wk_lx, wk_ly; color: mix(wk_pap, #ffffff, 0.55); move -59.5 * cu, 15 * cu; line -67 * cu, 8.6 * cu; line -60.6 * cu, 9.6 * cu; close }
+                path { at: wk_lx, wk_ly; stroke: 0.8; color: deep; opacity: 40%; move -59.5 * cu, 15 * cu; line -60.6 * cu, 9.6 * cu; line -67 * cu, 8.6 * cu }
+                //  what the torn corner left on the shell: a little of its glue
+                ellipse { at: wk_lx + 63.6 * cu, wk_ly - 13 * cu; radius: 1 * cu; color: wk_pap; opacity: 30% }
+                ellipse { at: wk_lx + 65.6 * cu, wk_ly - 11.4 * cu; radius: 0.6 * cu; color: wk_pap; opacity: 26% }
+                ellipse { at: wk_lx + 61 * cu, wk_ly - 14.2 * cu; radius: 0.5 * cu; color: wk_pap; opacity: 24% }
+            }
+            //  The window: dark, with the two packs of tape (the left one thins as the right one fattens), the tape running between them, and a scale along its foot.
+            repeat q in 0..6 {
+                let qx = wk_dx + if(q >= 3, 1, -1) * 60.5 * cu
+                box { at: qx, wk_hy + (mod(q, 3) - 1) * 6 * cu; size: 13 * cu, 2.6 * cu; corner: 1.3 * cu * wk_r; color: deep; opacity: 75% - 18% * mod(q, 3) }
+            }
+            box { at: wk_dx, wk_hy; size: 109 * cu, 36 * cu; corner: 7 * cu * wk_r; color: deep; opacity: 55% }
+            box { at: wk_dx, wk_hy; size: 104 * cu, 31 * cu; corner: 5 * cu * wk_r; color: deep; opacity: 78% }
+            box { at: wk_dx, wk_hy; size: 104 * cu, 31 * cu; corner: 5 * cu * wk_r; stroke: 1; color: ink; opacity: 30% }
+            repeat r in 0..2 {
+                let hx = wk_dx + (r * 2 - 1) * 29 * cu
+                let rp = (7.6 + 6.6 * if(r == 0, 1 - wk_sf, wk_sf)) * cu           // the pack of tape on this reel
+                ellipse { at: hx, wk_hy; radius: rp; color: mix(mint, deep, 0.5) }
+                ellipse { at: hx, wk_hy; radius: rp; stroke: 1; color: mint; opacity: 70% }
+                ellipse { at: hx, wk_hy; radius: (rp + 6.4 * cu) / 2; stroke: 0.8; color: deep; opacity: 35% }      // a turn of the tape, halfway through the pack
+                ellipse { at: hx, wk_hy; radius: 6.2 * cu; color: ink; opacity: 94% }
+                ellipse { at: hx, wk_hy; radius: 2.5 * cu; color: deep }
+                repeat t in 0..3 { box { at: hx, wk_hy; size: 11.4 * cu, 1.6 * cu; rotate: (wk_rl + wk_sf * 2160) * 1deg + t * 60deg; color: deep; opacity: 88% } }
+                ellipse { at: hx, wk_hy; radius: 1.4 * cu; color: ink; opacity: 92% }
+            }
+            line { from: wk_dx - 29 * cu, wk_hy + (7.6 + 6.6 * (1 - wk_sf)) * cu; to: wk_dx + 29 * cu, wk_hy + (7.6 + 6.6 * wk_sf) * cu; width: 1; color: mint; opacity: 60% }
+            repeat t in 0..9 { box { at: wk_dx + (t - 4) * 5 * cu, wk_hy + 13.6 * cu - if(t == 4, 0.8 * cu, 0); size: 1, if(t == 4, 3.6 * cu, 2 * cu); color: ink; opacity: 40% } }
+            //  The foot: the trapezoid every cassette has, and its holes.
+            path { at: wk_dx, wk_dy; color: deep; opacity: 50%; move -40 * cu, 28 * cu; line 40 * cu, 28 * cu; line 47 * cu, 46 * cu; line -47 * cu, 46 * cu; close }
+            path { at: wk_dx, wk_dy; color: ink; opacity: 9%; move -40 * cu, 28 * cu; line 40 * cu, 28 * cu; line 47 * cu, 46 * cu; line -47 * cu, 46 * cu; close }
+            path { at: wk_dx, wk_dy; stroke: 1; color: ink; opacity: 28%; move -47 * cu, 46 * cu; line -40 * cu, 28 * cu; line 40 * cu, 28 * cu; line 47 * cu, 46 * cu }
+            repeat g in 0..5 { box { at: wk_dx + (g - 2) * 2.2 * cu, wk_dy + 38.5 * cu; size: 1, 9 * cu; color: deep; opacity: 75% } }      // ridges where the head goes in
+            box { at: wk_dx, wk_dy + 30.2 * cu; size: 74 * cu, 1.6 * cu; color: deep; opacity: 55% }
+            repeat h in 0..4 { ellipse { at: wk_dx + pick(h, -27, -10, 10, 27) * cu, wk_dy + 38.5 * cu; radius: if(h == 0 or h == 3, 2.6, 1.7) * cu; color: deep; opacity: 92% } }
+            }
+            }
+            //  The door, over it: a pane a shade lighter than the case, its edge lit, two slanted streaks of light on its glass.
+            group {
+                box { at: wk_dx, wk_dy; size: 172 * cu, 106 * cu; corner: 11 * cu * wk_r; color: ink; opacity: 5% }
+                box { at: wk_dx, wk_dy; size: 172 * cu, 106 * cu; corner: 11 * cu * wk_r; stroke: 1.2; color: ink; opacity: 26% }
+                box { at: wk_dx, wk_dy - 51.5 * cu; size: 150 * cu, 1; color: ink; opacity: 22% }
+                path { at: wk_dx, wk_dy; color: ink; opacity: 5%; move 30 * cu, -53 * cu; line 52 * cu, -53 * cu; line -4 * cu, 53 * cu; line -26 * cu, 53 * cu; close }
+                path { at: wk_dx, wk_dy; color: ink; opacity: 4%; move 60 * cu, -53 * cu; line 68 * cu, -53 * cu; line 12 * cu, 53 * cu; line 4 * cu, 53 * cu; close }
+            }
+
+            //  The meter: twelve columns of five LEDs across the panel, between the cover and the keys, the lows on the left (its window here; the LEDs themselves are with the other lights, below).
+            box { at: mf.cx + 89.5 * cu, mf.cy - 2.6 * cu; size: 87 * cu, 29 * cu; corner: 5 * cu * wk_r; color: deep; opacity: 55% }
+            box { at: mf.cx + 89.5 * cu, mf.cy - 2.6 * cu; size: 87 * cu, 29 * cu; corner: 5 * cu * wk_r; stroke: 1; color: ink; opacity: 20% }
+
+            //  The cover: a sticker on the case, a little crooked. A new song slaps it on. No cover yet: a tile with a note on it.
+            let ax = floor(mf.cx + 68 * cu + 0.5)
+            let ay = floor(mf.cy - 43 * cu + 0.5)
+            let sw = clamp(swap, 0, 1.12)
+            group {
+                saturation: 0.45 + 0.55 * playf
+                pivot: ax, ay
+                scale: (0.7 + 0.3 * sw) * (1 + 0.04 * pulse * playf)
+                rotate: 3deg - (1 - sw) * 14deg
+                box { at: ax, ay; size: 43 * cu, 43 * cu; corner: 3.5 * cu * wk_r; color: ink; opacity: 92% }
                 group {
                     show: not art_on
-                    body {
-                        gradient: ax - 36 * cu, my - 36 * cu to ax + 36 * cu, my + 36 * cu, off, deep
-                        rim: 14%
-                        box { at: ax, my; size: 72 * cu, 72 * cu; corner: 15 * cu }
-                    }
-                    ellipse { at: ax - 6 * cu, my + 11 * cu; radius: 6.5 * cu; color: ink; opacity: 75% }
-                    box { at: ax + 1.5 * cu, my - 4 * cu; size: 3 * cu, 30 * cu; corner: 1.5 * cu; color: ink; opacity: 75% }
-                    path { at: ax, my; stroke: 3 * cu; color: ink; opacity: 75%; move 3 * cu, -19 * cu; curve 15 * cu, -6 * cu via 13 * cu, -17 * cu }
+                    box { at: ax, ay; size: 39 * cu, 39 * cu; corner: 2.5 * cu * wk_r; color: mix(off, deep, 0.4) }
+                    ellipse { at: ax - 3.5 * cu, ay + 6.5 * cu; radius: 4 * cu; color: ink; opacity: 80% }
+                    box { at: ax - 0.4 * cu, ay - 2.5 * cu; size: 1.8 * cu, 18 * cu; corner: 0.9 * cu; color: ink; opacity: 80% }
+                    path { at: ax, ay; stroke: 1.8 * cu; color: ink; opacity: 80%; move 0.5 * cu, -11 * cu; curve 8 * cu, -3.5 * cu via 7 * cu, -10 * cu }
                 }
-
-                //  The cover, in a rounded tile.
                 group {
-                    glow: 12 * cu, 60%
-                    saturation: 0.3 + 0.7 * playf
-                    pivot: ax, my
-                    scale: (0.7 + 0.3 * sw) * (1 + 0.05 * pulse * playf)
-                    rotate: (1 - sw) * -12deg
                     opacity: art_on
-                    group {
-                        clip inset 0 box { at: ax, my; size: 72 * cu, 72 * cu; corner: 15 * cu }
-                        image art { at: ax - 36 * cu, my - 36 * cu; size: 72 * cu, 72 * cu }
-                    }
-                }
-
-                text media.title { at: floor(mf.cx - 50 * cu + 0.5), floor(my - 24 * cu + 0.5); anchor: left center; size: 16.5; weight: 700; width: 186 * cu; lines: 1; color: ink; family: "Space Grotesk" }
-                text media.artist { at: floor(mf.cx - 50 * cu + 0.5), floor(my - 6 * cu + 0.5); anchor: left center; size: 14; width: 186 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk" }
-
-                //  The buttons, in pencil as the bar's own (PBPrev, PBPlay, PBNext): each line twice, a hair off, drawn again about five times a second
-                //  under the pointer, and a little bigger there. Pause while it plays, play while it is paused.
-                group { pivot: px, ny; scale: 1 + 0.14 * mp.prev.hover; PBPrev(px, ny, mp.prev.hover, 1.15 * cu, 75% + 25% * mp.prev.hover) }
-                group { pivot: cxp, ny; scale: 1 + 0.14 * mp.play.hover; PBPlay(cxp - if(media.playing, 0, 1.4 * cu), ny, mp.play.hover, 1.5 * cu, 90% + 10% * mp.play.hover, if(media.playing, 1, 0)) }
-                group { pivot: nx, ny; scale: 1 + 0.14 * mp.next.hover; PBNext(nx, ny, mp.next.hover, 1.15 * cu, 75% + 25% * mp.next.hover) }
-
-                zone box mp.prev { at: px, ny; size: 26 * cu, 30 * cu; cursor: pointer }
-                zone box mp.play { at: cxp, ny; size: 30 * cu, 30 * cu; cursor: pointer }
-                zone box mp.next { at: nx, ny; size: 26 * cu, 30 * cu; cursor: pointer }
-                on press mp.prev { emit mcmd(0) }
-                on press mp.play { emit mcmd(1) }
-                on press mp.next { emit mcmd(2) }
-
-                //  The spectrum: 24 bars standing on a centre line to the right of the cover, beside the controls, mirrored about it with the lower half shorter and fainter (a
-                //  reflection). The lows are on the left; the highs, which cava reports smaller, get a little more gain. Each bar goes from the accent to white as it rises, stands on
-                //  a faint halo and has a cap that trails it slowly (`gh.*`), and a glow behind swells with the bass. Silent, it is a row of dots.
-                group {
-                    let vx = mf.cx - 50 * cu                      // the left edge
-                    let mfs_y = my + 38 * cu                         // the centre line
-                    let mbass = clamp((spec.s.0 + spec.s.1 + spec.s.2 + spec.s.3) / 4 * 1.2, 0, 1)
-                    box { at: vx + 91 * cu, mfs_y; size: (150 + 30 * mbass) * cu, (30 + 26 * mbass) * cu; corner: 28 * cu; color: mint; opacity: playf * (4% + 14% * mbass) }
-                    repeat i in 0..24 {
-                        let lvl = clamp(spec.s.$i * (0.8 + 0.7 * i / 23), 0, 1)
-                        let glv = clamp(gh.$i * (0.8 + 0.7 * i / 23), 0, 1)
-                        let bh  = (1.5 + 31 * lvl) * cu
-                        let bx  = vx + (i + 0.5) * 7.6 * cu
-                        box { at: bx, mfs_y - bh / 2; size: 6.4 * cu, bh + 3 * cu; corner: 3.2 * cu; color: mint; opacity: playf * lvl * 16% }
-                        box { at: bx, mfs_y - bh / 2; size: 4.2 * cu, bh; corner: 2.1 * cu; color: mix(mint, ink, lvl * 0.85); opacity: (0.35 + 0.65 * playf) * (45% + 55% * lvl) }
-                        box { at: bx, mfs_y + bh * 0.28 + 2 * cu; size: 4.2 * cu, bh * 0.56; corner: 2.1 * cu; color: mint; opacity: playf * lvl * 28% }
-                        box { at: bx, mfs_y - (1.5 + 31 * max(glv, lvl)) * cu - 3 * cu; size: 4.2 * cu, 1.6 * cu; corner: 0.8 * cu; color: ink; opacity: playf * (20% + 60% * glv) }
-                    }
+                    clip inset 0 box { at: ax, ay; size: 39 * cu, 39 * cu; corner: 2.5 * cu * wk_r }
+                    image art { at: ax - 19.5 * cu, ay - 19.5 * cu; size: 39 * cu, 39 * cu }
                 }
             }
 
-            //  The seek row: elapsed, a track filled as far as the song has gone with a knob at the end, and the length. Pressed or dragged
-            //  along, it follows the pointer and seeks where it is let go. A stream with no end has no bar, only how long it has played.
+            //  The badge, beside the cover: what is playing the song (the program's own name), and whether it is playing or paused (its light is with the other lights, below).
+            text "{upper(wk_src)}" { at: floor(mf.cx + 101.5 * cu + 0.5), floor(mf.cy - 41 * cu + 0.5); anchor: left center; size: 10.5; weight: 700; width: 33 * cu; lines: 1; color: ink; opacity: 85%; family: "Space Grotesk" }
+            text "PLAYING" { at: floor(mf.cx + 95.5 * cu + 0.5), floor(mf.cy - 30 * cu + 0.5); anchor: left center; size: 8.5; weight: 600; color: mint; opacity: 90%; family: "SpaceMono Nerd Font"; show: media.playing }
+            text "PAUSED" { at: floor(mf.cx + 95.5 * cu + 0.5), floor(mf.cy - 30 * cu + 0.5); anchor: left center; size: 8.5; weight: 600; color: faint; opacity: 80%; family: "SpaceMono Nerd Font"; show: not media.playing }
+
+            //  The keys: previous, play, next. Each sits in a well and goes down under the finger; play stays down and lit while it plays (and shows the pause it would do).
+            zone box mp.prev { at: mf.cx + 67.5 * cu, wk_ky; size: 21.5 * cu, 25 * cu; cursor: pointer; label: "Previous" }
+            zone box mp.play { at: mf.cx + 89.5 * cu, wk_ky; size: 21.5 * cu, 25 * cu; cursor: pointer; label: "Play or pause" }
+            zone box mp.next { at: mf.cx + 111.5 * cu, wk_ky; size: 21.5 * cu, 25 * cu; cursor: pointer; label: "Next" }
+            on press mp.prev { emit mcmd(0) }
+            on press mp.play { emit mcmd(1) }
+            on press mp.next { emit mcmd(2) }
+            box { at: mf.cx + 89.5 * cu, wk_ky + 1.1 * cu; size: 87 * cu, 25.4 * cu; corner: 5 * cu * wk_r; color: deep; opacity: 55% }
+            //  Everything that is lit, as one thing with a bloom round it while it plays: the meter's LEDs, the badge's light, and the glow under the play key, which
+            //  swells with the bass. Each column of the meter is two of cava's bars; the top two LEDs of each go warm, then hot; and one LED hangs where the column
+            //  last peaked and falls slowly (`gh.*`, the spectrum on a slow spring).
             group {
-                let mfk_y = my + 84 * cu
-                let s0 = mf.cx - 96 * cu
-                let sw_ = 192 * cu
-                let sf = if(mp_len <= 0, 1, if(mp_drag, mp_df, mp_pf))      // a stream with no end: the wave runs the whole way
-                let mfk_hot = max(mp.seek.hover, if(mp_drag, 1, 0))
-                text mp_el { at: floor(mf.cx - 132 * cu + 0.5), floor(mfk_y + 0.5); anchor: left center; size: 11.5; weight: 600; width: 34 * cu; lines: 1; color: faint; family: "Space Grotesk" }
-                text mp_tot { at: floor(mf.cx + 132 * cu + 0.5), floor(mfk_y + 0.5); anchor: right center; align: right; size: 11.5; weight: 600; width: 34 * cu; lines: 1; color: faint; family: "Space Grotesk"; show: mp_len > 0 }
-                text "Live" { at: floor(mf.cx + 132 * cu + 0.5), floor(mfk_y + 0.5); anchor: right center; align: right; size: 11.5; weight: 700; color: mint; family: "Space Grotesk"; show: mp_len <= 0 }
-                //  The track is the shell's pencil slider (PSlider), as the dashboard's: the pinched track, the hatching as far as the song has got, the squeezed
-                //  knob. It boils while the song plays (drawn again five times a second, more under the pointer or while dragged), and rests when it is paused.
-                group { show: mp_len > 0; PSlider(s0, mfk_y, sw_, sf, max(mfk_hot, if(media.playing, 0.6, 0)), cu, 7 * cu, 0) }
-                //  A stream with no end has no place to show: the whole track in pencil, hatched all the way, boiling and breathing while it plays (PStream).
-                group { show: mp_len <= 0; PStream(s0, mfk_y, sw_, max(mfk_hot, if(media.playing, 0.6, 0)), cu, 7 * cu) }
-                zone box mp.seek { at: s0 + sw_ / 2, mfk_y; size: sw_ + 16 * cu, 22 * cu; cursor: pointer; active: mp_len > 0 and media_open > 0.5 }
+                glow: 5 * cu, 80% * playf
+                repeat c in 0..12 {
+                    let gn = 0.9 + 0.8 * c / 11
+                    let lv = clamp((spec.s[c * 2] + spec.s[c * 2 + 1]) / 2 * gn, 0, 1) * playf
+                    let pv = clamp((gh[c * 2] + gh[c * 2 + 1]) / 2 * gn, 0, 1) * playf
+                    let pg = floor(pv * 5 - 0.02)                                   // the LED the peak hangs on
+                    repeat g in 0..5 {
+                        let on = max(clamp(lv * 5 - g, 0, 1), if(g == pg and pv > lv + 0.03, 0.9, 0))
+                        box { at: mf.cx + (50.2 + c * 7.15) * cu, mf.cy + (7.8 - g * 5.2) * cu; size: 5.8 * cu, 3.9 * cu; corner: 1 * cu * wk_r; color: mix(ink, if(g == 4, wk_hot, if(g == 3, wk_warm, mint)), clamp(on * 3, 0, 1)); opacity: 9% + 86% * on }
+                    }
+                }
+                ellipse { at: mf.cx + 97 * cu, mf.cy - 41 * cu; radius: 2 * cu; color: mix(off, mint, playf) }
+                box { at: mf.cx + 89.5 * cu, wk_ky + 0.4 * cu; size: 20.4 * cu, 21 * cu; corner: 3 * cu * wk_r; color: mint; opacity: playf * (45% + 55% * clamp(pulse, 0, 1)) }
+            }
+            repeat b in 0..3 {
+                let kx = floor(mf.cx + (67.5 + b * 22) * cu + 0.5)
+                let kh = pick(b, mp.prev.hover, mp.play.hover, mp.next.hover)
+                let lit = if(b == 1, playf, 0)                                        // play, latched
+                let kd = max(pick(b, mp.prev.pressed, mp.play.pressed, mp.next.pressed), 0.7 * lit)   // how far down it is
+                let ky = wk_ky - 1.5 * cu + 3 * cu * kd
+                let kc = mix(ink, onmint, lit)                                       // its mark
+                //  (drawn at the size they first had and made smaller as one thing, about the key's middle)
+                group {
+                pivot: kx, wk_ky
+                scale: 0.72
+                //  its skirt (what shows of its side while it is up), its cap, the light along the cap's top edge
+                box { at: kx, wk_ky + 2 * cu; size: 27 * cu, 30 * cu; corner: 4 * cu * wk_r; color: deep; opacity: 60% * (1 - kd) }
+                box { at: kx, ky; size: 27 * cu, 28 * cu; corner: 4 * cu * wk_r; color: mix(mix(tint, ink, 0.2 + 0.1 * kh), mint, lit); opacity: 96% }
+                box { at: kx, ky; size: 27 * cu, 28 * cu; corner: 4 * cu * wk_r; stroke: 1; color: ink; opacity: 30% * (1 - lit) }
+                box { at: kx, ky - 12.6 * cu; size: 19 * cu, 1; color: ink; opacity: 38% * (1 - 0.6 * kd) }
+                group {
+                    show: b == 0
+                    box { at: kx - 4.6 * cu, ky; size: 1.9 * cu, 9.4 * cu; corner: 0.6 * cu; color: kc; opacity: 90% }
+                    path { at: kx, ky; color: kc; opacity: 90%; move 4.8 * cu, -4.7 * cu; line 4.8 * cu, 4.7 * cu; line -3 * cu, 0; close }
+                }
+                group {
+                    show: b == 1 and not media.playing
+                    path { at: kx, ky; color: kc; opacity: 92%; move -3.2 * cu, -5.4 * cu; line 5.2 * cu, 0; line -3.2 * cu, 5.4 * cu; close }
+                }
+                group {
+                    show: b == 1 and media.playing
+                    box { at: kx - 2.7 * cu, ky; size: 2.8 * cu, 10.4 * cu; corner: 0.7 * cu; color: kc; opacity: 92% }
+                    box { at: kx + 2.7 * cu, ky; size: 2.8 * cu, 10.4 * cu; corner: 0.7 * cu; color: kc; opacity: 92% }
+                }
+                group {
+                    show: b == 2
+                    box { at: kx + 4.6 * cu, ky; size: 1.9 * cu, 9.4 * cu; corner: 0.6 * cu; color: kc; opacity: 90% }
+                    path { at: kx, ky; color: kc; opacity: 90%; move -4.8 * cu, -4.7 * cu; line -4.8 * cu, 4.7 * cu; line 3 * cu, 0; close }
+                }
+                }
+            }
+
+            //  The volume: a ridged thumbwheel let into the case's right edge, as tall as the panel beside it. The wheel over it, or dragging it up and down, turns it
+            //  (its ridges roll as the volume moves), and a strip beside it shows how far up it is.
+            let wk_vy = mf.cy - 12.5 * cu                          // its middle
+            zone box wk_vol { at: mf.cx + 140.4 * cu, wk_vy; size: 9 * cu, 108 * cu; cursor: ns_resize; label: "Volume"; role: slider; value: audio.volume }
+            on scroll wk_vol { emit setvol(clamp(audio.volume + wheel * 0.05, 0, 1)) }
+            on press wk_vol { wk_v0 = audio.volume }
+            on drag wk_vol { emit setvol(clamp(wk_v0 - drag.dy / (150 * cu), 0, 1)) }
+            let wk_vh = max(wk_vol.hover, wk_vol.pressed)
+            box { at: mf.cx + 140.4 * cu, wk_vy; size: 6.4 * cu, 105 * cu; corner: 2.6 * cu * wk_r; color: deep; opacity: 70% }
+            box { at: mf.cx + 140.4 * cu, wk_vy; size: 4.6 * cu, 102 * cu; corner: 2 * cu * wk_r; color: mix(mix(tint, ink, 0.34), mint, 0.35 * wk_vh) }
+            repeat j in 0..22 { box { at: mf.cx + 140.4 * cu, wk_vy + (-48.6 + j * 4.4 + mod(clamp(audio.volume, 0, 1) * 88, 4.4)) * cu; size: 4.6 * cu, 1; color: deep; opacity: 70% } }
+            box { from: mf.cx + 135.4 * cu, wk_vy + 51 * cu - 102 * cu * clamp(audio.volume, 0, 1); size: 1.1 * cu, 102 * cu * clamp(audio.volume, 0, 1); corner: 0.5 * cu; color: mint; opacity: if(audio.muted, 25%, 55% + 40% * wk_vh) }
+
+            //  The foot: the tape counter (how long it has played), a slider in a slot filled as far as the song has gone, and the song's length. Pressed or dragged
+            //  along, the slider follows the pointer and seeks where it is let go. A stream with no end has no knob: the slot glows the whole way, and the length says Live.
+            group {
+                let mfk_y = floor(mf.cy + 58.5 * cu + 0.5)
+                let s0 = mf.cx - 88 * cu
+                let sw_ = 176 * cu
+                let sf = if(mp_len <= 0, 1, if(mp_drag, mp_df, mp_pf))
+                zone box mp.seek { at: s0 + sw_ / 2, mfk_y; size: sw_ + 12 * cu, 22 * cu; cursor: pointer; active: mp_len > 0 and media_open > 0.5; label: "Seek" }
                 on press mp.seek { mp_drag = true; mp_df = clamp((pointer.x - s0) / sw_, 0, 1) }
                 on drag mp.seek { mp_df = clamp((pointer.x - s0) / sw_, 0, 1) }
                 on release mp.seek { mp_drag = false; mp_pos = mp_df * mp_len; mp_pf: mp_df ~0ms; emit mp_seek(mp_df) }      // it stays where it was let go: no glide back
                 follow mf_hv = max(max(mp.prev.hover, mp.play.hover), max(mp.next.hover, mp.seek.hover))
+                let mfk_hot = max(mp.seek.hover, if(mp_drag, 1, 0))
+                repeat w in 0..2 {
+                    box { at: mf.cx + (w * 2 - 1) * 117 * cu, mfk_y; size: 38 * cu, 16 * cu; corner: 3.5 * cu * wk_r; color: deep; opacity: 62% }
+                    box { at: mf.cx + (w * 2 - 1) * 117 * cu, mfk_y; size: 38 * cu, 16 * cu; corner: 3.5 * cu * wk_r; stroke: 1; color: ink; opacity: 20% }
+                }
+                text mp_el { at: floor(mf.cx - 117 * cu + 0.5), mfk_y; anchor: center; align: center; size: 12; weight: 700; width: 36 * cu; lines: 1; color: mint; family: "SpaceMono Nerd Font" }
+                text mp_tot { at: floor(mf.cx + 117 * cu + 0.5), mfk_y; anchor: center; align: center; size: 12; weight: 700; width: 36 * cu; lines: 1; color: faint; family: "SpaceMono Nerd Font"; show: mp_len > 0 }
+                text "LIVE" { at: floor(mf.cx + 117 * cu + 0.5), mfk_y; anchor: center; align: center; size: 12; weight: 700; color: wk_hot; family: "SpaceMono Nerd Font"; show: mp_len <= 0 }
+                //  the scale under the slot, the slot, what of it the song has filled, the knob with its ridges
+                repeat t in 0..11 { box { at: s0 + t * sw_ / 10, mfk_y + 7.2 * cu; size: 1, if(t == 0 or t == 5 or t == 10, 3.4 * cu, 2 * cu); color: ink; opacity: 30% } }
+                box { at: s0 + sw_ / 2, mfk_y; size: sw_ + 6 * cu, 5.6 * cu; corner: 2.8 * cu * wk_r; color: deep; opacity: 70% }
+                box { at: s0 + sw_ / 2, mfk_y; size: sw_ + 6 * cu, 5.6 * cu; corner: 2.8 * cu * wk_r; stroke: 1; color: ink; opacity: 18% }
+                box { from: s0 - 1.4 * cu, mfk_y - 1.4 * cu; size: sf * sw_ + 2.8 * cu, 2.8 * cu; corner: 1.4 * cu * wk_r; color: mint; opacity: if(mp_len > 0, 55% + 35% * playf, 30% + 30% * playf) }
+                group {
+                    show: mp_len > 0
+                    pivot: s0 + sf * sw_, mfk_y
+                    scale: 1 + 0.14 * mfk_hot
+                    box { at: s0 + sf * sw_, mfk_y + 1 * cu; size: 9.6 * cu, 15 * cu; corner: 2.6 * cu * wk_r; color: deep; opacity: 55% }
+                    box { at: s0 + sf * sw_, mfk_y; size: 9.6 * cu, 15 * cu; corner: 2.6 * cu * wk_r; color: mix(ink, mint, 0.5 * mfk_hot) }
+                    repeat t in 0..3 { box { at: s0 + sf * sw_ + (t - 1) * 2.4 * cu, mfk_y; size: 1, 9 * cu; color: deep; opacity: 55% } }
+                }
             }
 
-            //  A new song throws sparks off the cover.
-            particles { at: ax, my; count: 36; life: 0.5s .. 1.0s; speed: 70 .. 170; direction: 0deg; spread: 360deg; gravity: 0, 40; drag: 1.2; size: 3.5, 1; colors: mint, ink; shape: spark; burst: trackchange }
+            //  A new song throws sparks off the sticker.
+            particles { at: ax, ay; count: 36; life: 0.5s .. 1.0s; speed: 70 .. 170; direction: 0deg; spread: 360deg; gravity: 0, 40; drag: 1.2; size: 3.5, 1; colors: mint, ink; shape: spark; burst: trackchange }
         }
         }
     }

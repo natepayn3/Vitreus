@@ -437,14 +437,23 @@ sys.watch("media", function(m)
     -- playerctld stays on the bus as a phantom player even with nothing open:
     -- it reports a player name but no title, so the name alone doesn't count.
     local has_media = m.player ~= "" and m.title ~= ""
-    fact.media_on = has_media
     cava_playing = m.playing == true
     cava_want()
+    -- Skipping a track, most players report no title for a moment between the two songs. Taking that as "no player" made the whole card vanish and come
+    -- back, and the next song count as the first one (so no `trackchange`, and nothing of what a new song does). So a player that goes is only believed
+    -- once it has stayed gone a second and a half; one that is back before that never left. (`mpl.gone` counts, so an older wait knows it was overtaken.)
+    mpl.gone = (mpl.gone or 0) + 1
     if not has_media then
-        song = ""
-        use_art("")
+        local mine = mpl.gone
+        after(1500, function()
+            if mpl.gone ~= mine then return end
+            fact.media_on = false
+            song = ""
+            use_art("")
+        end)
         return
     end
+    fact.media_on = true
     local now = m.player .. "|" .. tostring(m.title) .. "|" .. tostring(m.artist)
     if now ~= song then
         local first = song == ""
@@ -502,6 +511,29 @@ on("fact:mf_out", function(v)
 end)
 sys.watch("media", function(m)
     mp_player = m.player or ""
+    -- What is playing it, for the card's badge: the name the program gives itself over MPRIS ("Chrome", where its bus name says chromium for every browser
+    -- of that family), and until that answers, or if it never does, its bus name without the instance and with a capital.
+    if mp_player ~= mpl.src_of then
+        mpl.src_of = mp_player
+        local short = (mp_player:gsub("%.instance.*$", ""))
+        text.wk_src = (short:gsub("^%l", string.upper))
+        if mp_player ~= "" then
+            -- the service names the player without its instance (chromium), and the bus name has it (chromium.instance1564587): playerctl lists the whole ones
+            local asked = mp_player
+            run("playerctl", { "-l" }, function(list, lcode)
+                local bus = asked
+                if lcode == 0 then
+                    for line in tostring(list or ""):gmatch("[^\n]+") do
+                        if line == asked or line:sub(1, #asked + 1) == asked .. "." then bus = line break end
+                    end
+                end
+                run("busctl", { "--user", "get-property", "org.mpris.MediaPlayer2." .. bus, "/org/mpris/MediaPlayer2", "org.mpris.MediaPlayer2", "Identity" }, function(out, code)
+                    local id = code == 0 and tostring(out or ""):match('^s "(.-)"') or nil
+                    if id and id ~= "" and mpl.src_of == asked then text.wk_src = id end
+                end)
+            end)
+        end
+    end
     local len = tonumber(m.length) or 0
     if len > 43200 then len = 0 end                       -- half a day or more is a stream with no real end (its "length" is a made-up number)
     fact.mp_len = len
