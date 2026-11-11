@@ -51,7 +51,10 @@ return function()
             local mixed = false
             for _, v in ipairs(n) do if v == 24 then mixed = true end end
             local same = n[1] == n[2] and n[2] == n[3] and n[3] == n[4]
-            if #n == 4 and n[4] < 60 and not (mixed and not same) then g = n end
+            -- Uneven gaps are the user's own only if they are all small: what we wrote before (the Island's room on top, a dock's at the bottom: 66 20 56 20, say) is not, and
+            -- taken for the original it was written back and read again at every start, for good (a gap under the windows on every monitor, with or without the bar).
+            local small = math.max(n[1] or 0, n[2] or 0, n[3] or 0, n[4] or 0) <= 40
+            if #n == 4 and n[4] < 60 and not (mixed and not same) and (same or small) then g = n end
         end
         bar_fx.orig = g
         iris_fx.apply_hypr()
