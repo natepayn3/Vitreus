@@ -3040,16 +3040,16 @@ scene Vitreus {
     }
 
     //  The bar's battery: a rounded cell (`w` by `h`) drawn in pencil twice over with a little jitter that boils with `f`, a wash and hatching up to `lv` (0 to 1), a terminal on the right, and the percentage inside.
-    component BarBatt(cx: number, cy: number, w: number, h: number, lv: number, c: color, o: number, f: number, u: number, pct: number) {
+    component BarBatt(cx: number, cy: number, w: number, h: number, lv: number, c: color, fc: color, o: number, f: number, u: number, pct: number) {
         let a = w / 2
         let b = h / 2
         let r = 7 * u
         let n = w - 8 * u
         let x0 = -a + 4 * u
-        box { at: cx - a + 3 * u + max(2 * u, lv * n) / 2, cy; size: max(2 * u, lv * n), h - 6 * u; corner: 4 * u; color: c; opacity: 20% * o }
+        box { at: cx - a + 3 * u + max(2 * u, lv * n) / 2, cy; size: max(2 * u, lv * n), h - 6 * u; corner: 4 * u; color: fc; opacity: 24% * o }
         repeat k in 0..15 {
             let hx = x0 + k * n / 15
-            line { from: cx + hx + 1.5 * u, cy - (b - 4 * u) + 0.3 * u * sin(f * 47 + k * 31); to: cx + hx - 1.5 * u, cy + (b - 4 * u) + 0.3 * u * sin(f * 53 + k * 37); width: 1 * u; color: c; opacity: 38% * o * clamp((lv * n - k * n / 15) / (2 * u), 0, 1) }
+            line { from: cx + hx + 1.5 * u, cy - (b - 4 * u) + 0.3 * u * sin(f * 47 + k * 31); to: cx + hx - 1.5 * u, cy + (b - 4 * u) + 0.3 * u * sin(f * 53 + k * 37); width: 1 * u; color: fc; opacity: 55% * o * clamp((lv * n - k * n / 15) / (2 * u), 0, 1) }
         }
         repeat bp in 0..2 {
             let bo = bp * 0.5 * u
@@ -7644,12 +7644,13 @@ scene Vitreus {
         opacity: bs.bat
         glow: 2.4 * bu, 110%, deep
         let bat.f = if(bat_z.hover > 0.5, floor(time * 8), 0)
-        let bat.c = mix(mix(ink, mint, if(chg_now, 1, 0)), #e0655a, batt_low)
+        let bat.c = ink
+        let bat.fc = if(chg_now, #4cd964, mix(mix(#e0655a, #f2c230, clamp((batt_fill - 0.15) / 0.15, 0, 1)), #4cd964, clamp((batt_fill - 0.4) / 0.25, 0, 1)))      // red under 15 %, yellow about 30 to 40 %, green from 65 %
         let bat.o = 80% + 20% * bat_z.hover
         group {
             pivot: bat.x + (lf.x - bat.x) * lm, bar.y + (lv.bat - bar.y) * lm
             scale: 1 - 0.26 * lm       // a smaller cell down the strip
-            BarBatt(bat.x + (lf.x - bat.x) * lm - 3 * bu, bar.y + (lv.bat - bar.y) * lm, mix(42, 36, lm) * bu, 20 * bu, batt_fill, bat.c, bat.o, bat.f, bu, bat_pct)
+            BarBatt(bat.x + (lf.x - bat.x) * lm - 3 * bu, bar.y + (lv.bat - bar.y) * lm, mix(42, 36, lm) * bu, 20 * bu, batt_fill, bat.c, bat.fc, bat.o, bat.f, bu, bat_pct)
         }
         zone box bat_z { at: bat.x + (lf.x - bat.x) * lm, bar.y + (lv.bat - bar.y) * lm; size: mix(fw.bat + 6 * bu, lf.w - 6 * bu, lm), 30 * bu; corner: 10 * bu; cursor: default; active: bs.bat > 0.6 and sb > 0.5; label: "Battery" }
     }
