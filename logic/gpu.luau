@@ -19,6 +19,8 @@ sleep 0.3
 # under its keeper (bin/vitreus-keep), which starts it again by itself and reads gpu.json as it does; without one, started here
 if command -v vitreus-keep >/dev/null 2>&1; then exec vitreus-keep "$P" "$L"; fi
 if [ "$3" = high ]; then export PLEAMAR_GPU=high; else unset PLEAMAR_GPU; fi
+S=$(head -n 1 "$(dirname "$L")/bar-screens" 2>/dev/null | tr -d ' \t')
+if [ -n "$S" ]; then exec pleamar --scene "$P" --no-hud --screen "$S" >>"$L" 2>&1; fi
 exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
 ]]
 

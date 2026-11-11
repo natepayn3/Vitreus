@@ -104,15 +104,23 @@ while :; do
     if [ "$name" = vitreus ] && [ -f "$data/gpu.json" ]; then
         if grep -q '"discrete"[[:space:]]*:[[:space:]]*true' "$data/gpu.json" 2> /dev/null; then gpu_set="PLEAMAR_GPU=high"; else gpu_unset="-u PLEAMAR_GPU"; fi
     fi
+    # The bar's copies go to its monitors by name (`--screen`, copy K to the K-th): the list the shell leaves in bar-screens (logic/bar_monitors.luau).
+    # Without it pleamar hands them out in the order the compositor announced the monitors, and one switched off and on again is announced last:
+    # the bar's copy landed on another monitor, where it was closed, and the bar was gone until the next login (issue #67).
+    set --
+    if [ "$name" = vitreus ] && [ -s "$data/bar-screens" ]; then
+        scr=$(head -n 1 "$data/bar-screens" | tr -d ' \t')
+        [ -n "$scr" ] && set -- --screen "$scr"
+    fi
     # env takes its options (-u) before its NAME=value words: after the first of those, the next word is the command.
     # In the background, so the hang watch can run beside it; `wait` gives its exit code as running it in the foreground did.
     if [ -n "$fonts" ]; then
         # shellcheck disable=SC2086
-        env $gpu_unset $gpu_set FONTCONFIG_FILE="$fonts" pleamar --scene "$P" --no-hud >> "$L" 2>&1 9>&- &
+        env $gpu_unset $gpu_set FONTCONFIG_FILE="$fonts" pleamar --scene "$P" --no-hud "$@" >> "$L" 2>&1 9>&- &
     else
         # Not the font setup this keeper itself was started under (a theme change since): that one is no longer the shell's typeface.
         # shellcheck disable=SC2086
-        env $gpu_unset -u FONTCONFIG_FILE $gpu_set pleamar --scene "$P" --no-hud >> "$L" 2>&1 9>&- &
+        env $gpu_unset -u FONTCONFIG_FILE $gpu_set pleamar --scene "$P" --no-hud "$@" >> "$L" 2>&1 9>&- &
     fi
     spid=$!
     watch_hang "$spid" 9>&- < /dev/null &
