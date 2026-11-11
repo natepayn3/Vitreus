@@ -1225,6 +1225,31 @@ if $do_autostart; then
     fi
 fi
 
+# ── the idle config (Settings > Idle) ──────────────────────────────────────
+# The Idle page only writes idle.conf in the data folder; hypridle waits for those times only if ~/.config/hypr/hypridle.conf `source`s it.
+# Without that line the sliders do nothing (an old hard-coded lock still fires, Never or not). So: no file, or the stock one of an earlier
+# version, gets Vitreus's (kept in a backup); a file of the user's own is left alone, but the line it needs is said out loud.
+if $do_autostart && [ -f "$dest/pleamar-wm/hypridle.conf" ]; then
+    idle_src="$dest/pleamar-wm/hypridle.conf"
+    idle_dst="$conf/hypr/hypridle.conf"
+    if [ -L "$idle_dst" ] && [ "$(readlink -f "$idle_dst")" = "$(readlink -f "$idle_src")" ]; then
+        say "hypridle already reads Settings > Idle"
+    elif [ -f "$idle_dst" ] && grep -q 'vitreus/idle\.conf' "$idle_dst"; then
+        say "hypridle.conf already reads Settings > Idle"
+    elif [ ! -e "$idle_dst" ]; then
+        run mkdir -p "$conf/hypr"
+        run ln -sf "$idle_src" "$idle_dst"
+        say "hypridle reads Settings > Idle now ($idle_dst)"
+    elif grep -q 'lockscreen' "$idle_dst" && [ "$(grep -c '^[[:space:]]*listener' "$idle_dst")" -le 2 ]; then
+        # the stock file of an earlier version: a lock at 5 minutes and the screen off, hard-coded, which would ignore the Idle page
+        run cp -p "$idle_dst" "$idle_dst.before-vitreus-idle"
+        run ln -sf "$idle_src" "$idle_dst"
+        say "hypridle reads Settings > Idle now; your old $idle_dst is kept as $idle_dst.before-vitreus-idle"
+    else
+        warn "$idle_dst has listeners of yours, so Settings > Idle does nothing yet: add  source = ~/.local/share/pleamar/vitreus/idle.conf  to it and remove your own lock, screen-off and suspend listeners"
+    fi
+fi
+
 # ── 7. pleamar-wm ──────────────────────────────────────────────────────────
 # Vitreus runs on pleamar-wm (a session chosen at the login screen) as well as on Hyprland. Everything below is skipped when
 # pleamar-wm is not installed, and each file of yours is only replaced when it is still the stock one.

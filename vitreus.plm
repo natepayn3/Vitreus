@@ -1899,9 +1899,13 @@ scene Vitreus {
     fact idle_lock_i = 4                // where each sits along the slider's list of times
     fact idle_off_i = 5
     fact idle_sleep_i = 0
+    fact idle_force = 0                 // lock even while a video or stream holds idle off (0/1)
+    prop idle_k = 0 ~pop
+    follow idle_k = if(idle_force > 0, 1, 0)
     text idle_lock_t = ""
     text idle_off_t = ""
     text idle_sleep_t = ""
+    event idle_toggle ->
     event idle_set ->                   // the row times 100, plus the step along the list (0 to 13)
     fact wh_sfw = true                  // Wallpaper > Wallhaven: which purities to search (logic/wallhaven.luau)
     fact wh_sk = false
@@ -5339,7 +5343,8 @@ scene Vitreus {
     let bw.dsk = bw.dsk0 + bw.bat                             // what the others see: the two as one block
     let fw.ax = max(0, adk_pins.count * 24 - 6) * bu          // the add-ons (Settings > Bar): the add-on pill's icons, 18 wide and 6 apart, as the tray's
     let vw.ax = fw.ax * bs.ax * (1 - fm)
-    let bw.ax = (fw.ax + bar.gap * min(1, adk_pins.count)) * bs.ax * (1 - fm)
+    let ax.mg = 8 * bu * min(1, adk_pins.count) * bs.ax * (1 - fm)     // a little room after the add-on icons, so the piece beside them is not right up against the last one
+    let bw.ax = (fw.ax + bar.gap * min(1, adk_pins.count)) * bs.ax * (1 - fm) + ax.mg
     //  Along the top with a frame the bar is the strip: as long as the screen, as thick as the left one is wide, its pieces spread along it.
     let bar.h = mix(40 * bu, lf.w + 10 * bu * sg, tm)               // (the top frame in pieces: the pieces are 36 * bu deep, so the middle line is 5 higher and the strip 10 taller, which leaves where the panels start where it was)
     let bar.y0 = mix(8 + 20 * bu, th.t / 2 - 5 * bu * sg, tm)
@@ -5429,7 +5434,7 @@ scene Vitreus {
     let ctl.x = mix(if(bo.ctl < bo.title, bar.l + pre.ctl + vw.ctl / 2, bar.r - post.ctl - vw.ctl / 2), sg.ctl, sg)
     let dsk.x = bar.r - post.dsk - bar.gap * bs.dsk - vw.dsk / 2
     let bat.x = mix(bar.r - post.dsk - bw.dsk0 - bar.gap * bs.bat - vw.bat / 2, sg.bat, sg)
-    let ax.x = if(bo.ax < bo.title, bar.l + pre.ax + vw.ax / 2, bar.r - post.ax - vw.ax / 2)
+    let ax.x = if(bo.ax < bo.title, bar.l + pre.ax + vw.ax / 2, bar.r - post.ax - ax.mg - vw.ax / 2)
     //  Where the window title starts, and how far it may reach: the stretch (the gaps are its neighbours').
     let win.x = bar.l + pre.title
     let win.w = mix(max(0, bar.r - post.title - win.x), sg.tw, sg)
