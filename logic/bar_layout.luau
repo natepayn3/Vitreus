@@ -8,7 +8,7 @@ return function()
     local ok, saved = pcall(sys.ask, "files.read", "bar-addons.json", "json")
     if ok and type(saved) == "table" and saved.on == true then ax_on = true end
     -- Settings > Bar > "Show ...": the Desk's button, search, the gear and the control center can each be hidden (kept in bar-icons.json: a name is false when hidden).
-    local icons = { dsk = true, sr = true, set = true, ctl = true }
+    local icons = { dsk = true, bat = true, sr = true, set = true, ctl = true }
     local ok2, sv = pcall(sys.ask, "files.read", "bar-icons.json", "json")
     if ok2 and type(sv) == "table" then for k in pairs(icons) do if sv[k] == false then icons[k] = false end end end
     for n, k in ipairs(order) do
@@ -17,11 +17,12 @@ return function()
     end
     fact["bv.set"] = icons.set
     fact["bv.dsk"] = icons.dsk
-    for _, k in ipairs({ "dsk", "sr", "set", "ctl" }) do
+    fact["bv.bat"] = icons.bat
+    for _, k in ipairs({ "dsk", "bat", "sr", "set", "ctl" }) do
         on("bar_show_" .. k, function()
             icons[k] = not icons[k]
             fact["bv." .. k] = icons[k]
-            pcall(sys.call, "files.write", "bar-icons.json", { dsk = icons.dsk, sr = icons.sr, set = icons.set, ctl = icons.ctl })
+            pcall(sys.call, "files.write", "bar-icons.json", { dsk = icons.dsk, bat = icons.bat, sr = icons.sr, set = icons.set, ctl = icons.ctl })
         end)
     end
     fact["bo.ax"] = 3.2           -- after the tray and the clock/title group, before the Desk button, search, the gear and the controls

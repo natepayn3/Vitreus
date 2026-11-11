@@ -8843,6 +8843,17 @@ run("printenv", { "HOME" }, function(out, code)
     end)
 end)
 
+-- Fake battery for a desktop: ~/.config/vitreus/fake-battery exists -> a made-up battery at 69 % (nothing else changes, unlike demo)
+run("printenv", { "HOME" }, function(out, code)
+    local h = (out or ""):gsub("%s+$", "")
+    if code ~= 0 or h == "" then return end
+    run("stat", { h .. "/.config/vitreus/fake-battery" }, function(_, c)
+        if c ~= 0 then return end
+        fact.fakebat = true
+        if not demo_on then text.bat_state = "On battery" end
+    end)
+end)
+
 -- The panel sound (Settings > Theme): Synoptik's own click, once each time a panel opens. The OSDs (volume, notifications) are not panels.
 do
     local snd_on, home, last_at = true, nil, 0

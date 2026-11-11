@@ -92,9 +92,10 @@ scene Vitreus {
     service brightness { present: bool; level: number }
     service battery as pwr { present: bool; percent: number; charging: bool }     // the bar is its gauge (see `batt_*`)
     fact demo = false               // Demo mode (touch ~/.config/vitreus/demo): a made-up battery at 69 % and the user named "user", for showing the shell off
-    let bat_here = pwr.present or demo
-    let bat_pct = if(demo, 69, pwr.percent)
-    let bat_chg = if(demo, false, pwr.charging)
+    fact fakebat = false            // touch ~/.config/vitreus/fake-battery: a made-up battery at 69 % (only the battery, unlike `demo`), for a desktop
+    let bat_here = pwr.present or demo or fakebat
+    let bat_pct = if(demo or fakebat, 69, pwr.percent)
+    let bat_chg = if(demo or fakebat, false, pwr.charging)
     service network as net { online: bool; wifi: bool; name: text; strength: number }     // the list itself is built by the logic
     service bluetooth as bt { present: bool; powered: bool }        // the list itself is built by the logic
 
@@ -752,6 +753,7 @@ scene Vitreus {
     fact bar_beat = true
     event bar_dockroom_toggle ->     // Settings > Bar > "Corner docks overlap windows": windows keep clear of the docks, or go under them (logic/dock.luau)
     fact bar_dockroom = true
+    event bar_show_bat ->
     event bar_show_dsk ->            // Settings > Bar > "Show the icons" (logic/bar_layout.luau)
     event bar_show_sr ->
     event bar_show_set ->
@@ -778,6 +780,7 @@ scene Vitreus {
     fact bv.sr = true
     fact bv.set = true               // Settings > Bar > "Show the icons": each of these can be hidden (logic/bar_layout.luau keeps what was chosen)
     fact bv.dsk = true
+    fact bv.bat = true               // the battery: its icon and percentage beside the Desk's button
     fact bv.ctl = true
     fact bv.clock = true
     fact bv.tray = true
@@ -1662,6 +1665,7 @@ scene Vitreus {
     prop bs.ctl = 1 ~calm
     prop bs.clock = 1 ~calm
     prop bs.tray = 1 ~calm
+    prop bs.bat = 0 ~calm             // the battery's icon and percentage (the Island only, and only where there is a battery)
     prop bs.dsk = 0 ~calm             // (the Desk's button: only on the Island; with a frame the desk opens from its tab)
     prop bs.ax = 0 ~calm              // (the add-ons only on the Island: with a frame they stay in their pill)
     //  The scene's own `time`. If a scene only names `time`, pleamar makes one that never stops, and a scene with a
@@ -1674,13 +1678,6 @@ scene Vitreus {
     prop batt_fill = 0 ~calm            // 0..1, the charge, smoothly
     prop batt_on = 0 ~calm              // 1 when there is a battery
     prop batt_low = 0 ~calm             // 1 while below 20 % and not charging
-    //  The gauge is not there at rest. It appears (grows a little and fades in) while the pointer is on the bar (any of
-    //  its zones: a zone is only hovered while it is the topmost one under the pointer, so it is the most of them all),
-    //  and stays while the charge is under 20 %, whatever the pointer does.
-    prop batt_open.0 = 0 ~calm
-    prop batt_open.1 = 0 ~calm
-    prop batt_open.2 = 0 ~calm
-    prop batt_open.3 = 0 ~calm
     //  While the charger is filling the battery, a soft glint crosses the bar every 5 seconds (and once as soon as it
     //  is plugged in): `charge_sweep` goes from 0 to 1 over 0.9 s and then rests at 1. It is a timer that wakes the
     //  scene for that second and lets it sleep for the other four. A battery that says "charging" at 98 % or more is
@@ -1790,6 +1787,7 @@ scene Vitreus {
     follow bs.tray = if(bv.tray, 1, 0)
     follow bs.ax = if(bv.ax and not bar_frame, 1, 0)
     follow bs.dsk = if(bar_frame or not bv.dsk, 0, 1)
+    follow bs.bat = if(not bv.bat or not bat_here, 0, 1)
     follow trn = bartrays.count
     follow cdk_ga = if(cdk_on and cdk_pins.count > 0, 1, 0)
     follow adk_ga = if(adk_pins.count > 0 and not (bv.ax and not bar_frame), 1, 0)       // (not while its icons are on the Island: `bs.ax`)
@@ -1949,6 +1947,8 @@ scene Vitreus {
     follow bbk = if(bar_beat, 1, 0)
     prop dock_mid_pill = 0 ~pop
     prop bar_ax_pill = 0 ~pop
+    prop bsh_bat_pill = 0 ~pop
+    follow bsh_bat_pill = if(bv.bat, 1, 0)
     prop bsh_dsk_pill = 0 ~pop
     follow bsh_dsk_pill = if(bv.dsk, 1, 0)
     prop bsh_sr_pill = 0 ~pop
@@ -3037,6 +3037,38 @@ scene Vitreus {
             path { at: cx, cy; stroke: 1.5 * cu; color: mix(ink, mint, sel); opacity: (o); move 1.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 70 + 9540), -8.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 44 + 9600); line -5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 46 + 9637), 1.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 51 + 9697); line -0.6 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 53 + 9734), 1.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 58 + 9794); line -1.6 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 60 + 9831), 8.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 65 + 9891); line 5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 67 + 9928), -1.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 72 + 9988); line 0.6 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 43 + 10025), -1.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 48 + 10085); line 1.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 50 + 10122), -8.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 55 + 10182); }
             path { at: cx + 0.5 * cu, cy + 0.4 * cu; stroke: 1.05 * cu; color: mix(ink, mint, sel); opacity: (o) * 0.34; move 1.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 54 + 9911), -8.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 59 + 9971); line -5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 61 + 10008), 1.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 66 + 10068); line -0.6 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 68 + 10105), 1.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 73 + 10165); line -1.6 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 44 + 10202), 8.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 49 + 10262); line 5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 51 + 10299), -1.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 56 + 10359); line 0.6 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 58 + 10396), -1.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 63 + 10456); line 1.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 65 + 10493), -8.5 * cu + (0.28 + 0.4 * a) * cu * sin(fr * 70 + 10553); }
         }
+    }
+
+    //  The bar's battery: a rounded cell (`w` by `h`) drawn in pencil twice over with a little jitter that boils with `f`, a wash and hatching up to `lv` (0 to 1), a terminal on the right, and the percentage inside.
+    component BarBatt(cx: number, cy: number, w: number, h: number, lv: number, c: color, o: number, f: number, u: number, pct: number) {
+        let a = w / 2
+        let b = h / 2
+        let r = 7 * u
+        let n = w - 8 * u
+        let x0 = -a + 4 * u
+        box { at: cx - a + 3 * u + max(2 * u, lv * n) / 2, cy; size: max(2 * u, lv * n), h - 6 * u; corner: 4 * u; color: c; opacity: 20% * o }
+        repeat k in 0..15 {
+            let hx = x0 + k * n / 15
+            line { from: cx + hx + 1.5 * u, cy - (b - 4 * u) + 0.3 * u * sin(f * 47 + k * 31); to: cx + hx - 1.5 * u, cy + (b - 4 * u) + 0.3 * u * sin(f * 53 + k * 37); width: 1 * u; color: c; opacity: 38% * o * clamp((lv * n - k * n / 15) / (2 * u), 0, 1) }
+        }
+        repeat bp in 0..2 {
+            let bo = bp * 0.5 * u
+            let bj = 0.3 * u * sin(f * 53 + bp * 137 + 431)
+            let bk = 0.3 * u * sin(f * 61 + bp * 71 + 471)
+            path { at: cx + bo, cy + bo * 0.5; stroke: if(bp == 0, 1.7, 1.2) * u; color: c; opacity: if(bp == 0, 100%, 45%) * o
+                   move -a + r + bj, -b + bk
+                   line a - r + bk, -b + bj
+                   curve a + bj, -b + r + bk via a, -b
+                   line a + bk, b - r + bj
+                   curve a - r + bj, b + bk via a, b
+                   line -a + r + bk, b + bj
+                   curve -a + bj, b - r + bk via -a, b
+                   line -a + bk, -b + r + bj
+                   curve -a + r + bj, -b + bk via -a, -b
+                   close }
+        }
+        path { at: cx, cy; stroke: 2.4 * u; color: c; opacity: o; move a + 2.5 * u, -3 * u; line a + 2.5 * u, 3 * u }
+        text "{pct}%" { at: floor(cx + 0.5), floor(cy + 0.5); anchor: center; size: 12.5; weight: 700; color: ink; opacity: o; family: "Space Grotesk" }
     }
 
     //  The battery, in the control center's pencil manner: the body twice with its rounded corners, a wash and the charge in the battery's colour, hatching on the charge, a terminal and (while charging) the bolt twice.
@@ -5300,7 +5332,11 @@ scene Vitreus {
     let bw.tray = fw.tray + bar.gap * min(1, tn)
     let fw.dsk = 13 * bu                                      // the Desk's glyph: one tall tile beside two small ones
     let vw.dsk = fw.dsk * bs.dsk * (1 - fm)
-    let bw.dsk = (fw.dsk + 2 * bar.gap) * bs.dsk * (1 - fm)     // (a gap each side: the card reaches 9 past the glyph, and search's card 9 past its own, so they keep 6 apart)
+    let bw.dsk0 = (fw.dsk + 2 * bar.gap) * bs.dsk * (1 - fm)     // (a gap each side: the card reaches 9 past the glyph, and search's card 9 past its own, so they keep 6 apart)
+    let fw.bat = 48 * bu                                      // the battery: a pencilled cell and its percentage, in the block of the Desk's button (left of it)
+    let vw.bat = fw.bat * bs.bat * (1 - lm)
+    let bw.bat = (fw.bat + 2 * bar.gap) * bs.bat * (1 - lm)       // (the Island, the top frame and its pieces; down the left strip it has its own place, `lv.bat`)
+    let bw.dsk = bw.dsk0 + bw.bat                             // what the others see: the two as one block
     let fw.ax = max(0, adk_pins.count * 24 - 6) * bu          // the add-ons (Settings > Bar): the add-on pill's icons, 18 wide and 6 apart, as the tray's
     let vw.ax = fw.ax * bs.ax * (1 - fm)
     let bw.ax = (fw.ax + bar.gap * min(1, adk_pins.count)) * bs.ax * (1 - fm)
@@ -5374,6 +5410,8 @@ scene Vitreus {
     let sg.ctl = screen.width - sg.in - sg.pad - vw.ctl / 2
     let sg.set = screen.width - sg.in - sg.pad - bw.ctl - vw.set / 2
     let sg.sr = screen.width - sg.in - sg.pad - bw.ctl - bw.set - vw.sr / 2
+    let sg.bw = (fw.bat + bar.gap) * bs.bat * (1 - lm)             // the battery, left of search in the right piece
+    let sg.bat = screen.width - sg.in - sg.pad - bw.ctl - bw.set - bw.sr - vw.bat / 2
     let sg.nw = (14 * bu + sg.tw) * bs.title + bw.tray                // what the middle piece holds after the clock: the title (always `sg.tw` wide here, so the notch does not move as the title changes) and the tray
     let sg.ck = cx - sg.nw / 2                                      // the clock's middle: the whole notch (clock, title, tray) is centred on the screen
     let sg.cl = sg.ck - fw.clock / 2                               // the clock's left and right edges
@@ -5390,6 +5428,7 @@ scene Vitreus {
     let sr.x = mix(if(bo.sr < bo.title, bar.l + pre.sr + vw.sr / 2, bar.r - post.sr - vw.sr / 2), sg.sr, sg)
     let ctl.x = mix(if(bo.ctl < bo.title, bar.l + pre.ctl + vw.ctl / 2, bar.r - post.ctl - vw.ctl / 2), sg.ctl, sg)
     let dsk.x = bar.r - post.dsk - bar.gap * bs.dsk - vw.dsk / 2
+    let bat.x = mix(bar.r - post.dsk - bw.dsk0 - bar.gap * bs.bat - vw.bat / 2, sg.bat, sg)
     let ax.x = if(bo.ax < bo.title, bar.l + pre.ax + vw.ax / 2, bar.r - post.ax - vw.ax / 2)
     //  Where the window title starts, and how far it may reach: the stretch (the gaps are its neighbours').
     let win.x = bar.l + pre.title
@@ -5418,7 +5457,7 @@ scene Vitreus {
     let sg.fl = 17 * bu                                             // room for the slope where a piece runs into the thin frame, so nothing sits on it
     let sg.c0 = sg.cl - sg.pad - sg.fl
     let sg.c1 = sg.te + bw.tray + sg.pad + sg.fl
-    let sg.rl = screen.width - sg.in - sg.pad - bw.ctl - bw.set - bw.sr + bar.gap - sg.pad - sg.fl
+    let sg.rl = screen.width - sg.in - sg.pad - bw.ctl - bw.set - bw.sr - sg.bw + bar.gap - sg.pad - sg.fl
     //  Where the panels hang from in this layout: the calendar, the window title's, the tray's and the player's from the middle of the screen, where the middle piece is; the controls
     //  from the right end as along the other top frames. (`pcx0`, `rtop` are above; the panels are drawn about `pcx`.)
     let pcx.o = mix(pcx0, screen.width - th.r - 6.5 * ku - pw_x * ku / 2, rtop)
@@ -5467,7 +5506,8 @@ scene Vitreus {
     //  (`lv.bt` to `lv.bb`); the title's card goes between them, with room for its own.
     let lv.at = ob.y - ob.s / 2 - 9 * bu                   // the top card: from above the overview button to under the last mark and the plus
     let lv.ab = max(ws.a11 + max(ws.sv11, ws.ps * ws.pv) / 2, ws.o + 24 * ws.U * ws.sp) + 9 * bu      // (and under a special workspace's mark, the sparkle, notes or eye, that takes the marks' place)
-    let lv.bt = lv.sr - 20 * bu
+    let lv.bat = lv.sr - 34 * bu                           // the battery above search (when it is shown)
+    let lv.bt = lv.sr - 20 * bu - 34 * bu * bs.bat
     let lv.bb = lv.ctl + 22 * bu
     let lv.tt = lv.ab + 24 * bu
     let lv.bot = lv.bt - 24 * bu
@@ -7559,6 +7599,7 @@ scene Vitreus {
         let hr1 = bc.rr
         BarCard((hr0 + hr1) / 2, bar.y, hr1 - hr0, hh, 945.5, max(bs.sr, max(bs.ctl, bs.set)) * (1 - dkp))
         BarCard(dsk.x, bar.y, vw.dsk + 2 * bc.m, hh, 947.5, bs.dsk * (1 - fm))
+        BarCard(bat.x, bar.y, vw.bat + 2 * bc.m, hh, 948.5, bs.bat * (1 - fm))
     }
     //  The cards behind the two edge groups, down a strip: the same as the title's.
     group {
@@ -7595,6 +7636,22 @@ scene Vitreus {
         }
         zone box desk_open_z { at: dsk.x, bar.y; size: 26 * bu, 36 * bu; corner: 10 * bu; cursor: pointer; active: fm < 0.5 and bs.dsk > 0.6; label: "The Desk" }
         on press desk_open_z { panel_scr = screen.index; desk_tab = if(desk_open, desk_tab, desk_start); desk_open = not desk_open }
+    }
+    //  The battery: a pencilled cell filled as far as the charge goes, with the percentage beside it, next to the Desk's button. It boils under the pointer
+    //  (the bar's other icons rest otherwise, so the scene can sleep), goes red under 20 % while it drains and shows the bolt while it charges.
+    group {
+        show: sb > 0.5
+        opacity: bs.bat
+        glow: 2.4 * bu, 110%, deep
+        let bat.f = if(bat_z.hover > 0.5, floor(time * 8), 0)
+        let bat.c = mix(mix(ink, mint, if(chg_now, 1, 0)), #e0655a, batt_low)
+        let bat.o = 80% + 20% * bat_z.hover
+        group {
+            pivot: bat.x + (lf.x - bat.x) * lm, bar.y + (lv.bat - bar.y) * lm
+            scale: 1 - 0.26 * lm       // a smaller cell down the strip
+            BarBatt(bat.x + (lf.x - bat.x) * lm - 3 * bu, bar.y + (lv.bat - bar.y) * lm, mix(42, 36, lm) * bu, 20 * bu, batt_fill, bat.c, bat.o, bat.f, bu, bat_pct)
+        }
+        zone box bat_z { at: bat.x + (lf.x - bat.x) * lm, bar.y + (lv.bat - bar.y) * lm; size: mix(fw.bat + 6 * bu, lf.w - 6 * bu, lm), 30 * bu; corner: 10 * bu; cursor: default; active: bs.bat > 0.6 and sb > 0.5; label: "Battery" }
     }
     //  The clock runs while something needs it. It is here, after the bar's zones, because it reads their hover: the bar's icons only boil under the pointer.
     let need_clock = (fr_wv > 0 and fm > 0.5) or (cy_on > 0.01) or bar_hit.hover > 0.01 or adk_hot > 0.5 or wsh.1.$screen > 0.01 or wsh.2.$screen > 0.01 or wsh.3.$screen > 0.01 or wsh.4.$screen > 0.01 or wsh.5.$screen > 0.01 or wsh.6.$screen > 0.01 or wsh.7.$screen > 0.01 or wsh.8.$screen > 0.01 or wsh.9.$screen > 0.01 or wsh.10.$screen > 0.01 or set_hit.hover > 0.01 or sr_hit.hover > 0.01 or ctl_hit.hover > 0.01 or ov_btn.hover > 0.01 or bp.prev.hover > 0.01 or bp.play.hover > 0.01 or bp.next.hover > 0.01 or vm_prev.hover > 0.01 or vm_play.hover > 0.01 or vm_next.hover > 0.01 or ds > 0.01 or dl > 0.01 or dk > 0.01 or hm_hot > 0.5 or ((wifi_scanning or bt_scanning or bt_working or caf_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or osd_kind == note or nt_urgent)) or (set_pgd > 0.01 and disp.h > set.h) or time - pw_b0 < 1.5 or time - pw_b1 < 1.5 or time - pw_b2 < 1.5 or time - pw_b3 < 1.5 or time - pw_b4 < 1.5 or rec_on or (dsh_rise > 0.01 and (dsh_rise < 0.995 or dsh_under > 0.002 or media.playing or dsh_hv > 0.5)) or (mf.vis > 0.01 and (media.playing or mf_hv > 0.01))
