@@ -1136,8 +1136,6 @@ lockline="PLEAMAR_SWAPCHAIN=1 vitreus-keep $dest/lockscreen/lockscreen.plm"
 transline="vitreus-keep $dest/wptrans/wptrans.plm"
 clockline="vitreus-keep $dest/desktopclock/desktopclock.plm"
 sysmonline="vitreus-keep $dest/desktopsysmon/desktopsysmon.plm"
-# The UwU theme's cursor trail follows the mouse wherever it is, which pleamar only knows on Hyprland and in pleamar-wm: not on niri, where it is left out.
-trailline="[ -n \"\$NIRI_SOCKET\" ] || vitreus-keep $dest/cursortrail/cursortrail.plm"
 if $do_autostart; then
     # Lines from before the keeper started the scenes straight, once: they go through it now (with or without VAR=value words in front: a line that
     # keeps the shell outside the keeper is one that nothing starts again when Settings stops it to apply a theme's font).
@@ -1189,12 +1187,11 @@ if $do_autostart; then
         if $dry; then would "add to $autostart: $sysmonline"; else printf '%s\n' "$sysmonline" >> "$autostart"; fi
         say "the desktop system monitor starts with the desktop too, hidden (a line in $autostart); \"Desktop system monitor: toggle\" in the launcher shows it"
     fi
-    # The UwU cursor trail: a scene of its own that only draws while the theme is UwU. Hyprland and pleamar-wm only (see the line above).
+    # The UwU cursor trail: a scene of its own that only draws while the theme is UwU. The shell starts it when UwU is chosen and stops it on any
+    # other theme (see push_look in vitreus.luau), so it no longer starts with the desktop: a line from before is taken out.
     if [ -f "$autostart" ] && grep -q 'cursortrail/cursortrail.plm' "$autostart"; then
-        say "the UwU cursor trail is already in $autostart"
-    else
-        if $dry; then would "add to $autostart: $trailline"; else printf '%s\n' "$trailline" >> "$autostart"; fi
-        say "the UwU cursor trail starts with the desktop too (a line in $autostart; not on niri, which cannot tell where the mouse is)"
+        if $dry; then would "take the UwU cursor trail's line out of $autostart"; else sed -i '/cursortrail\/cursortrail\.plm/d' "$autostart"; fi
+        say "the UwU cursor trail no longer starts with the desktop: Vitreus starts it while the theme is UwU"
     fi
     # (The audio visualiser is part of the shell itself now, the bottom edge rising into the music: no scene of its own, no line here.)
     # The desktop stickers and the desktop's right-click menu are scenes of their own too, but Vitreus starts them itself (see vitreus.luau), so they have no line here.

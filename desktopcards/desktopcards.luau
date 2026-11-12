@@ -41,6 +41,22 @@ local function save() pcall(sys.call, "files.write", "desktopcards.json", cfg) e
 save()   -- (also writes the migration)
 local function save_todos() pcall(sys.call, "files.write", "desktopcards-todos.json", todos) end
 
+-- With both cards off and the desktop editor closed there is nothing to draw, and waiting costs this scene's ~70 MB all the same: after a while like that it
+-- leaves, its keeper first or the keeper would start it again. The editor's tiles start it again when a card is switched on (desktopedit.luau), and so do a
+-- theme's pinned widgets (logic/theme_widgets.luau); at login Vitreus starts it only when one is on. The `[s]` keeps the pattern from matching the `sh`.
+local IDLE_MS = 20000
+local idle_n = 0
+local function idle_check()
+    idle_n = idle_n + 1
+    local mine = idle_n
+    after(IDLE_MS, function()
+        if mine ~= idle_n or cfg.cal.shown or cfg.rem.shown or fact.edit == true then return end
+        run("sh", { "-c", "pkill -f 'vitreus-keep .*/desktopcard[s]/desktopcards[.]plm'; pleamar --say desktopcards quit" }, function() end)
+    end)
+end
+idle_check()
+on("fact:edit", function() idle_check() end)
+
 for _, c in ipairs(CARDS) do
     fact[c .. "_shown"] = cfg[c].shown
     fact[c .. "_gx"] = cfg[c].gx
@@ -154,7 +170,7 @@ every(5000, function()
 end)
 
 for _, c in ipairs(CARDS) do
-    on("fact:" .. c .. "_shown", function(v) cfg[c].shown = v and true or false; save() end)
+    on("fact:" .. c .. "_shown", function(v) cfg[c].shown = v and true or false; save(); idle_check() end)
     on("fact:" .. c .. "_gx", function(v) if type(v) == "number" then cfg[c].gx = v; save() end end)
     on("fact:" .. c .. "_gy", function(v) if type(v) == "number" then cfg[c].gy = v; save() end end)
     -- by the monitor's name (Settings > Theme > Pin widgets): only a monitor that is plugged in; another name leaves the card where it is
