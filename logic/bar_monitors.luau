@@ -81,6 +81,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
     -- and is moved over. A bar started without names (by hand, or before bar-screens) is started again with them, once: if it is
     -- still without them afterwards (bar-screens already says this), whoever started it is left to it rather than restarting for ever.
     local function needs(t)
+        B.stuck = false
         local have = tonumber((B.file or ""):match("^each max (%d+)") or "") or 0
         if have == 0 then return true end
         if B.may_shrink and have > #t then return true end
@@ -91,7 +92,16 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
                 if (named and B.started[k + 1] == name) or text["screen." .. k .. ".name"] == name then ok = true; break end
             end
             if not ok then
-                if not named and B.written == table.concat(t, ",") and have == #t then return false end
+                if not named and B.written == table.concat(t, ",") and have == #t then
+                    -- Said, and the copies are opened where they landed (`copies`), so the bar is on the wrong monitor rather than gone with
+                    -- nothing saying why (#67: a keeper from before the update, still running its old script, started it without names).
+                    B.stuck = true
+                    if not B.stuck_said then
+                        B.stuck_said = true
+                        log("bar · started without --screen even after bar-screens said " .. B.written .. ": is an old vitreus-keep running? The bar stays where its copies landed")
+                    end
+                    return false
+                end
                 return true
             end
         end
@@ -107,6 +117,13 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         if #B.mons == 0 then return end
         local set = {}
         for _, n in ipairs(chosen()) do set[n] = true end
+        -- Started without names and left so (`needs`): when none of its copies landed on a chosen monitor, they are all opened.
+        if B.stuck then
+            local have = tonumber((B.file or ""):match("^each max (%d+)") or "") or 0
+            local hit = false
+            for k = 0, have - 1 do if set[text["screen." .. k .. ".name"] or ""] then hit = true end end
+            if not hit then for k = 0, have - 1 do local n = text["screen." .. k .. ".name"]; if n and n ~= "" then set[n] = true end end end
+        end
         -- A copy that does not know its monitor yet: the first few are lit, as many as there are monitors, so a copy the
         -- scene does not have (`each max N` with N below MAX) is never lit and the bar is there from the first frame.
         local blind = math.min(#B.mons, MAX)

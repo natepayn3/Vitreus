@@ -15,6 +15,9 @@
 #     started again: every 30 s it is asked something only its render can answer, and three times in a row without an answer
 #     in 20 s (after a minute's grace at each start) is taken as hung. `VITREUS_KEEP_WATCH=0` turns this off
 #     (`VITREUS_KEEP_GRACE`, `_EVERY`, `_PATIENCE`: those seconds, for testing it).
+#   - An update that replaces this script (git reset) does not reach a keeper already running: it reads the old file it opened. So
+#     before each start it looks whether its file is still the one it began with, and if not runs the new one in its place (issue #67:
+#     the old keeper went on starting the bar without `--screen`, and the bar was gone).
 #   - To stop a scene for good, stop its keeper first (pkill -f "vitreus-keep SCENE"), then the scene.
 set -u
 P="${1:?usage: vitreus-keep SCENE.plm [LOG]}"
@@ -76,11 +79,21 @@ watch_hang() {
 exec 9> "$run/vitreus-keep-$name.lock"
 flock -n 9 || exit 0
 spid=""; wpid=""
+self=$(readlink -f "$0")
+stamp() { stat -L -c '%i %Y %s' "$self" 2> /dev/null; }
+began=$(stamp)
 # Stopped by hand (pkill -f "vitreus-keep SCENE", then the scene): it gets here once the scene it is waiting on has ended.
 trap '[ -n "$wpid" ] && kill "$wpid" 2> /dev/null; [ -n "$spid" ] && wait "$spid" 2> /dev/null; undo_gaps; exit 0' TERM INT HUP
 
 quick=0
 while :; do
+    # Its own file changed (an update): the new one takes over, with the lock let go so it can take it. Not a half-written file (`sh -n`).
+    now=$(stamp)
+    if [ -n "$now" ] && [ "$now" != "$began" ] && sh -n "$self" 2> /dev/null; then
+        say "its script was updated: running the new one"
+        exec 9>&-
+        exec "$self" "$P" "$L"
+    fi
     if running; then
         say "already running: left to whoever started it"
         exit 0
