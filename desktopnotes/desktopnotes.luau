@@ -270,3 +270,21 @@ local function ask_pwm()
 end
 ask_pwm()
 after(4000, ask_pwm)
+
+-- No stickers, not in Edit mode and nothing being written: there is nothing to draw, and waiting costs this scene a full-screen surface on every monitor
+-- (~133 MB on the card with three) and its memory all the same. After a while like that it leaves, its keeper first or the keeper would start it again.
+-- A new sticker starts it again (`new_sticker` in vitreus.luau, from the editor's tile, the launcher or the Desk's Notes), and at login Vitreus starts it
+-- only when desktopnotes-stickers.json has one. The `[s]` keeps the pattern from matching the `sh` that runs it.
+local IDLE_MS = 20000
+local idle_n = 0
+local function idle_check()
+    idle_n = idle_n + 1
+    local mine = idle_n
+    after(IDLE_MS, function()
+        if mine ~= idle_n or next(slots) ~= nil or fact.edit == true or (tonumber(fact.eix) or -1) >= 0 then return end
+        run("sh", { "-c", "pkill -f 'vitreus-keep .*/desktopnote[s]/desktopnotes[.]plm'; pleamar --say desktopnotes quit" }, function() end)
+    end)
+end
+idle_check()
+on("note_del", idle_check)
+on("fact:edit", idle_check)
