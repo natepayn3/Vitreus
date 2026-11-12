@@ -24,10 +24,15 @@ return function()
         if copies ~= nil and seen_sig == sig then return done() end
         run("pleamar", { "--say", "vitreus", "describe" }, function(out)
             local list = {}
-            for i, w, h in (out or ""):gmatch("main %(screen (%d+)%) · %S+ (%d+)×(%d+)") do
-                list[#list + 1] = { i = tonumber(i), w = tonumber(w), h = tonumber(h) }
+            -- Each open copy's header: "main (screen N) · panel W×H". The first copy says no "(screen 0)" when the bar was started with its monitors by
+            -- name (`--screen`, bin/vitreus-keep since #67): a header with no number is copy 0.
+            for line in (out or ""):gmatch("[^\n]+") do
+                if line:match("^main[ ·]") then
+                    local w, h = line:match("(%d+)×(%d+)")
+                    if w then list[#list + 1] = { i = tonumber(line:match("^main %(screen (%d+)%)")) or 0, w = tonumber(w), h = tonumber(h) } end
+                end
             end
-            copies = list                -- empty with one copy: its header has no "(screen N)"
+            copies = list
             seen_sig = sig
             done()
         end)
@@ -68,9 +73,16 @@ return function()
                 -- the copies are made in Hyprland's order of monitors
                 done(type(foc.id) == "number" and foc.id < math.max(#(copies or {}), #names) and foc.id or nil)
             end
-            -- With one copy open (the bar on one monitor) the panel goes to that one; with none told apart (a scene with no copy per monitor) the toggle is the plain one.
+            -- With one copy open (the bar on one monitor) the panel goes to that one; with none told apart (a scene with no copy per monitor) the toggle is the
+            -- plain one, on the copy that is open (the bar's monitor switched off and on again left `panel_scr` on a copy that has closed since: the panels
+            -- opened from a key were drawn there, unseen).
             local function pick_or_plain()
-                if not copies or #copies == 0 then return done(nil) end
+                if not copies or #copies == 0 then
+                    for k = 0, 3 do
+                        if fact["bar_c" .. k] == true and (text["screen." .. k .. ".name"] or "") ~= "" then return done(k) end
+                    end
+                    return done(nil)
+                end
                 if #copies == 1 then return done(copies[1].i) end
                 pick()
             end
