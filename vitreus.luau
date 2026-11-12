@@ -2344,9 +2344,9 @@ function watch_urgent()
         end)
     end)
 end
--- The desktop's own scenes (the right-click menu on the wallpaper and the stickers, which live under the windows) are programs of their own, since a scene has one layer. They are
--- not in the autostart file: this starts whichever of them is not running, once, a few seconds after the shell does. (The clock and the system monitor are started by the
--- autostart file, as before.) The desktop editor is not among them: the right press starts it (desktopmenu_hypr.luau) and it leaves once it has been closed a while. Nor are
+-- The desktop's own scenes (the stickers, which live under the windows) are programs of their own. They are not in the autostart file: this starts whichever of them is
+-- not running, once, a few seconds after the shell does. (The clock, the system monitor and the wallpaper's layer, wptrans/, which also hears the right press on the
+-- wallpaper, are started by the autostart file.) The desktop editor is not among them: the right press starts it (wptrans.luau) and it leaves once it has been closed a while. Nor are
 -- the calendar and the reminders unless one of them is on (desktopcards.json, in that scene's own data folder): the editor's tiles start them, and they leave when both are off.
 after(4000, function()
     if not on_hyprland then return end
@@ -2357,8 +2357,8 @@ after(4000, function()
             end
         end)
     end
-    -- (Hyprland runs the menu's own copy, desktopmenu_hypr.plm: background layer, wallpaper zone always live)
-    keep("desktopmenu", "desktopmenu_hypr")
+    -- (The right press on the wallpaper was a scene of its own, desktopmenu_hypr.plm, until wptrans took it over: one left from before is stopped.)
+    scene_stop("desktopmenu/desktopmenu_hypr.plm")
     -- (the data folder by hand: `with_dirs` is a local made further down)
     run("printenv", { "XDG_DATA_HOME" }, function(xdg)
         run("printenv", { "HOME" }, function(home)
@@ -6625,7 +6625,7 @@ end
                  run = function() run("wl-copy", { "--", str }, function() end) end }
     end
 
-    -- A card on the desktop with its own scene: asked how it is, started if it is not running, and shown or put away. (The desktop's right-click menu, desktopmenu/, says
+    -- A card on the desktop with its own scene: asked how it is, started if it is not running, and shown or put away. (The desktop editor, desktopedit/, says
     -- these over `pleamar --say`; the clock is already running, as it starts with the desktop.)
     local function toggle_scene(name, dir)
         run("pleamar", { "--say", name, "get shown" }, function(out, code)
@@ -7410,6 +7410,21 @@ require("logic/bar_beat")()
 
 -- bar layout: see logic/bar_layout.luau
 require("logic/bar_layout")()
+-- the workspace marks' look and options (Settings > Bar > Workspaces), and the Apps look's icons: see logic/ws_marks.luau
+require("logic/ws_marks")({
+    icon_for = function(class) return apps_by_class[class] or class end,
+    clients = function(done)
+        run("hyprctl", { "clients" }, function(out, code)
+            if code ~= 0 or not out then return done(nil) end
+            done(parse_clients(out))
+        end)
+    end,
+    where = function()
+        if on_hyprland then return "hypr" elseif on_niri then return "niri" elseif fact.wm_pwm then return "wm" end
+        return nil
+    end,
+    refresh_icons = function() end,
+})
 
 -- updates: see logic/updates.luau
 require("logic/updates")(key, with_dirs)
@@ -7441,21 +7456,6 @@ do
     require("logic/theme_widgets")({
         theme = function() if not vtheme.loaded then return nil end local t = vtheme.current(); return t.id, t.name end,
         start = function(dir) exec_on_desktop('vitreus-keep "$HOME/.config/pleamar/shells/vitreus/' .. dir .. '/' .. dir .. '.plm"') end,
--- the workspace marks' look and options (Settings > Bar > Workspaces), and the Apps look's icons: see logic/ws_marks.luau
-require("logic/ws_marks")({
-    icon_for = function(class) return apps_by_class[class] or class end,
-    clients = function(done)
-        run("hyprctl", { "clients" }, function(out, code)
-            if code ~= 0 or not out then return done(nil) end
-            done(parse_clients(out))
-        end)
-    end,
-    where = function()
-        if on_hyprland then return "hypr" elseif on_niri then return "niri" elseif fact.wm_pwm then return "wm" end
-        return nil
-    end,
-    refresh_icons = function() end,
-})
         addons = addons.widgets,
     })
 end

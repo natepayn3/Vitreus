@@ -1808,7 +1808,6 @@ end
 function F.pick(title, rows, fn)
     local m = {}
     for i, r in ipairs(rows) do
-        if i > 14 then break end
         m[i] = { at = i - 1, label = r.label, sub = r.sub or "", hs = r.sub ~= nil and r.sub ~= "", ic = r.ic or 8 }
     end
     s.picker = { rows = rows, fn = fn }
@@ -2116,15 +2115,67 @@ function F.mime_of(path, cb)
     run("file", { "-b", "--mime-type", "--", path }, function(m) cb(trim(m)) end)
 end
 
+-- every program there is to start, whatever it says it opens: the ones that are shown (Type=Application, not NoDisplay or Hidden), the first of an id winning, by name
+local ALL_APPS_SH = [=[
+for d in "$HOME/.local/share/applications" /usr/share/applications /usr/local/share/applications /var/lib/flatpak/exports/share/applications "$HOME/.local/share/flatpak/exports/share/applications"; do
+    for f in "$d"/*.desktop; do [ -f "$f" ] && printf '%s\n' "$f"; done
+done | xargs -r -d '\n' awk 'function out(){ if (n != "" && !nd && t == "Application") print p "\t" n }
+FNR==1 { if (p != "") out(); p = FILENAME; n = ""; nd = 0; t = ""; sec = 0 }
+/^\[/ { sec = ($0 == "[Desktop Entry]") }
+sec && /^Name=/ && n == "" { n = substr($0, 6) }
+sec && /^(NoDisplay|Hidden)=true/ { nd = 1 }
+sec && /^Type=/ { t = substr($0, 6) }
+END { if (p != "") out() }'
+]=]
+function F.all_apps(cb)
+    run("sh", { "-c", ALL_APPS_SH }, function(out)
+        local apps, seen, names = {}, {}, {}
+        for path, nm in (out or ""):gmatch("([^\t\n]+)\t([^\n]*)") do
+            local id = basename(path)
+            if not seen[id] then
+                seen[id] = true
+                apps[#apps + 1] = { name = nm, path = path, id = id }
+                names[nm] = (names[nm] or 0) + 1
+            end
+        end
+        table.sort(apps, function(a, b)
+            local x, y = a.name:lower(), b.name:lower()
+            if x ~= y then return x < y end
+            return a.id < b.id
+        end)
+        for _, a in ipairs(apps) do a.twin = names[a.name] > 1 end   -- two called the same: say which is which
+        cb(apps)
+    end)
+end
+
+local function launch_with(app, e)
+    local ok = pcall(spawn, "gio", { "launch", app.path, e.path }, function() end, function(_, code) if code ~= 0 then say("Could not start " .. app.name) end end)
+    if not ok then say("Could not start " .. app.name) end
+end
+
+-- any program at all, in one list that scrolls
+local function pick_any_app(e, apps)
+    local rows = {}
+    for i, a in ipairs(apps) do rows[i] = { label = a.name, sub = a.twin and a.id or nil, ic = 30, app = a } end
+    F.pick("Open " .. e.name .. " with", rows, function(r) launch_with(r.app, e) end)
+end
+
 function F.open_with(e)
     F.mime_of(e.path, function(mime)
+        -- an empty file has no kind of its own (inode/x-empty), and nothing says it opens those: anything that opens text will do
+        if mime == "inode/x-empty" or mime == "application/x-zerosize" then mime = "text/plain" end
         F.apps_for(mime, function(apps)
-            if #apps == 0 then say("Nothing is known that opens " .. e.name) return end
+            -- the ones that say they open it first, then a way to any other program (they may still manage it)
             local rows = {}
             for i, a in ipairs(apps) do rows[i] = { label = a.name, sub = i == 1 and "Default" or nil, ic = 30, app = a } end
+            rows[#rows + 1] = { label = "Another app…", sub = #apps == 0 and "Nothing says it opens this kind of file" or "Any program, to try", ic = 30, any = true }
             F.pick("Open " .. e.name .. " with", rows, function(r)
-                local ok = pcall(spawn, "gio", { "launch", r.app.path, e.path }, function() end, function(_, code) if code ~= 0 then say("Could not start " .. r.app.name) end end)
-                if not ok then say("Could not start " .. r.app.name) end
+                if r.any then
+                    F.all_apps(function(all)
+                        if #all == 0 then say("No programs found") return end
+                        pick_any_app(e, all)
+                    end)
+                else launch_with(r.app, e) end
             end)
         end)
     end)
