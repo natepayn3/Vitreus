@@ -7406,6 +7406,21 @@ require("logic/bar_beat")()
 
 -- bar layout: see logic/bar_layout.luau
 require("logic/bar_layout")()
+-- the workspace marks' look and options (Settings > Bar > Workspaces), and the Apps look's icons: see logic/ws_marks.luau
+require("logic/ws_marks")({
+    icon_for = function(class) return apps_by_class[class] or class end,
+    clients = function(done)
+        run("hyprctl", { "clients" }, function(out, code)
+            if code ~= 0 or not out then return done(nil) end
+            done(parse_clients(out))
+        end)
+    end,
+    where = function()
+        if on_hyprland then return "hypr" elseif on_niri then return "niri" elseif fact.wm_pwm then return "wm" end
+        return nil
+    end,
+    refresh_icons = function() end,
+})
 
 -- updates: see logic/updates.luau
 require("logic/updates")(key, with_dirs)
@@ -7437,21 +7452,6 @@ do
     require("logic/theme_widgets")({
         theme = function() if not vtheme.loaded then return nil end local t = vtheme.current(); return t.id, t.name end,
         start = function(dir) exec_on_desktop('vitreus-keep "$HOME/.config/pleamar/shells/vitreus/' .. dir .. '/' .. dir .. '.plm"') end,
--- the workspace marks' look and options (Settings > Bar > Workspaces), and the Apps look's icons: see logic/ws_marks.luau
-require("logic/ws_marks")({
-    icon_for = function(class) return apps_by_class[class] or class end,
-    clients = function(done)
-        run("hyprctl", { "clients" }, function(out, code)
-            if code ~= 0 or not out then return done(nil) end
-            done(parse_clients(out))
-        end)
-    end,
-    where = function()
-        if on_hyprland then return "hypr" elseif on_niri then return "niri" elseif fact.wm_pwm then return "wm" end
-        return nil
-    end,
-    refresh_icons = function() end,
-})
         addons = addons.widgets,
     })
 end
