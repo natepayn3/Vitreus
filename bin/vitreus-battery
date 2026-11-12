@@ -38,6 +38,8 @@ need_root() {
     return 1
 }
 self=$(readlink -f "$0")
+smin() { if [ -d /sys/module/dell_laptop ]; then echo 50; else echo 0; fi; }
+stops() { if [ -d /sys/module/lg_laptop ] || [ -d /sys/module/toshiba_acpi ]; then echo "80 100"; fi; }
 SYS=/sys/class/firmware-attributes/dell-wmi-sysman
 
 case "${1:-}" in
@@ -48,9 +50,12 @@ info)
     echo "model=$(rd model_name)"
     echo "tech=$(rd technology)"
     echo "cycles=$(rd cycle_count)"
-    # Capacity: energy (µWh) or charge (µAh, turned into µWh with the design voltage, µV) as the battery reports it.
+    # Capacity in mWh: energy (µWh) or charge (µAh, turned into mWh with the design voltage, µV) as the battery reports it.
+    # (Only charge in µAh, unit=ah, when there is no voltage to turn it with.)
     full=$(rd energy_full); design=$(rd energy_full_design); unit=wh
-    if [ -z "$full" ] || [ -z "$design" ]; then
+    if [ -n "$full" ] && [ -n "$design" ]; then
+        full=$(( full / 1000 )); design=$(( design / 1000 ))
+    else
         full=$(rd charge_full); design=$(rd charge_full_design); unit=ah
         volt=$(rd voltage_min_design)
         if [ -n "$full" ] && [ -n "$design" ] && [ -n "$volt" ] && [ "$volt" -gt 0 ]; then
@@ -65,6 +70,10 @@ info)
     types=$(rd "$ct")
     case "$types" in *"["*) echo "modes=$types" ;; *) echo "modes=" ;; esac
     echo "start=$(rd charge_control_start_threshold)"
+    # How low the start can go: Dell's firmware takes 50 % at the least, the others (ThinkPad, Framework, System76...) any level under the stop.
+    echo "smin=$(smin)"
+    # A stop the firmware takes only at some levels (LG and Toshiba: 80 or 100), so the card offers only those.
+    echo "stops=$(stops)"
     echo "end=$(rd charge_control_end_threshold)"
     w=0
     for f in "$ct" charge_control_end_threshold; do [ -e "$bat/$f" ] && [ -w "$bat/$f" ] && w=1; done
@@ -133,7 +142,9 @@ limits)
     [ -n "$bat" ] || exit 1
     s="${2:-}"; e="${3:-}"
     case "$s$e" in ''|*[!0-9]*) echo "limits START END, in %" >&2; exit 2 ;; esac
-    [ "$e" -ge 50 ] && [ "$e" -le 100 ] && [ "$s" -ge 0 ] && [ "$s" -le $(( e - 5 )) ] || { echo "out of range" >&2; exit 2; }
+    [ "$e" -ge 50 ] && [ "$e" -le 100 ] && [ "$s" -ge "$(smin)" ] && [ "$s" -le $(( e - 5 )) ] || { echo "out of range" >&2; exit 2; }
+    ok=$(stops)
+    if [ -n "$ok" ]; then case " $ok " in *" $e "*) ;; *) echo "this battery stops only at $(echo "$ok" | sed 's/ / or /') %" >&2; exit 2 ;; esac; fi
     ct=charge_types; [ -e "$bat/$ct" ] || ct=charge_type
     custom=0
     case " $(rd "$ct" | tr -d '[]') " in *" Custom "*) custom=1 ;; esac

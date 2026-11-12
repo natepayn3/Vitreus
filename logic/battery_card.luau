@@ -16,6 +16,8 @@ return function()
     local has_thr, has_start = false, false
     local s_lim, e_lim = 50, 90
     local apply_seq = 0
+    local s_min = 50           -- how low the start goes (Dell 50, the others 0)
+    local stops = nil          -- the only stops the firmware takes (LG, Toshiba: { 80, 100 }), or nil for any 55..100
     local bios = false         -- a BIOS admin password: changes go through the BIOS's settings, with it
     local pending = nil        -- the change waiting for that password: { "mode", name } or { "limits", s, e }
 
@@ -72,6 +74,9 @@ return function()
                 fact["bc.end"] = e_lim
             end
             fact["bc.hasstart"] = has_start
+            s_min = tonumber(v.smin) or 50
+            stops = nil
+            for n in (v.stops or ""):gmatch("%d+") do stops = stops or {}; stops[#stops + 1] = tonumber(n) end
             show_thr()
             fact["bc.ask"] = v.writable ~= "1"
             bios = v.bios == "1"
@@ -151,17 +156,29 @@ return function()
         apply({ "mode", name })
     end)
 
-    -- 0 start down, 1 start up, 2 stop down, 3 stop up. The stop is 55..100, the start 50..stop - 5.
+    -- 0 start down, 1 start up, 2 stop down, 3 stop up. The stop is 55..100 (or one of `stops`), the start `s_min`..stop - 5.
     on("bc_step", function(k)
         k = tonumber(k) or -1
-        if k == 0 then s_lim = s_lim - 5 elseif k == 1 then s_lim = s_lim + 5
-        elseif k == 2 then e_lim = e_lim - 5 elseif k == 3 then e_lim = e_lim + 5 else return end
-        e_lim = math.max(55, math.min(100, e_lim))
-        if k <= 1 then
-            s_lim = math.max(50, math.min(95, s_lim))
-            if s_lim > e_lim - 5 then e_lim = math.min(100, s_lim + 5) end
+        if k < 0 or k > 3 then return end
+        if stops and k >= 2 then
+            -- the next of the levels the firmware takes, up or down from where it is
+            local pick = e_lim
+            if k == 3 then
+                for _, n in ipairs(stops) do if n > e_lim then pick = n; break end end
+            else
+                for i = #stops, 1, -1 do if stops[i] < e_lim then pick = stops[i]; break end end
+            end
+            e_lim = pick
+        else
+            if k == 0 then s_lim = s_lim - 5 elseif k == 1 then s_lim = s_lim + 5
+            elseif k == 2 then e_lim = e_lim - 5 else e_lim = e_lim + 5 end
+            e_lim = math.max(55, math.min(100, e_lim))
+            if k <= 1 then
+                s_lim = math.max(s_min, math.min(95, s_lim))
+                if s_lim > e_lim - 5 then e_lim = math.min(100, s_lim + 5) end
+            end
         end
-        s_lim = math.max(50, math.min(e_lim - 5, s_lim))
+        s_lim = math.max(s_min, math.min(e_lim - 5, s_lim))
         fact["bc.start"] = s_lim
         fact["bc.end"] = e_lim
         apply_seq = apply_seq + 1
