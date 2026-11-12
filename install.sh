@@ -27,7 +27,7 @@
 #                                      into ~/.local/share/fonts, no sudo)
 #   4. the shell                      (into ~/.config/pleamar/shells/vitreus: cloned, or updated)
 #   5. your palette, autostart entry  (made once and never written over)
-#   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent, vitreus-sysmon, vitreus-battery, vitreus-term, vitreus-files, vitreus-edit and vitreus-report, linked into ~/.local/bin; vitreus-inhibit, built there)
+#   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent, vitreus-sysmon, vitreus-battery, vitreus-greeter, vitreus-term, vitreus-files, vitreus-edit and vitreus-report, linked into ~/.local/bin; vitreus-inhibit, built there)
 #   5c. Files, as a program            (its icon and entry in ~/.local/share; asked: the file manager for folders and «Show in folder», files/integrate.sh)
 #   5d. View, as a program             (its icon and entry in ~/.local/share; asked: what opens pictures and videos, view/integrate.sh)
 #   6. its Hyprland key binds         (hypr_vitreus.lua linked into ~/.config/hypr, and loaded from hyprland.lua)
@@ -450,6 +450,7 @@ if [ "$action" = uninstall ]; then
     if [ -L "$HOME/.local/bin/vitreus-polkit-agent" ]; then run rm -f "$HOME/.local/bin/vitreus-polkit-agent"; fi
     if [ -L "$HOME/.local/bin/vitreus-sysmon" ]; then run rm -f "$HOME/.local/bin/vitreus-sysmon"; fi
     if [ -L "$HOME/.local/bin/vitreus-battery" ]; then run rm -f "$HOME/.local/bin/vitreus-battery"; fi
+    if [ -L "$HOME/.local/bin/vitreus-greeter" ]; then run rm -f "$HOME/.local/bin/vitreus-greeter"; fi
     if [ -L "$HOME/.local/bin/vitreus-term" ]; then run rm -f "$HOME/.local/bin/vitreus-term"; fi
     if [ -L "$HOME/.local/bin/vitreus-files" ]; then run rm -f "$HOME/.local/bin/vitreus-files"; fi
     if [ -L "$HOME/.local/bin/vitreus-view" ]; then run rm -f "$HOME/.local/bin/vitreus-view"; fi
@@ -591,6 +592,7 @@ if $deps; then
     cava            the bass pulse and the equalizer
     playerctl       cover art
     awww            the wallpaper picker
+    qt6-multimedia, qt6-multimedia-ffmpeg  a video behind the login screen (Settings > Greeter); without them it shows the video's first frame
     mpvpaper (AUR), ffmpeg  video wallpapers (mp4, webm, mov): mpvpaper plays them, ffmpeg takes the frame the rest of the shell reads; ffmpeg also reads the webcam
     iris            theming from the wallpaper (https://aur.archlinux.org/packages/iris-colors)
     imagemagick     wallpaper thumbnails, the launcher's picture previews, Snap's marked-up picture, and the pictures' own pictures in Files
@@ -977,6 +979,7 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
     # Settings > System monitor's data source: started by the shell while that page is showing, and stopped when it is not.
     [ -x "$dest/bin/vitreus-sysmon" ] && run ln -sf "$dest/bin/vitreus-sysmon" "$HOME/.local/bin/vitreus-sysmon"
     [ -x "$dest/bin/vitreus-battery" ] && run ln -sf "$dest/bin/vitreus-battery" "$HOME/.local/bin/vitreus-battery"       # the battery card: health, charge mode and limits
+    [ -x "$dest/bin/vitreus-greeter" ] && run ln -sf "$dest/bin/vitreus-greeter" "$HOME/.local/bin/vitreus-greeter"       # Settings > Greeter: the login screen's picture or video, and its clock
     [ -x "$dest/bin/vitreus-term" ] && run ln -sf "$dest/bin/vitreus-term" "$HOME/.local/bin/vitreus-term"
     # The keeper the autostart lines run each scene under: it starts a scene again when it stops (a crash on a monitor's wake).
     [ -x "$dest/bin/vitreus-files" ] && run ln -sf "$dest/bin/vitreus-files" "$HOME/.local/bin/vitreus-files"
@@ -1323,7 +1326,7 @@ if $do_login && ! $refresh && [ -x "$dest/sddm/install.sh" ] && { have sddm || [
     if [ -d /usr/share/sddm/themes/vitreus ] && cmp -s "$dest/sddm/vitreus/Main.qml" /usr/share/sddm/themes/vitreus/Main.qml; then
         say "the Vitreus login screen is installed (sh $dest/sddm/install.sh [IMAGE] makes it again, with another picture)"
     elif [ -d /usr/share/sddm/themes/vitreus ]; then
-        # An older copy: install it again (the picture is made again too: the repository's assets/greeter.jpeg, or pass your own to sddm/install.sh)
+        # An older copy: install it again (with the picture or video it already shows; pass another to sddm/install.sh to change it)
         if ask "update the Vitreus login screen, the SDDM theme (needs sudo)?"; then
             run_kept sh "$dest/sddm/install.sh" --yes || warn "could not: run  sh $dest/sddm/install.sh  yourself"
         fi

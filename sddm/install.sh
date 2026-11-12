@@ -1,6 +1,6 @@
 #!/bin/sh
 # install.sh [IMAGE] [--set | --no-set] [--yes]: installs the Vitreus login screen, a theme for SDDM, and (asking, when there already is one) makes it the one in use.
-#   IMAGE     the login screen's picture: assets/greeter.jpeg, in this repository
+#   IMAGE     a picture or video for the login screen, kept as your choice (as Settings > Greeter does); the theme itself carries assets/greeter.jpeg (.mp4, .mkv, .webm, .mov), played on a loop, muted
 #   --set     make it the theme in use without asking          --no-set   only install it: leave the theme in use as it is
 #   --yes     answer yes to the question (the same as --set)    --remove   take it away and put the theme that was in use back
 # It uses sudo for /usr/share/sddm/themes and for SDDM's configuration. Try it first, with nothing installed:  ./build-assets.sh /tmp/vitreus-greeter  and
@@ -48,7 +48,7 @@ if [ "$action" = remove ]; then
 fi
 
 [ -d "$themes" ] || { echo "SDDM's themes are not in $themes: is SDDM installed?" >&2; exit 1; }
-[ -n "$image" ] || image=$here/../assets/greeter.jpeg
+[ -z "$image" ] || [ -f "$image" ] || { echo "no file at $image" >&2; exit 1; }
 # The installer downloads Space Grotesk as one variable font; build-assets.sh needs python-fonttools to cut the three weights the greeter uses from it (without it they all look the same).
 font=$(fc-match -f '%{file}' "Space Grotesk" 2> /dev/null)
 fdir=$(dirname "$font")
@@ -64,7 +64,11 @@ if [ -f "$font" ] && [ ! -f "$fdir/static/SpaceGrotesk-Bold.ttf" ] && [ ! -f "$f
 fi
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-"$here/build-assets.sh" "$tmp/vitreus" "$image"
+# The theme carries the repository's picture (Settings > Greeter's "Use the default"). A picture or video given here, or one an older install carried of its own,
+# is kept as your choice in the folder below (bin/vitreus-greeter): before the old copy goes, so it can still be read.
+"$here/build-assets.sh" "$tmp/vitreus"
+greeter=$here/../bin/vitreus-greeter
+[ -d "$shared" ] && [ -w "$shared" ] && [ -x "$greeter" ] && "$greeter" adopt "$tmp/vitreus/background.jpg" || true
 sudo rm -rf "$themes/vitreus"
 sudo cp -r "$tmp/vitreus" "$themes/vitreus"
 sudo chmod -R a+rX "$themes/vitreus"
@@ -72,6 +76,10 @@ echo "installed in $themes/vitreus"
 # Your face is kept in a folder that is yours (the greeter cannot read your home folder), so that changing your picture needs no sudo: Vitreus's Settings copy it there.
 sudo install -d -o "$(id -un)" -m 755 "$shared"
 [ -f "$HOME/.face" ] && "$here/refresh-avatar.sh" || true
+if [ -n "$image" ]; then
+    if [ -x "$greeter" ] && "$greeter" set "$image" > /dev/null; then echo "the login screen shows $(basename "$image") (Settings > Greeter changes it)"
+    else echo "could not use $image: choose it in Settings > Greeter" >&2; fi
+fi
 
 # Making it the one in use: with none (or already this one) there is nothing to replace; with another one, ask.
 now=$(current_theme)

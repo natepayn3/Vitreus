@@ -1,0 +1,155 @@
+part Greeter {
+        //  The Greeter page (Screen): the login screen's picture or video, and its clock. They are kept in a folder of the user's that the greeter reads
+        //  (bin/vitreus-greeter, logic/greeter.luau), so nothing here asks for a password; an older greeter that does not read it says to install it again.
+        group {
+            show: set_pgg > 0.01
+            opacity: set_pgg
+            let grx = spx + 14 * pu
+            let grr = spx + 252 * pu         // the right column of the background card
+
+            //  Card one: what it is.
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 26 * pu; size: 438 * pu, 52 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pu, sby + 26 * pu, 438 * pu, 52 * pu, 611.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pu, sby + 26 * pu; size: 438 * pu, 52 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            group { scale: rs; pivot: floor(grx + 0.5), floor(sby + 16 * pu + 0.5); text "Greeter" { at: floor(grx + 0.5), floor(sby + 16 * pu + 0.5); anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(grx + 0.5), floor(sby + 35 * pu + 0.5); text "The login screen, before you sign in: what it shows behind the clock" { at: floor(grx + 0.5), floor(sby + 35 * pu + 0.5); anchor: left center; size: 14; color: faint; width: (340 * pu) / rs; lines: 1; family: "Space Grotesk"; show: gr_active } }
+            group { scale: rs; pivot: floor(grx + 0.5), floor(sby + 35 * pu + 0.5); text gr_other_t { at: floor(grx + 0.5), floor(sby + 35 * pu + 0.5); anchor: left center; size: 14; color: faint; width: (340 * pu) / rs; lines: 1; family: "Space Grotesk"; show: not gr_active } }
+            //  On: SDDM uses this greeter. Off: the login screen it used before (set up outside the shell), or SDDM's own. Asks for the password (polkit).
+            SettingsSwitch(spx + 424 * pu, sby + 26 * pu, gr_use_k, gr_use.pressed, gr_use.hover, mint)
+            zone box gr_use { at: spx + 219 * pu, sby + 26 * pu; size: 430 * pu, 44 * pu; corner: 10 * pu; cursor: pointer; active: not gr_busy and not grd_open and (gr_installed or gr_active); label: "Use the Vitreus login screen" }
+            on press gr_use { emit gr_toggle_use }
+
+            //  Everything under it is about this greeter: faint and asleep while SDDM uses another.
+            group {
+                opacity: 35% + 65% * gr_use_k
+
+                //  Card two: the background. A picture of it on the left (a video's first frame), what it is and the buttons on the right.
+                body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 137 * pu; size: 438 * pu, 150 * pu; corner: 14 * pu } }
+                DdCard(spx + 219 * pu, sby + 137 * pu, 438 * pu, 150 * pu, 622.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+                box { at: spx + 219 * pu, sby + 137 * pu; size: 438 * pu, 150 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+                box { at: spx + 126 * pu, sby + 137 * pu; size: 224 * pu, 126 * pu; corner: 10 * pu; color: ink; opacity: 7% }
+                group {
+                    opacity: if(gr_busy, 45%, 100%)
+                    clip box { at: spx + 126 * pu, sby + 137 * pu; size: 224 * pu, 126 * pu; corner: 10 * pu }
+                    image gr_pv { at: spx + 14 * pu, sby + 74 * pu; size: 224 * pu, 126 * pu; fit: cover; show: gr_has_pv }
+                }
+                box { at: spx + 126 * pu, sby + 137 * pu; size: 224 * pu, 126 * pu; corner: 10 * pu; stroke: 1.2 * pu; color: ink; opacity: 18% }
+                group { scale: rs; pivot: floor(grr + 0.5), floor(sby + 84 * pu + 0.5); text "BACKGROUND" { at: floor(grr + 0.5), floor(sby + 84 * pu + 0.5); anchor: left center; size: 12; weight: 700; color: faint; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(grr + 0.5), floor(sby + 106 * pu + 0.5); text gr_kind_t { at: floor(grr + 0.5), floor(sby + 106 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; width: (172 * pu) / rs; lines: 1; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(grr + 0.5), floor(sby + 125 * pu + 0.5); text gr_name_t { at: floor(grr + 0.5), floor(sby + 125 * pu + 0.5); anchor: left center; size: 13; color: faint; width: (172 * pu) / rs; lines: 1; family: "Space Grotesk" } }
+
+                //  Open: the folder browser, over the page, to pick any picture or video (the folder they go to must be there: Apply makes it).
+                box { at: spx + 294 * pu, sby + 166 * pu; size: 84 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: if(gr_busy or not gr_writable, 6%, 24% + 12% * gr_open_hit.hover) }
+                PPillOutline(spx + 294 * pu, sby + 166 * pu, 84 * pu, 24 * pu, 12 * pu, gr_open_hit.hover, clamp(3 * (if(gr_busy or not gr_writable, 6%, 24% + 12% * gr_open_hit.hover)), 0, 1), pu)
+                group { scale: rs; pivot: floor(spx + 294 * pu + 0.5), floor(sby + 166 * pu + 0.5); text "Open" { at: floor(spx + 294 * pu + 0.5), floor(sby + 166 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (80 * pu) / rs; lines: 1; color: mint; opacity: if(gr_busy or not gr_writable, 45%, 100%); family: "Space Grotesk" } }
+                zone box gr_open_hit { at: spx + 294 * pu, sby + 166 * pu; size: 86 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: gr_active and gr_writable and not gr_busy and not grd_open; label: "Open a picture or video" }
+                on press gr_open_hit { grd_open = true; emit gr_browse }
+                //  Test: the installed login screen in a window (SDDM's test mode: it cannot sign in).
+                box { at: spx + 382 * pu, sby + 166 * pu; size: 84 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: if(gr_busy or not gr_installed, 4%, 8% + 10% * gr_test_hit.hover) }
+                PPillOutline(spx + 382 * pu, sby + 166 * pu, 84 * pu, 24 * pu, 12 * pu, gr_test_hit.hover, clamp(3 * (if(gr_busy or not gr_installed, 4%, 8% + 10% * gr_test_hit.hover)), 0, 1), pu)
+                group { scale: rs; pivot: floor(spx + 382 * pu + 0.5), floor(sby + 166 * pu + 0.5); text "Test" { at: floor(spx + 382 * pu + 0.5), floor(sby + 166 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (80 * pu) / rs; lines: 1; color: ink; opacity: if(gr_busy or not gr_installed, 40%, 100%); family: "Space Grotesk" } }
+                zone box gr_test_hit { at: spx + 382 * pu, sby + 166 * pu; size: 86 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: gr_active and gr_installed and not gr_busy and not grd_open; label: "Test the login screen in a window" }
+                on press gr_test_hit { emit gr_preview }
+
+                //  Default: the theme's own again (only when there is one of the user's to take away).
+                box { at: spx + 338 * pu, sby + 196 * pu; size: 172 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: if(gr_own and not gr_busy, 8% + 10% * gr_def_hit.hover, 4%) }
+                PPillOutline(spx + 338 * pu, sby + 196 * pu, 172 * pu, 24 * pu, 12 * pu, gr_def_hit.hover, clamp(3 * (if(gr_own and not gr_busy, 8% + 10% * gr_def_hit.hover, 4%)), 0, 1), pu)
+                group { scale: rs; pivot: floor(spx + 338 * pu + 0.5), floor(sby + 196 * pu + 0.5); text "Use the default" { at: floor(spx + 338 * pu + 0.5), floor(sby + 196 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (168 * pu) / rs; lines: 1; color: ink; opacity: if(gr_own and not gr_busy, 100%, 40%); family: "Space Grotesk" } }
+                zone box gr_def_hit { at: spx + 338 * pu, sby + 196 * pu; size: 174 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: gr_active and gr_own and gr_writable and not gr_busy and not grd_open; label: "Use the default background" }
+                on press gr_def_hit { emit gr_default }
+
+                //  Card three: the clock's hours.
+                body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 248 * pu; size: 438 * pu, 52 * pu; corner: 14 * pu } }
+                DdCard(spx + 219 * pu, sby + 248 * pu, 438 * pu, 52 * pu, 633.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+                box { at: spx + 219 * pu, sby + 248 * pu; size: 438 * pu, 52 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+                group { scale: rs; pivot: floor(grx + 0.5), floor(sby + 240 * pu + 0.5); text "24-hour clock" { at: floor(grx + 0.5), floor(sby + 240 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(grx + 0.5), floor(sby + 257 * pu + 0.5); text "19:30 rather than 7:30 PM" { at: floor(grx + 0.5), floor(sby + 257 * pu + 0.5); anchor: left center; size: 13; color: faint; width: (330 * pu) / rs; lines: 1; family: "Space Grotesk" } }
+                SettingsSwitch(spx + 424 * pu, sby + 248 * pu, gr_k, gr_ck.pressed, gr_ck.hover, mint)
+                zone box gr_ck { at: spx + 219 * pu, sby + 248 * pu; size: 430 * pu, 44 * pu; corner: 10 * pu; cursor: pointer; active: gr_active and not grd_open; label: "24-hour clock" }
+                on press gr_ck { emit gr_clock }
+
+                //  Card four, only while the installed greeter is an older one (or none): Apply installs this one, asking for the password through polkit.
+                group {
+                    show: not gr_ready
+                    body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 310 * pu; size: 438 * pu, 52 * pu; corner: 14 * pu } }
+                    DdCard(spx + 219 * pu, sby + 310 * pu, 438 * pu, 52 * pu, 655.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+                    box { at: spx + 219 * pu, sby + 310 * pu; size: 438 * pu, 52 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+                    group { scale: rs; pivot: floor(grx + 0.5), floor(sby + 302 * pu + 0.5); text "Update the login screen" { at: floor(grx + 0.5), floor(sby + 302 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: mint; family: "Space Grotesk" } }
+                    group { scale: rs; pivot: floor(grx + 0.5), floor(sby + 319 * pu + 0.5); text "Once, so it follows this page; asks for your password" { at: floor(grx + 0.5), floor(sby + 319 * pu + 0.5); anchor: left center; size: 13; color: faint; width: (300 * pu) / rs; lines: 1; family: "Space Grotesk" } }
+                    box { at: spx + 374 * pu, sby + 310 * pu; size: 92 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: if(gr_busy, 6%, 24% + 12% * gr_apply_hit.hover) }
+                    PPillOutline(spx + 374 * pu, sby + 310 * pu, 92 * pu, 24 * pu, 12 * pu, gr_apply_hit.hover, clamp(3 * (if(gr_busy, 6%, 24% + 12% * gr_apply_hit.hover)), 0, 1), pu)
+                    group { scale: rs; pivot: floor(spx + 374 * pu + 0.5), floor(sby + 310 * pu + 0.5); text "Apply" { at: floor(spx + 374 * pu + 0.5), floor(sby + 310 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (88 * pu) / rs; lines: 1; color: mint; opacity: if(gr_busy, 45%, 100%); family: "Space Grotesk" } }
+                    zone box gr_apply_hit { at: spx + 374 * pu, sby + 310 * pu; size: 94 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: gr_active and not gr_busy and not grd_open; label: "Apply: update the login screen" }
+                    on press gr_apply_hit { emit gr_apply }
+                }
+
+                //  What is happening, or what went wrong.
+                group { scale: rs; pivot: floor(grx + 0.5), floor(sby + if(gr_ready, 294, 356) * pu + 0.5); text gr_msg { at: floor(grx + 0.5), floor(sby + if(gr_ready, 294, 356) * pu + 0.5); anchor: left top; size: 13; color: if(gr_err, alert, if(gr_busy, mint, faint)); width: (410 * pu) / rs; lines: 3; family: "Space Grotesk" } }
+            }
+
+            //  ── The folder browser (the Wallpaper page's, `face_*`, listing videos too): folders go in when pressed, a picture or a video is the login screen's
+            //  when pressed, a video marked with a play sign. Scrolled with the wheel. ──
+            group {
+                show: grd_k > 0.004
+                opacity: grd_k
+                let gd.l = spx
+                let gd.t = sby + 12 * pu * (1 - grd_k)
+                let gd.w = 438 * pu
+                let gd.h = 456 * pu
+                let gd.vt = gd.t + 54 * pu
+                let gd.vh = gd.h - 54 * pu - 10 * pu
+                let gd.ch = ceil(face_pics.count / 4) * 104 * pu
+                box { from: gd.l, gd.t; size: gd.w, gd.h; corner: 14 * pu; color: deep; opacity: 100% }
+                body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_p1, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { from: gd.l, gd.t; size: gd.w, gd.h; corner: 14 * pu } }
+                DdCard(gd.l + (gd.w) / 2, gd.t + (gd.h) / 2, gd.w, gd.h, 966.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_p1, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+                box { from: gd.l, gd.t; size: gd.w, gd.h; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+                zone box gd_bg { from: gd.l, gd.t; size: gd.w, gd.h; active: grd_open }
+                on scroll gd_bg { fp_to = clamp(fp_to - wheel * 54, 0, max(0, gd.ch - gd.vh + 4 * pu)) }
+                //  Up a folder, home, where we are, and the cross.
+                ellipse { at: gd.l + 26 * pu, gd.t + 27 * pu; radius: 12 * pu; color: ink; opacity: (0.07 + 0.1 * gd_up.hover) * if(face_at_top, 0.4, 1) }
+                group { scale: rs; pivot: floor(gd.l + 26 * pu + 0.5), floor(gd.t + 27 * pu + 0.5); GArrowTo(floor(gd.l + 26 * pu + 0.5), floor(gd.t + 27 * pu + 0.5), 270, (15.5) / 24, ink, if(face_at_top, 0.4, 1), 0) }
+                zone ellipse gd_up { at: gd.l + 26 * pu, gd.t + 27 * pu; radius: 14 * pu; cursor: pointer; active: grd_open and not face_at_top; label: "Up a folder" }
+                on press gd_up { emit face_up }
+                ellipse { at: gd.l + 56 * pu, gd.t + 27 * pu; radius: 12 * pu; color: ink; opacity: 0.07 + 0.1 * gd_home.hover }
+                group { scale: rs; pivot: floor(gd.l + 56 * pu + 0.5), floor(gd.t + 27 * pu + 0.5); GHome(floor(gd.l + 56 * pu + 0.5), floor(gd.t + 27 * pu + 0.5), (15.5) / 24, ink, 1, 0) }
+                zone ellipse gd_home { at: gd.l + 56 * pu, gd.t + 27 * pu; radius: 14 * pu; cursor: pointer; active: grd_open; label: "Home folder" }
+                on press gd_home { emit face_home }
+                group { scale: rs; pivot: floor(gd.l + 82 * pu + 0.5), floor(gd.t + 27 * pu + 0.5); text face_path { at: floor(gd.l + 82 * pu + 0.5), floor(gd.t + 27 * pu + 0.5); anchor: left center; size: 16; weight: 600; width: (gd.w - 82 * pu - 48 * pu) / rs; lines: 1; family: "Space Grotesk"; color: ink } }
+                ellipse { at: gd.l + gd.w - 26 * pu, gd.t + 27 * pu; radius: 12 * pu; color: ink; opacity: 0.07 + 0.1 * gd_x.hover }
+                group { scale: rs; pivot: floor(gd.l + gd.w - 26 * pu + 0.5), floor(gd.t + 27 * pu + 0.5); GClose(floor(gd.l + gd.w - 26 * pu + 0.5), floor(gd.t + 27 * pu + 0.5), (15.5) / 24, ink, 1, 0) }
+                zone ellipse gd_x { at: gd.l + gd.w - 26 * pu, gd.t + 27 * pu; radius: 14 * pu; cursor: pointer; active: grd_open; label: "Close" }
+                on press gd_x { grd_open = false }
+                group { scale: rs; pivot: floor(gd.l + gd.w / 2 + 0.5), floor(gd.t + gd.h / 2 + 0.5); text "No pictures or videos here" { at: floor(gd.l + gd.w / 2 + 0.5), floor(gd.t + gd.h / 2 + 0.5); anchor: center; size: 15.5; family: "Space Grotesk"; color: faint; show: face_pics.count < 1 } }
+                group {
+                    clip inset 0 box { from: gd.l + 6 * pu, gd.vt; size: gd.w - 12 * pu, gd.vh; corner: 12 * pu }
+                    repeat i in 0..72 {
+                        let gdi.x = gd.l + 15 * pu + (i - floor(i / 4) * 4) * 106 * pu
+                        let gdi.y = gd.vt + floor(i / 4) * 104 * pu - fp_s
+                        group {
+                            show: face_pics.count > i
+                            box { from: gdi.x, gdi.y; size: 98 * pu, 98 * pu; corner: 14 * pu; color: ink; opacity: 0.07 }
+                            group { scale: rs; pivot: floor(gdi.x + 49 * pu + 0.5), floor(gdi.y + 36 * pu + 0.5); group { show: face_pics.$i.dir; GFolder(floor(gdi.x + 49 * pu + 0.5), floor(gdi.y + 36 * pu + 0.5), (35.5) / 24, mint, 1, 0) } }
+                            group { scale: rs; pivot: floor(gdi.x + 49 * pu + 0.5), floor(gdi.y + 76 * pu + 0.5); text face_pics.$i.name { at: floor(gdi.x + 49 * pu + 0.5), floor(gdi.y + 76 * pu + 0.5); anchor: center; align: center; size: 13.5; width: (90 * pu) / rs; lines: 1; family: "Space Grotesk"; color: ink; show: face_pics.$i.dir } }
+                            group {
+                                show: not face_pics.$i.dir
+                                clip inset 0 box { from: gdi.x, gdi.y; size: 98 * pu, 98 * pu; corner: 14 * pu }
+                                image face_pics.$i.thumb { at: gdi.x, gdi.y; size: 98 * pu, 98 * pu; opacity: 80% + 20% * gd_t.$i.hover }
+                            }
+                            //  a video: a play sign in a dark disc, in the corner
+                            group {
+                                show: face_pics.$i.vid
+                                ellipse { at: gdi.x + 82 * pu, gdi.y + 16 * pu; radius: 10 * pu; color: #000000; opacity: 55% }
+                                path { at: gdi.x + 82 * pu, gdi.y + 16 * pu; color: #ffffff; move -3 * pu, -4.5 * pu; line 4.5 * pu, 0; line -3 * pu, 4.5 * pu; close }
+                            }
+                            box { from: gdi.x, gdi.y; size: 98 * pu, 98 * pu; corner: 14 * pu; color: mint; opacity: 0.22 * gd_t.$i.hover; show: face_pics.$i.dir }
+                            box { from: gdi.x, gdi.y; size: 98 * pu, 98 * pu; corner: 14 * pu; stroke: 2 * pu; color: mint; opacity: gd_t.$i.hover; show: not face_pics.$i.dir }
+                        }
+                        zone box gd_t.$i { from: gdi.x, gdi.y; size: 98 * pu, 98 * pu; corner: 14 * pu; cursor: pointer; active: grd_open and face_pics.count > i and gdi.y > gd.vt - 40 * pu and gdi.y < gd.vt + gd.vh - 40 * pu; label: if(face_pics.$i.dir, "Open this folder", "Use this for the login screen") }
+                        on press gd_t.$i while face_pics.$i.dir { emit face_nav(i) }
+                        on press gd_t.$i while not face_pics.$i.dir { emit gr_pick(i); grd_open = false }
+                    }
+                }
+                box { from: gd.l + gd.w - 10 * pu, gd.vt + 4 * pu + fp_s / max(gd.ch, 1) * (gd.vh - 8 * pu); size: 3 * pu, (gd.vh - 8 * pu) * min(1, gd.vh / max(gd.ch, 1)); corner: 1.5 * pu; color: ink; opacity: 0.35; show: gd.ch > gd.vh }
+            }
+        }
+}

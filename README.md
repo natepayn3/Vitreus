@@ -103,7 +103,7 @@ Requirements, options, Debian/Ubuntu and setting it up by hand are in **[docs/IN
 * **View**: a picture and video viewer: flip through a folder, zoom, rotate, slideshow, edit in Snap, or set as wallpaper. The installer can make it your default viewer.
 
 **Around the edges**
-* **Lock screen**, a matching **login screen** ([SDDM theme](sddm/README.md)), and a **polkit** password dialog.
+* **Lock screen**, a matching **login screen** ([SDDM theme](sddm/README.md)) with your own picture or a looping video (**Settings > Greeter**), and a **polkit** password dialog.
 * **Audio visualiser**: the bottom edge of the screen rises with the music.
 * **Desktop**: right-click the wallpaper for sticky notes, a clock and a system monitor.
 * **Night mode** and a **desktop clock**.

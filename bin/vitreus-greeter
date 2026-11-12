@@ -1,0 +1,203 @@
+#!/bin/sh
+# The login screen's own settings, for Settings > Greeter. The greeter (sddm/vitreus) reads them from a folder of the user's that sddm/install.sh makes,
+# so changing them needs no sudo: only the names of the files there count (see the greeter's Main.qml). Only `install` touches /usr/share/sddm/themes.
+#
+#   vitreus-greeter info          key=value lines: ready (1: the installed greeter reads this folder), writable, kind (video, picture or theme: the greeter's
+#                                 own), name (the file it was made from), poster (a picture of it, for the page), clock (24 or 12), theme_clock (theme.conf's)
+#   vitreus-greeter set FILE      a picture (.jpg .png .webp ...) or a video (.mp4 .mkv .webm .mov .m4v), which plays on a loop, muted
+#   vitreus-greeter default       back to the theme's own picture (or video)
+#   vitreus-greeter clock 24|12   the clock's hours
+#   vitreus-greeter preview       the installed greeter in a window (SDDM's test mode: no logging in from it)
+#   vitreus-greeter use on|off    on: SDDM uses this greeter; off: the theme it used before (or SDDM's own). Through pkexec, as install.
+#   vitreus-greeter adopt [STOCK] a background the installed theme carries of its own (an older install's) becomes your choice (STOCK: the repository's, to compare)
+#   vitreus-greeter install       installs this copy of the greeter (sddm/) with the repository's picture as its own (anything else is yours: adopt first), and makes it SDDM's theme: it builds
+#                                 it as you (your fonts, face and palette) and copies it into place through pkexec, which asks for the password (Vitreus's
+#                                 polkit agent shows the prompt). 126 or 127: the password was cancelled.
+set -eu
+theme=${VITREUS_GREETER_THEME:-/usr/share/sddm/themes/vitreus}      # (another, for testing)
+shared=$(sed -n 's/^shared=//p' "$theme/theme.conf" 2> /dev/null | head -1)
+[ -n "$shared" ] || shared=/usr/local/share/vitreus-greeter
+here=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
+self=$(readlink -f "$0")
+themes=/usr/share/sddm/themes
+
+# The theme SDDM uses: the last Current= of its files (the defaults, the drop-ins, then /etc/sddm.conf, as sddm/install.sh reads it).
+current_theme() {
+    cat /usr/lib/sddm/sddm.conf.d/*.conf /etc/sddm.conf.d/*.conf /etc/sddm.conf 2> /dev/null |
+        awk '/^\[/ { sec = $0 } sec == "[Theme]" && /^Current=/ { sub(/^Current=/, ""); v = $0 } END { print v }'
+}
+# The file that says it (the one that wins), or the drop-in to make when none does.
+theme_file() {
+    f=$(grep -l '^Current=' /etc/sddm.conf.d/*.conf /etc/sddm.conf 2> /dev/null | tail -1 || true)
+    [ -n "$f" ] && echo "$f" || echo /etc/sddm.conf.d/theme.conf
+}
+# As root: SDDM uses this greeter. The file that said which theme was in use is kept first (once) in the user's folder ($1), so `unuse` can put it back.
+use_vitreus() {
+    [ "$(current_theme)" = vitreus ] && return 0
+    f=$(theme_file)
+    mkdir -p "$(dirname "$f")"
+    bak=$1/$(basename "$f").before-vitreus
+    [ -f "$f" ] && [ ! -f "$bak" ] && cp "$f" "$bak"
+    if [ -f "$f" ] && grep -q '^Current=' "$f"; then sed -i 's|^Current=.*|Current=vitreus|' "$f"
+    elif [ -f "$f" ] && grep -q '^\[Theme\]' "$f"; then sed -i 's|^\[Theme\]|[Theme]\nCurrent=vitreus|' "$f"
+    else printf '\n[Theme]\nCurrent=vitreus\n' >> "$f"; fi
+}
+# As root: SDDM goes back to the theme it used before (the kept file), or to its own default when there was none.
+unuse_vitreus() {
+    [ "$(current_theme)" = vitreus ] || return 0
+    f=$(grep -l '^Current=vitreus' /etc/sddm.conf.d/*.conf /etc/sddm.conf 2> /dev/null | tail -1 || true)
+    [ -n "$f" ] || return 0
+    bak=$1/$(basename "$f").before-vitreus
+    if [ -f "$bak" ] && ! grep -q '^Current=vitreus' "$bak"; then cp -f "$bak" "$f"
+    else sed -i '/^Current=vitreus$/d' "$f"; fi
+}
+
+is_video() {
+    case $(printf '%s' "$1" | tr 'A-Z' 'a-z') in *.mp4|*.m4v|*.mkv|*.webm|*.mov) return 0 ;; *) return 1 ;; esac
+}
+writable() { [ -d "$shared" ] && [ -w "$shared" ]; }
+need_folder() {
+    writable && return 0
+    echo "the login screen's folder ($shared) is missing or not yours: install the login screen again (sddm/install.sh)" >&2
+    exit 3
+}
+
+case "${1:-}" in
+info)
+    # ready: the installed greeter reads the folder, and carries the repository's picture (an older one carried the background it was installed with)
+    ready=0; grep -q 'ownFiles' "$theme/Main.qml" 2> /dev/null && grep -q '^stock=true' "$theme/theme.conf" 2> /dev/null && ready=1
+    w=0; writable && w=1
+    installed=0; [ -f "$theme/Main.qml" ] && installed=1
+    active=0; [ "$(current_theme)" = vitreus ] && active=1
+    sddm=0; { command -v sddm > /dev/null 2>&1 || [ -d "$themes" ]; } && sddm=1
+    # can the greeter play a video: Qt Multimedia's QML module and a backend for it (ffmpeg's or GStreamer's), wherever the distribution keeps Qt 6
+    mm=0
+    for q in /usr/lib/qt6 /usr/lib64/qt6 /usr/lib/*-linux-gnu/qt6; do
+        [ -f "$q/qml/QtMultimedia/qmldir" ] && ls "$q"/plugins/multimedia/*.so > /dev/null 2>&1 && mm=1 && break
+    done
+    # what SDDM goes back to when this one is turned off: the theme in the kept file, or SDDM's own
+    other=$(cat "$shared"/*.before-vitreus 2> /dev/null | awk '/^\[/ { sec = $0 } sec == "[Theme]" && /^Current=/ { sub(/^Current=/, ""); v = $0 } END { print v }')
+    if [ -f "$shared/background.jpg" ]; then
+        kind=picture; [ -f "$shared/background.mp4" ] && kind=video
+        name=$(cat "$shared/.source-name" 2> /dev/null || true)
+        poster=$shared/background.jpg
+    else
+        kind=theme; name=""
+        poster=$theme/background.jpg
+        grep -q '^video=.' "$theme/theme.conf" 2> /dev/null && name="video"
+    fi
+    tclock=12; grep -q '^clock24=true' "$theme/theme.conf" 2> /dev/null && tclock=24
+    clock=$tclock
+    [ -e "$shared/clock-24" ] && clock=24
+    [ -e "$shared/clock-12" ] && clock=12
+    stamp=$(stat -c %Y "$poster" 2> /dev/null || echo 0)
+    printf 'sddm=%s\nmm=%s\nactive=%s\nother=%s\ninstalled=%s\nready=%s\nwritable=%s\nkind=%s\nname=%s\nposter=%s\nstamp=%s\nclock=%s\ntheme_clock=%s\n' "$sddm" "$mm" "$active" "$other" "$installed" "$ready" "$w" "$kind" "$name" "$poster" "$stamp" "$clock" "$tclock"
+    ;;
+set)
+    src=${2:?usage: vitreus-greeter set FILE}
+    [ -f "$src" ] || { echo "no file at $src" >&2; exit 1; }
+    need_folder
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    if is_video "$src"; then
+        command -v ffmpeg > /dev/null 2>&1 || { echo "a video needs ffmpeg" >&2; exit 1; }
+        # its picture stream only, no sound; copied as it is when an mp4 can hold it, made again (H.264) when it cannot
+        ffmpeg -v error -y -i "$src" -map 0:v:0 -c:v copy -an -movflags +faststart "$tmp/background.mp4" 2> /dev/null ||
+            ffmpeg -v error -y -i "$src" -map 0:v:0 -an -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -movflags +faststart "$tmp/background.mp4"
+        ffmpeg -v error -y -i "$tmp/background.mp4" -frames:v 1 "$tmp/first.png"
+        pic=$tmp/first.png
+    else
+        pic=$src
+    fi
+    magick "$pic[0]" -auto-orient -resize 1920x1080^ -gravity center -extent 1920x1080 -quality 92 "$tmp/background.jpg"
+    # the video first (the greeter only looks for it once background.jpg says there is a choice of the user's)
+    if [ -f "$tmp/background.mp4" ]; then cp -f "$tmp/background.mp4" "$shared/background.mp4"; chmod 644 "$shared/background.mp4"
+    else rm -f "$shared/background.mp4"; fi
+    cp -f "$tmp/background.jpg" "$shared/background.jpg"; chmod 644 "$shared/background.jpg"
+    basename "$src" > "$shared/.source-name"
+    echo "$src"
+    ;;
+default)
+    need_folder
+    rm -f "$shared/background.jpg" "$shared/background.mp4" "$shared/.source-name"
+    ;;
+clock)
+    need_folder
+    case "${2:-}" in
+        24) rm -f "$shared/clock-12"; : > "$shared/clock-24"; chmod 644 "$shared/clock-24" ;;
+        12) rm -f "$shared/clock-24"; : > "$shared/clock-12"; chmod 644 "$shared/clock-12" ;;
+        *) echo "usage: vitreus-greeter clock 24|12" >&2; exit 1 ;;
+    esac
+    ;;
+install)
+    # As the user: the theme is built here (build-assets.sh reads your fonts, ~/.face and palette), then copied into place as root.
+    [ "$(id -u)" -ne 0 ] || { echo "run it as yourself: it asks for the password itself" >&2; exit 1; }
+    build=$here/../sddm/build-assets.sh
+    [ -x "$build" ] || { echo "no sddm/build-assets.sh beside this" >&2; exit 1; }
+    # The theme always carries the repository's picture (Settings' "Use the default"); one the installed copy carried of its own is kept as the user's choice first.
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    "$build" "$tmp/vitreus" > /dev/null
+    if writable; then "$self" adopt "$tmp/vitreus/background.jpg" || true; fi
+    code=0
+    pkexec "$self" install-root "$tmp/vitreus" "$(id -un)" || code=$?
+    exit $code
+    ;;
+adopt)
+    # A background the installed theme carries that is not the repository's picture (an older install's, made from a picture or video given to it) becomes the
+    # user's own choice, so that installing again with the repository's picture loses nothing. STOCK: that picture as the new theme has it, to tell them apart.
+    need_folder
+    [ -f "$shared/background.jpg" ] && exit 0                             # (a choice of the user's already: it stays)
+    grep -q '^stock=true' "$theme/theme.conf" 2> /dev/null && exit 0
+    v=$(sed -n 's/^video=//p' "$theme/theme.conf" 2> /dev/null | head -1)
+    if [ -n "$v" ] && [ -f "$theme/$v" ]; then "$self" set "$theme/$v" > /dev/null
+    elif [ -f "$theme/background.jpg" ] && ! { [ -n "${2:-}" ] && cmp -s "$theme/background.jpg" "$2"; }; then "$self" set "$theme/background.jpg" > /dev/null
+    else exit 0; fi
+    echo "the one installed before" > "$shared/.source-name"
+    ;;
+use)
+    # on: SDDM uses this greeter; off: the one it used before. SDDM's files are root's: through pkexec (126 or 127: the password was cancelled).
+    case "${2:-}" in on|off) ;; *) echo "usage: vitreus-greeter use on|off" >&2; exit 1 ;; esac
+    [ "$(id -u)" -ne 0 ] || { echo "run it as yourself: it asks for the password itself" >&2; exit 1; }
+    [ "$2" = off ] || [ -f "$themes/vitreus/Main.qml" ] || { echo "the login screen is not installed: Apply installs it" >&2; exit 1; }
+    code=0
+    pkexec "$self" use-root "$2" || code=$?
+    exit $code
+    ;;
+use-root)
+    [ "$(id -u)" -eq 0 ] || { echo "use-root is run by use, through pkexec" >&2; exit 1; }
+    sh=$(sed -n 's/^shared=//p' "$themes/vitreus/theme.conf" 2> /dev/null | head -1); [ -n "$sh" ] || sh=/usr/local/share/vitreus-greeter
+    case "${2:-}" in
+        on) use_vitreus "$sh" ;;
+        off) unuse_vitreus "$sh" ;;
+        *) exit 1 ;;
+    esac
+    echo "SDDM uses: $(current_theme | sed 's/^$/its own default/')"
+    ;;
+install-root)
+    # As root (through pkexec): DIR, a theme `install` built, goes to $themes/vitreus; USER's folder for the settings is made; SDDM is told to use it.
+    [ "$(id -u)" -eq 0 ] || { echo "install-root is run by install, through pkexec" >&2; exit 1; }
+    dir=${2:?}; user=${3:?}
+    [ -f "$dir/Main.qml" ] && [ -f "$dir/metadata.desktop" ] || { echo "$dir does not hold the greeter" >&2; exit 1; }
+    id -u "$user" > /dev/null 2>&1 || { echo "no user $user" >&2; exit 1; }
+    [ -d "$themes" ] || { echo "SDDM's themes are not in $themes: is SDDM installed?" >&2; exit 1; }
+    rm -rf "$themes/vitreus.new"
+    cp -r "$dir" "$themes/vitreus.new"
+    chown -R root:root "$themes/vitreus.new"
+    chmod -R u=rwX,go=rX "$themes/vitreus.new"
+    rm -rf "$themes/vitreus"
+    mv "$themes/vitreus.new" "$themes/vitreus"
+    sh=$(sed -n 's/^shared=//p' "$themes/vitreus/theme.conf" | head -1); [ -n "$sh" ] || sh=/usr/local/share/vitreus-greeter
+    install -d -o "$user" -m 755 "$sh"
+    use_vitreus "$sh"
+    echo "installed"
+    ;;
+preview)
+    [ -f "$theme/Main.qml" ] || { echo "the login screen is not installed" >&2; exit 1; }
+    QT_QPA_PLATFORM=xcb setsid -f sddm-greeter-qt6 --test-mode --theme "$theme" < /dev/null > /dev/null 2>&1
+    ;;
+*)
+    sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//' >&2
+    exit 1
+    ;;
+esac

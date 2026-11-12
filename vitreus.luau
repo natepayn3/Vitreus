@@ -870,7 +870,7 @@ every(1000, function() if dnd_until > 0 then dnd_refresh() end end)   -- the cou
 -- pictures in them as square thumbnails (cropped once into a cache, so they are all the same shape). One pressed is cropped square and kept
 -- as ~/.face (the lock screen reads it too), and the card reloads it (its path is cleared for a moment, so the same path is read again).
 -- (A global table: this chunk is at Luau's limit of locals.)
-FACE = { dir = "", ent = {}, token = 0, cache = "" }
+FACE = { dir = "", ent = {}, token = 0, cache = "", vid = false }     -- vid: videos too (Settings > Greeter's browser), each with a frame of it as its picture
 FACE_MAX = 72
 -- The home folder is asked of the system once: the system monitor (`sm_face`) only runs while the dashboard or the System page is open,
 -- so the Wallpaper page's browser cannot count on it.
@@ -892,7 +892,7 @@ function FACE.home() return FACE.h ~= "" and FACE.h or (text.sm_face:match("^(.*
 function FACE.show(ready)
     local rows = {}
     for k, e in ipairs(FACE.ent) do
-        rows[k] = { thumb = (not e.dir and ready[e.key]) and (FACE.cache .. "/" .. e.key .. ".png") or "", name = e.name, dir = e.dir }
+        rows[k] = { thumb = (not e.dir and ready[e.key]) and (FACE.cache .. "/" .. e.key .. ".png") or "", name = e.name, dir = e.dir, vid = e.vid or false }
     end
     model.face_pics = rows
 end
@@ -916,9 +916,10 @@ function FACE.load(dir)
                 if ty == "d" then ds[#ds + 1] = { name = name, dir = true, path = (dir == "/" and "" or dir) .. "/" .. name }
                 else
                     local n = name:lower()
-                    if n:match("%.png$") or n:match("%.jpe?g$") or n:match("%.webp$") or n:match("%.avif$") or n:match("%.bmp$") then
+                    local vid = FACE.vid and (n:match("%.mp4$") or n:match("%.m4v$") or n:match("%.mkv$") or n:match("%.webm$") or n:match("%.mov$")) and true or false
+                    if vid or n:match("%.png$") or n:match("%.jpe?g$") or n:match("%.webp$") or n:match("%.avif$") or n:match("%.bmp$") then
                         local p = (dir == "/" and "" or dir) .. "/" .. name
-                        fs[#fs + 1] = { name = name, dir = false, path = p, t = tonumber(t) or 0, key = hash(p .. "@" .. t) }
+                        fs[#fs + 1] = { name = name, dir = false, path = p, t = tonumber(t) or 0, key = hash(p .. "@" .. t), vid = vid }
                     end
                 end
             end
@@ -943,14 +944,23 @@ function FACE.load(dir)
                         local e = todo[nexti]
                         nexti = nexti + 1
                         active = active + 1
-                        run("magick", { "-define", "jpeg:size=400x400", e.path .. "[0]", "-auto-orient", "-thumbnail", "200x200^", "-gravity", "center", "-extent", "200x200",
-                            "PNG:" .. FACE.cache .. "/" .. e.key .. ".png" }, function(_, c)
+                        local function made(_, c)
                             active = active - 1
                             if tok ~= FACE.token then return end
                             if c == 0 then ready[e.key] = true end
                             if active == 0 and nexti > #todo or (nexti - 1) % 6 == 0 then FACE.show(ready) end
                             pump()
-                        end)
+                        end
+                        local out = FACE.cache .. "/" .. e.key .. ".png"
+                        if e.vid then
+                            -- a video: a frame a second in (the first is often black), or the first one if it is shorter
+                            local vf = "scale=200:200:force_original_aspect_ratio=increase,crop=200:200"
+                            run("ffmpeg", { "-v", "error", "-y", "-ss", "1", "-i", e.path, "-frames:v", "1", "-vf", vf, out }, function(o, c)
+                                if c == 0 then made(o, c) else run("ffmpeg", { "-v", "error", "-y", "-i", e.path, "-frames:v", "1", "-vf", vf, out }, made) end
+                            end)
+                        else
+                            run("magick", { "-define", "jpeg:size=400x400", e.path .. "[0]", "-auto-orient", "-thumbnail", "200x200^", "-gravity", "center", "-extent", "200x200", "PNG:" .. out }, made)
+                        end
                     end
                 end
                 pump()
@@ -959,6 +969,7 @@ function FACE.load(dir)
     end)
 end
 on("face_list", function()
+    FACE.vid = false
     local home = FACE.home()
     if home ~= "" then FACE.load(home .. "/Pictures") end
 end)
@@ -4359,6 +4370,7 @@ local function wp_dir_use(want)
     end)
 end
 on("wp_dir_browse", function()
+    FACE.vid = false
     local h = FACE.home()
     local start = wp_dir or (h ~= "" and (h .. "/Pictures") or "")
     if start ~= "" then FACE.load(start) end
@@ -6627,6 +6639,7 @@ end
         { "Settings: Glass", "open", open_settings("pg_glass"), "blur transparency frosted liquid look appearance theme" },
         { "Settings: Display", "open", open_settings("pg_disp"), "monitor screen resolution refresh rate scale arrangement vrr position" },
         { "Settings: Idle and sleep", "open", open_settings("pg_idle"), "lock screen off sleep suspend timeout hypridle inactivity minutes" },
+        { "Settings: Greeter", "open", open_settings("pg_greeter"), "login screen sddm greeter sign in background video picture wallpaper clock" },
         { "Settings: Night mode", "open", open_settings("pg_night"), "nightlight blue light warm tint redshift filter schedule eyes" },
         { "Game mode: toggle", "action", function() spawn('pleamar --say vitreus "emit game_toggle"') end, "game gaming play performance fullscreen tearing latency fps on off" },
         { "Night mode: toggle", "action", function() spawn('pleamar --say vitreus "emit night_toggle"') end, "nightlight blue light warm tint redshift filter on off" },
@@ -7356,6 +7369,11 @@ require("logic/nightmode")(with_dirs)
 require("logic/wallhaven")(with_dirs, function() wp_load() end, function(f) wp_apply(f) end, function() wp_refresh() end)
 -- idle and sleep: see logic/idle.luau
 require("logic/idle")(with_dirs)
+-- the login screen (Settings > Greeter): see logic/greeter.luau
+require("logic/greeter")(
+    function(dir) FACE.vid = true; FACE.load(dir or FACE.home()) end,      -- its browser: the folder browser's listing, with videos
+    function(i) return FACE.ent[(tonumber(i) or 0) + 1] end,
+    function() return FACE.home() end)
 -- game mode: see logic/gamemode.luau
 require("logic/gamemode")()
 

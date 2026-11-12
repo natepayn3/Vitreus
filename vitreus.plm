@@ -78,7 +78,7 @@ scene Vitreus {
     //  moving paints nothing, so a cap only ever slowed what was moving (the notches, the drawers, the bar's hovers each needed an exemption from the old 12 a second).
     surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on), 60 while (media.playing and fw_on) or bar_fps == 60; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
     permissions { services: "say:*", "files", "files.write", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "test", "wl-paste", "ffprobe" }
+                  run: "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe" }
 
     model wifi_nets max 16 { ssid: text; strength: number; secure: bool; known: bool; active: bool; band: number; bands: text; bandw: number; chan: number; rate: number; sec: text; busy: number }
     model bat_devs max 6 { name: text; level: number }
@@ -664,7 +664,7 @@ scene Vitreus {
     prop nt_swp = 0 ~quick
     follow nt_swp = nt_swx
     fact face_open = false          // the picture chooser, over the dashboard
-    model face_pics max 72 { thumb: image 200, 200; name: text; dir: bool }
+    model face_pics max 72 { thumb: image 200, 200; name: text; dir: bool; vid: bool }     // vid: a video (only Settings > Greeter's browser lists them)
     text face_path = ""             // the folder being looked at
     fact face_at_top = false
     fact fp_to = 0                  // how far the grid is scrolled (px)
@@ -711,7 +711,7 @@ scene Vitreus {
     event controls_toggle ->        // from a key bind: open or close the Control Center, on the focused monitor (logic/panel_monitor.luau)
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
     //  panel's height, which follows the page).
-    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_night | pg_hypr | pg_about | pg_sys | pg_nt | pg_lock | pg_wm | pg_vpn | pg_clock | pg_theme | pg_keys | pg_addons | pg_idle = pg_wall
+    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_night | pg_hypr | pg_about | pg_sys | pg_nt | pg_lock | pg_wm | pg_vpn | pg_clock | pg_theme | pg_keys | pg_addons | pg_idle | pg_greeter = pg_wall
     //  The Bar page: which monitors the bar is on, one or two (logic/bar_monitors.luau). `bar_sel.i` is whether monitor tile i is chosen, and `bar_rest`
     //  whether some plugged-in monitor is not (the ones that can keep the frame alone).
     fact bar_rest = false
@@ -1688,6 +1688,7 @@ scene Vitreus {
     prop set_pgy = 0 ~calm
     prop set_pgo = 0 ~calm
     prop set_pgi = 0 ~calm
+    prop set_pgg = 0 ~calm
     prop set_pgb = 0 ~calm
     prop bs.ws = 1 ~calm              // each piece of the bar, 1 shown .. 0 hidden: its room and its opacity
     prop bs.title = 1 ~calm
@@ -1809,6 +1810,7 @@ scene Vitreus {
     follow set_pgy = if(set_page == pg_keys, 1, 0)
     follow set_pgo = if(set_page == pg_addons, 1, 0)
     follow set_pgi = if(set_page == pg_idle, 1, 0)
+    follow set_pgg = if(set_page == pg_greeter, 1, 0)
     follow bs.ws = if(bv.ws, 1, 0)
     follow bs.title = if(bv.title and (bar_anchor == top or bar_anchor == bottom), 1, 0)
     follow bs.media = if(bv.media and (bar_anchor == top or bar_anchor == bottom), 1, 0)
@@ -1941,6 +1943,37 @@ scene Vitreus {
     text idle_sleep_t = ""
     event idle_toggle ->
     event idle_set ->                   // the row times 100, plus the step along the list (0 to 13)
+    //  Settings > Greeter: the login screen's picture or video and its clock, kept where the greeter reads them (bin/vitreus-greeter, logic/greeter.luau)
+    fact gr_ready = true                // the installed greeter reads those settings (false: an older copy, to install again)
+    fact gr_own = false                 // a picture or video of the user's (false: the theme's own)
+    fact gr_writable = true             // the folder they are kept in is there and the user's (Apply makes it)
+    fact gr_busy = false                // making it (a video takes a moment)
+    fact gr_err = false                 // gr_msg says what went wrong
+    fact gr_c24 = 0                     // the clock's hours: 1 is 24
+    prop gr_k = 0 ~pop
+    follow gr_k = if(gr_c24 > 0, 1, 0)
+    text gr_kind_t = ""                 // Video, Picture, or the theme's own
+    text gr_name_t = ""                 // the file it was made from
+    text gr_poster = ""                 // a picture of it, for the page (with ?n, read again when it changes)
+    fact gr_has_pv = false
+    text gr_msg = ""
+    image gr_pv = from gr_poster, 480, 270
+    event gr_default ->
+    event gr_clock ->
+    event gr_preview ->
+    event gr_apply ->                   // install this greeter (the password through polkit)
+    fact gr_active = true               // SDDM uses this greeter (off: the one it used before, outside the shell)
+    fact gr_installed = true            // there is a copy of it in SDDM's themes
+    fact gr_sddm = true                 // SDDM is installed: without it the Greeter row is not in the sidebar
+    prop gr_use_k = 1 ~pop
+    follow gr_use_k = if(gr_active, 1, 0)
+    text gr_other_t = ""                // what SDDM uses while this one is off
+    event gr_toggle_use ->
+    event gr_browse ->                  // the folder browser opens over the page (the Wallpaper page's, with videos too)
+    event gr_pick ->                    // a picture or video in it was pressed: its place in face_pics
+    fact grd_open = false
+    prop grd_k = 0 ~calm
+    follow grd_k = if(grd_open, 1, 0)
     fact wh_sfw = true                  // Wallpaper > Wallhaven: which purities to search (logic/wallhaven.luau)
     fact wh_sk = false
     fact wh_nsfw = false
@@ -2653,7 +2686,7 @@ scene Vitreus {
     follow vm = if(vm_open and panel == controls, 1, 0)
     follow mvis = if(mixer.count > 0 or vm_open, 1, 0)
     //  launch_toggle and settings_toggle are handled by the logic (logic/panel_monitor.luau): it opens them on the focused monitor.
-    on change panel { wp_scroll_to = 0; wpd_open = false; font_dd_open = false; dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; gl_scroll_to = 0; br_scroll_to = 0; ck_scroll_to = 0; ad_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0 }
+    on change panel { wp_scroll_to = 0; wpd_open = false; grd_open = false; font_dd_open = false; dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; gl_scroll_to = 0; br_scroll_to = 0; ck_scroll_to = 0; ad_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0 }
     on change set_page { wh_dd = false; wp_scroll_to = 0; font_dd_open = false; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; gl_scroll_to = 0; br_scroll_to = 0; ck_scroll_to = 0; ad_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0; vpn_arm = -1 }
     //  The Hyprland and Pleamar-WM pages read their settings from the system when they are shown, and only then: reading them on every page change
     //  (a dozen commands and a couple of hundred fact writes) stalled the scene for half a second on each click anywhere in Settings.
@@ -5716,7 +5749,7 @@ scene Vitreus {
     let disp.h = 554 + disp.prows + 114 + if(gpu_has, 98, 0) + 74
     //  The System monitor page: the storage card has a row for each drive and the temperature card one for each sensor, and what is under
     //  them slides up as they shrink (see the page, which is generated: sm.ds and sm.dt are how much each has given back).
-    //  The sidebar, top to bottom: LOOK (Wallpaper, Theme, Glass), SHELL (Bar, Widgets, Add-ons, Notifications, Lock screen), SCREEN (Display, Night mode) and SYSTEM
+    //  The sidebar, top to bottom: LOOK (Wallpaper, Theme, Glass), SHELL (Bar, Widgets, Add-ons, Notifications, Lock screen), SCREEN (Display, Night mode, Idle, Greeter) and SYSTEM
     //  (the window manager, Keybinds, VPN, System monitor, About). `side.hN` are the headings. To add a section, give it a row here (the previous row + 32), draw its
     //  item like the others, and move `side.last` to its row: About is always the row after `side.last`, so it stays the final one, and Settings' minimum height
     //  follows it (see `set.h`).
@@ -5734,8 +5767,9 @@ scene Vitreus {
     let side.dp = 326
     let side.nm = 354                  // the Night mode row
     let side.id = 382                  // the Idle row
-    let side.h4 = 416
-    let side.hy = 440
+    let side.gg = 410                  // the Greeter row (the login screen): only where SDDM is installed
+    let side.h4 = if(gr_sddm, 444, 416)
+    let side.hy = 468
     let side.wm = side.hy + if(wm_hypr or wm_niri, 28, 0)    // the Hyprland row is only there on Hyprland (and the niri one on niri), and the Pleamar-WM one only under pleamar-wm
     let side.ky = side.wm + if(wm_pwm, 28, 0)              // the Keybinds row
     let side.vpn = side.ky + 28
@@ -5771,6 +5805,8 @@ scene Vitreus {
     let set.h = max(side.ab + 40, 456 + 88 * th_ex * set_pgp)
     let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * pu
     let ss.hh = bar.h / 2 + (8 + 36 + 8 + set.h + 16) * pu * ds0 + max(0, sag)
+    let ss.f = clamp((ss.w - bar.w + 24 * u) / (24 * u), 0, 1)     // as for the calendar: as wide as the bar, it goes on from the bar's sides with no blend (a blend there puffs the sides out at the join)
+    let ss.top = mix(bar.y, bar.y - bar.h / 2, ss.f)
     //  The launcher: a drop that widens to the bar's width as it lands, like the calendar. The search field (40), the
     //  rows (44 each, up to eight; seven where there is a preview beside them) and a line of hints.
     let dl.w = (120 + 330 * (min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6)) * pu
@@ -5921,9 +5957,9 @@ scene Vitreus {
     let ds.gh = (((8 + 36 + 8 + set.h + 16) * pu) + lp.dd + max(0, sag)) * ds.lf
     let ds.gx = mix(mix(lp.xl + ds.gw / 2, ccx, edg), ds.cL, ssd)
     let ds.ew = mix(ss.w, ds.gw, fm)
-    let ds.eh = mix(ss.hh, ds.gh, fm)
+    let ds.eh = mix(bar.y + ss.hh - ss.top, ds.gh, fm)
     let ds.ex = mix(pcx, ds.gx, fm)
-    let ds.ey = mix(bar.y + ss.hh / 2, lp.cy, fm)
+    let ds.ey = mix((ss.top + bar.y + ss.hh) / 2, lp.cy, fm)
     let dl.gl = min(dtrav, dl0)
     let dl.lf = mix(min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6, min(1, dl.gl * 1.6) + max(0, dl.gl - 1) * 0.6, fm)
     let dl.rt = 2 * (225 + 6.5) * pu

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Shapes
 import QtQuick.Effects
+import Qt.labs.folderlistmodel
 
 // Vitreus's lock screen as a login screen: the picture stays sharp, then the clock, the date, the avatar and the password bar rise in one after another.
 // A typed character is a random shape (the password itself is never drawn). Sleep, restart and power off are held for a second, since none of them can be undone.
@@ -13,7 +14,7 @@ Item {
     readonly property color accent: config.accent ? config.accent : "#9ed6bd"
     readonly property color ink: config.ink ? config.ink : "#f5f7f5"
     readonly property color glass: config.glass ? config.glass : "#1b2127"
-    readonly property bool clock24: config.clock24 === "true"
+    readonly property bool clock24: ownFiles["clock-24"] ? true : (ownFiles["clock-12"] ? false : config.clock24 === "true")
     readonly property string fontName: groteskBold.status === FontLoader.Ready ? groteskBold.name : "Space Grotesk"
     readonly property color barColor: Qt.rgba(Math.min(1, glass.r * 1.9 + 0.06), Math.min(1, glass.g * 2.1 + 0.08), Math.min(1, glass.b * 2.6 + 0.12), 0.58)
     readonly property color edge: Qt.rgba(ink.r, ink.g, ink.b, 0.34)
@@ -70,6 +71,30 @@ Item {
         delegate: Item { property string sname: model.name }
     }
 
+    // What Vitreus's Settings chose (Settings > Greeter), kept in a folder of the user's (theme.conf's `shared`, which install.sh makes theirs) so that changing it needs no sudo.
+    // Only the names of the files there are read, never anything to run: background.jpg (their picture, or their video's first frame), background.mp4 (their video),
+    // clock-24 or clock-12 (empty files). With no background.jpg there, the theme's own picture and video are used.
+    readonly property string sharedDir: config.shared ? config.shared : "/usr/local/share/vitreus-greeter"
+    property var ownFiles: ({})
+    property bool ownRead: false
+    readonly property bool own: !!ownFiles["background.jpg"]
+    readonly property string pictureSource: !ownRead ? "" : (own ? "file://" + sharedDir + "/background.jpg" : config.background)
+    readonly property string videoSource: !ownRead ? "" : (own ? (ownFiles["background.mp4"] ? "file://" + sharedDir + "/background.mp4" : "") : (config.video ? Qt.resolvedUrl(config.video).toString() : ""))
+    function readOwn() {
+        const s = {};
+        for (let i = 0; i < ownList.count; i++) s[ownList.get(i, "fileName")] = true;
+        ownFiles = s;
+        ownRead = true;
+    }
+    FolderListModel {
+        id: ownList
+        folder: "file://" + root.sharedDir
+        showDirs: false
+        onStatusChanged: if (status === FolderListModel.Ready) root.readOwn()
+        onCountChanged: if (status === FolderListModel.Ready) root.readOwn()
+    }
+    Timer { interval: 600; running: !root.ownRead; onTriggered: root.ownRead = true }     // (no such folder: the theme's own, a moment later)
+
     Timer { interval: 1000; running: true; repeat: true; onTriggered: root.now = new Date() }
     Timer {
         interval: 420
@@ -84,9 +109,16 @@ Item {
         anchors.fill: parent
         Image {
             anchors.fill: parent
-            source: config.background
+            source: root.pictureSource
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
+        }
+        // A video, if theme.conf names one (VideoBackdrop.qml): over the picture, which is its first frame.
+        Loader {
+            anchors.fill: parent
+            active: root.videoSource !== ""
+            source: "VideoBackdrop.qml"
+            onLoaded: item.source = Qt.binding(() => root.videoSource)
         }
         Rectangle { anchors.fill: parent; color: "#0b0e11"; opacity: root.stage >= 1 ? 0.30 : 0.10; Behavior on opacity { NumberAnimation { duration: 1600 } } }
     }
@@ -277,7 +309,7 @@ Item {
             anchors.fill: parent
             // your face, from the folder install.sh made for it (it is the one that changes when you change your picture); the copy in the theme is the one it was installed with
             property bool bundled: false
-            source: bundled ? config.avatar : "file://" + (config.shared ? config.shared : "/usr/local/share/vitreus-greeter") + "/avatar.png"
+            source: bundled ? config.avatar : "file://" + root.sharedDir + "/avatar.png"
             onStatusChanged: if (status === Image.Error && !bundled) bundled = true
             cache: false
             fillMode: Image.PreserveAspectCrop
