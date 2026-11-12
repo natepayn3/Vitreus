@@ -1,11 +1,81 @@
 #!/usr/bin/env python3
 """vitreus-fonts DATADIR: which typeface the shell is drawn in. pleamar draws every text in "Space Grotesk" (a name fixed in the scenes), so any other
 typeface is shown by starting the shell with a font setup in which that name is the typeface wanted: copies of its files with the family renamed, and
-the real Space Grotesk left out. The choice is the Theme page's (`fonts.json`: {theme id: name}); with none, the theme's own `font` (themes/*.toml, themes.json) is used. Prints the path of the fontconfig file to start pleamar with, or nothing (the shell keeps its own font)."""
+the real Space Grotesk left out. The choice is the Theme page's (`fonts.json`: {theme id: name}); with none, the theme's own `font` (themes/*.toml, themes.json) is used. Prints the path of the fontconfig file to start pleamar with, or nothing (the shell keeps its own font).
+
+vitreus-fonts DATADIR --lean: the same, for a scene that only draws in "Space Grotesk" (one that says `// vitreus-fonts: lean`, see bin/vitreus-keep). pleamar
+does not use fontconfig's cache: every process opens and reads every font in the folders fontconfig names (1035 faces, ~940 MB, here), which is
+nothing with the files in memory and several seconds each at login, when they are not and every scene starts at once. A lean setup names only the
+person's own fonts (~/.local/share/fonts: Space Grotesk and the themes' faces, or the renamed copies), a sans, an emoji and a CJK font for
+anything else (links to what fontconfig picks, in DATADIR/lean-fonts): a few dozen faces. Always prints a path."""
 import glob, json, os, shutil, struct, subprocess, sys
 
 data = sys.argv[1]
+lean = "--lean" in sys.argv[2:]
 home = os.path.expanduser("~")
+root = home + "/.local/share/fonts"
+
+def write_conf(name, dirs):
+    # (written aside and moved in place: every keeper runs this at login, at once)
+    conf = os.path.join(data, name)
+    tmp = "%s.%d" % (conf, os.getpid())
+    with open(tmp, "w") as f:
+        f.write('<?xml version="1.0"?>\n<!DOCTYPE fontconfig SYSTEM "fonts.dtd">\n<fontconfig>\n')
+        for p in dirs:
+            f.write("  <dir>%s</dir>\n" % p)
+        f.write("</fontconfig>\n")
+    os.replace(tmp, conf)
+    return conf
+
+def finish(renamed):
+    """`renamed`: the folder of the renamed typeface, or None for Space Grotesk itself."""
+    if not lean:
+        if renamed:
+            dirs = ["/usr/share/fonts", "/usr/local/share/fonts", renamed]
+            if os.path.isdir(root):
+                dirs += [root + "/" + e for e in sorted(os.listdir(root)) if "grotesk" not in e.lower()]
+            print(write_conf("retro-fonts.conf", dirs))
+        sys.exit(0)
+    fb = os.path.join(data, "lean-fonts")
+    os.makedirs(fb, exist_ok=True)
+    keep = set()
+    env = dict(os.environ, FONTCONFIG_FILE="/etc/fonts/fonts.conf")
+    def fc(args):
+        try:
+            return subprocess.run(args, capture_output=True, text=True, env=env).stdout
+        except Exception:
+            return ""
+    # (a media title or a name may come in any of these. fc-match answers a sans for `sans:lang=ja` even when it has no Japanese: the CJK one is
+    # looked for among the faces that cover it, a Noto CJK first)
+    cjk = sorted(set(fc(["fc-list", ":lang=ja:style=Regular", "-f", "%{file}\n"]).split()), key=lambda f: ("CJK" not in f, "Regular" not in os.path.basename(f), len(f), f))
+    for what, got in (("sans", fc(["fc-match", "sans", "-f", "%{file}"]).strip()),
+                      ("emoji", fc(["fc-match", "emoji", "-f", "%{file}"]).strip()),
+                      ("cjk", cjk[0] if cjk else "")):
+        if not got or not os.path.isfile(got) or got.startswith(root + "/"):
+            continue
+        link = os.path.join(fb, what + os.path.splitext(got)[1])
+        keep.add(os.path.basename(link))
+        tmp = "%s.%d" % (link, os.getpid())
+        try:
+            os.symlink(got, tmp)
+            os.replace(tmp, link)
+        except OSError:
+            pass
+    for e in os.listdir(fb):                       # (a link left from an older pick: cjk.ttf for cjk.ttc)
+        if e not in keep and "." in e and not e.split(".")[-1].isdigit():
+            try:
+                os.remove(os.path.join(fb, e))
+            except OSError:
+                pass
+    dirs = [fb]
+    if renamed:
+        dirs.append(renamed)
+        if os.path.isdir(root):
+            dirs += [root + "/" + e for e in sorted(os.listdir(root)) if "grotesk" not in e.lower()]
+    elif os.path.isdir(root):
+        dirs.append(root)
+    print(write_conf("lean-fonts.conf", dirs))
+    sys.exit(0)
 
 def load(name):
     try:
@@ -24,7 +94,7 @@ if themes and theme not in themes:
 choice = load("fonts.json").get(theme)
 family = choice or (themes.get(theme) or {}).get("font")
 if not family or family == "Space Grotesk":
-    sys.exit(0)
+    finish(None)
 
 # Typefaces that run wide are drawn a little smaller, so the shell's fixed-width labels still fit.
 SCALE = {"Audiowide": 1.1, "Bitcount Prop Single": 0.95, "Press Start 2P": 1.7, "DotGothic16": 1.0, "SUPER-VCR MONO": 1.1, "Better VCR-JP": 1.15, "Mochiy Pop One": 1.08, "Orbitron": 1.12, "Cherry Bomb One": 1.12}.get(family, 1.0)
@@ -83,7 +153,7 @@ def build(path, weight, style):
 
 found = faces()
 if not found:
-    sys.exit(0)
+    finish(None)
 
 d = os.path.join(data, "retro-fonts")
 marker = os.path.join(d, ".family")
@@ -103,14 +173,4 @@ if not same:
     with open(marker, "w") as f:
         f.write(stamp)
 
-dirs = ["/usr/share/fonts", "/usr/local/share/fonts", d]
-root = home + "/.local/share/fonts"
-if os.path.isdir(root):
-    dirs += [root + "/" + e for e in sorted(os.listdir(root)) if "grotesk" not in e.lower()]
-conf = os.path.join(data, "retro-fonts.conf")
-with open(conf, "w") as f:
-    f.write('<?xml version="1.0"?>\n<!DOCTYPE fontconfig SYSTEM "fonts.dtd">\n<fontconfig>\n')
-    for p in dirs:
-        f.write("  <dir>%s</dir>\n" % p)
-    f.write("</fontconfig>\n")
-print(conf)
+finish(d)
