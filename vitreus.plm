@@ -412,6 +412,7 @@ scene Vitreus {
     fact glass_disp = 1
     fact glass_dome = 0              // pleamar's `dome:` (magnifies what is behind, towards the middle), 0 to 100 % (pleamar's own limit; twice as big in the middle): a test knob
     fact glass_milk = 0              // pleamar's `milk:` (a milky veil inside the glass), 0 to 100 %: a test knob
+    fact glass_smoke = 0             // pleamar's `smoke:` (smoked glass: takes down what is bright behind it), 0 to 100 %
     fact glass_bend = false           // the lens is on: X-Bend or Live bend (either one; the switches' own states are `glass_x` and `glass_live`)
     fact files_bend = false           // whether Files bends its glass: `glass_bend`, but off while hyprglass is loaded (the compositor draws Files' glass then)
     fact glass_x = false              // the Glass page's "X-Bend" switch: the glass bends the wallpaper copy
@@ -576,6 +577,7 @@ scene Vitreus {
     text glass_disp_text = "100%"
     text glass_dome_text = "0%"
     text glass_milk_text = "0%"
+    text glass_smoke_text = "0%"
     text glass_cap_text = "300 ms"
     text hy_blur_text = "3"
     event glass_rim_set ->
@@ -583,6 +585,7 @@ scene Vitreus {
     event glass_disp_set ->
     event glass_dome_set ->
     event glass_milk_set ->
+    event glass_smoke_set ->
     event glass_cap_set ->
     event glass_bend_toggle ->
     event glass_live_toggle ->
@@ -5813,7 +5816,7 @@ scene Vitreus {
     let ad.h = 36 + max(1, addons.count) * 74 + 52 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (74 apart), and the line under them
     let ck.h = 1208                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
     let br.h = 723                     // the Bar page: to the bottom of its last card
-    let gl.h = 990                     // the Glass page: to the bottom of its last card
+    let gl.h = 1048                    // the Glass page: to the bottom of its last card
     let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36
@@ -7325,7 +7328,7 @@ scene Vitreus {
     //  and these panels are not part of the bar. (In the left layout the shape stays in the main glass, where it joins the right frame.)
     group {
         body {
-            color: mix(tint, #000000, cy_dark * cy_k)
+            color: mix(mix(tint, #000000, cy_dark * cy_k), #000000, 0.7 * glass_smoke)
             glass: 100%
             opacity: glass_op * (1 - obs)
             lens: glass_bend and gbm > 0.5
@@ -7334,6 +7337,8 @@ scene Vitreus {
             dispersion: glass_disp
             dome: glass_dome
             milk: glass_milk
+            smoke: glass_smoke
+            tint: 22% + 45% * glass_smoke          // smoke: more of its own colour, darkened below, so it reads at the bar too
             rim: 10% * glass_rim
             shine: pointer
             shadow: 0, 7, 20, 24%, deep
@@ -7344,7 +7349,7 @@ scene Vitreus {
         }
         //  The same glass with `frost: auto` (frosted only where what is behind is busy): `frost:` cannot take `auto` from an expression, so it is a body of its own.
         body {
-            color: mix(tint, #000000, cy_dark * cy_k)
+            color: mix(mix(tint, #000000, cy_dark * cy_k), #000000, 0.7 * glass_smoke)
             glass: 100%
             opacity: glass_op * (1 - obs)
             lens: glass_bend and gbm > 0.5
@@ -7353,6 +7358,8 @@ scene Vitreus {
             dispersion: glass_disp
             dome: glass_dome
             milk: glass_milk
+            smoke: glass_smoke
+            tint: 22% + 45% * glass_smoke          // smoke: more of its own colour, darkened below, so it reads at the bar too
             rim: 10% * glass_rim
             shine: pointer
             shadow: 0, 7, 20, 24%, deep
@@ -8287,7 +8294,7 @@ scene Vitreus {
         box { at: cx, screen.height / 2; size: screen.width, screen.height; color: #000000; opacity: 34% }
         zone box pk_block { at: cx, screen.height / 2; size: screen.width, screen.height; cursor: pointer }
         body {
-            color: mix(tint, #000000, cy_dark * cy_k)
+            color: mix(mix(tint, #000000, cy_dark * cy_k), #000000, 0.7 * glass_smoke)
             glass: 100%
             opacity: glass_op * (1 - obs)
             lens: glass_bend and gbm > 0.5
@@ -8296,6 +8303,8 @@ scene Vitreus {
             dispersion: glass_disp
             dome: glass_dome
             milk: glass_milk
+            smoke: glass_smoke
+            tint: 22% + 45% * glass_smoke          // smoke: more of its own colour, darkened below, so it reads at the bar too
             rim: 14% * glass_rim
             shadow: 0, 18 * u, 50 * u, 45%, deep
             show: obs < 0.996 and not glass_auto
@@ -8303,7 +8312,7 @@ scene Vitreus {
         }
         //  The same glass with `frost: auto` (frosted only where what is behind is busy): `frost:` cannot take `auto` from an expression, so it is a body of its own.
         body {
-            color: mix(tint, #000000, cy_dark * cy_k)
+            color: mix(mix(tint, #000000, cy_dark * cy_k), #000000, 0.7 * glass_smoke)
             glass: 100%
             opacity: glass_op * (1 - obs)
             lens: glass_bend and gbm > 0.5
@@ -8312,6 +8321,8 @@ scene Vitreus {
             dispersion: glass_disp
             dome: glass_dome
             milk: glass_milk
+            smoke: glass_smoke
+            tint: 22% + 45% * glass_smoke          // smoke: more of its own colour, darkened below, so it reads at the bar too
             rim: 14% * glass_rim
             shadow: 0, 18 * u, 50 * u, 45%, deep
             show: obs < 0.996 and glass_auto

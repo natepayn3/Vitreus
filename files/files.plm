@@ -69,6 +69,7 @@ scene Files {
     fact gclear = 1
     fact gdome = 0
     fact gmilk = 0
+    fact gsmoke = 0
     fact grim = 1
     fact look = 0                    // the shell's theme (Vitreus says so): 0 Glass, 1 Retro, 2 UwU, 3 Cyber; the plastic ones get an outline and a hard shadow
     text status = ""
@@ -1080,7 +1081,7 @@ scene Files {
     component Pane(px: number, py: number, pw: number, ph: number, rad: number, gl: number) {
         box { from: px, py; size: pw, ph; corner: rad * rr; color: mix(tint, #000000, 0.2); opacity: 98% - 18% * gbend * (1 - ob) }      // lighter with X-Bend on, or it hides the bend (the tiles behind still mostly stay out of the text)
         body {
-            color: tint
+            color: mix(tint, #000000, 0.7 * gsmoke)
             glass: 100%
             lens: gbend
             frost: gclear
@@ -1088,6 +1089,8 @@ scene Files {
             dispersion: gdisp
             dome: gdome
             milk: gmilk
+            smoke: gsmoke
+            tint: 22% + 45% * gsmoke
             rim: 70% * grim
             shine: 0, 0
             shadow: 0, 12, 30, 42%
@@ -1180,7 +1183,7 @@ scene Files {
 
     // ── the glass ──
     body {
-        color: tint
+        color: mix(tint, #000000, 0.7 * gsmoke)
         glass: 100%
         lens: gbend
         frost: gclear
@@ -1188,6 +1191,8 @@ scene Files {
         dispersion: gdisp
         dome: gdome
         milk: gmilk
+        smoke: gsmoke
+        tint: 22% + 45% * gsmoke
         rim: 60% * grim
         shine: 0, 0
         opacity: gop * (1 - ob)

@@ -62,6 +62,7 @@ scene View {
     fact gclear = 1
     fact gdome = 0
     fact gmilk = 0
+    fact gsmoke = 0
     fact grim = 1
     fact wr = -1                     // the window's rounding, as Hyprland has it
 
@@ -325,7 +326,7 @@ scene View {
     // ── the window ──
     let ob = obs or look == 1 or look == 2 or look == 4      // drawn solid: the glass is off, or the look is plastic or paper
     body {
-        color: if(look == 3, mix(tint, #000000, 0.55), tint)
+        color: mix(if(look == 3, mix(tint, #000000, 0.55), tint), #000000, 0.7 * gsmoke)
         glass: 100%
         lens: gbend
         frost: gclear
@@ -333,6 +334,8 @@ scene View {
         dispersion: gdisp
         dome: gdome
         milk: gmilk
+        smoke: gsmoke
+        tint: 22% + 45% * gsmoke
         rim: 60% * grim
         shine: 0, 0
         opacity: gop

@@ -414,7 +414,7 @@ on("do_full", function()
 end)
 
 -- ── the theme, asked of Vitreus ──
-local GLASS_FACTS = { gop = "glass_op", gbend = "files_bend", grefr = "glass_refr", gdisp = "glass_disp", gclear = "glass_clear", gdome = "glass_dome", gmilk = "glass_milk", grim = "glass_rim" }
+local GLASS_FACTS = { gop = "glass_op", gbend = "files_bend", grefr = "glass_refr", gdisp = "glass_disp", gclear = "glass_clear", gdome = "glass_dome", gmilk = "glass_milk", gsmoke = "glass_smoke", grim = "glass_rim" }
 local function ask_theme()
     if not st.look_fixed then
         run("pleamar", { "--say", "vitreus", "get look_v" }, function(out, code)

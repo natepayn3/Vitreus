@@ -4056,7 +4056,7 @@ local function ask_look()
         if v and v >= 0 then fact.look = v end
     end)
 end
-local GLASS_FACTS = { gop = "glass_op", gbend = "files_bend", grefr = "glass_refr", gdisp = "glass_disp", gclear = "glass_clear", gdome = "glass_dome", gmilk = "glass_milk", grim = "glass_rim" }
+local GLASS_FACTS = { gop = "glass_op", gbend = "files_bend", grefr = "glass_refr", gdisp = "glass_disp", gclear = "glass_clear", gdome = "glass_dome", gmilk = "glass_milk", gsmoke = "glass_smoke", grim = "glass_rim" }
 local function ask_glass()
     for mine, theirs in pairs(GLASS_FACTS) do
         run("pleamar", { "--say", "vitreus", "get " .. theirs }, function(out, code)
