@@ -31,7 +31,7 @@ part PleamarWm {
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 352 * pu + 0.5); text "INPUT  ·  NEXT LOGIN" { at: floor(spx + 14 * pu + 0.5), floor(sby + 352 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
 
             //  Whose layout the buttons below set: one for each monitor plugged in (each monitor keeps its own).
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 42 * pu + 0.5); text "Monitor" { at: floor(spx + 14 * pu + 0.5), floor(sby + 42 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 42 * pu + 0.5); text "Monitor" { at: floor(spx + 14 * pu + 0.5), floor(sby + 42 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             //  Each one is a little glass button (a gradient lit from the top, a hairline of light round it, a highlight along its upper edge) with a monitor
             //  drawn in it; the picked one glows. Left edges and widths are the layout buttons' below, so the columns line up.
             //  (The window manager keeps up to four monitors: with a fourth plugged in the pills are narrower, so all four fit in the row.)
@@ -58,29 +58,30 @@ part PleamarWm {
             }
 
             //  Layout: where the windows of a monitor go.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 76 * pu + 0.5); text "Layout" { at: floor(spx + 14 * pu + 0.5), floor(sby + 76 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 76 * pu + 0.5); text "Layout" { at: floor(spx + 14 * pu + 0.5), floor(sby + 76 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            zone box wm_lay_hit_sl { at: spx + 164 * pu + (3 - 1) * 90 * pu / 2, sby + 76 * pu + (3 - 1) * 28 * pu / 2; size: 3 * 90 * pu, 24 * pu + (3 - 1) * 28 * pu }
+            SetPick(spx + 164 * pu, sby + 76 * pu, 90 * pu, 3, 24 * pu, mod(wm_layout, 3), wm_lay_hit_sl.hover, pu, 3, 28 * pu, floor(wm_layout / 3))
             repeat i in 0..8 {
                 let lx = spx + 164 * pu + mod(i, 3) * 90 * pu
                 let ly = sby + (76 + floor(i / 3) * 28) * pu
-                box { at: lx, ly; size: 84 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: if(wm_layout == i, mint, ink); opacity: if(wm_layout == i, 24%, 8% + 10% * wm_lay_hit.$i.hover) }
-                PPillOutline(lx, ly, 84 * pu, 24 * pu, 12 * pu, wm_lay_hit.$i.hover, clamp(3 * (if(wm_layout == i, 24%, 8% + 10% * wm_lay_hit.$i.hover)), 0, 1), pu)
+                box { at: lx, ly; size: 84 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * wm_lay_hit.$i.hover }
                 group { scale: rs; pivot: floor(lx + 0.5), floor(ly + 0.5); text pick(i, "Lead left", "Columns", "Rows", "Grid", "Lead right", "Scrolling", "Marea", "Fractal") { at: floor(lx + 0.5), floor(ly + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (80 * pu) / rs; lines: 1; color: if(wm_layout == i, mint, ink); family: "Space Grotesk" } }
                 zone box wm_lay_hit.$i { at: lx, ly; size: 86 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (ly) - sby - wm.off > 0 and (ly) - sby - wm.off < set.h * pu }
                 on press wm_lay_hit.$i { emit wm_layout_set(i) }
             }
 
             //  The leader's share of the width, 30 to 80 %.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 166 * pu + 0.5); text "Leader width" { at: floor(spx + 14 * pu + 0.5), floor(sby + 166 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 166 * pu + 0.5); text "Leader width" { at: floor(spx + 14 * pu + 0.5), floor(sby + 166 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             PSlider(wsl.x0, sby + 166 * pu, wsl.w, clamp((wm_share - 0.3) / 0.5, 0, 1), wm_share_hit.hover, cu, wh, 0)
-            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 166 * pu + 0.5); text wm_share_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 166 * pu + 0.5); anchor: right center; size: 19.5; weight: 600; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 166 * pu + 0.5); text wm_share_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 166 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
             zone box wm_share_hit { at: wsl.x0 + wsl.w / 2, sby + 166 * pu; size: wsl.w + 24 * pu, 30 * pu; cursor: pointer; active: (sby + 166 * pu) - sby - wm.off > 0 and (sby + 166 * pu) - sby - wm.off < set.h * pu }
             on press wm_share_hit { emit wm_share_set(clamp(((pointer.x - tx.pnl) - wsl.x0) / wsl.w, 0, 1)) }
             on drag wm_share_hit { emit wm_share_set(clamp(((pointer.x - tx.pnl) - wsl.x0) / wsl.w, 0, 1)) }
 
             //  Gaps between windows, 0 to 32 px.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 198 * pu + 0.5); text "Gaps" { at: floor(spx + 14 * pu + 0.5), floor(sby + 198 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 198 * pu + 0.5); text "Gaps" { at: floor(spx + 14 * pu + 0.5), floor(sby + 198 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             PSlider(wsl.x0, sby + 198 * pu, wsl.w, clamp(wm_gap / 32, 0, 1), wm_gap_hit.hover, cu, wh, 0)
-            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 198 * pu + 0.5); text wm_gap_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 198 * pu + 0.5); anchor: right center; size: 19.5; weight: 600; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 198 * pu + 0.5); text wm_gap_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 198 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
             zone box wm_gap_hit { at: wsl.x0 + wsl.w / 2, sby + 198 * pu; size: wsl.w + 24 * pu, 30 * pu; cursor: pointer; active: (sby + 198 * pu) - sby - wm.off > 0 and (sby + 198 * pu) - sby - wm.off < set.h * pu }
             on press wm_gap_hit { emit wm_gap_set(clamp(((pointer.x - tx.pnl) - wsl.x0) / wsl.w, 0, 1)) }
             on drag wm_gap_hit { emit wm_gap_set(clamp(((pointer.x - tx.pnl) - wsl.x0) / wsl.w, 0, 1)) }
@@ -105,9 +106,9 @@ part PleamarWm {
             repeat i in 0..3 {
                 let sy = sby + (382 + i * 30) * pu
                 let sv = pick(i, (wm_ms + 1) / 2, (wm_ts + 1) / 2, (wm_idle - 1) / 29)
-                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sy + 0.5); text pick(i, "Mouse speed", "Touchpad speed", "Screen off after") { at: floor(spx + 14 * pu + 0.5), floor(sy + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sy + 0.5); text pick(i, "Mouse speed", "Touchpad speed", "Screen off after") { at: floor(spx + 14 * pu + 0.5), floor(sy + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
                 PSlider(wsl.x0, sy, wsl.w, clamp(sv, 0, 1), wm_in_hit.$i.hover, cu, wh, 0)
-                group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sy + 0.5); text pick(i, wm_ms_text, wm_ts_text, wm_idle_text) { at: floor(spx + 424 * pu + 0.5), floor(sy + 0.5); anchor: right center; size: 19.5; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sy + 0.5); text pick(i, wm_ms_text, wm_ts_text, wm_idle_text) { at: floor(spx + 424 * pu + 0.5), floor(sy + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
                 zone box wm_in_hit.$i { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w + 24 * pu, 30 * pu; cursor: pointer; active: (sy) - sby - wm.off > 0 and (sy) - sby - wm.off < set.h * pu }
                 on press wm_in_hit.$i { emit wm_input_set(i * 10 + clamp(((pointer.x - tx.pnl) - wsl.x0) / wsl.w, 0, 1)) }
                 on drag wm_in_hit.$i { emit wm_input_set(i * 10 + clamp(((pointer.x - tx.pnl) - wsl.x0) / wsl.w, 0, 1)) }
@@ -132,12 +133,13 @@ part PleamarWm {
             box { at: spx + 219 * pu, sby + 741 * pu; size: 438 * pu, 374 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 542 * pu + 0.5); text "WINDOW STYLE" { at: floor(spx + 14 * pu + 0.5), floor(sby + 542 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
             //  Window style, as a whole: the title bar's glass and its buttons, and the border.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 574 * pu + 0.5); text "Style" { at: floor(spx + 14 * pu + 0.5), floor(sby + 574 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 574 * pu + 0.5); text "Style" { at: floor(spx + 14 * pu + 0.5), floor(sby + 574 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            zone box wm_wst_hit_sl { at: spx + 164 * pu + (2 - 1) * 126 * pu / 2, sby + 574 * pu + (2 - 1) * 28 * pu / 2; size: 2 * 126 * pu, 24 * pu + (2 - 1) * 28 * pu }
+            SetPick(spx + 164 * pu, sby + 574 * pu, 126 * pu, 2, 24 * pu, mod(wm_wst, 2), wm_wst_hit_sl.hover, pu, 2, 28 * pu, floor(wm_wst / 2))
             repeat i in 0..4 {
                 let lx = spx + 164 * pu + mod(i, 2) * 126 * pu
                 let ly = sby + (574 + floor(i / 2) * 28) * pu
-                box { at: lx, ly; size: 120 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: if(wm_wst == i, mint, ink); opacity: if(wm_wst == i, 24%, 8% + 10% * wm_wst_hit.$i.hover) }
-                PPillOutline(lx, ly, 120 * pu, 24 * pu, 12 * pu, wm_wst_hit.$i.hover, clamp(3 * (if(wm_wst == i, 24%, 8% + 10% * wm_wst_hit.$i.hover)), 0, 1), pu)
+                box { at: lx, ly; size: 120 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * wm_wst_hit.$i.hover }
                 group { scale: rs; pivot: floor(lx + 0.5), floor(ly + 0.5); text pick(i, "Vitreus glass", "Water", "Borderless", "Glow") { at: floor(lx + 0.5), floor(ly + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (114 * pu) / rs; lines: 1; color: if(wm_wst == i, mint, ink); family: "Space Grotesk" } }
                 zone box wm_wst_hit.$i { at: lx, ly; size: 122 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (ly) - sby - wm.off > 0 and (ly) - sby - wm.off < set.h * pu; label: pick(i, "Window style: Vitreus glass", "Window style: Water", "Window style: Borderless", "Window style: Glow") }
                 on press wm_wst_hit.$i { emit wm_wst_set(i) }
@@ -150,9 +152,9 @@ part PleamarWm {
             repeat i in 0..9 {
                 let sy = sby + (674 + i * 30) * pu
                 let sv = pick(i, wm_bw / 6, (wm_ba - 20) / 80, wm_rad / 24, wm_shd / 200, (wm_tb - 16) / 18, (wm_tbo - 40) / 60, (wm_wa - 40) / 60, (wm_wi - 40) / 60, wm_fr / 100)
-                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sy + 0.5); text pick(i, "Border width", "Border strength", "Corner radius", "Shadow", "Title bar height", "Title bar glass", "Window opacity", "Unfocused opacity", "Frosted backing") { at: floor(spx + 14 * pu + 0.5), floor(sy + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sy + 0.5); text pick(i, "Border width", "Border strength", "Corner radius", "Shadow", "Title bar height", "Title bar glass", "Window opacity", "Unfocused opacity", "Frosted backing") { at: floor(spx + 14 * pu + 0.5), floor(sy + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
                 PSlider(wsl.x0, sy, wsl.w, clamp(sv, 0, 1), wm_st_hit.$i.hover, cu, wh, 0)
-                group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sy + 0.5); text pick(i, wm_bw_text, wm_ba_text, wm_rad_text, wm_shd_text, wm_tb_text, wm_tbo_text, wm_wa_text, wm_wi_text, wm_fr_text) { at: floor(spx + 424 * pu + 0.5), floor(sy + 0.5); anchor: right center; size: 19.5; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sy + 0.5); text pick(i, wm_bw_text, wm_ba_text, wm_rad_text, wm_shd_text, wm_tb_text, wm_tbo_text, wm_wa_text, wm_wi_text, wm_fr_text) { at: floor(spx + 424 * pu + 0.5), floor(sy + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
                 zone box wm_st_hit.$i { at: wsl.x0 + wsl.w / 2, sy; size: wsl.w + 24 * pu, 30 * pu; cursor: pointer; active: sy - sby - wm.off > 0 and sy - sby - wm.off < set.h * pu }
                 on press wm_st_hit.$i { emit wm_style_set(i * 10 + clamp(((pointer.x - tx.pnl) - wsl.x0) / wsl.w, 0, 1)) }
                 on drag wm_st_hit.$i { emit wm_style_set(i * 10 + clamp(((pointer.x - tx.pnl) - wsl.x0) / wsl.w, 0, 1)) }

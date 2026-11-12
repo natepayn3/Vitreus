@@ -3951,6 +3951,42 @@ scene Vitreus {
         path { at: 0.35 * ku, 0.28 * ku; stroke: 0.9 * ku; color: ink; opacity: 0.2 * o; move x0 + r + jt * sin(fr * 72 + 72300), y0 + jt * sin(fr * 77 + 72360); line x1 - r + jt * sin(fr * 48 + 72400), y0 + jt * sin(fr * 53 + 72460); curve x1 + jt * sin(fr * 55 + 72500), y0 + r + jt * sin(fr * 60 + 72560) via x1 + jt * sin(fr * 56 + 72600), y0 + jt * sin(fr * 61 + 72660); line x1 + jt * sin(fr * 63 + 72700), y1 - r + jt * sin(fr * 68 + 72760); curve x1 - r + jt * sin(fr * 64 + 72800), y1 + jt * sin(fr * 69 + 72860) via x1 + jt * sin(fr * 70 + 72900), y1 + jt * sin(fr * 75 + 72960); line x0 + r + jt * sin(fr * 46 + 73000), y1 + jt * sin(fr * 51 + 73060); curve x0 + jt * sin(fr * 47 + 73100), y1 - r + jt * sin(fr * 52 + 73160) via x0 + jt * sin(fr * 53 + 73200), y1 + jt * sin(fr * 58 + 73260); line x0 + jt * sin(fr * 54 + 73300), y0 + r + jt * sin(fr * 59 + 73360); curve x0 + r + jt * sin(fr * 73 + 73400), y0 + jt * sin(fr * 78 + 73460) via x0 + jt * sin(fr * 49 + 73500), y0 + jt * sin(fr * 54 + 73560); }
     }
 
+    //  The Settings' picker: ONE slot holding a few named choices, and a pencil-shaded thumb that travels to the chosen one. It is what a row of loose pills was: the
+    //  page still draws each choice's word and keeps its zone; this draws the slot and the thumb under them. The thumb moves as PSlider's knob does: its leading
+    //  edge goes to the new choice quickly (`ld`) and its trailing edge follows (`tl`), so it stretches between the two, flattens, and gathers back.
+    //  `x0`, `y` the middle of the first choice · `pitch` from one choice to the next · `n` how many in a row · `h` a choice's height · `sel` the chosen one's
+    //  index (give it the value itself, not one on a spring) · `hot` the pointer is on it (the hatching boils, as a slider's) · `ku` the unit it is laid out in.
+    //  A grid of choices: `nr` rows `rp` apart, and `row` the chosen one's row (`sel` is then its column). `on` 0 hides the thumb (nothing chosen).
+    component SetPick(x0: number, y: number, pitch: number, n: number, h: number, sel: number, hot: number, ku: number, nr: number = 1, rp: number = 0, row: number = 0, on: number = 1) {
+        prop ld = 0 ~90ms
+        follow ld = sel
+        prop tl = 0 ~280ms
+        follow tl = sel
+        prop ry = 0 ~160ms
+        follow ry = row
+        let fr = if(hot > 0.02, floor(time * 5), 0)
+        let jt = (0.18 + 0.25 * hot) * ku * (1 - dd_k)
+        let tw = pitch - 6 * ku                               // the thumb's width at rest
+        let sq = clamp(abs(ld - tl) * 1.6, 0, 1)              // how stretched it is
+        let th = h * (1 - 0.22 * sq)
+        let kl = x0 + min(ld, tl) * pitch - tw / 2
+        let kq = x0 + max(ld, tl) * pitch + tw / 2
+        let ty = y + ry * rp
+        let scx = x0 + (n - 1) * pitch / 2
+        let scy = y + (nr - 1) * rp / 2
+        let sh = h + (nr - 1) * rp + 4 * ku
+        //  The slot.
+        box { at: scx, scy; size: n * pitch, sh; corner: (min(sh / 2, 15 * ku)) * (1 - 0.85 * dd_k); color: ink; opacity: 5% }
+        PPillOutline(scx, scy, n * pitch, sh, min(sh / 2, 15 * ku), hot, 0.62, ku)
+        //  The thumb: the accent, pencil-shaded, in its own outline.
+        box { from: kl, ty - th / 2; size: kq - kl, th; corner: (min(th / 2, 11 * ku)) * (1 - 0.85 * dd_k); color: mint; opacity: 24% * on }
+//  (The shading runs past the right of its box, which cuts it: the shader folds the columns it has left over onto the end, and they showed as a doubled line.)
+        let hm = th * 0.34
+        let hsp = max(2.6 * ku, (kq - kl) / 84)
+        shader pencilhatch { at: kl + hm, ty - th; size: kq - kl - 2 * hm, 2 * th; values: hsp * 0.5, 9000, hsp, th * 0.92, jt, fr, 0.8 * ku, 0; colors: mint; opacity: 0.2 * on * (1 - dd_k); show: (1 - dd_k) * on > 0.002 }
+        PPillOutline((kl + kq) / 2, ty, kq - kl, th, min(th / 2, 11 * ku), hot, on, ku)
+    }
+
     //  A switch's track in pencil, over its fill (the knob stays the solid one): the capsule's crooked double outline and, with the radio on, a few hatched columns up to the knob,
     //  calm at rest and redrawn about five times a second under the pointer (`hot`), like PSlider. `cx`, `cy` the track's middle, `w` its width, `kx` the knob's middle, `on` 0 to 1, `ku` the unit it is laid out in.
     component PSwitchTrack(cx: number, cy: number, w: number, kx: number, hot: number, on: number, ku: number) {

@@ -88,12 +88,12 @@ part Display {
                 zone box disp_pill_hit.$i { at: pxx, dtop + 13 * pu; size: 60 * pu, 22 * pu; corner: 11 * pu; cursor: pointer; active: (disp_pill.$i.on) and (dtop + 13 * pu) - disp.off > sby and (dtop + 13 * pu) - disp.off < sby + set.h * pu }
                 on press disp_pill_hit.$i { emit disp_pick_mon(3 - i) }
             }
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 36 * pu + 0.5); text disp_title { at: floor(spx + 14 * pu + 0.5), floor(dtop + 36 * pu + 0.5); anchor: left center; size: 19.5; weight: 700; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 36 * pu + 0.5); text disp_title { at: floor(spx + 14 * pu + 0.5), floor(dtop + 36 * pu + 0.5); anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 52 * pu + 0.5); text disp_desc { at: floor(spx + 14 * pu + 0.5), floor(dtop + 52 * pu + 0.5); anchor: left center; size: 15; width: (410 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 67 * pu + 0.5); text disp_cur { at: floor(spx + 14 * pu + 0.5), floor(dtop + 67 * pu + 0.5); anchor: left center; size: 15; width: (410 * pu) / rs; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk" } }
 
             //  Resolution: a dropdown of what the monitor offers, biggest first (the list itself is drawn last, below).
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 98 * pu + 0.5); text "Resolution" { at: floor(spx + 14 * pu + 0.5), floor(dtop + 98 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 98 * pu + 0.5); text "Resolution" { at: floor(spx + 14 * pu + 0.5), floor(dtop + 98 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             let rtw = disp_rw.width + 44 * pu                 // the trigger: its text and room for the chevron
             let rx0 = spx + 122 * pu                          // its left edge: the one every control below starts at, like the sliders
             box { from: rx0, dtop + 85 * pu; size: rtw, 26 * pu; corner: 13 * pu; color: ink; opacity: 8% + 8% * disp_res_hit.hover + 6% * disp_dd }
@@ -104,33 +104,36 @@ part Display {
             on press disp_res_hit { toggle disp_res_open }
 
             //  Refresh rate: the rates this resolution has.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 130 * pu + 0.5); text "Refresh rate" { at: floor(spx + 14 * pu + 0.5), floor(dtop + 130 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 130 * pu + 0.5); text "Refresh rate" { at: floor(spx + 14 * pu + 0.5), floor(dtop + 130 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            zone box disp_hz_sl { at: spx + 148 * pu + (max((if(disp_hz.0.on, 1, 0) + if(disp_hz.1.on, 1, 0) + if(disp_hz.2.on, 1, 0) + if(disp_hz.3.on, 1, 0) + if(disp_hz.4.on, 1, 0) + if(disp_hz.5.on, 1, 0)), 1) - 1) * 28 * pu, dtop + 130 * pu; size: max((if(disp_hz.0.on, 1, 0) + if(disp_hz.1.on, 1, 0) + if(disp_hz.2.on, 1, 0) + if(disp_hz.3.on, 1, 0) + if(disp_hz.4.on, 1, 0) + if(disp_hz.5.on, 1, 0)), 1) * 56 * pu, 24 * pu }
+            SetPick(spx + 148 * pu, dtop + 130 * pu, 56 * pu, max((if(disp_hz.0.on, 1, 0) + if(disp_hz.1.on, 1, 0) + if(disp_hz.2.on, 1, 0) + if(disp_hz.3.on, 1, 0) + if(disp_hz.4.on, 1, 0) + if(disp_hz.5.on, 1, 0)), 1), 24 * pu, (if(disp_hz.1.lit, 1, 0) + 2 * if(disp_hz.2.lit, 1, 0) + 3 * if(disp_hz.3.lit, 1, 0) + 4 * if(disp_hz.4.lit, 1, 0) + 5 * if(disp_hz.5.lit, 1, 0)), disp_hz_sl.hover, pu)
             repeat i in 0..6 {
                 let hx = spx + 148 * pu + i * 56 * pu                // 122 + half a chip: the shared left edge
-                box { at: hx, dtop + 130 * pu; size: 52 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: if(disp_hz.$i.lit, mint, ink); opacity: if(disp_hz.$i.on, if(disp_hz.$i.lit, 24%, 8% + 10% * disp_hz_hit.$i.hover), 0%) }
-                PPillOutline(hx, dtop + 130 * pu, 52 * pu, 24 * pu, 12 * pu, disp_hz_hit.$i.hover, clamp(3 * (if(disp_hz.$i.on, if(disp_hz.$i.lit, 24%, 8% + 10% * disp_hz_hit.$i.hover), 0%)), 0, 1), pu)
+                box { at: hx, dtop + 130 * pu; size: 52 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * disp_hz_hit.$i.hover }
                 group { scale: rs; pivot: floor(hx + 0.5), floor(dtop + 130 * pu + 0.5); text disp_hz.$i.text { at: floor(hx + 0.5), floor(dtop + 130 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (50 * pu) / rs; lines: 1; color: if(disp_hz.$i.lit, mint, ink); show: disp_hz.$i.on; family: "Space Grotesk" } }
                 zone box disp_hz_hit.$i { at: hx, dtop + 130 * pu; size: 54 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (disp_hz.$i.on) and (dtop + 130 * pu) - disp.off > sby and (dtop + 130 * pu) - disp.off < sby + set.h * pu }
                 on press disp_hz_hit.$i { emit disp_pick_hz(i) }
             }
 
             //  Scale.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 162 * pu + 0.5); text "Scale" { at: floor(spx + 14 * pu + 0.5), floor(dtop + 162 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 162 * pu + 0.5); text "Scale" { at: floor(spx + 14 * pu + 0.5), floor(dtop + 162 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            zone box disp_sc_hit_sl { at: spx + 142 * pu + (7 - 1) * 44 * pu / 2, dtop + 162 * pu + (1 - 1) * 0 / 2; size: 7 * 44 * pu, 24 * pu + (1 - 1) * 0 }
+            SetPick(spx + 142 * pu, dtop + 162 * pu, 44 * pu, 7, 24 * pu, disp_scale, disp_sc_hit_sl.hover, pu)
             repeat i in 0..7 {
                 let sx = spx + 142 * pu + i * 44 * pu
-                box { at: sx, dtop + 162 * pu; size: 40 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: if(disp_scale == i, mint, ink); opacity: if(disp_scale == i, 24%, 8% + 10% * disp_sc_hit.$i.hover) }
-                PPillOutline(sx, dtop + 162 * pu, 40 * pu, 24 * pu, 12 * pu, disp_sc_hit.$i.hover, clamp(3 * (if(disp_scale == i, 24%, 8% + 10% * disp_sc_hit.$i.hover)), 0, 1), pu)
+                box { at: sx, dtop + 162 * pu; size: 40 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * disp_sc_hit.$i.hover }
                 group { scale: rs; pivot: floor(sx + 0.5), floor(dtop + 162 * pu + 0.5); text pick(i, "Auto", "1.0×", "1.25×", "1.33×", "1.5×", "1.75×", "2.0×") { at: floor(sx + 0.5), floor(dtop + 162 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (38 * pu) / rs; lines: 1; color: if(disp_scale == i, mint, ink); family: "Space Grotesk" } }
                 zone box disp_sc_hit.$i { at: sx, dtop + 162 * pu; size: 42 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (dtop + 162 * pu) - disp.off > sby and (dtop + 162 * pu) - disp.off < sby + set.h * pu }
                 on press disp_sc_hit.$i { emit disp_pick_scale(i) }
             }
 
             //  Rotation.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 194 * pu + 0.5); text "Rotation" { at: floor(spx + 14 * pu + 0.5), floor(dtop + 194 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 194 * pu + 0.5); text "Rotation" { at: floor(spx + 14 * pu + 0.5), floor(dtop + 194 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            zone box disp_rot_hit_sl { at: spx + 152 * pu + (4 - 1) * 66 * pu / 2, dtop + 194 * pu + (1 - 1) * 0 / 2; size: 4 * 66 * pu, 24 * pu + (1 - 1) * 0 }
+            SetPick(spx + 152 * pu, dtop + 194 * pu, 66 * pu, 4, 24 * pu, disp_rot, disp_rot_hit_sl.hover, pu)
             repeat i in 0..4 {
                 let rx = spx + 152 * pu + i * 66 * pu
-                box { at: rx, dtop + 194 * pu; size: 60 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: if(disp_rot == i, mint, ink); opacity: if(disp_rot == i, 24%, 8% + 10% * disp_rot_hit.$i.hover) }
-                PPillOutline(rx, dtop + 194 * pu, 60 * pu, 24 * pu, 12 * pu, disp_rot_hit.$i.hover, clamp(3 * (if(disp_rot == i, 24%, 8% + 10% * disp_rot_hit.$i.hover)), 0, 1), pu)
+                box { at: rx, dtop + 194 * pu; size: 60 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * disp_rot_hit.$i.hover }
                 group { scale: rs; pivot: floor(rx + 0.5), floor(dtop + 194 * pu + 0.5); text pick(i, "Normal", "90°", "180°", "270°") { at: floor(rx + 0.5), floor(dtop + 194 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (56 * pu) / rs; lines: 1; color: if(disp_rot == i, mint, ink); family: "Space Grotesk" } }
                 zone box disp_rot_hit.$i { at: rx, dtop + 194 * pu; size: 62 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (dtop + 194 * pu) - disp.off > sby and (dtop + 194 * pu) - disp.off < sby + set.h * pu }
                 on press disp_rot_hit.$i { emit disp_pick_rot(i) }
@@ -140,15 +143,15 @@ part Display {
             let dsl.x0 = spx + 122 * pu
             let dsl.w = 250 * pu
             let dh = 12 * pu
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 226 * pu + 0.5); text "SDR brightness" { at: floor(spx + 14 * pu + 0.5), floor(dtop + 226 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 226 * pu + 0.5); text "SDR brightness" { at: floor(spx + 14 * pu + 0.5), floor(dtop + 226 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             PSlider(dsl.x0, dtop + 226 * pu, dsl.w, clamp(clamp(disp_sdrb - 1, 0, 1), 0, 1), disp_sdrb_hit.hover, cu, dh, 0)
-            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(dtop + 226 * pu + 0.5); text disp_sdrb_text { at: floor(spx + 424 * pu + 0.5), floor(dtop + 226 * pu + 0.5); anchor: right center; size: 19.5; weight: 600; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(dtop + 226 * pu + 0.5); text disp_sdrb_text { at: floor(spx + 424 * pu + 0.5), floor(dtop + 226 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
             zone box disp_sdrb_hit { at: dsl.x0 + dsl.w / 2, dtop + 226 * pu; size: dsl.w + 24 * pu, 30 * pu; cursor: pointer; active: (dtop + 226 * pu) - disp.off > sby and (dtop + 226 * pu) - disp.off < sby + set.h * pu }
             on press disp_sdrb_hit { emit disp_sdrb_set(clamp(((pointer.x - tx.pnl) - dsl.x0) / dsl.w, 0, 1)) }
             on drag disp_sdrb_hit { emit disp_sdrb_set(clamp(((pointer.x - tx.pnl) - dsl.x0) / dsl.w, 0, 1)) }
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 256 * pu + 0.5); text "SDR saturation" { at: floor(spx + 14 * pu + 0.5), floor(dtop + 256 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(dtop + 256 * pu + 0.5); text "SDR saturation" { at: floor(spx + 14 * pu + 0.5), floor(dtop + 256 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             PSlider(dsl.x0, dtop + 256 * pu, dsl.w, clamp(clamp((disp_sdrs - 0.9) / 0.2, 0, 1), 0, 1), disp_sdrs_hit.hover, cu, dh, 0)
-            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(dtop + 256 * pu + 0.5); text disp_sdrs_text { at: floor(spx + 424 * pu + 0.5), floor(dtop + 256 * pu + 0.5); anchor: right center; size: 19.5; weight: 600; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(dtop + 256 * pu + 0.5); text disp_sdrs_text { at: floor(spx + 424 * pu + 0.5), floor(dtop + 256 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
             zone box disp_sdrs_hit { at: dsl.x0 + dsl.w / 2, dtop + 256 * pu; size: dsl.w + 24 * pu, 30 * pu; cursor: pointer; active: (dtop + 256 * pu) - disp.off > sby and (dtop + 256 * pu) - disp.off < sby + set.h * pu }
             on press disp_sdrs_hit { emit disp_sdrs_set(clamp(((pointer.x - tx.pnl) - dsl.x0) / dsl.w, 0, 1)) }
             on drag disp_sdrs_hit { emit disp_sdrs_set(clamp(((pointer.x - tx.pnl) - dsl.x0) / dsl.w, 0, 1)) }
@@ -241,12 +244,13 @@ part Display {
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(ftop + 13 * pu + 0.5); text "SHELL FRAME RATE" { at: floor(spx + 14 * pu + 0.5), floor(ftop + 13 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(ffy + 0.5); text "Frames a second" { at: floor(spx + 14 * pu + 0.5), floor(ffy + 0.5); anchor: left center; size: 15; weight: 700; width: (150 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 150 * pu + 0.5), floor(ffy + 0.5); text "Fewer frames, same movement" { at: floor(spx + 150 * pu + 0.5), floor(ffy + 0.5); anchor: left center; size: 13.5; width: (140 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+            zone box bar_fps_hit_sl { at: spx + 308 * pu + (3 - 1) * 50 * pu / 2, ffy + (1 - 1) * 0 / 2; size: 3 * 50 * pu, 24 * pu + (1 - 1) * 0 }
+            SetPick(spx + 308 * pu, ffy, 50 * pu, 3, 24 * pu, if(bar_fps == 120, 1, 0) + 2 * if(bar_fps == 60, 1, 0), bar_fps_hit_sl.hover, pu)
             repeat f in 0..3 {
                 let bfv = pick(f, 480, 120, 60)
                 let bfx = spx + (308 + f * 50) * pu
                 let bflit = if(bar_fps == bfv, 1, 0)
-                box { at: bfx, ffy; size: 46 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: mix(ink, mint, bflit); opacity: 8% + 20% * bflit + 6% * bar_fps_hit.$f.hover }
-                PPillOutline(bfx, ffy, 46 * pu, 24 * pu, 8 * pu, bar_fps_hit.$f.hover, clamp(3 * (8% + 20% * bflit + 6% * bar_fps_hit.$f.hover), 0, 1), pu)
+                box { at: bfx, ffy; size: 46 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * bar_fps_hit.$f.hover }
                 group { scale: rs; pivot: floor(bfx + 0.5), floor(ffy + 0.5); text pick(f, "Screen", "120", "60") { at: floor(bfx + 0.5), floor(ffy + 0.5); anchor: center; align: center; size: 13.5; weight: 700; width: (44 * pu) / rs; lines: 1; color: mix(ink, mint, bflit); family: "Space Grotesk" } }
                 zone box bar_fps_hit.$f { at: bfx, ffy; size: 46 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; label: pick(f, "The monitor's own rate", "120 frames a second", "60 frames a second"); active: (ffy) - disp.off > sby and (ffy) - disp.off < sby + set.h * pu }
                 on scroll bar_fps_hit.$f { disp_scroll_to = clamp(disp_scroll_to - wheel * 40, 0, max(0, disp.h - set.h)) }

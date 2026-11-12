@@ -26,55 +26,57 @@ part Hyprland {
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 325 * pu + 0.5); text "INPUT" { at: floor(spx + 14 * pu + 0.5), floor(sby + 325 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
 
             //  Layout.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 42 * pu + 0.5); text "Layout" { at: floor(spx + 14 * pu + 0.5), floor(sby + 42 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 42 * pu + 0.5); text "Layout" { at: floor(spx + 14 * pu + 0.5), floor(sby + 42 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            zone box hy_lay_hit_sl { at: spx + 164 * pu + (3 - 1) * 90 * pu / 2, sby + 42 * pu + (1 - 1) * 0 / 2; size: 3 * 90 * pu, 24 * pu + (1 - 1) * 0 }
+            SetPick(spx + 164 * pu, sby + 42 * pu, 90 * pu, 3, 24 * pu, hy_layout - 1, hy_lay_hit_sl.hover, pu, 1, 0, 0, if(hy_layout >= 1 and hy_layout <= 3, 1, 0))
             repeat i in 0..3 {
                 let lx = spx + 164 * pu + i * 90 * pu
-                box { at: lx, sby + 42 * pu; size: 84 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: if(hy_layout == i + 1, mint, ink); opacity: if(hy_layout == i + 1, 24%, 8% + 10% * hy_lay_hit.$i.hover) }
-                PPillOutline(lx, sby + 42 * pu, 84 * pu, 24 * pu, 12 * pu, hy_lay_hit.$i.hover, clamp(3 * (if(hy_layout == i + 1, 24%, 8% + 10% * hy_lay_hit.$i.hover)), 0, 1), pu)
+                box { at: lx, sby + 42 * pu; size: 84 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * hy_lay_hit.$i.hover }
                 group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 42 * pu + 0.5); text pick(i, "Dwindle", "Master", "Scrolling") { at: floor(lx + 0.5), floor(sby + 42 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (80 * pu) / rs; lines: 1; color: if(hy_layout == i + 1, mint, ink); family: "Space Grotesk" } }
                 zone box hy_lay_hit.$i { at: lx, sby + 42 * pu; size: 86 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
                 on press hy_lay_hit.$i { emit hy_layout_set(i + 1) }
             }
 
             //  Gaps, 0 to 30 px.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 74 * pu + 0.5); text "Gaps" { at: floor(spx + 14 * pu + 0.5), floor(sby + 74 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 74 * pu + 0.5); text "Gaps" { at: floor(spx + 14 * pu + 0.5), floor(sby + 74 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             PSlider(hsl.x0, sby + 74 * pu, hsl.w, clamp(hy_gaps / 30, 0, 1), hy_gaps_hit.hover, cu, hyp_hh, 0)
-            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 74 * pu + 0.5); text hy_gaps_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 74 * pu + 0.5); anchor: right center; size: 19.5; weight: 600; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 74 * pu + 0.5); text hy_gaps_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 74 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
             zone box hy_gaps_hit { at: hsl.x0 + hsl.w / 2, sby + 74 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
             on press hy_gaps_hit { emit hy_gaps_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
             on drag hy_gaps_hit { emit hy_gaps_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
 
             //  Corner rounding, 0 to 30 px.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 106 * pu + 0.5); text "Corner rounding" { at: floor(spx + 14 * pu + 0.5), floor(sby + 106 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 106 * pu + 0.5); text "Corner rounding" { at: floor(spx + 14 * pu + 0.5), floor(sby + 106 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             PSlider(hsl.x0, sby + 106 * pu, hsl.w, clamp(hy_round / 30, 0, 1), hy_round_hit.hover, cu, hyp_hh, 0)
-            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 106 * pu + 0.5); text hy_round_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 106 * pu + 0.5); anchor: right center; size: 19.5; weight: 600; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 106 * pu + 0.5); text hy_round_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 106 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
             zone box hy_round_hit { at: hsl.x0 + hsl.w / 2, sby + 106 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
             on press hy_round_hit { emit hy_round_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
             on drag hy_round_hit { emit hy_round_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
 
             //  Border thickness, 0 to 10 px.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 138 * pu + 0.5); text "Border thickness" { at: floor(spx + 14 * pu + 0.5), floor(sby + 138 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 138 * pu + 0.5); text "Border thickness" { at: floor(spx + 14 * pu + 0.5), floor(sby + 138 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             PSlider(hsl.x0, sby + 138 * pu, hsl.w, clamp(hy_border / 10, 0, 1), hy_border_hit.hover, cu, hyp_hh, 0)
-            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 138 * pu + 0.5); text hy_border_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 138 * pu + 0.5); anchor: right center; size: 19.5; weight: 600; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 138 * pu + 0.5); text hy_border_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 138 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
             zone box hy_border_hit { at: hsl.x0 + hsl.w / 2, sby + 138 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
             on press hy_border_hit { emit hy_border_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
             on drag hy_border_hit { emit hy_border_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
 
             //  Sensitivity, -1 to 1.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 354 * pu + 0.5); text "Sensitivity" { at: floor(spx + 14 * pu + 0.5), floor(sby + 354 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 354 * pu + 0.5); text "Sensitivity" { at: floor(spx + 14 * pu + 0.5), floor(sby + 354 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             PSlider(hsl.x0, sby + 354 * pu, hsl.w, clamp((hy_sens + 1) / 2, 0, 1), hy_sens_hit.hover, cu, hyp_hh, 0)
             box { at: hsl.x0 + hsl.w / 2, sby + 354 * pu; size: 1.5 * pu, hyp_hh + 6 * pu; corner: 0.75 * pu; color: ink; opacity: 40% }
-            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 354 * pu + 0.5); text hy_sens_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 354 * pu + 0.5); anchor: right center; size: 19.5; weight: 600; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 354 * pu + 0.5); text hy_sens_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 354 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
             zone box hy_sens_hit { at: hsl.x0 + hsl.w / 2, sby + 354 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
             on press hy_sens_hit { emit hy_sens_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
             on drag hy_sens_hit { emit hy_sens_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
 
             //  Focus follows the mouse: off, on, loose, full.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 390 * pu + 0.5); text "Follow mouse" { at: floor(spx + 14 * pu + 0.5), floor(sby + 390 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 390 * pu + 0.5); text "Follow mouse" { at: floor(spx + 14 * pu + 0.5), floor(sby + 390 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            zone box hy_fol_hit_sl { at: spx + 152 * pu + (4 - 1) * 66 * pu / 2, sby + 390 * pu + (1 - 1) * 0 / 2; size: 4 * 66 * pu, 24 * pu + (1 - 1) * 0 }
+            SetPick(spx + 152 * pu, sby + 390 * pu, 66 * pu, 4, 24 * pu, hy_follow, hy_fol_hit_sl.hover, pu)
             repeat i in 0..4 {
                 let fx = spx + 152 * pu + i * 66 * pu
-                box { at: fx, sby + 390 * pu; size: 60 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: if(hy_follow == i, mint, ink); opacity: if(hy_follow == i, 24%, 8% + 10% * hy_fol_hit.$i.hover) }
-                PPillOutline(fx, sby + 390 * pu, 60 * pu, 24 * pu, 12 * pu, hy_fol_hit.$i.hover, clamp(3 * (if(hy_follow == i, 24%, 8% + 10% * hy_fol_hit.$i.hover)), 0, 1), pu)
+                box { at: fx, sby + 390 * pu; size: 60 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * hy_fol_hit.$i.hover }
                 group { scale: rs; pivot: floor(fx + 0.5), floor(sby + 390 * pu + 0.5); text pick(i, "Off", "On", "Loose", "Full") { at: floor(fx + 0.5), floor(sby + 390 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (56 * pu) / rs; lines: 1; color: if(hy_follow == i, mint, ink); family: "Space Grotesk" } }
                 zone box hy_fol_hit.$i { at: fx, sby + 390 * pu; size: 62 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
                 on press hy_fol_hit.$i { emit hy_follow_set(i) }

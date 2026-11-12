@@ -10,6 +10,11 @@ to a scene (`pleamar --docs reference` has the language; never guess a keyword).
 picture, `RIG_INPUT="x,y@ms down@ms up@ms"` moves and clicks the mouse. Read the header of `dev/rig` for what it shares with the desktop (do not press power, lock or restart actions in it).
 It has no Hyprland: gaps, borders, the Hyprland page and glass blur cannot be seen there.
 
+## Settings pages
+
+Every Settings page follows `pages/SETTINGS-STYLE.md`: which control a setting gets (switch, slider, the `SetPick` picker, picture tiles, stepper), the card and row measurements and the
+type scale. Read it before adding a page or a setting. A pill is only ever a verb (Reset, Apply, Test); a row of choices is a `SetPick`.
+
 ## Gotchas
 
 - **A handler reads shared globals as they were when it was made.** A `logic/*.luau` module's `on(...)` handler reading a global table made in `vitreus.luau` (e.g. `dock_fx.enabled`) gets
