@@ -9,9 +9,9 @@ end)
 ws_urgent = {}
 addon_scenes = {}                          -- the sockets of the running add-ons (logic/addons.luau), told the palette, the bar's room, the look and the weather
 sys.watch("workspaces", function(w)
-    local busy = {}
-    for _, d in ipairs(w.list) do busy[d.id] = d.windows > 0 end
-    for i = 1, 10 do fact["ws." .. i .. ".busy"] = busy[i] or false end
+    local busy, nwin = {}, {}
+    for _, d in ipairs(w.list) do busy[d.id] = d.windows > 0; nwin[d.id] = d.windows end
+    for i = 1, 10 do fact["ws." .. i .. ".busy"] = busy[i] or false; fact["ws." .. i .. ".n"] = nwin[i] or 0 end
     fact["ws.active"] = w.active
     -- No window on the workspace in view (one that is not in the list at all is empty too): see `ws_empty` in the scene.
     local here = false
@@ -150,16 +150,17 @@ function wm_workspaces()
             local shown = tonumber((r[2 + n] or ""):match("%-?[%d.]+"))
             if shown and fact["ws.active"] ~= shown then fact["ws.active"] = shown end
             -- Windows take slots 0 to 5 (`win.count` is only the ones on the shown workspace).
-            local busy = {}
+            local busy, nwin = {}, {}
             for i = 0, 5 do
                 if (r[6 + i] or ""):match("true") then
                     local w = tonumber((r[12 + i] or ""):match("%-?[%d.]+"))
-                    if w then busy[w] = true end
+                    if w then busy[w] = true; nwin[w] = (nwin[w] or 0) + 1 end
                 end
             end
             for k = 1, 10 do
                 local v = busy[k] or false
                 if fact["ws." .. k .. ".busy"] ~= v then fact["ws." .. k .. ".busy"] = v end
+                if fact["ws." .. k .. ".n"] ~= (nwin[k] or 0) then fact["ws." .. k .. ".n"] = nwin[k] or 0 end
             end
             local dn = tonumber((r[18] or ""):match("%-?[%d.]+"))
             if dn then
@@ -190,15 +191,16 @@ function niri_workspaces()
         local want = bar_mon.name
         local mine = false
         if want ~= nil and want ~= "all" then for _, w in ipairs(list) do if w.monitor == want then mine = true end end end      -- (a name that is not plugged in: the focused monitor's)
-        local active, busy = nil, {}
+        local active, busy, nwin = nil, {}, {}
         for _, w in ipairs(list) do
-            if (not mine or w.monitor == want) and (w.windows or 0) > 0 then busy[w.id] = true end
+            if (not mine or w.monitor == want) and (w.windows or 0) > 0 then busy[w.id] = true; nwin[w.id] = w.windows end
             if w.active and ((mine and w.monitor == want) or (not mine and w.focused)) then active = w.id end
         end
         if active and fact["ws.active"] ~= active then fact["ws.active"] = active end
         for k = 1, 10 do
             local v = busy[k] or false
             if fact["ws." .. k .. ".busy"] ~= v then fact["ws." .. k .. ".busy"] = v end
+            if fact["ws." .. k .. ".n"] ~= (nwin[k] or 0) then fact["ws." .. k .. ".n"] = nwin[k] or 0 end
         end
         local empty = not (active and busy[active])
         if fact.ws_empty ~= empty then fact.ws_empty = empty end
@@ -6727,6 +6729,7 @@ end
             end)
         end, "system monitor desktop widget card cpu memory gpu network show hide on off" },
         { "Audio visualiser: toggle", "action", function() spawn('pleamar --say vitreus "emit fw_toggle"') end, "audio visualiser visualizer cava spectrum music bars wave equalizer desktop widget show hide on off" },
+        { "Settings: Workspaces", "open", open_settings("pg_ws"), "workspace marks indicators dots pips numbers numerals rings capsule apps icons bar" },
         { "Camera (on the Desk)", "action", function() spawn('pleamar --say vitreus "emit cam_toggle"') end, "webcam camera self view mirror face round window record screen show hide on off" },
         { "Sticky note: new", "action", function() spawn('pleamar --say vitreus "emit sticky_new"') end, "sticky note sticker new add notes desktop paper write" },
         { "Files", "action", function() spawn('PATH="$HOME/.local/bin:$PATH" vitreus-files') end, "files file manager folder folders browse explorer home documents downloads search sonda nautilus" },
@@ -7434,6 +7437,21 @@ do
     require("logic/theme_widgets")({
         theme = function() if not vtheme.loaded then return nil end local t = vtheme.current(); return t.id, t.name end,
         start = function(dir) exec_on_desktop('vitreus-keep "$HOME/.config/pleamar/shells/vitreus/' .. dir .. '/' .. dir .. '.plm"') end,
+-- the workspace marks' look and options (Settings > Bar > Workspaces), and the Apps look's icons: see logic/ws_marks.luau
+require("logic/ws_marks")({
+    icon_for = function(class) return apps_by_class[class] or class end,
+    clients = function(done)
+        run("hyprctl", { "clients" }, function(out, code)
+            if code ~= 0 or not out then return done(nil) end
+            done(parse_clients(out))
+        end)
+    end,
+    where = function()
+        if on_hyprland then return "hypr" elseif on_niri then return "niri" elseif fact.wm_pwm then return "wm" end
+        return nil
+    end,
+    refresh_icons = function() end,
+})
         addons = addons.widgets,
     })
 end

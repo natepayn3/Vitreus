@@ -714,7 +714,7 @@ scene Vitreus {
     event controls_toggle ->        // from a key bind: open or close the Control Center, on the focused monitor (logic/panel_monitor.luau)
     //  The pages of the settings panel, and how far the second is in (for the sidebar's highlight and the
     //  panel's height, which follows the page).
-    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_night | pg_hypr | pg_about | pg_sys | pg_nt | pg_lock | pg_wm | pg_vpn | pg_clock | pg_theme | pg_keys | pg_addons | pg_idle | pg_greeter = pg_wall
+    fact set_page: pg_wall | pg_glass | pg_disp | pg_bar | pg_ws | pg_night | pg_hypr | pg_about | pg_sys | pg_nt | pg_lock | pg_wm | pg_vpn | pg_clock | pg_theme | pg_keys | pg_addons | pg_idle | pg_greeter = pg_wall
     //  The Bar page: which monitors the bar is on, one or two (logic/bar_monitors.luau). `bar_sel.i` is whether monitor tile i is chosen, and `bar_rest`
     //  whether some plugged-in monitor is not (the ones that can keep the frame alone).
     fact bar_rest = false
@@ -747,8 +747,31 @@ scene Vitreus {
     fact bar_fps = 480                 // 480 is `rate:`'s ceiling in the language, so it means "whatever the monitor does"
                                        // The page offers three (Screen, 120, 60); `rate:` takes as many steps as it has paces (pleamar 0.5),
                                        // and while music plays under the audio visualiser it steps down to 60 whatever this says.
-    event bar_pick_ws ->               // Settings > Bar: how the workspace marks look (logic/bar_monitors.luau)
-    fact ws_style = 0                  // 0 glass squares, 1 dots, 2 numbers, 3 lines
+    //  Settings > Bar > Workspaces: how the workspace marks look and behave (logic/ws_marks.luau keeps them in ws.json).
+    event ws_pick_style ->             // the look: 0 capsule, 1 pips, 2 apps, 3 numerals, 4 rings
+    event ws_pick_count ->             // 0 five, 1 ten
+    event ws_pick_motion ->            // 0 stretch, 1 slide, 2 fade
+    event ws_pick_urgent ->            // 0 still, 1 breathe
+    event ws_pick_accent ->            // 0 the theme's accent, 1 the wallpaper's, 2 white
+    event ws_pick_numerals ->          // 0 1 2 3, 1 I II III, 2 一 二 三
+    event ws_toggle_all ->
+    event ws_toggle_nums ->
+    event ws_toggle_plus ->
+    event ws_set_size ->               // 0..1 along the slider
+    event ws_set_gap ->
+    fact ws_style = 0
+    fact ws_all = false                // every workspace up to `ws_count` has a mark, not only the busy ones and the one in view
+    fact ws_count = 5                  // 5 or 10
+    fact ws_nums = false               // the workspace's number on every mark (the numerals style is nothing but)
+    fact ws_plus_on = true             // the plus after the marks: a workspace to start in
+    fact ws_motion = 0
+    fact ws_pulse = false              // a workspace asking for attention breathes instead of glowing still
+    fact ws_size = 1                   // the marks' scale, 0.75 to 1.5
+    fact ws_gap = 9                    // the room between them, 4 to 16
+    fact ws_accent = 0
+    fact ws_numerals = 0
+    text ws_size_text = "100%"
+    text ws_gap_text = "9"
     event bar_others_toggle ->       // Settings > Bar: the frame on the monitors without the bar, or nothing there (logic/bar_monitors.luau)
     event dock_mid_toggle ->         // Settings > Bar: on the Island, the two corner docks are one centred dock at the bottom (logic/dock.luau)
     fact dock_mid = false
@@ -1145,6 +1168,11 @@ scene Vitreus {
         values: clamp(hy_blur / 20, 0, 1)
         reach: 40
     }
+    repeat i in 1..11 { fact ws.$i.n = 0 }           // how many windows are on it (the pips and the rings show up to three)
+    repeat i in 1..11 { fact ws.$i.ni = 0 }          // how many app icons the Apps style shows for it (0 to 3, logic/ws_marks.luau)
+    repeat i in 1..11 { repeat k in 0..3 { text wsic.$i.$k = "" } }       // the icons themselves: an icon name or a path, "" for none
+    repeat i in 1..11 { repeat k in 0..3 { image wsim.$i.$k = from wsic.$i.$k, 32, 32 } }
+    repeat i in 1..11 { repeat k in 0..3 { measure wsnw.$i.$k } }      // how wide each one's numeral is set, in each of the three numerals (pages/bar_icons.plm), for the numerals' slots
     //  The glass bends a copy of the wallpaper, not a capture of the screen: `lens_image` in vitreus.luau writes it (half the screen's size is plenty under the frosting).
     lens = image "~/.cache/pleamar/vitreus/lens.png" while not glass_live
     //  Live bend's pace: the Glass page's "Live bend refresh" (glass.json `cap_ms`). No `lens hold while` a panel moves: its new glass
@@ -1465,21 +1493,15 @@ scene Vitreus {
     prop ws.vis.8 = 0 ~lively
     prop ws.vis.9 = 0 ~lively
     prop ws.vis.10 = 0 ~lively
-    follow ws.vis.1 = if((ws.1.busy or ws.active == 1) and not ws.special, 1, 0)
-    follow ws.vis.2 = if((ws.2.busy or ws.active == 2) and not ws.special, 1, 0)
-    follow ws.vis.3 = if((ws.3.busy or ws.active == 3) and not ws.special, 1, 0)
-    follow ws.vis.4 = if((ws.4.busy or ws.active == 4) and not ws.special, 1, 0)
-    follow ws.vis.5 = if((ws.5.busy or ws.active == 5) and not ws.special, 1, 0)
-    follow ws.vis.6 = if((ws.6.busy or ws.active == 6) and not ws.special, 1, 0)
-    follow ws.vis.7 = if((ws.7.busy or ws.active == 7) and not ws.special, 1, 0)
-    follow ws.vis.8 = if((ws.8.busy or ws.active == 8) and not ws.special, 1, 0)
-    follow ws.vis.9 = if((ws.9.busy or ws.active == 9) and not ws.special, 1, 0)
-    follow ws.vis.10 = if((ws.10.busy or ws.active == 10) and not ws.special, 1, 0)
+    //  Settings > Bar > Workspaces, "Show every workspace": the first five (or ten) all have one, busy or not; a busy one past them still does.
+    repeat i in 1..11 { follow ws.vis.$i = if((ws.$i.busy or ws.active == i or (ws_all and i <= ws_count)) and not ws.special, 1, 0) }
     //  The plus: a workspace to start in, the first one of the five with no window (not the one in view). It is only there when the one in view has a window,
     //  so there is somewhere new to go.
     let ws.new = if(not ws.1.busy and ws.active != 1, 1, if(not ws.2.busy and ws.active != 2, 2, if(not ws.3.busy and ws.active != 3, 3, if(not ws.4.busy and ws.active != 4, 4, if(not ws.5.busy and ws.active != 5, 5, if(not ws.6.busy and ws.active != 6, 6, if(not ws.7.busy and ws.active != 7, 7, if(not ws.8.busy and ws.active != 8, 8, if(not ws.9.busy and ws.active != 9, 9, if(not ws.10.busy and ws.active != 10, 10, 0))))))))))
     prop ws.pv = 0 ~lively
-    follow ws.pv = if(ws.new > 0 and not ws_empty and not ws.special, 1, 0)
+    follow ws.pv = if(ws_plus_on and not ws_all and ws.new > 0 and not ws_empty and not ws.special, 1, 0)
+    prop ws.pon = 1 ~lively                             // the plus is wanted at all (Settings): its room is kept while it is, shown or not
+    follow ws.pon = if(ws_plus_on and not ws_all, 1, 0)
     prop ws.sp = 0 ~lively                              // how much the special workspace's mark is there
     follow ws.sp = if(ws.special, 1, 0)
     //  The special workspace's mark is drawn again five times a second for as long as it is there. Its own step, not the scene's `time`: a clock that turns
@@ -1498,12 +1520,32 @@ scene Vitreus {
     prop wspl.3 = 0 ~pop
     //  The mark of the workspace in view is one piece that travels: its head runs ahead to the new place and its tail follows, so it
     //  stretches across what lies between and gathers again.
-    prop ws.st1 = 0 ~260ms                               // the workspace style, as amounts (see `ws.ma`)
-    prop ws.st2 = 0 ~260ms
-    prop ws.st3 = 0 ~260ms
-    follow ws.st1 = if(ws_style == 1, 1, 0)
-    follow ws.st2 = if(ws_style == 2, 1, 0)
-    follow ws.st3 = if(ws_style == 3, 1, 0)
+    //  The look (Settings > Bar > Workspaces), each as an amount 0..1 so that one morphs into the next: capsule, pips, apps, numerals, rings (see `ws.s`).
+    repeat k in 0..5 { prop ws.st.$k = 0 ~260ms }
+    repeat k in 0..5 { follow ws.st.$k = if(ws_style == k, 1, 0) }
+    prop ws.nums = 0 ~260ms                             // the number on every mark
+    follow ws.nums = if(ws_nums and ws_style != 3, 1, 0)
+    prop ws.nr1 = 0 ~260ms                              // which numerals: Roman, kanji (neither: 1 2 3)
+    prop ws.nr2 = 0 ~260ms
+    follow ws.nr1 = if(ws_numerals == 1, 1, 0)
+    follow ws.nr2 = if(ws_numerals == 2, 1, 0)
+    prop ws.mo1 = 0 ~260ms                              // how the mark in view moves: slides as one piece, fades out and in (neither: stretches)
+    prop ws.mo2 = 0 ~260ms
+    follow ws.mo1 = if(ws_motion == 1, 1, 0)
+    follow ws.mo2 = if(ws_motion == 2, 1, 0)
+    prop ws.sz = 1 ~calm
+    follow ws.sz = clamp(ws_size, 0.75, 1.5)
+    prop ws.gp = 9 ~calm
+    follow ws.gp = clamp(ws_gap, 4, 16)
+    repeat i in 1..11 { prop ws.cnt.$i = 0 ~lively }      // its windows, up to three, as an amount (a pip or a third of a ring grows in)
+    repeat i in 1..11 { follow ws.cnt.$i = clamp(ws.$i.n, 0, 3) }
+    repeat i in 1..11 { prop ws.ico.$i = 0 ~lively }      // its app icons, the same
+    repeat i in 1..11 { follow ws.ico.$i = clamp(ws.$i.ni, 0, 3) }
+    //  The accent the mark in view takes: the theme's, the wallpaper's own (Iris), or white.
+    let wsacc = pick(ws_accent, mint, wcol.mint, ink)
+    let wsacc.hi = pick(ws_accent, minthi, mix(wcol.mint, #ffffff, 0.3), #ffffff)
+    let wsacc.lo = pick(ws_accent, mintlo, mix(wcol.mint, #000000, 0.25), mix(ink, #000000, 0.22))
+    let wsacc.on = pick(ws_accent, onmint, deep, deep)
     //  The workspace marks are alive: the one in view still travelling to its new place (its tail is the last to get there), however it was switched. The glass stays out of its resting state
     //  meanwhile (`lens.idle`), as for the docks (`dk_lv`); its `follow` is by the marks' zones (pages/bar_glass.plm). A spring, so the morphs that end a little after are in it too.
     prop ws_lv = 0 ~calm
@@ -1535,8 +1577,12 @@ scene Vitreus {
     follow ws.urg.7 = if(ws.7.urgent, 1, 0)
     follow ws.urg.8 = if(ws.8.urgent, 1, 0)
     follow ws.urg.9 = if(ws.9.urgent, 1, 0)
+    prop pl.mid = 1 ~260ms                              // (Slide: head and tail together, on this one)
     follow ws.urg.10 = if(ws.10.urgent, 1, 0)
 
+    follow pl.mid = ws.active
+    let pl.H = mix(pl.head, pl.mid, ws.mo1)
+    let pl.T = mix(pl.tail, pl.mid, ws.mo1)
     on change drop > 0.97 while drop > 0.97 { impulse sag 220; impulse wobble -260 }
     //  The volume's and notifications' drawer lands the same way (it is no longer a value of `panel`, so `drop` does not follow it).
     on change do0 > 0.97 while do0 > 0.97 { impulse sag 220; impulse wobble -260 }
@@ -1559,6 +1605,11 @@ scene Vitreus {
     //  controls' plates still arrive one after another.
     on change panel while panel == calendar   { f1: 1 after 220ms; f4: 1 after 300ms }
     //  Each close says it again just after the open's own delay would have fired: a panel opened and closed inside that delay would else have its
+    //  Settings > Bar > Workspaces, "Asking for attention: Breathe": the coral comes and goes, slowly, while one is asking. A step of its own, not `time` (which would keep the whole scene painting).
+    fact ws_bt = false
+    prop ws.br = 0 ~slow
+    every 900ms while ws_pulse and (ws.1.urgent or ws.2.urgent or ws.3.urgent or ws.4.urgent or ws.5.urgent or ws.6.urgent or ws.7.urgent or ws.8.urgent or ws.9.urgent or ws.10.urgent) { toggle ws_bt }
+    follow ws.br = if(ws_bt and ws_pulse, 1, 0)
     //  `after` come in late and leave the content drawn over a closed drawer (the calendar's last row stuck in the bar).
     on change panel while panel != calendar   { f1: 0 ~80ms; f4: 0 ~80ms; f1: 0 ~80ms after 225ms; f4: 0 ~80ms after 305ms }
     on change panel while panel == controls   { f2: 1 after 200ms; f5: 1 after 200ms; f6: 1 after 200ms; f7: 1 after 200ms }
@@ -1716,6 +1767,7 @@ scene Vitreus {
     prop batt_fill = 0 ~calm            // 0..1, the charge, smoothly
     prop batt_on = 0 ~calm              // 1 when there is a battery
     prop batt_low = 0 ~calm             // 1 while below 20 % and not charging
+    prop set_pgws = 0 ~calm
     //  While the charger is filling the battery, a soft glint crosses the bar every 5 seconds (and once as soon as it
     //  is plugged in): `charge_sweep` goes from 0 to 1 over 0.9 s and then rests at 1. It is a timer that wakes the
     //  scene for that second and lets it sleep for the other four. A battery that says "charging" at 98 % or more is
@@ -1824,6 +1876,7 @@ scene Vitreus {
     follow bs.ctl = if(bv.ctl, 1, 0)
     follow bs.clock = if(bv.clock, 1, 0)
     follow bs.tray = if(bv.tray, 1, 0)
+    follow set_pgws = if(set_page == pg_ws, 1, 0)
     follow bs.ax = if(bv.ax and not bar_frame, 1, 0)
     follow bs.dsk = if(bar_frame or not bv.dsk, 0, 1)
     follow bs.bat = if(not bv.bat or not bat_here, 0, 1)
@@ -2037,6 +2090,12 @@ scene Vitreus {
     follow dock_mid_pill = if(dock_mid, 1, 0)
     prop dkm = 0 ~calm                 // how far the docks are one centred dock (only on the Island: `dock_mid`, and `bar_frame` off)
     follow dkm = if(dock_mid and not bar_frame, 1, 0)
+    prop ws_all_pill = 0 ~pop          // Settings > Bar > Workspaces' switches
+    follow ws_all_pill = if(ws_all, 1, 0)
+    prop ws_nums_pill = 0 ~pop
+    follow ws_nums_pill = if(ws_nums, 1, 0)
+    prop ws_plus_pill = 1 ~pop
+    follow ws_plus_pill = if(ws_plus_on, 1, 0)
     follow bar_beat_pill = if(bar_beat, 1, 0)
     on enter bar_hit { fr_hov = true }
     on leave bar_hit { fr_hov = false }
@@ -2201,6 +2260,9 @@ scene Vitreus {
     event night_end_step ->
     //  The wallpaper picker (SUPER + B): glass hexagons centred on the screen, drawn at the end of this scene. Every wallpaper is one
     //  hexagon (its picture already cut to the hexagon by the logic); how many there are sets how big they are, so that they always fill
+    fact wsg_scroll_to = 0             // and the Workspaces page
+    prop wsg_scroll = 0 ~quick
+    follow wsg_scroll = wsg_scroll_to
     //  the tray. The logic makes the pictures (`wp_picker`), orders them by colour and does the awww side of a pick.
     model wp_picker max 200 { img: image 104, 120; hue: number; cur: bool; dim: bool; name: text }       // the picture is 124 x 143 (120 x 139 and two transparent pixels all round), and the cell is declared smaller, 104 x 120, in the same shape (the picture is fitted inside it; the resting tiles are drawn at about that size): every image takes its whole cell from the atlas (one 2048 x 2048 texture, shared with the text), and at 186 x 215 only about a hundred of the hundred and thirty-seven tiles fitted, the rest were drawn empty
     fact wp_picker_open = false
@@ -2689,8 +2751,8 @@ scene Vitreus {
     follow vm = if(vm_open and panel == controls, 1, 0)
     follow mvis = if(mixer.count > 0 or vm_open, 1, 0)
     //  launch_toggle and settings_toggle are handled by the logic (logic/panel_monitor.luau): it opens them on the focused monitor.
-    on change panel { wp_scroll_to = 0; wpd_open = false; grd_open = false; font_dd_open = false; dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; gl_scroll_to = 0; br_scroll_to = 0; ck_scroll_to = 0; ad_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0 }
-    on change set_page { wh_dd = false; wp_scroll_to = 0; font_dd_open = false; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; gl_scroll_to = 0; br_scroll_to = 0; ck_scroll_to = 0; ad_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0; vpn_arm = -1 }
+    on change panel { wp_scroll_to = 0; wpd_open = false; grd_open = false; font_dd_open = false; dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; gl_scroll_to = 0; br_scroll_to = 0; wsg_scroll_to = 0; ck_scroll_to = 0; ad_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0 }
+    on change set_page { wh_dd = false; wp_scroll_to = 0; font_dd_open = false; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; gl_scroll_to = 0; br_scroll_to = 0; wsg_scroll_to = 0; ck_scroll_to = 0; ad_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0; vpn_arm = -1 }
     //  The Hyprland and Pleamar-WM pages read their settings from the system when they are shown, and only then: reading them on every page change
     //  (a dozen commands and a couple of hundred fact writes) stalled the scene for half a second on each click anywhere in Settings.
     on change set_page while set_page == pg_hypr { emit hy_refresh }
@@ -4017,8 +4079,8 @@ scene Vitreus {
         let c = ws.cr * min(w, h)
         let je = (0.08 + 0.47 * a) * bu       // cleaner at rest, the same wobble under the pointer
         let jm = (0.25 + 1.1 * a) * bu
-        path { at: 0, 0; stroke: 1.3 * bu; color: mix(mix(ink, warm, wg), mint, act); opacity: (1) * o; move cx + -w / 2 + c + je * sin(fr * 55 + 37100), cy + -h / 2 + je * sin(fr * 60 + 37160); curve cx + w / 2 - c + je * sin(fr * 62 + 37197), cy + -h / 2 + je * sin(fr * 67 + 37257) via cx + 0 + jm * sin(fr * 55 + 40107), cy + -h / 2 + jm * sin(fr * 60 + 40167); curve cx + w / 2 + je * sin(fr * 69 + 37294), cy + -h / 2 + c + je * sin(fr * 74 + 37354) via cx + w / 2 + jm * sin(fr * 62 + 40204), cy + -h / 2 + jm * sin(fr * 67 + 40264); curve cx + w / 2 + je * sin(fr * 45 + 37391), cy + h / 2 - c + je * sin(fr * 50 + 37451) via cx + w / 2 + jm * sin(fr * 69 + 40301), cy + 0 + jm * sin(fr * 74 + 40361); curve cx + w / 2 - c + je * sin(fr * 52 + 37488), cy + h / 2 + je * sin(fr * 57 + 37548) via cx + w / 2 + jm * sin(fr * 45 + 40398), cy + h / 2 + jm * sin(fr * 50 + 40458); curve cx + -w / 2 + c + je * sin(fr * 59 + 37585), cy + h / 2 + je * sin(fr * 64 + 37645) via cx + 0 + jm * sin(fr * 52 + 40495), cy + h / 2 + jm * sin(fr * 57 + 40555); curve cx + -w / 2 + je * sin(fr * 66 + 37682), cy + h / 2 - c + je * sin(fr * 71 + 37742) via cx + -w / 2 + jm * sin(fr * 59 + 40592), cy + h / 2 + jm * sin(fr * 64 + 40652); curve cx + -w / 2 + je * sin(fr * 73 + 37779), cy + -h / 2 + c + je * sin(fr * 78 + 37839) via cx + -w / 2 + jm * sin(fr * 66 + 40689), cy + 0 + jm * sin(fr * 71 + 40749); curve cx + -w / 2 + c + je * sin(fr * 49 + 37876), cy + -h / 2 + je * sin(fr * 54 + 37936) via cx + -w / 2 + jm * sin(fr * 73 + 40786), cy + -h / 2 + jm * sin(fr * 78 + 40846); close }
-        path { at: 0 + 0.35 * bu, 0 + 0.3 * bu; stroke: 0.9 * bu; color: mix(mix(ink, warm, wg), mint, act); opacity: (0.4) * o; move cx + -w / 2 + c + je * sin(fr * 61 + 37577), cy + -h / 2 + je * sin(fr * 66 + 37637); curve cx + w / 2 - c + je * sin(fr * 68 + 37674), cy + -h / 2 + je * sin(fr * 73 + 37734) via cx + 0 + jm * sin(fr * 61 + 40584), cy + -h / 2 + jm * sin(fr * 66 + 40644); curve cx + w / 2 + je * sin(fr * 44 + 37771), cy + -h / 2 + c + je * sin(fr * 49 + 37831) via cx + w / 2 + jm * sin(fr * 68 + 40681), cy + -h / 2 + jm * sin(fr * 73 + 40741); curve cx + w / 2 + je * sin(fr * 51 + 37868), cy + h / 2 - c + je * sin(fr * 56 + 37928) via cx + w / 2 + jm * sin(fr * 44 + 40778), cy + 0 + jm * sin(fr * 49 + 40838); curve cx + w / 2 - c + je * sin(fr * 58 + 37965), cy + h / 2 + je * sin(fr * 63 + 38025) via cx + w / 2 + jm * sin(fr * 51 + 40875), cy + h / 2 + jm * sin(fr * 56 + 40935); curve cx + -w / 2 + c + je * sin(fr * 65 + 38062), cy + h / 2 + je * sin(fr * 70 + 38122) via cx + 0 + jm * sin(fr * 58 + 40972), cy + h / 2 + jm * sin(fr * 63 + 41032); curve cx + -w / 2 + je * sin(fr * 72 + 38159), cy + h / 2 - c + je * sin(fr * 77 + 38219) via cx + -w / 2 + jm * sin(fr * 65 + 41069), cy + h / 2 + jm * sin(fr * 70 + 41129); curve cx + -w / 2 + je * sin(fr * 48 + 38256), cy + -h / 2 + c + je * sin(fr * 53 + 38316) via cx + -w / 2 + jm * sin(fr * 72 + 41166), cy + 0 + jm * sin(fr * 77 + 41226); curve cx + -w / 2 + c + je * sin(fr * 55 + 38353), cy + -h / 2 + je * sin(fr * 60 + 38413) via cx + -w / 2 + jm * sin(fr * 48 + 41263), cy + -h / 2 + jm * sin(fr * 53 + 41323); close }
+        path { at: 0, 0; stroke: 1.3 * bu; color: mix(mix(ink, warm, wg), wsacc, act); opacity: (1) * o; move cx + -w / 2 + c + je * sin(fr * 55 + 37100), cy + -h / 2 + je * sin(fr * 60 + 37160); curve cx + w / 2 - c + je * sin(fr * 62 + 37197), cy + -h / 2 + je * sin(fr * 67 + 37257) via cx + 0 + jm * sin(fr * 55 + 40107), cy + -h / 2 + jm * sin(fr * 60 + 40167); curve cx + w / 2 + je * sin(fr * 69 + 37294), cy + -h / 2 + c + je * sin(fr * 74 + 37354) via cx + w / 2 + jm * sin(fr * 62 + 40204), cy + -h / 2 + jm * sin(fr * 67 + 40264); curve cx + w / 2 + je * sin(fr * 45 + 37391), cy + h / 2 - c + je * sin(fr * 50 + 37451) via cx + w / 2 + jm * sin(fr * 69 + 40301), cy + 0 + jm * sin(fr * 74 + 40361); curve cx + w / 2 - c + je * sin(fr * 52 + 37488), cy + h / 2 + je * sin(fr * 57 + 37548) via cx + w / 2 + jm * sin(fr * 45 + 40398), cy + h / 2 + jm * sin(fr * 50 + 40458); curve cx + -w / 2 + c + je * sin(fr * 59 + 37585), cy + h / 2 + je * sin(fr * 64 + 37645) via cx + 0 + jm * sin(fr * 52 + 40495), cy + h / 2 + jm * sin(fr * 57 + 40555); curve cx + -w / 2 + je * sin(fr * 66 + 37682), cy + h / 2 - c + je * sin(fr * 71 + 37742) via cx + -w / 2 + jm * sin(fr * 59 + 40592), cy + h / 2 + jm * sin(fr * 64 + 40652); curve cx + -w / 2 + je * sin(fr * 73 + 37779), cy + -h / 2 + c + je * sin(fr * 78 + 37839) via cx + -w / 2 + jm * sin(fr * 66 + 40689), cy + 0 + jm * sin(fr * 71 + 40749); curve cx + -w / 2 + c + je * sin(fr * 49 + 37876), cy + -h / 2 + je * sin(fr * 54 + 37936) via cx + -w / 2 + jm * sin(fr * 73 + 40786), cy + -h / 2 + jm * sin(fr * 78 + 40846); close }
+        path { at: 0 + 0.35 * bu, 0 + 0.3 * bu; stroke: 0.9 * bu; color: mix(mix(ink, warm, wg), wsacc, act); opacity: (0.4) * o; move cx + -w / 2 + c + je * sin(fr * 61 + 37577), cy + -h / 2 + je * sin(fr * 66 + 37637); curve cx + w / 2 - c + je * sin(fr * 68 + 37674), cy + -h / 2 + je * sin(fr * 73 + 37734) via cx + 0 + jm * sin(fr * 61 + 40584), cy + -h / 2 + jm * sin(fr * 66 + 40644); curve cx + w / 2 + je * sin(fr * 44 + 37771), cy + -h / 2 + c + je * sin(fr * 49 + 37831) via cx + w / 2 + jm * sin(fr * 68 + 40681), cy + -h / 2 + jm * sin(fr * 73 + 40741); curve cx + w / 2 + je * sin(fr * 51 + 37868), cy + h / 2 - c + je * sin(fr * 56 + 37928) via cx + w / 2 + jm * sin(fr * 44 + 40778), cy + 0 + jm * sin(fr * 49 + 40838); curve cx + w / 2 - c + je * sin(fr * 58 + 37965), cy + h / 2 + je * sin(fr * 63 + 38025) via cx + w / 2 + jm * sin(fr * 51 + 40875), cy + h / 2 + jm * sin(fr * 56 + 40935); curve cx + -w / 2 + c + je * sin(fr * 65 + 38062), cy + h / 2 + je * sin(fr * 70 + 38122) via cx + 0 + jm * sin(fr * 58 + 40972), cy + h / 2 + jm * sin(fr * 63 + 41032); curve cx + -w / 2 + je * sin(fr * 72 + 38159), cy + h / 2 - c + je * sin(fr * 77 + 38219) via cx + -w / 2 + jm * sin(fr * 65 + 41069), cy + h / 2 + jm * sin(fr * 70 + 41129); curve cx + -w / 2 + je * sin(fr * 48 + 38256), cy + -h / 2 + c + je * sin(fr * 53 + 38316) via cx + -w / 2 + jm * sin(fr * 72 + 41166), cy + 0 + jm * sin(fr * 77 + 41226); curve cx + -w / 2 + c + je * sin(fr * 55 + 38353), cy + -h / 2 + je * sin(fr * 60 + 38413) via cx + -w / 2 + jm * sin(fr * 48 + 41263), cy + -h / 2 + jm * sin(fr * 53 + 41323); close }
     }
 
     //  A hand-drawn pencil line (the bar clock's underline, and the rule under the hour down the strip): one long wavy stroke, and a thinner fainter pass a hair off. `len` its length, `o` its
@@ -5372,53 +5434,61 @@ scene Vitreus {
     on change ax_open while ax_open and axb > 0.5 { panel = none }
     on change ax_open while ax_open and (panel == launch or panel == settings) { panel = none }       // a drawer opened over Search or Settings takes their place, in the frame layout too (they would sit above it)
     //  The marks are laid out along one line with the SAME empty space between every neighbouring pair, whatever their sizes: each one has a slot as long
-    //  as itself (a dot, a larger square if it has windows, or the pill while it is the active one, and in between while it morphs), and the slots follow
-    //  each other `ws.g` apart, the whole row centred on its place. `ws.cN` is where slot N's middle is, from the row's middle.
+    //  as itself (as it rests, or as the mark in view while it is the active one, and in between while it morphs), and the slots follow each other `ws.g`
+    //  apart from the overview button on. `ws.c[i]` is where slot i's middle is, from where the row starts (`ws.o`); `ws.a[i]` the same on the screen.
     let ws.U = mix(bu, bcu, lm)
-    let ws.g = 9 * ws.U
-    //  The style (Settings > Bar > Workspaces), each 0..1 so one morphs into the next: glass squares (none of them), dots, numbers, lines.
-    //  A mark is `ws.ma + ws.mt * tall` along the bar; across it, the same, but for the lines, which are `ws.lt` thick. `ws.cr` is its corner, of its shorter side.
-    let ws.ma = 6.5 + 0.5 * ws.st1 + 4.5 * ws.st2
-    let ws.mt = 4.5 - 3 * ws.st1 - 4.5 * ws.st2
-    let ws.lt = 4 * ws.U
-    let ws.cr = 0.3 + 0.2 * (ws.st1 + ws.st3)
-    let ws.pb = (13 - 4 * ws.st1 + 2 * ws.st2 - 9 * ws.st3) * ws.U                 // the pill's thickness, the same wherever it is
-    let ws.pl = ws.pb + (12 - 3 * ws.st1 - 6 * ws.st2 + 6 * ws.st3) * ws.U         // and its length, resting on one workspace
-    let ws.s1 = mix((ws.ma + ws.mt * ws.tall.1) * ws.U, ws.pl, ws.act.1)
-    let ws.s2 = mix((ws.ma + ws.mt * ws.tall.2) * ws.U, ws.pl, ws.act.2)
-    let ws.s3 = mix((ws.ma + ws.mt * ws.tall.3) * ws.U, ws.pl, ws.act.3)
-    let ws.s4 = mix((ws.ma + ws.mt * ws.tall.4) * ws.U, ws.pl, ws.act.4)
-    let ws.s5 = mix((ws.ma + ws.mt * ws.tall.5) * ws.U, ws.pl, ws.act.5)
-    let ws.s6 = mix((ws.ma + ws.mt * ws.tall.6) * ws.U, ws.pl, ws.act.6)
-    let ws.s7 = mix((ws.ma + ws.mt * ws.tall.7) * ws.U, ws.pl, ws.act.7)
-    let ws.s8 = mix((ws.ma + ws.mt * ws.tall.8) * ws.U, ws.pl, ws.act.8)
-    let ws.s9 = mix((ws.ma + ws.mt * ws.tall.9) * ws.U, ws.pl, ws.act.9)
-    let ws.s10 = mix((ws.ma + ws.mt * ws.tall.10) * ws.U, ws.pl, ws.act.10)
+    let ws.K = ws.U * ws.sz                                          // the marks' own unit (Settings > Bar > Workspaces, Size)
+    let ws.g = ws.gp * ws.U * (1 - 0.72 * ws.st.0)                   // (the capsule's segments all but touch: they are one track)
+    //  The look, each 0..1 so one morphs into the next (`ws.st.k`): in K, a mark's length along the bar as it rests and as the one in view.
+    //    capsule   a segment of one glass track, 16; the one in view 30, filled with the accent
+    //    pips      a dot for each window (up to three, 8 apart), or a hollow one for none; the one in view on a pill 10 longer
+    //    apps      a glass tile round its app icons (13 each, 16 apart, 6 of margin each side, 8 on the one in view), or a dot for none; the one in view lit
+    //    numerals  its number, as wide as it is set (`wsnw.i`, measured); the one in view underlined
+    //    rings     a ring, 11, a third of it drawn for each window; the one in view a disc of the accent, 14
+    //  With a number on every mark (`ws.nums`), the pips and the tiles have it before them (`ws.nl`), and the capsule and the rings round it.
+    let ws.nl = 15 * ws.nums * (ws.st.1 + ws.st.2)                   // (the number's room: 11 for it, 4 of gap)
+    let ws.pb = (12 * ws.st.0 + 11 * ws.st.1 + 24 * ws.st.2 + 2.4 * ws.st.3 + (14 + 4 * ws.nums) * ws.st.4) * ws.K       // the pill's thickness, the same wherever it is
+    let ws.po = 8.5 * ws.st.3 * ws.K                                // how far off the line it runs (the numerals' underline, under them)
+    let ws.cr = 0.5 - 0.17 * ws.st.0                                 // its corner, of its shorter side
     let ws.ps = 14 * ws.U                 // the plus's slot
-    let ws.sv1 = ws.s1 * ws.vis.1
-    let ws.sv2 = ws.s2 * ws.vis.2
-    let ws.sv3 = ws.s3 * ws.vis.3
-    let ws.sv4 = ws.s4 * ws.vis.4
-    let ws.sv5 = ws.s5 * ws.vis.5
-    let ws.sv6 = ws.s6 * ws.vis.6
-    let ws.sv7 = ws.s7 * ws.vis.7
-    let ws.sv8 = ws.s8 * ws.vis.8
-    let ws.sv9 = ws.s9 * ws.vis.9
-    let ws.sv10 = ws.s10 * ws.vis.10
-    let ws.sv11 = ws.ps * ws.pv
-    //  The row starts against the overview button and runs on (left to right, or down), so a mark opening or shutting moves only what comes after it.
-    //  `ws.qN` is how far the row has gone once slot N is in: its mark and the gap after it, each as open as the mark is.
-    let ws.q1 = (ws.s1 + ws.g) * ws.vis.1
-    let ws.q2 = ws.q1 + (ws.s2 + ws.g) * ws.vis.2
-    let ws.q3 = ws.q2 + (ws.s3 + ws.g) * ws.vis.3
-    let ws.q4 = ws.q3 + (ws.s4 + ws.g) * ws.vis.4
-    let ws.q5 = ws.q4 + (ws.s5 + ws.g) * ws.vis.5
-    let ws.q6 = ws.q5 + (ws.s6 + ws.g) * ws.vis.6
-    let ws.q7 = ws.q6 + (ws.s7 + ws.g) * ws.vis.7
-    let ws.q8 = ws.q7 + (ws.s8 + ws.g) * ws.vis.8
-    let ws.q9 = ws.q8 + (ws.s9 + ws.g) * ws.vis.9
-    let ws.q10 = ws.q9 + (ws.s10 + ws.g) * ws.vis.10
-    let sg.we = max(max(max(max(max(max(max(max(max(max(ws.sv1, (ws.q1 + ws.sv2) * ws.vis.2), (ws.q2 + ws.sv3) * ws.vis.3), (ws.q3 + ws.sv4) * ws.vis.4), (ws.q4 + ws.sv5) * ws.vis.5), (ws.q5 + ws.sv6) * ws.vis.6), (ws.q6 + ws.sv7) * ws.vis.7), (ws.q7 + ws.sv8) * ws.vis.8), (ws.q8 + ws.sv9) * ws.vis.9), (ws.q9 + ws.sv10) * ws.vis.10), max(ws.q10 + ws.ps * (1 - ws.sp), 9 * ws.U * ws.sp))     //  (the room for the plus is always kept, shown or not, so the last mark never sits on the slope of the notch)  where the last mark ends (or the special workspace's star)
+    let ws.s[11]
+    let ws.sv[11]
+    let ws.q[11]
+    let ws.c[11]
+    ws.s[0] = 0
+    ws.sv[0] = 0
+    ws.q[0] = 0
+    ws.c[0] = 0
+    let ws.end = 0                        // where the last mark ends
+    let ws.pl0 = 0                        // the length of the slot in view (of the two, by how much, while they morph): the mark in view's, resting
+    repeat i in 1..11 {
+        let m = max(1, ws.cnt.$i)
+        let ic = max(1, ws.ico.$i)
+        let nw = (wsnw.$i.0.width * (1 - ws.nr1 - ws.nr2) + wsnw.$i.1.width * ws.nr1 + wsnw.$i.2.width * ws.nr2) + 5
+        let rest = 16 * ws.st.0 + (5 + 8 * (m - 1)) * ws.st.1 + (16 * ic + 9) * ws.st.2 + nw * ws.st.3 + (11 + 4 * ws.nums) * ws.st.4 + ws.nl
+        let lit = 30 * ws.st.0 + (15 + 8 * (m - 1)) * ws.st.1 + (16 * ic + 13) * ws.st.2 + (nw + 4) * ws.st.3 + (14 + 4 * ws.nums) * ws.st.4 + ws.nl
+        ws.s[i] = mix(rest, lit, ws.act.$i) * ws.K
+        ws.sv[i] = ws.s[i] * ws.vis.$i
+        ws.q[i] = ws.q[i - 1] + (ws.s[i] + ws.g) * ws.vis.$i       // how far the row has gone once slot i is in: its mark and the gap after it, each as open as the mark is
+        ws.c[i] = ws.q[i - 1] + ws.sv[i] / 2
+        ws.end = max(ws.end, (ws.q[i - 1] + ws.sv[i]) * ws.vis.$i)
+        ws.pl0 += ws.s[i] * ws.act.$i
+    }
+    //  The plus after them, and where the row ends: the room for the plus is kept while it is wanted, shown or not, so the last mark never sits on the slope of the notch
+    //  (or the special workspace's star, in place of all of them).
+    let ws.psv = ws.ps * ws.pv
+    let ws.pc = ws.q.10 + ws.psv / 2
+    let sg.we = max(max(ws.end, ws.q.10 + ws.ps * ws.pon - ws.g * (1 - ws.pon)) * (1 - ws.sp), 9 * ws.U * ws.sp)
+    //  The mark in view, travelling: its head and tail as places along the row (between two slots' middles while they go).
+    let pl.h1 = ws.c.1
+    let pl.h2 = ws.c.1
+    repeat k in 2..11 {
+        pl.h1 += clamp(pl.H - (k - 1), 0, 1) * (ws.c[k] - ws.c[k - 1])
+        pl.h2 += clamp(pl.T - (k - 1), 0, 1) * (ws.c[k] - ws.c[k - 1])
+    }
+    let pl.s = min(1, abs(pl.H - pl.T))
+    let pl.t = ws.pb * (1 - 0.18 * pl.s * (1 - ws.st.3))
+    let pl.len = abs(pl.h1 - pl.h2) + ws.pl0
     //  The workspace marks decide how wide their piece is: the row (overview button, marks, plus) is measured here, and the bar widens by what it needs beyond the
     //  128 * bu it was made for (`ws.more`), so the marks never run into the title. Down the left (`lm`) the strip is the same length whatever is in it.
     let ws.row = (10 * bu + 19.5 * ws.U + sg.we) * (1 - lm)
@@ -5570,34 +5640,17 @@ scene Vitreus {
     let lv.ctl = vb - lf.t - 28 * bu                       // the controls at the foot of the strip (the clock is under the title now), the gear and search above them, 32 apart
     let lv.set = lv.ctl - 32 * bu
     let lv.sr = lv.set - 32 * bu
-    let ws.c1 = ws.sv1 / 2
-    let ws.c2 = ws.q1 + ws.sv2 / 2
-    let ws.c3 = ws.q2 + ws.sv3 / 2
-    let ws.c4 = ws.q3 + ws.sv4 / 2
-    let ws.c5 = ws.q4 + ws.sv5 / 2
-    let ws.c6 = ws.q5 + ws.sv6 / 2
-    let ws.c7 = ws.q6 + ws.sv7 / 2
-    let ws.c8 = ws.q7 + ws.sv8 / 2
-    let ws.c9 = ws.q8 + ws.sv9 / 2
-    let ws.c10 = ws.q9 + ws.sv10 / 2
-    let ws.c11 = ws.q10 + ws.sv11 / 2
     //  The overview button, before the first mark (at the top of them down the left): its middle and its size.
     let ob.x = mix(at.ws - vw.ws / 2 + 10 * bu, lf.x, lm)
     let ob.y = mix(bar.y, yo + lf.t + 24 * bcu, lm)
     let ob.s = 18 * ws.U
     let ob.d = ob.s * (1 + 0.2 * pick(screen.index, ovp.0, ovp.1))       // as it is drawn
     let ws.o = mix(ob.x, ob.y, lm) + ob.s / 2 + 10.5 * ws.U
-    let ws.a1 = ws.o + ws.c1
-    let ws.a2 = ws.o + ws.c2
-    let ws.a3 = ws.o + ws.c3
-    let ws.a4 = ws.o + ws.c4
-    let ws.a5 = ws.o + ws.c5
-    let ws.a6 = ws.o + ws.c6
-    let ws.a7 = ws.o + ws.c7
-    let ws.a8 = ws.o + ws.c8
-    let ws.a9 = ws.o + ws.c9
-    let ws.a10 = ws.o + ws.c10
-    let ws.a11 = ws.o + ws.c11
+    let ws.a[11]                       // each slot's middle, on the screen
+    ws.a[0] = ws.o
+    repeat i in 1..11 { ws.a[i] = ws.o + ws.c[i] }
+    let ws.pa = ws.o + ws.pc             // the plus's
+    let pl.m = ws.o + (pl.h1 + pl.h2) / 2     // the mark in view's middle, travelling
     //  The window title down the left, as in Synoptik's ActiveWindowCard: the app and its title turned a quarter anticlockwise (read from the foot
     //  up), centred in what the other pieces leave (`lv.tt` to `lv.bot`), with the player's buttons stacked at its top end while there is a player.
     let lv.trh = (max(0, tn * 24 - 6) + 6) * bu * min(1, tn)       // what the tray's icons take under the clock
@@ -5605,7 +5658,7 @@ scene Vitreus {
     //  The two edge groups each sit in a card like the title's: the workspaces and overview at the top (`lv.at` to `lv.ab`), the tray, search, the gear and the controls at the foot
     //  (`lv.bt` to `lv.bb`); the title's card goes between them, with room for its own.
     let lv.at = ob.y - ob.s / 2 - 9 * bu                   // the top card: from above the overview button to under the last mark and the plus
-    let lv.ab = max(ws.a11 + max(ws.sv11, ws.ps * ws.pv) / 2, ws.o + 24 * ws.U * ws.sp) + 9 * bu      // (and under a special workspace's mark, the sparkle, notes or eye, that takes the marks' place)
+    let lv.ab = max(ws.o + max(ws.end, ws.q.10 * ws.pon + ws.psv), ws.o + 24 * ws.U * ws.sp) + 9 * bu      // (and under a special workspace's mark, the sparkle, notes or eye, that takes the marks' place)
     let lv.bat = lv.sr - 34 * bu                           // the battery above search (when it is shown)
     let lv.bt = lv.sr - 20 * bu - 34 * bu * bs.bat
     let lv.bb = lv.ctl + 22 * bu
@@ -5787,17 +5840,18 @@ scene Vitreus {
     let side.gl = 98
     let side.h2 = 132
     let side.bar = 156
-    let side.ck = 184                  // the Widgets row
-    let side.ao = 212                  // the Add-ons row
-    let side.nt = 240
-    let side.lk = 268
-    let side.h3 = 302
-    let side.dp = 326
-    let side.nm = 354                  // the Night mode row
-    let side.id = 382                  // the Idle row
-    let side.gg = 410                  // the Greeter row (the login screen): only where SDDM is installed
-    let side.h4 = if(gr_sddm, 444, 416)
-    let side.hy = 468
+    let side.ws = 184                  // the Workspaces row, under Bar
+    let side.ck = 212                  // the Widgets row
+    let side.ao = 240                  // the Add-ons row
+    let side.nt = 268
+    let side.lk = 296
+    let side.h3 = 330
+    let side.dp = 354
+    let side.nm = 382                  // the Night mode row
+    let side.id = 410                  // the Idle row
+    let side.gg = 438                  // the Greeter row (the login screen): only where SDDM is installed
+    let side.h4 = if(gr_sddm, 472, 444)
+    let side.hy = 496
     let side.wm = side.hy + if(wm_hypr or wm_niri, 28, 0)    // the Hyprland row is only there on Hyprland (and the niri one on niri), and the Pleamar-WM one only under pleamar-wm
     let side.ky = side.wm + if(wm_pwm, 28, 0)              // the Keybinds row
     let side.vpn = side.ky + 28
@@ -5815,7 +5869,8 @@ scene Vitreus {
     let wm.h = 946                     // the Pleamar-WM page: to the bottom of its last card
     let ad.h = 36 + max(1, addons.count) * 74 + 52 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (74 apart), and the line under them
     let ck.h = 1208                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
-    let br.h = 723                     // the Bar page: to the bottom of its last card
+    let br.h = 613                     // the Bar page: to the bottom of its last card
+    let wsg.h = 904                    // the Workspaces page, the same
     let gl.h = 1048                    // the Glass page: to the bottom of its last card
     let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
@@ -7673,7 +7728,7 @@ scene Vitreus {
         opacity: 1 - lm
         let hh = bc.h
         let hl0 = ob.x - ob.s / 2 - bc.m
-        let hl1 = max(ws.a11 + max(ws.sv11, ws.ps * ws.pv) / 2, ws.o + 22 * ws.U * ws.sp) + bc.m
+        let hl1 = max(ws.o + max(ws.end, ws.q.10 * ws.pon + ws.psv), ws.o + 22 * ws.U * ws.sp) + bc.m
         BarCard((hl0 + hl1) / 2, bar.y, hl1 - hl0, hh, 943.5, bs.ws)
         BarCard((bc.cl + bc.cr) / 2, bar.y, bc.cr - bc.cl, hh, 944.5, max(bs.clock, bs.title) * (1 - clamp(dcp + dmp, 0, 1)))
         let hr0 = bc.rl

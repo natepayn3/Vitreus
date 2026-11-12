@@ -295,14 +295,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         end
     end)
 
-    -- Settings > Bar > Workspaces: how the marks look (0 squares, 1 dots, 2 numbers, 3 lines). The scene morphs between them, so it is at once.
-    on("bar_pick_ws", function(n)
-        n = math.floor(tonumber(n) or 0)
-        if n < 0 or n > 3 then return end
-        B.ws = n
-        fact.ws_style = n
-        save(B.pref or chosen())
-    end)
+    -- (Settings > Bar > Workspaces is logic/ws_marks.luau, kept in ws.json; the look bar.json had from before is left as it was, and read there once.)
 
     -- A tile of the Bar page: it joins the bar's monitors, or leaves them. One stays, and no more than MAX.
     on("bar_pick_scr", function(i)
@@ -352,7 +345,6 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
     fact.bar_fps = B.fps
     B.ws = (ok and type(saved) == "table" and type(saved.ws_style) == "number") and math.floor(saved.ws_style) or 0
     if B.ws < 0 or B.ws > 3 then B.ws = 0 end
-    fact.ws_style = B.ws
     local okw, written = pcall(sys.ask, "files.read", "bar-screens")
     -- (what it said when this one started, which the keeper should have passed on: `needs` reads it; `saved` is what it says now)
     B.written = okw and type(written) == "string" and written:match("^%s*(.-)%s*$") or nil

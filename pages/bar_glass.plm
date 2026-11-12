@@ -1807,20 +1807,20 @@ part BarGlass {
         zone box lf_hover { at: lf.x, vc; size: lf.w, vh; active: lm > 0.5 }
         repeat i in 1..11 {
             //  A zone as long as the slot and its share of the gap, so the zones touch.
-            let wa = if(i == 1, ws.a1, if(i == 2, ws.a2, if(i == 3, ws.a3, if(i == 4, ws.a4, if(i == 5, ws.a5, if(i == 6, ws.a6, if(i == 7, ws.a7, if(i == 8, ws.a8, if(i == 9, ws.a9, ws.a10)))))))))
-            let wsz = (if(i == 1, ws.s1, if(i == 2, ws.s2, if(i == 3, ws.s3, if(i == 4, ws.s4, if(i == 5, ws.s5, if(i == 6, ws.s6, if(i == 7, ws.s7, if(i == 8, ws.s8, if(i == 9, ws.s9, ws.s10))))))))) + ws.g) * ws.vis.$i
+            let wa = ws.a.$i
+            let wsz = (ws.s.$i + ws.g) * ws.vis.$i
             zone box ws.hit.$i { label: pick(i - 1, "Workspace 1", "Workspace 2", "Workspace 3", "Workspace 4", "Workspace 5", "Workspace 6", "Workspace 7", "Workspace 8", "Workspace 9", "Workspace 10"); at: mix(wa, lf.x, lm), mix(bar.y, wa, lm); size: mix(wsz, 40 * bu, lm), mix(bar.h, wsz, lm); cursor: pointer; active: bs.ws > 0.5 and ws.vis.$i > 0.5 }
             on press ws.hit.$i { emit go(i) }
             follow wsh.$i.$screen = ws.hit.$i.hover
             follow wsp.$i.$screen = ws.hit.$i.hover
         }
-        zone box ws_plus { label: "New workspace"; at: mix(ws.a11, lf.x, lm), mix(bar.y, ws.a11, lm); size: mix(ws.sv11 + ws.g, 40 * bu, lm), mix(bar.h, ws.sv11 + ws.g, lm); cursor: pointer; active: bs.ws > 0.5 and ws.pv > 0.5 }
+        zone box ws_plus { label: "New workspace"; at: mix(ws.pa, lf.x, lm), mix(bar.y, ws.pa, lm); size: mix(ws.psv + ws.g, 40 * bu, lm), mix(bar.h, ws.psv + ws.g, lm); cursor: pointer; active: bs.ws > 0.5 and ws.pv > 0.5 }
         on press ws_plus { emit go(ws.new) }
         follow wspl.$screen = ws_plus.hover
         zone box ov_btn { label: "Workspace overview"; at: ob.x, ob.y; size: ob.s + 8 * bu, ob.s + 8 * bu; cursor: pointer; active: bs.ws > 0.5 }
         on press ov_btn { emit ov_toggle }
         follow ovp.$screen = ov_btn.hover
-        follow ws_lv = if(abs(pl.tail - ws.active) > 0.02 or abs(pl.head - ws.active) > 0.02, 1, 0)
+        follow ws_lv = if(abs(pl.T - ws.active) > 0.02 or abs(pl.H - ws.active) > 0.02, 1, 0)
         follow bar_lv = if(bar_hover.hover > 0.01 or lf_hover.hover > 0.01 or abs(trn - bartrays.count) > 0.02 or abs(pvn - (if(priv_mic, 1, 0) + if(priv_cam, 1, 0) + if(priv_scr and not rec_on, 1, 0) + if(kb_multi, 1, 0))) > 0.02 or abs(media_open - if(media_on, 1, 0)) > 0.02 or charge_sweep < 0.98, 1, 0)
 
         //  What is in front: the app in small type above, the title under it, cut

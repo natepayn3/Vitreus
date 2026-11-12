@@ -1,0 +1,234 @@
+part Workspaces {
+        //  The Workspaces page (Shell, under Bar): how the bar's workspace marks look (five looks, a picture tile each, drawn as they are on the bar: the second in view,
+        //  the third with windows) and how they behave. The marks: pages/bar_icons.plm and `ws.s` in vitreus.plm; what is chosen is kept by logic/ws_marks.luau.
+        group {
+            show: set_pgws > 0.01
+            opacity: set_pgws
+            let wsg.sc = clamp(wsg_scroll, 0, max(0, wsg.h - set.h))
+            let wsg.off = floor(wsg.sc * pu + 0.5)        // whole pixels: text shifted by a fraction of one is resampled, and looks soft
+            clip box { at: spx + 224 * pu, sby + set.h / 2 * pu; size: 456 * pu, set.h * pu }
+            zone box wsg_wheel { at: spx + 219 * pu, sby + set.h / 2 * pu; size: 446 * pu, set.h * pu }
+            on scroll wsg_wheel { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
+            group {
+            move: 0, -wsg.off
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 13 * pu + 0.5); text "LOOK" { at: floor(spx + 14 * pu + 0.5), floor(sby + 13 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 79 * pu; size: 438 * pu, 106 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pu, sby + 79 * pu, 438 * pu, 106 * pu, 812.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pu, sby + 79 * pu; size: 438 * pu, 106 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            repeat w in 0..5 {
+                let bwx = spx + (53 + w * 83) * pu
+                let bwy = sby + 68 * pu
+                let bwlit = if(ws_style == w, 1, 0)
+                let bwk = mix(ink, mint, bwlit)
+                let my = bwy - 11 * pu                // the marks' line
+                box { at: bwx, bwy; size: 78 * pu, 64 * pu; corner: 12 * pu; color: if(bwlit > 0, mint, ink); opacity: if(bwlit > 0, 22%, 6% + 10% * ws_look_hit.$w.hover) }
+                box { at: bwx, bwy; size: 78 * pu, 64 * pu; corner: 12 * pu; stroke: 1.5 * pu; color: mint; opacity: bwlit * 100% }
+                group {
+                    show: w == 0
+                    box { at: bwx, my; size: 66 * pu, 14 * pu; corner: 7 * pu; color: bwk; opacity: 9% }
+                    box { at: bwx - 23 * pu, my; size: 12 * pu, 9 * pu; corner: 3 * pu; color: bwk; opacity: 16% }
+                    box { at: bwx - 5 * pu, my; size: 20 * pu, 10 * pu; corner: 3.4 * pu; color: mint }
+                    box { at: bwx + 13 * pu, my; size: 12 * pu, 9 * pu; corner: 3 * pu; color: bwk; opacity: 32% }
+                    box { at: bwx + 27 * pu, my; size: 12 * pu, 9 * pu; corner: 3 * pu; color: bwk; opacity: 16% }
+                }
+                group {
+                    show: w == 1
+                    ellipse { at: bwx - 27 * pu, my; radius: 2.3 * pu; color: bwk; opacity: 60% }
+                    box { at: bwx - 12 * pu, my; size: 20 * pu, 10 * pu; corner: 5 * pu; color: mint }
+                    ellipse { at: bwx - 15.5 * pu, my; radius: 2.1 * pu; color: onmint }
+                    ellipse { at: bwx - 8.5 * pu, my; radius: 2.1 * pu; color: onmint }
+                    ellipse { at: bwx + 4 * pu, my; radius: 2.3 * pu; color: bwk; opacity: 80% }
+                    ellipse { at: bwx + 11 * pu, my; radius: 2.3 * pu; color: bwk; opacity: 80% }
+                    ellipse { at: bwx + 18 * pu, my; radius: 2.3 * pu; color: bwk; opacity: 80% }
+                    ellipse { at: bwx + 29 * pu, my; radius: 2.1 * pu; stroke: 1.1 * pu; color: bwk; opacity: 55% }
+                }
+                group {
+                    show: w == 2
+                    box { at: bwx - 20 * pu, my; size: 24 * pu, 16 * pu; corner: 5 * pu; stroke: 1 * pu; color: bwk; opacity: 30% }
+                    box { at: bwx - 24 * pu, my; size: 8 * pu, 8 * pu; corner: 2 * pu; color: bwk; opacity: 70% }
+                    box { at: bwx - 15 * pu, my; size: 8 * pu, 8 * pu; corner: 2 * pu; color: bwk; opacity: 70% }
+                    box { at: bwx + 3 * pu, my; size: 16 * pu, 16 * pu; corner: 5 * pu; color: mint; opacity: 35% }
+                    box { at: bwx + 3 * pu, my; size: 8 * pu, 8 * pu; corner: 2 * pu; color: ink }
+                    box { at: bwx + 22 * pu, my; size: 16 * pu, 16 * pu; corner: 5 * pu; stroke: 1 * pu; color: bwk; opacity: 30% }
+                    box { at: bwx + 22 * pu, my; size: 8 * pu, 8 * pu; corner: 2 * pu; color: bwk; opacity: 70% }
+                }
+                group {
+                    show: w == 3
+                    group { scale: rs; pivot: floor(bwx + -24 * pu + 0.5), floor(my + 0.5); text "1" { at: floor(bwx + -24 * pu + 0.5), floor(my + 0.5); anchor: center; align: center; size: 15; weight: 700; color: bwk; opacity: 50%; family: "Space Grotesk" } }
+                    group { scale: rs; pivot: floor(bwx + -8 * pu + 0.5), floor(my + 0.5); text "2" { at: floor(bwx + -8 * pu + 0.5), floor(my + 0.5); anchor: center; align: center; size: 15; weight: 700; color: mint; opacity: 100%; family: "Space Grotesk" } }
+                    group { scale: rs; pivot: floor(bwx + 8 * pu + 0.5), floor(my + 0.5); text "3" { at: floor(bwx + 8 * pu + 0.5), floor(my + 0.5); anchor: center; align: center; size: 15; weight: 700; color: bwk; opacity: 90%; family: "Space Grotesk" } }
+                    group { scale: rs; pivot: floor(bwx + 24 * pu + 0.5), floor(my + 0.5); text "4" { at: floor(bwx + 24 * pu + 0.5), floor(my + 0.5); anchor: center; align: center; size: 15; weight: 700; color: bwk; opacity: 50%; family: "Space Grotesk" } }
+                    box { at: bwx - 8 * pu, my + 9 * pu; size: 11 * pu, 2.4 * pu; corner: 1.2 * pu; color: mint }
+                }
+                group {
+                    show: w == 4
+                    ellipse { at: bwx - 24 * pu, my; radius: 5 * pu; stroke: 1.3 * pu; color: bwk; opacity: 30% }
+                    ellipse { at: bwx - 8 * pu, my; radius: 6.5 * pu; color: mint }
+                    arc { at: bwx - 8 * pu, my; radius: 4 * pu; span: 120deg; rotate: 60deg; width: 1.6 * pu; color: onmint }
+                    ellipse { at: bwx + 8 * pu, my; radius: 5 * pu; stroke: 1.3 * pu; color: bwk; opacity: 30% }
+                    arc { at: bwx + 8 * pu, my; radius: 5 * pu; span: 240deg; rotate: 120deg; width: 1.7 * pu; color: bwk; opacity: 90% }
+                    ellipse { at: bwx + 24 * pu, my; radius: 5 * pu; stroke: 1.3 * pu; color: bwk; opacity: 30% }
+                }
+                group { scale: rs; pivot: floor(bwx + 0.5), floor(bwy + 17 * pu + 0.5); text pick(w, "Capsule", "Pips", "Apps", "Numerals", "Rings") { at: floor(bwx + 0.5), floor(bwy + 17 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: (74 * pu) / rs; lines: 1; color: mix(ink, mint, bwlit); family: "Space Grotesk" } }
+                zone box ws_look_hit.$w { at: bwx, bwy; size: 78 * pu, 64 * pu; corner: 12 * pu; cursor: pointer; active: (sby + 68 * pu) - wsg.off > sby and (sby + 68 * pu) - wsg.off < sby + set.h * pu; label: pick(w, "Capsule", "Pips", "Apps", "Numerals", "Rings") }
+                on scroll ws_look_hit.$w { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
+                on press ws_look_hit.$w { emit ws_pick_style(w) }
+            }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 116 * pu + 0.5); text pick(ws_style, "One glass track; the workspace in view fills with the accent", "A dot for each window on it, up to three", "The icons of the apps open on each one", "Each one's number, the one in view underlined", "A ring that fills a third for each window on it") { at: floor(spx + 14 * pu + 0.5), floor(sby + 116 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 154 * pu + 0.5); text "WHICH ONES" { at: floor(spx + 14 * pu + 0.5), floor(sby + 154 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 258 * pu; size: 438 * pu, 182 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pu, sby + 258 * pu, 438 * pu, 182 * pu, 813.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pu, sby + 258 * pu; size: 438 * pu, 182 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            group {
+                opacity: 1
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 191 * pu + 0.5); text "Show every workspace" { at: floor(spx + 14 * pu + 0.5), floor(sby + 191 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 211 * pu + 0.5); text "Empty workspaces get a mark too, not only busy ones" { at: floor(spx + 14 * pu + 0.5), floor(sby + 211 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                SettingsSwitch(spx + 424 * pu, sby + 191 * pu, ws_all_pill, ws_all_hit.pressed, ws_all_hit.hover, mint)
+                zone box ws_all_hit { at: spx + 405 * pu, sby + 191 * pu; size: 46 * pu, 26 * pu; cursor: pointer; active: (sby + 191 * pu) - wsg.off > sby and (sby + 191 * pu) - wsg.off < sby + set.h * pu and true; label: "Show every workspace" }
+                on scroll ws_all_hit { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
+                on press ws_all_hit { emit ws_toggle_all }
+            }
+            group {
+                opacity: if(ws_all, 1, 0.45)
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 249 * pu + 0.5); text "How many" { at: floor(spx + 14 * pu + 0.5), floor(sby + 249 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 269 * pu + 0.5); text "How many marks there are while every workspace is shown" { at: floor(spx + 14 * pu + 0.5), floor(sby + 269 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                zone box ws_cnt_hit_sl { at: spx + 348 * pu, sby + 249 * pu; size: 152 * pu, 24 * pu }
+                SetPick(spx + 310 * pu, sby + 249 * pu, 76 * pu, 2, 24 * pu, if(ws_count == 10, 1, 0), ws_cnt_hit_sl.hover, pu)
+                repeat i in 0..2 {
+                    let lx = spx + 310 * pu + i * 76 * pu
+                    box { at: lx, sby + 249 * pu; size: 70 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ws_cnt_hit.$i.hover }
+                    group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 249 * pu + 0.5); text pick(i, "Five", "Ten") { at: floor(lx + 0.5), floor(sby + 249 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (66 * pu) / rs; lines: 1; color: if(if(ws_count == 10, 1, 0) == i, mint, ink); family: "Space Grotesk" } }
+                    zone box ws_cnt_hit.$i { at: lx, sby + 249 * pu; size: 72 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 249 * pu) - wsg.off > sby and (sby + 249 * pu) - wsg.off < sby + set.h * pu and ws_all; label: pick(i, "Five", "Ten") }
+                    on scroll ws_cnt_hit.$i { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
+                    on press ws_cnt_hit.$i { emit ws_pick_count(i) }
+                }
+            }
+            group {
+                opacity: if(ws_all, 0.45, 1)
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 307 * pu + 0.5); text "New-workspace button" { at: floor(spx + 14 * pu + 0.5), floor(sby + 307 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 327 * pu + 0.5); text "A + after the marks that takes you to an empty workspace" { at: floor(spx + 14 * pu + 0.5), floor(sby + 327 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                SettingsSwitch(spx + 424 * pu, sby + 307 * pu, ws_plus_pill, ws_plus_hit.pressed, ws_plus_hit.hover, mint)
+                zone box ws_plus_hit { at: spx + 405 * pu, sby + 307 * pu; size: 46 * pu, 26 * pu; cursor: pointer; active: (sby + 307 * pu) - wsg.off > sby and (sby + 307 * pu) - wsg.off < sby + set.h * pu and not ws_all; label: "New-workspace button" }
+                on scroll ws_plus_hit { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
+                on press ws_plus_hit { emit ws_toggle_plus }
+            }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 371 * pu + 0.5); text "NUMBERS" { at: floor(spx + 14 * pu + 0.5), floor(sby + 371 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 446 * pu; size: 438 * pu, 124 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pu, sby + 446 * pu, 438 * pu, 124 * pu, 814.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pu, sby + 446 * pu; size: 438 * pu, 124 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            group {
+                opacity: if(ws_style == 3, 0.45, 1)
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 408 * pu + 0.5); text "Number on each mark" { at: floor(spx + 14 * pu + 0.5), floor(sby + 408 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 428 * pu + 0.5); text "Its number beside or inside every mark" { at: floor(spx + 14 * pu + 0.5), floor(sby + 428 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                SettingsSwitch(spx + 424 * pu, sby + 408 * pu, ws_nums_pill, ws_nums_hit.pressed, ws_nums_hit.hover, mint)
+                zone box ws_nums_hit { at: spx + 405 * pu, sby + 408 * pu; size: 46 * pu, 26 * pu; cursor: pointer; active: (sby + 408 * pu) - wsg.off > sby and (sby + 408 * pu) - wsg.off < sby + set.h * pu and ws_style != 3; label: "Number on each mark" }
+                on scroll ws_nums_hit { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
+                on press ws_nums_hit { emit ws_toggle_nums }
+            }
+            group {
+                opacity: if(ws_style == 3 or ws_nums, 1, 0.45)
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 466 * pu + 0.5); text "Numerals" { at: floor(spx + 14 * pu + 0.5), floor(sby + 466 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 486 * pu + 0.5); text "How the numbers are written" { at: floor(spx + 14 * pu + 0.5), floor(sby + 486 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                zone box ws_nrl_hit_sl { at: spx + 283 * pu, sby + 466 * pu; size: 282 * pu, 24 * pu }
+                SetPick(spx + 189 * pu, sby + 466 * pu, 94 * pu, 3, 24 * pu, ws_numerals, ws_nrl_hit_sl.hover, pu)
+                repeat i in 0..3 {
+                    let lx = spx + 189 * pu + i * 94 * pu
+                    box { at: lx, sby + 466 * pu; size: 88 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ws_nrl_hit.$i.hover }
+                    group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 466 * pu + 0.5); text pick(i, "1 2 3", "I II III", "") { at: floor(lx + 0.5), floor(sby + 466 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (84 * pu) / rs; lines: 1; color: if(ws_numerals == i, mint, ink); family: "Space Grotesk" } }
+                    zone box ws_nrl_hit.$i { at: lx, sby + 466 * pu; size: 90 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 466 * pu) - wsg.off > sby and (sby + 466 * pu) - wsg.off < sby + set.h * pu and true; label: pick(i, "1 2 3", "I II III", "") }
+                    on scroll ws_nrl_hit.$i { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
+                    on press ws_nrl_hit.$i { emit ws_pick_numerals(i) }
+                }
+            }
+            //  (the third word is kanji, in Zen Kurenaido: Space Grotesk has none, and a text is drawn in its one font)
+            group { scale: rs; pivot: floor(spx + 377 * pu + 0.5), floor(sby + 466 * pu + 0.5); text "一 二 三" { at: floor(spx + 377 * pu + 0.5), floor(sby + 466 * pu + 0.5); anchor: center; align: center; size: 16; color: if(ws_numerals == 2, mint, ink); opacity: if(ws_style == 3 or ws_nums, 1, 0.45); family: "Zen Kurenaido" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 530 * pu + 0.5); text "BEHAVIOUR" { at: floor(spx + 14 * pu + 0.5), floor(sby + 530 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 634 * pu; size: 438 * pu, 182 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pu, sby + 634 * pu, 438 * pu, 182 * pu, 815.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pu, sby + 634 * pu; size: 438 * pu, 182 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            group {
+                opacity: 1
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 567 * pu + 0.5); text "Moving between" { at: floor(spx + 14 * pu + 0.5), floor(sby + 567 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 587 * pu + 0.5); text pick(ws_motion, "The lit mark stretches to the next workspace and gathers there", "The lit mark slides across as one piece", "The old one fades out as the new one lights up") { at: floor(spx + 14 * pu + 0.5), floor(sby + 587 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                zone box ws_mo_hit_sl { at: spx + 301 * pu, sby + 567 * pu; size: 246 * pu, 24 * pu }
+                SetPick(spx + 219 * pu, sby + 567 * pu, 82 * pu, 3, 24 * pu, ws_motion, ws_mo_hit_sl.hover, pu)
+                repeat i in 0..3 {
+                    let lx = spx + 219 * pu + i * 82 * pu
+                    box { at: lx, sby + 567 * pu; size: 76 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ws_mo_hit.$i.hover }
+                    group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 567 * pu + 0.5); text pick(i, "Stretch", "Slide", "Fade") { at: floor(lx + 0.5), floor(sby + 567 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(ws_motion == i, mint, ink); family: "Space Grotesk" } }
+                    zone box ws_mo_hit.$i { at: lx, sby + 567 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 567 * pu) - wsg.off > sby and (sby + 567 * pu) - wsg.off < sby + set.h * pu and true; label: pick(i, "Stretch", "Slide", "Fade") }
+                    on scroll ws_mo_hit.$i { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
+                    on press ws_mo_hit.$i { emit ws_pick_motion(i) }
+                }
+            }
+            group {
+                opacity: 1
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 625 * pu + 0.5); text "Asking for attention" { at: floor(spx + 14 * pu + 0.5), floor(sby + 625 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 645 * pu + 0.5); text pick(if(ws_pulse, 1, 0), "A workspace whose app wants you turns coral until you go there", "A workspace whose app wants you turns coral, slowly pulsing") { at: floor(spx + 14 * pu + 0.5), floor(sby + 645 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                zone box ws_urg_hit_sl { at: spx + 342 * pu, sby + 625 * pu; size: 164 * pu, 24 * pu }
+                SetPick(spx + 301 * pu, sby + 625 * pu, 82 * pu, 2, 24 * pu, if(ws_pulse, 1, 0), ws_urg_hit_sl.hover, pu)
+                repeat i in 0..2 {
+                    let lx = spx + 301 * pu + i * 82 * pu
+                    box { at: lx, sby + 625 * pu; size: 76 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ws_urg_hit.$i.hover }
+                    group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 625 * pu + 0.5); text pick(i, "Still", "Breathe") { at: floor(lx + 0.5), floor(sby + 625 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (72 * pu) / rs; lines: 1; color: if(if(ws_pulse, 1, 0) == i, mint, ink); family: "Space Grotesk" } }
+                    zone box ws_urg_hit.$i { at: lx, sby + 625 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 625 * pu) - wsg.off > sby and (sby + 625 * pu) - wsg.off < sby + set.h * pu and true; label: pick(i, "Still", "Breathe") }
+                    on scroll ws_urg_hit.$i { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
+                    on press ws_urg_hit.$i { emit ws_pick_urgent(i) }
+                }
+            }
+            group {
+                opacity: 1
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 683 * pu + 0.5); text "Colour" { at: floor(spx + 14 * pu + 0.5), floor(sby + 683 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 703 * pu + 0.5); text "The colour of the workspace you are on" { at: floor(spx + 14 * pu + 0.5), floor(sby + 703 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                zone box ws_acc_hit_sl { at: spx + 292 * pu, sby + 683 * pu; size: 264 * pu, 24 * pu }
+                SetPick(spx + 204 * pu, sby + 683 * pu, 88 * pu, 3, 24 * pu, ws_accent, ws_acc_hit_sl.hover, pu)
+                repeat i in 0..3 {
+                    let lx = spx + 204 * pu + i * 88 * pu
+                    box { at: lx, sby + 683 * pu; size: 82 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ws_acc_hit.$i.hover }
+                    group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 683 * pu + 0.5); text pick(i, "Theme", "Wallpaper", "White") { at: floor(lx + 0.5), floor(sby + 683 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (78 * pu) / rs; lines: 1; color: if(ws_accent == i, mint, ink); family: "Space Grotesk" } }
+                    zone box ws_acc_hit.$i { at: lx, sby + 683 * pu; size: 84 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 683 * pu) - wsg.off > sby and (sby + 683 * pu) - wsg.off < sby + set.h * pu and true; label: pick(i, "Theme", "Wallpaper", "White") }
+                    on scroll ws_acc_hit.$i { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
+                    on press ws_acc_hit.$i { emit ws_pick_accent(i) }
+                }
+            }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 747 * pu + 0.5); text "SIZE" { at: floor(spx + 14 * pu + 0.5), floor(sby + 747 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 823 * pu; size: 438 * pu, 126 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pu, sby + 823 * pu, 438 * pu, 126 * pu, 816.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pu, sby + 823 * pu; size: 438 * pu, 126 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 784 * pu + 0.5); text "Size" { at: floor(spx + 14 * pu + 0.5), floor(sby + 784 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 784 * pu + 0.5); text ws_size_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 784 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
+            PSlider(spx + 14 * pu, sby + 808 * pu, 410 * pu, clamp((ws_size - 0.75) / 0.75, 0, 1), ws_size_hit.hover, cu, 10 * pu, 0)
+            zone box ws_size_hit { at: spx + 219 * pu, sby + 808 * pu; size: 438 * pu, 26 * pu; cursor: pointer; active: (sby + 808 * pu) - wsg.off > sby and (sby + 808 * pu) - wsg.off < sby + set.h * pu; label: "Size" }
+            on press ws_size_hit { emit ws_set_size(clamp(((pointer.x - tx.pnl) - (spx + 14 * pu)) / (410 * pu), 0, 1)) }
+            on scroll ws_size_hit { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
+            on drag ws_size_hit { emit ws_set_size(clamp(((pointer.x - tx.pnl) - (spx + 14 * pu)) / (410 * pu), 0, 1)) }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 840 * pu + 0.5); text "Spacing" { at: floor(spx + 14 * pu + 0.5), floor(sby + 840 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 840 * pu + 0.5); text ws_gap_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 840 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
+            PSlider(spx + 14 * pu, sby + 864 * pu, 410 * pu, clamp((ws_gap - 4) / 12, 0, 1), ws_gap_hit.hover, cu, 10 * pu, 0)
+            zone box ws_gap_hit { at: spx + 219 * pu, sby + 864 * pu; size: 438 * pu, 26 * pu; cursor: pointer; active: (sby + 864 * pu) - wsg.off > sby and (sby + 864 * pu) - wsg.off < sby + set.h * pu; label: "Spacing" }
+            on press ws_gap_hit { emit ws_set_gap(clamp(((pointer.x - tx.pnl) - (spx + 14 * pu)) / (410 * pu), 0, 1)) }
+            on scroll ws_gap_hit { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
+            on drag ws_gap_hit { emit ws_set_gap(clamp(((pointer.x - tx.pnl) - (spx + 14 * pu)) / (410 * pu), 0, 1)) }
+            }
+            let wsg.thh = set.h * set.h / max(set.h, wsg.h)
+            let wsg.thy = wsg.thh / 2 + wsg.sc / max(1, wsg.h - set.h) * (set.h - wsg.thh)
+            box { at: spx + 442 * pu, sby + set.h / 2 * pu; size: 3 * pu, set.h * pu; corner: 1.5 * pu; color: ink; opacity: if(wsg.h > set.h, 6%, 0%) }
+            box { at: spx + 442 * pu, sby + wsg.thy * pu; size: 3 * pu, wsg.thh * pu; corner: 1.5 * pu; color: mint; opacity: if(wsg.h > set.h, 55%, 0%) }
+            let wsg.cue = clamp((wsg.h - set.h - wsg.sc) / 24, 0, 1)
+            let wsg.cuey = sby + (set.h - 26) * pu + 2.5 * pu * sin(time * 270)
+            repeat i in 0..16 {
+                let bfk = (i + 1) / 16
+                box { from: spx - 4 * pu, sby + (set.h - 56 + i * 3.5) * pu; size: 448 * pu, 3.5 * pu + 0.5; color: deep; opacity: 45% * bfk * bfk * wsg.cue }
+            }
+            box { at: spx + 224 * pu, wsg.cuey; size: 76 * pu, 26 * pu; corner: 13 * pu; color: deep; opacity: 80% * wsg.cue }
+            box { at: spx + 224 * pu, wsg.cuey; size: 76 * pu, 26 * pu; corner: 13 * pu; color: mint; opacity: (10% + 14% * wsg_cue_hit.hover) * wsg.cue }
+            path { at: spx + 204 * pu, wsg.cuey - 1 * pu; stroke: 1.6 * pu; color: mint; opacity: wsg.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
+            path { at: spx + 204 * pu, wsg.cuey + 4 * pu; stroke: 1.6 * pu; color: mint; opacity: wsg.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
+            group { scale: rs; pivot: floor(spx + 232 * pu + 0.5), floor(wsg.cuey + 0.5); text "More" { at: floor(spx + 232 * pu + 0.5), floor(wsg.cuey + 0.5); anchor: center; size: 16.5; weight: 700; color: ink; opacity: wsg.cue; family: "Space Grotesk" } }
+            zone box wsg_cue_hit { at: spx + 224 * pu, sby + (set.h - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: wsg.cue > 0.5; label: "More" }
+            on press wsg_cue_hit { wsg_scroll_to = clamp(wsg_scroll_to + 342, 0, max(0, wsg.h - set.h)) }
+            zone box wsg_bar_hit { at: spx + 442 * pu, sby + set.h / 2 * pu; size: 14 * pu, set.h * pu; cursor: pointer; active: wsg.h > set.h; label: "Scroll the Workspaces page" }
+            on press wsg_bar_hit { wsg_scroll_to = clamp((((pointer.y - ty.set) - sby) / pu - wsg.thh / 2) / max(1, set.h - wsg.thh) * (wsg.h - set.h), 0, max(0, wsg.h - set.h)) }
+            on drag wsg_bar_hit { wsg_scroll_to = clamp((((pointer.y - ty.set) - sby) / pu - wsg.thh / 2) / max(1, set.h - wsg.thh) * (wsg.h - set.h), 0, max(0, wsg.h - set.h)) }
+        }
+}

@@ -240,55 +240,6 @@ part Bar {
                 on scroll cdk_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
                 on press cdk_hit { emit cdk_show_toggle }
             }
-            let bwc = sby + 657 * pu
-            //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, bwc; size: 438 * pu, 96 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pu, bwc, 438 * pu, 96 * pu, 807.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pu, bwc; size: 438 * pu, 96 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(bwc - 38 * pu + 0.5); text "WORKSPACES" { at: floor(spx + 14 * pu + 0.5), floor(bwc - 38 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
-            repeat w in 0..4 {
-                let bwx = spx + (62 + w * 104) * pu
-                let bwy = bwc + 9 * pu
-                let bwlit = if(ws_style == w, 1, 0)
-                let bwk = mix(ink, mint, bwlit)
-                box { at: bwx, bwy; size: 96 * pu, 64 * pu; corner: 12 * pu; color: if(bwlit > 0, mint, ink); opacity: if(bwlit > 0, 24%, 6% + 10% * bar_ws_hit.$w.hover) }
-                box { at: bwx, bwy; size: 96 * pu, 64 * pu; corner: 12 * pu; stroke: 1.5 * pu; color: mint; opacity: bwlit * 100% }
-                //  The marks: the second is the one in view, the third has a window.
-                group {
-                    show: w == 0
-                    box { at: bwx - 30 * pu, bwy - 12 * pu; size: 7 * pu, 7 * pu; corner: 2.1 * pu; color: bwk; opacity: 45% }
-                    box { at: bwx - 10 * pu, bwy - 12 * pu; size: 18 * pu, 12 * pu; corner: 3.6 * pu; color: mint }
-                    box { at: bwx + 10 * pu, bwy - 12 * pu; size: 7 * pu, 10.5 * pu; corner: 2.1 * pu; color: bwk; opacity: 80% }
-                    box { at: bwx + 28 * pu, bwy - 12 * pu; size: 7 * pu, 7 * pu; corner: 2.1 * pu; color: bwk; opacity: 45% }
-                }
-                group {
-                    show: w == 1
-                    box { at: bwx - 30 * pu, bwy - 12 * pu; size: 7 * pu, 7 * pu; corner: 3.5 * pu; color: bwk; opacity: 45% }
-                    box { at: bwx - 10 * pu, bwy - 12 * pu; size: 18 * pu, 7 * pu; corner: 3.5 * pu; color: mint }
-                    box { at: bwx + 10 * pu, bwy - 12 * pu; size: 7 * pu, 7 * pu; corner: 3.5 * pu; color: bwk; opacity: 80% }
-                    box { at: bwx + 28 * pu, bwy - 12 * pu; size: 7 * pu, 7 * pu; corner: 3.5 * pu; color: bwk; opacity: 45% }
-                }
-                group {
-                    show: w == 2
-                    box { at: bwx - 10 * pu, bwy - 12 * pu; size: 22 * pu, 16 * pu; corner: 6 * pu; color: mint; opacity: 30% }
-                    group { scale: rs; pivot: floor(bwx - 30 * pu + 0.5), floor(bwy - 12 * pu + 0.5); text "1" { at: floor(bwx - 30 * pu + 0.5), floor(bwy - 12 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; color: bwk; opacity: 50%; family: "Space Grotesk" } }
-                    group { scale: rs; pivot: floor(bwx - 10 * pu + 0.5), floor(bwy - 12 * pu + 0.5); text "2" { at: floor(bwx - 10 * pu + 0.5), floor(bwy - 12 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; color: mint; family: "Space Grotesk" } }
-                    group { scale: rs; pivot: floor(bwx + 10 * pu + 0.5), floor(bwy - 12 * pu + 0.5); text "3" { at: floor(bwx + 10 * pu + 0.5), floor(bwy - 12 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; color: bwk; opacity: 85%; family: "Space Grotesk" } }
-                    group { scale: rs; pivot: floor(bwx + 28 * pu + 0.5), floor(bwy - 12 * pu + 0.5); text "4" { at: floor(bwx + 28 * pu + 0.5), floor(bwy - 12 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; color: bwk; opacity: 50%; family: "Space Grotesk" } }
-                }
-                group {
-                    show: w == 3
-                    box { at: bwx - 30 * pu, bwy - 12 * pu; size: 8 * pu, 3 * pu; corner: 1.5 * pu; color: bwk; opacity: 45% }
-                    box { at: bwx - 10 * pu, bwy - 12 * pu; size: 20 * pu, 4 * pu; corner: 2 * pu; color: mint }
-                    box { at: bwx + 10 * pu, bwy - 12 * pu; size: 8 * pu, 3 * pu; corner: 1.5 * pu; color: bwk; opacity: 80% }
-                    box { at: bwx + 28 * pu, bwy - 12 * pu; size: 8 * pu, 3 * pu; corner: 1.5 * pu; color: bwk; opacity: 45% }
-                }
-                group { scale: rs; pivot: floor(bwx + 0.5), floor(bwy + 13 * pu + 0.5); text pick(w, "Squares", "Dots", "Numbers", "Lines") { at: floor(bwx + 0.5), floor(bwy + 13 * pu + 0.5); anchor: center; align: center; size: 16.5; weight: 700; width: (90 * pu) / rs; lines: 1; color: mix(ink, mint, bwlit); family: "Space Grotesk" } }
-                group { scale: rs; pivot: floor(bwx + 0.5), floor(bwy + 26 * pu + 0.5); text pick(w, "glass, the default", "small and light", "the workspace's own", "thin strokes") { at: floor(bwx + 0.5), floor(bwy + 26 * pu + 0.5); anchor: center; align: center; size: 13.5; width: (92 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
-                zone box bar_ws_hit.$w { at: bwx, bwy; size: 96 * pu, 64 * pu; corner: 12 * pu; cursor: pointer; active: bwy - br.off > sby and bwy - br.off < sby + set.h * pu; label: pick(w, "Glass squares", "Dots", "Numbers", "Lines") }
-                on scroll bar_ws_hit.$w { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
-                on press bar_ws_hit.$w { emit bar_pick_ws(w) }
-            }
             }
             let br.thh = set.h * set.h / max(set.h, br.h)
             let br.thy = br.thh / 2 + br.sc / max(1, br.h - set.h) * (set.h - br.thh)
