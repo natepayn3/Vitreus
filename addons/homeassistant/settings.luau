@@ -23,7 +23,7 @@ return function(api)
     local ORDER = {
         top = { "_help", "_language", "language", "_url", "url", "_token", "token", "_insecure", "insecure", "_artwork_search", "artwork_search", "_rooms", "_items", "rooms", "items" },
         room = { "name", "temperature", "humidity", "items" },
-        item = { "type", "name", "icon", "entity", "color", "tint", "on_text", "off_text", "apple_tv", "printer" },
+        item = { "type", "name", "icon", "entity", "color", "tint", "on_text", "off_text", "apple_tv", "printer", "actions" },
         apple_tv = { "media_player", "remote" },
         printer = { "task", "progress", "remaining", "status", "start", "end", "cover", "camera", "pause", "resume", "stop" },
     }
@@ -77,7 +77,7 @@ return function(api)
     local function fetch_ha(done)
         local c = api.cfg()
         if not c or c.demo then ha, ha_has = {}, {}; if done then done() end return end
-        local tpl = "[{% for s in states %}[{{ s.entity_id | tojson }},{{ s.name | tojson }},{{ (s.attributes.device_class or '') | tojson }}]{{ ',' if not loop.last }}{% endfor %}]"
+        local tpl = "{% set dl = integration_entities('dlna_dmr') %}[{% for s in states %}[{{ s.entity_id | tojson }},{{ s.name | tojson }},{{ (s.attributes.device_class or '') | tojson }},{{ (s.entity_id in dl) | tojson }}]{{ ',' if not loop.last }}{% endfor %}]"
         api.call("/api/template", json.encode({ template = tpl }), function(ok, out)
             if ok then
                 local okj, list = pcall(json.decode, out)
@@ -85,14 +85,32 @@ return function(api)
                     ha, ha_has = {}, {}
                     for _, r in ipairs(list) do
                         if type(r) == "table" and type(r[1]) == "string" then
-                            ha[#ha + 1] = { id = r[1], name = tostring(r[2] or r[1]), class = tostring(r[3] or "") }
+                            ha[#ha + 1] = { id = r[1], name = tostring(r[2] or r[1]), class = tostring(r[3] or ""), dlna = r[4] == true }
                             ha_has[r[1]] = ha[#ha]
                         end
                     end
                     table.sort(ha, function(a, b) return a.id < b.id end)
                 end
             end
-            if done then done() end
+            -- the shell commands (services, not entities: the states do not list them), for a tile's buttons
+            api.call("/api/services", nil, function(ok2, out2)
+                local okj, list = pcall(json.decode, ok2 and out2 or "")
+                if okj and type(list) == "table" then
+                    for _, d in ipairs(list) do
+                        if type(d) == "table" and d.domain == "shell_command" and type(d.services) == "table" then
+                            for name in pairs(d.services) do
+                                local id = "shell_command." .. tostring(name)
+                                if not ha_has[id] then
+                                    ha[#ha + 1] = { id = id, name = (tostring(name):gsub("_", " "):gsub("^%l", string.upper)), class = "" }
+                                    ha_has[id] = ha[#ha]
+                                end
+                            end
+                        end
+                    end
+                    table.sort(ha, function(a, b) return a.id < b.id end)
+                end
+                if done then done() end
+            end)
         end)
     end
     -- the suggestions for what is written: entities whose id or name holds it (a domain or a device class narrows them), the closest first
@@ -283,9 +301,9 @@ return function(api)
         return OLD[l:lower()] or l
     end
     local PNAMES = { [0] = "lightbulb", "floor_lamp", "power", "bedtime", "mode_fan", "tv", "power_outlet", "door_front", "home" }
-    local DNAMES_EN = { [0] = "led-strip.svg", "wall-lantern.svg", "pendant-lamp.svg", "floor-lamp.svg", "3d-printer.svg", "tv-box.svg", "terrarium.svg", "fan-heater.svg" }
-    local DNAMES_ES = { [0] = "tira-led.svg", "farol-pared.svg", "lampara-pergola.svg", "lampara-pie.svg", "impresora-3d.svg", "reproductor.svg", "terrario.svg", "calefactor.svg" }
-    local DEV_NEAR = { [0] = 0, 1, 0, 1, 5, 5, 6, 4 }      -- the add-on's own icons, as the closest of the pencil's (the list draws only those)
+    local DNAMES_EN = { [0] = "led-strip.svg", "wall-lantern.svg", "pendant-lamp.svg", "floor-lamp.svg", "3d-printer.svg", "tv-box.svg", "terrarium.svg", "fan-heater.svg", "speaker.svg" }
+    local DNAMES_ES = { [0] = "tira-led.svg", "farol-pared.svg", "lampara-pergola.svg", "lampara-pie.svg", "impresora-3d.svg", "reproductor.svg", "terrario.svg", "calefactor.svg", "altavoz.svg" }
+    local DEV_NEAR = { [0] = 0, 1, 0, 1, 5, 5, 6, 4, 5 }      -- the add-on's own icons, as the closest of the pencil's (the list draws only those)
     local function icon_of(name, kind)                  -- an icon's name → { pk, dk }
         if type(name) == "string" and name:match("%.[sp][vn]g$") then
             local f = api.ALIAS[name] or name
@@ -357,7 +375,11 @@ return function(api)
         if fa == fe - 1 then sugs(suggest(fq, nil, nil), "entity") end
         field("name", T("st_name"), d.name, T("st_name_ph"))
         note(T("st_type"))
-        chipset("type", { { label = T("st_light"), sel = d.type == "light", value = "light" }, { label = T("st_toggle"), sel = d.type ~= "light", value = "toggle" } })
+        local kinds = { { label = T("st_light"), sel = d.type == "light", value = "light" }, { label = T("st_toggle"), sel = d.type ~= "light" and d.type ~= "speaker", value = "toggle" } }
+        if (d.entity or ""):match("^media_player%.") or d.type == "speaker" then          -- a speaker (a DLNA renderer): play/pause on a click, its card on a right one
+            kinds[#kinds + 1] = { label = T("st_speaker"), sel = d.type == "speaker", value = "speaker" }
+        end
+        chipset("type", kinds)
         note(T("st_room"))
         local ro = {}
         if type(c.items) == "table" and #c.items > 0 then ro[#ro + 1] = { label = T("st_no_room"), sel = d.room == 0, value = 0 } end
@@ -375,14 +397,14 @@ return function(api)
             n = n + 1
         end
         for p = 0, 8 do cell(p, -1) end
-        for q = 0, 7 do cell(-1, q) end
+        for q = 0, 8 do cell(-1, q) end
         y = y + math.ceil(n / cols) * 52 + 6
         if pk < 0 and dk < 0 then note(string.format(T("st_own_icon"), tostring(d.icon))) end
         if d.type == "light" then
             switch("color", T("st_color"), d.color)
             switch("tint", T("st_tint"), d.tint)
         end
-        if (d.entity or ""):match("^media_player%.") or d.tv then
+        if ((d.entity or ""):match("^media_player%.") or d.tv) and d.type ~= "speaker" then
             switch("tv", T("st_tv"), d.tv)
             if d.tv then
                 local fr = field("remote", T("st_remote"), d.remote, "remote." .. ((d.entity or ""):match("^media_player%.(.+)$") or "…"))
@@ -401,6 +423,32 @@ return function(api)
                 note(T("st_printer_keep"))
             else
                 note(T("st_printer_none"))
+            end
+        end
+        switch("acts", T("st_acts"), d.acts)
+        if d.acts then
+            note(T("st_acts_note"))
+            -- each button: its entity, a name of its own (its entity's if left empty) and an icon (pressing the one chosen goes back to its own)
+            for n = 1, 2 do
+                local key = "act" .. n
+                local f = field(key, T("st_act" .. n), d[key], T("st_act_ph"))
+                if fa == f - 1 then sugs(suggest(fq, nil, nil), key) end
+                local e = d[key] or ""
+                local auto = (ha_has[e] and ha_has[e].name) or ((e:match("%.(.+)$") or ""):gsub("_", " "):gsub("^%l", string.upper))
+                field(key .. "_name", string.format(T("st_act_name"), n), d[key .. "_name"], auto ~= "" and auto or T("st_name_ph"))
+                note(string.format(T("st_act_icon"), n))
+                local ic = d[key .. "_icon"] or ""
+                local cur = api.PENCIL[ic]
+                local curd = api.DEV[api.ALIAS[ic] or ic]
+                local m = 0
+                local function bcell(p, q)
+                    icons[#icons + 1] = { pk = p, dk = q, x = (m % cols) * 52, y = y + math.floor(m / cols) * 52, key = key,
+                        sel = ((p >= 0 and cur == p and not curd) or (q >= 0 and curd == q)) and 1 or 0 }
+                    m = m + 1
+                end
+                for q = 0, 8 do bcell(q, -1) end
+                bcell(-1, 5)                               -- the Apple TV's (reproductor.svg), for a button that switches to it
+                y = y + math.ceil(m / cols) * 52 + 6
             end
         end
         field("on_text", T("st_on_text"), d.on_text, d.type == "light" and T("light_on") or T("on"))
@@ -493,7 +541,7 @@ return function(api)
             r.val = fq
             if draft and (tonumber(fact.st_page) or 0) > 0 then draft[r.key] = fq end
             -- a field with suggestions: they follow what is written (the rows below it move, the field stays where it is)
-            if r.key == "entity" or r.key == "remote" or r.key == "temperature" or r.key == "humidity" then
+            if r.key == "entity" or r.key == "remote" or r.key == "temperature" or r.key == "humidity" or r.key == "act1" or r.key == "act2" then
                 local keep = fa
                 build()
                 fa = keep
@@ -513,6 +561,7 @@ return function(api)
         if draft and r.key == "entity" and nxt and nxt.kind == 5 then
             if (draft.name or "") == "" then draft.name = nxt.pick.name end
             draft.type = fq:match("^light%.") and "light" or draft.type
+            if ha_has[fq] and ha_has[fq].dlna then draft.type = "speaker"; draft.tv = false end      -- a DLNA renderer: a speaker
         end
         local keep = fa
         build()
@@ -527,11 +576,22 @@ return function(api)
     end)
 
     -- ── presses ──
+    local act_id, act_of                             -- (below)
     local function back()
         unplace()
         draft, armed, errmsg = nil, nil, nil
         fact.st_page = 0
         build()
+    end
+    -- a tile's button n in config.json: an entity id, or { entity, name, icon }
+    act_id = function(list, n)
+        local a = type(list) == "table" and list[n] or nil
+        if type(a) == "table" then a = a.entity end
+        return type(a) == "string" and a or ""
+    end
+    act_of = function(list, n, k)            -- its name or its icon, when config.json gives it one
+        local a = type(list) == "table" and list[n] or nil
+        return (type(a) == "table" and type(a[k]) == "string") and a[k] or ""
     end
     local function open_entity(room, idx)
         local c = read_cfg() or {}
@@ -545,12 +605,16 @@ return function(api)
         draft = {
             room = room, idx = idx, orig = it,
             entity = entity, name = type(it.name) == "string" and it.name or "",
-            type = it.type == "light" and "light" or ((it.type == nil and entity:match("^light%.")) and "light" or (idx and "toggle" or "light")),
+            type = (it.type == "light" or it.type == "speaker") and it.type or ((it.type == nil and entity:match("^light%.")) and "light" or (idx and "toggle" or "light")),
             icon = type(it.icon) == "string" and it.icon or nil,
             color = it.color == true, tint = it.tint == true,
             tv = type(it.apple_tv) == "table", remote = type(it.apple_tv) == "table" and type(it.apple_tv.remote) == "string" and it.apple_tv.remote or "",
             printer = type(it.printer) == "table" and it.printer or nil, printer_on = type(it.printer) == "table", printer_prefix = nil,
             on_text = type(it.on_text) == "string" and it.on_text or "", off_text = type(it.off_text) == "string" and it.off_text or "",
+            acts = type(it.actions) == "table" and #it.actions > 0, act1 = act_id(it.actions, 1), act2 = act_id(it.actions, 2),
+            act1_name = act_of(it.actions, 1, "name"), act2_name = act_of(it.actions, 2, "name"),
+            act1_icon = act_of(it.actions, 1, "icon") ~= "" and act_of(it.actions, 1, "icon") or nil,
+            act2_icon = act_of(it.actions, 2, "icon") ~= "" and act_of(it.actions, 2, "icon") or nil,
         }
         if not idx then
             -- a new one: into the first room there is
@@ -586,13 +650,13 @@ return function(api)
         for k, v in pairs(d.orig or {}) do it[k] = v end
         it.type = d.type
         it.name = (d.name ~= "" and d.name) or d.entity
-        it.icon = d.icon or (d.type == "light" and "lightbulb" or "power")
+        it.icon = d.icon or (d.type == "light" and "lightbulb") or (d.type == "speaker" and "speaker.svg") or "power"
         it.entity = d.entity
         it.color = (d.type == "light" and d.color) and true or nil
         it.tint = (d.type == "light" and d.tint) and true or nil
         it.on_text = d.on_text ~= "" and d.on_text or nil
         it.off_text = d.off_text ~= "" and d.off_text or nil
-        if d.tv then
+        if d.tv and d.type ~= "speaker" then
             local tv = type(it.apple_tv) == "table" and it.apple_tv or {}
             local copy = {}
             for k, v in pairs(tv) do copy[k] = v end
@@ -600,6 +664,25 @@ return function(api)
             it.apple_tv = copy
         else
             it.apple_tv = nil
+        end
+        -- its two buttons: what was written in each (a name or an icon given in config.json is kept while the entity is the same)
+        if d.acts then
+            local out = {}
+            for n = 1, 2 do
+                local e = (d["act" .. n] or ""):gsub("^%s+", ""):gsub("%s+$", "")
+                if valid(e) then
+                    local name = (d["act" .. n .. "_name"] or ""):gsub("^%s+", ""):gsub("%s+$", "")
+                    local icon = d["act" .. n .. "_icon"]
+                    if name ~= "" or icon then
+                        out[#out + 1] = { entity = e, name = name ~= "" and name or nil, icon = icon }
+                    else
+                        out[#out + 1] = e
+                    end
+                end
+            end
+            it.actions = #out > 0 and out or nil
+        else
+            it.actions = nil
         end
         if d.printer_on then
             if d.printer_prefix then it.printer = printer_block(d.printer_prefix)
@@ -687,7 +770,11 @@ return function(api)
                 if draft and r.key == "entity" then
                     if (draft.name or "") == "" then draft.name = r.pick.name end
                     if fq:match("^light%.") then draft.type = "light" elseif not fq:match("^light%.") and draft.type == "light" and not draft.idx then draft.type = "toggle" end
-                    if fq:match("^media_player%.") then
+                    if fq:match("^media_player%.") and ha_has[fq] and ha_has[fq].dlna then
+                        draft.type = "speaker"
+                        draft.tv = false
+                        if not draft.icon then draft.icon = (api.lang() == "es") and "altavoz.svg" or "speaker.svg" end
+                    elseif fq:match("^media_player%.") then
                         draft.tv = true
                         local cand = "remote." .. fq:match("^media_player%.(.+)$")
                         if ha_has[cand] and (draft.remote or "") == "" then draft.remote = cand end
@@ -759,7 +846,9 @@ return function(api)
         local c = icons[(math.floor(tonumber(i) or -1)) + 1]
         if not c or not draft then return end
         if fa >= 0 then commit() end
-        if c.pk >= 0 then draft.icon = PNAMES[c.pk]
+        if c.key then                                -- a button's: the one pressed, or (pressed again) its own back
+            draft[c.key .. "_icon"] = (c.sel ~= 1) and (c.pk >= 0 and PNAMES[c.pk] or ((api.lang() == "es") and DNAMES_ES or DNAMES_EN)[c.dk]) or nil
+        elseif c.pk >= 0 then draft.icon = PNAMES[c.pk]
         else draft.icon = ((api.lang() == "es") and DNAMES_ES or DNAMES_EN)[c.dk] end
         unplace()
         build()
@@ -817,7 +906,9 @@ return function(api)
             dst[#dst + 1] = it
         end
         if type(c.items) == "table" and #c.items == 0 then c.items = nil end
-        write_cfg(c)
+        -- (what was written, and the table it came from: the panel, which has already put the tile there, need not read it all again)
+        local txt = enc(c, 0, "top") .. "\n"
+        if pcall(sys.call, "files.write", CONFIG, txt) then return txt, c end
     end
 
     -- after config.json was read again (saved here or by hand): the page shows it, and the field stays where it is

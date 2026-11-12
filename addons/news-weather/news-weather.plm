@@ -15,7 +15,7 @@ import "pencil-glyphs.plm"                        // the shell's icons in pencil
 //  the pointer, and holds still on Proxy. One monitor; no notch to carry an unread dot.
 
 scene NewsWeather {
-    surface { size: full, full; anchor: top_left; margin: 0; level: top, overlay while slot_open; screens: each max 4 }
+    surface { size: full, full; anchor: top_left; margin: 0; level: top, overlay while slot_open; screens: each max 4; open: shown > 0.5 }
 
     permissions {
         services: "files", "files.write"
@@ -64,9 +64,9 @@ scene NewsWeather {
     fact slot_h = 0
     fact slot_sw = 0                                  // the size of the monitor the panel is on: the scene has a copy on each (`screens: each`, numbered in its own order) and only the copy of that size draws (0: not told yet, every copy does)
     fact slot_sh = 0
-    let onmon = slot_sw == 0 or (screen.width == slot_sw and abs(screen.height - slot_sh) < 100)       // (height within 100: depending on the pleamar version a scene's screen is the whole monitor or what is left under the bar's reserve, 62 less) this copy is on the panel's monitor (still told while it shuts)
+    let onmon = slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh)       // this copy is on the panel's monitor (still told while it shuts)
     let here = if(slot_open and onmon, 1, 0)       // 1 on the copy on the panel's monitor, while the panel is out
-    let shown = if(onmon and (slot_open or en1 > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has). `en1` is one for every copy: the monitor test keeps the others shut
+    let shown = if(onmon and (slot_open or en1 > 0.004 or tail > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has)
 
     spring slide = 220, 24                            // the tab thumb: quick, with a hint of overshoot
 
@@ -78,6 +78,17 @@ scene NewsWeather {
     on change here while here > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms }
     on change here while here < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms }
     every 500ms while here > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms }     // (a scene that starts, or is saved, with its panel already out has no change to wait for)
+    //  The same again, by the clock: a close whose change was never seen (the panel was shut in the frame the content was still arriving, or two says landed
+    //  together) left `en1` at 1, so `shown` held and the content stayed drawn over bare wallpaper with the glass already gone. The rule above has always had
+    //  this backstop for the way in; this is the one for the way out.
+    every 250ms while here < 0.5 and en1 > 0.004 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms }
+    //  The last frame has to be an empty one. When `shown` stops holding, the surface is closed and the scene stops painting, but what it painted last stays
+    //  on the monitor: the content was left over bare wallpaper, the glass already gone. `tail` keeps the scene awake for a breath after the content has
+    //  faded (`en1` is over in 80 ms, this in ~400), so the frames painted meanwhile are empty ones, and that is what stays.
+    prop tail = 0 ~400ms
+    on change here while here > 0.5 { tail: 1 ~0ms }
+    on change here while here < 0.5 { tail: 0 ~400ms }
+    every 250ms while here < 0.5 and en1 < 0.004 and tail > 0.004 { tail: 0 ~400ms }
     //  Where the content is: it glides to `slot_x`, `slot_y` on the glass's own spring (Vitreus's `ax_sp`), so it moves with the panel as it is pulled, and is put
     //  there at once while it is not drawn yet (the panel opening, or a resize).
     spring ax_sp = 300, 20
@@ -109,7 +120,7 @@ scene NewsWeather {
     fact news_loading = true                          // from the start: the first thing seen is that it is loading
     fact news_fsz = 1
     prop news_spin = 0
-    spin news_spin by if(news_loading or not wxp_ok, 1, 0)
+    spin news_spin by if(shown > 0.5 and (news_loading or not wxp_ok), 1, 0)     // only while it can be seen: a spin keeps the scene painting
     text news_sub = ""
     text news_hint = ""
     text news_mng_msg = ""
@@ -156,7 +167,11 @@ scene NewsWeather {
     event nw_units_set ->                             // 0 Fahrenheit, 1 Celsius
 
     let u = 1.1
-    let fr = if(shown > 0.5 and look != 5, floor(time * 8), 0)     // the pencil's redrawing (STYLE.md): still while shut, and on Proxy, whose HUD is crisp
+    //  The pencil's clock, running only while the panel shows: naming pleamar's `time` keeps a scene awake for good, about fifty rounds a second
+    //  with the panel shut (pleamar --report: "animating 100%"). Stopped, the scene rests.
+    prop ax_clk = 0
+    spin ax_clk by if(shown > 0.5, 1, 0)
+    let fr = if(shown > 0.5 and look != 5, floor(ax_clk * 8), 0)     // the pencil's redrawing (STYLE.md): still while shut, and on Proxy, whose HUD is crisp
     let gz = u                                        // pencil-glyphs.plm's icons are drawn on a 24-unit square: one unit is `gz` pixels
     let ns.w = max(slot_w, 1)
     let ns.h = max(slot_h, 1)
