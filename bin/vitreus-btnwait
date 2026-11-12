@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""vitreus-btnwait [SECONDS]: waits until the left mouse button is up, and exits.
+
+A desktop widget dragged over to another monitor loses its drag there: the compositor lets go of it as the pointer goes on to the other monitor,
+and the scene is not told when the button comes up on the other side. While it is carried over (desktopclock/widget_place.luau), this tells it.
+
+Reads the input devices that have a left button (mice, touchpads, tablets): /dev/input/event*, readable for the `input` group.
+Prints "down" at once when the button is down as it starts (so that the widget knows to go on following the pointer), then waits for it, blocked on the
+devices: nothing runs meanwhile. Exit 0: the button is up (now, or it was not down when this started: nothing printed). Exit 2: no device could be read.
+Exit 3: still down after SECONDS (30): given up."""
+import os, select, struct, sys, time, fcntl, array
+
+LIMIT = float(sys.argv[1]) if len(sys.argv) > 1 else 30.0
+BTN_LEFT, EV_KEY = 0x110, 0x01
+
+
+def ioc(nr, size):                       # _IOC(_IOC_READ, 'E', nr, size)
+    return (2 << 30) | (size << 16) | (ord("E") << 8) | nr
+
+
+def has_left(fd):
+    bits = array.array("B", [0] * 96)    # EVIOCGBIT(EV_KEY): which keys it has
+    try:
+        fcntl.ioctl(fd, ioc(0x20 + EV_KEY, len(bits)), bits, True)
+    except OSError:
+        return False
+    return bool(bits[BTN_LEFT // 8] & (1 << (BTN_LEFT % 8)))
+
+
+def left_down(fd):
+    bits = array.array("B", [0] * 96)    # EVIOCGKEY: which keys are down now
+    try:
+        fcntl.ioctl(fd, ioc(0x18, len(bits)), bits, True)
+    except OSError:
+        return False
+    return bool(bits[BTN_LEFT // 8] & (1 << (BTN_LEFT % 8)))
+
+
+fds = []
+for name in sorted(os.listdir("/dev/input")):
+    if not name.startswith("event"):
+        continue
+    try:
+        fd = os.open("/dev/input/" + name, os.O_RDONLY | os.O_NONBLOCK)
+    except OSError:
+        continue
+    if has_left(fd):
+        fds.append(fd)
+    else:
+        os.close(fd)
+if not fds:
+    sys.exit(2)
+if not any(left_down(fd) for fd in fds):
+    sys.exit(0)
+print("down", flush=True)
+
+EVENT = struct.Struct("llHHi")           # struct input_event: time (two longs), type, code, value
+end = time.monotonic() + LIMIT
+while True:
+    left = end - time.monotonic()
+    if left <= 0:
+        sys.exit(3)
+    ready, _, _ = select.select(fds, [], [], min(left, 0.5))
+    for fd in ready:
+        try:
+            data = os.read(fd, EVENT.size * 64)
+        except OSError:
+            continue
+        for i in range(0, len(data) - EVENT.size + 1, EVENT.size):
+            _, _, typ, code, value = EVENT.unpack_from(data, i)
+            if typ == EV_KEY and code == BTN_LEFT and value == 0:
+                sys.exit(0)
+    # (a release missed between reads: the state says so)
+    if not any(left_down(fd) for fd in fds):
+        sys.exit(0)

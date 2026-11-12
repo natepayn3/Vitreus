@@ -9,47 +9,72 @@ import "../palette.plm"
 //  Its settings are kept in desktopsysmon.json, in ~/.local/share/pleamar/desktopsysmon (see desktopsysmon.luau).
 
 scene DesktopSysmon {
-    surface { size: full, full; anchor: top_left; margin: 0; level: bottom, top while edit; screens: each; reserve: -1; rate: 60, 15 while not edit and not glide }
+    //  1 x 1 and empty, one on each monitor: its copies report the monitors' names (`screen.K.name`) for where `hyprctl` does not answer, and keep the
+    //  scene's rules running. The card itself is drawn by the surfaces `sl0` to `sl3` below: out of Edit mode only its own monitor's is there, not a full-screen copy on every monitor
+    //  (~27 MB on the card each, drawing nothing but on one of them). See widget_place.luau.
+    surface { size: 1, 1; anchor: top_left; margin: 0; level: background; screens: each max 4; reserve: -1; keyboard: none }
     //  (15 frames a second at rest: the graph glides on a 4 s spring after every sample, so it never stops, and at the screen's pace that was a full-screen layer
     //  painted sixty times a second all day on every monitor. Smooth enough for a graph; full pace while it is dragged or put back.)
 
     permissions {
         services: "files", "files.write"
-        run: "vitreus-sysmon", "sh", "pleamar", "hyprctl", "socat", "printenv"
+        run: "vitreus-sysmon", "sh", "pleamar", "hyprctl", "socat", "printenv", "vitreus-btnwait"
     }
 
     fact where: top_left | top | top_right | left | center | right | bottom_left | bottom | bottom_right = bottom_right
     fact gx = -1           // the cell of its top left corner, 0 to 15 (-1: not chosen yet, `where` says)
     fact gy = -1           // and the row, 0 to 8
-    fact edit = false      // Edit, from the desktop's right-click menu: the widget shows the cells it takes and can be dragged to others (desktopmenu/ says so)
+    fact edit = false      // Edit, from the desktop editor (desktopedit/): the widget shows the cells it takes and can be dragged to others
     fact g0x = 0           // while it is dragged: the cell it was at when it was pressed
     fact g0y = 0
     fact dragging = false
-    fact mon = -1          // which monitor shows the card (the scene has a copy on each, only this one draws it and takes the pointer); the logic keeps it
     text mon_name = ""     // the name of the monitor that shows the card (Settings > Widgets sets it; the logic keeps it)
-    //  Where the monitors lie in the desktop (logical pixels) and how big they are, up to four (the logic asks `hyprctl`; a monitor that is not there is 0 x 0).
-    fact m0x = 0
-    fact m0y = 0
-    fact m0w = 0
-    fact m0h = 0
-    fact m1x = 0
-    fact m1y = 0
-    fact m1w = 0
-    fact m1h = 0
-    fact m2x = 0
-    fact m2y = 0
-    fact m2w = 0
-    fact m2h = 0
-    fact m3x = 0
-    fact m3y = 0
-    fact m3w = 0
-    fact m3h = 0
-    fact pcx = 0           // while it is dragged: the card's centre when it was pressed, in the desktop's own coordinates
-    fact pcy = 0
-    fact dcx = 0           // and where that centre is now
-    fact dcy = 0
-    fact zpx = 0           // while it is dragged: where the card was when it was pressed (the zone stays there)
-    fact zpy = 0
+    //  One surface a monitor (`sl0` to `sl3`, on the monitors `s0` to `s3` name): in Edit mode on every monitor there is, put there as the editor opens and
+    //  taken off as it shuts, so that none is made, moved or taken off while the widget goes from one to another (a layer fades in and out as it comes and
+    //  goes: that was the flicker, and moving one under a drag ended the drag); out of it, only on the widget's own (`hk`). `sx*`, `sy*`: where each
+    //  monitor is in the desktop; `sm*`: there is one. The logic keeps them (widget_place.luau).
+    text s0 = ""
+    text s1 = ""
+    text s2 = ""
+    text s3 = ""
+    fact sx0 = 0
+    fact sy0 = 0
+    fact sx1 = 0
+    fact sy1 = 0
+    fact sx2 = 0
+    fact sy2 = 0
+    fact sx3 = 0
+    fact sy3 = 0
+    fact sm0 = false
+    fact sm1 = false
+    fact sm2 = false
+    fact sm3 = false
+    fact hk = 0            // which of them is the widget's own monitor
+    //  Carried: the compositor lets go of a drag as the pointer goes on to another monitor. When it ends by an edge (`edge`) with the button still down
+    //  (bin/vitreus-btnwait says so to the logic), the widget goes on following the pointer (`carry`: the logic gives where it is, `pnx`, `pny`, from
+    //  Hyprland), and when the button comes up the logic says `drop`: it stays in the cell it is in, on that monitor.
+    fact carry = false
+    fact drop = false
+    fact edge = false
+    fact pk = 0            // and, while it is dragged, the one it was pressed on: only that one hears the pointer meanwhile (a surface of this scene that
+                           // hears it on another monitor takes the pointer over as it gets there, and the drag ends)
+    //  While it is dragged: the pointer in the desktop's coordinates where it was pressed (`pgx`, `pgy`) and now (`pnx`, `pny`), and from it to the card
+    //   (`kx`, `ky`).
+    fact pgx = 0
+    fact pgy = 0
+    fact pnx = 0
+    fact pny = 0
+    fact kx = 0
+    fact ky = 0
+    fact dfx = 0           // from the middle of its cells to the card, when it was pressed
+    fact dfy = 0
+    fact dfx = 0           // while it is dragged: from the middle of its cells to the card (the card follows the pointer, the cells come after)
+    fact dfy = 0
+    fact jump = false      // just gone over to another monitor: drawn at its new cell at once, not slid there by the cells' spring (the logic, a moment)
+    prop jp = 0 ~0ms
+    follow jp = if(jump, 1, 0)
+    fact orphan = false    // its monitor is not plugged in: it is shown only in Edit mode, on the first monitor, marked (the logic)
+    text orph = ""         // and that monitor's name
     fact shown = false     // the logic sets it from desktopsysmon.json (so that `sh` follows it from nothing)
     fact cli = 1           // the glass: 0 clear, 1 soft, 2 full
 
@@ -131,13 +156,10 @@ scene DesktopSysmon {
     let gt = gm + room_t
     let gr = gm + room_r
     let gb = gm + room_b
-    let mi = clamp(screen.index, 0, 3)
-    //  The scene's copies are not in the order `hyprctl` lists the monitors: the logic learns it and numbers the `m0x`.. facts and `mon` by the copies.
-    let here = if(mi == mon, 1, 0)
-    let scw = pick(mi, m0w, m1w, m2w, m3w)        // what this monitor measures (`screen.width` is 0 in a copy made for each monitor)
-    let sch = pick(mi, m0h, m1h, m2h, m3h)
-    let mox = pick(mon, m0x, m1x, m2x, m3x)       // where the monitor that shows it has its top left in the desktop
-    let moy = pick(mon, m0y, m1y, m2y, m3y)
+    let scw = max(pick(hk, sl0.width, sl1.width, sl2.width, sl3.width), 1)       // what its own monitor measures (its surface is the whole of it)
+    let sch = max(pick(hk, sl0.height, sl1.height, sl2.height, sl3.height), 1)
+    let hox = pick(hk, sx0, sx1, sx2, sx3)          // and where it is in the desktop
+    let hoy = pick(hk, sy0, sy1, sy2, sy3)
     let gw = (scw - gl - gr) / gnx
     let gh = (sch - gt - gb) / gny
     let fw = clamp(ceil(364 / gw), 1, gnx)
@@ -162,8 +184,8 @@ scene DesktopSysmon {
     follow gsx = if(gx < 0, ex0, gx)
     follow gsy = if(gy < 0, ey0, gy)
     follow ery = if(gy < 0, ey0, gy)
-    let ex = clamp(mix(mix(ex0, erx, edp), gsx, glp), 0, gnx - fw)
-    let ey = clamp(mix(mix(ey0, ery, edp), gsy, glp), 0, gny - fh)
+    let ex = clamp(mix(mix(mix(ex0, erx, edp), gsx, glp), if(gx < 0, ex0, gx), jp), 0, gnx - fw)
+    let ey = clamp(mix(mix(mix(ey0, ery, edp), gsy, glp), if(gy < 0, ey0, gy), jp), 0, gny - fh)
     //  Where the card's top left corner is: against the grid's edge, or in the middle of its cells, and in between it moves from one to the other.
     //  What is drawn is 340 wide from x 30 and about 210 tall from y 8 inside the card's 400 x 280, so against an edge of the grid it is that, and not the card, that touches the margin.
     let cxm = gl + (ex + fw / 2) * gw - 200
@@ -184,143 +206,266 @@ scene DesktopSysmon {
     fact hy = 0
     fact hw = 0
     fact hh = 0
-    on change cx0 while here > 0.5 { hx = cx0 + 18 }
-    on change cy0 while here > 0.5 { hy = cy0 - 2; hw = 364; hh = 230 }
-    on change here { hx = cx0 + 18; hy = cy0 - 2; hw = 364; hh = 230 }
+    on change cx0 { hx = cx0 + 18 }
+    on change cy0 { hy = cy0 - 2; hw = 364; hh = 230 }
     let ow = 364
     let oh = 230
-    let zx = if(dragging, zpx, cx0) + ox
-    let zy = if(dragging, zpy, cy0) + oy
-    //  Dragged over to another monitor it lands there: the monitor under the card's centre is the one that shows it, and the cell is worked out against that one's grid.
-    let in0 = if(dcx >= m0x and dcx < m0x + m0w and dcy >= m0y and dcy < m0y + m0h, 1, 0)
-    let in1 = if(dcx >= m1x and dcx < m1x + m1w and dcy >= m1y and dcy < m1y + m1h, 1, 0)
-    let in2 = if(dcx >= m2x and dcx < m2x + m2w and dcy >= m2y and dcy < m2y + m2h, 1, 0)
-    let in3 = if(dcx >= m3x and dcx < m3x + m3w and dcy >= m3y and dcy < m3y + m3h, 1, 0)
-    let tmon = if(in0 > 0.5, 0, if(in1 > 0.5, 1, if(in2 > 0.5, 2, if(in3 > 0.5, 3, mon))))
-    let tox = pick(tmon, m0x, m1x, m2x, m3x)
-    let toy = pick(tmon, m0y, m1y, m2y, m3y)
-    let tgw = (max(pick(tmon, m0w, m1w, m2w, m3w), 800) - gl - gr) / gnx
-    let tgh = (max(pick(tmon, m0h, m1h, m2h, m3h), 600) - gt - gb) / gny
-    let tfw = clamp(ceil(364 / tgw), 1, gnx)
-    let tfh = clamp(ceil(230 / tgh), 1, gny)
-    //  While it is dragged the zone is the whole surface: the card moves a cell at a time away from where the press was, and a pointer that leaves the zone's input region
-    //  ends the drag (the compositor lets go of it), after about one cell.
-    zone box edz { from: if(dragging, 0, zx), if(dragging, 0, zy); size: if(dragging, scw, ow), if(dragging, sch, oh); corner: 16; cursor: pointer; active: edit and shown and (here > 0.5 or dragging); label: "Move system" }
-    on press edz { pcx = mox + gl + (ex0 + fw / 2) * gw; pcy = moy + gt + (ey0 + fh / 2) * gh; dcx = pcx; dcy = pcy; zpx = cx0; zpy = cy0; dragging = true }
-    on drag edz { dcx = pcx + drag.dx; dcy = pcy + drag.dy }
-    //  A right click does nothing here, on purpose: a scene that never names the right button is closed by one (pleamar's way out of a prototype with no
-    //  keyboard), and the keeper starts it again a moment later, out of Edit mode: the widget went away and came back stuck.
-    on press right edz { }
-    on change dcx { mon = tmon; gx = clamp(floor((dcx - tox - gl) / tgw - tfw / 2 + 0.5), 0, gnx - tfw); gy = clamp(floor((dcy - toy - gt) / tgh - tfh / 2 + 0.5), 0, gny - tfh) }
-    on change dcy { mon = tmon; gx = clamp(floor((dcx - tox - gl) / tgw - tfw / 2 + 0.5), 0, gnx - tfw); gy = clamp(floor((dcy - toy - gt) / tgh - tfh / 2 + 0.5), 0, gny - tfh) }
-    on release edz { dragging = false; mon = tmon; gx = clamp(floor((dcx - tox - gl) / tgw - tfw / 2 + 0.5), 0, gnx - tfw); gy = clamp(floor((dcy - toy - gt) / tgh - tfh / 2 + 0.5), 0, gny - tfh) }   // (the rules above read the frame before: once more, now that it is still)
-    group {
-        show: edp > 0.01 and here > 0.5 and shown
-        opacity: edp
-        box { from: cx0 + ox, cy0 + oy; size: ow, oh; corner: 16; color: mint; opacity: 7% + 9% * dgp }
-        box { from: cx0 + ox, cy0 + oy; size: ow, oh; corner: 16; stroke: 1.6; color: mint; opacity: 55% + 45% * dgp }
-        text "System" { at: cx0 + ox + 14, cy0 + oy + 16; anchor: left center; size: 12; weight: 700; color: mint; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl) }
-    }
+    //  Dragged, it goes from cell to cell on a quick spring, as the desktop's other widgets do, and where it is seen is where it stays: the cell under it on the
+    //  monitor the pointer is over (`dk`), whichever that is. Its place is kept in the desktop's coordinates (`cgx`, `cgy`: the card's top left, as `cx0`,
+    //  `cy0`) and each monitor's surface draws what falls on it, so it goes across an edge as it goes from cell to cell.
+    let in0 = if(sm0 and pnx >= sx0 and pnx < sx0 + sl0.width and pny >= sy0 and pny < sy0 + sl0.height, 1, 0)
+    let in1 = if(sm1 and pnx >= sx1 and pnx < sx1 + sl1.width and pny >= sy1 and pny < sy1 + sl1.height, 1, 0)
+    let in2 = if(sm2 and pnx >= sx2 and pnx < sx2 + sl2.width and pny >= sy2 and pny < sy2 + sl2.height, 1, 0)
+    let in3 = if(sm3 and pnx >= sx3 and pnx < sx3 + sl3.width and pny >= sy3 and pny < sy3 + sl3.height, 1, 0)
+    let dk = if(in0 > 0.5, 0, if(in1 > 0.5, 1, if(in2 > 0.5, 2, if(in3 > 0.5, 3, hk))))
+    let tox = pick(dk, sx0, sx1, sx2, sx3)
+    let toy = pick(dk, sy0, sy1, sy2, sy3)
+    let tw = max(pick(dk, sl0.width, sl1.width, sl2.width, sl3.width), 1)
+    let th = max(pick(dk, sl0.height, sl1.height, sl2.height, sl3.height), 1)
+    let ngw = (tw - gl - gr) / gnx
+    let ngh = (th - gt - gb) / gny
+    let nfw = clamp(ceil(364 / ngw), 1, gnx)
+    let nfh = clamp(ceil(230 / ngh), 1, gny)
+    let ccx = pnx + kx - dfx - tox          // (where its cells would put it, freely, on that monitor)
+    let ccy = pny + ky - dfy - toy
+    let dgx = clamp(floor((ccx + 200 - gl) / ngw - nfw / 2 + 0.5), 0, gnx - nfw)
+    let dgy = clamp(floor((ccy + 113 - gt) / ngh - nfh / 2 + 0.5), 0, gny - nfh)
+    //  The card's place for that cell (as `cx0`, `cy0` put it: in the middle of its cells, against the grid's edge at the first or the last one).
+    let dex = gl + (dgx + nfw / 2) * ngw - 200
+    let dey = gt + (dgy + nfh / 2) * ngh - 113
+    //  The pointer by an edge of the monitor it is over (48 px) when the drag ends: maybe the compositor let go of it there.
+    let lpx = pnx - tox
+    let lpy = pny - toy
+    let nearedge = if(lpx <= 48 or lpx >= tw - 48 or lpy <= 48 or lpy >= th - 48, 1, 0)
+    on change drop while drop { gx = dgx; gy = dgy; hk = dk; jump = true; carry = false; drop = false }
+    let tcx = tox + dex + (gl - 15 - dex) * clamp(1 - dgx, 0, 1) + (tw - gr - 385 - dex) * clamp(dgx + nfw - (gnx - 1), 0, 1)
+    let tcy = toy + dey + (gt + 5 - dey) * clamp(1 - dgy, 0, 1) + (th - gb - 231 - dey) * clamp(dgy + nfh - (gny - 1), 0, 1)
+    //  (At rest the spring stays on the card, so that a drag starts from where it is.)
+    prop dxs = 0 ~quick
+    prop dys = 0 ~quick
+    follow dxs = if(dragging or carry, tcx, hox + cx0)
+    follow dys = if(dragging or carry, tcy, hoy + cy0)
+    let cgx = if(dragging or carry, dxs, hox + cx0)
+    let cgy = if(dragging or carry, dys, hoy + cy0)
     let ry = 92
-    group {
-        move: cx0, cy0
-        show: sh > 0.01 and here > 0.5
-        body {
-            color: tint
-            glass: 1
-            lens: false
-            rim: 70%
-            shine: 0, 0
-            shadow: 0, 6, 18, 30%
-            opacity: sh * clr * (1 - ob)
-            show: ob < 0.996
-            arc { at: g0, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg }
-            arc { at: g1, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg }
-            arc { at: g2, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg; show: gpu_on }
-            box { at: 200, 206; size: 340, 2.4; corner: 1.2 }
-        }
-        //  Retro and UwU: the card itself, a plastic plate with an outline and a hard shadow (the tracks and the graph's line are cut into it, below).
-        body {
-            color: tint
-            rim: 0%
-            border: (2 + 1.2 * uk - 0.8 * ppk - 0.6 * pxk + 2.2 * dd) * (1 - mk) * pl, mix(mix(mix(deep, tint, 0.55 * ppk), mix(#e8f1f5, tint, 0.4), pxk), ink, dd)
-            shadow: (4 - 2.5 * ppk - mk - 1.5 * pxk) * pl, (5 - 1.5 * ppk - mk - 2 * pxk) * pl, 9 * ppk + 10 * mk, (55% - 13% * ppk - 27% * mk + 30% * pxk + 35% * uk) * (1 - dd), mix(deep, #ff6ec7, 0.75 * uk)
-            opacity: sh * pl
-            show: pl > 0.004
-            box { at: 200, 113; size: 364, 230; corner: 16 }
-        }
-        //  Milkbox: the white light of the raised plate (the dark shade is the plate's own shadow, above).
-        body {
-            color: tint
-            rim: 0%
-            shadow: -3 * mk, -3 * mk, 8 * mk, 38% * mk, #ffffff
-            opacity: sh * mk
-            show: mk > 0.004
-            box { at: 200, 113; size: 364, 230; corner: 16 }
-        }
-        //  Paper: the worn, torn edge and two strips of tape.
+    //  The card itself, at (x, y): drawn by the surface of each monitor it falls on (`on`: whether to draw it there at all).
+    component SysCard(x: number, y: number, on: bool) {
         group {
-            show: ppk > 0.01
-            opacity: sh * ppk
-            shader paper { at: (200 - 364 / 2) - 8, (113 - 230 / 2) - 8; size: 364 + 16, 230 + 16; values: 1, 3.7, 8, 16; colors: tint, deep }
-            box { at: (200 - 364 / 2) + 30, (113 - 230 / 2) + -2; size: 60, 19; rotate: -11deg; color: #e9dba8; opacity: 86% }
-            box { at: (200 - 364 / 2) + 30, (113 - 230 / 2) + -2; size: 60, 19; rotate: -11deg; stroke: 1; color: deep; opacity: 22% }
-            box { at: (200 - 364 / 2) + 364 - 58, (113 - 230 / 2) + 4; size: 70, 19; rotate: 3deg; color: #c9d8ec; opacity: 86% }
-            box { at: (200 - 364 / 2) + 364 - 58, (113 - 230 / 2) + 4; size: 70, 19; rotate: 3deg; stroke: 1; color: deep; opacity: 22% }
-        }
-        //  Obsidian (Vitreus has its glass off): the same shapes as a flat, dark piece.
-        body {
-            color: mix(mix(mix(tint, #000000, 0.7), ink, 0.3), off, pl)
-            rim: 0%
-            opacity: sh * ob
-            shadow: 0, 6, 18, 45% * (1 - pl), #000000
-            show: ob > 0.004
-            arc { at: g0, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg }
-            arc { at: g1, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg }
-            arc { at: g2, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg; show: gpu_on }
-            box { at: 200, 206; size: 340, 2.4; corner: 1.2 }
-        }
-        group {
-            opacity: sh
-            text host { at: 30, 30; anchor: left center; size: 17; weight: 700; width: 190; lines: 1; color: tx; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl) }
-            text up { at: 370, 30; anchor: right center; size: 13; weight: 600; width: 120; lines: 1; color: tx; family: "Space Grotesk"; align: right; opacity: 80%; shadow: 0, 1, 5, 70% * (1 - pl) }
-            text aur_txt { at: 212, 30; anchor: center center; size: 12; weight: 600; width: 150; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; align: center; show: aur_on; shadow: 0, 1, 5, 70% * (1 - pl) }
-
-            group {
-                glow: 7, 26% * (1 - pl)
-                arc { at: g0, ry; radius: 36; span: (270 * clamp(cpu_p, 0.004, 1)) * 1deg; width: 8; color: mix(mint, alert, clamp((cpu_p - 0.75) / 0.25, 0, 1)); rotate: (-135 + 135 * clamp(cpu_p, 0.004, 1)) * 1deg }
-                arc { at: g1, ry; radius: 36; span: (270 * clamp(mem_p, 0.004, 1)) * 1deg; width: 8; color: mix(mint, alert, clamp((mem_p - 0.85) / 0.15, 0, 1)); rotate: (-135 + 135 * clamp(mem_p, 0.004, 1)) * 1deg }
-                arc { at: g2, ry; radius: 36; span: (270 * clamp(gpu_p, 0.004, 1)) * 1deg; width: 8; color: mix(mint, alert, clamp((gpu_p - 0.85) / 0.15, 0, 1)); rotate: (-135 + 135 * clamp(gpu_p, 0.004, 1)) * 1deg; show: gpu_on }
+            move: x, y
+            show: sh > 0.01 and on
+            body {
+                color: tint
+                glass: 1
+                lens: false
+                rim: 70%
+                shine: 0, 0
+                shadow: 0, 6, 18, 30%
+                opacity: sh * clr * (1 - ob)
+                show: ob < 0.996
+                arc { at: g0, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg }
+                arc { at: g1, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg }
+                arc { at: g2, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg; show: gpu_on }
+                box { at: 200, 206; size: 340, 2.4; corner: 1.2 }
             }
-            text cpu_txt { at: g0, ry - 4; anchor: center center; size: 20; weight: 700; width: 60; lines: 1; color: tx; family: "Space Grotesk"; align: center; shadow: 0, 1, 6, 70% * (1 - pl) }
-            text "CPU" { at: g0, ry + 13; anchor: center center; size: 10; weight: 700; color: tx; opacity: 75%; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl) }
-            text cpu_meta { at: g0, 146; anchor: center center; size: 11.5; weight: 600; width: 112; lines: 1; color: tx; opacity: 85%; family: "Space Grotesk"; align: center; shadow: 0, 1, 5, 70% * (1 - pl) }
-            text mem_txt { at: g1, ry - 4; anchor: center center; size: 20; weight: 700; width: 60; lines: 1; color: tx; family: "Space Grotesk"; align: center; shadow: 0, 1, 6, 70% * (1 - pl) }
-            text "MEMORY" { at: g1, ry + 13; anchor: center center; size: 10; weight: 700; color: tx; opacity: 75%; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl) }
-            text mem_meta { at: g1, 146; anchor: center center; size: 11.5; weight: 600; width: 112; lines: 1; color: tx; opacity: 85%; family: "Space Grotesk"; align: center; shadow: 0, 1, 5, 70% * (1 - pl) }
-            text gpu_txt { at: g2, ry - 4; anchor: center center; size: 20; weight: 700; width: 60; lines: 1; color: tx; family: "Space Grotesk"; align: center; show: gpu_on; shadow: 0, 1, 6, 70% * (1 - pl) }
-            text "GRAPHICS" { at: g2, ry + 13; anchor: center center; size: 10; weight: 700; color: tx; opacity: 75%; family: "Space Grotesk"; show: gpu_on; shadow: 0, 1, 5, 70% * (1 - pl) }
-            text gpu_meta { at: g2, 146; anchor: center center; size: 11.5; weight: 600; width: 112; lines: 1; color: tx; opacity: 85%; family: "Space Grotesk"; align: center; show: gpu_on; shadow: 0, 1, 5, 70% * (1 - pl) }
-
-            text "NETWORK" { at: 30, 172; anchor: left center; size: 11; weight: 700; color: tx; opacity: 75%; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl) }
-            text rx_txt { at: 140, 172; anchor: left center; size: 12.5; weight: 700; width: 112; lines: 1; color: tx; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl) }
-            text tx_txt { at: 370, 172; anchor: right center; size: 12.5; weight: 700; width: 112; lines: 1; color: mix(mint, tx, 0.4); family: "Space Grotesk"; align: right; shadow: 0, 1, 5, 70% * (1 - pl) }
-            //  The columns are close enough (and smoothed in the logic) to read as one curve; the whole graph slides left as each sample arrives.
-            //  It slides continuously (`net_glide`), and the newest sample comes in from beyond the edge (clipped), so it never pops in. (Not rounded to
-            //  part of a pixel to paint less often: at under 6 px a second that showed as steps.)
+            //  Retro and UwU: the card itself, a plastic plate with an outline and a hard shadow (the tracks and the graph's line are cut into it, below).
+            body {
+                color: tint
+                rim: 0%
+                border: (2 + 1.2 * uk - 0.8 * ppk - 0.6 * pxk + 2.2 * dd) * (1 - mk) * pl, mix(mix(mix(deep, tint, 0.55 * ppk), mix(#e8f1f5, tint, 0.4), pxk), ink, dd)
+                shadow: (4 - 2.5 * ppk - mk - 1.5 * pxk) * pl, (5 - 1.5 * ppk - mk - 2 * pxk) * pl, 9 * ppk + 10 * mk, (55% - 13% * ppk - 27% * mk + 30% * pxk + 35% * uk) * (1 - dd), mix(deep, #ff6ec7, 0.75 * uk)
+                opacity: sh * pl
+                show: pl > 0.004
+                box { at: 200, 113; size: 364, 230; corner: 16 }
+            }
+            //  Milkbox: the white light of the raised plate (the dark shade is the plate's own shadow, above).
+            body {
+                color: tint
+                rim: 0%
+                shadow: -3 * mk, -3 * mk, 8 * mk, 38% * mk, #ffffff
+                opacity: sh * mk
+                show: mk > 0.004
+                box { at: 200, 113; size: 364, 230; corner: 16 }
+            }
+            //  Paper: the worn, torn edge and two strips of tape.
             group {
-                clip box { at: 200, 206; size: 344, 80 }
+                show: ppk > 0.01
+                opacity: sh * ppk
+                shader paper { at: (200 - 364 / 2) - 8, (113 - 230 / 2) - 8; size: 364 + 16, 230 + 16; values: 1, 3.7, 8, 16; colors: tint, deep }
+                box { at: (200 - 364 / 2) + 30, (113 - 230 / 2) + -2; size: 60, 19; rotate: -11deg; color: #e9dba8; opacity: 86% }
+                box { at: (200 - 364 / 2) + 30, (113 - 230 / 2) + -2; size: 60, 19; rotate: -11deg; stroke: 1; color: deep; opacity: 22% }
+                box { at: (200 - 364 / 2) + 364 - 58, (113 - 230 / 2) + 4; size: 70, 19; rotate: 3deg; color: #c9d8ec; opacity: 86% }
+                box { at: (200 - 364 / 2) + 364 - 58, (113 - 230 / 2) + 4; size: 70, 19; rotate: 3deg; stroke: 1; color: deep; opacity: 22% }
+            }
+            //  Obsidian (Vitreus has its glass off): the same shapes as a flat, dark piece.
+            body {
+                color: mix(mix(mix(tint, #000000, 0.7), ink, 0.3), off, pl)
+                rim: 0%
+                opacity: sh * ob
+                shadow: 0, 6, 18, 45% * (1 - pl), #000000
+                show: ob > 0.004
+                arc { at: g0, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg }
+                arc { at: g1, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg }
+                arc { at: g2, ry; radius: 36; span: 270deg; width: 8; rotate: 0deg; show: gpu_on }
+                box { at: 200, 206; size: 340, 2.4; corner: 1.2 }
+            }
+            group {
+                opacity: sh
+                text host { at: 30, 30; anchor: left center; size: 17; weight: 700; width: 190; lines: 1; color: tx; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl) }
+                text up { at: 370, 30; anchor: right center; size: 13; weight: 600; width: 120; lines: 1; color: tx; family: "Space Grotesk"; align: right; opacity: 80%; shadow: 0, 1, 5, 70% * (1 - pl) }
+                text aur_txt { at: 212, 30; anchor: center center; size: 12; weight: 600; width: 150; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; align: center; show: aur_on; shadow: 0, 1, 5, 70% * (1 - pl) }
+
                 group {
-                    move: (clamp(net_lag, 0, 4) - 1) * 5.67, 0
-                    repeat i in 0..120 {
-                        let k = i + 120 - net_h.count
-                        let dh = max(1.2, clamp(net_h.$i.rx, 0, 1) * 26)
-                        let uh = max(1.2, clamp(net_h.$i.tx, 0, 1) * 22)
-                        box { at: 31.4 + (k + 0.5) * 2.835, 205 - dh / 2; size: 2.6, dh; corner: 1.2; color: mint; opacity: (25% + 70% * k / 120); show: i < net_h.count }
-                        box { at: 31.4 + (k + 0.5) * 2.835, 208 + uh / 2; size: 2.6, uh; corner: 1.2; color: mix(mint, tx, 0.4); opacity: (20% + 55% * k / 120); show: i < net_h.count }
+                    glow: 7, 26% * (1 - pl)
+                    arc { at: g0, ry; radius: 36; span: (270 * clamp(cpu_p, 0.004, 1)) * 1deg; width: 8; color: mix(mint, alert, clamp((cpu_p - 0.75) / 0.25, 0, 1)); rotate: (-135 + 135 * clamp(cpu_p, 0.004, 1)) * 1deg }
+                    arc { at: g1, ry; radius: 36; span: (270 * clamp(mem_p, 0.004, 1)) * 1deg; width: 8; color: mix(mint, alert, clamp((mem_p - 0.85) / 0.15, 0, 1)); rotate: (-135 + 135 * clamp(mem_p, 0.004, 1)) * 1deg }
+                    arc { at: g2, ry; radius: 36; span: (270 * clamp(gpu_p, 0.004, 1)) * 1deg; width: 8; color: mix(mint, alert, clamp((gpu_p - 0.85) / 0.15, 0, 1)); rotate: (-135 + 135 * clamp(gpu_p, 0.004, 1)) * 1deg; show: gpu_on }
+                }
+                text cpu_txt { at: g0, ry - 4; anchor: center center; size: 20; weight: 700; width: 60; lines: 1; color: tx; family: "Space Grotesk"; align: center; shadow: 0, 1, 6, 70% * (1 - pl) }
+                text "CPU" { at: g0, ry + 13; anchor: center center; size: 10; weight: 700; color: tx; opacity: 75%; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl) }
+                text cpu_meta { at: g0, 146; anchor: center center; size: 11.5; weight: 600; width: 112; lines: 1; color: tx; opacity: 85%; family: "Space Grotesk"; align: center; shadow: 0, 1, 5, 70% * (1 - pl) }
+                text mem_txt { at: g1, ry - 4; anchor: center center; size: 20; weight: 700; width: 60; lines: 1; color: tx; family: "Space Grotesk"; align: center; shadow: 0, 1, 6, 70% * (1 - pl) }
+                text "MEMORY" { at: g1, ry + 13; anchor: center center; size: 10; weight: 700; color: tx; opacity: 75%; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl) }
+                text mem_meta { at: g1, 146; anchor: center center; size: 11.5; weight: 600; width: 112; lines: 1; color: tx; opacity: 85%; family: "Space Grotesk"; align: center; shadow: 0, 1, 5, 70% * (1 - pl) }
+                text gpu_txt { at: g2, ry - 4; anchor: center center; size: 20; weight: 700; width: 60; lines: 1; color: tx; family: "Space Grotesk"; align: center; show: gpu_on; shadow: 0, 1, 6, 70% * (1 - pl) }
+                text "GRAPHICS" { at: g2, ry + 13; anchor: center center; size: 10; weight: 700; color: tx; opacity: 75%; family: "Space Grotesk"; show: gpu_on; shadow: 0, 1, 5, 70% * (1 - pl) }
+                text gpu_meta { at: g2, 146; anchor: center center; size: 11.5; weight: 600; width: 112; lines: 1; color: tx; opacity: 85%; family: "Space Grotesk"; align: center; show: gpu_on; shadow: 0, 1, 5, 70% * (1 - pl) }
+
+                text "NETWORK" { at: 30, 172; anchor: left center; size: 11; weight: 700; color: tx; opacity: 75%; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl) }
+                text rx_txt { at: 140, 172; anchor: left center; size: 12.5; weight: 700; width: 112; lines: 1; color: tx; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl) }
+                text tx_txt { at: 370, 172; anchor: right center; size: 12.5; weight: 700; width: 112; lines: 1; color: mix(mint, tx, 0.4); family: "Space Grotesk"; align: right; shadow: 0, 1, 5, 70% * (1 - pl) }
+                //  The columns are close enough (and smoothed in the logic) to read as one curve; the whole graph slides left as each sample arrives.
+                //  It slides continuously (`net_glide`), and the newest sample comes in from beyond the edge (clipped), so it never pops in. (Not rounded to
+                //  part of a pixel to paint less often: at under 6 px a second that showed as steps.)
+                group {
+                    clip box { at: 200, 206; size: 344, 80 }
+                    group {
+                        move: (clamp(net_lag, 0, 4) - 1) * 5.67, 0
+                        repeat i in 0..120 {
+                            let k = i + 120 - net_h.count
+                            let dh = max(1.2, clamp(net_h.$i.rx, 0, 1) * 26)
+                            let uh = max(1.2, clamp(net_h.$i.tx, 0, 1) * 22)
+                            box { at: 31.4 + (k + 0.5) * 2.835, 205 - dh / 2; size: 2.6, dh; corner: 1.2; color: mint; opacity: (25% + 70% * k / 120); show: i < net_h.count }
+                            box { at: 31.4 + (k + 0.5) * 2.835, 208 + uh / 2; size: 2.6, uh; corner: 1.2; color: mix(mint, tx, 0.4); opacity: (20% + 55% * k / 120); show: i < net_h.count }
+                        }
                     }
                 }
             }
         }
+    }
+
+    surface sl0 {
+        size: full, full; anchor: top_left; margin: 0; level: bottom, top while edit; screens: s0; reserve: -1; keyboard: none; rate: 60, 15 while not edit and not glide
+        //  (15 frames a second at rest: the graph glides on a 4 s spring after every sample, so it never stops, and at the screen's pace that was a full-screen
+        //  layer painted sixty times a second all day. Smooth enough for a graph; full pace while it is edited or put back.)
+        //  The card as it falls on this monitor.
+        let lx = cgx - sx0
+        let ly = cgy - sy0
+        let on = sm0 and lx + ox + ow > 0 and lx + ox < sl0.width and ly + oy + oh > 0 and ly + oy < sl0.height
+        //  Pressed on it here (the zone is the card; while it is dragged, the whole surface: pleamar keeps the drag going past its edge).
+        zone box ez0 { from: if(dragging and pk == 0, 0, lx + ox), if(dragging and pk == 0, 0, ly + oy); size: if(dragging and pk == 0, sl0.width, ow), if(dragging and pk == 0, sl0.height, oh); corner: 16; cursor: pointer; active: edit and shown and ((on and not dragging and not carry) or (dragging and pk == 0)); label: "Move system" }
+        on press ez0 { pk = 0; pgx = sx0 + pointer.x; pgy = sy0 + pointer.y; pnx = sx0 + pointer.x; pny = sy0 + pointer.y; kx = cgx - (sx0 + pointer.x); ky = cgy - (sy0 + pointer.y); dfx = cx0 - (gl + (ex0 + fw / 2) * gw - 200); dfy = cy0 - (gt + (ey0 + fh / 2) * gh - 113); dragging = true }
+        on drag ez0 { pnx = if(dragging, pgx + drag.dx, pnx); pny = if(dragging, pgy + drag.dy, pny) }
+        //  A right click does nothing here, on purpose: a scene that never names the right button is closed by one (pleamar's way out of a prototype with no
+        //  keyboard), and the keeper starts it again a moment later, out of Edit mode: the widget went away and came back stuck.
+        on press right ez0 { }
+        //  Let go: it stays in the cell it was in, on that monitor (`jump`: drawn there at once, not slid there by the cells' spring from where it was).
+        on release ez0 { edge = if(dragging, nearedge > 0.5, edge); jump = if(dragging, true, jump); gx = if(dragging, dgx, gx); gy = if(dragging, dgy, gy); hk = if(dragging, dk, hk); dragging = false }
+        group {
+            show: on and edp > 0.01 and shown
+            opacity: edp
+            box { from: lx + ox, ly + oy; size: ow, oh; corner: 16; color: mint; opacity: 7% + 9% * dgp }
+            box { from: lx + ox, ly + oy; size: ow, oh; corner: 16; stroke: 1.6; color: mint; opacity: 55% + 45% * dgp }
+            text "System" { at: lx + ox + 14, ly + oy + 16; anchor: left center; size: 12; weight: 700; color: mint; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl) }
+            //  (its monitor is not plugged in: shown here only in Edit mode, to be placed)
+            text orph { at: lx + ox + ow - 14, ly + oy + 16; anchor: right center; size: 12; weight: 700; color: mint; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl); show: orphan }
+        }
+        SysCard(lx, ly, on)
+    }
+
+    surface sl1 {
+        size: full, full; anchor: top_left; margin: 0; level: bottom, top while edit; screens: s1; reserve: -1; keyboard: none; rate: 60, 15 while not edit and not glide
+        //  (15 frames a second at rest: the graph glides on a 4 s spring after every sample, so it never stops, and at the screen's pace that was a full-screen
+        //  layer painted sixty times a second all day. Smooth enough for a graph; full pace while it is edited or put back.)
+        //  The card as it falls on this monitor.
+        let lx = cgx - sx1
+        let ly = cgy - sy1
+        let on = sm1 and lx + ox + ow > 0 and lx + ox < sl1.width and ly + oy + oh > 0 and ly + oy < sl1.height
+        //  Pressed on it here (the zone is the card; while it is dragged, the whole surface: pleamar keeps the drag going past its edge).
+        zone box ez1 { from: if(dragging and pk == 1, 0, lx + ox), if(dragging and pk == 1, 0, ly + oy); size: if(dragging and pk == 1, sl1.width, ow), if(dragging and pk == 1, sl1.height, oh); corner: 16; cursor: pointer; active: edit and shown and ((on and not dragging and not carry) or (dragging and pk == 1)); label: "Move system" }
+        on press ez1 { pk = 1; pgx = sx1 + pointer.x; pgy = sy1 + pointer.y; pnx = sx1 + pointer.x; pny = sy1 + pointer.y; kx = cgx - (sx1 + pointer.x); ky = cgy - (sy1 + pointer.y); dfx = cx0 - (gl + (ex0 + fw / 2) * gw - 200); dfy = cy0 - (gt + (ey0 + fh / 2) * gh - 113); dragging = true }
+        on drag ez1 { pnx = if(dragging, pgx + drag.dx, pnx); pny = if(dragging, pgy + drag.dy, pny) }
+        //  A right click does nothing here, on purpose: a scene that never names the right button is closed by one (pleamar's way out of a prototype with no
+        //  keyboard), and the keeper starts it again a moment later, out of Edit mode: the widget went away and came back stuck.
+        on press right ez1 { }
+        //  Let go: it stays in the cell it was in, on that monitor (`jump`: drawn there at once, not slid there by the cells' spring from where it was).
+        on release ez1 { edge = if(dragging, nearedge > 0.5, edge); jump = if(dragging, true, jump); gx = if(dragging, dgx, gx); gy = if(dragging, dgy, gy); hk = if(dragging, dk, hk); dragging = false }
+        group {
+            show: on and edp > 0.01 and shown
+            opacity: edp
+            box { from: lx + ox, ly + oy; size: ow, oh; corner: 16; color: mint; opacity: 7% + 9% * dgp }
+            box { from: lx + ox, ly + oy; size: ow, oh; corner: 16; stroke: 1.6; color: mint; opacity: 55% + 45% * dgp }
+            text "System" { at: lx + ox + 14, ly + oy + 16; anchor: left center; size: 12; weight: 700; color: mint; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl) }
+            //  (its monitor is not plugged in: shown here only in Edit mode, to be placed)
+            text orph { at: lx + ox + ow - 14, ly + oy + 16; anchor: right center; size: 12; weight: 700; color: mint; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl); show: orphan }
+        }
+        SysCard(lx, ly, on)
+    }
+
+    surface sl2 {
+        size: full, full; anchor: top_left; margin: 0; level: bottom, top while edit; screens: s2; reserve: -1; keyboard: none; rate: 60, 15 while not edit and not glide
+        //  (15 frames a second at rest: the graph glides on a 4 s spring after every sample, so it never stops, and at the screen's pace that was a full-screen
+        //  layer painted sixty times a second all day. Smooth enough for a graph; full pace while it is edited or put back.)
+        //  The card as it falls on this monitor.
+        let lx = cgx - sx2
+        let ly = cgy - sy2
+        let on = sm2 and lx + ox + ow > 0 and lx + ox < sl2.width and ly + oy + oh > 0 and ly + oy < sl2.height
+        //  Pressed on it here (the zone is the card; while it is dragged, the whole surface: pleamar keeps the drag going past its edge).
+        zone box ez2 { from: if(dragging and pk == 2, 0, lx + ox), if(dragging and pk == 2, 0, ly + oy); size: if(dragging and pk == 2, sl2.width, ow), if(dragging and pk == 2, sl2.height, oh); corner: 16; cursor: pointer; active: edit and shown and ((on and not dragging and not carry) or (dragging and pk == 2)); label: "Move system" }
+        on press ez2 { pk = 2; pgx = sx2 + pointer.x; pgy = sy2 + pointer.y; pnx = sx2 + pointer.x; pny = sy2 + pointer.y; kx = cgx - (sx2 + pointer.x); ky = cgy - (sy2 + pointer.y); dfx = cx0 - (gl + (ex0 + fw / 2) * gw - 200); dfy = cy0 - (gt + (ey0 + fh / 2) * gh - 113); dragging = true }
+        on drag ez2 { pnx = if(dragging, pgx + drag.dx, pnx); pny = if(dragging, pgy + drag.dy, pny) }
+        //  A right click does nothing here, on purpose: a scene that never names the right button is closed by one (pleamar's way out of a prototype with no
+        //  keyboard), and the keeper starts it again a moment later, out of Edit mode: the widget went away and came back stuck.
+        on press right ez2 { }
+        //  Let go: it stays in the cell it was in, on that monitor (`jump`: drawn there at once, not slid there by the cells' spring from where it was).
+        on release ez2 { edge = if(dragging, nearedge > 0.5, edge); jump = if(dragging, true, jump); gx = if(dragging, dgx, gx); gy = if(dragging, dgy, gy); hk = if(dragging, dk, hk); dragging = false }
+        group {
+            show: on and edp > 0.01 and shown
+            opacity: edp
+            box { from: lx + ox, ly + oy; size: ow, oh; corner: 16; color: mint; opacity: 7% + 9% * dgp }
+            box { from: lx + ox, ly + oy; size: ow, oh; corner: 16; stroke: 1.6; color: mint; opacity: 55% + 45% * dgp }
+            text "System" { at: lx + ox + 14, ly + oy + 16; anchor: left center; size: 12; weight: 700; color: mint; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl) }
+            //  (its monitor is not plugged in: shown here only in Edit mode, to be placed)
+            text orph { at: lx + ox + ow - 14, ly + oy + 16; anchor: right center; size: 12; weight: 700; color: mint; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl); show: orphan }
+        }
+        SysCard(lx, ly, on)
+    }
+
+    surface sl3 {
+        size: full, full; anchor: top_left; margin: 0; level: bottom, top while edit; screens: s3; reserve: -1; keyboard: none; rate: 60, 15 while not edit and not glide
+        //  (15 frames a second at rest: the graph glides on a 4 s spring after every sample, so it never stops, and at the screen's pace that was a full-screen
+        //  layer painted sixty times a second all day. Smooth enough for a graph; full pace while it is edited or put back.)
+        //  The card as it falls on this monitor.
+        let lx = cgx - sx3
+        let ly = cgy - sy3
+        let on = sm3 and lx + ox + ow > 0 and lx + ox < sl3.width and ly + oy + oh > 0 and ly + oy < sl3.height
+        //  Pressed on it here (the zone is the card; while it is dragged, the whole surface: pleamar keeps the drag going past its edge).
+        zone box ez3 { from: if(dragging and pk == 3, 0, lx + ox), if(dragging and pk == 3, 0, ly + oy); size: if(dragging and pk == 3, sl3.width, ow), if(dragging and pk == 3, sl3.height, oh); corner: 16; cursor: pointer; active: edit and shown and ((on and not dragging and not carry) or (dragging and pk == 3)); label: "Move system" }
+        on press ez3 { pk = 3; pgx = sx3 + pointer.x; pgy = sy3 + pointer.y; pnx = sx3 + pointer.x; pny = sy3 + pointer.y; kx = cgx - (sx3 + pointer.x); ky = cgy - (sy3 + pointer.y); dfx = cx0 - (gl + (ex0 + fw / 2) * gw - 200); dfy = cy0 - (gt + (ey0 + fh / 2) * gh - 113); dragging = true }
+        on drag ez3 { pnx = if(dragging, pgx + drag.dx, pnx); pny = if(dragging, pgy + drag.dy, pny) }
+        //  A right click does nothing here, on purpose: a scene that never names the right button is closed by one (pleamar's way out of a prototype with no
+        //  keyboard), and the keeper starts it again a moment later, out of Edit mode: the widget went away and came back stuck.
+        on press right ez3 { }
+        //  Let go: it stays in the cell it was in, on that monitor (`jump`: drawn there at once, not slid there by the cells' spring from where it was).
+        on release ez3 { edge = if(dragging, nearedge > 0.5, edge); jump = if(dragging, true, jump); gx = if(dragging, dgx, gx); gy = if(dragging, dgy, gy); hk = if(dragging, dk, hk); dragging = false }
+        group {
+            show: on and edp > 0.01 and shown
+            opacity: edp
+            box { from: lx + ox, ly + oy; size: ow, oh; corner: 16; color: mint; opacity: 7% + 9% * dgp }
+            box { from: lx + ox, ly + oy; size: ow, oh; corner: 16; stroke: 1.6; color: mint; opacity: 55% + 45% * dgp }
+            text "System" { at: lx + ox + 14, ly + oy + 16; anchor: left center; size: 12; weight: 700; color: mint; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl) }
+            //  (its monitor is not plugged in: shown here only in Edit mode, to be placed)
+            text orph { at: lx + ox + ow - 14, ly + oy + 16; anchor: right center; size: 12; weight: 700; color: mint; family: "Space Grotesk"; shadow: 0, 1, 5, 70% * (1 - pl); show: orphan }
+        }
+        SysCard(lx, ly, on)
     }
 }
