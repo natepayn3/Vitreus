@@ -2,6 +2,28 @@ part DeskDock {
     //  ── The home button: round, in the bezel under the screen, as a classic tablet has it ──
     //  From any app it goes Home (and out of Customize). Matte, in the theme's colours like the side buttons; it sinks as it is pressed, and lights under the pointer.
     let hb.y = dsk_y0 + dsk_h - 15 * du
+    //  The Proxy's hazard tape, as on the other drawers (bar_glass.plm), but on the tablet itself: along the bottom bezel, in two runs either side of the home button, each
+    //  with its dots at the outer end. Drawn here and not on the drawer's glass, which reaches on into the frame, so it stays on the tablet wherever it is dragged or sized.
+    group {
+        show: px_k > 0.01
+        opacity: px_k * fd0
+        let hz.l = dsk_x0 + 12 * du                                    // the left run: from here to the button's gap
+        let hz.r = dsk_x0 + dsk_w - 12 * du                            // the right run: from the gap to here
+        let hz.g = 21 * du                                             // half the gap round the home button
+        let hz.t = hb.y - 4.5
+        box { from: hz.l + 28 * du, hz.t; size: max(0, dsk_xc - hz.g - hz.l - 28 * du), 9; color: #0b0d10 }
+        box { from: dsk_xc + hz.g, hz.t; size: max(0, hz.r - 28 * du - dsk_xc - hz.g), 9; color: #0b0d10 }
+        repeat hzi in 0..14 {
+            path { at: hz.l + 28 * du + hzi * 16 * du, hz.t; color: #ffd21f; opacity: if(hz.l + 28 * du + hzi * 16 * du + 8 * du + 5 < dsk_xc - hz.g, 100%, 0); move 5, 0; line 8 * du + 5, 0; line 8 * du, 9; line 0, 9; close }
+            path { at: dsk_xc + hz.g + hzi * 16 * du, hz.t; color: #ffd21f; opacity: if(dsk_xc + hz.g + hzi * 16 * du + 8 * du + 5 < hz.r - 28 * du, 100%, 0); move 5, 0; line 8 * du + 5, 0; line 8 * du, 9; line 0, 9; close }
+        }
+        repeat hzc in 0..7 {
+            repeat hzw in 0..3 {
+                ellipse { at: hz.l + hzc * 24 * du / 7, hz.t + 1.5 + hzw * 3.6 + mod(hzc, 2) * 1.8; radius: 0.5 + hzc * 0.28; color: if(mod(hzc, 2) == 0, #ffd21f, #0b0d10) }
+                ellipse { at: hz.r - hzc * 24 * du / 7, hz.t + 1.5 + hzw * 3.6 + mod(hzc, 2) * 1.8; radius: 0.5 + hzc * 0.28; color: if(mod(hzc, 2) == 0, #ffd21f, #0b0d10) }
+            }
+        }
+    }
     group {
         opacity: fd0
         group {

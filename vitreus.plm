@@ -3568,18 +3568,7 @@ scene Vitreus {
         box { at: cx, cy; size: w, h; corner: if(r < 0, pr, r); color: ink; opacity: (veil) * (1 - obs) * k }
     }
 
-    //  The outline of a card growing into the drawer that opens from it: the card's rectangle (`a0` left, `a1` right, `a2` top, `a3` bottom) taken together with the drawer's (`b0`..`b3`),
-    //  so it moves exactly as the drawer does, springs and all; `p` is how far it has opened (its corners, and how far it is there). The card's own fill fades out as it opens (BarCard), so
-    //  nothing lies under the panel's own cards.
-    component GrowFrame(a0: number, a1: number, a2: number, a3: number, b0: number, b1: number, b2: number, b3: number, p: number) {
-        let fl = min(a0, b0)
-        let fr = max(a1, b1)
-        let ft = min(a2, b2)
-        let fb = max(a3, b3)
-        box { at: (fl + fr) / 2, (ft + fb) / 2; size: fr - fl, fb - ft; corner: mix(pr, 20 * cu * (1 - 0.7 * sq), p); stroke: 1.2 * bu; color: mint; opacity: 22% * p }
-    }
-
-    //  A card behind a group of the bar's pieces: the dashboard's plate, a tint of the accent over it, `k` how far it is there. No outline: that only comes with a panel (GrowFrame).
+    //  A card behind a group of the bar's pieces: the dashboard's plate, a tint of the accent over it, `k` how far it is there. No outline.
     component BarCard(cx: number, cy: number, w: number, h: number, sd: number, k: number) {
         DmPlate(cx, cy, w, h, sd, k)
         box { at: cx, cy; size: w, h; corner: pr; color: mint; opacity: 10% * k }
@@ -6366,7 +6355,11 @@ scene Vitreus {
     let axs.m = 14 * cu                                    // the margin all round the content: the rectangle an add-on is given is this much inside the glass on every side (below the title bar, and clear of the pill's strip)
     let axs.mt = 0 * cu                                    // the margin above the content, under the title bar: none (the add-ons keep a little room of their own at their tops)
     let axs.rt = max(axs.hh, cdk.t * (1 - adk.sb) * (1 - axb) * (1 - lm))   // what the content leaves free: the title bar, or the pill's strip when the pill is at the top, whichever is taller (the strip is inside the title bar's height: added together they left a gap as tall as the pill's strip)
-    let axs.rr = cdk.t * lm * (1 - axb)                    // down a side strip the pill stands upright against the frame's edge, in the panel's side: its strip is taken from the panel's width (on the side of the frame, mirrored with `rt`)
+    //  `axs.rn`: whether the panel is against the frame's edge the pill's strip is on. Pulled away, the pill stays in the frame and the strip is empty, so the strip lets go as the glass lets go of the frame (`dax.nr`), but from
+    //  where the panel is being taken (`ax_gx`), not the spring, so the content is told its place once.
+    let axs.rn = clamp(1 - (axs.x1 - (axs.fx + ax_gx + axs.w / 2) - 14 * cu) / (50 * cu), 0, 1)
+    let axs.rr = cdk.t * lm * (1 - axb) * axs.rn                   // down a side strip the pill stands upright against the frame's edge, in the panel's side: its strip is taken from the panel's width (on the side of the frame, mirrored with `rt`)
+
     let axs.rb = cdk.t * adk.sb * (1 - axb) * (1 - lm) * (1 - dkm)     // ... and the pill's strip along the bottom (the pill is in the panel's corner, its icons showing)
     let ax.yoff = if(bar_anchor == top and not bar_frame and bar_size > 0.995 and not wm_session, 62, 0)       // as the shell's own surface reserves (`reserve:` on it): an add-on's scene is laid out below it, so what it is told is moved up by this
     //  How far it may be pulled (offsets from its place, in the glass's drawing): anywhere inside the frame, right up against it, as the Desk can be.
@@ -6383,7 +6376,7 @@ scene Vitreus {
     on change ax.yoff while axo > 0.5 { ax_yoff = ax.yoff }
     on change ax_open while ax_open and axo > 0.5 { ax_yoff = ax.yoff }       // (and as it opens: the rule above only fires when the value changes, so until something changed it, the add-on was told 0, matched no copy of its scene by height, and drew nothing)
     //  While the panel is pulled, where its content goes follows the pull, and the add-on is told it as it changes (logic/addons.luau): it glides there on its own `ax_sp`, so the content moves with the glass.
-    on change ax_gx while ax_hold and axo > 0.5 { ax_rx = mix(axs.fx + ax_gx - axs.rr / 2, screen.width - (axs.fx + ax_gx - axs.rr / 2), rt) }
+    on change ax_gx while ax_hold and axo > 0.5 { ax_rx = mix(axs.fx + ax_gx - axs.rr / 2, screen.width - (axs.fx + ax_gx - axs.rr / 2), rt); ax_rw = axs.w - 2 * axs.m - axs.rr }
     on change ax_gy while ax_hold and axo > 0.5 { ax_ry = mix(axs.fy + ax_gy, yo + vb - (axs.fy + ax_gy), bt) + ((axs.rt + axs.mt) - (axs.rb + axs.m)) / 2 }
     on change ax_rsz while axo > 0.5 { ax_rx = mix(axs.fx + ax_gx - axs.rr / 2, screen.width - (axs.fx + ax_gx - axs.rr / 2), rt); ax_ry = mix(axs.fy + ax_gy, yo + vb - (axs.fy + ax_gy), bt) + ((axs.rt + axs.mt) - (axs.rb + axs.m)) / 2; ax_rw = axs.w - 2 * axs.m - axs.rr; ax_rh = axs.h - axs.rt - axs.rb - axs.m - axs.mt; ax_yoff = ax.yoff }
     //  The right notch opens the desk: a panel out of the right frame with a few small tools, in tabs. It is not one of the values of `panel`, so it
@@ -7615,10 +7608,9 @@ scene Vitreus {
     group {
         show: sb > 0.5                                     // not on a monitor that has only the frame (see `sb`)
         move: rt * (screen.width - 2 * lf.x), bt * (yo + vb - 2 * bar.y)
-    //  The cards (and the outline that grows from them) come first, under the icons, the clock and the title: drawn after them, a theme with solid plates hid them.
-    //  The control center's outline: the outline of the card that holds its icon (the right one along the bar, the lower one down a strip) grows with the drawer as it opens until it
-    //  runs round the whole panel, and shrinks back into the card as it closes; the card's own plate and tint give way to the panel's glass meanwhile (`dkp`).
-    //  (Not on the Island, whose drawers drop from the bar and would be overlapped by it: there `fm` is 0, so nothing grows and the cards keep their place.)
+    //  The cards come first, under the icons, the clock and the title: drawn after them, a theme with solid plates hid them.
+    //  A card gives way to the panel that opens from it (the control center from the card with its icon, the dashboard and the tray menu from the centre one): its plate and tint fade
+    //  as the drawer comes out (`dkp`, `dcp`, `dmp`). (Not on the Island, whose drawers drop from the bar: there `fm` is 0, so the cards keep their place.)
     //  (How far each has opened is eased, so that the fill and the card's fade come in with the panel and not ahead of it.)
     let dkp = clamp(dk, 0, 1) * clamp(dk, 0, 1) * clamp(fm, 0, 1)
     let dcp = clamp(dc, 0, 1) * clamp(dc, 0, 1) * clamp(fm, 0, 1)                      // the dashboard's, and the tray menu's
@@ -7631,42 +7623,6 @@ scene Vitreus {
     let bc.cr = mix(mix(at.clock + fw.clock / 2, win.xs - 6 * bu + win.hw, bs.title), tr.x + vw.tray / 2, min(1, vw.tray / (8 * bu))) + bc.m
     let bc.vl = lf.x - (lf.w - 8 * bu) / 2                           // down a strip, the cards' sides
     let bc.vr = lf.x + (lf.w - 8 * bu) / 2
-    //  A card's outline grows with the drawer that opens from it until it runs round the whole panel, and shrinks back into the card as it closes; the card's own plate and tint give way to
-    //  the panel's glass meanwhile. The control center from the card with its icon (the right one along the bar, the lower one down a strip), the dashboard from the one with the clock and the
-    //  title, the tray's menu from the one with the tray's icons (in the pieces, the centre one).
-    group {
-        show: dk > 0.004 and fm > 0.02
-        let es_l = mix(mix(bc.rl, bat.x - vw.bat / 2 - bc.m, dkb), bc.vl, lm)          // (the battery panel grows from the battery's own place)
-        let es_r = mix(mix(bc.rr, bat.x + vw.bat / 2 + bc.m, dkb), bc.vr, lm)
-        let es_t = mix(bar.y - bc.h / 2, lv.bt, lm)
-        let es_b = mix(bar.y + bc.h / 2, lv.bb, lm)
-        let gw = dk.ew * (1 + dj.stretch - 0.07 * dk.bell + 0.003 * wobble) * dk.tail            // the drawer as its glass is drawn
-        let gh = (dk.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble) + sg.up) * dk.tail
-        let gy = dk.ey - sg.up / 2
-        GrowFrame(es_l, es_r, es_t, es_b, mix(dk.ex - gw / 2 + 12 * bu, es_l, lm), dk.ex + gw / 2 - 12 * bu, mix(es_t, gy - gh / 2 + 12 * bu, lm), gy + gh / 2 - 12 * bu, dkp)
-    }
-    group {
-        show: dc > 0.004 and fm > 0.02
-        let es_l = mix(bc.cl, bc.vl, lm)
-        let es_r = mix(bc.cr, bc.vr, lm)
-        let es_t = mix(bar.y - bc.h / 2, lv.ct, lm)
-        let es_b = mix(bar.y + bc.h / 2, lv.cb, lm)
-        let gw = dc.ew * (1 + dj.stretch - 0.07 * dc.bell + 0.003 * wobble)
-        let gh = dc.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble) + sg.up
-        let gy = dc.ey - sg.up / 2
-        GrowFrame(es_l, es_r, es_t, es_b, mix(dc.ex - gw / 2 + 12 * bu, es_l, lm), dc.ex + gw / 2 - 12 * bu, mix(es_t, gy - gh / 2 + 12 * bu, lm), gy + gh / 2 - 12 * bu, dcp)
-    }
-    group {
-        show: dm > 0.004 and fm > 0.02
-        let es_l = mix(bc.cl, bc.vl, lm)
-        let es_r = mix(bc.cr, bc.vr, lm)
-        let es_t = mix(bar.y - bc.h / 2, lv.ct, lm)
-        let es_b = mix(bar.y + bc.h / 2, lv.cb, lm)
-        let gw = dm.ew * (1 + dj.stretch - 0.07 * dm.bell + 0.003 * wobble)
-        let gh = dm.eh * (1 - dj.stretch * 0.5 - 0.002 * wobble) + sg.up
-        let gy = dm.ey - sg.up / 2
-        GrowFrame(es_l, es_r, es_t, es_b, mix(dm.ex - gw / 2 + 12 * bu, es_l, lm), dm.ex + gw / 2 - 12 * bu, mix(es_t, gy - gh / 2 + 12 * bu, lm), gy + gh / 2 - 12 * bu, dmp)
-    }
     //  The same three cards along the top or the bottom (the Island, the frames and the pieces): the overview button and the marks (with a special workspace's mark), the clock and the title
     //  (and in the pieces the tray, which is part of that piece), and the tray, search, the gear and the controls. As tall as the bar less a little.
     group {
