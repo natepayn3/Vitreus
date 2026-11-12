@@ -72,7 +72,7 @@ local function edit_addons(on)
 end
 
 -- Closed, the editor draws nothing, and waiting costs its ~70 MB all the same: a while after it was closed (and after it started, if it is never opened)
--- it leaves, its keeper first or the keeper would start it again. A right press on the wallpaper starts it again (desktopmenu_hypr.luau, or vitreus.luau
+-- it leaves, its keeper first or the keeper would start it again. A right press on the wallpaper starts it again (wptrans.luau, or vitreus.luau
 -- under pleamar-wm). The `[t]` keeps the pattern from matching the `sh` that runs it.
 local IDLE_MS = 30000
 local idle_n = 0

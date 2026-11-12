@@ -1,15 +1,17 @@
 language 0.1
 
-//  The wallpaper transition: a hexagon dissolve. This scene sits on the bottom layer, above awww's wallpaper and under every window,
-//  and draws nothing until it is asked. Asked (see wptrans.luau), it makes the new wallpaper's picture at the screen's size, lets it
-//  appear through a honeycomb that opens in a wave from where it was picked, and, when the picture covers the screen, has awww switch to
-//  it at once and takes itself away. Nothing here takes a click: it has no zones.
+//  The wallpaper's own layer: the wallpaper transition (a hexagon dissolve) and, on Hyprland, the right press on the bare wallpaper that opens the
+//  desktop editor (it was a scene of its own, desktopmenu_hypr.plm: one pleamar process costs ~60 MB of memory and ~40 MB on the card, and each of its
+//  full-screen surfaces ~27 MB more per monitor, drawing or not, so the two share one process and one surface per monitor).
+//  It sits on the background layer, over awww's wallpaper (it is started after it) and under every window and every desktop widget, and draws nothing
+//  until it is asked. Asked (see wptrans.luau), it makes the new wallpaper's picture at the screen's size, lets it appear through a honeycomb that opens
+//  in a wave from where it was picked, and, when the picture covers the screen, has awww switch to it at once and takes itself away.
 
 scene Wptrans {
-    surface { size: full, full; anchor: top_left; level: bottom; screens: all; reserve: -1 }
+    surface { size: full, full; anchor: top_left; margin: 0; level: background; screens: each max 4; reserve: -1; keyboard: none }
 
     permissions {
-        run: "awww", "magick", "mkdir", "ls", "printenv"
+        run: "awww", "magick", "mkdir", "ls", "printenv", "pleamar", "sh"
     }
 
     shader hexr = file "hexreveal.wgsl"
@@ -30,6 +32,13 @@ scene Wptrans {
     let prog = clamp((time - t0) / dur, 0, 1)
     event go ->                         // everything is ready (src, target, ox, oy): begin
     on change active while active { t0 = time }
+
+    // The right press on the bare wallpaper (Hyprland only: under pleamar-wm the window manager's `desk` facts do it, see vitreus.luau; niri has none).
+    // (A square as big as the longest side of any monitor: `screen.width` and `screen.height` are those of the first one.)
+    fact mmon = 0                       // which monitor it was pressed on
+    event edit_req ->
+    zone box wall { from: 0, 0; size: 2560, 2560; active: wp_dec > 0.5 }
+    on press right wall { mmon = screen.index; emit edit_req }
 
     group {
         show: active
