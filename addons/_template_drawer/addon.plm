@@ -1,7 +1,7 @@
 language 0.1
 import "addon-palette.plm"
 import "addon-pencil.plm"                          // the pencil components (see STYLE.md): PLn, PCir, PRound, PSwitch, PFill, PSlider, PSliderMini, PIcon
-import "addon-theme.plm"                           // the theme's own pieces (see STYLE.md, "Themes"): PThumb
+import "addon-theme.plm"                           // the theme's own pieces (see STYLE.md, "Themes"): PThumb, PPick
 
 //  A Vitreus add-on with a PANEL: the shell puts the add-on's icon on the add-on pill (the pill of icons in the corner the app dock is not in) and draws a panel out of it
 //  (the same glass as its own drawers) and this scene draws what is in it. A click on the icon opens the panel (or `pleamar --say vitreus "emit ax_toggle"`, which a key can run).
@@ -147,6 +147,7 @@ scene MyDrawer {
     fact clicks = 0
     fact sw_on = 1                                    // the sample card's switch, and its level (a drag on the card's foot)
     fact lvl = 0.6
+    fact mode = 1                                     // the sample picker's choice (PPick)
     text field_q = ""                                 // the field: what is written in it (the shell sends it), whether it is being typed in, and its Enter and Escape
     fact field_kb = false
     event field_enter ->
@@ -198,6 +199,17 @@ scene MyDrawer {
         text field_q { at: left + 42, top + 264; anchor: left center; size: 15; color: ink; opacity: shown; family: "Space Grotesk"; measure: fq }
         box { at: left + 43 + fq.width, top + 264; size: 2, 20; color: mint; opacity: shown * if(field_kb, 1, 0) }
         text hello { at: left + 24, top + 302; anchor: left center; size: 15; weight: 700; color: mint; opacity: shown; family: "Space Grotesk" }
+        //  ── Pick one of several ──  PPick draws the slot and the thumb; the words, their hover and their zones are yours. One zone over the whole slot, declared before the choices' (the last one declared gets the press), tells it the pointer is there.
+        let pk0 = left + 24 + (slot_w - 48) / 6
+        let pkp = (slot_w - 48) / 3
+        PPick(x0: pk0, y: top + 344, pitch: pkp, n: 3, h: 30 * u, sel: mode, hot: if(pick_z.hover > 0.5, 1, 0), a: shown)
+        zone box pick_z { at: left + slot_w / 2, top + 344; size: slot_w - 48, 30 * u; active: here > 0.5 }
+        repeat i in 0..3 {
+            box { at: pk0 + i * pkp, top + 344; size: pkp - 4 * u, 30 * u; corner: 11 * u; color: ink; opacity: 7% * pick_c.$i.hover * shown }
+            text pick(i, "Warm", "Neutral", "Cool") { at: pk0 + i * pkp, top + 344; anchor: center; size: 14; weight: 700; color: mix(ink, mint, if(mode == i, 1, 0)); opacity: shown; family: "Space Grotesk" }
+            zone box pick_c.$i { at: pk0 + i * pkp, top + 344; size: pkp, 30 * u; cursor: pointer; label: pick(i, "Warm", "Neutral", "Cool"); active: here > 0.5 }
+            on press pick_c.$i { mode = i }
+        }
     }
 
     //  A desktop widget (`[widget]` in addon.toml, which has the messages): a surface of its own on the desktop, under the windows and over them while the desktop editor

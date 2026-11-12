@@ -8,6 +8,9 @@ language 0.1
 //
 //    PThumb   the lit piece of a "pick one of several" control (the News / Weather tabs, the equalizer's presets): a glowing pill on every theme but Proxy, where it is the HUD's
 //             slanted slab, a little taller than its track. Draw the track, the dividers and the labels yourself; this is only what slides under the chosen label.
+//    PPick    a whole "pick one of several" control, as the shell's Settings draw it: one slot holding the choices, and a pencil-shaded thumb that travels to the
+//             chosen one, stretching from where it was and gathering back. You draw the words and keep a zone and a rule for each choice. On Proxy the thumb is PThumb's slab.
+//             It needs addon-pencil.plm imported too (PRound) and the scene's `fr`.
 
 library Theme {
     //  `x`, `y`: the middle of the thumb; `w`, `h`: its box in the usual look; `rad`: that look's corner; `th`: how tall the track is (the Proxy slab stands 4 * u taller than it);
@@ -31,5 +34,46 @@ library Theme {
             path { at: x - sw / 2 + 2 * u, y - sh / 2 + 2 * u; color: mint; move sk, 0; line sw - 4 * u, 0; line sw - 4 * u - sk, sh - 4 * u; line 0, sh - 4 * u; close }
             path { at: x - sw / 2 + 2 * u, y - sh / 2 + 2 * u; stroke: 4 * u; color: mint; move sk, 0; line sw - 4 * u, 0; line sw - 4 * u - sk, sh - 4 * u; line 0, sh - 4 * u; line sk, 0 }
         }
+    }
+
+    //  `x0`, `y`: the middle of the first choice; `pitch`: from one choice to the next; `n`: how many; `h`: a choice's height; `sel`: the chosen one's index (the value
+    //  itself, not one on a spring: the thumb has its own); `hot`: 1 while the pointer is on the control (its pencil boils); `a`: how visible (0 to 1).
+    //  Under each word, draw at most a box of `ink` at 7 % of that choice's hover; the word is `ink`, `mint` while chosen.
+    component PPick(x0: number, y: number, pitch: number, n: number, h: number, sel: number, hot: number, a: number) {
+        //  The thumb's leading edge goes to the new choice quickly and its trailing edge follows, so it is stretched between the two while it travels (as a slider's knob).
+        prop ld = 0 ~90ms
+        follow ld = sel
+        prop tl = 0 ~280ms
+        follow tl = sel
+        let pxl = if(look == 5, 1, 0)
+        let f = if(hot > 0.5, fr, 0)
+        let tw = pitch - 6 * u
+        let sq = clamp(abs(ld - tl) * 1.6, 0, 1)
+        let th = h * (1 - 0.22 * sq)
+        let kl = x0 + min(ld, tl) * pitch - tw / 2
+        let kq = x0 + max(ld, tl) * pitch + tw / 2
+        let sw = n * pitch
+        let sh = h + 4 * u
+        let sr = min(sh / 2, 15 * u)
+        let kr = min(th / 2, 11 * u)
+        //  The slot: a faint fill and a pencil outline.
+        box { at: x0 - pitch / 2 + sw / 2, y; size: sw, sh; corner: sr; color: ink; opacity: 5% * a }
+        PRound(x: x0 - pitch / 2 + 1.5 * u, y: y - sh / 2 + 1.5 * u, w: sw - 3 * u, h: sh - 3 * u, r: sr - 1.5 * u, s: 11, wd: 1.3 * u, c: ink, a: 0.5 * a * (1 - pxl), f: f)
+        box { at: x0 - pitch / 2 + sw / 2, y; size: sw, sh; corner: 0; stroke: 1.5 * u; color: mint; opacity: 0.6 * a * pxl }
+        //  The thumb: the accent, coloured in with the pencil in even columns (each one whole: none are folded onto the end), in its own pencil outline.
+        group {
+            opacity: a * (1 - pxl)
+            box { from: kl, y - th / 2; size: kq - kl, th; corner: kr; color: mint; opacity: 24% }
+            group {
+                clip inset 0 box { from: kl, y - th / 2; size: kq - kl, th; corner: kr }
+                repeat c in 0..48 {
+                    let hx = kl + 2 * u + c * 3 * u
+                    line { from: hx + 1.6 * u + 0.4 * u * sin(f * 47 + c * 71), y - th * 0.4; to: hx - 1.6 * u + 0.4 * u * sin(f * 53 + c * 37), y + th * 0.4; width: 0.8 * u; color: mint; opacity: if(hx < kq - 1 * u, 30%, 0) }
+                }
+            }
+            PRound(x: kl + 1 * u, y: y - th / 2 + 1 * u, w: kq - kl - 2 * u, h: th - 2 * u, r: kr - 1 * u, s: 23, wd: 1.4 * u, c: mint, a: 1, f: f)
+        }
+        //  Proxy: the HUD's slanted slab, crisp.
+        PThumb((kl + kq) / 2, y, kq - kl, th, kr, h, a * pxl)
     }
 }

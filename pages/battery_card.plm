@@ -30,18 +30,23 @@ part BatteryCard {
         box { from: b.x0 + 92 * cu, b.t + 127 * cu; size: 170 * cu, 4 * cu; corner: 2 * cu; color: ink; opacity: 14% }
         box { from: b.x0 + 92 * cu, b.t + 127 * cu; size: max(4 * cu, 170 * cu * clamp(bc.health / 100, 0, 1)), 4 * cu; corner: 2 * cu; color: b.ht; opacity: 85%; show: bc.health >= 0 }
 
-        //  Charging: the firmware's modes as a row of pills (the chosen one lit), a line on what it does, and the levels when they apply.
+        //  Charging: the firmware's modes in one picker (a thumb on the chosen one), a line on what it does, and the levels when they apply.
         text "CHARGING" { at: floor(b.x0 + 2 * cu + 0.5), floor(b.t + 160 * cu + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk"; show: bc.opt }
         let b.n = max(1, bc.nmodes)
         let b.pw = (276 - 4 * (b.n - 1)) / b.n
+        //  (One slot and a thumb that travels to the mode in use, as the Settings' pickers: pages/SETTINGS-STYLE.md.)
+        zone box bc_mz_sl { at: b.x0 + 138 * cu, b.t + 192 * cu; size: 276 * cu, 32 * cu; active: bc.nmodes > 0 and panel == battery }
+        group {
+            show: bc.nmodes > 0
+            SetPick(b.x0 + b.pw / 2 * cu, b.t + 192 * cu, (b.pw + 4) * cu, b.n, 32 * cu, 1 * if(bc_modes.1.on, 1, 0) + 2 * if(bc_modes.2.on, 1, 0) + 3 * if(bc_modes.3.on, 1, 0) + 4 * if(bc_modes.4.on, 1, 0) + 5 * if(bc_modes.5.on, 1, 0), bc_mz_sl.hover, cu, 1, 0, 0, clamp(if(bc_modes.0.on, 1, 0) + if(bc_modes.1.on, 1, 0) + if(bc_modes.2.on, 1, 0) + if(bc_modes.3.on, 1, 0) + if(bc_modes.4.on, 1, 0) + if(bc_modes.5.on, 1, 0), 0, 1))
+        }
         repeat i in 0..6 {
             let mx = b.x0 + (i * (b.pw + 4) + b.pw / 2) * cu
             let my = b.t + 192 * cu
             let on = if(bc_modes.$i.on, 1, 0)
             group {
                 show: i < bc.nmodes
-                box { at: mx, my; size: b.pw * cu, 36 * cu; corner: 12 * cu * (1 - 0.85 * dd_k); color: mix(ink, mint, on); opacity: 8% + 16% * on + 8% * bc_mz.$i.hover }
-                PPillOutline(mx, my, b.pw * cu, 36 * cu, 12 * cu, bc_mz.$i.hover, 0.35 + 0.65 * on, cu)
+                box { at: mx, my; size: (b.pw - 2) * cu, 30 * cu; corner: 10 * cu * (1 - 0.85 * dd_k); color: ink; opacity: 7% * bc_mz.$i.hover }
                 text bc_modes.$i.name { at: floor(mx + 0.5), floor(my + 0.5); anchor: center; align: center; size: 12; weight: 600; width: (b.pw - 4) * cu; lines: 1; color: mix(ink, mint, on); family: "Space Grotesk" }
                 zone box bc_mz.$i { at: mx, my; size: b.pw * cu, 36 * cu; corner: 12 * cu; cursor: pointer; active: i < bc.nmodes and not bc.busy and panel == battery and fb > 0.9; label: bc_modes.$i.name }
                 on press bc_mz.$i { emit bc_mode(i) }
