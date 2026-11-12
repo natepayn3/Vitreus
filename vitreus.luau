@@ -106,6 +106,24 @@ function exec_on_desktop(cmd)
         run("setsid", { "-f", "sh", "-c", line }, function() end)
     end
 end
+-- A desktop scene that is not needed now is stopped for good (`rel`: its .plm under the shell's folder, e.g. "cursortrail/cursortrail.plm"): its keeper
+-- first, or the keeper starts it again, then the scene. A scene that waits, drawing nothing, still costs its 60 to 70 MB.
+function scene_stop(rel)
+    run("pkill", { "-f", "vitreus-keep .*/vitreus/" .. rel }, function()
+        run("pkill", { "-f", "^([^ ]*/)?pleamar --scene .*/vitreus/" .. rel }, function() end)
+    end)
+end
+-- Says `cmds` to a scene just started, once it answers (every 300 ms, for up to 9 s): a fixed wait was either too short on a busy start or a
+-- needless pause on a quick one.
+function scene_say_when_up(name, cmds, tries)
+    tries = tries or 0
+    local args = { "--say", name }
+    for _, c in ipairs(cmds) do args[#args + 1] = c end
+    run("pleamar", args, function(out, code)
+        local up = code == 0 and (out or ""):find("?", 1, true) ~= 1
+        if not up and tries < 30 then after(300, function() scene_say_when_up(name, cmds, tries + 1) end) end
+    end)
+end
 -- Under pleamar-wm there is no `workspaces` service (it comes from Hyprland); the window manager is a scene, so its workspaces are asked of
 -- it over its socket: which one is shown, and which one each window is on.
 function wm_get(name, done) run("pleamar", { "--say", "wm", "get " .. name }, function(out) done(tonumber((out or ""):match("%-?[%d.]+")) or ((out or ""):match("true") and 1) or ((out or ""):match("false") and 0) or nil) end) end
@@ -153,7 +171,7 @@ function wm_workspaces()
                     say_editor(function(_, code)
                         if code ~= 0 then
                             exec_on_desktop('vitreus-keep "$HOME/.config/pleamar/shells/vitreus/desktopedit/desktopedit.plm"')
-                            after(3000, function() say_editor(function() end) end)
+                            scene_say_when_up("desktopedit", { "fact emon " .. math.floor(m), "fact open true" })
                         end
                     end)
                 end
@@ -2326,18 +2344,33 @@ function watch_urgent()
 end
 -- The desktop's own scenes (the right-click menu on the wallpaper and the stickers, which live under the windows) are programs of their own, since a scene has one layer. They are
 -- not in the autostart file: this starts whichever of them is not running, once, a few seconds after the shell does. (The clock and the system monitor are started by the
--- autostart file, as before.)
+-- autostart file, as before.) The desktop editor is not among them: the right press starts it (desktopmenu_hypr.luau) and it leaves once it has been closed a while. Nor are
+-- the calendar and the reminders unless one of them is on (desktopcards.json, in that scene's own data folder): the editor's tiles start them, and they leave when both are off.
 after(4000, function()
     if not on_hyprland then return end
-    for _, dir in ipairs({ "desktopmenu", "desktopnotes", "desktopedit", "desktopcards" }) do
-        -- (Hyprland runs the menu's own copy, desktopmenu_hypr.plm: background layer, wallpaper zone always live)
-        local file = dir == "desktopmenu" and "desktopmenu_hypr" or dir
+    local function keep(dir, file)
         run("pgrep", { "-f", dir .. "/" .. file .. ".plm" }, function(_, code)
             if code ~= 0 then
                 exec_on_desktop('vitreus-keep "$HOME/.config/pleamar/shells/vitreus/' .. dir .. '/' .. file .. '.plm"')
             end
         end)
     end
+    -- (Hyprland runs the menu's own copy, desktopmenu_hypr.plm: background layer, wallpaper zone always live)
+    keep("desktopmenu", "desktopmenu_hypr")
+    keep("desktopnotes", "desktopnotes")
+    -- (the data folder by hand: `with_dirs` is a local made further down)
+    run("printenv", { "XDG_DATA_HOME" }, function(xdg)
+        run("printenv", { "HOME" }, function(home)
+            xdg, home = (xdg or ""):match("^%s*(.-)%s*$"), (home or ""):match("^%s*(.-)%s*$")
+            local base = xdg ~= "" and xdg or (home .. "/.local/share")
+            run("cat", { base .. "/pleamar/desktopcards/desktopcards.json" }, function(out, code)
+                if code ~= 0 or not out then return end         -- (no file: never started, and both cards start off)
+                for _, c in ipairs({ "cal", "rem" }) do
+                    if out:match('"' .. c .. '"%s*:%s*{[^}]-"shown"%s*:%s*true') then keep("desktopcards", "desktopcards") return end
+                end
+            end)
+        end)
+    end)
 end)
 after(2000, function()
     if not on_hyprland then return end
@@ -3620,7 +3653,17 @@ do
         run("pleamar", { "--say", "desktopedit", "fact look " .. vw }, function() end)
         run("pleamar", { "--say", "desktopnotes", "fact look " .. v }, function() end)
         run("pleamar", { "--say", "files", "fact look " .. v }, function() end)
-        run("pleamar", { "--say", "cursortrail", "fact look " .. v }, function() end)
+        -- The cursor trail is drawn on UwU only: its scene runs while UwU is the theme and is stopped on any other, where it only waited (not on niri,
+        -- which cannot say where the mouse is). Started here, it is told the theme once it answers.
+        if v == 2 then
+            run("pgrep", { "-f", "pleamar --scene .*/cursortrail/cursortrail.plm" }, function(_, code)
+                if code == 0 then run("pleamar", { "--say", "cursortrail", "fact look 2" }, function() end) return end
+                exec_on_desktop('[ -n "$NIRI_SOCKET" ] || vitreus-keep "$HOME/.config/pleamar/shells/vitreus/cursortrail/cursortrail.plm"')
+                scene_say_when_up("cursortrail", { "fact look 2" })
+            end)
+        else
+            scene_stop("cursortrail/cursortrail.plm")
+        end
         for _, sk in ipairs(addon_scenes or {}) do run("pleamar", { "--say", sk, "fact look " .. av }, function() end) end      -- the sparkle trail behind the mouse: UwU only
     end
     local function show()

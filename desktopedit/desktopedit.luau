@@ -71,9 +71,25 @@ local function edit_addons(on)
     for _, a in ipairs(aw) do run("pleamar", { "--say", a.sock, "fact widget_edit " .. tostring(on) }, function() end) end
 end
 
+-- Closed, the editor draws nothing, and waiting costs its ~70 MB all the same: a while after it was closed (and after it started, if it is never opened)
+-- it leaves, its keeper first or the keeper would start it again. A right press on the wallpaper starts it again (desktopmenu_hypr.luau, or vitreus.luau
+-- under pleamar-wm). The `[t]` keeps the pattern from matching the `sh` that runs it.
+local IDLE_MS = 30000
+local idle_n = 0
+local function idle_check()
+    idle_n = idle_n + 1
+    local mine = idle_n
+    after(IDLE_MS, function()
+        if mine ~= idle_n or fact.open == true then return end
+        run("sh", { "-c", "pkill -f 'vitreus-keep .*/desktopedi[t]/desktopedit[.]plm'; pleamar --say desktopedit quit" }, function() end)
+    end)
+end
+idle_check()
+
 -- It fires for what the scene sets (Done, Escape) and for what is said from outside (the menu, the key): the widgets are told either way.
 on("fact:open", function(v)
     local opened = v and true or false
+    idle_check()
     edit_widgets(opened)
     if opened then aw_load(function() edit_addons(true) end) else edit_addons(false) end        -- (the add-ons' list first, so the ones that came since are told too)
     if opened then refresh(); refresh_cards() end
@@ -146,6 +162,15 @@ local function ask_obs()
 end
 ask_obs()
 after(4000, ask_obs)
+-- The theme, as the widgets ask for it (`look_w`): the editor is started when it is wanted now, after Vitreus last told the desktop scenes.
+local function ask_look()
+    run("pleamar", { "--say", "vitreus", "get look_w" }, function(out, code)
+        local v = code == 0 and tonumber((out or ""):match("%-?%d+")) or nil
+        if v and v >= 0 then fact.look = v end
+    end)
+end
+ask_look()
+after(1500, ask_look)
 -- Its colours come from Vitreus too (as facts, see `push_pal` in vitreus.luau).
 run("pleamar", { "--say", "vitreus", "emit pal_push" }, function() end)
 after(1500, function() run("pleamar", { "--say", "vitreus", "emit pal_push" }, function() end) end)
