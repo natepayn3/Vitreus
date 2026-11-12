@@ -27,7 +27,7 @@
 #                                      into ~/.local/share/fonts, no sudo)
 #   4. the shell                      (into ~/.config/pleamar/shells/vitreus: cloned, or updated)
 #   5. your palette, autostart entry  (made once and never written over)
-#   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent, vitreus-sysmon, vitreus-term, vitreus-files, vitreus-edit and vitreus-report, linked into ~/.local/bin; vitreus-inhibit, built there)
+#   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent, vitreus-sysmon, vitreus-battery, vitreus-term, vitreus-files, vitreus-edit and vitreus-report, linked into ~/.local/bin; vitreus-inhibit, built there)
 #   5c. Files, as a program            (its icon and entry in ~/.local/share; asked: the file manager for folders and «Show in folder», files/integrate.sh)
 #   5d. View, as a program             (its icon and entry in ~/.local/share; asked: what opens pictures and videos, view/integrate.sh)
 #   6. its Hyprland key binds         (hypr_vitreus.lua linked into ~/.config/hypr, and loaded from hyprland.lua)
@@ -449,6 +449,7 @@ if [ "$action" = uninstall ]; then
     if [ -L "$HOME/.local/bin/vitreus-clipimg" ]; then run rm -f "$HOME/.local/bin/vitreus-clipimg"; fi
     if [ -L "$HOME/.local/bin/vitreus-polkit-agent" ]; then run rm -f "$HOME/.local/bin/vitreus-polkit-agent"; fi
     if [ -L "$HOME/.local/bin/vitreus-sysmon" ]; then run rm -f "$HOME/.local/bin/vitreus-sysmon"; fi
+    if [ -L "$HOME/.local/bin/vitreus-battery" ]; then run rm -f "$HOME/.local/bin/vitreus-battery"; fi
     if [ -L "$HOME/.local/bin/vitreus-term" ]; then run rm -f "$HOME/.local/bin/vitreus-term"; fi
     if [ -L "$HOME/.local/bin/vitreus-files" ]; then run rm -f "$HOME/.local/bin/vitreus-files"; fi
     if [ -L "$HOME/.local/bin/vitreus-view" ]; then run rm -f "$HOME/.local/bin/vitreus-view"; fi
@@ -975,6 +976,7 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
     [ -x "$dest/bin/vitreus-polkit-agent" ] && run ln -sf "$dest/bin/vitreus-polkit-agent" "$HOME/.local/bin/vitreus-polkit-agent"
     # Settings > System monitor's data source: started by the shell while that page is showing, and stopped when it is not.
     [ -x "$dest/bin/vitreus-sysmon" ] && run ln -sf "$dest/bin/vitreus-sysmon" "$HOME/.local/bin/vitreus-sysmon"
+    [ -x "$dest/bin/vitreus-battery" ] && run ln -sf "$dest/bin/vitreus-battery" "$HOME/.local/bin/vitreus-battery"       # the battery card: health, charge mode and limits
     [ -x "$dest/bin/vitreus-term" ] && run ln -sf "$dest/bin/vitreus-term" "$HOME/.local/bin/vitreus-term"
     # The keeper the autostart lines run each scene under: it starts a scene again when it stops (a crash on a monitor's wake).
     [ -x "$dest/bin/vitreus-files" ] && run ln -sf "$dest/bin/vitreus-files" "$HOME/.local/bin/vitreus-files"

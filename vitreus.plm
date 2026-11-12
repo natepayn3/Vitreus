@@ -78,7 +78,7 @@ scene Vitreus {
     //  moving paints nothing, so a cap only ever slowed what was moving (the notches, the drawers, the bar's hovers each needed an exemption from the old 12 a second).
     surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on), 60 while (media.playing and fw_on) or bar_fps == 60; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
     permissions { services: "say:*", "files", "files.write", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "test", "wl-paste", "ffprobe" }
+                  run: "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "test", "wl-paste", "ffprobe" }
 
     model wifi_nets max 16 { ssid: text; strength: number; secure: bool; known: bool; active: bool; band: number; bands: text; bandw: number; chan: number; rate: number; sec: text; busy: number }
     model bat_devs max 6 { name: text; level: number }
@@ -174,7 +174,7 @@ scene Vitreus {
     //  Which panel hangs from the bar: the clock and calendar (click the clock), or the
     //  controls (click the window title).
     fact panel_scr = 0              // which monitor's copy has the open panel (set by the press that opens it): the others draw none of it
-    fact panel: none | calendar | controls | player | volume | notif | settings | launch | tray | desk = none
+    fact panel: none | calendar | controls | player | volume | notif | settings | launch | tray | desk | battery = none
     fact media_on = false          // is there a player at all
     fact bass = 0
     fact fr_hov = false    // the pointer is on the bar: its hover animations run (and the glass leaves its resting state: `lens.idle`)
@@ -1361,7 +1361,7 @@ scene Vitreus {
     follow dtrav = if(panel != none, 1, 0)
     follow hot  = if(panel != none, 1, 0)
     follow dc   = if(panel == calendar, 1, 0)
-    follow dk   = if(panel == controls, 1, 0)
+    follow dk   = if(panel == controls or panel == battery, 1, 0)     // the battery panel (pages/battery_card.plm) is the same drawer
     follow dm   = if(panel == player or panel == tray, 1, 0)
     follow dtab_x = if(dash_tab == dtab_cal, 0, if(dash_tab == dtab_med, 1, 2))
     follow tf.cal = if(dash_tab == dtab_cal, 1, 0)
@@ -1373,7 +1373,7 @@ scene Vitreus {
     follow dl   = if(panel == launch, 1, 0)
     follow dax  = if(ax_open, 1, 0)
     follow pq.dc = if(panel == calendar, 1, 0)
-    follow pq.dk = if(panel == controls, 1, 0)
+    follow pq.dk = if(panel == controls or panel == battery, 1, 0)
     follow pq.dm = if(panel == player or panel == tray, 1, 0)
     follow pq.dz = if(desk_open, 1, 0)
     follow pq.ds = if(panel == settings, 1, 0)
@@ -1560,6 +1560,40 @@ scene Vitreus {
     on change panel while panel != calendar   { f1: 0 ~80ms; f4: 0 ~80ms; f1: 0 ~80ms after 225ms; f4: 0 ~80ms after 305ms }
     on change panel while panel == controls   { f2: 1 after 200ms; f5: 1 after 200ms; f6: 1 after 200ms; f7: 1 after 200ms }
     on change panel while panel != controls   { f2: 0 ~80ms; f5: 0 ~80ms; f6: 0 ~80ms; f7: 0 ~80ms; f2: 0 ~80ms after 205ms; f5: 0 ~80ms after 205ms; f6: 0 ~80ms after 205ms; f7: 0 ~80ms after 205ms }
+    //  The battery panel shares the controls' drawer (`dk`): `dk_bat` is which of the two it holds (kept while it closes, so it shuts at its own height), `dkb` that eased.
+    fact dk_bat = false
+    prop dkb = 0 ~calm
+    follow dkb = if(dk_bat, 1, 0)
+    prop fb = 0 ~quick              // the battery panel's content, in like the controls' plates
+    on change panel while panel == battery    { dk_bat = true; fb: 1 after 200ms }
+    on change panel while panel == controls   { dk_bat = false }
+    on change panel while panel != battery    { fb: 0 ~80ms; fb: 0 ~80ms after 205ms }
+    //  What the logic (logic/battery_card.luau) tells it.
+    fact bc.ok = false                // the battery has been read
+    fact bc.health = -1               // what it holds now against new, in %; -1 unknown
+    text bc_word = ""                 // Good, Fair, Worn
+    text bc_cap = ""                  // "Holds 23.1 of 64.0 Wh it had new"
+    text bc_detail = ""               // maker · chemistry · cycles
+    model bc_modes max 6 { name: text; on: bool }      // the firmware's charge modes, the chosen one `on`
+    fact bc.nmodes = 0
+    text bc_desc = ""                 // what the chosen mode does
+    fact bc.thr = false               // the two levels are shown (Custom, or a battery with levels and no modes)
+    fact bc.hasstart = false          // there is a level to start charging at, not only one to stop at
+    fact bc.start = 50
+    fact bc.end = 90
+    fact bc.ask = false               // a change asks for the password (no udev rule)
+    fact bc.busy = false              // a change is being written
+    text bc_err = ""                  // why the last change did not go through
+    fact bc.err = false               // and that there is one
+    fact bc.bios = false              // the BIOS has an admin password: a change is made through its settings, with it
+    fact bc.pwask = false             // a change is waiting for that password (the field shows)
+    text bc_bpw = ""                  // the field; the logic reads it out and empties it, and hands it to the helper on its input only
+    fact bc_bgo = false               // Enter or Apply in it
+    event bc_bcancel ->
+    on change bc.pwask while bc.pwask { focus bc_bpw }
+    on submit bc_bpw { bc_bgo = true }
+    event bc_mode ->                  // a mode, by position
+    event bc_step ->                  // 0 start down, 1 start up, 2 stop down, 3 stop up
     on change panel while panel == player     { dm_mode = dmm_player }
     on change panel while panel == tray       { dm_mode = dmm_tray }
     on change panel while panel == player or panel == tray { f3: 1 after 200ms }
@@ -5630,7 +5664,7 @@ scene Vitreus {
     let sub_min = vol_bot - tiles_top - 70
     //  The Capture and the Power windows are only as tall as they are (no minimum); the rest keep `sub_min`.
     //  The Power window lists the battery levels (this computer, then each connected device that says) between the session tiles and the profile.
-    let bat_rows = (if(bat_here, 1, 0)) + bat_n
+    let bat_rows = bat_n                 // (this computer's own battery is in the battery panel, from the bar's icon: pages/battery_card.plm)
     let bat_h = if(bat_rows > 0, 20 + 56 * bat_rows, 0)
     let sub_content = if(showing_sub == capview, if(rec_on, 142, 186) + if(capr_n > 0, 69, 0), if(showing_sub == powview, 151 + bat_h, max(sub_min, if(showing_sub == cafview, 38, if(showing_sub == notifview, 60, if(showing_sub == btview, 40, 0)) + list_view_h))))
     let sub_bot = tiles_top + 54 + sub_content + 16
@@ -5645,7 +5679,14 @@ scene Vitreus {
     let mix.m = if(mixer.count > 0, mixer.count * 32 + 8, 40)
     let vp.h = 132 - 8 * dd_k - bri_cut + mix.m * clamp(vm, 0, 1)                // the volume card's height, unscaled
     let mix.extra = mix.m * max(0, vm)
-    let content_bot = mix(vol_bot + max(dd.extra, mix.extra), sub_bot, expand0)
+    let ctl_bot = mix(vol_bot + max(dd.extra, mix.extra), sub_bot, expand0)
+    //  The battery panel's height in the same drawer, in `cu` from `ck` (pages/battery_card.plm): the charge and health always, the charging options when there are any.
+    let bc.opt = bc.nmodes > 0 or bc.thr
+    let bc.my = if(bc.nmodes > 0, 254, 172)                      // under the modes and their line
+    let bc.ty = bc.my + if(bc.thr, 76, 0)                         // under the levels
+    prop bat_bot = 160 ~calm
+    follow bat_bot = 8 + if(bc.opt, bc.ty + if(bc.pwask, 48, if(bc.ask or bc.bios or bc.busy or bc.err, 14, 0)) - 6, 144)
+    let content_bot = mix(ctl_bot, bat_bot, clamp(dkb, 0, 1))
     let dk.hh = bar.h / 2 + (content_bot + 16) * cu * dk0 + 13 * cu * tm * dk0 + max(0, sag)      // (the 13 is `lp.dd`: along the top or bottom the margins are made 18.5 all round here too)
     //  The player's panel: the same drawer as the controls, centred on the bar, and as tall as
     //  its one plate.
@@ -5797,8 +5838,8 @@ scene Vitreus {
         //  Which panel was opened last, and how wide it is: where the panels sit down the left follows it (see `lp.top`, `pcx`). Here, in the
         //  scene, not in the logic (its own popups, volume and notifications, set `panel` itself and nothing told it), and only once the panel
         //  is really being opened: a switch from one to another leaves the open one in its own shape until it has gone.
-        lp_w = if(panel == settings, 620, if(panel == controls, 312, if(panel == player or panel == tray, 328, if(panel == volume or panel == notif, 340, if(panel == calendar, 467, if(panel == launch, 450, if(panel == desk, 340, lp_w)))))))
-        lp_k = if(panel == settings, 1, if(panel == launch, 2, if(panel == controls, 3, if(panel == calendar, 4, if(panel == tray, 5, if(panel == player, 6, if(panel == volume, 7, if(panel == notif, 8, if(panel == desk, 9, lp_k)))))))))
+        lp_w = if(panel == settings, 620, if(panel == controls or panel == battery, 312, if(panel == player or panel == tray, 328, if(panel == volume or panel == notif, 340, if(panel == calendar, 467, if(panel == launch, 450, if(panel == desk, 340, lp_w)))))))
+        lp_k = if(panel == settings, 1, if(panel == launch, 2, if(panel == controls or panel == battery, 3, if(panel == calendar, 4, if(panel == tray, 5, if(panel == player, 6, if(panel == volume, 7, if(panel == notif, 8, if(panel == desk, 9, lp_k)))))))))
     }
     //  Whatever happened on the way (a hover that bounced between the two), the drawer that is coming out is the one whose shape and width the strip uses.
     on change dk > 0.5 while dk > 0.5 { lp_k = 3; lp_w = 312 }
@@ -5850,7 +5891,7 @@ scene Vitreus {
     let dk.teh = dk.tR * dk.lf
     let dk.tey = bar.y + dk.teh / 2
     let dk.tew = (312 * cu + (13 * cu + 14 * u * if(lp_k == 3, 1, 0)) * tm) * dk.lf
-    let dk.tex = mix(if(bar_frame, ctl.x, pcx), pcx, dk.lf) + 7 * u * if(lp_k == 3, 1, 0) * dk.lf * tm     // along a frame's top or bottom it comes out of its own button and slides to its place as it grows (as an add-on's drawer does out of its pill); the Island's drops straight, from the middle
+    let dk.tex = mix(if(bar_frame, mix(ctl.x, bat.x, dkb), pcx), pcx, dk.lf) + 7 * u * if(lp_k == 3, 1, 0) * dk.lf * tm     // along a frame's top or bottom it comes out of its own button and slides to its place as it grows (as an add-on's drawer does out of its pill); the Island's drops straight, from the middle
     let dk.er = if(lp_k == 3, 14 * u * lm * clamp((dk.gx + dk.gw / 2 - (screen.width - th.r - 14 * u)) / (14 * u), 0, 1), 0) * dk.lf
     let dk.ew = mix(mix(dk.w, dk.gw + dk.er, lm), dk.tew, tu)
     let dk.eh = mix(mix(dk.hh, dk.gh + if(lp_k == 3, lp.ext * dk.lf, 0), lm), dk.teh, tu)
@@ -6416,8 +6457,8 @@ scene Vitreus {
     on change panel while (panel == settings or panel == launch) and desk_open and desk_clash > 0.5 { desk_open = false }
     //  The control center (`panel == controls`) is not wide, but it comes down over the Desk's header: attached, the Desk gives way to it, whichever was opened last staying (as
     //  Settings and the launcher do). A detached Desk stays.
-    on change panel while panel == controls and desk_open and desk_det < 0.5 { desk_open = false }
-    on change desk_open while desk_open and panel == controls and desk_det < 0.5 { panel = none }
+    on change panel while (panel == controls or panel == battery) and desk_open and desk_det < 0.5 { desk_open = false }
+    on change desk_open while desk_open and (panel == controls or panel == battery) and desk_det < 0.5 { panel = none }
     //  The terminal follows the mouse, as Hyprland's windows do here: once it has been clicked, the pointer coming back over the desk
     //  gives it the keyboard again, and leaving lets it go (`desk_band`), until the desk shuts or another tab is chosen.
     fact term_armed = false
@@ -7559,8 +7600,8 @@ scene Vitreus {
     //  title, the tray's menu from the one with the tray's icons (in the pieces, the centre one).
     group {
         show: dk > 0.004 and fm > 0.02
-        let es_l = mix(bc.rl, bc.vl, lm)
-        let es_r = mix(bc.rr, bc.vr, lm)
+        let es_l = mix(mix(bc.rl, bat.x - vw.bat / 2 - bc.m, dkb), bc.vl, lm)          // (the battery panel grows from the battery's own place)
+        let es_r = mix(mix(bc.rr, bat.x + vw.bat / 2 + bc.m, dkb), bc.vr, lm)
         let es_t = mix(bar.y - bc.h / 2, lv.bt, lm)
         let es_b = mix(bar.y + bc.h / 2, lv.bb, lm)
         let gw = dk.ew * (1 + dj.stretch - 0.07 * dk.bell + 0.003 * wobble) * dk.tail            // the drawer as its glass is drawn
@@ -7602,7 +7643,7 @@ scene Vitreus {
         BarCard((bc.cl + bc.cr) / 2, bar.y, bc.cr - bc.cl, hh, 944.5, max(bs.clock, bs.title) * (1 - clamp(dcp + dmp, 0, 1)))
         let hr0 = bc.rl
         let hr1 = bc.rr
-        BarCard((hr0 + hr1) / 2, bar.y, hr1 - hr0, hh, 945.5, max(bs.sr, max(bs.ctl, bs.set)) * (1 - dkp))
+        BarCard((hr0 + hr1) / 2, bar.y, hr1 - hr0, hh, 945.5, max(bs.sr, max(bs.ctl, bs.set)) * (1 - dkp * (1 - dkb)))
         BarCard(dsk.x, bar.y, vw.dsk + 2 * bc.m, hh, 947.5, bs.dsk * (1 - fm))
         BarCard(bat.x, bar.y, vw.bat + 2 * bc.m, hh, 948.5, bs.bat * (1 - fm))
     }
@@ -7657,7 +7698,8 @@ scene Vitreus {
             scale: 1 - 0.26 * lm       // a smaller cell down the strip
             BarBatt(bat.x + (lf.x - bat.x) * lm - 3 * bu, bar.y + (lv.bat - bar.y) * lm, mix(42, 36, lm) * bu, 20 * bu, batt_fill, bat.c, bat.fc, bat.o, bat.f, bu, bat_pct)
         }
-        zone box bat_z { at: bat.x + (lf.x - bat.x) * lm, bar.y + (lv.bat - bar.y) * lm; size: mix(fw.bat + 6 * bu, lf.w - 6 * bu, lm), 30 * bu; corner: 10 * bu; cursor: default; active: bs.bat > 0.6 and sb > 0.5; label: "Battery" }
+        zone box bat_z { at: bat.x + (lf.x - bat.x) * lm, bar.y + (lv.bat - bar.y) * lm; size: mix(fw.bat + 6 * bu, lf.w - 6 * bu, lm), 30 * bu; corner: 10 * bu; cursor: pointer; active: bs.bat > 0.6 and sb > 0.5; label: "Battery" }
+        on press bat_z { pending = none; panel_scr = screen.index; panel = if(panel == battery, none, battery) }
     }
     //  The clock runs while something needs it. It is here, after the bar's zones, because it reads their hover: the bar's icons only boil under the pointer.
     let need_clock = (fr_wv > 0 and fm > 0.5) or (cy_on > 0.01) or bar_hit.hover > 0.01 or adk_hot > 0.5 or wsh.1.$screen > 0.01 or wsh.2.$screen > 0.01 or wsh.3.$screen > 0.01 or wsh.4.$screen > 0.01 or wsh.5.$screen > 0.01 or wsh.6.$screen > 0.01 or wsh.7.$screen > 0.01 or wsh.8.$screen > 0.01 or wsh.9.$screen > 0.01 or wsh.10.$screen > 0.01 or set_hit.hover > 0.01 or sr_hit.hover > 0.01 or ctl_hit.hover > 0.01 or ov_btn.hover > 0.01 or bp.prev.hover > 0.01 or bp.play.hover > 0.01 or bp.next.hover > 0.01 or vm_prev.hover > 0.01 or vm_play.hover > 0.01 or vm_next.hover > 0.01 or ds > 0.01 or dl > 0.01 or dk > 0.01 or hm_hot > 0.5 or ((wifi_scanning or bt_scanning or bt_working or caf_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or osd_kind == note or nt_urgent)) or (set_pgd > 0.01 and disp.h > set.h) or time - pw_b0 < 1.5 or time - pw_b1 < 1.5 or time - pw_b2 < 1.5 or time - pw_b3 < 1.5 or time - pw_b4 < 1.5 or rec_on or (dsh_rise > 0.01 and (dsh_rise < 0.995 or dsh_under > 0.002 or media.playing or dsh_hv > 0.5)) or (mf.vis > 0.01 and (media.playing or mf_hv > 0.01))

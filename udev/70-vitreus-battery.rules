@@ -1,0 +1,5 @@
+# Lets the wheel group change the laptop battery's charge mode and charge limits without a password
+# (the battery card under the bar's battery icon; bin/vitreus-battery). Without it every change asks through polkit.
+#   sudo install -m 644 udev/70-vitreus-battery.rules /etc/udev/rules.d/ && sudo udevadm trigger --subsystem-match=power_supply
+SUBSYSTEM=="power_supply", KERNEL=="BAT*", ACTION=="add|change", \
+  RUN+="/bin/sh -c 'cd /sys%p && for f in charge_types charge_type charge_control_start_threshold charge_control_end_threshold; do [ -e $$f ] && chgrp wheel $$f && chmod g+w $$f; done; true'"

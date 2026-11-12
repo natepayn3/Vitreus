@@ -8861,6 +8861,8 @@ require("logic/memos")(with_dirs)
 require("logic/aur")()
 -- the charger, read from the kernel instead of pleamar's 20 s battery poll: see logic/charger.luau
 require("logic/charger")()
+-- the battery card under the bar's battery icon: health and charging options (logic/battery_card.luau)
+require("logic/battery_card")()
 -- Demo mode: ~/.config/vitreus/demo exists -> a made-up battery (69 %, on battery) and the user shown as "user" (globals: this chunk is at Luau's limit of locals)
 demo_on = false
 run("printenv", { "HOME" }, function(out, code)

@@ -1,0 +1,163 @@
+#!/bin/sh
+# The laptop battery's health and charging options, for the battery card under the bar's battery icon.
+#
+#   vitreus-battery info              key=value lines (see below); nothing at all without a battery
+#   vitreus-battery mode NAME         the firmware's charge mode (charge_types: Standard, Adaptive, Fast, Trickle, Custom...)
+#   vitreus-battery limits START END  charge back up below START %, stop at END % (charge_control_*_threshold);
+#                                     where there is a Custom mode the limits only apply in it, so it is chosen too
+#   vitreus-battery bios mode NAME | bios limits START END
+#                                     the same through Dell's BIOS settings (dell-wmi-sysman), for a laptop whose BIOS has an
+#                                     admin password: the firmware ignores the kernel's battery files then. The BIOS password
+#                                     is read from the input (one line), never from the command line, and forgotten after.
+#
+# The kernel's files are root's. If they are writable (a udev rule, see udev/70-vitreus-battery.rules) the change is
+# written straight away; otherwise it runs itself again through pkexec, which asks for the password (Vitreus's own
+# polkit agent shows that prompt).
+set -eu
+
+bat=""
+for d in /sys/class/power_supply/BAT*; do
+    [ -d "$d" ] || continue
+    [ "$(cat "$d/type" 2>/dev/null)" = "Battery" ] || continue
+    [ "$(cat "$d/scope" 2>/dev/null)" = "Device" ] && continue
+    bat="$d"; break
+done
+
+rd() { [ -r "$bat/$1" ] && cat "$bat/$1" 2>/dev/null || true; }
+
+# A write that needs root: straight, or this script again through pkexec (as root, with `--root`).
+wr() {
+    f="$bat/$1"; v="$2"
+    if [ -w "$f" ]; then printf '%s' "$v" > "$f"; return; fi
+    if [ "$(id -u)" -eq 0 ]; then printf '%s' "$v" > "$f"; return; fi
+    return 1
+}
+need_root() {
+    # $@: the whole command line again
+    for f in "$@"; do [ -w "$bat/$f" ] || return 0; done
+    return 1
+}
+self=$(readlink -f "$0")
+SYS=/sys/class/firmware-attributes/dell-wmi-sysman
+
+case "${1:-}" in
+info)
+    [ -n "$bat" ] || exit 0
+    echo "name=$(basename "$bat")"
+    echo "maker=$(rd manufacturer)"
+    echo "model=$(rd model_name)"
+    echo "tech=$(rd technology)"
+    echo "cycles=$(rd cycle_count)"
+    # Capacity: energy (µWh) or charge (µAh, turned into µWh with the design voltage, µV) as the battery reports it.
+    full=$(rd energy_full); design=$(rd energy_full_design); unit=wh
+    if [ -z "$full" ] || [ -z "$design" ]; then
+        full=$(rd charge_full); design=$(rd charge_full_design); unit=ah
+        volt=$(rd voltage_min_design)
+        if [ -n "$full" ] && [ -n "$design" ] && [ -n "$volt" ] && [ "$volt" -gt 0 ]; then
+            full=$(( full * (volt / 1000) / 1000000 )); design=$(( design * (volt / 1000) / 1000000 )); unit=wh
+        fi
+    fi
+    echo "full=$full"
+    echo "design=$design"
+    echo "unit=$unit"
+    # charge_types (newer kernels) or charge_type: "Trickle [Fast] Standard Adaptive Custom", the chosen one in brackets.
+    ct=charge_types; [ -e "$bat/$ct" ] || ct=charge_type
+    types=$(rd "$ct")
+    case "$types" in *"["*) echo "modes=$types" ;; *) echo "modes=" ;; esac
+    echo "start=$(rd charge_control_start_threshold)"
+    echo "end=$(rd charge_control_end_threshold)"
+    w=0
+    for f in "$ct" charge_control_end_threshold; do [ -e "$bat/$f" ] && [ -w "$bat/$f" ] && w=1; done
+    echo "writable=$w"
+    # A BIOS admin password: changes go through the BIOS's own settings, with that password (see `bios`).
+    b=0
+    [ "$(cat "$SYS/authentication/Admin/is_enabled" 2>/dev/null)" = "1" ] && [ -d "$SYS/attributes/PrimaryBattChargeCfg" ] && b=1
+    echo "bios=$b"
+    ;;
+bios)
+    [ -n "$bat" ] || exit 1
+    [ -d "$SYS/attributes/PrimaryBattChargeCfg" ] || { echo "no Dell BIOS settings here" >&2; exit 2; }
+    what="${2:-}"; a="${3:-}"; b="${4:-}"
+    ct=charge_types; [ -e "$bat/$ct" ] || ct=charge_type
+    # The kernel's names for the modes, as the BIOS calls them.
+    case "$what" in
+    mode)
+        case "$a" in Standard) v=Standard ;; Adaptive) v=Adaptive ;; Fast) v=Express ;; Trickle) v=PrimAcUse ;; Custom) v=Custom ;;
+            *) echo "no such mode: $a" >&2; exit 2 ;; esac ;;
+    limits)
+        case "$a$b" in ''|*[!0-9]*) echo "limits START END, in %" >&2; exit 2 ;; esac
+        [ "$b" -ge 55 ] && [ "$b" -le 100 ] && [ "$a" -ge 50 ] && [ "$a" -le $(( b - 5 )) ] || { echo "out of range" >&2; exit 2; } ;;
+    *) echo "bios mode NAME | bios limits START END" >&2; exit 2 ;;
+    esac
+    # Root's files: through pkexec, which hands the input (the password) on to the copy that runs as root.
+    if [ "$(id -u)" -ne 0 ]; then exec pkexec "$self" bios "$what" "$a" "$b"; fi
+    IFS= read -r pw || true
+    [ -n "$pw" ] || { echo "no BIOS password given" >&2; exit 2; }
+    auth="$SYS/authentication/Admin/current_password"
+    # Whatever happens, the BIOS is told to forget the password again.
+    trap 'echo "" > "$auth" 2>/dev/null || true' EXIT
+    printf '%s' "$pw" > "$auth" || { echo "the BIOS did not take the password" >&2; exit 3; }
+    pw=""
+    set_attr() { printf '%s' "$2" > "$SYS/attributes/$1/current_value" 2> /dev/null || { echo "the BIOS refused it (wrong BIOS password?)" >&2; exit 3; }; }
+    if [ "$what" = mode ]; then
+        set_attr PrimaryBattChargeCfg "$v"
+        want="[$a]"
+    else
+        # Start under stop at every step: lower the start first when coming down, raise the stop first going up.
+        old_e=$(rd charge_control_end_threshold)
+        if [ -n "$old_e" ] && [ "$b" -lt "$old_e" ]; then set_attr CustomChargeStart "$a"; set_attr CustomChargeStop "$b"
+        else set_attr CustomChargeStop "$b"; set_attr CustomChargeStart "$a"; fi
+        set_attr PrimaryBattChargeCfg Custom
+        want="[Custom]"
+    fi
+    # The kernel's file shows the firmware's state: if it has not moved, the BIOS keeps it for the next start.
+    sleep 0.5
+    case "$(rd "$ct")" in *"$want"*) ;; *)
+        [ "$(cat "$SYS/attributes/pending_reboot/current_value" 2>/dev/null || cat "$SYS/attributes/pending_reboot" 2>/dev/null)" = "1" ] \
+            && { echo "saved in the BIOS: it takes effect after a restart" >&2; exit 4; }
+        echo "the BIOS took it, but the battery still says $(rd "$ct" | sed 's/.*\[\(.*\)\].*/\1/')" >&2; exit 3 ;;
+    esac
+    ;;
+mode)
+    [ -n "$bat" ] || exit 1
+    m="${2:-}"
+    ct=charge_types; [ -e "$bat/$ct" ] || ct=charge_type
+    # Only a name the battery offers.
+    case " $(rd "$ct" | tr -d '[]') " in *" $m "*) ;; *) echo "no such mode: $m" >&2; exit 2 ;; esac
+    if [ "$(id -u)" -ne 0 ] && need_root "$ct"; then exec pkexec "$self" mode "$m"; fi
+    wr "$ct" "$m"
+    # The kernel can accept the write and the firmware still keep its own (a BIOS setup password locks it): say so instead of failing quietly.
+    case "$(rd "$ct")" in *"[$m]"*) ;; *) echo "the firmware kept $(rd "$ct" | sed 's/.*\[\(.*\)\].*/\1/')" >&2; exit 3 ;; esac
+    ;;
+limits)
+    [ -n "$bat" ] || exit 1
+    s="${2:-}"; e="${3:-}"
+    case "$s$e" in ''|*[!0-9]*) echo "limits START END, in %" >&2; exit 2 ;; esac
+    [ "$e" -ge 50 ] && [ "$e" -le 100 ] && [ "$s" -ge 0 ] && [ "$s" -le $(( e - 5 )) ] || { echo "out of range" >&2; exit 2; }
+    ct=charge_types; [ -e "$bat/$ct" ] || ct=charge_type
+    custom=0
+    case " $(rd "$ct" | tr -d '[]') " in *" Custom "*) custom=1 ;; esac
+    files="charge_control_end_threshold"
+    [ -e "$bat/charge_control_start_threshold" ] && files="$files charge_control_start_threshold"
+    [ "$custom" -eq 1 ] && files="$files $ct"
+    # shellcheck disable=SC2086
+    if [ "$(id -u)" -ne 0 ] && need_root $files; then exec pkexec "$self" limits "$s" "$e"; fi
+    [ "$custom" -eq 1 ] && wr "$ct" Custom
+    # The firmware refuses a start above the end at every step: lower the start first when coming down, raise the end first going up.
+    if [ -e "$bat/charge_control_start_threshold" ]; then
+        old_e=$(rd charge_control_end_threshold)
+        if [ -n "$old_e" ] && [ "$e" -lt "$old_e" ]; then
+            wr charge_control_start_threshold "$s"; wr charge_control_end_threshold "$e"
+        else
+            wr charge_control_end_threshold "$e"; wr charge_control_start_threshold "$s"
+        fi
+    else
+        wr charge_control_end_threshold "$e"
+    fi
+    [ "$(rd charge_control_end_threshold)" = "$e" ] || { echo "the firmware kept the stop at $(rd charge_control_end_threshold) %" >&2; exit 3; }
+    ;;
+*)
+    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+    exit 2
+    ;;
+esac

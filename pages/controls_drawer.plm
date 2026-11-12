@@ -1082,12 +1082,11 @@ part ControlsDrawer {
             on press pw_t4 { pw_s4 = time; pw_d4 = true }
             on release pw_t4 { pw_d4 = false }
             on hold pw_t4 for 1000ms { pw_d4 = false; pw_b4 = time; emit pow_press(4); emit pw_shatter4 }
-            //  The battery levels: this computer, then each connected device that reports a charge. Nothing at all with none.
+            //  The battery levels of the connected devices that report a charge (this computer's is in the battery panel). Nothing at all with none.
             text "BATTERY" { at: floor(pcx - 138 * cu + 0.5), floor(px_top + 142 * cu + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk"; show: bat_rows > 0 }
             column bat_list {
                 at: floor(pcx - 138 * cu + 0.5), floor(px_top + 154 * cu + 0.5)
                 gap: 6 * cu
-                BatCard("This computer", bat_pct / 100, bat_state, chg_now) { show: bat_here }
                 for d in bat_devs { BatCard(d.name, d.level, "Connected", false) }
             }
             text "POWER PROFILE" { at: floor(pcx - 138 * cu + 0.5), floor(px_top + (142 + bat_h) * cu + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
@@ -1131,6 +1130,8 @@ part ControlsDrawer {
             }
             text "No outputs" { at: floor(pcx + 0.5), floor(ck + (vol_top + 24) * cu + ddh / 2 + 0.5); anchor: center; size: 14; color: faint; family: "Space Grotesk"; show: outlist.count < 1 }
         }
+        //  The battery panel: the same drawer, other contents (`panel == battery`).
+        include "battery_card.plm"
         }
     }
 }
