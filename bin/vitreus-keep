@@ -59,7 +59,27 @@ undo_gaps() {
 # below starts it again as after any other stop.
 watch_hang() {
     [ "${VITREUS_KEEP_WATCH:-1}" = 0 ] && return 0
-    sleep "${VITREUS_KEEP_GRACE:-60}"
+    # A first start whose logic load was cut off (pleamar ends any handler over 2 s, and a cold login can take that long) runs with no
+    # logic at all: default colours, full size, dead buttons, yet it answers `--say`, so the check below calls it healthy (issue #68).
+    # The log says so: no "running in" line, but "the previous one stays as it was". Looked for in what this start wrote ($2 = the
+    # log's size at the start), for the first minute; the scene is then stopped and started again, when the logic loads in ~70 ms.
+    if [ "$L" != /dev/null ] && [ "$name" = vitreus ]; then
+        i=0
+        while [ "$i" -lt "${VITREUS_KEEP_GRACE:-60}" ] && kill -0 "$1" 2> /dev/null; do
+            new=$(tail -c +"$(( ${2:-0} + 1 ))" "$L" 2> /dev/null)
+            case "$new" in
+                *"vitreus.luau running in"*) break ;;
+                *"the previous one stays as it was"*)
+                    say "its logic did not load (cut off): stopping it, to start it again"
+                    kill -9 "$1" 2> /dev/null
+                    return 0 ;;
+            esac
+            sleep 2; i=$((i + 2))
+        done
+        [ "$i" -lt "${VITREUS_KEEP_GRACE:-60}" ] && sleep $(( ${VITREUS_KEEP_GRACE:-60} - i ))
+    else
+        sleep "${VITREUS_KEEP_GRACE:-60}"
+    fi
     misses=0
     while kill -0 "$1" 2> /dev/null; do
         a=$(timeout "${VITREUS_KEEP_PATIENCE:-20}" pleamar --say "$name" "wait screen.width > 0 5s" 2> /dev/null)
@@ -105,6 +125,7 @@ while :; do
         mv -f "$L" "$L.1" 2> /dev/null
     fi
     started=$(date +%s)
+    logsize=$(stat -c %s "$L" 2> /dev/null || echo 0)
     # The shell's typeface (Settings > Theme): Glass is Space Grotesk and Retro a VCR face, unless the Theme page's font picker chose another. pleamar's
     # font names are fixed in the scenes, so another typeface is shown by starting it with a font setup where "Space Grotesk" is that one (bin/vitreus-fonts
     # makes it). Any trouble there and the shell keeps its own font.
@@ -136,7 +157,7 @@ while :; do
         env $gpu_unset -u FONTCONFIG_FILE $gpu_set pleamar --scene "$P" --no-hud "$@" >> "$L" 2>&1 9>&- &
     fi
     spid=$!
-    watch_hang "$spid" 9>&- < /dev/null &
+    watch_hang "$spid" "$logsize" 9>&- < /dev/null &
     wpid=$!
     wait "$spid"
     code=$?
