@@ -223,10 +223,23 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
 
     -- Put the bar where it should be, once what the file says and what is plugged in are both known. Not in the
     -- first seconds after starting, so a monitor that is still waking up does not send it back and forth.
+    -- Nothing of the bar is open (a panel, the desk, the dashboard, the overview, the wallpaper picker): a restart now goes unnoticed.
+    local function idle()
+        return tostring(fact.panel or "none") == "none" and fact.desk_open ~= true and fact.dash_open ~= true and fact.ov_open ~= true and fact.wp_picker_open ~= true
+    end
     local function settle()
         if B.busy or B.file == nil or #B.mons == 0 then return end
         if not B.awake or B.fit == nil or B.started == nil then return end
         local t = target()
+        -- A chosen monitor switched off had the bar started with a copy waiting for it besides the one on another monitor; with it back, that one
+        -- is closed but still built, and every copy is the whole scene again (~330 MB here). Once all the chosen monitors are back, nothing has changed
+        -- for 10 s and nothing of the bar is open, it is started again with what it needs, once.
+        local have = tonumber((B.file or ""):match("^each max (%d+)") or "") or 0
+        if have > #t and not B.may_shrink and B.stable_since and os.time() - B.stable_since >= 10 and idle() then
+            local all = true
+            for _, n in ipairs(B.pref or {}) do if not connected(n) then all = false end end
+            if all then B.may_shrink = true end
+        end
         local need = needs(t)
         B.may_shrink = false
         if need then restart(t) return end
@@ -267,6 +280,10 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
                 if m.tall then where = where == "" and "portrait" or (where .. ", portrait") end
                 m.sub = where
             end
+            local sig = {}
+            for _, m in ipairs(mons) do sig[#sig + 1] = m.name end
+            sig = table.concat(sig, ",")
+            if sig ~= B.mons_sig then B.mons_sig = sig; B.stable_since = os.time() end
             B.mons = mons
             show()
             publish()
