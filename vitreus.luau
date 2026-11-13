@@ -2359,12 +2359,16 @@ after(4000, function()
     end
     -- (The right press on the wallpaper was a scene of its own, desktopmenu_hypr.plm, until wptrans took it over: one left from before is stopped.)
     scene_stop("desktopmenu/desktopmenu_hypr.plm")
-    keep("desktopnotes", "desktopnotes")
     -- (the data folder by hand: `with_dirs` is a local made further down)
     run("printenv", { "XDG_DATA_HOME" }, function(xdg)
         run("printenv", { "HOME" }, function(home)
             xdg, home = (xdg or ""):match("^%s*(.-)%s*$"), (home or ""):match("^%s*(.-)%s*$")
             local base = xdg ~= "" and xdg or (home .. "/.local/share")
+            -- The stickers: only when there is one (a new one starts the scene, see `new_sticker`), or when the file is not there yet (an older
+            -- install's notes are carried over from desktopnotes-items.json by the scene itself; with none, it leaves again).
+            run("cat", { base .. "/pleamar/desktopnotes/desktopnotes-stickers.json" }, function(out, code)
+                if code ~= 0 or (out and out:match('"slot"')) then keep("desktopnotes", "desktopnotes") end
+            end)
             run("cat", { base .. "/pleamar/desktopcards/desktopcards.json" }, function(out, code)
                 if code ~= 0 or not out then return end         -- (no file: never started, and both cards start off)
                 for _, c in ipairs({ "cal", "rem" }) do
