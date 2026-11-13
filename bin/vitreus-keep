@@ -187,5 +187,7 @@ while :; do
         sed -i --follow-symlinks -E '/^    surface \{/s/screens: each max [0-9]+;/screens: each max 1;/' "$P" && say "too many copies to load: back to each max 1"
     fi
     say "stopped (exit $code): starting it again"
-    sleep 2
+    # A stop that ended well (the shell restarting itself, a theme or font change) starts again at once: the 2 s wait here was most of
+    # the time a restart took. A failure still waits, so a scene that keeps crashing does not spin.
+    [ "$code" -eq 0 ] || sleep 2
 done
