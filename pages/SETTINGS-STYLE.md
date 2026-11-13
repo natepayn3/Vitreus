@@ -26,7 +26,8 @@ Choices made in a `repeat` cannot have their zones read from outside it: put a p
 
 ## The page
 
-- Cards are 438 wide, corner 14, on `spx + 219`; content starts at `spx + 14` and controls end at `spx + 424`.
+- Cards are 438 wide, corner 14, with a hairline edge (`stroke: 1 * pu`, ink at `hair`, after the veil box), on `spx + 219`; content starts at `spx + 14` and controls end at `spx + 424`.
+- **8 units between cards**, always: the bottom of one card to the top of the next. A loose caption or hint between two cards keeps 8 above and 8 below its line box. A page's length (`xx.h` in vitreus.plm) follows its last card.
 - A page opens with what it is: a title card (19 / 700), a one-line hint, and the page's master switch when it has one.
 - A card that holds several rows is named in small caps (13.5 / 700, faint) at its top left.
 

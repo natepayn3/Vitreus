@@ -84,6 +84,7 @@ part SettingsPanel {
         body { color: mix(mix(obsidian, ink, 4% * 1.6), dd_p2, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: sl + 75 * pu, sby + set.h / 2 * pu; size: 150 * pu, set.h * pu; corner: 14 * pu } }
         DdCard(sl + 75 * pu, sby + set.h / 2 * pu, 150 * pu, set.h * pu, 371.5, mix(mix(obsidian, ink, 4% * 1.6), dd_p2, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
         box { at: sl + 75 * pu, sby + set.h / 2 * pu; size: 150 * pu, set.h * pu; corner: 14 * pu; color: ink; opacity: 4% * (1 - obs) }
+        box { at: sl + 75 * pu, sby + set.h / 2 * pu; size: 150 * pu, set.h * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
         //  The sections, in one column that scrolls when it is taller than the panel (the panel keeps one height, as short as fits a 1080 p screen; the pages scroll too).
         let side.hh = side.ab + 22                     // how tall the column is
         let side.sc = clamp(side_scroll, 0, max(0, side.hh - set.h))
@@ -103,14 +104,27 @@ part SettingsPanel {
                 group { scale: rs; pivot: floor(sl + 14 * pu + 0.5), floor(sby + side.h2 * pu + 0.5); text "SHELL" { at: floor(sl + 14 * pu + 0.5), floor(sby + side.h2 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; gradient: sl + 14 * pu, sby + side.h2 * pu to sl + 86 * pu, sby + side.h2 * pu, mintlo, minthi; opacity: 100%; letter_move: letter * 3.2 * pu, 0.9 * pu * sin(letter * 2.4 + 1.3); letter_scale: 1 + 0.07 * sin(letter * 3.7 + 0.5); family: "Space Grotesk" } }
                 group { scale: rs; pivot: sl + 15.8 * pu, sby + side.h3 * pu + 1.6 * pu; text "SCREEN" { at: sl + 15.8 * pu, sby + side.h3 * pu + 1.6 * pu; anchor: left center; size: 12.5; weight: 700; color: ink; opacity: 32%; letter_move: letter * 3.2 * pu, 0.9 * pu * sin(letter * 2.4 + 1.3); letter_scale: 1 + 0.07 * sin(letter * 3.7 + 0.5); family: "Space Grotesk" } }
                 group { scale: rs; pivot: floor(sl + 14 * pu + 0.5), floor(sby + side.h3 * pu + 0.5); text "SCREEN" { at: floor(sl + 14 * pu + 0.5), floor(sby + side.h3 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; gradient: sl + 14 * pu, sby + side.h3 * pu to sl + 104 * pu, sby + side.h3 * pu, mintlo, minthi; opacity: 100%; letter_move: letter * 3.2 * pu, 0.9 * pu * sin(letter * 2.4 + 1.3); letter_scale: 1 + 0.07 * sin(letter * 3.7 + 0.5); family: "Space Grotesk" } }
-                //  A line down the side of each group, in its own colour.
-                box { at: sl + 5.2 * pu, sby + (side.wp - 14 + side.gl + 14) / 2 * pu; size: 2.5 * pu, (side.gl + 14 - side.wp + 14) * pu; corner: 1.25 * pu; color: mint; opacity: 70% }
-                box { at: sl + 5.2 * pu, sby + (side.bar - 14 + side.lk + 14) / 2 * pu; size: 2.5 * pu, (side.lk + 14 - side.bar + 14) * pu; corner: 1.25 * pu; color: mintlo; opacity: 90% }
-                box { at: sl + 5.2 * pu, sby + (side.dp - 14 + if(gr_sddm, side.gg, side.id) + 14) / 2 * pu; size: 2.5 * pu, (if(gr_sddm, side.gg, side.id) + 14 - side.dp + 14) * pu; corner: 1.25 * pu; color: minthi; opacity: 70% }
-                box { at: sl + 5.2 * pu, sby + (side.hy - 14 + side.ab + 14) / 2 * pu; size: 2.5 * pu, (side.ab + 14 - side.hy + 14) * pu; corner: 1.25 * pu; color: faint; opacity: 60% }
-                //  The highlight's place is each page's own selection (a spring, 0 or 1) times its row, summed: a straight line from one row to the next.
-                //  (Nested `mix`es bent it: the old row's value falling while the new one rises dragged it back towards the top row and down again.)
-                box { at: sl + 75 * pu, sby + (side.wp + (side.gl - side.wp) * set_pg + (side.dp - side.wp) * set_pgd + (side.bar - side.wp) * set_pgb + (side.ws - side.wp) * set_pgws + (side.nm - side.wp) * set_pgn + (side.hy - side.wp) * set_pgh + (side.wm - side.wp) * set_pgw + (side.mon - side.wp) * set_pgs + (side.nt - side.wp) * set_pgt + (side.lk - side.wp) * set_pgl + (side.vpn - side.wp) * set_pgv + (side.ck - side.wp) * set_pgk + (side.th - side.wp) * set_pgp + (side.ky - side.wp) * set_pgy + (side.ao - side.wp) * set_pgo + (side.id - side.wp) * set_pgi + (side.gg - side.wp) * set_pgg + (side.ab - side.wp) * set_pga) * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; color: mint; opacity: 16% }
+                //  A thin line from each group's name to the edge (a stroke and a fainter one a hair off, in pencil); the open page's group lights up.
+                line { from: sl + 48 * pu, sby + side.h1 * pu; to: sl + 138 * pu, sby + (side.h1 - 0.4) * pu; width: 1.2 * pu; color: mix(ink, mint, clamp(1 - (set_pgb + set_pgws + set_pgk + set_pgo + set_pgt + set_pgl + set_pgd + set_pgn + set_pgi + set_pgg + set_pgh + set_pgw + set_pgs + set_pgv + set_pgy + set_pga), 0, 1)); opacity: 18% + 42% * clamp(1 - (set_pgb + set_pgws + set_pgk + set_pgo + set_pgt + set_pgl + set_pgd + set_pgn + set_pgi + set_pgg + set_pgh + set_pgw + set_pgs + set_pgv + set_pgy + set_pga), 0, 1) }
+                line { from: sl + 50 * pu, sby + (side.h1 + 0.6) * pu; to: sl + 136 * pu, sby + (side.h1 + 0.8) * pu; width: 0.8 * pu; color: mix(ink, mint, clamp(1 - (set_pgb + set_pgws + set_pgk + set_pgo + set_pgt + set_pgl + set_pgd + set_pgn + set_pgi + set_pgg + set_pgh + set_pgw + set_pgs + set_pgv + set_pgy + set_pga), 0, 1)); opacity: 6% + 16% * clamp(1 - (set_pgb + set_pgws + set_pgk + set_pgo + set_pgt + set_pgl + set_pgd + set_pgn + set_pgi + set_pgg + set_pgh + set_pgw + set_pgs + set_pgv + set_pgy + set_pga), 0, 1) }
+                line { from: sl + 54 * pu, sby + side.h2 * pu; to: sl + 138 * pu, sby + (side.h2 - 0.4) * pu; width: 1.2 * pu; color: mix(ink, mint, clamp(set_pgb + set_pgws + set_pgk + set_pgo + set_pgt + set_pgl, 0, 1)); opacity: 18% + 42% * clamp(set_pgb + set_pgws + set_pgk + set_pgo + set_pgt + set_pgl, 0, 1) }
+                line { from: sl + 56 * pu, sby + (side.h2 + 0.6) * pu; to: sl + 136 * pu, sby + (side.h2 + 0.8) * pu; width: 0.8 * pu; color: mix(ink, mint, clamp(set_pgb + set_pgws + set_pgk + set_pgo + set_pgt + set_pgl, 0, 1)); opacity: 6% + 16% * clamp(set_pgb + set_pgws + set_pgk + set_pgo + set_pgt + set_pgl, 0, 1) }
+                line { from: sl + 63 * pu, sby + side.h3 * pu; to: sl + 138 * pu, sby + (side.h3 - 0.4) * pu; width: 1.2 * pu; color: mix(ink, mint, clamp(set_pgd + set_pgn + set_pgi + set_pgg, 0, 1)); opacity: 18% + 42% * clamp(set_pgd + set_pgn + set_pgi + set_pgg, 0, 1) }
+                line { from: sl + 65 * pu, sby + (side.h3 + 0.6) * pu; to: sl + 136 * pu, sby + (side.h3 + 0.8) * pu; width: 0.8 * pu; color: mix(ink, mint, clamp(set_pgd + set_pgn + set_pgi + set_pgg, 0, 1)); opacity: 6% + 16% * clamp(set_pgd + set_pgn + set_pgi + set_pgg, 0, 1) }
+                line { from: sl + 65 * pu, sby + side.h4 * pu; to: sl + 138 * pu, sby + (side.h4 - 0.4) * pu; width: 1.2 * pu; color: mix(ink, mint, clamp(set_pgh + set_pgw + set_pgs + set_pgv + set_pgy + set_pga, 0, 1)); opacity: 18% + 42% * clamp(set_pgh + set_pgw + set_pgs + set_pgv + set_pgy + set_pga, 0, 1) }
+                line { from: sl + 67 * pu, sby + (side.h4 + 0.6) * pu; to: sl + 136 * pu, sby + (side.h4 + 0.8) * pu; width: 0.8 * pu; color: mix(ink, mint, clamp(set_pgh + set_pgw + set_pgs + set_pgv + set_pgy + set_pga, 0, 1)); opacity: 6% + 16% * clamp(set_pgh + set_pgw + set_pgs + set_pgv + set_pgy + set_pga, 0, 1) }
+                //  The thumb on the open page: the pickers' (SetPick) — the accent, pencil-shaded, in its own crooked outline — standing between its two edges, which
+                //  travel apart (sb_ld quick, sb_tl late), so it stretches over the rows between the old page and the new one, narrows a little, and gathers.
+                let sbt.a = sby + (min(sb_ld, sb_tl) - 14) * pu
+                let sbt.b = sby + (max(sb_ld, sb_tl) + 14) * pu
+                let sbt.h = sbt.b - sbt.a
+                let sbt.cy = (sbt.a + sbt.b) / 2
+                let sbt.w = (134 - 12 * clamp(abs(sb_ld - sb_tl) / 40, 0, 1)) * pu
+                let sbt.hm = 9.5 * pu
+                let sbt.sp = max(2.6 * pu, sbt.w / 84)
+                box { at: sl + 75 * pu, sbt.cy; size: sbt.w, sbt.h; corner: (min(sbt.h / 2, 11 * pu)) * (1 - 0.85 * dd_k); color: mint; opacity: 22% }
+                shader pencilhatch { at: sl + 75 * pu - sbt.w / 2 + sbt.hm, sbt.cy - sbt.h; size: sbt.w - 2 * sbt.hm, 2 * sbt.h; values: sbt.sp * 0.5, 9000, sbt.sp, sbt.h * 0.92, (0.18 + 0.25 * side_wheel.hover) * pu, if(side_wheel.hover > 0.02, floor(time * 5), 0), 0.8 * pu, 0; colors: mint; opacity: 0.2 * (1 - dd_k); show: dd_k < 0.998 }
+                PPillOutline(sl + 75 * pu, sbt.cy, sbt.w, sbt.h, min(sbt.h / 2, 11 * pu), side_wheel.hover, 1, pu)
                 group {
                     opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg, 0, 1))
                     pivot: sl + 30 * pu, sby + side.wp * pu
@@ -383,12 +397,14 @@ part SettingsPanel {
             body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 70 * pu; size: 438 * pu, 140 * pu; corner: 14 * pu } }
             DdCard(spx + 219 * pu, sby + 70 * pu, 438 * pu, 140 * pu, 148.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: spx + 219 * pu, sby + 70 * pu; size: 438 * pu, 140 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pu, sby + 70 * pu; size: 438 * pu, 140 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 201 * pu; size: 438 * pu, 98 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pu, sby + 201 * pu, 438 * pu, 98 * pu, 176.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pu, sby + 201 * pu; size: 438 * pu, 98 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 197 * pu; size: 438 * pu, 98 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pu, sby + 197 * pu, 438 * pu, 98 * pu, 176.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pu, sby + 197 * pu; size: 438 * pu, 98 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pu, sby + 197 * pu; size: 438 * pu, 98 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 13 * pu + 0.5); text "BUILD" { at: floor(spx + 14 * pu + 0.5), floor(sby + 13 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 165 * pu + 0.5); text "UPDATE" { at: floor(spx + 14 * pu + 0.5), floor(sby + 165 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 161 * pu + 0.5); text "UPDATE" { at: floor(spx + 14 * pu + 0.5), floor(sby + 161 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
 
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 40 * pu + 0.5); text "Vitreus" { at: floor(spx + 14 * pu + 0.5), floor(sby + 40 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 40 * pu + 0.5); text about_commit { at: floor(spx + 424 * pu + 0.5), floor(sby + 40 * pu + 0.5); anchor: right center; size: 18; weight: 600; width: (300 * pu) / rs; lines: 1; align: right; color: ink; family: "Space Grotesk" } }
@@ -399,27 +415,27 @@ part SettingsPanel {
             group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 118 * pu + 0.5); text "pleamar" { at: floor(spx + 14 * pu + 0.5), floor(sby + 118 * pu + 0.5); anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 118 * pu + 0.5); text about_pl { at: floor(spx + 424 * pu + 0.5), floor(sby + 118 * pu + 0.5); anchor: right center; size: 18; weight: 600; width: (300 * pu) / rs; lines: 1; align: right; color: ink; family: "Space Grotesk" } }
 
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 190 * pu + 0.5); text about_msg { at: floor(spx + 14 * pu + 0.5), floor(sby + 190 * pu + 0.5); anchor: left center; size: 16.5; width: (410 * pu) / rs; lines: 1; color: if(about_behind > 0, mint, faint); family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 186 * pu + 0.5); text about_msg { at: floor(spx + 14 * pu + 0.5), floor(sby + 186 * pu + 0.5); anchor: left center; size: 16.5; width: (410 * pu) / rs; lines: 1; color: if(about_behind > 0, mint, faint); family: "Space Grotesk" } }
 
             //  Check for updates.
-            box { at: spx + 78 * pu, sby + 226 * pu; size: 128 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: if(about_busy, 5%, 8% + 10% * about_chk_hit.hover) }
-            PPillOutline(spx + 78 * pu, sby + 226 * pu, 128 * pu, 24 * pu, 12 * pu, about_chk_hit.hover, clamp(3 * (if(about_busy, 5%, 8% + 10% * about_chk_hit.hover)), 0, 1), pu)
-            group { scale: rs; pivot: floor(spx + 78 * pu + 0.5), floor(sby + 226 * pu + 0.5); text "Check for updates" { at: floor(spx + 78 * pu + 0.5), floor(sby + 226 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (124 * pu) / rs; lines: 1; color: ink; opacity: if(about_restarting, 40%, 85%); family: "Space Grotesk" } }
-            zone box about_chk_hit { at: spx + 78 * pu, sby + 226 * pu; size: 130 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: not about_busy }
+            box { at: spx + 78 * pu, sby + 222 * pu; size: 128 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: if(about_busy, 5%, 8% + 10% * about_chk_hit.hover) }
+            PPillOutline(spx + 78 * pu, sby + 222 * pu, 128 * pu, 24 * pu, 12 * pu, about_chk_hit.hover, clamp(3 * (if(about_busy, 5%, 8% + 10% * about_chk_hit.hover)), 0, 1), pu)
+            group { scale: rs; pivot: floor(spx + 78 * pu + 0.5), floor(sby + 222 * pu + 0.5); text "Check for updates" { at: floor(spx + 78 * pu + 0.5), floor(sby + 222 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (124 * pu) / rs; lines: 1; color: ink; opacity: if(about_restarting, 40%, 85%); family: "Space Grotesk" } }
+            zone box about_chk_hit { at: spx + 78 * pu, sby + 222 * pu; size: 130 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: not about_busy }
             on press about_chk_hit { emit about_check }
 
             //  Update, and start again: only when there is something to pull.
-            box { at: spx + 219 * pu, sby + 226 * pu; size: 128 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: if(about_behind > 0 and not about_busy, 24% + 12% * about_upd_hit.hover, 6%) }
-            PPillOutline(spx + 219 * pu, sby + 226 * pu, 128 * pu, 24 * pu, 12 * pu, about_upd_hit.hover, clamp(3 * (if(about_behind > 0 and not about_busy, 24% + 12% * about_upd_hit.hover, 6%)), 0, 1), pu)
-            group { scale: rs; pivot: floor(spx + 219 * pu + 0.5), floor(sby + 226 * pu + 0.5); text "Update & restart" { at: floor(spx + 219 * pu + 0.5), floor(sby + 226 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (124 * pu) / rs; lines: 1; color: mint; opacity: if(about_behind > 0 and not about_busy, 100%, 35%); family: "Space Grotesk" } }
-            zone box about_upd_hit { at: spx + 219 * pu, sby + 226 * pu; size: 130 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: about_behind > 0 and not about_busy }
+            box { at: spx + 219 * pu, sby + 222 * pu; size: 128 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: if(about_behind > 0 and not about_busy, 24% + 12% * about_upd_hit.hover, 6%) }
+            PPillOutline(spx + 219 * pu, sby + 222 * pu, 128 * pu, 24 * pu, 12 * pu, about_upd_hit.hover, clamp(3 * (if(about_behind > 0 and not about_busy, 24% + 12% * about_upd_hit.hover, 6%)), 0, 1), pu)
+            group { scale: rs; pivot: floor(spx + 219 * pu + 0.5), floor(sby + 222 * pu + 0.5); text "Update & restart" { at: floor(spx + 219 * pu + 0.5), floor(sby + 222 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (124 * pu) / rs; lines: 1; color: mint; opacity: if(about_behind > 0 and not about_busy, 100%, 35%); family: "Space Grotesk" } }
+            zone box about_upd_hit { at: spx + 219 * pu, sby + 222 * pu; size: 130 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: about_behind > 0 and not about_busy }
             on press about_upd_hit { emit about_update }
 
             //  Restart.
-            box { at: spx + 360 * pu, sby + 226 * pu; size: 128 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: if(about_restarting, 5%, 8% + 10% * about_rst_hit.hover) }
-            PPillOutline(spx + 360 * pu, sby + 226 * pu, 128 * pu, 24 * pu, 12 * pu, about_rst_hit.hover, clamp(3 * (if(about_restarting, 5%, 8% + 10% * about_rst_hit.hover)), 0, 1), pu)
-            group { scale: rs; pivot: floor(spx + 360 * pu + 0.5), floor(sby + 226 * pu + 0.5); text "Restart shell" { at: floor(spx + 360 * pu + 0.5), floor(sby + 226 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (124 * pu) / rs; lines: 1; color: ink; opacity: if(about_restarting, 40%, 85%); family: "Space Grotesk" } }
-            zone box about_rst_hit { at: spx + 360 * pu, sby + 226 * pu; size: 130 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: not about_restarting }
+            box { at: spx + 360 * pu, sby + 222 * pu; size: 128 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: if(about_restarting, 5%, 8% + 10% * about_rst_hit.hover) }
+            PPillOutline(spx + 360 * pu, sby + 222 * pu, 128 * pu, 24 * pu, 12 * pu, about_rst_hit.hover, clamp(3 * (if(about_restarting, 5%, 8% + 10% * about_rst_hit.hover)), 0, 1), pu)
+            group { scale: rs; pivot: floor(spx + 360 * pu + 0.5), floor(sby + 222 * pu + 0.5); text "Restart shell" { at: floor(spx + 360 * pu + 0.5), floor(sby + 222 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (124 * pu) / rs; lines: 1; color: ink; opacity: if(about_restarting, 40%, 85%); family: "Space Grotesk" } }
+            zone box about_rst_hit { at: spx + 360 * pu, sby + 222 * pu; size: 130 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: not about_restarting }
             on press about_rst_hit { emit about_restart }
         }
 

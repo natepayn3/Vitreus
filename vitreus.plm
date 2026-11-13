@@ -1160,6 +1160,7 @@ scene Vitreus {
 
     //  The colours live in palette-live.plm (ink, faint, mint, tint…); only the veil is the scene's.
     let veil  = 8%
+    let hair = 14%                               // the Settings cards' hairline edge
     let glyph_a = 0.4 * (1 - uwu_k)              // how strong the little marks on the toggle knobs are: kept subtle
 
     shader wave = file "wave.wgsl"
@@ -3652,6 +3653,7 @@ scene Vitreus {
         body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k) * k; border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: cx, cy; size: w, h; corner: if(r < 0, pr, r) } }
         DdCard(cx, cy, w, h, sd, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k * k, cu) { show: dd_k > 0.004 and (obs > 0.004) }
         box { at: cx, cy; size: w, h; corner: if(r < 0, pr, r); color: ink; opacity: (veil) * (1 - obs) * k }
+        box { at: cx, cy; size: w, h; corner: if(r < 0, pr, r); stroke: 1 * u; color: ink; opacity: hair * (1 - dd_k) * k }
     }
 
     //  A card behind a group of the bar's pieces: the dashboard's plate, a tint of the accent over it, `k` how far it is there. No outline.
@@ -5848,7 +5850,7 @@ scene Vitreus {
     //  How tall the settings page in view is (unscaled): Wallpaper, Glass, Display.
     //  The Display page: its cards down to the profiles one, which is as tall as its rows (none: a line).
     let disp.prows = max(24, disp_pn_s * 30)
-    let disp.h = 554 + disp.prows + 114 + if(gpu_has, 98, 0) + 74
+    let disp.h = 554 + disp.prows + 110 + if(gpu_has, 94, 0) + 74
     //  The System monitor page: the storage card has a row for each drive and the temperature card one for each sensor, and what is under
     //  them slides up as they shrink (see the page, which is generated: sm.ds and sm.dt are how much each has given back).
     //  The sidebar, top to bottom: LOOK (Wallpaper, Theme, Glass), SHELL (Bar, Widgets, Add-ons, Notifications, Lock screen), SCREEN (Display, Night mode, Idle, Greeter) and SYSTEM
@@ -5885,18 +5887,18 @@ scene Vitreus {
     //  The VPN page: the profiles card is as tall as its rows, and the add card as its form (WireGuard 5 rows, OpenVPN 4, a file 1 and a line).
     let vpn.pb = 84
     let vpn.pbh = 34 + max(1, vpn_count) * 32 + 6
-    let vpn.ab = vpn.pb + vpn.pbh + 12
+    let vpn.ab = vpn.pb + vpn.pbh + 8
     let vpn.fh = if(vpn_mode == vpm_wg, 180, if(vpn_mode == vpm_ovpn, 144, 276))
-    let wm.h = 946                     // the Pleamar-WM page: to the bottom of its last card
-    let ad.h = 36 + max(1, addons.count) * 74 + 52 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (74 apart), and the line under them
-    let ck.h = 1208                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
-    let br.h = 613                     // the Bar page: to the bottom of its last card
-    let wsg.h = 904                    // the Workspaces page, the same
-    let gl.h = 1048                    // the Glass page: to the bottom of its last card
-    let lk.h = 806                     // the Lock screen page: its cards, to the bottom of the last
+    let wm.h = 938                     // the Pleamar-WM page: to the bottom of its last card
+    let ad.h = 36 + max(1, addons.count) * 74 + 51 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (74 apart), and the line under them
+    let ck.h = 1198                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
+    let br.h = 627                     // the Bar page: to the bottom of its last card
+    let wsg.h = 868                    // the Workspaces page, the same
+    let gl.h = 1056                    // the Glass page: to the bottom of its last card
+    let lk.h = 789                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36
-    let nt.h = 246 + 146 + 552 - nt.ds + 8 + if(nta_sel >= 0, 456, 0) + 12              // 146 of it the quiet hours card on top
+    let nt.h = 246 + 148 + 552 - nt.ds + 8 + if(nta_sel >= 0, 456, 0) + 12              // 146 of it the quiet hours card on top
     //  A fixed height, whatever the page: the panel used to follow the page in view (262 to 456), so it resized, and moved what hangs from it, with
     //  every click in the sidebar. A page taller than this scrolls inside it (they have their scroll thumb and "More" cue); a shorter one has
     //  empty glass at its foot. It never goes below the sidebar's last row.
@@ -5904,9 +5906,16 @@ scene Vitreus {
     //  `th_ex` is the room the cards take beyond one row: a second row, and the dots when there is more than one page.
     let th_np = max(1, floor((themes.count + 7) / 8))
     let th_pgc = clamp(th_pg, 0, th_np - 1)
-    let th_ex = min(1, max(0, floor((themes.count + 3) / 4) - 1)) + if(th_np > 1, 0.2, 0)
+    let th_ex = min(1, max(0, floor((themes.count + 3) / 4) - 1)) + if(th_np > 1, 14 / 88, 0)
     let wp.h = 533                    // the Wallpaper page: to the bottom of the gallery (it scrolls inside the panel when the panel is shorter)
     let set.h = 480                    // the sidebar's and the page's height: one height for every page, short enough for a 1080 p screen with the Island and the dock (what is longer scrolls)
+    //  The sidebar's thumb (the page that is open): the row it is on, followed by its two edges as the pickers' thumb is (SetPick), the leading one
+    //  quickly and the trailing one late, so it stretches from the old row to the new one and gathers there.
+    let side.sel = side.wp + (side.gl - side.wp) * if(set_page == pg_glass, 1, 0) + (side.dp - side.wp) * if(set_page == pg_disp, 1, 0) + (side.bar - side.wp) * if(set_page == pg_bar, 1, 0) + (side.ws - side.wp) * if(set_page == pg_ws, 1, 0) + (side.nm - side.wp) * if(set_page == pg_night, 1, 0) + (side.hy - side.wp) * if(set_page == pg_hypr, 1, 0) + (side.wm - side.wp) * if(set_page == pg_wm, 1, 0) + (side.mon - side.wp) * if(set_page == pg_sys, 1, 0) + (side.nt - side.wp) * if(set_page == pg_nt, 1, 0) + (side.lk - side.wp) * if(set_page == pg_lock, 1, 0) + (side.vpn - side.wp) * if(set_page == pg_vpn, 1, 0) + (side.ck - side.wp) * if(set_page == pg_clock, 1, 0) + (side.th - side.wp) * if(set_page == pg_theme, 1, 0) + (side.ky - side.wp) * if(set_page == pg_keys, 1, 0) + (side.ao - side.wp) * if(set_page == pg_addons, 1, 0) + (side.id - side.wp) * if(set_page == pg_idle, 1, 0) + (side.gg - side.wp) * if(set_page == pg_greeter, 1, 0) + (side.ab - side.wp) * if(set_page == pg_about, 1, 0)
+    prop sb_ld = 42 ~76ms
+    prop sb_tl = 42 ~238ms
+    follow sb_ld = side.sel
+    follow sb_tl = side.sel
     let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * pu
     let ss.hh = bar.h / 2 + (8 + 36 + 8 + set.h + 16) * pu * ds0 + max(0, sag)
     let ss.f = clamp((ss.w - bar.w + 24 * u) / (24 * u), 0, 1)     // as for the calendar: as wide as the bar, it goes on from the bar's sides with no blend (a blend there puffs the sides out at the join)
