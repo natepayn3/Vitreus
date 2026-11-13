@@ -4,8 +4,10 @@ Vitreus's own file manager, in the shell's glass. Open it with **SUPER + E**, or
 
 * **Places** down the left: Recent, Starred, your folders, drives, network, and any folder you pin.
 * **Where you are** across the top: click it, or press Ctrl+L, to type a path.
-* **Tabs**, and the folder as tiles or lines (sortable, zoomable). Drag a box to choose several things.
-* **Space** looks at a file; **Properties** shows its permissions and Open With.
+* **Tabs**, and the folder as tiles or lines (sortable, zoomable; the lines say how many things each folder holds). Drag a box to choose several things.
+* **Back and Forward** put you where you were: as far down, with the same things chosen.
+* **Space** looks at a file (a picture, a text, a PDF, a video's frame, what is inside an archive); **Properties** shows its permissions and Open With.
+* **The right-click menu** answers the keyboard too: the Menu key opens it, the arrows walk it, Enter presses.
 * **Copy, cut, paste and drag**, with a question when a name is taken, progress and Cancel, and **Undo** (Ctrl+Z).
 * **The Trash**, with Restore; **compress and extract**; and a **search** of names or contents.
 

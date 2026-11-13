@@ -56,6 +56,7 @@ scene Files {
     fact menu.x = 0
     fact menu.y = 0
     fact menu.h = 100                // how tall the menu is (the logic adds up its rows and the lines between groups)
+    fact menu.cur = -1               // the line the keyboard is on (Up and Down walk them, Enter presses it); -1 when the mouse is choosing
     fact prop.on = false             // the properties card
     fact prop.h = 320
     fact pm.on = false               // the card shows the permissions' switches (a single thing that is yours)
@@ -1759,7 +1760,7 @@ scene Files {
                     group {
                         size: 254, mrh + if(m.sep, 9, 0)
                         prop mh = 0 ~quick
-                        follow mh = mz.hover
+                        follow mh = max(mz.hover, if(menu.cur == m.index, 1, 0))
                         box { from: 14, 4; size: 226, 1; color: ink; opacity: 10%; show: m.sep }
                         box { from: 0, if(m.sep, 10, 1); size: 254, mrh - 2; corner: 11 * rr; color: if(m.danger, alert, mint); opacity: 18% * mh }
                         box { from: 0, if(m.sep, 10, 1); size: 254, mrh - 2; corner: 11 * rr; stroke: 1; color: if(m.danger, alert, mint); opacity: 40% * mh }

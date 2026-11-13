@@ -76,6 +76,29 @@ local function date_text(t)
     if m <= 2 then y = y + 1 end
     return string.format("%d %s %d", d, MONTHS[m], y)
 end
+-- In the list: today's and yesterday's by name, this year's without the year, older ones without the hour.
+local day_memo = { at = -1 }
+local function short_date(t)
+    t = math.floor(tonumber(t) or 0)
+    local ok, now = pcall(os.time)
+    if not ok or type(now) ~= "number" then return date_text(t) end
+    if math.floor(now / 60) ~= day_memo.at then
+        local ok2, today = pcall(os.date, "%Y%j", now)
+        local ok3, yday = pcall(os.date, "%Y%j", now - 86400)
+        if not (ok2 and ok3 and type(today) == "string") then return date_text(t) end
+        day_memo = { at = math.floor(now / 60), today = today, yday = yday, year = today:sub(1, 4) }
+    end
+    local ok4, day = pcall(os.date, "%Y%j", t)
+    if not ok4 or type(day) ~= "string" then return date_text(t) end
+    local fmt
+    if day == day_memo.today then fmt = "Today, %H:%M"
+    elseif day == day_memo.yday then fmt = "Yesterday, %H:%M"
+    elseif day:sub(1, 4) == day_memo.year and t <= now then fmt = "%d %b, %H:%M"
+    else fmt = "%d %b %Y" end
+    local ok5, v = pcall(os.date, fmt, t)
+    if ok5 and type(v) == "string" and v ~= "" then return (v:gsub("^0", "")) end
+    return date_text(t)
+end
 local function commas(n)
     local t = tostring(math.floor(tonumber(n) or 0))
     local out = t:reverse():gsub("(%d%d%d)", "%1,"):reverse()
@@ -151,7 +174,7 @@ for kind, list in pairs({
     code = "lua luau py js ts tsx jsx rs c h cpp hpp cc go java kt sh bash zsh fish json toml yaml yml xml html css scss plm md rb php cs swift sql conf cfg ini txt log csv tsv qml rst tex",
     archive = "zip tar gz xz zst bz2 7z rar tgz iso lz4 cab deb rpm",
     doc = "doc docx odt ods odp xls xlsx ppt pptx rtf epub mobi djvu pages numbers key",
-    exec = "appimage desktop exe msi run bin",
+    exec = "appimage desktop exe msi run",
 }) do
     for e in list:gmatch("%S+") do EXT[e] = kind end
 end
@@ -328,7 +351,8 @@ function F.set_status()
         local where = ""
         if s.mode == "deep" or s.list then where = " · " .. dirname(e.path)
         elseif e.orig then where = " · from " .. dirname(e.orig) end
-        text.status = (e.dir and e.name or (e.name .. " · " .. size_text(e.size))) .. where
+        local much = e.dir and F.count_text(e) or size_text(e.size)
+        text.status = (much == "" and e.name or (e.name .. " · " .. much)) .. where
     else
         local total, dirs, files = 0, 0, 0
         for _, e in ipairs(list) do
@@ -597,7 +621,7 @@ local function cell(i, e)
         at = i - 1, name = e.name, ik = e.ik, thumb = th or "", ["has.thumb"] = th ~= nil and th ~= false, picked = s.picked[e.path] == true, hidden = e.hidden,
         cut = s.clip ~= nil and s.clip.cut and s.clip.set[e.path] == true, cur = s.cursor == i,
         link = e.link == true, broken = e.broken == true, star = s.stars[e.path] == true,
-        size = e.dir and "" or size_text(e.size), date = e.deld or date_text(e.mtime), kind = kind_text(e),
+        size = e.dir and F.count_text(e) or size_text(e.size), date = e.deld or short_date(e.mtime), kind = kind_text(e),
     }
 end
 
@@ -651,10 +675,64 @@ function F.prime_kinds()
     end)
 end
 
+-- How many things each folder on screen holds (hidden ones only when they are shown): one `find` for all of them, and what it said is kept, so that a folder looked at again says it at once.
+s.counts = {}
+function F.count_text(e)
+    local n = e.count or s.counts[e.path]
+    if not n then return "" end
+    if n == 0 then return "Empty" end
+    return n == 1 and "1 item" or (commas(n) .. " items")
+end
+function F.forget_counts()
+    s.counts = {}
+    for _, e in ipairs(s.all or {}) do e.count, e.count_done = nil, nil end
+    for _, e in ipairs(s.results or {}) do e.count, e.count_done = nil, nil end
+end
+function F.prime_counts()
+    if s.count_busy then return end
+    local c = cols()
+    local from = s.first * c + 1
+    local upto = math.min(#s.items, (s.first + row_window()) * c)
+    local todo = {}
+    local function want(e)
+        if e and e.dir and not e.broken and not e.count_done and #todo < 40 then todo[#todo + 1] = e end
+    end
+    if s.view == "lines" then
+        for i = from, upto do want(s.items[i]) end
+    else
+        for _, e in ipairs(s.items) do if s.picked[e.path] then want(e) end end       -- (the tiles do not say it: only the bar does, of the one chosen)
+    end
+    if #todo == 0 then return end
+    s.count_busy = true
+    local args = { "-H" }
+    local by = {}
+    for _, e in ipairs(todo) do args[#args + 1] = e.path; e.count_done = true; by[e.path] = 0 end
+    for _, x in ipairs({ "-mindepth", "1", "-maxdepth", "1" }) do args[#args + 1] = x end
+    if not s.hidden then args[#args + 1] = "-not"; args[#args + 1] = "-name"; args[#args + 1] = ".*" end
+    args[#args + 1] = "-printf"; args[#args + 1] = "%H\n"
+    run("find", args, function(out, code)
+        s.count_busy = false
+        for line in (out or ""):gmatch("[^\n]+") do
+            if by[line] then by[line] = by[line] + 1 end
+        end
+        local changed = false
+        for _, e in ipairs(todo) do
+            local n = by[e.path]
+            if n > 0 or code == 0 then          -- (a folder that cannot be read says nothing, not "Empty")
+                if s.counts[e.path] ~= n then changed = true end
+                e.count = n
+                s.counts[e.path] = n
+            end
+        end
+        if changed then F.flush_later() else F.prime_counts() end
+    end)
+end
+
 function F.show_rows()
     carry_all = nil
     F.prime_thumbs()
     F.prime_kinds()
+    F.prime_counts()
     local c = cols()
     local n = #s.items
     local total = math.ceil(n / c)
@@ -869,10 +947,27 @@ local go_seq = 0          -- each going has a number: the answer of one that was
 function F.reset_search()
     if s.mode then s.mode, s.results, s.qtext = nil, nil, ""; text.sq = ""; fact.searching = false end       -- (a search belongs to the folder it was made in)
 end
+-- Where you were in each folder you have left (how far down, and what was chosen): Back, Forward and a tab put you there again.
+s.seen = {}
+function F.remember_place()
+    if s.path == "" then return end
+    local names = {}
+    for _, e in ipairs(s.items) do if s.picked[e.path] then names[e.path] = true end end
+    local cur = s.cursor and s.items[s.cursor]
+    s.seen[s.path] = { scroll = s.scroll, picked = names, cur = cur and cur.path, view = s.view }
+end
 function F.after_list(path, how, then_pick)
     s.items = visible()
     s.picked = {}
     s.anchor, s.cursor = nil, nil
+    local was = (how == "nav" or how == "tab") and s.seen[path] or nil
+    if was then
+        then_pick = nil
+        for i, e in ipairs(s.items) do
+            if was.picked[e.path] then s.picked[e.path] = true; s.anchor = s.anchor or i end
+            if was.cur == e.path then s.cursor = i end
+        end
+    end
     if then_pick then
         for i, e in ipairs(s.items) do
             if e.name == then_pick then s.picked[e.path] = true; s.anchor = i; s.cursor = i end
@@ -890,6 +985,16 @@ function F.after_list(path, how, then_pick)
     F.show_free()
     fact.ready = true
     if then_pick and s.cursor then F.ensure_visible(s.cursor) end
+    if was and was.view == s.view and was.scroll > 0 then
+        -- (after the scene has put the new folder at its top, which it does when `gen` moves)
+        local mine = go_seq
+        after(60, function()
+            if mine ~= go_seq or s.path ~= path then return end
+            F.scroll_to(was.scroll)
+            s.first = math.max(0, math.floor(s.scroll / row_h()) - 1)
+            F.show_rows()
+        end)
+    end
 end
 
 function F.go(path, how, then_pick, on_fail)
@@ -910,6 +1015,7 @@ function F.go(path, how, then_pick, on_fail)
                 s.back[#s.back + 1] = s.path
                 s.fwd = {}
             end
+            if s.path ~= path then F.remember_place() end
             s.path = path
             s.list = nil
             fact["in.trash"] = path == s.data .. "/Trash/files"
@@ -938,6 +1044,7 @@ function F.go_list(which, how)
             s.back[#s.back + 1] = s.path
             s.fwd = {}
         end
+        if s.path ~= which then F.remember_place() end
         s.path = which
         s.list = which == "recent:" and "recent" or "starred"
         fact["in.trash"] = false
@@ -1228,7 +1335,7 @@ function F.build_places(found)
     for _, n in ipairs(s.nets) do
         s.places[#s.places + 1] = { name = n.name, path = n.path, pk = 13, kind = 0, eject = not n.sys, net = true, sys = n.sys }
     end
-    s.places[#s.places + 1] = { name = "Connect to server…", path = "connect:", pk = 15 }
+    s.places[#s.places + 1] = { name = "Connect…", path = "connect:", pk = 15 }
     local pinned = {}
     for _, path in ipairs(s.pins) do
         if not seen[path] then
@@ -1746,9 +1853,10 @@ on("crumb", function(i)
     if c then F.go(c.path) end
 end)
 on("slid", function(scroll)
-    s.scroll = tonumber(scroll) or 0
+    -- (where the list is on its way, not where it is going: `s.scroll` stays what was asked for, or a key pressed while it travels, and the place remembered for Back, would be a row short)
+    local at = tonumber(scroll) or 0
     local back = s.view == "grid" and 2 or 1
-    local first = math.max(math.floor(s.scroll / row_h()) - back, 0)
+    local first = math.max(math.floor(at / row_h()) - back, 0)
     if math.abs(first - s.first) >= back or first ~= s.first and first == 0 then
         s.first = first
         F.show_rows()
@@ -1849,6 +1957,36 @@ end)
 function F.close_menu()
     s.menu = nil
     fact["menu.on"] = false
+    fact["menu.cur"] = -1
+end
+-- Up and Down walk the lines that can be pressed, Home and End go to the first and the last, and a letter to the next line that begins with it.
+function F.menu_step(d, from)
+    local rows = s.menu_rows or {}
+    local n = #rows
+    if n == 0 then return end
+    local i = from or s.menu_cur or (d > 0 and 0 or n + 1)
+    for _ = 1, n do
+        i = i + d
+        if i < 1 then i = n elseif i > n then i = 1 end
+        if rows[i].on then
+            s.menu_cur = i
+            fact["menu.cur"] = i - 1
+            return
+        end
+    end
+end
+function F.menu_letter(ch)
+    local rows = s.menu_rows or {}
+    local n = #rows
+    local at = s.menu_cur or 0
+    for k = 1, n do
+        local i = (at + k - 1) % n + 1
+        if rows[i].on and rows[i].label:sub(1, 1):lower() == ch then
+            s.menu_cur = i
+            fact["menu.cur"] = i - 1
+            return
+        end
+    end
 end
 on("menu_close", F.close_menu)
 
@@ -1856,6 +1994,8 @@ local function set_menu(kind, rows)
     local h = 14
     for _, r in ipairs(rows) do h = h + MENU_ROW + (r.sep and 9 or 0) end
     s.menu = kind
+    s.menu_rows, s.menu_cur = rows, nil
+    fact["menu.cur"] = -1
     model.menuitems = rows
     fact["menu.h"] = h
     fact["menu.on"] = true
@@ -2450,6 +2590,31 @@ function F.show_preview(idx)
         local cover = string.format("%s/preview-cover-%d.png", tdir, mine % 2)
         run("ffmpeg", { "-v", "error", "-y", "-i", e.path, "-an", "-frames:v", "1", cover }, function(_, code)
             if mine == pv_seq and code == 0 then picture(cover, cover) end
+        end)
+    elseif e.ik == 6 and ext_of(e.name) ~= "iso" then
+        -- an archive: what is in it, the first lines of its list (a big one is not read to its end)
+        local names, n, over, id = {}, 0, false, nil
+        local function show(failed)
+            if mine ~= pv_seq then return end
+            if n == 0 then
+                text["pv.text"] = failed and "It cannot be looked into" or "An empty archive"
+            else
+                local more = n - #names
+                local tail = ""
+                if over then tail = "\n… and more than " .. commas(more) .. " others"
+                elseif more > 0 then tail = "\n… and " .. commas(more) .. (more == 1 and " other" or " others") end
+                text["pv.text"] = table.concat(names, "\n") .. tail
+                text["pv.sub"] = kind_text(e) .. " · " .. size_text(e.size) .. " · " .. (over and "more than " or "") .. commas(n) .. (n == 1 and " thing in it" or " things in it")
+            end
+            fact["pv.kind"] = 2
+        end
+        id = spawn("bsdtar", { "-tf", e.path }, function(line)
+            if over or mine ~= pv_seq then return end
+            n = n + 1
+            if #names < 24 then names[#names + 1] = (#line > 84 and ("…" .. line:sub(-83)) or line) end
+            if n >= 5000 then over = true; show(); if id then kill(id) end end
+        end, function(_, code)
+            if not over then show(code ~= 0) end
         end)
     else
         -- text of any kind: what is in the first lines
@@ -3800,7 +3965,8 @@ ACT[12] = function()
     local p = table.remove(s.back)
     if p then
         s.fwd[#s.fwd + 1] = s.path
-        F.go(p, "nav", nil, function() table.remove(s.fwd); s.back[#s.back + 1] = p end)       -- (a folder that has gone: the history stays as it was)
+        local from = s.path
+        F.go(p, "nav", dirname(from) == p and basename(from) or nil, function() table.remove(s.fwd); s.back[#s.back + 1] = p end)       -- (a folder that has gone: the history stays as it was)
     end
 end
 ACT[13] = function()
@@ -3814,6 +3980,7 @@ ACT[14] = function()
     s.hidden = not s.hidden
     fact.hidden = s.hidden
     F.save()
+    F.forget_counts()
     if s.mode == "deep" then F.run_search(true) return end
     s.items = F.visible()
     s.picked = {}
@@ -3926,7 +4093,7 @@ ACT[90] = function() F.ch_cancel() end
 ACT[91] = function() F.ch_ok() end
 ACT[92] = function() F.ch_filter_step() end
 
-on("act", function(k)
+function F.do_act(k)
     k = math.floor(tonumber(k) or 0)
     local ctx = { menu = s.menu, place = s.menu_place }
     if k == 10 then F.escape() return end
@@ -3934,7 +4101,8 @@ on("act", function(k)
     if k > CUSTOM_K and k <= CUSTOM_K + 8 then run_custom(k - CUSTOM_K, ctx) return end
     local fn = ACT[k]
     if fn then fn(ctx) end
-end)
+end
+on("act", F.do_act)
 
 -- ── the keys ──
 -- Every key comes here, with what it writes; what is typed in a field is that field's, so while one has the keys (a name being given, the search, the path) only the few that mean something to it are
@@ -3976,7 +4144,17 @@ on("key", function(name, txt)
         elseif lb == "Return" then local e = s.items[s.pv]; F.close_preview(); if e then F.open_item(e) end end
         return
     end
-    if s.menu then return end
+    if s.menu then
+        if lb == "Down" then F.menu_step(1)
+        elseif lb == "Up" then F.menu_step(-1)
+        elseif lb == "Home" then F.menu_step(1, 0)
+        elseif lb == "End" then F.menu_step(-1, #(s.menu_rows or {}) + 1)
+        elseif lb == "Return" or lb == "KP_Enter" or lb == "space" then
+            local r = s.menu_cur and s.menu_rows[s.menu_cur]
+            if r and r.on then F.do_act(r.k) end
+        elseif type(txt) == "string" and #txt == 1 and txt:match("%a") and not m.ctrl and not m.alt then F.menu_letter(txt:lower()) end
+        return
+    end
     if s.loc then
         if lb == "Tab" then F.loc_complete() end
         return
@@ -4052,6 +4230,7 @@ on("key", function(name, txt)
         if e and not s.picked[e.path] then s.picked = { [e.path] = true }; F.show_rows() end
         fact["menu.x"] = 300; fact["menu.y"] = 200
         F.open_menu(next(s.picked) and "item" or "bg")
+        F.menu_step(1, 0)
         return
     end
     -- a letter, or a figure, with nothing else open: a search that begins with it
