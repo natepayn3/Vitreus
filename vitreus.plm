@@ -2247,6 +2247,9 @@ scene Vitreus {
     fact lk_scroll_to = 0              // the page scrolls like System monitor's
     fact th_scroll_to = 0              // the Theme page too (Settings > Theme)
     prop th_scroll = 0 ~quick
+    fact side_scroll_to = 0            // Settings' sidebar, when it is taller than the panel
+    prop side_scroll = 0 ~quick
+    follow side_scroll = side_scroll_to
     follow th_scroll = th_scroll_to
     fact th_pg = 0                     // the page of theme cards in view (Settings > Theme), and where the cards have slid to
     prop th_pgs = 0 ~quick
@@ -5885,7 +5888,7 @@ scene Vitreus {
     let th_pgc = clamp(th_pg, 0, th_np - 1)
     let th_ex = min(1, max(0, floor((themes.count + 3) / 4) - 1)) + if(th_np > 1, 0.2, 0)
     let wp.h = 533                    // the Wallpaper page: to the bottom of the gallery (it scrolls inside the panel when the panel is shorter)
-    let set.h = max(side.ab + 40, 456 + 88 * th_ex * set_pgp)
+    let set.h = 480                    // the sidebar's and the page's height: one height for every page, short enough for a 1080 p screen with the Island and the dock (what is longer scrolls)
     let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * pu
     let ss.hh = bar.h / 2 + (8 + 36 + 8 + set.h + 16) * pu * ds0 + max(0, sag)
     let ss.f = clamp((ss.w - bar.w + 24 * u) / (24 * u), 0, 1)     // as for the calendar: as wide as the bar, it goes on from the bar's sides with no blend (a blend there puffs the sides out at the join)
