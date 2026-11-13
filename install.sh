@@ -27,7 +27,7 @@
 #                                      into ~/.local/share/fonts, no sudo)
 #   4. the shell                      (into ~/.config/pleamar/shells/vitreus: cloned, or updated)
 #   5. your palette, autostart entry  (made once and never written over)
-#   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent, vitreus-sysmon, vitreus-battery, vitreus-greeter, vitreus-term, vitreus-files, vitreus-edit and vitreus-report, linked into ~/.local/bin; vitreus-inhibit, built there)
+#   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent, vitreus-sysmon, vitreus-battery, vitreus-greeter, vitreus-term, vitreus-files, vitreus-edit, vitreus-report and vitreus-btnwait, linked into ~/.local/bin; vitreus-inhibit, built there)
 #   5c. Files, as a program            (its icon and entry in ~/.local/share; asked: the file manager for folders and «Show in folder», files/integrate.sh)
 #   5d. View, as a program             (its icon and entry in ~/.local/share; asked: what opens pictures and videos, view/integrate.sh)
 #   6. its Hyprland key binds         (hypr_vitreus.lua linked into ~/.config/hypr, and loaded from hyprland.lua)
@@ -464,6 +464,7 @@ if [ "$action" = uninstall ]; then
     if [ -L "$HOME/.local/bin/vitreus-tvremote" ]; then run rm -f "$HOME/.local/bin/vitreus-tvremote"; fi
     if [ -L "$HOME/.local/bin/vitreus-eq" ]; then run rm -f "$HOME/.local/bin/vitreus-eq"; fi
     if [ -L "$HOME/.local/bin/vitreus-report" ]; then run rm -f "$HOME/.local/bin/vitreus-report"; fi
+    if [ -L "$HOME/.local/bin/vitreus-btnwait" ]; then run rm -f "$HOME/.local/bin/vitreus-btnwait"; fi
     if [ -f "$HOME/.local/bin/vitreus-inhibit" ]; then run rm -f "$HOME/.local/bin/vitreus-inhibit"; fi
     if [ -L "$conf/hypr/hypr_vitreus.lua" ]; then run rm -f "$conf/hypr/hypr_vitreus.lua"; fi
     run rm -f "$conf/hypr/vitreus_monitors.lua" "$conf/hypr/vitreus_hypr.lua" "$conf/hypr/vitreus_colors.lua"
@@ -995,6 +996,8 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
     [ -x "$dest/bin/vitreus-eq" ] && run ln -sf "$dest/bin/vitreus-eq" "$HOME/.local/bin/vitreus-eq"       # the Equalizer add-on (addons/eq) filters the sound through it
     # For a problem report that does not need the shell to be running: `vitreus-report` writes one text file to read and send.
     [ -x "$dest/bin/vitreus-report" ] && run ln -sf "$dest/bin/vitreus-report" "$HOME/.local/bin/vitreus-report"
+    # A desktop widget carried over to another monitor hears the mouse button come up through this (the compositor stops telling it at the edge).
+    [ -x "$dest/bin/vitreus-btnwait" ] && run ln -sf "$dest/bin/vitreus-btnwait" "$HOME/.local/bin/vitreus-btnwait"
     # Files among the desktop's programs: its icon and its entry always, and, when asked, the file manager (folders open in it, and «Show in folder» in other programs answer with it): files/integrate.sh
     # (--uninstall and `sh files/integrate.sh --remove` take it away and put the old folder opener back). Not on a trial next to another shell, and not on --refresh, which asks nothing.
     if [ -f "$dest/files/integrate.sh" ]; then

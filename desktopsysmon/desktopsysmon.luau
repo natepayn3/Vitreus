@@ -38,111 +38,14 @@ fact.gx = cfg.gx
 fact.gy = cfg.gy
 fact.cli = cfg.clarity
 
--- Where the monitors lie, in the order of the scene's copies (`screen.index`), which is not the order `hyprctl monitors` lists them in: the copies' sizes
--- are read from `pleamar --say desktopsysmon describe` and matched to hyprctl's monitors by size. The card is kept by the monitor's name; when none was
--- chosen yet it goes to the first monitor `hyprctl` lists.
-local names = {}
-local function refresh_monitors()
-    run("hyprctl", { "monitors", "-j" }, function(out, code)
-        if code ~= 0 or not out then return end
-        local ok, list = pcall(json.decode, out)
-        if not ok or type(list) ~= "table" then
-            -- pleamar-wm's `hyprctl monitors` is text ("Monitor <name> (ID 1):", "2560x1440@164.83 at 1440x730", "scale: 1.00", "focused: yes"), its sizes already turned by the rotation.
-            ok, list = true, {}
-            for name, id, body in (out .. "\n\n"):gmatch("Monitor (%S+) %(ID (%d+)%):\n(.-)\n\n") do
-                local w, h, x, y = body:match("(%d+)x(%d+)@[%d%.]+ at (%-?%d+)x(%-?%d+)")
-                if w then
-                    list[#list + 1] = { id = tonumber(id), name = name, width = tonumber(w), height = tonumber(h), x = tonumber(x), y = tonumber(y),
-                        scale = tonumber(body:match("scale:%s*([%d.]+)")) or 1, transform = 0, focused = body:find("focused: yes", 1, true) ~= nil }
-                end
-            end
-        end
-        if not ok or type(list) ~= "table" or #list == 0 then return end
-        table.sort(list, function(a, b) return (a.id or 0) < (b.id or 0) end)
-        local mons = {}
-        for i, d in ipairs(list) do
-            if i > 4 then break end
-            local sc = tonumber(d.scale) or 1
-            local w, h = (tonumber(d.width) or 0) / sc, (tonumber(d.height) or 0) / sc
-            if (tonumber(d.transform) or 0) % 2 == 1 then w, h = h, w end
-            mons[i] = { name = d.name, x = tonumber(d.x) or 0, y = tonumber(d.y) or 0, w = math.floor(w + 0.5), h = math.floor(h + 0.5) }
-        end
-        run("pleamar", { "--say", "desktopsysmon", "describe" }, function(desc, code2)
-            -- Each copy knows the name of its monitor (`screen.K.name`, from pleamar): that is the surest way, and the only one that tells monitors of
-            -- the same size apart. The copies follow the order the compositor lists the monitors in, which changes when one is switched on after
-            -- the session started, so neither the sizes nor hyprctl's order can be trusted to match them. Without names, the sizes, as before.
-            -- (With N monitors the copies 0 to N-1 are the ones on screen; a higher one may still hold the name of a monitor that has gone.)
-            local order, taken, named = {}, {}, 0
-            for k = 0, #mons - 1 do
-                local nm = text["screen." .. k .. ".name"]
-                for i, m in ipairs(mons) do
-                    if nm and nm ~= "" and m.name == nm and not taken[i] then taken[i] = true; order[k + 1] = m; named = named + 1; break end
-                end
-            end
-            if named < #mons then order = {} end
-            if named < #mons and code2 == 0 and desc then
-                -- each line says which copy it is (`screen N`, the copy's `screen.index`): the copies are not always in the same order from one start to the next
-                local used = {}
-                for n, w, h in desc:gmatch("%(screen (%d+)%) [^\n]-panel (%d+)\xC3\x97(%d+)") do
-                    n, w, h = tonumber(n), tonumber(w), tonumber(h)
-                    for i, m in ipairs(mons) do
-                        if not used[i] and m.w == w and m.h == h and n < 4 and not order[n + 1] then used[i] = true; order[n + 1] = m; break end
-                    end
-                end
-                for k = 1, #mons do if not order[k] then order = {}; break end end
-            end
-            if named < #mons and #order ~= #mons then order = mons end   -- (what describe says does not fit: hyprctl's own order)
-            names = {}
-            local primary, mine = 0, nil
-            for k = 1, 4 do
-                local d = order[k]
-                fact["m" .. (k - 1) .. "x"] = d and d.x or 0
-                fact["m" .. (k - 1) .. "y"] = d and d.y or 0
-                fact["m" .. (k - 1) .. "w"] = d and d.w or 0
-                fact["m" .. (k - 1) .. "h"] = d and d.h or 0
-                names[k] = d and d.name or nil
-                if d and d.name == cfg.monitor then mine = k - 1 end
-            end
-            -- the monitor it was on, or (when that one is gone, or none was chosen yet) the main one
-            fact.mon = mine or primary
-            text.mon_name = names[(mine or primary) + 1] or ""
-            if cfg.monitor == "" then cfg.monitor = names[primary + 1] or ""; save() end
-        end)
-    end)
-end
--- Monitors come and go rarely. On Hyprland its event socket says when (a monitor added or removed, a config reload that may move one), and a
--- look every minute covers a missed event; without that socket (niri, pleamar-wm) it is every five seconds, as it always was.
-local mon_events = false
-local function watch_monitors(refresh)
-    run("printenv", { "XDG_RUNTIME_DIR", "HYPRLAND_INSTANCE_SIGNATURE" }, function(out, code)
-        local rt, sig = (out or ""):match("^([^\n]+)\n([^\n]+)")
-        if code ~= 0 or not rt or not sig then return end
-        local ok = pcall(spawn, "socat", { "-u", "UNIX-CONNECT:" .. rt .. "/hypr/" .. sig .. "/.socket2.sock", "-" }, function(line)
-            if line:match("^monitoradded") or line:match("^monitorremoved") or line:match("^configreloaded") then after(400, refresh) end
-        end, function()
-            mon_events = false
-            after(5000, function() watch_monitors(refresh) end)
-        end)
-        mon_events = ok
-    end)
-end
-local mon_ticks = 0
-local function mon_due()
-    mon_ticks = mon_ticks + 1
-    return not mon_events or mon_ticks % 12 == 0
-end
-refresh_monitors()
-watch_monitors(refresh_monitors)
--- A copy says its monitor's name when it lands on one, also when it moves to another (a monitor switched on later): look again then.
-local name_pending = false
-for k = 0, 3 do
-    on("text:screen." .. k .. ".name", function()
-        if name_pending then return end
-        name_pending = true
-        after(300, function() name_pending = false; refresh_monitors() end)
-    end)
-end
-every(5000, function() if mon_due() and not fact.dragging then refresh_monitors() end end)
+-- Which monitor it is on, and moving it to another (pushed over an edge in Edit mode, or Settings > Widgets): widget_place.luau (a link to
+-- desktopclock/'s, which it shares).
+local hooks = {}                    -- (a table, not a global: Luau keeps a global as it was when the handler was made)
+require("widget_place")({
+    scene = "desktopsysmon", cfg = cfg, save = save,
+    moved = function(gx, gy) cfg.gx = gx; cfg.gy = gy end,
+    placed = function() if hooks.hole then hooks.hole() end end,
+})
 fact.shown = cfg.shown
 
 local function clamp(v) return math.max(0, math.min(1, v or 0)) end
@@ -257,14 +160,6 @@ on("fact:shown", function(v) cfg.shown = v and true or false; save(); refresh();
 on("fact:where", function(v) if POSITIONS[v] then cfg.position = v; save() end end)
 on("fact:gx", function(v) if type(v) == "number" then cfg.gx = v; save() end end)
 on("fact:gy", function(v) if type(v) == "number" then cfg.gy = v; save() end end)
-on("fact:mon", function(v) local n = type(v) == "number" and names[clampi(v, 0, 3) + 1]; if n and n ~= cfg.monitor then cfg.monitor = n; text.mon_name = n; save() end end)
--- Settings > Widgets: "show it on this monitor", by name.
-on("text:mon_name", function(t)
-    for k = 1, 4 do
-        if names[k] and names[k] == t then fact.mon = k - 1; cfg.monitor = t; save() return end
-    end
-    text.mon_name = cfg.monitor      -- a monitor that is not plugged in (a theme's pinned one, Settings > Theme > Pin widgets): it stays where it is, and says so
-end)
 on("fact:cli", function(v) if type(v) == "number" then cfg.clarity = clampi(v, 0, 2); save() end end)
 
 -- Whether Vitreus has its glass off (then this is flat obsidian): asked of it when this starts (it says so itself when it changes), and again a
@@ -312,13 +207,9 @@ do
         waiting = true
         after(300, function() waiting = false; tell() end)
     end
+    hooks.hole = soon               -- (and when it goes to another monitor: widget_place.luau's `placed`)
     for _, v in ipairs({ "hx", "hy", "hw", "hh", "shown" }) do on("fact:" .. v, soon) end
     on("text:mon_name", soon)
     after(2500, tell)
 end
 
--- Until the monitors are known the card is on none of them (`mon` starts at -1): it used to show on the first copy of the scene for a few seconds and then jump to its own
--- monitor. If they are never learnt (no `hyprctl`), it takes the first one after ten seconds.
-after(10000, function()
-    for _, k in ipairs({ "mon" }) do if (tonumber(fact[k]) or 0) < 0 then fact[k] = 0 end end
-end)
