@@ -5,7 +5,7 @@ return function(list, entry, home)
     local ver = 0
     local last_dir = nil              -- where the browser was when something was picked: it opens there again
     local c24 = false
-    local active = true               -- SDDM uses this greeter
+    local active = false              -- on: SDDM uses this greeter, installed as it is now, with the folder the user's (the only thing that asks for the password)
 
     local function say(msg, err)
         text.gr_msg = msg or ""
@@ -27,10 +27,12 @@ return function(list, entry, home)
             local ready, writable = v.ready == "1", v.writable == "1"
             fact.gr_ready = ready
             fact.gr_installed = v.installed == "1"
-            active = v.active == "1"
+            active = v.active == "1" and ready and writable
             fact.gr_active = active
             fact.gr_sddm = v.sddm == "1"
-            text.gr_other_t = v.sddm ~= "1" and "Needs SDDM, which is not installed here: another program shows the login screen" or "Off: SDDM shows " .. ((v.other or "") ~= "" and ("the " .. v.other .. " login screen") or "its own login screen") .. ", set up outside Vitreus"
+            if v.sddm ~= "1" then text.gr_other_t = "Needs SDDM, which is not installed here: another program shows the login screen"
+            elseif v.active == "1" then text.gr_other_t = "Off: an older copy is in use; turn it on to update"
+            else text.gr_other_t = "Off: SDDM shows " .. ((v.other or "") ~= "" and ("the " .. v.other .. " login screen") or "its own login screen") end
             fact.gr_writable = writable
             fact.gr_own = v.kind == "picture" or v.kind == "video"
             c24 = v.clock == "24"
@@ -41,7 +43,7 @@ return function(list, entry, home)
             else text.gr_kind_t = v.name == "video" and "The video installed earlier" or "The picture installed earlier" end
             if v.kind == "picture" or v.kind == "video" then text.gr_name_t = v.name or ""
             elseif ready then text.gr_name_t = "Installed with the login screen"
-            else text.gr_name_t = "Apply below to keep it as yours" end
+            else text.gr_name_t = "Open another to change it" end
             ver = ver + 1
             local pv = (v.poster and v.poster ~= "") and (v.poster .. "?" .. ver) or ""
             text.gr_poster = pv
@@ -92,33 +94,25 @@ return function(list, entry, home)
         fact.gr_c24 = c24 and 1 or 0
         change({ "clock", c24 and "24" or "12" })
     end)
-    -- Apply: the helper builds the greeter and copies it into place through pkexec (126 and 127 are pkexec's own: the password was cancelled).
-    on("gr_apply", function()
-        fact.gr_busy = true
-        say("Updating the login screen…", false)
-        run("vitreus-greeter", { "install" }, function(out, code)
-            fact.gr_busy = false
-            if code == 126 or code == 127 then say("Not updated: the password was cancelled", true)
-            elseif code ~= 0 then say("Not updated: " .. last_line(out, code), true)
-            else say("", false) end
-            refresh(true)
-        end)
-    end)
-    -- The switch: SDDM uses this greeter, or the one it used before. Changing SDDM's files asks for the password (pkexec); cancelled, the switch goes back.
+    -- The switch, the only thing here that asks for the password (pkexec: 126 cancelled, 127 refused or no prompt could open).
+    -- On: this greeter is built and installed as it is now, its folder made the user's, and SDDM told to use it (so turning it off and on again updates it).
+    -- Off: SDDM goes back to the login screen it used before. Not done, the switch goes back.
     on("gr_toggle_use", function()
         local on = not active
         active = on
         fact.gr_active = on
         fact.gr_busy = true
         say(on and "Turning the Vitreus login screen on…" or "Turning the Vitreus login screen off…", false)
-        run("vitreus-greeter", { "use", on and "on" or "off" }, function(out, code)
+        run("vitreus-greeter", on and { "install" } or { "use", "off" }, function(out, code)
             fact.gr_busy = false
-            if code == 126 or code == 127 then say("Not changed: the password was cancelled", true)
+            if code == 126 then say("Not changed: the password was cancelled", true)
+            elseif code == 127 then say("Not changed: the password was not accepted, or no password box could open", true)
             elseif code ~= 0 then say("Not changed: " .. last_line(out, code), true)
             else say("", false) end
             refresh(true)
         end)
     end)
+
     on("gr_preview", function()
         run("vitreus-greeter", { "preview" }, function(out, code)
             if code ~= 0 then say("Could not open it: " .. last_line(out, code), true) end

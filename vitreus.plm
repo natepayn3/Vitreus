@@ -2025,7 +2025,7 @@ scene Vitreus {
     //  Settings > Greeter: the login screen's picture or video and its clock, kept where the greeter reads them (bin/vitreus-greeter, logic/greeter.luau)
     fact gr_ready = true                // the installed greeter reads those settings (false: an older copy, to install again)
     fact gr_own = false                 // a picture or video of the user's (false: the theme's own)
-    fact gr_writable = true             // the folder they are kept in is there and the user's (Apply makes it)
+    fact gr_writable = true             // the folder they are kept in is there and the user's (turning the greeter on makes it)
     fact gr_busy = false                // making it (a video takes a moment)
     fact gr_err = false                 // gr_msg says what went wrong
     fact gr_c24 = 0                     // the clock's hours: 1 is 24
@@ -2040,11 +2040,10 @@ scene Vitreus {
     event gr_default ->
     event gr_clock ->
     event gr_preview ->
-    event gr_apply ->                   // install this greeter (the password through polkit)
-    fact gr_active = true               // SDDM uses this greeter (off: the one it used before, outside the shell)
+    fact gr_active = false              // on: SDDM uses this greeter, installed as it is now, its folder the user's (off: the one SDDM used before)
     fact gr_installed = true            // there is a copy of it in SDDM's themes
     fact gr_sddm = true                 // SDDM is installed: without it the Greeter row is not in the sidebar
-    prop gr_use_k = 1 ~pop
+    prop gr_use_k = 0 ~pop
     follow gr_use_k = if(gr_active, 1, 0)
     text gr_other_t = ""                // what SDDM uses while this one is off
     event gr_toggle_use ->

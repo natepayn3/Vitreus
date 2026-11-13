@@ -556,6 +556,13 @@ Item {
     }
     Component.onCompleted: pw.forceActiveFocus()
 
+    // Settings' Test runs SDDM's test mode, which opens one window per monitor: there, only the main monitor's stays (a real login still covers every one).
+    Timer {
+        interval: 0
+        running: typeof primaryScreen !== "undefined" && !primaryScreen && Qt.application.arguments.indexOf("--test-mode") >= 0
+        onTriggered: if (root.Window.window) root.Window.window.close()
+    }
+
     // ── the corners: the machine, and how to log in ──
     Rectangle {
         x: 34 * root.u
