@@ -234,16 +234,16 @@ part PanelFrame {
                     group {
                         size: floor(207 * cu + 0.5), floor(wh.all * cu + 0.5)
                         show: tw.$k > 0
-                        let wka = if(ws.active == k, 1, 0)
+                        let wka = if(tw_map, if(twa.$k, 1, 0), if(ws.active == k, 1, 0))
                         box { from: 0, 0; size: 207 * cu, 128 * cu; corner: 12 * cu; color: ink; opacity: 7% + 6% * wka + 4% * wc_z.$k.hover }
                         box { from: 0, 0; size: 207 * cu, 128 * cu; corner: 12 * cu; stroke: 1.6 * cu; color: mix(ink, mint, wka); opacity: 20% + 80% * wka }
                         box { from: 6 * cu, 6 * cu; size: 195 * cu, 100 * cu; corner: 7 * cu; color: #000000; opacity: 38% }
                         box { at: 103.5 * cu, 134 * cu; size: 16 * cu, 12 * cu; corner: 2 * cu; color: ink; opacity: 12% }
                         box { at: 103.5 * cu, 138.5 * cu; size: 70 * cu, 5 * cu; corner: 2.5 * cu; color: ink; opacity: 16% }
                         zone box wc_z.$k { from: 0, 0; size: 207 * cu, 140 * cu; corner: pr; cursor: pointer; label: "Go to workspace" }
-                        on press wc_z.$k { emit go(k) }
-                        text number(k, 0) { at: floor(16 * cu + 0.5), floor(117 * cu + 0.5); anchor: left center; size: 14; weight: 700; color: mix(faint, mint, wka); family: "Space Grotesk" }
-                        ellipse { at: 34 * cu, 117 * cu; radius: 3 * cu; color: alert; opacity: if(ws.$k.urgent, 100%, 0%) }
+                        on press wc_z.$k { emit wcard(k) }
+                        text twl.$k { at: floor(16 * cu + 0.5), floor(117 * cu + 0.5); anchor: left center; size: 14; weight: 700; color: mix(faint, mint, wka); family: "Space Grotesk" }
+                        ellipse { at: 34 * cu, 117 * cu; radius: 3 * cu; color: alert; opacity: if(ws.$k.urgent and not tw_map, 100%, 0%) }
                         text number(tw.$k, 0, " windows") { at: floor(193 * cu + 0.5), floor(117 * cu + 0.5); anchor: right center; align: right; size: 11.5; weight: 600; color: faint; show: tw.$k > 1; family: "Space Grotesk" }
                         text "1 window" { at: floor(193 * cu + 0.5), floor(117 * cu + 0.5); anchor: right center; align: right; size: 11.5; weight: 600; color: faint; show: tw.$k == 1; family: "Space Grotesk" }
                         for w in tasks { MiniWin(w, k, tw.$k, focus: task_focus, kill: task_close) { show: w.wsn == k } }

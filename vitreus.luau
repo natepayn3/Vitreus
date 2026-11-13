@@ -2152,7 +2152,14 @@ local function parse_clients(out)
 end
 
 -- How many windows each workspace row of the dashboard's Apps tab has (`tw.1`..`tw.9`: the ninth holds any other: scratchpad, none).
-function task_ws_counts(rows, keys)
+monnames = {}            -- pleamar-wm's monitors' names, by index (refresh_tasks_wm)
+task_cards = {}          -- each Apps card's first window, by card (pleamar-wm)
+function task_ws_counts(rows, keys, labels, act)
+    for k = 1, 9 do
+        text["twl." .. k] = (labels and labels[k]) or tostring(k)
+        fact["twa." .. k] = (act == k)
+    end
+    fact.tw_map = labels ~= nil
     local n, by = {}, {}
     for k = 1, 9 do n[k] = 0; by[k] = {} end
     for i, r in ipairs(rows) do n[r.wsn] = n[r.wsn] + 1; by[r.wsn][#by[r.wsn] + 1] = i end
@@ -2175,32 +2182,55 @@ function refresh_tasks_wm()
             if a.wsn ~= b.wsn then return a.wsn < b.wsn end
             return a.title:lower() < b.title:lower()
         end)
+        -- Each monitor has workspaces of its own here (workspace 1 on one is not workspace 1 on the other), so a card is a workspace on a
+        -- monitor: the cards in order of monitor, then workspace, the first eight given a card, the rest (and workspaces past 8) in Other.
+        local groups, seen = {}, {}
+        for _, w in ipairs(list) do
+            local g = tostring(w.screen) .. ":" .. tostring(w.wsn)
+            if not seen[g] and w.wsn >= 1 then seen[g] = true; groups[#groups + 1] = { screen = w.screen, wsn = w.wsn, key = g } end
+        end
+        table.sort(groups, function(a, b) if a.screen ~= b.screen then return a.screen < b.screen end return a.wsn < b.wsn end)
+        local card, labels, act = {}, {}, nil
+        local many = (monnames[1] or "") ~= ""
+        for c, g in ipairs(groups) do
+            if c > 8 then break end
+            card[g.key] = c
+            local name = monnames[g.screen] or ""
+            labels[c] = (many and name ~= "") and (tostring(g.wsn) .. "  ·  " .. name) or tostring(g.wsn)
+        end
         local rows, keys = {}, {}
         task_addrs = {}
+        task_cards = {}
         for i, w in ipairs(list) do
             if i > 12 then break end
+            local c = card[tostring(w.screen) .. ":" .. tostring(w.wsn)] or 9
             keys[i] = "s" .. tostring(w.slot)
-            rows[i] = { title = w.title, ws = tostring(w.wsn), wsn = (w.wsn >= 1 and w.wsn <= 8) and w.wsn or 9, active = w.active, icon = apps_by_class[w.app:lower()] or w.app:lower() }
+            rows[i] = { title = w.title, ws = tostring(w.wsn), wsn = c, active = w.active, icon = apps_by_class[w.app:lower()] or w.app:lower() }
             task_addrs[i] = w
+            if w.active and c <= 8 then act = c end
+            if not task_cards[c] then task_cards[c] = i end
         end
         local sig = {}
-        for i, r in ipairs(rows) do sig[i] = r.title .. "|" .. r.ws .. "|" .. tostring(r.active) .. "|" .. tostring(r.icon) end
-        local joined = table.concat(sig, "\n")
+        for i, r in ipairs(rows) do sig[i] = r.title .. "|" .. r.ws .. "|" .. r.wsn .. "|" .. tostring(r.active) .. "|" .. tostring(r.icon) end
+        local joined = table.concat(sig, "\n") .. "|" .. table.concat(labels, ",")
         if joined ~= last_task_sig then
             last_task_sig = joined
-            task_ws_counts(rows, keys)
+            task_ws_counts(rows, keys, labels, act)
             model.tasks = rows
         end
     end
     local first = {}
     for i = 0, 15 do first[#first + 1] = "get win." .. i .. ".open" end
+    for k = 0, 4 do first[#first + 1] = "get monname." .. k end
     say_many("wm", first, function(r)
         if not r then return end
+        monnames = {}
+        for k = 0, 4 do monnames[k] = tostring(r[17 + k] or ""):gsub("%s+$", ""):gsub("^%?.*", "") end
         local open, cmds = {}, {}
         for i = 0, 15 do
             if (r[i + 1] or ""):match("true") then
                 open[#open + 1] = i
-                for _, f in ipairs({ "title", "app", "workspace", "focused" }) do cmds[#cmds + 1] = "get win." .. i .. "." .. f end
+                for _, f in ipairs({ "title", "app", "workspace", "focused", "screen" }) do cmds[#cmds + 1] = "get win." .. i .. "." .. f end
             end
         end
         if #open == 0 then return finish({}) end
@@ -2208,10 +2238,11 @@ function refresh_tasks_wm()
             if not d then return end
             local slots = {}
             for n, i in ipairs(open) do
-                local base = (n - 1) * 4
+                local base = (n - 1) * 5
                 local w = { slot = i, title = (d[base + 1] or ""):gsub("%s+$", ""), app = (d[base + 2] or ""):gsub("%s+$", "") }
                 w.wsn = tonumber(d[base + 3]) or 0
                 w.active = (d[base + 4] or ""):match("true") ~= nil
+                w.screen = tonumber(d[base + 5]) or 0
                 if w.title == "" then w.title = w.app ~= "" and w.app or "Window" end
                 slots[i] = w
             end
@@ -2416,12 +2447,22 @@ local function focus_window(addr, then_fn)
     run("hyprctl", { "dispatch", 'hl.dsp.focus({ window = "address:0x' .. addr .. '" })' }, then_fn or function() end)
 end
 function wm_say(line, fn) run("pleamar", { "--say", "wm", line }, fn or function() end) end
-on("task_focus", function(i)
+function emit_task_focus(i)
     local addr = task_addrs[i + 1]
     if type(addr) == "table" then
-        wm_say("emit workspace " .. addr.wsn)
-        after(150, function() wm_say("emit focus_slot " .. addr.slot, function() after(300, refresh_tasks) end) end)
+        -- the focus first: that makes its monitor the one a workspace change goes to (each monitor has its own), then its workspace, then it again
+        wm_say("emit focus_slot " .. addr.slot, function()
+            after(80, function() wm_say("emit workspace " .. addr.wsn)
+                after(150, function() wm_say("emit focus_slot " .. addr.slot, function() after(300, refresh_tasks) end) end) end)
+        end)
     elseif addr then focus_window(addr) end
+end
+on("task_focus", emit_task_focus)
+-- A card in the Apps tab: under pleamar-wm, a workspace on one monitor, reached through its first window; elsewhere the workspace k.
+on("wcard", function(k)
+    k = tonumber(k) or 0
+    if fact.tw_map and task_cards and task_cards[k] then return emit_task_focus(task_cards[k] - 1) end
+    goto_workspace(k)
 end)
 on("task_close", function(i)
     local addr = task_addrs[i + 1]

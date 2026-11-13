@@ -274,7 +274,10 @@ scene Vitreus {
     model tasks max 12 { title: text; ws: text; wsn: number; wi: number; active: bool; icon: image 30, 30 }
     repeat k in 1..10 {
         fact tw.$k = 0              // how many windows are on workspace k (the ninth: any other), for the Apps tab's rows
+        text twl.$k = ""            // the card's label: the workspace's number, and under pleamar-wm the monitor's name too (each monitor has its own workspaces there,
+        fact twa.$k = false         // so a card is a workspace on one monitor, not the number); `twa`: the card holds the focused window (pleamar-wm only)
     }
+    fact tw_map = false            // the cards are a workspace on a monitor each (pleamar-wm), not workspace k
     fact tasks_watch = false       // the panel is open: keep the list fresh
     model trays max 16 { title: text; icon: image 30, 30; pinned: bool; menu: bool }
     model bartrays max 8 { icon: image 36, 36 }          // the tray apps that ride the bar
@@ -1026,6 +1029,7 @@ scene Vitreus {
     event wx_set ->
     event wx_auto ->                   // forget it: the place is found by IP again
     event wx_units_set ->              // 0 Fahrenheit, 1 Celsius
+    event wcard ->                 // a card in the Apps tab: go to that workspace (on its monitor)
     event task_focus ->            // a window's row, by position: give it the keyboard
     event task_close ->            // its close button, or a middle click
     event tray_click ->            // a tray app's row
@@ -5434,14 +5438,14 @@ scene Vitreus {
     let lbot = if(lp_k == 2, tm * bt, 0)                    // along the bottom (flipped, so the top on screen) the launcher comes out of the bottom notch, as Settings does otherwise
     let ssd = if(lp_k == 1, tm * bt, 0)                     // and Settings out of the left one
     let dl.cL = mix(th.l / 2, th.l + 24 * u + 231.5 * pu, dsl)        // the middle of what a left-notch drawer holds: it leaves the frame and ends 24 out from it
-    let ds.cL = mix(th.l / 2, th.l + 24 * u + 316.5 * pu, dsl)
+    let ds.cL = mix(th.l / 2, cx, dsl)                          // (it ends in the middle of the screen)
     let ku = if(lp_k == 1 or lp_k == 2, pu, if(lp_k == 9 or (lp_k >= 3 and lp_k <= 6), cu, u))                      // the unit of the panel that is open: the Settings and the launcher are larger
     let dsk_w = 356 * du                                   // the desk's width and height, once out: a tablet, its screen 10 in from each side
     let dsk_h = 524 * du
     let lp.gx0 = lf.x
     let lp.gxf = ccx - (pw_x / 2 + 6.5) * ku
     let lp.xl = mix(lp.gx0 + (lp.gxf - lp.gx0) * dsl, lf.x, att)
-    let pcx0 = mix(cx, mix(mix(ccx - (lp.gxf - lp.gx0) * (1 - dsl), mix(mix(ccx, dl.cL, lside), ds.cL, ssd), edg), mix(lf.w + 6.5 * ku + pw_x * ku / 2, screen.width - th.r - 6.5 * u - pw_x * u / 2, rgt), att), lmk)
+    let pcx0 = mix(cx, mix(mix(ccx - (lp.gxf - lp.gx0) * (1 - dsl), mix(mix(if(lp_k == 1, cx, ccx), dl.cL, lside), ds.cL, ssd), edg), mix(lf.w + 6.5 * ku + pw_x * ku / 2, screen.width - th.r - 6.5 * u - pw_x * u / 2, rgt), att), lmk)
     //  Along the top or the bottom the control centre hangs from the strip's right end (where its button is), not from the middle as on the Island: `rtop` is how far
     //  over that is, with its right edge against the right frame.
     let rtop = if(lp_k == 3, tm, 0)         // (only the control centre: the dashboard hangs from the middle of the bar, where the clock and the title now are)
@@ -5968,9 +5972,9 @@ scene Vitreus {
     let lp.dy = if(lp_k == 1, 4.5, if(lp_k == 2 or lp_k == 3 or lp_k == 7 or lp_k == 8, 6.5, if(lp_k == 4, -0.5, 0))) * ku * lpm
     let lp.dd = if(lp_k == 1, 11, if(lp_k == 2, 11, if(lp_k == 3 or lp_k == 7 or lp_k == 8, 13, if(lp_k == 4, 6, 0)))) * ku * lpm
     let lp.hd = (if(lp_k == 1, (8 + 36 + 8 + set.h + 16) * pu, if(lp_k == 2, (172 + lr * 44) * pu, if(lp_k == 3, (content_bot + 16) * cu, if(lp_k == 4, dc_h * cu, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot + 16, panel_bot + dm_foot)) * cu, if(lp_k == 9, dsk_h, (8 + osd_h + 16) * u))))))) + lp.dd
-    //  Where it settles, as drawn (`ty`): Settings low, the launcher high, a good way from the middle, and clear of the frame; then back to the panel's
+    //  Where it settles, as drawn (`ty`): Settings in the middle of the screen, the launcher high, a good way from the middle, and clear of the frame; then back to the panel's
     //  own coordinates (the contents are scaled about the middle of the screen).
-    let lp.ty = if(lp_k == 1, mix(min(vc + 190 * u, vb - th.b - 24 * u - lp.hd / 2), vcc, ssd), mix(mix(max(vc - 210 * u, yo + th.t + 24 * u + lp.hd / 2), vcc, lside), vb - th.b - 24 * u - lp.hd / 2, lbot))
+    let lp.ty = if(lp_k == 1, vc, mix(mix(max(vc - 210 * u, yo + th.t + 24 * u + lp.hd / 2), vcc, lside), vb - th.b - 24 * u - lp.hd / 2, lbot))
     let lp.yf = if(lp_k == 1 or lp_k == 2, lp.ty, if(lp_k == 3, clamp(lp.btn, yo + lf.t + 24 * u + lp.hd / 2, vb - lf.t - lp.hd / 2), if(lp_k == 4, clamp(vc, yo + lf.t + 24 * u + lp.hd / 2, vb - lf.t - lp.hd / 2), if(lp_k == 5 or lp_k == 6, clamp(lp.btn, yo + lf.t + 24 * u + lp.hd / 2, vb - lf.t - lp.hd / 2), if(lp_k == 7, vb - lf.t - 24 * u - lp.hd / 2, if(lp_k == 8, yo + lf.t + 24 * u + lp.hd / 2, vc))))))
     let lp.sy0 = if((lp_k == 7 or lp_k == 8 or lp_k == 9), lp.yf, lp.btn)
     let lp.gy0 = if(att > 0.5, lp.yf, lp.btn)
@@ -6068,11 +6072,17 @@ scene Vitreus {
     let ds.rt = 2 * (310 + 6.5) * pu
     let ds.gw = max(0.1, ds.rt * ds.lf)
     let ds.gh = (((8 + 36 + 8 + set.h + 16) * pu) + lp.dd + max(0, sag)) * ds.lf
-    let ds.gx = mix(mix(lp.xl + ds.gw / 2, ccx, edg), ds.cL, ssd)
+    let ds.gx = mix(mix(lp.xl + ds.gw / 2, cx, edg), ds.cL, ssd)
+    //  On the Island, Settings leaves the bar as it opens and settles in the middle of the screen: `ss.det` is how far it has left, `ss.dt` its glass's top
+    //  once it has (a little above the content, as the bottom is below it), `ss.dy` how far down it has gone.
+    let ss.det = (1 - fm) * clamp(ds0, 0, 1)
+    let ss.dt = bar.y + bar.h / 2 - 10 * pu
+    let ss.t2 = mix(ss.top, ss.dt, ss.det)
+    let ss.dy = ss.det * (vc - (ss.dt + bar.y + bar.h / 2 + (8 + 36 + 8 + set.h + 16) * pu) / 2)
     let ds.ew = mix(ss.w, ds.gw, fm)
-    let ds.eh = mix(bar.y + ss.hh - ss.top, ds.gh, fm)
+    let ds.eh = mix(bar.y + ss.hh - ss.t2, ds.gh, fm)
     let ds.ex = mix(pcx, ds.gx, fm)
-    let ds.ey = mix((ss.top + bar.y + ss.hh) / 2, lp.cy, fm)
+    let ds.ey = mix((ss.t2 + bar.y + ss.hh) / 2 + ss.dy, lp.cy, fm)
     let dl.gl = min(dtrav, dl0)
     let dl.lf = mix(min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6, min(1, dl.gl * 1.6) + max(0, dl.gl - 1) * 0.6, fm)
     let dl.rt = 2 * (225 + 6.5) * pu
@@ -7948,6 +7958,7 @@ scene Vitreus {
         body { color: mix(mix(obsidian, ink, 8% * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { from: lx, ly; size: 430 * pu, 40 * pu; corner: 20 * pu } }
         DdCard(lx + (430 * pu) / 2, ly + (40 * pu) / 2, 430 * pu, 40 * pu, 440.5, mix(mix(obsidian, ink, 8% * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
         box { from: lx, ly; size: 430 * pu, 40 * pu; corner: 20 * pu; color: ink; opacity: 8% * (1 - obs) }
+        box { from: lx, ly; size: 430 * pu, 40 * pu; corner: 20 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }     // the hairline edge every panel's cards have
         ellipse { at: lx + 24 * pu, ly + 19 * pu; radius: 5.5 * pu; stroke: 1.6 * pu; color: mint }
         line { from: lx + 28 * pu, ly + 23 * pu; to: lx + 32.5 * pu, ly + 27.5 * pu; width: 1.8 * pu; color: mint }
         input lq { at: floor(lx + 46 * pu + 0.5), floor(ly + 12 * pu + 0.5); width: 366 * pu; size: 20; color: ink; family: "Space Grotesk"; placeholder: "Search apps…" }
@@ -8004,6 +8015,7 @@ scene Vitreus {
             body { color: mix(mix(obsidian, ink, 5% * 1.6), dd_p1, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { from: lpx, lry; size: lpw, lph; corner: 14 * pu } }
             DdCard(lpx + (lpw) / 2, lry + (lph) / 2, lpw, lph, 832.5, mix(mix(obsidian, ink, 5% * 1.6), dd_p1, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { from: lpx, lry; size: lpw, lph; corner: 14 * pu; color: ink; opacity: 5% * (1 - obs) }
+            box { from: lpx, lry; size: lpw, lph; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             group { scale: rs; pivot: floor(lpx + 10 * pu + 0.5), floor(lry + 14 * pu + 0.5); text lp_kind { at: floor(lpx + 10 * pu + 0.5), floor(lry + 14 * pu + 0.5); anchor: left center; size: 12; weight: 700; width: (lpw - 20 * pu) / rs; lines: 1; color: mint; family: "Space Grotesk" } }
             group {
                 show: lp_img_on
