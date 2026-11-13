@@ -568,7 +568,7 @@ part Desk {
                 show: desk_tab == 5
                 opacity: fd1
                 move: 0, (1 - fd1) * 12 * du
-                let ak_vh  = 248 * du - ask_dy - ask_db                    // what the card shows of the conversation
+                let ak_vh  = 268 * du - ask_dy - ask_db                    // what the card shows of the conversation (the card's own height)
                 //  The assistants, in one control like the notifications' Do Not Disturb bar: a plate with four stops and a thumb that
                 //  slides (and stretches a little) to the one in use. Dim while one is not installed.
                 let ak_cx0 = dsk_xc
@@ -601,44 +601,55 @@ part Desk {
                     on press ask_chip.$k { emit ask_pick(k) }
                 }
                 //  Under them, which one is answering (for Ollama, the model: tap it to try the next), and Stop while an answer is coming.
-                group { scale: rs; pivot: floor(dsk_x0 + 18 * du + 0.5), floor(dsk_y0 + 109 * du + 0.5); text ask_status { at: floor(dsk_x0 + 18 * du + 0.5), floor(dsk_y0 + 109 * du + 0.5); anchor: left center; size: 11.5; width: (250 * du) / rs; lines: 1; color: mix(faint, mint, if(ask_backend == 1 and ask_nmodels > 1, ask_status_z.hover, 0)); family: "Space Grotesk" } }
-                zone box ask_status_z { at: dsk_x0 + 14 * du + 125 * du, dsk_y0 + 109 * du; size: 250 * du, 18 * du; cursor: pointer; active: ask_backend == 1 and ask_nmodels > 1 and not ask_busy }
+                group { scale: rs; pivot: floor(dsk_xc - 144 * du + 0.5), floor(dsk_y0 + 113 * du + 0.5); text ask_status { at: floor(dsk_xc - 144 * du + 0.5), floor(dsk_y0 + 113 * du + 0.5); anchor: left center; size: 11.5; width: (250 * du) / rs; lines: 1; color: mix(faint, mint, if(ask_backend == 1 and ask_nmodels > 1, ask_status_z.hover, 0)); family: "Space Grotesk" } }
+                zone box ask_status_z { at: dsk_xc - 146 * du + 125 * du, dsk_y0 + 113 * du; size: 250 * du, 18 * du; cursor: pointer; active: ask_backend == 1 and ask_nmodels > 1 and not ask_busy }
                 on press ask_status_z { emit ask_cycle }
                 //  Clear: a plain text link at the end of the status row (it starts a new conversation). It takes Stop's place while nothing is being
                 //  answered, and waits, dim, while there is nothing to clear.
                 let ak_clr = if(ask_n > 0, 1, 0)
                 group {
                     show: not ask_busy
-                    text "Clear" { at: floor(dsk_x0 + 316 * du + 0.5), floor(dsk_y0 + 109 * du + 0.5); anchor: right center; align: right; size: 12; weight: 500; color: mix(faint, mint, ask_new_z.hover * ak_clr); opacity: if(ask_n > 0, 100%, 40%); family: "Space Grotesk"; measure: ask_clr }
-                    box { at: dsk_x0 + 316 * du - ask_clr.width / 2, dsk_y0 + 109 * du + 7.5 * du; size: ask_clr.width, 1 * du; color: mint; opacity: 70% * ask_new_z.hover * ak_clr }
-                    zone box ask_new_z { at: dsk_x0 + 316 * du - 20 * du, dsk_y0 + 109 * du; size: 40 * du, 20 * du; cursor: pointer; active: ask_n > 0; label: "Clear the conversation" }
+                    text "Clear" { at: floor(dsk_xc + 144 * du + 0.5), floor(dsk_y0 + 113 * du + 0.5); anchor: right center; align: right; size: 12; weight: 500; color: mix(faint, mint, ask_new_z.hover * ak_clr); opacity: if(ask_n > 0, 100%, 40%); family: "Space Grotesk"; measure: ask_clr }
+                    box { at: dsk_xc + 144 * du - ask_clr.width / 2, dsk_y0 + 113 * du + 7.5 * du; size: ask_clr.width, 1 * du; color: mint; opacity: 70% * ask_new_z.hover * ak_clr }
+                    zone box ask_new_z { at: dsk_xc + 144 * du - 20 * du, dsk_y0 + 113 * du; size: 40 * du, 20 * du; cursor: pointer; active: ask_n > 0; label: "Clear the conversation" }
                     on press ask_new_z { emit ask_new }
                 }
                 group {
                     show: ask_busy
-                    box { at: dsk_x0 + 294 * du, dsk_y0 + 109 * du; size: 44 * du, 18 * du; corner: (9 * du) * (1 - 0.85 * dd_k); color: mix(ink, mint, ask_stop_z.hover); opacity: 10% + 14% * ask_stop_z.hover }
-                    PPillOutline(dsk_x0 + 294 * du, dsk_y0 + 109 * du, 44 * du, 18 * du, 9 * du, ask_stop_z.hover, clamp(3 * (10% + 14% * ask_stop_z.hover), 0, 1), du)
-                    group { scale: rs; pivot: floor(dsk_x0 + 294 * du + 0.5), floor(dsk_y0 + 109 * du + 0.5); text "Stop" { at: floor(dsk_x0 + 294 * du + 0.5), floor(dsk_y0 + 109 * du + 0.5); anchor: center; align: center; size: 12.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" } }
-                    zone box ask_stop_z { at: dsk_x0 + 294 * du, dsk_y0 + 109 * du; size: 46 * du, 20 * du; cursor: pointer }
+                    box { at: dsk_xc + 122 * du, dsk_y0 + 113 * du; size: 44 * du, 18 * du; corner: (9 * du) * (1 - 0.85 * dd_k); color: mix(ink, mint, ask_stop_z.hover); opacity: 10% + 14% * ask_stop_z.hover }
+                    PPillOutline(dsk_xc + 122 * du, dsk_y0 + 113 * du, 44 * du, 18 * du, 9 * du, ask_stop_z.hover, clamp(3 * (10% + 14% * ask_stop_z.hover), 0, 1), du)
+                    group { scale: rs; pivot: floor(dsk_xc + 122 * du + 0.5), floor(dsk_y0 + 113 * du + 0.5); text "Stop" { at: floor(dsk_xc + 122 * du + 0.5), floor(dsk_y0 + 113 * du + 0.5); anchor: center; align: center; size: 12.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" } }
+                    zone box ask_stop_z { at: dsk_xc + 122 * du, dsk_y0 + 113 * du; size: 46 * du, 20 * du; cursor: pointer }
                     on press ask_stop_z { emit ask_stop }
                 }
-                //  Claude's plan usage: the five-hour and the seven-day window, each a thin bar that fills as it is used (amber as it nears full), with
-                //  the time it resets. What the last answer said, kept between starts (logic/ask.luau).
+                //  Claude's plan usage: the five-hour and the seven-day window, each a small tile of its own: a ring that fills as it is used (amber as it
+                //  nears full) with the share in its middle, and beside it the window's name over the time it resets. What the last answer said, kept
+                //  between starts (logic/ask.luau).
                 group {
                     show: ask_us > 0.02
                     opacity: ask_us
+                    move: 0, (1 - ask_us) * -6 * du
                     repeat k in 0..2 {
-                        let us_x = dsk_x0 + (14 + k * 162) * du
-                        let us_w = 150 * du
-                        let us_u = clamp(if(k == 0, ask_f5, ask_f7), 0, 1)
-                        let us_f = max(0.5 * du, us_w * us_u)
-                        let us_p = floor(us_u * 100 + 0.5)
-                        group { scale: rs; pivot: floor(us_x + 0.5), floor(dsk_y0 + 127 * du + 0.5); text pick(k, "5-hour", "7-day") { at: floor(us_x + 0.5), floor(dsk_y0 + 127 * du + 0.5); anchor: left center; size: 10.5; weight: 600; color: faint; family: "Space Grotesk" } }
-                        group { scale: rs; pivot: floor(us_x + us_w + 0.5), floor(dsk_y0 + 127 * du + 0.5); text "{us_p}%" { at: floor(us_x + us_w + 0.5), floor(dsk_y0 + 127 * du + 0.5); anchor: right center; align: right; size: 10.5; weight: 700; color: ink; opacity: 85%; family: "Space Grotesk" } }
-                        box { at: us_x + us_w / 2, dsk_y0 + 136 * du; size: us_w, 4 * du; corner: 2 * du; color: ink; opacity: 14% }
-                        box { at: us_x + us_f / 2, dsk_y0 + 136 * du; size: us_f, 4 * du; corner: 2 * du; color: mix(mint, #ffa94d, clamp((us_u - 0.7) / 0.25, 0, 1)) }
-                        group { scale: rs; pivot: floor(us_x + 0.5), floor(dsk_y0 + 143.5 * du + 0.5); text ask_r5 { at: floor(us_x + 0.5), floor(dsk_y0 + 143.5 * du + 0.5); anchor: left center; size: 10; color: faint; opacity: 90%; family: "Space Grotesk"; show: k == 0 } }
-                        group { scale: rs; pivot: floor(us_x + 0.5), floor(dsk_y0 + 143.5 * du + 0.5); text ask_r7 { at: floor(us_x + 0.5), floor(dsk_y0 + 143.5 * du + 0.5); anchor: left center; size: 10; color: faint; opacity: 90%; family: "Space Grotesk"; show: k == 1 } }
+                        let us_cx = dsk_xc + (k - 0.5) * 162 * du
+                        let us_cy = dsk_y0 + 147 * du
+                        let us_x0 = us_cx - 75 * du
+                        let us_u  = clamp(if(k == 0, ask_f5, ask_f7), 0, 1)
+                        let us_p  = floor(us_u * 100 + 0.5)
+                        let us_c  = mix(mint, #ffa94d, clamp((us_u - 0.7) / 0.25, 0, 1))
+                        let us_rx = us_x0 + 22 * du
+                        //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
+                        body { color: mix(mix(obsidian, ink, veil * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * du * dd_k, ink; shadow: 0, 2 * du, 7 * du, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: us_cx, us_cy; size: 150 * du, 36 * du; corner: 14 * du } }
+                        DdCard(us_cx, us_cy, 150 * du, 36 * du, 512.5 + k * 41, mix(mix(obsidian, ink, veil * 1.6), dd_cream, dd_k), (obs) * dd_k, du) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+                        box { at: us_cx, us_cy; size: 150 * du, 36 * du; corner: 14 * du; color: ink; opacity: veil * (1 - obs) }
+                        box { at: us_cx, us_cy; size: 150 * du, 36 * du; corner: 14 * du; stroke: 1 * u; color: ink; opacity: hair * (1 - dd_k) }
+                        //  The ring: a faint track, the share used in colour over it (starting at the top, clockwise), a soft glow while it is high.
+                        arc { at: us_rx, us_cy; radius: 11 * du; span: 360deg; width: 3 * du; color: ink; opacity: 13% }
+                        arc { at: us_rx, us_cy; radius: 11 * du; span: max(0.03, us_u) * 360deg; rotate: max(0.03, us_u) * 180deg; width: 3 * du; color: us_c }
+                        ellipse { at: us_rx, us_cy; radius: 14 * du; color: us_c; opacity: 10% * clamp((us_u - 0.7) / 0.25, 0, 1) }
+                        group { scale: rs; pivot: floor(us_rx + 0.5), floor(us_cy + 0.5); text "{us_p}" { at: floor(us_rx + 0.5), floor(us_cy + 0.5); anchor: center; align: center; size: 9.5; weight: 700; color: ink; opacity: 90%; family: "Space Grotesk" } }
+                        //  Its name, and when it resets.
+                        group { scale: rs; pivot: floor(us_x0 + 44 * du + 0.5), floor(us_cy - 6.5 * du + 0.5); text pick(k, "5-hour window", "Weekly window") { at: floor(us_x0 + 44 * du + 0.5), floor(us_cy - 6.5 * du + 0.5); anchor: left center; size: 11.5; weight: 600; color: ink; opacity: 88%; family: "Space Grotesk" } }
+                        group { scale: rs; pivot: floor(us_x0 + 44 * du + 0.5), floor(us_cy + 7.5 * du + 0.5); text if(k == 0, ask_r5, ask_r7) { at: floor(us_x0 + 44 * du + 0.5), floor(us_cy + 7.5 * du + 0.5); anchor: left center; size: 10; width: (100 * du) / rs; lines: 1; color: faint; opacity: 90%; family: "Space Grotesk" } }
                     }
                 }
                 //  The conversation.
@@ -650,24 +661,26 @@ part Desk {
                 group { scale: rs; pivot: floor(dsk_xc + 0.5), floor(dsk_y0 + 258 * du + (ask_dy - ask_db) / 2 + 0.5); text "Ask something below" { at: floor(dsk_xc + 0.5), floor(dsk_y0 + 258 * du + (ask_dy - ask_db) / 2 + 0.5); anchor: center; align: center; size: 13; color: faint; family: "Space Grotesk"; show: ask_n < 1 } }
                 //  The conversation: rows as tall as their text, scrolled by the wheel or by dragging; it stays at the end while an answer comes in.
                 column ask_col {
-                    at: dsk_x0 + 20 * du, dsk_y0 + 124 * du + ask_dy + 8 * du
-                    view: 300 * du, ak_vh - 16 * du
+                    at: dsk_xc - 144 * du, dsk_y0 + 124 * du + ask_dy + 12 * du
+                    view: 288 * du, ak_vh - 24 * du
+                    stick: end
                     gap: 6
                     for r in ask_rows { AskRow(r, copy: ask_copy, note: ask_note) }
+                    space 0                                     // something beside the rows: so it is measured whole, not taken for a long list fed in slices
                 }
-                on change ask_col.content while ask_follow { ask_col.scroll: max(0, ask_col.content - (ak_vh - 16 * du)) }
-                on change ask_col.scroll { ask_follow = ask_col.scroll >= ask_col.content - (ak_vh - 16 * du) - 12 }
+                //  A new question takes the conversation back to its end, even when it was scrolled up to read.
+                on change ask_follow while ask_follow { ask_col.scroll: ask_col.content - ask_col.height ~calm; ask_col.pinned = 1; ask_follow = false }
                 //  Something waiting to go with the next question (the clipboard, a card from the Shelf): a chip under the conversation, with a cross to drop it.
                 group {
                     show: ask_atts > 0.02
                     opacity: ask_atts
                     let ac_y = dsk_y0 + 392 * du - ask_db + 14 * du
                     box { at: dsk_xc, ac_y; size: 312 * du, 22 * du; corner: 11 * du; color: mint; opacity: 16% }
-                    ellipse { at: dsk_x0 + 26 * du, ac_y; radius: 3 * du; color: mint }
-                    group { scale: rs; pivot: floor(dsk_x0 + 38 * du + 0.5), floor(ac_y + 0.5); text ask_att_label { at: floor(dsk_x0 + 38 * du + 0.5), floor(ac_y + 0.5); anchor: left center; size: 11; weight: 600; width: (250 * du) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
-                    path { at: dsk_x0 + 316 * du, ac_y; stroke: 1.4 * du; color: ink; opacity: 55% + 45% * ask_att_x.hover; move -3 * du, -3 * du; line 3 * du, 3 * du }
-                    path { at: dsk_x0 + 316 * du, ac_y; stroke: 1.4 * du; color: ink; opacity: 55% + 45% * ask_att_x.hover; move 3 * du, -3 * du; line -3 * du, 3 * du }
-                    zone box ask_att_x { at: dsk_x0 + 316 * du, ac_y; size: 24 * du, 22 * du; cursor: pointer; active: ask_att > 0; label: "Drop the attachment" }
+                    ellipse { at: dsk_xc - 140 * du, ac_y; radius: 3 * du; color: mint }
+                    group { scale: rs; pivot: floor(dsk_xc - 128 * du + 0.5), floor(ac_y + 0.5); text ask_att_label { at: floor(dsk_xc - 128 * du + 0.5), floor(ac_y + 0.5); anchor: left center; size: 11; weight: 600; width: (250 * du) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+                    path { at: dsk_xc + 142 * du, ac_y; stroke: 1.4 * du; color: ink; opacity: 55% + 45% * ask_att_x.hover; move -3 * du, -3 * du; line 3 * du, 3 * du }
+                    path { at: dsk_xc + 142 * du, ac_y; stroke: 1.4 * du; color: ink; opacity: 55% + 45% * ask_att_x.hover; move 3 * du, -3 * du; line -3 * du, 3 * du }
+                    zone box ask_att_x { at: dsk_xc + 142 * du, ac_y; size: 24 * du, 22 * du; cursor: pointer; active: ask_att > 0; label: "Drop the attachment" }
                     on press ask_att_x { emit ask_att_clear }
                 }
                 //  The question.

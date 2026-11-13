@@ -2853,33 +2853,33 @@ scene Vitreus {
     //  One row of the Ask tab's conversation (logic/ask.luau cuts it): a message, or the prose or the code of an answer. The first row of a message has its
     //  name above it (and, on an answer, Copy); a piece of code is in a card of its own with its own Copy. As tall as its text needs.
     component AskRow(m: record, copy: event, note: event) {
-        size: 300 * du, (if(m.first, 20, 0)) + if(m.kind == 2, 26 * du + floor(cwrap.height + 0.5) + 12 * du, floor(wrap.height + 0.5) + 6)
+        size: 288 * du, (if(m.first, 20, 0)) + if(m.kind == 2, 26 * du + floor(cwrap.height + 0.5) + 12 * du, floor(wrap.height + 0.5) + 6)
         let hh   = if(m.first, 20, 0)
         let ph   = floor(if(m.kind == 2, cwrap.height, wrap.height) + 0.5)
         group { scale: rs; pivot: 2, 10; text m.who { at: 2, 10; anchor: left center; size: 11; weight: 700; color: if(m.kind == 0, faint, mint); opacity: 90%; family: "Space Grotesk"; show: m.first } }
-        group { scale: rs; pivot: 300 * du - 2, 10; text "Copy" { at: 300 * du - 2, 10; anchor: right center; align: right; size: 11; weight: 600; color: mix(faint, mint, hc.hover); family: "Space Grotesk"; show: m.first and m.kind == 1 } }
-        zone box hc { at: 300 * du - 22 * du, 10; size: 44 * du, 20; cursor: pointer; active: m.first and m.kind == 1 }
+        group { scale: rs; pivot: 288 * du - 2, 10; text "Copy" { at: 288 * du - 2, 10; anchor: right center; align: right; size: 11; weight: 600; color: mix(faint, mint, hc.hover); family: "Space Grotesk"; show: m.first and m.kind == 1 } }
+        zone box hc { at: 288 * du - 22 * du, 10; size: 44 * du, 20; cursor: pointer; active: m.first and m.kind == 1 }
         on press hc { emit copy(m.index) }
-        group { scale: rs; pivot: 300 * du - 46 * du, 10; text "Note" { at: 300 * du - 46 * du, 10; anchor: right center; align: right; size: 11; weight: 600; color: mix(faint, mint, hn.hover); family: "Space Grotesk"; show: m.first and m.kind == 1 } }
-        zone box hn { at: 300 * du - 60 * du, 10; size: 32 * du, 20; cursor: pointer; active: m.first and m.kind == 1; label: "Keep this answer as a note" }
+        group { scale: rs; pivot: 288 * du - 46 * du, 10; text "Note" { at: 288 * du - 46 * du, 10; anchor: right center; align: right; size: 11; weight: 600; color: mix(faint, mint, hn.hover); family: "Space Grotesk"; show: m.first and m.kind == 1 } }
+        zone box hn { at: 288 * du - 60 * du, 10; size: 32 * du, 20; cursor: pointer; active: m.first and m.kind == 1; label: "Keep this answer as a note" }
         on press hn { emit note(m.index) }
         column wrap {
             at: 2, hh + 2
-            text m.body { size: 13; width: 292 * du; lines: 400; line_height: 1.25; color: if(m.kind == 3, faint, ink); family: "Space Grotesk"; show: m.kind != 2 }
+            text m.body { size: 13; width: 280 * du; lines: 400; line_height: 1.25; color: if(m.kind == 3, faint, ink); family: "Space Grotesk"; show: m.kind != 2 }
         }
         group {
             show: m.kind == 2
             //  Obsidian: a solid plate a step lighter than the shell, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (11%) * 1.6), dd_cream, dd_k); opacity: obs; border: 2.4 * u * dd_k, ink; show: obs > 0.004; box { from: 0, hh + 2; size: 300 * du, 24 * du + ph + 12 * du - 2; corner: 10 * du } }
-            box { from: 0, hh + 2; size: 300 * du, 24 * du + ph + 12 * du - 2; corner: 10 * du; color: ink; opacity: (11%) * (1 - obs) }
+            body { color: mix(mix(obsidian, ink, (11%) * 1.6), dd_cream, dd_k); opacity: obs; border: 2.4 * u * dd_k, ink; show: obs > 0.004; box { from: 0, hh + 2; size: 288 * du, 24 * du + ph + 12 * du - 2; corner: 10 * du } }
+            box { from: 0, hh + 2; size: 288 * du, 24 * du + ph + 12 * du - 2; corner: 10 * du; color: ink; opacity: (11%) * (1 - obs) }
             group { scale: rs; pivot: 10 * du, hh + 2 + 12 * du; text m.lang { at: 10 * du, hh + 2 + 12 * du; anchor: left center; size: 10; weight: 600; color: faint; family: "Space Grotesk" } }
-            group { scale: rs; pivot: 300 * du - 10 * du, hh + 2 + 12 * du; text "Copy" { at: 300 * du - 10 * du, hh + 2 + 12 * du; anchor: right center; align: right; size: 11; weight: 600; color: mix(faint, mint, cc.hover); family: "Space Grotesk" } }
-            zone box cc { at: 300 * du - 26 * du, hh + 2 + 12 * du; size: 52 * du, 22 * du; cursor: pointer }
+            group { scale: rs; pivot: 288 * du - 10 * du, hh + 2 + 12 * du; text "Copy" { at: 288 * du - 10 * du, hh + 2 + 12 * du; anchor: right center; align: right; size: 11; weight: 600; color: mix(faint, mint, cc.hover); family: "Space Grotesk" } }
+            zone box cc { at: 288 * du - 26 * du, hh + 2 + 12 * du; size: 52 * du, 22 * du; cursor: pointer }
             on press cc { emit copy(m.index) }
         }
         column cwrap {
             at: 10 * du, hh + 2 + 24 * du
-            text m.body { size: 11.5; width: 280 * du; lines: 400; line_height: 1.2; color: ink; family: "SpaceMono Nerd Font"; show: m.kind == 2 }
+            text m.body { size: 11.5; width: 268 * du; lines: 400; line_height: 1.2; color: ink; family: "SpaceMono Nerd Font"; show: m.kind == 2 }
         }
     }
 
@@ -6786,8 +6786,8 @@ scene Vitreus {
     event ask_new ->
     event ask_stop ->
     event ask_cycle ->
-    //  Claude's plan usage (the five-hour and seven-day windows, 0 to 1, -1 until an answer has said), as two thin bars under the status row, and
-    //  when each resets. The bars take 33 off the conversation's card (`ask_dy`) while Claude is the one chosen and has said.
+    //  Claude's plan usage (the five-hour and seven-day windows, 0 to 1, -1 until an answer has said), as two small tiles under the status row, and
+    //  when each resets. The tiles take 49 off the conversation's card (`ask_dy`) while Claude is the one chosen and has said.
     fact ask_u5 = -1
     fact ask_u7 = -1
     text ask_r5 = ""
@@ -6798,7 +6798,7 @@ scene Vitreus {
     prop ask_f7 = 0 ~calm
     follow ask_f5 = max(0, ask_u5)
     follow ask_f7 = max(0, ask_u7)
-    let ask_dy = 33 * du * ask_us
+    let ask_dy = 49 * du * ask_us
     prop ask_atts = 0 ~calm
     follow ask_atts = if(ask_att > 0, 1, 0)
     let ask_db = 26 * du * ask_atts                          // and 26 off its foot while something waits to go with the next question
