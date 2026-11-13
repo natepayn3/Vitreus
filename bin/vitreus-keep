@@ -131,7 +131,13 @@ while :; do
     # makes it). Any trouble there and the shell keeps its own font.
     # The themes (themes/*.toml and the person's own folder) first: the font setup and the shell both read the list it leaves in the data folder.
     "$(dirname "$(readlink -f "$0")")/vitreus-themes" "$data" 2>/dev/null || true
-    fonts=$("$(dirname "$(readlink -f "$0")")/vitreus-fonts" "$data" 2>/dev/null) || fonts=""
+    # A scene that draws only in "Space Grotesk" says so with a line `// vitreus-fonts: lean`, and is started with a font setup of the person's own
+    # fonts and two fallbacks instead of every font on the system: pleamar reads every font fontconfig names at each start (no cache), which took
+    # several seconds per scene at login, with all of them starting at once (bin/vitreus-fonts).
+    lean=""
+    grep -qE '^//[[:space:]]*vitreus-fonts:[[:space:]]*lean' "$P" 2> /dev/null && lean="--lean"
+    # shellcheck disable=SC2086
+    fonts=$("$(dirname "$(readlink -f "$0")")/vitreus-fonts" "$data" $lean 2>/dev/null) || fonts=""
     # Settings > Display > Graphics card keeps its choice in gpu.json, for the shell itself: on, it is drawn on the discrete card (PLEAMAR_GPU=high),
     # off, on the integrated one. Without the file the shell is drawn where it was started, as the autostart line says.
     gpu_set=""; gpu_unset=""
