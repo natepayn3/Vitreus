@@ -10,6 +10,13 @@ to a scene (`pleamar --docs reference` has the language; never guess a keyword).
 picture, `RIG_INPUT="x,y@ms down@ms up@ms"` moves and clicks the mouse. Read the header of `dev/rig` for what it shares with the desktop (do not press power, lock or restart actions in it).
 It has no Hyprland: gaps, borders, the Hyprland page and glass blur cannot be seen there.
 
+## Every commit passes dev/verify
+
+Nothing lands on main (a commit of ours, or a pull request merged) until `dev/verify` passes for it: `dev/verify` for this checkout's HEAD (`--dirty` with uncommitted edits),
+`dev/verify 71 72` for pull requests, merged onto origin/main in that order. It tests against **origin/main** and **pleamar's own `main`** (built into ~/.cache/vitreus-verify),
+never the experimental pleamar that may be installed in ~/.local/bin, and the shell must survive a **full restart** (compositor, shell and every scene stopped and started
+again on the data the first run left). It runs in its own process namespace, so the shell's `pkill -f` patterns cannot reach the desktop in use. Read its header for the stages.
+
 ## Settings pages
 
 Every Settings page follows `pages/SETTINGS-STYLE.md`: which control a setting gets (switch, slider, the `SetPick` picker, picture tiles, stepper), the card and row measurements and the

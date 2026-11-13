@@ -1,0 +1,226 @@
+#!/bin/sh
+# dev/verify: the test every change passes before it lands on main.
+#
+#   dev/verify [--dirty] [--keep] [PR-NUMBER | GIT-REF]...
+#
+# What is tested: origin/main as it is now, with the given pull requests (numbers) or git refs merged onto it in that order; with none, this
+# checkout's HEAD. --dirty adds this checkout's uncommitted edits. --keep leaves the merged tree in ~/.cache/vitreus-verify/tree afterwards.
+#
+# It runs on pleamar's `main`, never an experimental pleamar: pleamar and pleamar-wm are built from their upstream `main` branches into
+# ~/.cache/vitreus-verify (built again whenever main moves; the sources are worktrees of ~/.local/share/pleamar/src, or clones), and only
+# those are used, not the ones in ~/.local/bin. A build whose version says "exp" is refused.
+#
+# The stages, each of which must pass:
+#   1 merge     the refs merge onto origin/main without conflicts
+#   2 check     `pleamar --check` passes on every scene that passes on origin/main itself (a scene already broken there is reported, not failed)
+#   3 boot      the whole shell starts in a headless pleamar-wm, under vitreus-keep as on the desktop, with its own folders and a copy of your
+#               data (add-ons off, the bar put on the headless monitor), and with it the scenes the autostart file starts (wptrans, the clock, the
+#               system monitor; not the lock screen); the logic loads, nothing logs a logic or scene error, and every one of them answers
+#   4 restart   all of it is stopped (compositor, shell, every scene) and started again on the data the first run left: stage 3's checks again,
+#               and every settings file in the shell's data folder is still valid JSON
+#
+# All of it runs in a process namespace of its own (bwrap --unshare-pid) with its own runtime folder and dbus: the shell's `pkill -f` patterns
+# and `--say` cannot reach the desktop in use. Exit 0 = passed. Logs: ~/.cache/vitreus-verify/runs/<time>/ (summary.txt first).
+set -u
+SRC=$(cd "$(dirname "$0")/.." && pwd)
+V=${VERIFY_HOME:-$HOME/.cache/vitreus-verify}
+PSRC=${PLEAMAR_SRC_ROOT:-$HOME/.local/share/pleamar/src}
+R=${XDG_RUNTIME_DIR:-/tmp}/vverify             # the running copy's root (short: sockets live under it)
+T=$V/tree
+RUN=$V/runs/$(date +%Y%m%d-%H%M%S)
+BOOT_WAIT=${VERIFY_BOOT_WAIT:-60}               # seconds for the shell to answer
+SETTLE=${VERIFY_SETTLE:-20}                     # seconds after it answers, for its timers (the desktop's scenes, the monitors) to run
+dirty=false; keep=false; refs=""
+for a in "$@"; do
+    case "$a" in
+    --dirty) dirty=true ;;
+    --keep) keep=true ;;
+    -h | --help) sed -n 2,26p "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) refs="$refs $a" ;;
+    esac
+done
+mkdir -p "$RUN"
+SUM=$RUN/summary.txt
+: > "$SUM"
+note() { echo "$*" | tee -a "$SUM"; }
+fail() { note "FAIL · $*"; finish 1; }
+pid=""
+stop_copy() {
+    [ -n "$pid" ] && kill "$pid" 2> /dev/null
+    for _ in $(seq 1 20); do [ -n "$pid" ] && kill -0 "$pid" 2> /dev/null || break; sleep 0.5; done
+    [ -n "$pid" ] && kill -9 "$pid" 2> /dev/null
+    pid=""
+}
+finish() {
+    stop_copy
+    [ -d "$R" ] && { cp -r "$R/data/pleamar/vitreus/logs" "$RUN/logs" 2> /dev/null; rm -rf "$R"; }
+    $keep || git -C "$SRC" worktree remove --force "$T" 2> /dev/null
+    [ "$1" = 0 ] && note "PASSED" || note "(logs: $RUN)"
+    exit "$1"
+}
+trap 'finish 130' INT TERM
+command -v bwrap > /dev/null || fail "bwrap is needed (it keeps the test's processes apart from the desktop's)"
+# (not `fail`: its clean-up would take that other run's folder away)
+[ -e "$R" ] && { note "FAIL · $R exists: another dev/verify is running (or one was killed: remove it)"; exit 1; }
+
+# ── pleamar from main ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+mkdir -p "$V/src" "$V/bin"
+heads=""
+for r in pleamar pleamar-wm; do
+    if [ -d "$PSRC/$r/.git" ] || [ -f "$PSRC/$r/.git" ]; then
+        git -C "$PSRC/$r" fetch -q origin main || fail "could not fetch $r's main"
+        [ -e "$V/src/$r" ] || git -C "$PSRC/$r" worktree add -q --detach "$V/src/$r" origin/main || fail "worktree for $r"
+        git -C "$V/src/$r" checkout -q --detach origin/main || fail "checkout of $r's main"
+    else
+        [ -d "$V/src/$r" ] || git clone -q "https://github.com/k4ditano/$r" "$V/src/$r" || fail "clone of $r"
+        git -C "$V/src/$r" fetch -q origin main && git -C "$V/src/$r" checkout -q --detach origin/main || fail "checkout of $r's main"
+    fi
+    heads="$heads $r@$(git -C "$V/src/$r" rev-parse --short HEAD)"
+done
+if [ "$(cat "$V/built" 2> /dev/null)" != "$heads" ] || [ ! -x "$V/bin/pleamar" ] || [ ! -x "$V/bin/pleamar-wm" ]; then
+    note "building pleamar and pleamar-wm from main ($heads ) …"
+    for r in pleamar pleamar-wm; do
+        (cd "$V/src/$r" && CARGO_TARGET_DIR=$V/target nice cargo build --release -q) > "$RUN/build-$r.log" 2>&1 || fail "building $r (see build-$r.log)"
+    done
+    cp -f "$V/target/release/pleamar" "$V/target/release/pleamar-wm" "$V/bin/" || fail "the built programs are missing"
+    echo "$heads" > "$V/built"
+fi
+PV=$("$V/bin/pleamar" --version 2>&1 | head -1)
+WV=$("$V/bin/pleamar-wm" --version 2>&1 | head -1)
+case "$PV$WV" in *exp*) fail "the build from main says experimental ($PV / $WV)" ;; esac
+note "pleamar: $PV · pleamar-wm: $WV ·$heads"
+export PATH="$V/bin:$PATH"
+
+# ── 1 merge ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+git -C "$SRC" fetch -q origin main || fail "could not fetch origin/main"
+git -C "$SRC" worktree remove --force "$T" 2> /dev/null; rm -rf "$T"
+git -C "$SRC" worktree add -q --detach "$T" origin/main || fail "worktree of origin/main"
+note "base: origin/main $(git -C "$T" log --oneline -1)"
+[ -z "$refs" ] && refs=HEAD
+for ref in $refs; do
+    case "$ref" in
+    *[!0-9]*) sha=$(git -C "$SRC" rev-parse --verify -q "$ref^{commit}") || fail "unknown ref $ref"; what=$ref ;;
+    *) git -C "$SRC" fetch -q origin "pull/$ref/head:refs/verify/pr$ref" 2> /dev/null || git -C "$SRC" fetch -q -f origin "pull/$ref/head:refs/verify/pr$ref" || fail "cannot fetch PR #$ref"
+       sha=$(git -C "$SRC" rev-parse "refs/verify/pr$ref"); what="#$ref" ;;
+    esac
+    if git -C "$T" merge-base --is-ancestor "$sha" HEAD; then note "  $what: already in"; continue; fi
+    if ! git -C "$T" -c user.name=verify -c user.email=verify@localhost merge -q --no-edit "$sha" > /dev/null 2>&1; then
+        c=$(git -C "$T" diff --name-only --diff-filter=U | tr '\n' ' ')
+        fail "1 merge · $what conflicts in: $c"
+    fi
+    note "  $what: merged"
+done
+if $dirty; then
+    git -C "$SRC" diff HEAD --binary | git -C "$T" apply --3way - 2> "$RUN/dirty.log" || fail "1 merge · the uncommitted edits do not apply (dirty.log)"
+    note "  + the uncommitted edits"
+fi
+# the person's own palette files are not in git
+for f in palette.plm wm-palette.plm; do [ -f "$SRC/$f" ] && cp "$SRC/$f" "$T/"; done
+note "1 merge · ok"
+
+# ── 2 check ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+B=$V/base; rm -rf "$B"; mkdir -p "$B"
+git -C "$SRC" archive origin/main | tar -x -C "$B"
+for f in palette.plm wm-palette.plm; do [ -f "$SRC/$f" ] && cp "$SRC/$f" "$B/"; done
+bad=0; n=0
+for f in $(cd "$T" && grep -rlE '^scene [A-Za-z]' --include='*.plm' . | grep -v '^\./dev/' | sort); do
+    n=$((n + 1))
+    if ! (cd "$T" && pleamar --check "$f") > "$RUN/check.tmp" 2>&1; then
+        if [ -f "$B/$f" ] && ! (cd "$B" && pleamar --check "$f") > /dev/null 2>&1; then
+            note "  $f: fails on origin/main too (not counted)"
+        else
+            bad=$((bad + 1)); note "  $f:"; sed 's/^/      /' "$RUN/check.tmp" | head -12 | tee -a "$SUM"
+        fi
+    fi
+done
+rm -rf "$B" "$RUN/check.tmp"
+[ "$bad" = 0 ] || fail "2 check · $bad of $n scenes"
+note "2 check · ok ($n scenes)"
+
+# ── the running copy ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+COPY=$R/conf/pleamar/shells/vitreus
+DATA=$R/data/pleamar/vitreus
+LOGF=$DATA/logs/vitreus.log
+mkdir -p "$COPY" "$DATA" "$R/cache/pleamar/vitreus" "$R/run" "$R/home/.local/share" "$R/home/.local/bin" "$R/home/.config"
+chmod 700 "$R/run"
+(cd "$T" && tar --exclude=.git --exclude=dev -cf - .) | (cd "$COPY" && tar -xf -)
+[ -d "$HOME/.local/share/pleamar/vitreus" ] && cp -a "$HOME/.local/share/pleamar/vitreus/." "$DATA/"
+[ -d "$HOME/.cache/pleamar/vitreus" ] && cp -a "$HOME/.cache/pleamar/vitreus/." "$R/cache/pleamar/vitreus/"
+rm -rf "$DATA/addons-state.json" "$DATA/logs"
+# the bar on the headless monitor: a monitor name it cannot find makes it restart itself
+python3 -I - "$DATA" << 'EOF'
+import json, os, sys
+d = sys.argv[1]
+def edit(name, fn):
+    p = os.path.join(d, name)
+    try:
+        j = json.load(open(p))
+    except Exception:
+        return
+    fn(j); json.dump(j, open(p, "w"), indent=2)
+edit("bar.json", lambda j: j.__setitem__("screens", ["HEADLESS-1"]))
+edit("display.json", lambda j: j.pop("saved", None))
+edit("wm.json", lambda j: j.pop("lays", None))
+EOF
+ln -s "$HOME/.local/share/fonts" "$R/home/.local/share/fonts" 2> /dev/null
+[ -d "$HOME/.config/fontconfig" ] && ln -s "$HOME/.config/fontconfig" "$R/home/.config/fontconfig"
+# vitreus-keep puts ~/.local/bin first: inside the copy that is its own, holding main's pleamar
+ln -sf "$V/bin/pleamar" "$V/bin/pleamar-wm" "$R/home/.local/bin/"
+ln -sf "$COPY/bin/vitreus-keep" "$R/home/.local/bin/vitreus-keep"
+# what the autostart file install.sh writes starts, as it starts it (the lock screen left out: never lock in a copy)
+SCENES="wptrans/wptrans desktopclock/desktopclock desktopsysmon/desktopsysmon"
+{ echo "vitreus-keep $COPY/vitreus.plm"; for s in $SCENES; do echo "vitreus-keep $COPY/$s.plm"; done; } > "$R/autostart"
+
+start_copy() {
+    env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY -u DBUS_SESSION_BUS_ADDRESS -u PLEAMAR_SOCKETS \
+        HOME="$R/home" XDG_RUNTIME_DIR="$R/run" XDG_CONFIG_HOME="$R/conf" XDG_DATA_HOME="$R/data" XDG_CACHE_HOME="$R/cache" \
+        PATH="$R/home/.local/bin:$COPY/pleamar-wm:$COPY/bin:$PATH" PLEAMAR_WM_AUTOSTART="$R/autostart" \
+        setsid bwrap --dev-bind / / --proc /proc --unshare-pid --die-with-parent \
+        dbus-run-session -- pleamar-wm headless --seconds 600 >> "$RUN/compositor-$1.log" 2>&1 < /dev/null &
+    pid=$!
+}
+say_to() { s=$1; shift; XDG_RUNTIME_DIR="$R/run" PLEAMAR_SOCKETS="$R/run/pleamar-pleamar-1" pleamar --say "$s" "$@" 2> /dev/null | grep -v '^note ·'; }
+ask() { say_to vitreus "$@"; }
+log_errors() { grep -niE 'error|attempt to|traceback|panick|cannot find|unknown (fact|event|name)' "$1" 2> /dev/null | grep -viE 'portal|no pipewire|not available here' | head -15; }
+healthy() {        # $1: boot | restart
+    up=""
+    for i in $(seq 1 "$BOOT_WAIT"); do
+        sleep 1
+        kill -0 "$pid" 2> /dev/null || fail "$2 · the compositor ended (compositor-$1.log)"
+        [ -n "$(ask "get bar_anchor")" ] && { up=$i; break; }
+    done
+    [ -n "$up" ] || fail "$2 · the shell did not answer in ${BOOT_WAIT} s"
+    sleep "$SETTLE"
+    kill -0 "$pid" 2> /dev/null || fail "$2 · the compositor ended while settling"
+    [ -n "$(ask "get bar_anchor")" ] || fail "$2 · the shell stopped answering after it started"
+    cp "$LOGF" "$RUN/vitreus-$1.log" 2> /dev/null
+    grep -q 'vitreus\.luau running in' "$LOGF" 2> /dev/null || fail "$2 · the logic did not load (vitreus-$1.log)"
+    grep -n 'cut off' "$LOGF" > /dev/null 2>&1 && fail "$2 · the logic load was cut off"
+    errs=$(log_errors "$LOGF")
+    [ -z "$errs" ] || { note "$errs"; fail "$2 · errors in the shell's log (vitreus-$1.log)"; }
+    # the desktop's scenes from the autostart: each answers, its logic loaded, nothing in its log
+    for s in $SCENES; do
+        b=$(basename "$s"); sl=$DATA/logs/$b.log
+        [ -n "$(say_to "$b" describe)" ] || fail "$2 · $b does not answer ($b-$1.log)"
+        cp "$sl" "$RUN/$b-$1.log" 2> /dev/null
+        if [ -f "$COPY/$s.luau" ]; then grep -q 'running in' "$sl" 2> /dev/null || fail "$2 · $b's logic did not load ($b-$1.log)"; fi
+        errs=$(log_errors "$sl")
+        [ -z "$errs" ] || { note "$errs"; fail "$2 · errors in $b's log ($b-$1.log)"; }
+    done
+    note "$2 · ok (answered after ${up} s; $(grep -o 'running in [0-9.]* ms · [0-9]* handlers' "$LOGF" | tail -1); and $(echo $SCENES | wc -w) desktop scenes)"
+}
+
+# ── 3 boot ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+start_copy boot
+healthy boot "3 boot"
+
+# ── 4 restart ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+stop_copy
+for l in "$DATA"/logs/*.log; do mv "$l" "${l%.log}.boot" 2> /dev/null; done
+rm -rf "$R/run"/* 2> /dev/null
+start_copy restart
+healthy restart "4 restart"
+badj=""
+for j in "$DATA"/*.json; do python3 -I -c 'import json,sys; json.load(open(sys.argv[1]))' "$j" 2> /dev/null || badj="$badj $(basename "$j")"; done
+[ -z "$badj" ] || fail "4 restart · settings files no longer valid JSON:$badj"
+finish 0
