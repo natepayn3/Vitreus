@@ -79,27 +79,27 @@ scene VpnToggle {
     spin ax_clk by if(shown > 0.5, 1, 0)
     let fr = if(shown > 0.5 and look < 4.5, floor(ax_clk * 8), 0)       // (the pencil holds still on the Proxy theme: its HUD is crisp)
 
-    prop wk = 0 ~700ms
-    prop en1 = 0 ~200ms
-    prop en2 = 0 ~380ms
-    prop en3 = 0 ~520ms
+    prop wk = 0 ~595ms
+    prop en1 = 0 ~170ms
+    prop en2 = 0 ~323ms
+    prop en3 = 0 ~442ms
     on change here while here > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
-    on change here while here < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms; en3: 0 ~80ms after 205ms }
+    on change here while here < 0.5 { wk: 0 ~68ms; en1: 0 ~68ms; en2: 0 ~68ms; en3: 0 ~68ms; en1: 0 ~68ms after 205ms; en2: 0 ~68ms after 205ms; en3: 0 ~68ms after 205ms }
     every 500ms while here > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
     //  The same again, by the clock: a close whose change was never seen (the panel was shut in the frame the content was still arriving, or two says landed
     //  together) left `en1` at 1, so `shown` held and the content stayed drawn over bare wallpaper with the glass already gone. The rule above has always had
     //  this backstop for the way in; this is the one for the way out.
-    every 250ms while here < 0.5 and en1 > 0.004 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms }
+    every 250ms while here < 0.5 and en1 > 0.004 { wk: 0 ~68ms; en1: 0 ~68ms; en2: 0 ~68ms; en3: 0 ~68ms }
     //  The last frame has to be an empty one. When `shown` stops holding, the surface is closed and the scene stops painting, but what it painted last stays
     //  on the monitor: the content was left over bare wallpaper, the glass already gone. `tail` keeps the scene awake for a breath after the content has
     //  faded (`en1` is over in 80 ms, this in ~400), so the frames painted meanwhile are empty ones, and that is what stays.
-    prop tail = 0 ~400ms
+    prop tail = 0 ~340ms
     on change here while here > 0.5 { tail: 1 ~0ms }
-    on change here while here < 0.5 { tail: 0 ~400ms }
-    every 250ms while here < 0.5 and en1 < 0.004 and tail > 0.004 { tail: 0 ~400ms }
+    on change here while here < 0.5 { tail: 0 ~340ms }
+    every 250ms while here < 0.5 and en1 < 0.004 and tail > 0.004 { tail: 0 ~340ms }
     //  Where the content is: it glides to `slot_x`, `slot_y` on the glass's own spring (Vitreus's `ax_sp`), so it moves with the panel as it is pulled, and is put
     //  there at once while it is not drawn yet (the panel opening, or a resize).
-    spring ax_sp = 300, 20
+    spring ax_sp = 415, 24
     prop slx = 0 ~ax_sp
     prop sly = 0 ~ax_sp
     on change slot_x { slx: slot_x }

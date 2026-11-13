@@ -15,6 +15,10 @@ import "addon-pencil.plm"                         // Vitreus's pencil (its add-o
 //  pencil's (addon-pencil.plm's PIcon) or of the add-on's own (ha-icons.plm's HDev); the buttons are ha-icons.plm's HUi.
 
 scene HomeAssistant {
+    //  Motion: pleamar's house springs, made about 18% quicker (stiffness x1.38, damping x1.18: the same overshoot, sooner).
+    spring calm = 208, 27
+    spring quick = 581, 47
+    spring gentle = 263, 28
     surface { size: 1, 1; anchor: top_left; margin: 0; level: background; screens: each max 4; open: shown > 0.5 }      // empty: its copies tell the logic the monitors' names (`screen.K.name`, which the desktop cards go by), and the scene's rules run while it is open (with the panel, as they always have)
 
     permissions {
@@ -130,7 +134,7 @@ scene HomeAssistant {
     //  place (unscaled, from the top of the scrolling list). A field is typed through the shell, as the add-on template's is: the logic tells the shell where the field
     //  is (the pointer over a field puts it there, so a click on it goes to the shell), and the shell sends back what is written (`field_q`) and Enter and Escape.
     fact st_open = false
-    prop st_k = 0 ~240ms
+    prop st_k = 0 ~204ms
     follow st_k = if(st_open, 1, 0)
     fact st_tab = 0                                   // 0 the settings · 1 the entities
     prop st_tk = 0 ~quick
@@ -213,11 +217,11 @@ scene HomeAssistant {
     //  A tile's two buttons (config.json's "actions"), brought out of its middle by a right click on a tile of a column or more: `qa_i` which tile
     fact qa_open = false
     fact qa_i = -1
-    prop qa_k = 0 ~spring(230, 15)                   // (a little past its place, and back: they pop out)
+    prop qa_k = 0 ~spring(318, 18)                   // (a little past its place, and back: they pop out)
     follow qa_k = if(qa_open, 1, 0)
     //  what is seen: in step with qa_k while it comes out, but gone in a moment once shut. (qa_k's spring goes past 0 and back as it shuts: seen through
     //  it alone, the buttons came back for an instant after they had gone.)
-    prop qa_v = 0 ~140ms
+    prop qa_v = 0 ~119ms
     follow qa_v = if(qa_open, 1, 0)
     event qa_tap ->                                   // one pressed: the tile's place × 10 + the button (1 or 2)
     on change hl_editing { qa_open = false }
@@ -249,7 +253,7 @@ scene HomeAssistant {
     //  sensors: the job, its state, its progress, the time left, when it started and ends, the model's cover or the camera, and its buttons.
     fact pr_open = false
     fact pr_i = -1
-    prop pr_k = 0 ~240ms
+    prop pr_k = 0 ~204ms
     follow pr_k = if(pr_open, 1, 0)
     fact pr_st = 0                                    // 0 waiting · 1 printing · 2 paused · 3 finished · 4 failed · 5 preparing · 6 offline
     fact pr_prog = 0
@@ -294,7 +298,7 @@ scene HomeAssistant {
     fact tv_open = false
     fact tv_i = -1
     fact tv_tab = 0                                   // 0 what is playing · 1 the remote
-    prop tv_k = 0 ~240ms
+    prop tv_k = 0 ~204ms
     follow tv_k = if(tv_open, 1, 0)
     prop tv_tk = 0 ~quick
     follow tv_tk = tv_tab
@@ -352,7 +356,7 @@ scene HomeAssistant {
     text t_volume = ""
     text t_wg_title = ""
     text t_wg_hint = ""
-    prop sl_k = 0 ~240ms
+    prop sl_k = 0 ~204ms
     follow sl_k = if(sl_open, 1, 0)
     prop sl_vs = 0 ~quick                             // the fill, a hair behind the finger
     follow sl_vs = sl_v
@@ -395,12 +399,12 @@ scene HomeAssistant {
     //  The content arrives as the Control Center's does (the add-on template's recipe): the head, then the tiles, then the rest, each rising a little as it fades in, each
     //  on its own spring, starting 200 ms after the panel is out (a scene that was shut draws nothing, so its first frame is long and a spring started in it would be over
     //  at once); out at once. `wk` keeps frames coming while the content waits.
-    prop wk = 0 ~700ms
-    prop en1 = 0 ~200ms
-    prop en2 = 0 ~380ms
-    prop en3 = 0 ~520ms
+    prop wk = 0 ~595ms
+    prop en1 = 0 ~170ms
+    prop en2 = 0 ~323ms
+    prop en3 = 0 ~442ms
     on change shown while shown > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
-    on change shown while shown < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms; en3: 0 ~80ms after 205ms }
+    on change shown while shown < 0.5 { wk: 0 ~68ms; en1: 0 ~68ms; en2: 0 ~68ms; en3: 0 ~68ms; en1: 0 ~68ms after 205ms; en2: 0 ~68ms after 205ms; en3: 0 ~68ms after 205ms }
     every 500ms while shown > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
 
     let W = max(slot_w, 1)
@@ -692,10 +696,10 @@ scene HomeAssistant {
                         let qk = max(qa_k, 0)
                         //  each button's light and push (pressed: 1 at once, then back to 0 in its time), and where it is (the zones and their rules are here,
                         //  in the tile's own copy, as the tiles' are: inside the `repeat` below, a press on them did not reach its rule)
-                        prop qf0 = 0 ~2600ms
-                        prop qf1 = 0 ~2600ms
-                        prop qp0 = 0 ~spring(420, 16)
-                        prop qp1 = 0 ~spring(420, 16)
+                        prop qf0 = 0 ~2210ms
+                        prop qf1 = 0 ~2210ms
+                        prop qp0 = 0 ~spring(581, 19)
+                        prop qp1 = 0 ~spring(581, 19)
                         let qx0 = mix(qcx, qcx + if(r.qa >= 2, -0.5, 0) * (hw + gap), qk)
                         let qx1 = mix(qcx, qcx + 0.5 * (hw + gap), qk)
                         group {

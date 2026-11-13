@@ -10,6 +10,12 @@ import "pencil-glyphs.plm"
 //  bar: it is the same silhouette, melted, so it hangs from it like a drop.
 
 scene Vitreus {
+    //  Motion: pleamar's house springs, made about 18% quicker (stiffness x1.38, damping x1.18: the same overshoot, sooner).
+    spring lively = 235, 22
+    spring calm = 208, 27
+    spring quick = 581, 47
+    spring slow = 39, 13
+    spring gentle = 263, 28
     //  The palette (palette-live.plm). The logic sets these from the wallpaper (Iris); what is here is the stock look it starts from.
     fact pal_ink_r = 0.9608   // #f5f7f5
     fact pal_ink_g = 0.9686
@@ -562,7 +568,7 @@ scene Vitreus {
     //  The app dock and the add-on pill are alive: under the pointer, held or pulled, or coming out or going in. Their icons grow and wobble with it, so the glass stays out of
     //  its resting state meanwhile (`lens.idle`), as the bar does with `fr_hov`. A spring, so it outlasts a hover fading out; its `follow` is by corner_dock.plm's.
     prop dk_lv = 0 ~calm
-    prop fr_in_r = 23 ~120ms
+    prop fr_in_r = 23 ~102ms
     follow fr_in_r = hy_round + 13
     //  The same goes for the curves where the Notches' corner pieces and the docks melt into the frame's sides: their `blend:` (pages/bar_shapes.plm) is this over 0.85, which makes a fillet of about this radius.
     event glass_obs_toggle ->
@@ -624,7 +630,7 @@ scene Vitreus {
     event face_set ->               // one of them was chosen (its place in the grid)
     //  The notification rows: a new one slides in; one pressed and dragged to the right (`nt_swx`) is swept away when let go far enough.
     prop nt_in = 1 ~calm
-    on change nt_hist.count { nt_in: 0 ~1ms; nt_in: 1 ~450ms after 20ms }
+    on change nt_hist.count { nt_in: 0 ~1ms; nt_in: 1 ~382ms after 20ms }
     //  The dashboard's power card: the power button slides the state away and the session options (lock, sleep, log out, restart, shut down)
     //  in; each is held for a second, as in the controls drawer. `dsh_pk` is the one held (-1 none) and `dsh_ps` when it was pressed.
     fact dsh_pw = false
@@ -632,7 +638,7 @@ scene Vitreus {
     follow dsh_pwk = if(dsh_pw, 1, 0)
     fact dsh_pk = -1
     fact dsh_ps = 0
-    prop dsh_pp = 0 ~80ms
+    prop dsh_pp = 0 ~68ms
     follow dsh_pp = if(dsh_pk >= 0, clamp((time - dsh_ps) / 0.9, 0, 1), 0)
     on change dash_open while not dash_open { dsh_pw = false; dsh_pk = -1 }
     //  Settings > Keybinds (logic/keybinds.luau): the shell's binds as the window manager has them, one in edit at a time. Its modifier chips are
@@ -1101,7 +1107,7 @@ scene Vitreus {
     text dnd_big = "Off"            // the window's big words: the time left, On, Quiet or Off
     text dnd_small = ""             // and the small line under them
     fact dnd_frac = 0              // how much of a running timer is left, 1 to 0
-    prop dnd_fr = 0 ~1000ms
+    prop dnd_fr = 0 ~850ms
     follow dnd_fr = dnd_frac
     fact dnd_len = 0               // minutes of the timer that is running (which chip is lit), 0 for none
     event dnd_for ->               // a timer chip: minutes
@@ -1112,7 +1118,7 @@ scene Vitreus {
     text caf_big = "Off"            // the Caffeine window's big words: the time left, On or Off
     text caf_small = ""             // and the small line under them
     fact caf_frac = 0              // how much of a running timer is left, 1 to 0
-    prop caf_fr = 0 ~1000ms
+    prop caf_fr = 0 ~850ms
     follow caf_fr = caf_frac
     text caf_tile_sub = ""         // the tile's second line while a timer runs: Awake · 23:41
     event togglecaf ->
@@ -1183,39 +1189,39 @@ scene Vitreus {
     //  drops what it has, and the glass would show unbent for a moment each time a panel opened.)
     let lens.idle = glass_rest and bar_frame and panel == none and dc < 0.01 and dk < 0.01 and dm < 0.01 and ds < 0.01 and dl < 0.01 and dax < 0.01 and do < 0.01 and not desk_open and not dash_open and not ov_open and not wp_picker_open and not pk_open and not ax_open and not fr_hov and dk_lv < 0.02 and ws_lv < 0.02 and bar_lv < 0.02
     lens every if(lens.idle, max(lens_interval_ms, 2000), lens_interval_ms) * 1ms
-    spring dripl = 46, 8          // the drip down the left: slow enough to see the neck stretch, thin and snap, and loose enough to swing past where it lands
-    spring drip = 170, 18         // underdamped: it overshoots and settles back, like a real drop landing
-    spring pop  = 300, 12         // snappier and much less damped: a toggle knob popping past where it lands
-    spring slide = 220, 24        // the Caffeine thumb: quick, with only a hint of overshoot
+    spring dripl = 180, 16        // the drip down the left: settles in under half a second, still swinging about 10% past where it lands (the neck's stretch is scaled to match: `dj.stretch`)
+    spring drip = 235, 21         // underdamped: it overshoots and settles back, like a real drop landing
+    spring pop = 415, 14         // snappier and much less damped: a toggle knob popping past where it lands
+    spring slide = 304, 28        // the Caffeine thumb: quick, with only a hint of overshoot
 
     prop drop  = 0 ~drip          // the panel, 0 to 1: it hangs from the bar and falls
     //  The settle: the panel hangs a few px lower when it lands and eases back. Critically damped, so it is one slow hump and never a bounce.
-    spring hang = 260, 32
+    spring hang = 360, 38
     prop sag   = 0 ~hang
     //  The water's own spring, from Marea: a quarter of a second of period and two bounces you can see. A drawer
     //  that lands shakes on it for a moment, as a drop does when it comes to rest.
-    spring splash = 420, 13
+    spring splash = 581, 22       // damped enough that the landing's shake is over in about a quarter of a second
     prop wobble = 0 ~splash
     //  Where the ripple that crosses the bar is born: 0 at the player controls (the music), 1 in the middle
     //  (a drawer that has just closed, the surface closing over it).
     prop ring_mid = 0 ~30ms
     prop hot   = 0 ~quick         // the bar, when the pointer is on it
     repeat i in 0..24 {
-        prop gh.$i = 0 ~900ms          // the stage's trailing caps: the spectrum, slowly
+        prop gh.$i = 0 ~765ms          // the stage's trailing caps: the spectrum, slowly
         follow gh.$i = spec.s.$i
     }
     prop dtab_x = 0 ~lively          // where the tab capsule is: 0 Calendar, 1 Media, 2 Apps (it overshoots and stretches on the way)
-    prop tf.cal = 1 ~220ms          // how much each of the dashboard's tabs is in view
-    prop tf.med = 0 ~220ms
-    prop tf.app = 0 ~220ms
+    prop tf.cal = 1 ~187ms          // how much each of the dashboard's tabs is in view
+    prop tf.med = 0 ~187ms
+    prop tf.app = 0 ~187ms
     prop dc_h  = 417 ~calm          // the dashboard's height (in units): its tab row (44) and the tab's content
-    prop f1    = 0 ~200ms        // what is inside, arriving one after another
-    prop f2    = 0 ~380ms
-    prop f3    = 0 ~520ms
-    prop f4    = 0 ~380ms          // the calendar's second stage
-    prop f5    = 0 ~620ms          // the controls drawer, third in: brightness
-    prop f6    = 0 ~700ms          // fourth: wifi
-    prop f7    = 0 ~780ms          // fifth: bluetooth
+    prop f1    = 0 ~170ms        // what is inside, arriving one after another
+    prop f2    = 0 ~323ms
+    prop f3    = 0 ~442ms
+    prop f4    = 0 ~323ms          // the calendar's second stage
+    prop f5    = 0 ~527ms          // the controls drawer, third in: brightness
+    prop f6    = 0 ~595ms          // fourth: wifi
+    prop f7    = 0 ~663ms          // fifth: bluetooth
     prop glass_bend_pill = 0 ~pop    // the Glass page's lens switch, popping past where it lands
     follow glass_bend_pill = if(glass_x, 1, 0)
     prop glass_live_pill = 0 ~pop
@@ -1230,32 +1236,32 @@ scene Vitreus {
     prop env_o = 0 ~pop
     follow env_o = if(nt_hist.count > 0 and not dnd_on, 1, 0)
     prop env_pop = 0 ~pop
-    on change nt_hist.count { env_pop: 1 ~0ms; env_pop: 0 ~450ms after 40ms }
+    on change nt_hist.count { env_pop: 1 ~0ms; env_pop: 0 ~382ms after 40ms }
     prop wifi_on = 0 ~pop         // the wifi toggle pill, popping past where it lands
     prop wifi_extra = 0 ~calm     // 0..1: whether a Wi-Fi row is open
     //  The Wi-Fi toggle's own motion: finger down, a press held long enough, the tile filling with colour, the ring from the touch.
     prop wf_press = 0 ~pop        // 0..1: the pill is being pressed
     prop wf_hold = 0 ~calm        // 0..1: held long enough, so the pill has grown into a signal meter
-    prop wf_fill = 0 ~700ms       // 0..1: the colour that floods the tile from the toggle
-    prop wf_rip = 1 ~700ms        // 0..1: the ring that leaves the touch point and fades
+    prop wf_fill = 0 ~595ms       // 0..1: the colour that floods the tile from the toggle
+    prop wf_rip = 1 ~595ms        // 0..1: the ring that leaves the touch point and fades
     fact wf_held = false          // the press became a hold: letting go then does not flip the radio
     fact wf_rx = 0                // where the ring started (surface coordinates)
     fact wf_ry = 0
     //  The same motion on the other control center toggles (Bluetooth, Notifications, Caffeine).
     prop bt_press = 0 ~pop
-    prop bt_rip = 1 ~700ms
-    prop bt_fill = 0 ~700ms
+    prop bt_rip = 1 ~595ms
+    prop bt_fill = 0 ~595ms
     fact bt_rx = 0
     fact bt_ry = 0
     prop nm_press = 0 ~pop
-    prop nm_rip = 1 ~700ms
-    prop nm_fill = 0 ~700ms
+    prop nm_rip = 1 ~595ms
+    prop nm_fill = 0 ~595ms
     fact nm_rx = 0
     fact nm_ry = 0
     follow nm_fill = if(night_on, 1, 0)
     prop gm_press = 0 ~pop
-    prop gm_rip = 1 ~700ms
-    prop gm_fill = 0 ~700ms
+    prop gm_rip = 1 ~595ms
+    prop gm_fill = 0 ~595ms
     fact gm_rx = 0
     fact gm_ry = 0
     prop gm_pill = 0 ~pop
@@ -1266,23 +1272,23 @@ scene Vitreus {
     text game_status = "Off"
     event game_toggle ->
     prop dnd_press = 0 ~pop
-    prop dnd_rip = 1 ~700ms
-    prop dnd_fill = 0 ~700ms
+    prop dnd_rip = 1 ~595ms
+    prop dnd_fill = 0 ~595ms
     fact dnd_rx = 0
     fact dnd_ry = 0
     prop caf_press = 0 ~pop
     prop dnd_sel = 0 ~slide         // which Do Not Disturb stop the thumb is on (0 = Off, 1 = 15m .. 4 = 2h, 5 = until turned off)
     let dnd_sel_t = if(not dnd_on, 0, if(dnd_len == 15, 1, if(dnd_len == 30, 2, if(dnd_len == 60, 3, if(dnd_len == 120, 4, 5)))))
-    prop nt_rip = 1 ~700ms
+    prop nt_rip = 1 ~595ms
     fact nt_rx = 0
     fact nt_ry = 0
     prop caf_sel = 0 ~slide         // which Caffeine stop the thumb is on (0 = Off, 1 = 15m .. 5 = 4h, 6 = until off)
     let caf_sel_t = if(not caf_on, 0, if(caf_len == 15, 1, if(caf_len == 30, 2, if(caf_len == 60, 3, if(caf_len == 120, 4, if(caf_len == 240, 5, 6))))))
-    prop cs_rip = 1 ~700ms
+    prop cs_rip = 1 ~595ms
     fact cs_rx = 0
     fact cs_ry = 0
-    prop caf_rip = 1 ~700ms
-    prop caf_fill = 0 ~700ms
+    prop caf_rip = 1 ~595ms
+    prop caf_fill = 0 ~595ms
     fact caf_rx = 0
     fact caf_ry = 0
     prop wifi_sel = 0 ~calm       // which row, as a position: slides from one row to the next
@@ -1297,7 +1303,7 @@ scene Vitreus {
     //  The media card can be pulled off its panel and floated about the desktop (pages/media_float.plm): `mf_out` is whether it is, `mf_gx`, `mf_gy` where
     //  its middle is being taken to, `mf_px`, `mf_py` where it is, on a loose spring; `mfl` is 0 in the panel and 1 floating.
     fact mf_out = false
-    prop mf_hv = 0 ~80ms             // the pointer is over one of the card's buttons or its track (pages/media_float.plm follows it): they boil there, and need the clock
+    prop mf_hv = 0 ~68ms             // the pointer is over one of the card's buttons or its track (pages/media_float.plm follows it): they boil there, and need the clock
     fact mf_gx = 0
     fact mf_gy = 0
     fact mf_bx = 0                 // where it was when it was grabbed
@@ -1306,7 +1312,7 @@ scene Vitreus {
     fact mf_scr = 0                // which monitor's copy it floats on: the one it was grabbed on (the others draw none of it)
     fact mf_hx = 0
     fact mf_hy = 0
-    spring mf_sp = 300, 20
+    spring mf_sp = 415, 24
     prop mf_px = 0 ~mf_sp
     prop mf_py = 0 ~mf_sp
     //  Floating, it can be made smaller or bigger by a handle in each corner, as the desk's: `mf_gs` is the scale it is going to, `mf_s` where it is (0.5 to 1.6,
@@ -1330,8 +1336,11 @@ scene Vitreus {
     prop dm    = 0 ~drip          // the player's panel, hanging from the window title
     prop do    = 0 ~drip          // the volume / notification drawer
     prop dz    = 0 ~drip          // the desk's drawer, out of the right frame
-    prop ds    = 0 ~drip          // the settings panel
-    prop fs    = 0 ~300ms         // what is in it, fading in
+    //  Settings is the biggest drawer, so the same speed reads as faster on it: it has its own, slower drop (about 0.6 s to settle, ~10% past
+    //  where it lands) for its size (`ds`) and for how far it is out of the strip (`dtrav_s`, the frame layouts' twin of `dtrav`).
+    spring setdrip = 120, 13
+    prop ds    = 0 ~setdrip       // the settings panel
+    prop fs    = 0 ~255ms         // what is in it, fading in
     prop dl    = 0 ~drip          // the launcher
     prop dax   = 0 ~drip          // the add-on drawer
     //  The Settings gear and the Search squares (settings_panel.plm, the launcher below): a click round for each page / kind of search. Their pencil lines are redrawn
@@ -1345,46 +1354,46 @@ scene Vitreus {
     on change set_page { gr_n = gr_n + 1 }
     //  The Retro's pixelation outlasts the drawer's own movement: each drawer has a slower twin (`pq.*`, 0.6 s) that follows the same target, and the squares are as
     //  big as the two are apart, so they appear as the drawer starts to move and are still there after it has arrived, thinning out as the twin catches up.
-    prop pq.dc = 0 ~600ms
-    prop pq.dk = 0 ~600ms
-    prop pq.dm = 0 ~600ms
-    prop pq.dz = 0 ~600ms
-    prop pq.ds = 0 ~600ms
-    prop pq.dl = 0 ~600ms
-    prop pq.do = 0 ~600ms
+    prop pq.dc = 0 ~510ms
+    prop pq.dk = 0 ~510ms
+    prop pq.dm = 0 ~510ms
+    prop pq.dz = 0 ~510ms
+    prop pq.ds = 0 ~510ms
+    prop pq.dl = 0 ~510ms
+    prop pq.do = 0 ~510ms
     //  The UwU's star burst (bar_glass.plm): a clock for each drawer, 0 just born, 1 gone, restarted when the drawer has closed.
-    prop sb_dc = 1 ~900ms
-    prop sb_dk = 1 ~900ms
-    prop sb_dm = 1 ~900ms
-    prop sb_dz = 1 ~900ms
-    prop sb_ds = 1 ~900ms
-    prop sb_dl = 1 ~900ms
-    prop sb_do = 1 ~900ms
-    on change dc < 0.06 while dc < 0.06 and fm > 0.5 { sb_dc: 0 ~16ms; sb_dc: 1 ~900ms after 30ms }
-    on change dk < 0.06 while dk < 0.06 and fm > 0.5 { sb_dk: 0 ~16ms; sb_dk: 1 ~900ms after 30ms }
-    on change dm < 0.06 while dm < 0.06 and fm > 0.5 { sb_dm: 0 ~16ms; sb_dm: 1 ~900ms after 30ms }
-    on change dz < 0.06 while dz < 0.06 and lm > 0.5 { sb_dz: 0 ~16ms; sb_dz: 1 ~900ms after 30ms }
-    on change ds < 0.06 while ds < 0.06 and lm > 0.5 { sb_ds: 0 ~16ms; sb_ds: 1 ~900ms after 30ms }
-    on change dl < 0.06 while dl < 0.06 and lm > 0.5 { sb_dl: 0 ~16ms; sb_dl: 1 ~900ms after 30ms }
-    on change do < 0.06 while do < 0.06 and lm > 0.5 { sb_do: 0 ~16ms; sb_do: 1 ~900ms after 30ms }
-    prop fl    = 0 ~300ms         // what is in it, fading in
+    prop sb_dc = 1 ~765ms
+    prop sb_dk = 1 ~765ms
+    prop sb_dm = 1 ~765ms
+    prop sb_dz = 1 ~765ms
+    prop sb_ds = 1 ~765ms
+    prop sb_dl = 1 ~765ms
+    prop sb_do = 1 ~765ms
+    on change dc < 0.06 while dc < 0.06 and fm > 0.5 { sb_dc: 0 ~16ms; sb_dc: 1 ~765ms after 30ms }
+    on change dk < 0.06 while dk < 0.06 and fm > 0.5 { sb_dk: 0 ~16ms; sb_dk: 1 ~765ms after 30ms }
+    on change dm < 0.06 while dm < 0.06 and fm > 0.5 { sb_dm: 0 ~16ms; sb_dm: 1 ~765ms after 30ms }
+    on change dz < 0.06 while dz < 0.06 and lm > 0.5 { sb_dz: 0 ~16ms; sb_dz: 1 ~765ms after 30ms }
+    on change ds < 0.06 while ds < 0.06 and lm > 0.5 { sb_ds: 0 ~16ms; sb_ds: 1 ~765ms after 30ms }
+    on change dl < 0.06 while dl < 0.06 and lm > 0.5 { sb_dl: 0 ~16ms; sb_dl: 1 ~765ms after 30ms }
+    on change do < 0.06 while do < 0.06 and lm > 0.5 { sb_do: 0 ~16ms; sb_do: 1 ~765ms after 30ms }
+    prop fl    = 0 ~255ms         // what is in it, fading in
     prop lr    = 1 ~calm          // how many rows it has room for
-    prop fo    = 0 ~300ms         // what is in it, fading in
+    prop fo    = 0 ~255ms         // what is in it, fading in
     prop okv   = 0 ~calm          // 1 while it is the volume that is drawn
     prop okn   = 0 ~calm          // 1 while it is a notification
     prop oks   = 0 ~calm          // 1 while it is a screenshot
     prop osd_h = 64 ~calm         // the height of its plate: a notification is taller with text and buttons
-    prop nt_ring = 1 ~600ms       // a ripple off the notification's tile: 0 born, 1 gone
-    prop nt_sw = 1 ~2400ms        // the bell's swing when it arrives: 0 struck, 1 still (much slower than the ripple)
+    prop nt_ring = 1 ~510ms       // a ripple off the notification's tile: 0 born, 1 gone
+    prop nt_sw = 1 ~2040ms        // the bell's swing when it arrives: 0 struck, 1 still (much slower than the ripple)
     prop expand = 0 ~drip          // a tile growing into its own window, 0 tile .. 1 full window
     //  The music: fast, and a little loose, so the bar bounces on the beat.
     spring beat = 480, 15
     prop pulse = 0 ~beat
-    prop ring  = 1 ~600ms          // a ripple crossing the bar: 0 born, 1 gone
+    prop ring  = 1 ~510ms          // a ripple crossing the bar: 0 born, 1 gone
     prop dd    = 0 ~calm           // the output dropdown, 0 shut .. 1 open
     prop vm    = 0 ~calm           // the per-app mixer, 0 shut .. 1 open
     prop mvis  = 0 ~calm           // 1 while there is an app playing sound (or the mixer is open): the dots show
-    prop swap  = 1 ~700ms          // the cover popping in on a new song: 0 just changed, 1 settled
+    prop swap  = 1 ~595ms          // the cover popping in on a new song: 0 just changed, 1 settled
     prop playf = 0 ~calm           // 1 while playing: the cover is full and colourful
     prop mshow = 0 ~calm          // the bar's player controls: there while a player exists, paused or not
 
@@ -1418,15 +1427,15 @@ scene Vitreus {
     //  coming out it waits for it to land, so the swing does not play while the banner is sliding in and the bell is being drawn.
     on ntnew while do >= 0.9 {
         nt_ring: 0 ~16ms
-        nt_ring: 1 ~800ms after 30ms
+        nt_ring: 1 ~680ms after 30ms
         nt_sw: 0 ~16ms
-        nt_sw: 1 ~2400ms after 30ms
+        nt_sw: 1 ~2040ms after 30ms
     }
     on ntnew while do < 0.9 {
         nt_ring: 0 ~16ms
-        nt_ring: 1 ~800ms after 30ms
+        nt_ring: 1 ~680ms after 30ms
         nt_sw: 0 ~16ms
-        nt_sw: 1 ~2400ms after 450ms
+        nt_sw: 1 ~2040ms after 450ms
     }
     follow expand = if(panel_sub != none, 1, 0)
     //  Which window to actually draw. It jumps to match `panel_sub` the moment
@@ -1438,16 +1447,16 @@ scene Vitreus {
     //  Each workspace's indicator has its own amount of «active», 0..1, and morphs by it: the one that
     //  becomes active widens and turns mint in place while the one that stops shrinks back. Nothing
     //  travels. The speed is one with no overshoot: a morph, not a bounce.
-    prop ws.act.1 = 0 ~260ms
-    prop ws.act.2 = 0 ~260ms
-    prop ws.act.3 = 0 ~260ms
-    prop ws.act.4 = 0 ~260ms
-    prop ws.act.5 = 0 ~260ms
-    prop ws.act.6 = 0 ~260ms
-    prop ws.act.7 = 0 ~260ms
-    prop ws.act.8 = 0 ~260ms
-    prop ws.act.9 = 0 ~260ms
-    prop ws.act.10 = 0 ~260ms
+    prop ws.act.1 = 0 ~221ms
+    prop ws.act.2 = 0 ~221ms
+    prop ws.act.3 = 0 ~221ms
+    prop ws.act.4 = 0 ~221ms
+    prop ws.act.5 = 0 ~221ms
+    prop ws.act.6 = 0 ~221ms
+    prop ws.act.7 = 0 ~221ms
+    prop ws.act.8 = 0 ~221ms
+    prop ws.act.9 = 0 ~221ms
+    prop ws.act.10 = 0 ~221ms
     follow ws.act.1 = if(ws.active == 1, 1, 0)
     follow ws.act.2 = if(ws.active == 2, 1, 0)
     follow ws.act.3 = if(ws.active == 3, 1, 0)
@@ -1521,16 +1530,16 @@ scene Vitreus {
     //  The mark of the workspace in view is one piece that travels: its head runs ahead to the new place and its tail follows, so it
     //  stretches across what lies between and gathers again.
     //  The look (Settings > Bar > Workspaces), each as an amount 0..1 so that one morphs into the next: capsule, pips, apps, numerals, rings (see `ws.s`).
-    repeat k in 0..5 { prop ws.st.$k = 0 ~260ms }
+    repeat k in 0..5 { prop ws.st.$k = 0 ~221ms }
     repeat k in 0..5 { follow ws.st.$k = if(ws_style == k, 1, 0) }
-    prop ws.nums = 0 ~260ms                             // the number on every mark
+    prop ws.nums = 0 ~221ms                             // the number on every mark
     follow ws.nums = if(ws_nums and ws_style != 3, 1, 0)
-    prop ws.nr1 = 0 ~260ms                              // which numerals: Roman, kanji (neither: 1 2 3)
-    prop ws.nr2 = 0 ~260ms
+    prop ws.nr1 = 0 ~221ms                              // which numerals: Roman, kanji (neither: 1 2 3)
+    prop ws.nr2 = 0 ~221ms
     follow ws.nr1 = if(ws_numerals == 1, 1, 0)
     follow ws.nr2 = if(ws_numerals == 2, 1, 0)
-    prop ws.mo1 = 0 ~260ms                              // how the mark in view moves: slides as one piece, fades out and in (neither: stretches)
-    prop ws.mo2 = 0 ~260ms
+    prop ws.mo1 = 0 ~221ms                              // how the mark in view moves: slides as one piece, fades out and in (neither: stretches)
+    prop ws.mo2 = 0 ~221ms
     follow ws.mo1 = if(ws_motion == 1, 1, 0)
     follow ws.mo2 = if(ws_motion == 2, 1, 0)
     prop ws.sz = 1 ~calm
@@ -1552,8 +1561,8 @@ scene Vitreus {
     //  The rest of the bar is alive: the pointer anywhere on it (every hover and press on the bar: `bar_hover`, `lf_hover` down a side strip; the hover of a zone on top of
     //  them does not take theirs away), or something on it that comes and goes by itself: a tray icon (`trn`), a privacy light (`pvn`), the media card (`media_open`), the charge sweep.
     prop bar_lv = 0 ~calm
-    prop pl.head = 1 ~150ms
-    prop pl.tail = 1 ~400ms
+    prop pl.head = 1 ~128ms
+    prop pl.tail = 1 ~340ms
     follow pl.head = ws.active
     follow pl.tail = ws.active
     //  A workspace that is out of view and has a window asking for attention: its dot warms and breathes until you go there.
@@ -1577,27 +1586,28 @@ scene Vitreus {
     follow ws.urg.7 = if(ws.7.urgent, 1, 0)
     follow ws.urg.8 = if(ws.8.urgent, 1, 0)
     follow ws.urg.9 = if(ws.9.urgent, 1, 0)
-    prop pl.mid = 1 ~260ms                              // (Slide: head and tail together, on this one)
+    prop pl.mid = 1 ~221ms                              // (Slide: head and tail together, on this one)
     follow ws.urg.10 = if(ws.10.urgent, 1, 0)
 
     follow pl.mid = ws.active
     let pl.H = mix(pl.head, pl.mid, ws.mo1)
     let pl.T = mix(pl.tail, pl.mid, ws.mo1)
-    on change drop > 0.97 while drop > 0.97 { impulse sag 220; impulse wobble -260 }
+    on change drop > 0.97 while drop > 0.97 and panel != settings { impulse sag 220; impulse wobble -260 }
+    on change ds > 0.97 while ds > 0.97 and panel == settings { impulse sag 220; impulse wobble -260 }      // Settings lands later, on its own spring
     //  The volume's and notifications' drawer lands the same way (it is no longer a value of `panel`, so `drop` does not follow it).
     on change do0 > 0.97 while do0 > 0.97 { impulse sag 220; impulse wobble -260 }
     //  The same moments as in Marea, for the left layout's drop: it lets go (the edge jumps and bounces, two ripples set off, a small drop stays
     //  hanging and is swallowed), it is grabbed on its way back, and the edge closes over it once it has gone in.
-    on change dsl > 0.84 while dsl > 0.84 and fm > 0.5 { impulse pbounce -280; impulse wobble -520; prip: 0 ~16ms; prip: 1 ~1100ms after 30ms; pstray: 1 ~16ms; pstray: 0 ~700ms after 60ms }
+    on change dsl > 0.84 while dsl > 0.84 and fm > 0.5 { impulse pbounce -280; impulse wobble -520; prip: 0 ~16ms; prip: 1 ~935ms after 30ms; pstray: 1 ~16ms; pstray: 0 ~595ms after 60ms }
     on change dsl < 0.84 while dsl < 0.84 and fm > 0.5 { impulse wobble 300; impulse pbounce 80 }
-    on change dsl < 0.06 while dsl < 0.06 and fm > 0.5 { impulse pbounce -200; impulse wobble -160; prip: 0 ~16ms; prip: 1 ~600ms after 30ms }
+    on change dsl < 0.06 while dsl < 0.06 and fm > 0.5 { impulse pbounce -200; impulse wobble -160; prip: 0 ~16ms; prip: 1 ~510ms after 30ms }
     //  A drawer that has gone back into the bar: the surface closes over it, and a ripple runs out from the
     //  middle of the bar (the same wave the music makes, from another place).
     on change drop < 0.08 while drop < 0.08 and panel == none {
         impulse wobble 90
         ring_mid: 1 ~0ms
         ring: 0 ~16ms
-        ring: 1 ~600ms after 30ms
+        ring: 1 ~510ms after 30ms
     }
     //  What is inside a panel arrives after the drawer has come down, not with it (it was showing while the
     //  drawer was still a sliver under the bar, over the bar's lower half), and leaves at once when the panel
@@ -1611,9 +1621,9 @@ scene Vitreus {
     every 900ms while ws_pulse and (ws.1.urgent or ws.2.urgent or ws.3.urgent or ws.4.urgent or ws.5.urgent or ws.6.urgent or ws.7.urgent or ws.8.urgent or ws.9.urgent or ws.10.urgent) { toggle ws_bt }
     follow ws.br = if(ws_bt and ws_pulse, 1, 0)
     //  `after` come in late and leave the content drawn over a closed drawer (the calendar's last row stuck in the bar).
-    on change panel while panel != calendar   { f1: 0 ~80ms; f4: 0 ~80ms; f1: 0 ~80ms after 225ms; f4: 0 ~80ms after 305ms }
+    on change panel while panel != calendar   { f1: 0 ~68ms; f4: 0 ~68ms; f1: 0 ~68ms after 225ms; f4: 0 ~68ms after 305ms }
     on change panel while panel == controls   { f2: 1 after 200ms; f5: 1 after 200ms; f6: 1 after 200ms; f7: 1 after 200ms }
-    on change panel while panel != controls   { f2: 0 ~80ms; f5: 0 ~80ms; f6: 0 ~80ms; f7: 0 ~80ms; f2: 0 ~80ms after 205ms; f5: 0 ~80ms after 205ms; f6: 0 ~80ms after 205ms; f7: 0 ~80ms after 205ms }
+    on change panel while panel != controls   { f2: 0 ~68ms; f5: 0 ~68ms; f6: 0 ~68ms; f7: 0 ~68ms; f2: 0 ~68ms after 205ms; f5: 0 ~68ms after 205ms; f6: 0 ~68ms after 205ms; f7: 0 ~68ms after 205ms }
     //  The battery panel shares the controls' drawer (`dk`): `dk_bat` is which of the two it holds (kept while it closes, so it shuts at its own height), `dkb` that eased.
     fact dk_bat = false
     prop dkb = 0 ~calm
@@ -1621,7 +1631,7 @@ scene Vitreus {
     prop fb = 0 ~quick              // the battery panel's content, in like the controls' plates
     on change panel while panel == battery    { dk_bat = true; fb: 1 after 200ms }
     on change panel while panel == controls   { dk_bat = false }
-    on change panel while panel != battery    { fb: 0 ~80ms; fb: 0 ~80ms after 205ms }
+    on change panel while panel != battery    { fb: 0 ~68ms; fb: 0 ~68ms after 205ms }
     //  What the logic (logic/battery_card.luau) tells it.
     fact bc.ok = false                // the battery has been read
     fact bc.health = -1               // what it holds now against new, in %; -1 unknown
@@ -1651,7 +1661,7 @@ scene Vitreus {
     on change panel while panel == player     { dm_mode = dmm_player }
     on change panel while panel == tray       { dm_mode = dmm_tray }
     on change panel while panel == player or panel == tray { f3: 1 after 200ms }
-    on change panel while panel != player and panel != tray { f3: 0 ~80ms; f3: 0 ~80ms after 205ms }
+    on change panel while panel != player and panel != tray { f3: 0 ~68ms; f3: 0 ~68ms after 205ms }
     on change panel while panel == settings   { fs: 1 after 220ms }
     on change panel while panel == launch     { fl: 1 after 200ms; focus lq; emit launch_open }
     //  …and again the moment the field is actually drawn: the `focus` above runs in the same frame as the
@@ -1659,10 +1669,10 @@ scene Vitreus {
     //  and the surface has only just asked for the keyboard, so nothing took it and the search would not
     //  take a key until it was clicked.
     on change fl > 0.05 while panel == launch { focus lq }
-    on change panel while panel != launch     { fl: 0 ~80ms; fl: 0 ~80ms after 205ms }
-    on change panel while panel != settings   { fs: 0 ~80ms; fs: 0 ~80ms after 225ms }
+    on change panel while panel != launch     { fl: 0 ~68ms; fl: 0 ~68ms after 205ms }
+    on change panel while panel != settings   { fs: 0 ~68ms; fs: 0 ~68ms after 225ms }
     on change osd_on while osd_on { fo: 1 after 140ms }
-    on change osd_on while not osd_on { fo: 0 ~80ms }
+    on change osd_on while not osd_on { fo: 0 ~68ms }
     follow wifi_on = if(net.wifi, 1, 0)
     follow wifi_hw_k = if(wifi_hw, 1, 0)
     follow wf_fill = if(net.wifi, 1, 0)
@@ -1686,31 +1696,31 @@ scene Vitreus {
     prop caf_pill = 0 ~pop
     prop rec_pill = 0 ~pop
     fact pw_s0 = 0                   // when the Lock button was pressed (`time`)
-    prop pw_hp0 = 0 ~80ms             // how far its hold has got, 0 to 1 in a steady second (this spring only smooths the ends)
+    prop pw_hp0 = 0 ~68ms             // how far its hold has got, 0 to 1 in a steady second (this spring only smooths the ends)
     fact pw_d0 = false               // it is being held
     follow pw_hp0 = if(pw_d0, clamp((time - pw_s0) / 1, 0, 1), 0)
     fact pw_b0 = -100                // when its hold completed and it shattered (`time`); the tile is gone for 0.8 s and then comes back together
     event pw_shatter0
     fact pw_s1 = 0                   // when the Sleep button was pressed (`time`)
-    prop pw_hp1 = 0 ~80ms             // how far its hold has got, 0 to 1 in a steady second (this spring only smooths the ends)
+    prop pw_hp1 = 0 ~68ms             // how far its hold has got, 0 to 1 in a steady second (this spring only smooths the ends)
     fact pw_d1 = false               // it is being held
     follow pw_hp1 = if(pw_d1, clamp((time - pw_s1) / 1, 0, 1), 0)
     fact pw_b1 = -100                // when its hold completed and it shattered (`time`); the tile is gone for 0.8 s and then comes back together
     event pw_shatter1
     fact pw_s2 = 0                   // when the Log out button was pressed (`time`)
-    prop pw_hp2 = 0 ~80ms             // how far its hold has got, 0 to 1 in a steady second (this spring only smooths the ends)
+    prop pw_hp2 = 0 ~68ms             // how far its hold has got, 0 to 1 in a steady second (this spring only smooths the ends)
     fact pw_d2 = false               // it is being held
     follow pw_hp2 = if(pw_d2, clamp((time - pw_s2) / 1, 0, 1), 0)
     fact pw_b2 = -100                // when its hold completed and it shattered (`time`); the tile is gone for 0.8 s and then comes back together
     event pw_shatter2
     fact pw_s3 = 0                   // when the Restart button was pressed (`time`)
-    prop pw_hp3 = 0 ~80ms             // how far its hold has got, 0 to 1 in a steady second (this spring only smooths the ends)
+    prop pw_hp3 = 0 ~68ms             // how far its hold has got, 0 to 1 in a steady second (this spring only smooths the ends)
     fact pw_d3 = false               // it is being held
     follow pw_hp3 = if(pw_d3, clamp((time - pw_s3) / 1, 0, 1), 0)
     fact pw_b3 = -100                // when its hold completed and it shattered (`time`); the tile is gone for 0.8 s and then comes back together
     event pw_shatter3
     fact pw_s4 = 0                   // when the Power off button was pressed (`time`)
-    prop pw_hp4 = 0 ~80ms             // how far its hold has got, 0 to 1 in a steady second (this spring only smooths the ends)
+    prop pw_hp4 = 0 ~68ms             // how far its hold has got, 0 to 1 in a steady second (this spring only smooths the ends)
     fact pw_d4 = false               // it is being held
     follow pw_hp4 = if(pw_d4, clamp((time - pw_s4) / 1, 0, 1), 0)
     fact pw_b4 = -100                // when its hold completed and it shattered (`time`); the tile is gone for 0.8 s and then comes back together
@@ -1721,11 +1731,19 @@ scene Vitreus {
     prop bar_lm = 0 ~calm
     prop bar_tm = 0 ~calm
     prop bar_sg = 0 ~calm
-    prop pw_x = 450 ~90ms
+    prop pw_x = 450 ~76ms
     prop dtrav = 0 ~dripl             // how far a panel has come out of the strip, 0 to 1 (the left layout's own, slow, drop)
+    prop dtrav_s = 0 ~setdrip         // the same for Settings, on its slower spring
+    follow dtrav_s = if(panel == settings, 1, 0)
+    //  Whose drop the strip's neck, stretch and bounce follow: Settings' while it is the panel, and still while it closes (only another panel
+    //  opening hands it back); blended over a moment so a switch does not snap the neck.
+    prop dtr_sk = 0 ~120ms
+    on change panel while panel == settings { dtr_sk: 1 }
+    on change panel while panel != settings and panel != none { dtr_sk: 0 }
+    let dtr = mix(dtrav, dtrav_s, dtr_sk)
     prop pbounce = 0 ~splash          // the strip's edge bouncing when the thread breaks
-    prop prip = 1 ~1100ms              // the ripple that runs along the strip's edge, 0 just born, 1 gone
-    prop pstray = 0 ~700ms            // the small drop that is left hanging from the edge
+    prop prip = 1 ~935ms              // the ripple that runs along the strip's edge, 0 just born, 1 gone
+    prop pstray = 0 ~595ms            // the small drop that is left hanging from the edge
     prop rand_spin = 0 ~pop
     prop set_pg = 0 ~calm
     prop set_pgd = 0 ~calm
@@ -1773,8 +1791,8 @@ scene Vitreus {
     //  scene for that second and lets it sleep for the other four. A battery that says "charging" at 98 % or more is
     //  full and only being held there, so it does not glint.
     prop charge_sweep = 1 ~calm
-    every 5s while chg_now and bat_pct < 98 { charge_sweep: 0 ~0ms; charge_sweep: 1 ~600ms after 40ms }
-    on change chg_now while chg_now and bat_pct < 98 { charge_sweep: 0 ~0ms; charge_sweep: 1 ~600ms after 40ms }
+    every 5s while chg_now and bat_pct < 98 { charge_sweep: 0 ~0ms; charge_sweep: 1 ~510ms after 40ms }
+    on change chg_now while chg_now and bat_pct < 98 { charge_sweep: 0 ~0ms; charge_sweep: 1 ~510ms after 40ms }
     repeat i in 1..11 { prop wsh.$i.0 = 0 ~quick }         // each workspace dot's hover, brought out of its `repeat`
     repeat i in 1..11 { prop wsh.$i.1 = 0 ~quick }
     repeat i in 1..11 { prop wsh.$i.2 = 0 ~quick }
@@ -1791,7 +1809,7 @@ scene Vitreus {
     follow batt_on = if(bat_here, 1, 0)
     follow batt_low = if(bat_pct < 20 and not chg_now, 1, 0)
     prop rcn = 0 ~calm                // the recording dot's slot on the bar, 1 while a recording runs
-    spring cdk_sp = 380, 30
+    spring cdk_sp = 526, 35
     prop cdk_ga = 0 ~calm             // how far out the corner dock is (0 while it holds nothing)
     prop cdk_cx.0 = 0 ~cdk_sp           // where the middle of its icons is, in the glass's own drawing (see `cdk.*`)
     prop cdk_cx.1 = 0 ~cdk_sp
@@ -1842,7 +1860,7 @@ scene Vitreus {
     follow pow_th = if(pow_prof < 0, 1, pow_prof)
     follow wp_show_pill = if(wp_show, 1, 0)
     follow iris_pill = if(iris_on, 1, 0)
-    prop bar_zs = 1 ~120ms
+    prop bar_zs = 1 ~102ms
     follow bar_zs = bar_size
     follow bar_lm = if(bar_frame and (bar_anchor == left or bar_anchor == right), 1, 0)
     follow bar_tm = if(bar_frame and (bar_anchor == top or bar_anchor == bottom), 1, 0)
@@ -2292,7 +2310,7 @@ scene Vitreus {
     shader cardrip = file "cardrip.wgsl"
     shader dsh_water = file "dashboard/water.wgsl"            // the dashboard's pool (pages/dashboard.plm)
     shader dsh_underwater = file "dashboard/underwater.wgsl"  // the dashboard surfacing: its cards seen through water, then ripples that bulge their rims
-    spring wp_picker_pop = 240, 14             // a spring that overshoots (about 17%): the snap out to the large size bounces
+    spring wp_picker_pop = 332, 16             // a spring that overshoots (about 17%): the snap out to the large size bounces
     fact wp_picker_hx = 0                     // where the hovered hexagon is
     fact wp_picker_hy = 0
     prop wp_picker_hs = 0 ~wp_picker_pop            // 0 at rest, 1 hovered (it overshoots)
@@ -2310,7 +2328,7 @@ scene Vitreus {
     follow wp_picker_lx = wp_picker_hx
     follow wp_picker_ly = wp_picker_hy
     on change wp_picker_hot while wp_picker_hot >= 0 { wp_picker_sw: 0 ~40ms }
-    on change wp_picker_hot while wp_picker_hot >= 0 { wp_picker_sw: 1 ~700ms after 60ms }
+    on change wp_picker_hot while wp_picker_hot >= 0 { wp_picker_sw: 1 ~595ms after 60ms }
     on change wp_picker_open while not wp_picker_open { wp_picker_hot = -1 }
     on key Escape while wp_picker_open and wp_pg == 0 { wp_picker_open = false }
     //  The picker has a second page, a row of cards along the foot that changes the wallpaper live as they are shifted through. The two sit side by side and
@@ -2347,11 +2365,11 @@ scene Vitreus {
     text wp_card_name = ""
     prop wp_cpos = 0 ~lively                  // where the row has got to, in cards: it glides to the one in focus
     follow wp_cpos = wp_card_sel
-    prop wp_clag = 0 ~160ms                   // the same position, a little behind: `wp_cpos - wp_clag` is how fast the row is moving (the cards bend by it)
+    prop wp_clag = 0 ~136ms                   // the same position, a little behind: `wp_cpos - wp_clag` is how fast the row is moving (the cards bend by it)
     follow wp_clag = wp_cpos
     fact wp_card_rip = 0                      // counts the cards kept: each one sets off the ripple
-    prop wp_crip = 1 ~600ms                   // the card's ripple, as the island bar's when a panel closes: 0 just born, 1 gone
-    on change wp_card_rip while wp_card_rip > 0 { wp_crip: 0 ~16ms; wp_crip: 1 ~600ms after 30ms }
+    prop wp_crip = 1 ~510ms                   // the card's ripple, as the island bar's when a panel closes: 0 just born, 1 gone
+    on change wp_card_rip while wp_card_rip > 0 { wp_crip: 0 ~16ms; wp_crip: 1 ~510ms after 30ms }
     //  The cards' entrance: the same spring as Search and Settings drop on (`drip`, underdamped, so each card overshoots where it lands and settles back, as a drop does). One for
     //  each step away from the focused card, started a little after the one before it; they run from 0 to 1 when the picker opens on the cards or the swipe from the hexagons arrives.
     prop wp_ce0 = 0 ~drip
@@ -2364,36 +2382,36 @@ scene Vitreus {
     prop wp_ce7 = 0 ~drip
     on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce0: 0 ~16ms; wp_ce0: 1 after 40ms }
     on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce0: 0 ~16ms; wp_ce0: 1 after 40ms }
-    on change wp_picker_open while not wp_picker_open { wp_ce0: 0 ~200ms }
-    on change wp_pg while wp_pg < 0.5 { wp_ce0: 0 ~250ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce0: 0 ~170ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce0: 0 ~212ms }
     on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce1: 0 ~16ms; wp_ce1: 1 after 85ms }
     on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce1: 0 ~16ms; wp_ce1: 1 after 85ms }
-    on change wp_picker_open while not wp_picker_open { wp_ce1: 0 ~200ms }
-    on change wp_pg while wp_pg < 0.5 { wp_ce1: 0 ~250ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce1: 0 ~170ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce1: 0 ~212ms }
     on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce2: 0 ~16ms; wp_ce2: 1 after 130ms }
     on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce2: 0 ~16ms; wp_ce2: 1 after 130ms }
-    on change wp_picker_open while not wp_picker_open { wp_ce2: 0 ~200ms }
-    on change wp_pg while wp_pg < 0.5 { wp_ce2: 0 ~250ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce2: 0 ~170ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce2: 0 ~212ms }
     on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce3: 0 ~16ms; wp_ce3: 1 after 175ms }
     on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce3: 0 ~16ms; wp_ce3: 1 after 175ms }
-    on change wp_picker_open while not wp_picker_open { wp_ce3: 0 ~200ms }
-    on change wp_pg while wp_pg < 0.5 { wp_ce3: 0 ~250ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce3: 0 ~170ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce3: 0 ~212ms }
     on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce4: 0 ~16ms; wp_ce4: 1 after 220ms }
     on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce4: 0 ~16ms; wp_ce4: 1 after 220ms }
-    on change wp_picker_open while not wp_picker_open { wp_ce4: 0 ~200ms }
-    on change wp_pg while wp_pg < 0.5 { wp_ce4: 0 ~250ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce4: 0 ~170ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce4: 0 ~212ms }
     on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce5: 0 ~16ms; wp_ce5: 1 after 265ms }
     on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce5: 0 ~16ms; wp_ce5: 1 after 265ms }
-    on change wp_picker_open while not wp_picker_open { wp_ce5: 0 ~200ms }
-    on change wp_pg while wp_pg < 0.5 { wp_ce5: 0 ~250ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce5: 0 ~170ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce5: 0 ~212ms }
     on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce6: 0 ~16ms; wp_ce6: 1 after 310ms }
     on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce6: 0 ~16ms; wp_ce6: 1 after 310ms }
-    on change wp_picker_open while not wp_picker_open { wp_ce6: 0 ~200ms }
-    on change wp_pg while wp_pg < 0.5 { wp_ce6: 0 ~250ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce6: 0 ~170ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce6: 0 ~212ms }
     on change wp_picker_open while wp_picker_open and wp_pg > 0.5 { wp_ce7: 0 ~16ms; wp_ce7: 1 after 355ms }
     on change wp_pg while wp_pg > 0.5 and wp_picker_open { wp_ce7: 0 ~16ms; wp_ce7: 1 after 355ms }
-    on change wp_picker_open while not wp_picker_open { wp_ce7: 0 ~200ms }
-    on change wp_pg while wp_pg < 0.5 { wp_ce7: 0 ~250ms }
+    on change wp_picker_open while not wp_picker_open { wp_ce7: 0 ~170ms }
+    on change wp_pg while wp_pg < 0.5 { wp_ce7: 0 ~212ms }
     event wp_card_step ->                     // -1 or 1
     event wp_card_go ->                       // a card pressed, by its place in the list
     event wp_card_pick ->                     // keep this one
@@ -2443,14 +2461,14 @@ scene Vitreus {
     on key Escape while face_open { face_open = false }
     on change dash_open while not dash_open { face_open = false }
     //  Its movement: slow, and nothing overshoots. The cards are there from the start, just under the water, and come up through it.
-    prop dsh_water = 0 ~420ms          // the pool: the screen dimmed and deepened
-    prop dsh_rise = 0 ~540ms           // the cards coming up: how much they show, and their size
-    prop dsh_under = 1 ~780ms         // how much water is still over the cards: wavering, murky, soft (1 just under, 0 out)
-    prop dsh_rq = 0 ~1000ms            // the ripples round the cards' rims, as they break the surface and as they sink: how far they have run…
+    prop dsh_water = 0 ~357ms          // the pool: the screen dimmed and deepened
+    prop dsh_rise = 0 ~459ms           // the cards coming up: how much they show, and their size
+    prop dsh_under = 1 ~663ms         // how much water is still over the cards: wavering, murky, soft (1 just under, 0 out)
+    prop dsh_rq = 0 ~850ms            // the ripples round the cards' rims, as they break the surface and as they sink: how far they have run…
     prop dsh_rh = 0 ~1ms               // …and how strong they started
     prop dsh_hup = 0 ~lively          // the same cat, the pointer over its head: the head lifts (0 to 1)
     prop dsh_pet = 0 ~lively          // the notification cat being petted: follows the pointer over it (0 to 1)
-    prop dsh_poke = 0 ~1700ms          // the sleeping speaker and cat, woken by a press (1), settling back (0)
+    prop dsh_poke = 0 ~1445ms          // the sleeping speaker and cat, woken by a press (1), settling back (0)
     prop dsh_hv = 0                    // the pointer is over a dashboard tile: its small animations run (the scene's clock is on only then: `need_clock`)
     //  The clock of the dashboard's small animations (the city, the weather's sky, the room, Peek, the wavy line of a stream with no length): twelve steps a
     //  second, not `time`. Whatever names `time` is put together and painted again every frame, even while hidden (the stream's line alone, never shown, cost
@@ -2458,14 +2476,14 @@ scene Vitreus {
     //  (measured in dev/rig, pointer on a tile, 56 frames a second: 48 % of a core on `time`, 21 % on this).
     fact dsh_tq = 0
     every 83ms while dash_open and (dsh_hv > 0.5 or media.playing) { dsh_tq = dsh_tq + 0.083 }
-    prop dsh_c0 = 0 ~420ms             // each tile firming up
-    prop dsh_c1 = 0 ~420ms
-    prop dsh_c2 = 0 ~420ms
-    prop dsh_c3 = 0 ~420ms
-    prop dsh_c4 = 0 ~420ms
-    prop dsh_c5 = 0 ~420ms
-    prop dsh_c6 = 0 ~420ms
-    prop dsh_c7 = 0 ~420ms
+    prop dsh_c0 = 0 ~357ms             // each tile firming up
+    prop dsh_c1 = 0 ~357ms
+    prop dsh_c2 = 0 ~357ms
+    prop dsh_c3 = 0 ~357ms
+    prop dsh_c4 = 0 ~357ms
+    prop dsh_c5 = 0 ~357ms
+    prop dsh_c6 = 0 ~357ms
+    prop dsh_c7 = 0 ~357ms
     measure dsh_nm                     // and the user card's name (the uptime follows it)
     measure dsh_date                   // how wide the clock tile's date is (the battery follows it)
     measure dsh_temp                   // and its temperature (the weather icon sits before it)
@@ -2489,20 +2507,20 @@ scene Vitreus {
     //  Closing runs the opening backwards, a quarter faster: the same order, each step starting where it ended going up (the last tile in is the first
     //  out, the water the last to clear).
     on change dash_open while not dash_open {
-        dsh_c7: 0 ~320ms
-        dsh_c6: 0 ~320ms after 30ms
-        dsh_c5: 0 ~320ms after 60ms
-        dsh_c4: 0 ~320ms after 90ms
-        dsh_c3: 0 ~320ms after 120ms
-        dsh_c2: 0 ~320ms after 150ms
-        dsh_c1: 0 ~320ms after 180ms
-        dsh_c0: 0 ~320ms after 210ms
-        dsh_under: 1 ~585ms after 75ms
+        dsh_c7: 0 ~272ms
+        dsh_c6: 0 ~272ms after 30ms
+        dsh_c5: 0 ~272ms after 60ms
+        dsh_c4: 0 ~272ms after 90ms
+        dsh_c3: 0 ~272ms after 120ms
+        dsh_c2: 0 ~272ms after 150ms
+        dsh_c1: 0 ~272ms after 180ms
+        dsh_c0: 0 ~272ms after 210ms
+        dsh_under: 1 ~497ms after 75ms
         dsh_rq: 0 ~1ms
         dsh_rh: 12
-        dsh_rq: 1 ~750ms after 190ms
-        dsh_rise: 0 ~405ms after 250ms
-        dsh_water: 0 ~315ms after 400ms
+        dsh_rq: 1 ~638ms after 190ms
+        dsh_rise: 0 ~344ms after 250ms
+        dsh_water: 0 ~268ms after 400ms
     }
     //  The authentication dialog. Vitreus is this session's polkit agent (bin/vitreus-polkit-agent, which the logic starts): when
     //  something asks for admin rights, the agent sets `pk_open` and the texts below; when Authenticate is pressed it reads the
@@ -2520,7 +2538,7 @@ scene Vitreus {
     follow pk_show = if(pk_open, 1, 0)
     on change pk_open while pk_open { focus pk_pw }
     on change pk_shake while pk_shake { pk_sk: -1 ~30ms }
-    on change pk_shake while pk_shake { pk_sk: 0 ~450ms after 70ms }
+    on change pk_shake while pk_shake { pk_sk: 0 ~382ms after 70ms }
     //  Everything here is the scene's own, so the dialog can always be put away: closing it (`pk_open` false) is what cancels the
     //  request, which the agent notices by asking; nothing has to get through the logic.
     on key Escape while pk_open { pk_open = false }
@@ -2730,7 +2748,7 @@ scene Vitreus {
     follow disp_pn_s = disp_pcount
     on change dnd_on {
         dnd_wobble: -1 ~30ms
-        dnd_wobble: 0 ~400ms after 60ms
+        dnd_wobble: 0 ~340ms after 60ms
     }
     follow mshow = if(media_on, 1, 0)
     follow media_open = if(media_on, 1, 0)
@@ -2740,7 +2758,7 @@ scene Vitreus {
     fact mp_pos = 0                     // seconds
     text mp_el = ""                     // 1:42
     text mp_tot = ""                    // 3:58
-    prop mp_pf = 0 ~1000ms
+    prop mp_pf = 0 ~850ms
     follow mp_pf = if(mp_len > 0, clamp(mp_pos / mp_len, 0, 1), 0)
     fact mp_drag = false
     fact mp_df = 0
@@ -2748,7 +2766,7 @@ scene Vitreus {
     follow playf = if(media.playing, 1, 0)
     on trackchange {
         swap: 0 ~16ms
-        swap: 1 ~700ms after 30ms
+        swap: 1 ~595ms after 30ms
     }
     follow dd = if(dd_open and panel == controls, 1, 0)
     follow vm = if(vm_open and panel == controls, 1, 0)
@@ -2776,7 +2794,7 @@ scene Vitreus {
     on change bass > 0.6 while bass > 0.6 and (bar_beat or bar_frame) {
         ring_mid: 0 ~0ms
         ring: 0 ~16ms
-        ring: 1 ~1100ms after 30ms
+        ring: 1 ~935ms after 30ms
     }
 
     //  One number scales the whole shell. The exclusive zone (`reserve` above) is
@@ -3313,7 +3331,7 @@ scene Vitreus {
         prop grow = 0 ~pop
         prop ok = 0 ~quick
         follow run = if(scanning, 1, 0)
-        on change scanning while not scanning { ok: 1 ~80ms; ok: 0 ~700ms after 900ms }
+        on change scanning while not scanning { ok: 1 ~68ms; ok: 0 ~595ms after 900ms }
         let w = (44 - 16 * run + 4 * grow) * cu
         let gl = 1 - ok
         //  Rings, three of them a third of a cycle apart: out from the button, fading as they go.
@@ -3910,9 +3928,9 @@ scene Vitreus {
         //  The knob morphs into place: its leading edge goes to the new level quickly (`ld`) and its trailing edge follows (`tl`), so while the level moves the bar
         //  is stretched from where it was to where it goes and squashed flatter for it, then gathers back into the upright bar as the trailing edge arrives.
         //  Give it the level itself (not one already on a spring), or the leading edge lags too.
-        prop ld = 0 ~90ms
+        prop ld = 0 ~76ms
         follow ld = lv
-        prop tl = 0 ~280ms
+        prop tl = 0 ~238ms
         follow tl = lv
         let fr = if(a > 0.02, floor(time * 5), 0)
         let jt = (0.18 + 0.25 * a) * cu * (1 - dd_k)
@@ -4026,11 +4044,11 @@ scene Vitreus {
     //  index (give it the value itself, not one on a spring) · `hot` the pointer is on it (the hatching boils, as a slider's) · `ku` the unit it is laid out in.
     //  A grid of choices: `nr` rows `rp` apart, and `row` the chosen one's row (`sel` is then its column). `on` 0 hides the thumb (nothing chosen).
     component SetPick(x0: number, y: number, pitch: number, n: number, h: number, sel: number, hot: number, ku: number, nr: number = 1, rp: number = 0, row: number = 0, on: number = 1) {
-        prop ld = 0 ~90ms
+        prop ld = 0 ~76ms
         follow ld = sel
-        prop tl = 0 ~280ms
+        prop tl = 0 ~238ms
         follow tl = sel
-        prop ry = 0 ~160ms
+        prop ry = 0 ~136ms
         follow ry = row
         let fr = if(hot > 0.02, floor(time * 5), 0)
         let jt = (0.18 + 0.25 * hot) * ku * (1 - dd_k)
@@ -5322,7 +5340,7 @@ scene Vitreus {
     let att = if(lp_k == 3 or lp_k == 4 or lp_k == 5 or lp_k == 6 or (lp_k == 7 or lp_k == 8 or lp_k == 9), 1, 0)           // the control center, the calendar, the player and tray, the volume and the notifications: they stay joined to the strip, and are not scaled
     let rgt = if((lp_k == 7 or lp_k == 8 or lp_k == 9), 1, 0)                                    // the volume and the notifications come out of the right frame, not the strip, and grow leftwards
     let edg = if(lp_k == 1 or lp_k == 2, 1, 0)                      // Settings rises out of the bottom frame's middle, the launcher lowers out of the top frame's: not from the strip
-    let dsl = max(0, dtrav * 1.3 - 0.3)
+    let dsl = max(0, dtr * 1.3 - 0.3)
     //  With the strip along the top the launcher comes out of the LEFT frame's notch (a side drawer, like the desk's on the right): `lside` is how far over that is,
     //  `dl.cL` where the middle of what it holds is then (6.5 in from the frame's inner edge, its contents 430 wide).
     //  The add-on drawer: out of the add-on pill (the corner dock's twin, in the other corner), the glass drawn here and the content by the add-on's own scene, which is told
@@ -5348,7 +5366,7 @@ scene Vitreus {
     fact ax_hold = false                                   // its title bar is held
     fact ax_hx = 0                                         // where on the screen it was taken hold of
     fact ax_hy = 0
-    spring ax_sp = 300, 20
+    spring ax_sp = 415, 24
     prop ax_ox = 0 ~ax_sp
     prop ax_oy = 0 ~ax_sp
     follow ax_ox = ax_gx
@@ -5972,7 +5990,7 @@ scene Vitreus {
     //  starts while the old one is still folding in, and the glass turns round smoothly from where it is (`dtrav` follows `panel`, so it reverses
     //  instead of restarting). If the shape snaps where they meet, lower it; for a closer overlap, raise it.
     let pq.at = 0.5
-    on change dtrav < pq.at and pending != none while dtrav < pq.at and pending != none { panel = pending; pending = none }
+    on change dtr < pq.at and pending != none while dtr < pq.at and pending != none { panel = pending; pending = none }
     //  What a drop out of the strip is made of, as in Marea's (marea.plm, "the body"): the strip's edge bulges towards the drop while it holds it
     //  (`dj.sag`, most halfway), the neck is a bell that ends at nothing so that the thread breaks by itself (`dj.neck`), when it breaks two crests
     //  run along the edge (`dj.ripx`, `dj.riph`) and a small drop is left hanging from it for a moment (`dj.stray`), and the drop stretches with its
@@ -5984,17 +6002,17 @@ scene Vitreus {
     let dj.ripx = (12 + 90 * prip) * u
     let dj.riph = 20 * u * (1 - prip) * clamp(prip * 6, 0, 1) * lmk * (1 - att) * (1 - uwu_k)
     let dj.stray = 10 * u * pstray * lmk * (1 - att)
-    let dj.stretch = clamp(vel(dtrav) * 0.07, 0, 0.5) * lmk * (1 - cas_k)
+    let dj.stretch = clamp(mix(vel(dtrav), vel(dtrav_s), dtr_sk) * 0.036, 0, 0.5) * lmk * (1 - cas_k)
     let dj.y0 = lp.sy0
     let dj.ey = if(lp_k == 1 or lbot > 0.5, vb - th.b / 2, yo + th.t / 2)     // the frame edge a drop comes out of (bottom for Settings, top for the launcher)
     let dj.es = if(lp_k == 1 or lbot > 0.5, -1, 1)                                  // and which way the small stray drop hangs from it: up, or down
     //  Those four shapes are never zero-size (a floor of 0.3 keeps them valid), so left in place they are a sliver on the strip's edge at the height of
     //  the panel last opened. They are only in play while a panel that drips is on its way or just after it (its ripples and stray drop), and
     //  off the screen the rest of the time (`show:` does not take a shape off the glass).
-    let dj.act = if(cas_k < 0.5 and lmk > 0.5 and att < 0.5 and lside < 0.5 and ssd < 0.5 and pown > 0.5 and (dtrav > 0.02 or prip < 0.98 or pstray > 0.01 or abs(pbounce) > 0.2), 1, 0)
+    let dj.act = if(cas_k < 0.5 and lmk > 0.5 and att < 0.5 and lside < 0.5 and ssd < 0.5 and pown > 0.5 and (dtr > 0.02 or prip < 0.98 or pstray > 0.01 or abs(pbounce) > 0.2), 1, 0)
     let dj.px = if(dj.act > 0.5, 0, 30000)
     //  A drawer out of a left notch (search with the strip along the top, Settings along the bottom) drips sideways: the same four shapes, turned a quarter, along the left frame.
-    let dj.sideact = if(cas_k < 0.5 and lmk > 0.5 and lside + ssd > 0.5 and pown > 0.5 and (dtrav > 0.02 or prip < 0.98 or pstray > 0.01 or abs(pbounce) > 0.2), 1, 0)
+    let dj.sideact = if(cas_k < 0.5 and lmk > 0.5 and lside + ssd > 0.5 and pown > 0.5 and (dtr > 0.02 or prip < 0.98 or pstray > 0.01 or abs(pbounce) > 0.2), 1, 0)
     let dj.spx = if(dj.sideact > 0.5, 0, 30000)
     //  Each drawer's shape as it is drawn (`*.ex`, `*.ey` its middle, `*.ew`, `*.eh` its size). From the top bar it is the drawer above: it falls,
     //  widening on the way. Down the left it comes out sideways from the strip instead: it starts small and grows in both ways (`*.lf`, the same quick
@@ -6036,7 +6054,7 @@ scene Vitreus {
     let dc.eh = mix(mix((bar.y + dc.hh - dc.top), dc.gh + if(lp_k == 4, lp.ext * dc.lf, 0), lm), dc.teh, tu)
     let dc.ex = mix(mix(pcx, dc.gx + dc.er / 2, lm), dc.tex, tu)
     let dc.ey = mix(mix((dc.top + bar.y + dc.hh) / 2, lp.cy + if(lp_k == 4, lp.ext * dc.lf, 0) / 2, lm), dc.tey, tu)
-    let ds.gl = min(dtrav, ds0)
+    let ds.gl = min(dtrav_s, ds0)
     let ds.lf = mix(min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6, min(1, ds.gl * 1.6) + max(0, ds.gl - 1) * 0.6, fm)
     let ds.rt = 2 * (310 + 6.5) * pu
     let ds.gw = max(0.1, ds.rt * ds.lf)
@@ -6238,18 +6256,18 @@ scene Vitreus {
     prop nt_vis_b.1 = 0 ~calm
     prop nt_vis_b.2 = 0 ~calm
     prop nt_vis_b.3 = 0 ~calm
-    prop nt_hold_l.0 = 0 ~280ms
-    prop nt_hold_l.1 = 0 ~280ms
-    prop nt_hold_l.2 = 0 ~280ms
-    prop nt_hold_l.3 = 0 ~280ms
-    prop nt_hold_t.0 = 0 ~280ms                              // on the edge, the tab or the panel: until the tab goes back and the panel closes
-    prop nt_hold_t.1 = 0 ~280ms
-    prop nt_hold_t.2 = 0 ~280ms
-    prop nt_hold_t.3 = 0 ~280ms
-    prop nt_hold_b.0 = 0 ~280ms
-    prop nt_hold_b.1 = 0 ~280ms
-    prop nt_hold_b.2 = 0 ~280ms
-    prop nt_hold_b.3 = 0 ~280ms
+    prop nt_hold_l.0 = 0 ~238ms
+    prop nt_hold_l.1 = 0 ~238ms
+    prop nt_hold_l.2 = 0 ~238ms
+    prop nt_hold_l.3 = 0 ~238ms
+    prop nt_hold_t.0 = 0 ~238ms                              // on the edge, the tab or the panel: until the tab goes back and the panel closes
+    prop nt_hold_t.1 = 0 ~238ms
+    prop nt_hold_t.2 = 0 ~238ms
+    prop nt_hold_t.3 = 0 ~238ms
+    prop nt_hold_b.0 = 0 ~238ms
+    prop nt_hold_b.1 = 0 ~238ms
+    prop nt_hold_b.2 = 0 ~238ms
+    prop nt_hold_b.3 = 0 ~238ms
     follow nt_hold_t.$screen = if(max(ntz_t.hover, max(ntn_t.hover, ntp_t.hover)) > 0.5, 1, 0)
     follow nt_hold_l.$screen = if(max(ntz_l.hover, max(ntn_l.hover, if(bt > 0.5, ntp_b.hover, ntp_t.hover))) > 0.5, 1, 0)
     follow nt_vis_l.$screen = if(nt_hold_l.$screen > 0.3, 1, 0)
@@ -6505,7 +6523,7 @@ scene Vitreus {
     fact desk_rhold = false                                // the handle is held: its zone stays where the pointer is, as the grip's does
     fact desk_qx = 0
     fact desk_qy = 0
-    spring desk_sp = 300, 20
+    spring desk_sp = 415, 24
     prop desk_s = 1 ~desk_sp
     follow desk_s = desk_gs
     prop desk_ox = 0 ~desk_sp
@@ -6516,13 +6534,13 @@ scene Vitreus {
     //  The frame's side of the liquid, as the drip down the left has it (`dj.*`): while the desk is pulled the frame's edge bulges towards it; when
     //  the neck breaks the edge jumps and bounces, two ripples run along it and a small drop is left hanging; put back, the edge closes over it.
     prop dbounce = 0 ~splash
-    prop dprip = 1 ~1100ms
-    prop dpstray = 0 ~700ms
+    prop dprip = 1 ~935ms
+    prop dpstray = 0 ~595ms
     fact desk_ry = 0                                       // where along the frame the neck broke
-    on change dz.det > 0.7 while dz.det > 0.7 { desk_ry = vcc + doy; impulse dbounce -280; impulse wobble -300; dprip: 0 ~16ms; dprip: 1 ~1100ms after 30ms; dpstray: 1 ~16ms; dpstray: 0 ~700ms after 60ms }
+    on change dz.det > 0.7 while dz.det > 0.7 { desk_ry = vcc + doy; impulse dbounce -280; impulse wobble -300; dprip: 0 ~16ms; dprip: 1 ~935ms after 30ms; dpstray: 1 ~16ms; dpstray: 0 ~595ms after 60ms }
     on change dz.det < 0.7 while dz.det < 0.7 and desk_open { desk_ry = vcc + doy; impulse dbounce 80; impulse wobble 200 }
-    on change dz.det < 0.05 while dz.det < 0.05 and desk_open { desk_ry = vcc + doy; impulse dbounce -200; impulse wobble -120; dprip: 0 ~16ms; dprip: 1 ~600ms after 30ms }
-    on change dz0 < 0.06 while dz0 < 0.06 and not desk_open and fm > 0.5 { dprip: 0 ~16ms; dprip: 1 ~600ms after 30ms }
+    on change dz.det < 0.05 while dz.det < 0.05 and desk_open { desk_ry = vcc + doy; impulse dbounce -200; impulse wobble -120; dprip: 0 ~16ms; dprip: 1 ~510ms after 30ms }
+    on change dz0 < 0.06 while dz0 < 0.06 and not desk_open and fm > 0.5 { dprip: 0 ~16ms; dprip: 1 ~510ms after 30ms }
     follow desk_sel = desk_tab
     zone box ntz_r { at: mix(screen.width - (th.r + 6 * cu) / 2, (th.r + 6 * cu) / 2, rt), mix(vcc, yo + vb - vcc, bt); size: th.r + 6 * cu, nt_w + 24 * cu; active: sb > 0.5 and fm > 0.5 and not desk_open }
     zone box ntn_r { at: mix(screen.width - (th.r + nt_d) / 2, (th.r + nt_d) / 2, rt), mix(vcc, yo + vb - vcc, bt); size: th.r + nt_d, nt_w; cursor: pointer; active: fm > 0.5 and nt_vis_r.$screen > 0.5 and not desk_open }
@@ -6534,10 +6552,10 @@ scene Vitreus {
     prop nt_vis_l.1 = 0 ~calm
     prop nt_vis_l.2 = 0 ~calm
     prop nt_vis_l.3 = 0 ~calm
-    prop nt_hold_r.0 = 0 ~280ms
-    prop nt_hold_r.1 = 0 ~280ms
-    prop nt_hold_r.2 = 0 ~280ms
-    prop nt_hold_r.3 = 0 ~280ms
+    prop nt_hold_r.0 = 0 ~238ms
+    prop nt_hold_r.1 = 0 ~238ms
+    prop nt_hold_r.2 = 0 ~238ms
+    prop nt_hold_r.3 = 0 ~238ms
     follow nt_hold_r.$screen = if(max(ntz_r.hover, ntn_r.hover) > 0.5, 1, 0)
     follow nt_vis_r.$screen = if(nt_hold_r.$screen > 0.3 and not desk_open, 1, 0)
     on press ntn_r { panel_scr = screen.index; desk_tab = desk_start; desk_open = true }
@@ -6612,13 +6630,13 @@ scene Vitreus {
     prop ft_press = 0 ~pop
     //  The desk's contents come in one after another once the drawer is out, like the title panel's (`f3`) and the controls' (`f5`..`f7`):
     //  each section fades in and rises a little, on a longer spring than the one before.
-    prop fd0 = 0 ~380ms                                     // the tabs
-    prop fd1 = 0 ~560ms
-    prop fd2 = 0 ~680ms
-    prop fd3 = 0 ~780ms
-    prop fd4 = 0 ~880ms
+    prop fd0 = 0 ~323ms                                     // the tabs
+    prop fd1 = 0 ~476ms
+    prop fd2 = 0 ~578ms
+    prop fd3 = 0 ~663ms
+    prop fd4 = 0 ~748ms
     on change desk_open while desk_open { fd0: 1 after 200ms; fd1: 1 after 200ms; fd2: 1 after 200ms; fd3: 1 after 200ms; fd4: 1 after 200ms }
-    on change desk_open while not desk_open { fd0: 0 ~80ms; fd1: 0 ~80ms; fd2: 0 ~80ms; fd3: 0 ~80ms; fd4: 0 ~80ms }
+    on change desk_open while not desk_open { fd0: 0 ~68ms; fd1: 0 ~68ms; fd2: 0 ~68ms; fd3: 0 ~68ms; fd4: 0 ~68ms }
     //  The Capture window's recent screenshots: the newest four of ~/Pictures/Screenshots (logic/capture_recent.luau), as small pictures.
     fact capr_n = 0
     repeat k in 0..4 {
@@ -6644,12 +6662,12 @@ scene Vitreus {
         fact shelf.$k.vid = false
         //  The same for the shelf's cards: one that is dismissed slides off and fades, and the ones after it glide into its place.
         fact shelf.$k.gone = false
-        prop shelf.$k.out = 0 ~180ms
-        prop shelf.$k.dx = 0 ~220ms
-        prop shelf.$k.dy = 0 ~220ms
-        on change shelf.$k.gone while shelf.$k.gone { shelf.$k.out: 1 ~180ms }
+        prop shelf.$k.out = 0 ~153ms
+        prop shelf.$k.dx = 0 ~187ms
+        prop shelf.$k.dy = 0 ~187ms
+        on change shelf.$k.gone while shelf.$k.gone { shelf.$k.out: 1 ~153ms }
         on change shelf.$k.gone while not shelf.$k.gone { shelf.$k.out: 0 ~0ms }
-        on shelf_shifted(v) while k >= v { shelf.$k.dx: (mod(k + 1, 3) - mod(k, 3)) * 110 * du ~0ms; shelf.$k.dy: (floor((k + 1) / 3) - floor(k / 3)) * 102 * du ~0ms; shelf.$k.dx: 0 ~220ms after 40ms; shelf.$k.dy: 0 ~220ms after 40ms }
+        on shelf_shifted(v) while k >= v { shelf.$k.dx: (mod(k + 1, 3) - mod(k, 3)) * 110 * du ~0ms; shelf.$k.dy: (floor((k + 1) / 3) - floor(k / 3)) * 102 * du ~0ms; shelf.$k.dx: 0 ~187ms after 40ms; shelf.$k.dy: 0 ~187ms after 40ms }
     }
     fact shelf_n = 0
     //  The shelf as a locker: with the box ticked, what is on it stays hidden (the logic does not even put it in the scene) until your login password is given.
@@ -6671,7 +6689,7 @@ scene Vitreus {
     fact shelf_py = 0
     event shelf_clear ->
     event shelf_ask ->
-    prop desk_drag = 0 ~120ms                               // 1 while something from another program is being carried over the desk
+    prop desk_drag = 0 ~102ms                               // 1 while something from another program is being carried over the desk
     follow desk_drag = drag.over
     prop shelf_flash = 0 ~calm                              // the glow of a drop that has just landed
     //  The task list: nine lines with a check each.
@@ -6684,11 +6702,11 @@ scene Vitreus {
         //  Dismissed: the line slides off to the right and fades (the logic marks it `gone`, waits a moment, then removes it), and the
         //  lines under it glide up into the gap (`task_shifted` says from which one; each starts where its text was and settles).
         fact task.$k.gone = false
-        prop task.$k.out = 0 ~180ms
-        prop task.$k.dy = 0 ~220ms
-        on change task.$k.gone while task.$k.gone { task.$k.out: 1 ~180ms }
+        prop task.$k.out = 0 ~153ms
+        prop task.$k.dy = 0 ~187ms
+        on change task.$k.gone while task.$k.gone { task.$k.out: 1 ~153ms }
         on change task.$k.gone while not task.$k.gone { task.$k.out: 0 ~0ms }
-        on task_shifted(v) while k >= v { task.$k.dy: 29 * du ~0ms; task.$k.dy: 0 ~220ms after 40ms }
+        on task_shifted(v) while k >= v { task.$k.dy: 29 * du ~0ms; task.$k.dy: 0 ~187ms after 40ms }
     }
     fact task_n = 0
     //  The drawing board in the Pad tab: the logic keeps the strokes as short segments (half units, from the board's corner) and gives
@@ -6809,21 +6827,21 @@ scene Vitreus {
     prop ptab_vis.1 = 0 ~calm
     prop ptab_vis.2 = 0 ~calm
     prop ptab_vis.3 = 0 ~calm
-    prop ptab_hold.0 = 0 ~280ms                      // the notches' short wait before coming out, and grace before going back
-    prop ptab_hold.1 = 0 ~280ms
-    prop ptab_hold.2 = 0 ~280ms
-    prop ptab_hold.3 = 0 ~280ms
+    prop ptab_hold.0 = 0 ~238ms                      // the notches' short wait before coming out, and grace before going back
+    prop ptab_hold.1 = 0 ~238ms
+    prop ptab_hold.2 = 0 ~238ms
+    prop ptab_hold.3 = 0 ~238ms
     follow ptab_vis.$screen = if(ptab_hold.$screen > 0.3, 1, 0)
     //  The calendar's and the control center's panels, being joined to the strip too, have the same ripple (opening and closing).
     //  The title's panel (the player, the tray's menu) is joined to the strip, so the drop's ripple (`prip`, scaled by `1 - att`) skips it. It has its own, the same
     //  crests (size, speed, time) as the Settings' and the launcher's: when it has come out and when it has gone back in. Frame layouts only, like theirs.
-    prop tprip = 1 ~1100ms
-    on change dm > 0.84 while dm > 0.84 and fm > 0.5 { tprip: 0 ~16ms; tprip: 1 ~1100ms after 30ms }
-    on change dm < 0.06 while dm < 0.06 and fm > 0.5 { tprip: 0 ~16ms; tprip: 1 ~600ms after 30ms }
-    on change dc > 0.84 while dc > 0.84 and fm > 0.5 { tprip: 0 ~16ms; tprip: 1 ~1100ms after 30ms }
-    on change dc < 0.06 while dc < 0.06 and fm > 0.5 { tprip: 0 ~16ms; tprip: 1 ~600ms after 30ms }
-    on change dk > 0.84 while dk > 0.84 and fm > 0.5 and bar_sg < 0.5 { tprip: 0 ~16ms; tprip: 1 ~1100ms after 30ms }
-    on change dk < 0.06 while dk < 0.06 and fm > 0.5 and bar_sg < 0.5 { tprip: 0 ~16ms; tprip: 1 ~600ms after 30ms }
+    prop tprip = 1 ~935ms
+    on change dm > 0.84 while dm > 0.84 and fm > 0.5 { tprip: 0 ~16ms; tprip: 1 ~935ms after 30ms }
+    on change dm < 0.06 while dm < 0.06 and fm > 0.5 { tprip: 0 ~16ms; tprip: 1 ~510ms after 30ms }
+    on change dc > 0.84 while dc > 0.84 and fm > 0.5 { tprip: 0 ~16ms; tprip: 1 ~935ms after 30ms }
+    on change dc < 0.06 while dc < 0.06 and fm > 0.5 { tprip: 0 ~16ms; tprip: 1 ~510ms after 30ms }
+    on change dk > 0.84 while dk > 0.84 and fm > 0.5 and bar_sg < 0.5 { tprip: 0 ~16ms; tprip: 1 ~935ms after 30ms }
+    on change dk < 0.06 while dk < 0.06 and fm > 0.5 and bar_sg < 0.5 { tprip: 0 ~16ms; tprip: 1 ~510ms after 30ms }
     let tq.x = (12 + 90 * tprip) * u
     let tq.h = max(20 * u * (1 - tprip) * clamp(tprip * 6, 0, 1) * fm * (1 - uwu_k), 0.3)
     let tq.act = if(cas_k < 0.5 and lm > 0.5 and tprip < 0.98 and pown > 0.5 and sg < 0.5, 1, 0)
@@ -7999,9 +8017,9 @@ scene Vitreus {
     }
 
     include "pages/settings_panel.plm"
-    prop volume_level = 0 ~140ms
+    prop volume_level = 0 ~119ms
     follow volume_level = if(audio.muted, 0, audio.volume)
-    prop bright_level = 0 ~140ms
+    prop bright_level = 0 ~119ms
     follow bright_level = brightness.level
     //  The control center's sliders follow the pointer while they are dragged (`vol_ui`, `bri_ui`: what the pointer says), not the mixer's answer, which comes back a moment later: a
     //  press or a drag sets the lock, and it lets go 0.9 s after the release, by which time the real value has caught up.
@@ -8012,7 +8030,7 @@ scene Vitreus {
     let vol_shown = if(vol_lock > 0.5, vol_ui, volume_level)
     fact mic_ui = 0
     prop mic_lock = 0 ~1ms
-    prop mic_level = 0 ~140ms
+    prop mic_level = 0 ~119ms
     follow mic_level = clamp(audio.input, 0, 1)
     let mic_shown = if(mic_lock > 0.5, mic_ui, mic_level)
     let bri_shown = if(bri_lock > 0.5, bri_ui, bright_level)

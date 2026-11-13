@@ -10,6 +10,10 @@ import "../palette.plm"
 //  Its settings are kept in desktopsysmon.json, in ~/.local/share/pleamar/desktopsysmon (see desktopsysmon.luau).
 
 scene DesktopSysmon {
+    //  Motion: pleamar's house springs, made about 18% quicker (stiffness x1.38, damping x1.18: the same overshoot, sooner).
+    spring calm = 208, 27
+    spring quick = 581, 47
+    spring gentle = 263, 28
     //  1 x 1 and empty, one on each monitor: its copies report the monitors' names (`screen.K.name`) for where `hyprctl` does not answer, and keep the
     //  scene's rules running. The card itself is drawn by the surfaces `sl0` to `sl3` below: out of Edit mode only its own monitor's is there, not a full-screen copy on every monitor
     //  (~27 MB on the card each, drawing nothing but on one of them). See widget_place.luau.
@@ -102,7 +106,7 @@ scene DesktopSysmon {
     //  longer than the gap between two samples is still moving when the next one arrives, so it glides on at an even pace, and it only settles
     //  (and the scene rests) when the samples stop. `net_lag` is what is still to slide (about 1.5 at rest, 1 of it under the clip's edge); more than four samples behind (the card shown again
     //  after a while) it jumps instead of racing to catch up.
-    prop net_glide = 0 ~4000ms
+    prop net_glide = 0 ~3400ms
     let net_lag = net_step - net_glide
     follow net_glide = net_step
     on change net_step while net_lag > 4 { net_glide: net_step - 2 ~0ms }

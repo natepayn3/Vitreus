@@ -115,27 +115,27 @@ scene MyDrawer {
     //  What is inside arrives as the Control Center's does: one piece after another (each its own spring, the later ones slower), each rising a little as it
     //  fades in (they start 200 ms after the panel is out: a scene that was shut draws nothing, so its first frame is a long one and a spring started in it would be over at once; they go out at once). `shown` goes down while the panel is pulled or resized and comes back where it lands, so the content arrives again there. Give the pieces of
     //  your own content `opacity: en1` and `move: 0, (1 - en1) * 12` (and `en2`, `en3` for the ones that come after).
-    prop wk = 0 ~700ms                                // (moves while the content waits to arrive, so the scene keeps drawing frames: it draws none while shut)
-    prop en1 = 0 ~200ms
-    prop en2 = 0 ~380ms
-    prop en3 = 0 ~520ms
+    prop wk = 0 ~595ms                                // (moves while the content waits to arrive, so the scene keeps drawing frames: it draws none while shut)
+    prop en1 = 0 ~170ms
+    prop en2 = 0 ~323ms
+    prop en3 = 0 ~442ms
     on change here while here > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
-    on change here while here < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms; en3: 0 ~80ms after 205ms }
+    on change here while here < 0.5 { wk: 0 ~68ms; en1: 0 ~68ms; en2: 0 ~68ms; en3: 0 ~68ms; en1: 0 ~68ms after 205ms; en2: 0 ~68ms after 205ms; en3: 0 ~68ms after 205ms }
     every 500ms while here > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }     // (a scene that starts, or is saved, with its panel already out has no change to wait for)
     //  The same again, by the clock: a close whose change was never seen (the panel was shut in the frame the content was still arriving, or two says landed
     //  together) left `en1` at 1, so `shown` held and the content stayed drawn over bare wallpaper with the glass already gone. The rule above has always had
     //  this backstop for the way in; this is the one for the way out.
-    every 250ms while here < 0.5 and en1 > 0.004 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms }
+    every 250ms while here < 0.5 and en1 > 0.004 { wk: 0 ~68ms; en1: 0 ~68ms; en2: 0 ~68ms; en3: 0 ~68ms }
     //  The last frame has to be an empty one. When `shown` stops holding, the surface is closed and the scene stops painting, but what it painted last stays
     //  on the monitor: the content was left over bare wallpaper, the glass already gone. `tail` keeps the scene awake for a breath after the content has
     //  faded (`en1` is over in 80 ms, this in ~400), so the frames painted meanwhile are empty ones, and that is what stays.
-    prop tail = 0 ~400ms
+    prop tail = 0 ~340ms
     on change here while here > 0.5 { tail: 1 ~0ms }
-    on change here while here < 0.5 { tail: 0 ~400ms }
-    every 250ms while here < 0.5 and en1 < 0.004 and tail > 0.004 { tail: 0 ~400ms }
+    on change here while here < 0.5 { tail: 0 ~340ms }
+    every 250ms while here < 0.5 and en1 < 0.004 and tail > 0.004 { tail: 0 ~340ms }
     //  Where the content is: it glides to `slot_x`, `slot_y` on the glass's own spring (Vitreus's `ax_sp`), so it moves with the panel as it is pulled, and is put
     //  there at once while it is not drawn yet (the panel opening, or a resize).
-    spring ax_sp = 300, 20
+    spring ax_sp = 415, 24
     prop slx = 0 ~ax_sp
     prop sly = 0 ~ax_sp
     on change slot_x { slx: slot_x }

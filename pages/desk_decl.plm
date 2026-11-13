@@ -70,7 +70,7 @@ part DeskDecl {
     fact wv_mode = 0
     repeat i in 0..44 {
         fact wv.$i = 0
-        prop wv.$i.s = 0 ~90ms
+        prop wv.$i.s = 0 ~76ms
         follow wv.$i.s = wv.$i
     }
     event memo_del ->
@@ -118,7 +118,7 @@ part DeskDecl {
     text cam_msg = ""
     event cam_snap ->                                      // a photo: to Pictures, and onto the Shelf
     event cam_flip ->                                      // mirrored or not
-    prop cam_flash = 0 ~500ms
+    prop cam_flash = 0 ~425ms
     on cam_snap { cam_flash: 1 ~0ms; cam_flash: 0 after 40ms }
     //  From the desktop's right-click menu, the desktop editor and the launcher: the Desk on its Camera, or the Desk away if it is already there.
     on cam_toggle while desk_open and desk_tab == 8 { desk_open = false }
@@ -167,7 +167,7 @@ part DeskDecl {
     let pf_due = if(pf_which, pf_clk_b >= if(pf_ar_b > 0.32, 18, 12), pf_clk_a >= if(pf_ar_a > 0.32, 18, 12))
     on change pf_due while pf_due { emit pf_next }
     fact pf_which = false                                  // false: `pf_a` is the one shown
-    prop pf_mix = 0 ~1200ms
+    prop pf_mix = 0 ~1020ms
     follow pf_mix = if(pf_which, 1, 0)
     fact pf_has = false
     text pf_name = ""
@@ -184,14 +184,14 @@ part DeskDecl {
     event focus_task_done ->
 
     //  Motion: the dock's icons rise as they are pressed, the screen flashes faintly when the tool changes.
-    prop dk_flash = 0 ~420ms
+    prop dk_flash = 0 ~357ms
     //  The screen opens: an app out of the icon that was pressed (`ap_x`, `ap_y`; 0 when it was not an icon), Home as an app leaves.
     fact ap_x = 0
     fact ap_y = 0
     fact ap_home = false                                   // it opens from the home button (going Home) rather than from an icon
-    prop ap = 1 ~300ms
-    on change desk_tab { ap: 0 ~0ms; ap: 1 ~300ms after 30ms }
-    on change desk_edit { ap: 0 ~0ms; ap: 1 ~300ms after 30ms }          // Settings (Customize) opens and closes like an app
+    prop ap = 1 ~255ms
+    on change desk_tab { ap: 0 ~0ms; ap: 1 ~255ms after 30ms }
+    on change desk_edit { ap: 0 ~0ms; ap: 1 ~255ms after 30ms }          // Settings (Customize) opens and closes like an app
     on change desk_tab { dk_flash: 1 ~0ms; dk_flash: 0 after 40ms; desk_edit = false; shelf_menu = -1; clip_menu = -1 }
     //  The logic hears this when the Desk comes out or changes tool (a fact the logic sets itself does not reach its own handlers): Notes and the
     //  Pad read their files again then, so what another tool added to them (an answer kept as a note, a captured task) is there.
@@ -247,9 +247,9 @@ part DeskDecl {
     }
     //  Peek, petted (Home's `hm_peek`, the player's, `hm_peek2`, the slideshow's, and `md_peek`, the Media tab's): three hearts float up, one every half second, and it purrs (a small shake). Springs relaunched by rules
     //  that only run while the pointer is on it, so nothing keeps the scene painting once it stops being petted.
-    prop dh.0 = 1 ~1400ms
-    prop dh.1 = 1 ~1400ms
-    prop dh.2 = 1 ~1400ms
+    prop dh.0 = 1 ~1190ms
+    prop dh.1 = 1 ~1190ms
+    prop dh.2 = 1 ~1190ms
     prop dpk_wig = 0 ~pop
     follow dpk_wig = 0
     on enter hm_peek { dh.0: 0 ~0ms; dh.0: 1 after 20ms; dh.1: 0 ~0ms after 500ms; dh.1: 1 after 520ms; dh.2: 0 ~0ms after 1000ms; dh.2: 1 after 1020ms }

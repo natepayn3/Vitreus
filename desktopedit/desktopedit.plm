@@ -9,6 +9,8 @@ import "../palette-live.plm"
 //  The logic (desktopedit.luau) does what the tiles say, by telling Vitreus and the widgets' scenes.
 
 scene DesktopEdit {
+    //  Motion: pleamar's house springs, made about 18% quicker (stiffness x1.38, damping x1.18: the same overshoot, sooner).
+    spring calm = 208, 27
     surface { size: full, full; anchor: top_left; margin: 0; level: overlay; screens: each max 4; reserve: -1; keyboard: on_demand while open }
 
     permissions { run: "pleamar", "sh" }
@@ -79,12 +81,12 @@ scene DesktopEdit {
 
     //  Opens and closes as the dashboard does (vitreus.plm, pages/dashboard.plm): no slide, nothing overshoots. The shelf is there from the start just under the water and comes up
     //  through it, ripples run round its rim as it breaks the surface, and the tiles firm up one after another; closing runs it backwards, a little faster.
-    prop eo = 0 ~540ms                   // how much of it shows, and its size
-    prop ed_under = 1 ~780ms             // how much water is still over it (1 just under, 0 out)
-    prop ed_rq = 0 ~1000ms               // the ripples round its rim: how far they have run…
+    prop eo = 0 ~459ms                   // how much of it shows, and its size
+    prop ed_under = 1 ~663ms             // how much water is still over it (1 just under, 0 out)
+    prop ed_rq = 0 ~850ms               // the ripples round its rim: how far they have run…
     prop ed_rh = 0 ~1ms                  // …and how strong they started
     repeat i in 0..8 {
-        prop ec.$i = 0 ~420ms            // each tile firming up (the seventh is Done)
+        prop ec.$i = 0 ~357ms            // each tile firming up (the seventh is Done)
     }
     on change open while open {
         eo: 1 after 40ms
@@ -102,19 +104,19 @@ scene DesktopEdit {
         ec.7: 1 after 445ms
     }
     on change open while not open {
-        ec.7: 0 ~320ms
-        ec.6: 0 ~320ms after 30ms
-        ec.5: 0 ~320ms after 60ms
-        ec.4: 0 ~320ms after 90ms
-        ec.3: 0 ~320ms after 120ms
-        ec.2: 0 ~320ms after 150ms
-        ec.1: 0 ~320ms after 180ms
-        ec.0: 0 ~320ms after 210ms
-        ed_under: 1 ~585ms after 75ms
+        ec.7: 0 ~272ms
+        ec.6: 0 ~272ms after 30ms
+        ec.5: 0 ~272ms after 60ms
+        ec.4: 0 ~272ms after 90ms
+        ec.3: 0 ~272ms after 120ms
+        ec.2: 0 ~272ms after 150ms
+        ec.1: 0 ~272ms after 180ms
+        ec.0: 0 ~272ms after 210ms
+        ed_under: 1 ~497ms after 75ms
         ed_rq: 0 ~1ms
         ed_rh: 12
-        ed_rq: 1 ~750ms after 190ms
-        eo: 0 ~405ms after 250ms
+        ed_rq: 1 ~638ms after 190ms
+        eo: 0 ~344ms after 250ms
     }
     prop ob = 0 ~calm
     fact look = 0              // the shell's theme (Vitreus says so, as it does to the widgets): 1 Retro, 2 UwU, 4 Milkbox, 5 Proxy, 6 Paper draw the shelf as a plate of their own

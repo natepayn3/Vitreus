@@ -8,6 +8,8 @@ import "addon-theme.plm"                          // the theme's own pieces (PTh
 //  runs vitreus-eq, which does the filtering (PipeWire's filter-chain). Drag a band, right-click it to put it back to 0 dB.
 
 scene Equalizer {
+    //  Motion: pleamar's house springs, made about 18% quicker (stiffness x1.38, damping x1.18: the same overshoot, sooner).
+    spring calm = 208, 27
     surface { size: full, full; anchor: top_left; margin: 0; level: top, overlay while slot_open; screens: each max 4; open: shown > 0.5 }
 
     permissions {
@@ -80,24 +82,24 @@ scene Equalizer {
     spin ax_clk by if(shown > 0.5, 1, 0)
     let fr = if(shown > 0.5 and look < 4.5, floor(ax_clk * 8), 0)       // (the pencil holds still on the Proxy theme: its HUD is crisp)
 
-    prop wk = 0 ~700ms
-    prop en1 = 0 ~200ms
-    prop en2 = 0 ~380ms
-    prop en3 = 0 ~520ms
+    prop wk = 0 ~595ms
+    prop en1 = 0 ~170ms
+    prop en2 = 0 ~323ms
+    prop en3 = 0 ~442ms
     on change here while here > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
-    on change here while here < 0.5 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms; en1: 0 ~80ms after 205ms; en2: 0 ~80ms after 205ms; en3: 0 ~80ms after 205ms }
+    on change here while here < 0.5 { wk: 0 ~68ms; en1: 0 ~68ms; en2: 0 ~68ms; en3: 0 ~68ms; en1: 0 ~68ms after 205ms; en2: 0 ~68ms after 205ms; en3: 0 ~68ms after 205ms }
     every 500ms while here > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
     //  The same again, by the clock: a close whose change was never seen (the panel was shut in the frame the content was still arriving, or two says landed
     //  together) left `en1` at 1, so `shown` held and the content stayed drawn over bare wallpaper with the glass already gone. The rule above has always had
     //  this backstop for the way in; this is the one for the way out.
-    every 250ms while here < 0.5 and en1 > 0.004 { wk: 0 ~80ms; en1: 0 ~80ms; en2: 0 ~80ms; en3: 0 ~80ms }
+    every 250ms while here < 0.5 and en1 > 0.004 { wk: 0 ~68ms; en1: 0 ~68ms; en2: 0 ~68ms; en3: 0 ~68ms }
     //  The last frame has to be an empty one. When `shown` stops holding, the surface is closed and the scene stops painting, but what it painted last stays
     //  on the monitor: the content was left over bare wallpaper, the glass already gone. `tail` keeps the scene awake for a breath after the content has
     //  faded (`en1` is over in 80 ms, this in ~400), so the frames painted meanwhile are empty ones, and that is what stays.
-    prop tail = 0 ~400ms
+    prop tail = 0 ~340ms
     on change here while here > 0.5 { tail: 1 ~0ms }
-    on change here while here < 0.5 { tail: 0 ~400ms }
-    every 250ms while here < 0.5 and en1 < 0.004 and tail > 0.004 { tail: 0 ~400ms }
+    on change here while here < 0.5 { tail: 0 ~340ms }
+    every 250ms while here < 0.5 and en1 < 0.004 and tail > 0.004 { tail: 0 ~340ms }
 
     //  What eq.luau reports: whether the EQ is on, which preset is lit (-1: your own curve), what to say under the name, and the ten gains in dB.
     fact eq_on = 0
@@ -105,8 +107,8 @@ scene Equalizer {
     text status = "Off"
     fact held = -1
     shader glint = file "glint.wgsl"                   // the band of light that crosses the glass now and then
-    prop sw = 0 ~1300ms                                // how far across it is (0 to 1)
-    every 3500ms while shown > 0.5 { sw: 1 ~1300ms; sw: 0 ~0ms after 1700ms }
+    prop sw = 0 ~1105ms                                // how far across it is (0 to 1)
+    every 3500ms while shown > 0.5 { sw: 1 ~1105ms; sw: 0 ~0ms after 1700ms }
     fact bend = 1                                     // 1: the glass bends what is behind it; 0: it only blurs (cheaper): `pleamar --say equalizer "fact bend 0"`
     event eq_toggle ->
     event preset ->
@@ -133,41 +135,41 @@ scene Equalizer {
     repeat i in 0..10 {
         fact lv.$i = 0
         fact pk.$i = 0
-        prop ls.$i = 0 ~90ms
-        prop ps.$i = 0 ~140ms
-        prop fl.$i = 0 ~160ms
-        prop gs.$i = 0 ~140ms
+        prop ls.$i = 0 ~76ms
+        prop ps.$i = 0 ~119ms
+        prop fl.$i = 0 ~136ms
+        prop gs.$i = 0 ~119ms
         follow gs.$i = g.$i
         follow ls.$i = lv.$i
         follow ps.$i = pk.$i
     }
     on change eq_on while eq_on > 0.5 {
-        fl.0: 1 ~70ms after 0ms
-        fl.0: 0 ~420ms after 120ms
-        fl.1: 1 ~70ms after 45ms
-        fl.1: 0 ~420ms after 165ms
-        fl.2: 1 ~70ms after 90ms
-        fl.2: 0 ~420ms after 210ms
-        fl.3: 1 ~70ms after 135ms
-        fl.3: 0 ~420ms after 255ms
-        fl.4: 1 ~70ms after 180ms
-        fl.4: 0 ~420ms after 300ms
-        fl.5: 1 ~70ms after 225ms
-        fl.5: 0 ~420ms after 345ms
-        fl.6: 1 ~70ms after 270ms
-        fl.6: 0 ~420ms after 390ms
-        fl.7: 1 ~70ms after 315ms
-        fl.7: 0 ~420ms after 435ms
-        fl.8: 1 ~70ms after 360ms
-        fl.8: 0 ~420ms after 480ms
-        fl.9: 1 ~70ms after 405ms
-        fl.9: 0 ~420ms after 525ms
+        fl.0: 1 ~60ms after 0ms
+        fl.0: 0 ~357ms after 120ms
+        fl.1: 1 ~60ms after 45ms
+        fl.1: 0 ~357ms after 165ms
+        fl.2: 1 ~60ms after 90ms
+        fl.2: 0 ~357ms after 210ms
+        fl.3: 1 ~60ms after 135ms
+        fl.3: 0 ~357ms after 255ms
+        fl.4: 1 ~60ms after 180ms
+        fl.4: 0 ~357ms after 300ms
+        fl.5: 1 ~60ms after 225ms
+        fl.5: 0 ~357ms after 345ms
+        fl.6: 1 ~60ms after 270ms
+        fl.6: 0 ~357ms after 390ms
+        fl.7: 1 ~60ms after 315ms
+        fl.7: 0 ~357ms after 435ms
+        fl.8: 1 ~60ms after 360ms
+        fl.8: 0 ~357ms after 480ms
+        fl.9: 1 ~60ms after 405ms
+        fl.9: 0 ~357ms after 525ms
     }
     let energy = (ls.0 + ls.1 + ls.2 + ls.3 + ls.4 + ls.5 + ls.6 + ls.7 + ls.8 + ls.9) / 10
 
     //  Where the content is: it glides to `slot_x`, `slot_y` on the glass's own spring (Vitreus's `ax_sp`), so it moves with the panel as it is pulled, and is put
     //  there at once while it is not drawn yet (the panel opening, or a resize).
-    spring ax_sp = 300, 20
+    spring ax_sp = 415, 24
     prop slx = 0 ~ax_sp
     prop sly = 0 ~ax_sp
     on change slot_x { slx: slot_x }
