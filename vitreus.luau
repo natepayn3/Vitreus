@@ -2028,21 +2028,52 @@ local function show_month(y, m, sel)
     paint_calendar()
 end
 
+--  Changing month is animated by the scene: it is told which way (`cal_leave`, -1 back, 1 forward) and slides the grid out, then the
+--  new month is painted and `cal_flip` slides it in from the other side. The month being gone to is kept apart (`cal_to`), so a run
+--  of presses counts from the last one, and only the last paints.
+cal_to = { y = nil, m = nil, seq = 0, wheel = 0 }
+function cal_go(y, m, sel)
+    local fy, fm = cal_to.y or cal.year, cal_to.m or cal.month
+    local dir = (y * 12 + m) - (fy * 12 + fm)
+    if dir == 0 and cal_to.y == nil then show_month(y, m, sel) return end
+    dir = dir > 0 and 1 or (dir < 0 and -1 or -(cal_to.last or 1))     -- (back where a run of presses started: it comes back the way it went)
+    cal_to.last = dir
+    cal_to.y, cal_to.m = y, m
+    cal_to.seq = cal_to.seq + 1
+    local my = cal_to.seq
+    emit("cal_leave", dir)
+    after(150, function()
+        if my ~= cal_to.seq then return end
+        cal_to.y, cal_to.m = nil, nil
+        show_month(y, m, sel)
+        emit("cal_flip", dir)
+    end)
+end
 local function open_today()
     local y, m, d = today()
+    cal_to.y, cal_to.m = nil, nil
+    cal_to.seq = cal_to.seq + 1
     show_month(y, m, key(y, m, d))
 end
 on("cal_open", open_today)
-on("cal_today", open_today)
-on("cal_prev", function()
-    local y, m = cal.year, cal.month - 1
-    if m < 1 then y, m = y - 1, 12 end
-    show_month(y, m)
+on("cal_today", function()
+    local y, m, d = today()
+    cal_go(y, m, key(y, m, d))
 end)
-on("cal_next", function()
-    local y, m = cal.year, cal.month + 1
+function cal_step(n)
+    local y, m = cal_to.y or cal.year, (cal_to.m or cal.month) + n
+    if m < 1 then y, m = y - 1, 12 end
     if m > 12 then y, m = y + 1, 1 end
-    show_month(y, m)
+    cal_go(y, m)
+end
+on("cal_prev", function() cal_step(-1) end)
+on("cal_next", function() cal_step(1) end)
+--  The wheel over the month: one month a notch, at most one every 180 ms (a touchpad sends a stream).
+on("cal_wheel", function(dy)
+    local now = os.clock()
+    if now - cal_to.wheel < 0.18 then return end
+    cal_to.wheel = now
+    cal_step((dy or 0) > 0 and -1 or 1)
 end)
 --  A day of the grid: chosen; if it belongs to the month before or after, that month comes in.
 on("cal_pick", function(k)
@@ -2059,7 +2090,7 @@ on("cal_pick", function(k)
         m = m + 1
         if m > 12 then y, m = y + 1, 1 end
     end
-    show_month(y, m, key(y, m, n))
+    if y == cal.year and m == cal.month then show_month(y, m, key(y, m, n)) else cal_go(y, m, key(y, m, n)) end
 end)
 
 --  «3:30pm Call mom», «3pm call», «15:30 dentist», «18h gym», «18.30 dinner»;
@@ -5660,6 +5691,81 @@ end
 local function wx_round(x) return math.floor(x + 0.5) end
 local function urlenc(s) return (s:gsub("[^%w%-_%.~]", function(c) return string.format("%%%02X", c:byte()) end)) end
 
+--  The sky over the calendar: where the sun is between sunrise and sunset (0 to 1), how much daylight there is (0 night, 1 day, the twilight in between),
+--  the moon's phase, and the next 24 hours of temperature. Worked out again every few minutes, so the sun crosses the card through the day.
+wx_sky = { rise = nil, set = nil, hours = nil }
+function wx_sky.hm(iso)          -- "2026-11-14T07:12" -> minutes since midnight
+    local h, m = tostring(iso or ""):match("T(%d+):(%d+)")
+    if not h then return nil end
+    return tonumber(h) * 60 + tonumber(m)
+end
+function wx_sky.clock(mins)
+    local h, m = math.floor(mins / 60), math.floor(mins % 60)
+    local h12 = h % 12
+    if h12 == 0 then h12 = 12 end
+    return string.format("%d:%02d %s", h12, m, h < 12 and "am" or "pm")
+end
+function wx_sky_tick()
+    local t = os.date("*t")
+    local now = t.hour * 60 + t.min + t.sec / 60
+    local r, st = wx_sky.rise, wx_sky.set
+    if r and st and st > r then
+        fact.wx_sun = math.max(0, math.min(1, (now - r) / (st - r)))
+        local edge = math.min(now - r, st - now)              -- minutes into the day from the nearer end (negative at night)
+        fact.wx_dl = math.max(0, math.min(1, (edge + 35) / 70))
+    else
+        fact.wx_sun = 0.5
+        fact.wx_dl = (t.hour >= 7 and t.hour < 18) and 1 or 0
+    end
+    --  The moon: days since a known new moon (2000-01-06 18:14 UTC), over the synodic month.
+    local days = (os.time() - 947182440) / 86400
+    fact.wx_moon = (days / 29.530588853) % 1
+    --  The hours: from the one we are in, 25 of them.
+    local hrs = wx_sky.hours
+    if type(hrs) == "table" and type(hrs.time) == "table" then
+        local stamp = string.format("%04d-%02d-%02dT%02d:00", t.year, t.month, t.day, t.hour)
+        local first = 1
+        for i, ts in ipairs(hrs.time) do if ts == stamp then first = i break end end
+        local rows, lo, hi = {}, 1e9, -1e9
+        for j = 0, 24 do
+            local i = first + j
+            local v = hrs.temperature_2m and hrs.temperature_2m[i]
+            if type(v) ~= "number" then break end
+            local hh = tonumber(tostring(hrs.time[i]):match("T(%d+)")) or 0
+            local h12 = hh % 12
+            if h12 == 0 then h12 = 12 end
+            rows[#rows + 1] = {
+                t = v, deg = wx_round(v) .. "°",
+                label = j == 0 and "Now" or (h12 .. (hh < 12 and "a" or "p")),
+                kind = wx_kind((hrs.weather_code and hrs.weather_code[i]) or 3),
+                p = (hrs.precipitation_probability and hrs.precipitation_probability[i]) or 0,
+            }
+            lo, hi = math.min(lo, v), math.max(hi, v)
+        end
+        if #rows > 1 then
+            model.wx_hrs = rows
+            fact.wx_hlo = lo
+            fact.wx_hhi = hi
+            fact.wx_hn = #rows
+        end
+    end
+end
+function wx_sky_take(w)
+    local dd = w.daily or {}
+    wx_sky.rise = wx_sky.hm(dd.sunrise and dd.sunrise[1])
+    wx_sky.set = wx_sky.hm(dd.sunset and dd.sunset[1])
+    text.wx_rise = wx_sky.rise and wx_sky.clock(wx_sky.rise) or "—"
+    text.wx_set = wx_sky.set and wx_sky.clock(wx_sky.set) or "—"
+    wx_sky.hours = w.hourly
+    local c = w.current or {}
+    fact.wx_wind_n = type(c.wind_speed_10m) == "number" and c.wind_speed_10m or 5
+    if type(c.wind_direction_10m) == "number" then
+        -- which way the clouds drift across the card: wind from the west (270) pushes them right
+        fact.wx_wdir = math.sin(math.rad(c.wind_direction_10m)) > 0 and -1 or 1
+    end
+    wx_sky_tick()
+end
+
 local function wx_show(w)
     if type(w) ~= "table" or type(w.current) ~= "table" or type(w.daily) ~= "table" then return false end
     local sym = wx_cfg.units == "celsius" and "°C" or "°F"
@@ -5695,6 +5801,21 @@ local function wx_show(w)
         }
     end
     model.wx_days = rows
+    --  The calendar's sky: each day's high and low as numbers (the week's range bars), the hours ahead (its temperature curve), and where the sun is.
+    local wlo, whi = 1e9, -1e9
+    for i = 1, #rows do
+        local hn, ln = dd.temperature_2m_max[i] or 0, dd.temperature_2m_min[i] or 0
+        rows[i].hn, rows[i].ln = hn, ln
+        rows[i].pop = type(pp) == "table" and pp[i] or 0
+        rows[i].desc = WX_DESC[dd.weather_code[i] or 3] or ""
+        local y, m, d = tostring(dd.time[i] or ""):match("^(%d+)-(%d+)-(%d+)$")
+        rows[i].full = i == 1 and "Today" or (y and os.date("%A", os.time({ year = tonumber(y), month = tonumber(m), day = tonumber(d), hour = 12 })) or rows[i].label)
+        rows[i].popt = math.floor((rows[i].pop or 0) + 0.5) .. "%"
+        wlo, whi = math.min(wlo, ln), math.max(whi, hn)
+    end
+    if #rows > 0 then fact.wx_wlo = wlo; fact.wx_whi = whi end
+    model.wx_days = rows
+    wx_sky_take(w)
     fact.wx_ok = true
     if addon_push_wx then addon_push_wx() end
     return true
@@ -5716,7 +5837,8 @@ end
 local function wx_forecast(d)
     local unit = wx_cfg.units == "celsius" and "celsius" or "fahrenheit"
     local url = "https://api.open-meteo.com/v1/forecast?latitude=" .. wx_loc.lat .. "&longitude=" .. wx_loc.lon
-        .. "&current=temperature_2m,weather_code,apparent_temperature,relative_humidity_2m,wind_speed_10m,wind_direction_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+        .. "&current=temperature_2m,weather_code,is_day,apparent_temperature,relative_humidity_2m,wind_speed_10m,wind_direction_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset"
+        .. "&hourly=temperature_2m,weather_code,precipitation_probability&forecast_hours=48"
         .. "&wind_speed_unit=" .. (unit == "celsius" and "kmh" or "mph") .. "&temperature_unit=" .. unit .. "&timezone=auto&forecast_days=7"
     run("curl", { "-s", "-L", "--max-time", "10", "-o", d.data .. "/wx.json", url }, function(_, code)
         wx_done(code == 0 and wx_show(wx_read("wx.json")))
@@ -5738,9 +5860,11 @@ function wx_refresh_now()
                 local g = r.results[1]
                 lat, lon = g.latitude, g.longitude
                 text.wx_name = tostring(g.name or loc) .. (g.admin1 and (", " .. g.admin1) or "") .. ((g.country_code and g.country_code ~= "US") and (", " .. g.country_code) or "")
+                text.wx_place = tostring(g.name or loc)
             elseif r and loc == "" and r.success then
                 lat, lon = r.latitude, r.longitude
                 text.wx_name = "Automatic · " .. tostring(r.city or "by your IP")
+                text.wx_place = tostring(r.city or "Here")
             elseif r and loc ~= "" then
                 text.wx_name = "Not found"
                 wx_done(true)              -- nothing to retry (a place that is not there stays not there), but a change made meanwhile is still asked for
@@ -5789,6 +5913,7 @@ on("wx_units_set", function(i)
 end)
 wx_refresh_now()
 every(1800000, wx_refresh_now)           -- every half hour
+every(120000, function() pcall(wx_sky_tick) end)   -- the sun and the hours move on between fetches
 end
 
 -- ── Settings > Hyprland ───────────────────────────────────────────────────────────────────────────────────────

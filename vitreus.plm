@@ -82,7 +82,7 @@ scene Vitreus {
     //  `cdk_on and ws_empty` held every loan on both copies, and the cursor stuck again.
     //  `rate:` is the rate chosen in Settings > Display (`bar_fps`), or 60 while the music moves the frame (its ripple and waves). There is no idle cap: a scene with nothing
     //  moving paints nothing, so a cap only ever slowed what was moving (the notches, the drawers, the bar's hovers each needed an exemption from the old 12 a second).
-    surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on), 60 while (media.playing and fw_on) or bar_fps == 60; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
+    surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on) and not sky.calm, 60 while ((media.playing and fw_on) or bar_fps == 60) and not sky.calm, 30 while sky.calm; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
     permissions { services: "say:*", "files", "files.write", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe" }
 
@@ -1056,7 +1056,26 @@ scene Vitreus {
     text wx_hum = ""
     text wx_wind = ""
     text wx_rain = ""                 // today's chance of rain
-    model wx_days max 7 { label: text; kind: number; hi: text; lo: text; today: bool }
+    model wx_days max 7 { label: text; kind: number; hi: text; lo: text; today: bool; hn: number; ln: number; pop: number; popt: text; desc: text; full: text }
+    //  The calendar's sky (pages/panel_frame.plm, sky.wgsl): where the sun is between sunrise and sunset (0..1), how much daylight (0 night .. 1 day),
+    //  the moon's phase (0 new, 0.5 full), the wind, the week's coldest low and warmest high, and the next 25 hours of temperature.
+    fact wx_sun = 0.5
+    fact wx_dl = 1
+    fact wx_moon = 0.5
+    fact wx_wind_n = 5
+    fact wx_wdir = 1
+    fact wx_wlo = 0
+    fact wx_whi = 1
+    fact wx_hlo = 0
+    fact wx_hhi = 1
+    fact wx_hn = 0
+    text wx_rise = ""
+    text wx_place = ""                 // the place, as the card shows it
+    text wx_set = ""
+    model wx_hrs max 25 { t: number; deg: text; label: text; kind: number; p: number }
+    event cal_leave                    // the logic: the month is about to change, this way (-1 back, 1 forward)
+    event cal_flip                     // the logic: the new month is painted, slide it in
+    event cal_wheel ->                 // the wheel over the month
     //  Settings > VPN > Weather: where the forecast is for. A city or a ZIP code, typed there (not found by IP, which under a VPN is the VPN's).
     text wx_in = ""                    // the field
     text wx_name = ""                  // the place it resolved to, or what went wrong
@@ -1199,6 +1218,7 @@ scene Vitreus {
 
     //  The colours live in palette-live.plm (ink, faint, mint, tint…); only the veil is the scene's.
     let veil  = 8%
+    let card_fill = 78%                          // a card with something on it is less see-through than its panel: this much of the shell's own dark tint is laid under its veil (glass only; the opaque themes have their own plates)
     let hair = 14%                               // the Settings cards' hairline edge
     let glyph_a = 0.4 * (1 - uwu_k)              // how strong the little marks on the toggle knobs are: kept subtle
 
@@ -1207,6 +1227,7 @@ scene Vitreus {
     shader matrix = file "matrix.wgsl"                  // the Cyber theme's digital rain
     shader paper = file "paper.wgsl"                    // the Paper theme's worn sheet: rubbed edges, fibres, specks
     shader halftone = file "halftone.wgsl"              // the UwU theme's pop-art dots and corner tape
+    shader sky = file "sky.wgsl"                        // the calendar's weather card: the real sky outside, moving
     shader pencilhatch = file "pencilhatch.wgsl"            // the pencil shading inside the sliders (PSlider)
     //  The frosting behind the glass, as wide as the Glass page's blur slider says (`hy_blur`, 0 to 20; 0 is off): see blur.wgsl.
     blur = file "blur.wgsl" {
@@ -1228,7 +1249,13 @@ scene Vitreus {
     //  the refresh's pace; it goes back to that pace the moment something opens. (Not the wallpaper copy instead: switching the lens's source
     //  drops what it has, and the glass would show unbent for a moment each time a panel opened.)
     let lens.idle = glass_rest and bar_frame and panel == none and dc < 0.01 and dk < 0.01 and dm < 0.01 and ds < 0.01 and dl < 0.01 and dax < 0.01 and do < 0.01 and not desk_open and not dash_open and not ov_open and not wp_picker_open and not pk_open and not ax_open and not fr_hov and dk_lv < 0.02 and ws_lv < 0.02 and bar_lv < 0.02
-    lens every if(lens.idle, max(lens_interval_ms, 2000), lens_interval_ms) * 1ms
+    //  The calendar open and settled: its weather card's sky moves without rest, and every frame of ours painted would otherwise ask for a capture at the
+    //  refresh's pace (a whole monitor each, 60 a second at 16 ms). What is behind a still panel rarely moves, so it looks at most every 120 ms meanwhile.
+    let lens.sky = panel == calendar and dash_tab == dtab_cal and dc > 0.99 and f4 > 0.99
+    //  ...and while nothing on it moves but the sky (no month sliding, no day's bubble travelling, nothing coming in), the whole shell paints at 30 a
+    //  second (`rate:` on the surface): clouds and rain need no more, and a moving sky at the monitor's pace cost a whole core. Anything else moving brings it back.
+    let sky.calm = lens.sky and cal_out < 0.005 and cal_inn < 0.005 and abs(vel(cal_bx)) < 0.02 and abs(vel(cal_by)) < 0.02 and cal_rip > 0.995 and wx_in > 0.995 and abs(vel(sk.cl)) < 0.01 and abs(vel(sk.dl)) < 0.01
+    lens every if(lens.idle, max(lens_interval_ms, 2000), if(sky.calm, max(lens_interval_ms, 500), if(lens.sky, max(lens_interval_ms, 120), lens_interval_ms))) * 1ms
     spring dripl = 180, 16        // the drip down the left: settles in under half a second, still swinging about 10% past where it lands (the neck's stretch is scaled to match: `dj.stretch`)
     spring drip = 235, 21         // underdamped: it overshoots and settles back, like a real drop landing
     spring pop = 415, 14         // snappier and much less damped: a toggle knob popping past where it lands
@@ -1259,6 +1286,36 @@ scene Vitreus {
     prop f2    = 0 ~323ms
     prop f3    = 0 ~442ms
     prop f4    = 0 ~323ms          // the calendar's second stage
+    //  The calendar's weather card and month (pages/panel_frame.plm). `wx_hv` is the day of the week under the pointer (-1 none): the sky turns into that day's.
+    //  The sky's weather is a set of weights that travel, so one sky melts into the next: clouds, rain, snow, fog, storm, the daylight and the sun's place.
+    fact wx_hv = -1
+    prop wx_in = 0 ~1100ms          // the card coming in, each time the calendar opens: the temperature's digits, the hours' curve, the week
+    prop sk.cl = 0.5 ~900ms
+    prop sk.rn = 0 ~900ms
+    prop sk.sn = 0 ~900ms
+    prop sk.fg = 0 ~900ms
+    prop sk.st = 0 ~900ms
+    prop sk.dl = 1 ~1200ms
+    prop sk.sun = 0.5 ~1200ms
+    let sk.vk = if(wx_hv >= 0, wx_days[wx_hv].kind, wx_kind)
+    follow sk.cl = pick(sk.vk, 0.04, 0.5, 0.96, 0.55, 0.88, 0.8, 1)
+    follow sk.rn = if(sk.vk == 4 or sk.vk == 6, 1, 0)
+    follow sk.sn = if(sk.vk == 5, 1, 0)
+    follow sk.fg = if(sk.vk == 3, 1, 0)
+    follow sk.st = if(sk.vk == 6, 1, 0)
+    follow sk.dl = if(wx_hv >= 0, 1, wx_dl)
+    follow sk.sun = if(wx_hv >= 0, 0.5, wx_sun)
+    //  The month changing: the grid leaves one way (`cal_out` 0 to 1) and the new one comes in from the other (`cal_inn` 1 to 0), cell by cell.
+    fact cal_dir = 1
+    prop cal_out = 0 ~140ms
+    prop cal_inn = 0 ~700ms
+    prop cal_bx = 0 ~lively         // the chosen day's bubble: it travels from day to day
+    prop cal_by = 0 ~lively
+    prop cal_rip = 1 ~650ms         // the ring a pressed day sends out
+    //  The calendar's own clock: its sky, its rain and its two pulses read this, not the scene's `time`, which turning would make the whole shell
+    //  work every frame (everything that names `time` is looked at again). It turns only while the Calendar tab is out.
+    prop sk.t = 0
+    spin sk.t by if(dc > 0.01 and dash_tab == dtab_cal, 1, 0)
     prop f5    = 0 ~527ms          // the controls drawer, third in: brightness
     prop f6    = 0 ~595ms          // fourth: wifi
     prop f7    = 0 ~663ms          // fifth: bluetooth
@@ -3689,16 +3746,17 @@ scene Vitreus {
     }
 
     //  A plate of the dashboard's tabs: the same three layers as every other card (the obsidian one, the doodle one, the veil).
-    component DmPlate(cx: number, cy: number, w: number, h: number, sd: number, k: number = 1, r: number = -1) {
+    component DmPlate(cx: number, cy: number, w: number, h: number, sd: number, k: number = 1, r: number = -1, deep: number = 1) {
         body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k) * k; border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: cx, cy; size: w, h; corner: if(r < 0, pr, r) } }
         DdCard(cx, cy, w, h, sd, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k * k, cu) { show: dd_k > 0.004 and (obs > 0.004) }
+        box { at: cx, cy; size: w, h; corner: if(r < 0, pr, r); color: obsidian; opacity: card_fill * (1 - obs) * k * deep }      // the card's deeper backing (see `card_fill`); not under the bar's pieces (`deep` 0)
         box { at: cx, cy; size: w, h; corner: if(r < 0, pr, r); color: ink; opacity: (veil) * (1 - obs) * k }
         box { at: cx, cy; size: w, h; corner: if(r < 0, pr, r); stroke: 1 * u; color: ink; opacity: hair * (1 - dd_k) * k }
     }
 
     //  A card behind a group of the bar's pieces: the dashboard's plate, a tint of the accent over it, `k` how far it is there. No outline.
     component BarCard(cx: number, cy: number, w: number, h: number, sd: number, k: number) {
-        DmPlate(cx, cy, w, h, sd, k)
+        DmPlate(cx, cy, w, h, sd, k, -1, 0)
         box { at: cx, cy; size: w, h; corner: pr; color: mint; opacity: 10% * k }
     }
 
@@ -6011,7 +6069,7 @@ scene Vitreus {
     //  The Media tab: the player's card made larger (148 by 1.48).
     let md_ch = 219
     let dm_foot = 11.5                              // the room under the last row: the same as at its sides (about 19.5), not 16, which came out a few more
-    follow dc_h = if(dash_tab == dtab_cal, 424, if(dash_tab == dtab_med, 52 + md_ch + 24, panel_bot + 24))
+    follow dc_h = if(dash_tab == dtab_cal, 508, if(dash_tab == dtab_med, 52 + md_ch + 24, panel_bot + 24))
     //  The tray menu: the app's plate (8..60), Open and Alt (66..92), then its menu from 100 (or a line saying it has none).
     let tm.list = min(tm_h, 224)
     let tm_bot = 100 + if(tm_has_menu, tm.list, 30) + 8
