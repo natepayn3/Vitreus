@@ -665,6 +665,13 @@ local function nt_when(t)
     return os.date("%b ", t) .. d.day
 end
 
+-- A notification's whole message, for a row opened to read it: line breaks kept, blank runs squeezed to one.
+local function nt_full(body)
+    local full = ((body or ""):gsub("\r", ""):gsub("[ \t]+\n", "\n"):gsub("\n\n\n+", "\n\n"):gsub("^%s+", ""):gsub("%s+$", ""))
+    if #full > 3000 then full = full:sub(1, 3000) .. "…" end
+    return full
+end
+
 local function nt_render()
     local rows = {}
     for i, h in ipairs(nt_hist) do
@@ -672,6 +679,7 @@ local function nt_render()
         -- one line each: a body with line breaks (a list) would otherwise spill over the row under it
         local title = ((h.title or ""):gsub("%s+", " "))
         local body = ((h.body or ""):gsub("%s+", " "))
+        -- the whole of it, for a row opened to read it: line breaks kept, blank runs squeezed to one
         rows[i] = { title = title, sub = body ~= "" and (h.app .. "  ·  " .. body) or h.app, when = nt_when(h.t) }
     end
     model.nt_hist = rows
@@ -1021,6 +1029,22 @@ on("nt_clear", function()
     nt_save()
     nt_render()
     dnd_refresh()
+end)
+-- The dashboard's notification opened to read it all: its whole title, app and message.
+-- The Notifications page's row opened to read it all.
+on("fact:nt_px", function(i)
+    local h = i and i >= 0 and nt_hist[i + 1]
+    if not h then return end
+    text.nt_popen_title = ((h.title or ""):gsub("%s+", " "))
+    text.nt_popen_app = h.app or ""
+    text.nt_popen_body = nt_full(h.body)
+end)
+on("fact:nt_dx", function(i)
+    local h = i and i >= 0 and nt_hist[i + 1]
+    if not h then return end            -- closed: the texts stay while it fades
+    text.nt_open_title = ((h.title or ""):gsub("%s+", " "))
+    text.nt_open_app = h.app or ""
+    text.nt_open_body = nt_full(h.body)
 end)
 on("nt_hist_del", function(i)
     table.remove(nt_hist, i + 1)

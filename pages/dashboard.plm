@@ -726,9 +726,9 @@ part Dashboard {
                 //  Under the header's buttons (a zone declared later is on top), the wheel scrolls the list.
                 let dDv.t = dD.t + 62                                          // where the list shows, top and height
                 let dDv.h = dD.h - 62 - 10
-                let dDv.c = nt_hist.count * 64                                 // all of it
+                let dDv.c = nt_hist.count * 64 + nt_dxh                        // all of it (with a row opened to read it)
                 zone box dsh_ntw { from: dD.l, dD.t; size: dD.w, dD.h; corner: 26; active: dash_open }
-                on scroll dsh_ntw { nt_to = clamp(nt_to - wheel * 48, 0, max(0, nt_hist.count * 64 - (dD.h - 72) + 4)) }
+                on scroll dsh_ntw { nt_to = clamp(nt_to - wheel * 48, 0, max(0, nt_hist.count * 64 + nt_dxh - (dD.h - 72) + 4)) }
                 text "Notifications" { at: dD.l + 22, dD.t + 32; anchor: left center; size: 16; weight: 600; family: "Space Grotesk"; color: ink }
                 ellipse { at: dD.l + dD.w - 34, dD.t + 32; radius: 17; color: if(dnd_on, mint, ink); opacity: if(dnd_on, 0.9, 0.07 + 0.1 * dsh_dnd.hover) }
                 group { group { show: true; GBell(dD.l + dD.w - 34, dD.t + 32, if(dnd_on, 1, 0), (17) / 24, if(dnd_on, onmint, ink), 1, 0) } }
@@ -744,23 +744,39 @@ part Dashboard {
                 group {
                     clip inset 0 box { from: dD.l + 8, dDv.t; size: dD.w - 16, dDv.h; corner: 18 }
                     repeat i in 0..30 {
-                        let dDi.y = dDv.t + 4 + i * 64 - nt_s
+                        let dDi.y = dDv.t + 4 + i * 64 - nt_s + if(nt_dxl >= 0 and i > nt_dxl, nt_dxh, 0)
+                        let dDi.h = 56 + if(i == nt_dxl, nt_dxh, 0)                  // taller while it is open to read
+                        let dDi.o = if(i == nt_dxl, nt_dxo, 0)                       // how open it is
                         let dDi.sx = if(nt_sw == i, nt_swp, 0)                    // swept along by a drag to the right
                         group {
-                            show: nt_hist.count > i and dDi.y + 56 > dDv.t and dDi.y < dDv.t + dDv.h
+                            show: nt_hist.count > i and dDi.y + dDi.h > dDv.t and dDi.y < dDv.t + dDv.h
                             move: dDi.sx + if(i == 0, (1 - nt_in) * -36, 0), 0
                             opacity: (1 - clamp(dDi.sx / 220, 0, 1)) * if(i == 0, nt_in, 1)
-                            box { from: dD.l + 14, dDi.y; size: dD.w - 28, 56; corner: 16; color: ink; opacity: 0.05 + 0.04 * clamp(dDi.sx / 90, 0, 1) }
+                            box { from: dD.l + 14, dDi.y; size: dD.w - 28, dDi.h; corner: 16; color: ink; opacity: 0.05 + 0.04 * clamp(dDi.sx / 90, 0, 1) + 0.03 * dDi.o + 0.04 * dsh_ntr.$i.hover }
                             ellipse { at: dD.l + 30, dDi.y + 18; radius: 3.5; color: mint; opacity: 0.9 }
-                            text nt_hist.$i.title { at: dD.l + 42, dDi.y + 18; anchor: left center; size: 14; weight: 600; width: dD.w - 110; lines: 1; family: "Space Grotesk"; color: ink }
+                            text nt_hist.$i.title { at: dD.l + 42, dDi.y + 18; anchor: left center; size: 14; weight: 600; width: dD.w - 110; lines: 1; family: "Space Grotesk"; color: ink; opacity: 1 - dDi.o }
                             text nt_hist.$i.when { at: dD.l + dD.w - 26, dDi.y + 18; anchor: right center; size: 11; family: "Space Grotesk"; color: faint }
-                            text nt_hist.$i.sub { at: dD.l + 42, dDi.y + 38; anchor: left center; size: 12.5; width: dD.w - 70; lines: 1; family: "Space Grotesk"; color: faint }
+                            text nt_hist.$i.sub { at: dD.l + 42, dDi.y + 38; anchor: left center; size: 12.5; width: dD.w - 70; lines: 1; family: "Space Grotesk"; color: faint; opacity: 1 - dDi.o }
                         }
-                        zone box dsh_ntr.$i { from: dD.l + 14, dDi.y; size: dD.w - 28, 56; corner: 16; active: dash_open and nt_hist.count > i and dDi.y > dDv.t - 20 and dDi.y + 56 < dDv.t + dDv.h + 20; label: "Notification: drag right to dismiss" }
+                        zone box dsh_ntr.$i { from: dD.l + 14, max(dDi.y, dDv.t); size: dD.w - 28, clamp(min(dDi.y + dDi.h, dDv.t + dDv.h) - max(dDi.y, dDv.t), 0, 2000); corner: 16; cursor: pointer; active: dash_open and nt_hist.count > i and dDi.y + dDi.h > dDv.t and dDi.y < dDv.t + dDv.h; label: "Notification: press to read it all, drag right to dismiss" }
+                        //  A press let go where it was opens it to read it all (or closes it); the guards read the frame before, so only one of them runs.
+                        on release dsh_ntr.$i while nt_swx < 6 and nt_dx == i { nt_dx = -1 }
+                        on release dsh_ntr.$i while nt_swx < 6 and nt_dx != i { nt_dx = i; nt_dxl = i }
                         on press dsh_ntr.$i { nt_sw = i; nt_swx = 0 }
                         on drag dsh_ntr.$i { nt_swx = max(0, drag.dx) }
                         on release dsh_ntr.$i while nt_swx > 100 { emit nt_hist_del(i); nt_sw = -1; nt_swx = 0 }
                         on release dsh_ntr.$i while nt_swx <= 100 { nt_sw = -1; nt_swx = 0 }
+                    }
+                    let dDo.y = dDv.t + 4 + nt_dxl * 64 - nt_s
+                    let dDo.sx = if(nt_sw == nt_dxl, nt_swp, 0)
+                    group {
+                        show: nt_dxl >= 0 and nt_dxl < nt_hist.count and nt_dxo > 0.01
+                        move: dDo.sx, 0
+                        opacity: nt_dxo * (1 - clamp(dDo.sx / 220, 0, 1))
+                        clip inset 0 box { from: dD.l + 14, dDo.y; size: dD.w - 28, 56 + nt_dxh; corner: 16 }
+                        text nt_open_title { at: dD.l + 42, dDo.y + 9; anchor: left top; size: 14; weight: 600; width: dD.w - 120; lines: 4; family: "Space Grotesk"; color: ink; measure: nt_dmt }
+                        text nt_open_app { at: dD.l + 42, dDo.y + 10 + max(19, nt_dmt.height) + 4; anchor: left top; size: 11.5; weight: 600; width: dD.w - 70; lines: 1; family: "Space Grotesk"; color: faint }
+                        text nt_open_body { at: dD.l + 42, dDo.y + 10 + max(19, nt_dmt.height) + 4 + 18; anchor: left top; size: 12.5; width: dD.w - 70; lines: 40; family: "Space Grotesk"; color: ink; opacity: 85%; measure: nt_dmb }
                     }
                 }
                 box { from: dD.l + dD.w - 9, dDv.t + 4 + nt_s / max(dDv.c, 1) * (dDv.h - 8); size: 3, (dDv.h - 8) * min(1, dDv.h / max(dDv.c, 1)); corner: 1.5; color: ink; opacity: 0.3; show: dDv.c > dDv.h }

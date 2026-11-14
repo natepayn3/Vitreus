@@ -675,6 +675,33 @@ scene Vitreus {
     fact nt_swx = 0
     prop nt_swp = 0 ~quick
     follow nt_swp = nt_swx
+    //  The dashboard's notification pressed (not dragged) to read it all: `nt_dx` is the open row (-1 none), and `nt_dxl` the last one opened, which
+    //  keeps its room while it closes. The logic writes its whole title, app and message into the texts below; the rows under it move down by `nt_dxh`.
+    fact nt_dx = -1
+    fact nt_dxl = -1
+    text nt_open_title = ""
+    text nt_open_app = ""
+    text nt_open_body = ""
+    measure nt_dmt
+    measure nt_dmb
+    prop nt_dxo = 0 ~calm
+    follow nt_dxo = if(nt_dx >= 0, 1, 0)
+    prop nt_dxh = 0 ~calm
+    follow nt_dxh = if(nt_dx >= 0, max(0, 10 + max(19, nt_dmt.height) + 4 + 16 + 2 + nt_dmb.height + 12 - 56), 0)
+    on change nt_hist.count { nt_dx = -1 }
+    //  The same in the Control Center's Notifications page: `nt_px` the open row, `nt_pl` the last opened, `nt_ph` the room it adds.
+    fact nt_px = -1
+    fact nt_pl = -1
+    text nt_popen_title = ""
+    text nt_popen_app = ""
+    text nt_popen_body = ""
+    measure nt_pmt
+    measure nt_pmb
+    prop nt_po = 0 ~calm
+    follow nt_po = if(nt_px >= 0, 1, 0)
+    prop nt_ph = 0 ~calm
+    follow nt_ph = if(nt_px >= 0, max(0, 10 + max(19, nt_pmt.height) + 4 + 16 + 2 + nt_pmb.height + 12 - 54), 0)
+    on change nt_hist.count { nt_px = -1 }
     fact face_open = false          // the picture chooser, over the dashboard
     model face_pics max 72 { thumb: image 200, 200; name: text; dir: bool; vid: bool }     // vid: a video (only Settings > Greeter's browser lists them)
     text face_path = ""             // the folder being looked at
@@ -5288,17 +5315,35 @@ scene Vitreus {
 
     //  One notification in the history: its title and when it came, and under them the app and what it said.
     //  54 px tall, so a stack of them sits on whole pixels. A cross shows on hover, in place of the time.
-    component NtHistRow(h: record, del: event) {
-        size: 276 * cu, 54
-        zone box touch { from: 0, 0; size: 276 * cu, 54; corner: 12 * cu }
-        box { from: 0, 0; size: 276 * cu, 54; corner: 12 * cu; color: ink; opacity: 5% + 6% * touch.hover }
-        text h.title { at: floor(12 * cu + 0.5), 17; anchor: left center; size: 14.5; weight: 700; width: 200 * cu; lines: 1; color: ink; family: "Space Grotesk" }
-        text h.sub { at: floor(12 * cu + 0.5), 37; anchor: left center; size: 12; width: 244 * cu; lines: 1; color: faint; family: "Space Grotesk" }
+    //  Pressed, it opens to the whole of it: the title on as many lines as it takes, the app, and everything it said; pressed again, it closes.
+    //  `live`: the pointer is inside the list's window. A row scrolled up out of it still lies under the header (Clear, Back), and must not take their clicks.
+    component NtHistRow(h: record, del: event, live: bool = true) {
+        let me = if(h.index == nt_pl, 1, 0)             // the row opened last (it keeps its room while it closes)
+        let ex = nt_po * me                              // how open it is
+        let rh = 54 + nt_ph * me
+        size: 276 * cu, floor(rh + 0.5)
+        zone box touch { from: 0, 0; size: 276 * cu, rh; corner: 12 * cu; cursor: pointer; active: live; label: "Notification: press to read it all" }
+        on press touch while nt_px == h.index { nt_px = -1 }
+        on press touch while nt_px != h.index { nt_px = h.index; nt_pl = h.index }
+        box { from: 0, 0; size: 276 * cu, rh; corner: 12 * cu; color: ink; opacity: 5% + 6% * touch.hover + 3% * ex }
+        group {
+            clip inset 0 box { from: 0, 0; size: 276 * cu, rh; corner: 12 * cu }
+            //  closed: one line each
+            text h.title { at: floor(12 * cu + 0.5), 17; anchor: left center; size: 14.5; weight: 700; width: 200 * cu; lines: 1; color: ink; family: "Space Grotesk"; opacity: 1 - ex }
+            text h.sub { at: floor(12 * cu + 0.5), 37; anchor: left center; size: 12; width: 244 * cu; lines: 1; color: faint; family: "Space Grotesk"; opacity: 1 - ex }
+            //  open: the whole title, the app, and all it said (the logic writes them; they are measured here, for the room the row takes)
+            group {
+                show: me > 0
+                text nt_popen_title { at: floor(12 * cu + 0.5), 8; anchor: left top; size: 14.5; weight: 700; width: 220 * cu; lines: 4; color: ink; family: "Space Grotesk"; measure: nt_pmt; opacity: ex }
+                text nt_popen_app { at: floor(12 * cu + 0.5), 10 + max(19, nt_pmt.height) + 4; anchor: left top; size: 11.5; weight: 600; width: 244 * cu; lines: 1; color: faint; family: "Space Grotesk"; opacity: ex * 80% }
+                text nt_popen_body { at: floor(12 * cu + 0.5), 10 + max(19, nt_pmt.height) + 4 + 18; anchor: left top; size: 12.5; width: 252 * cu; lines: 40; color: ink; family: "Space Grotesk"; measure: nt_pmb; opacity: ex * 85% }
+            }
+        }
         text h.when { at: floor(264 * cu + 0.5), 17; anchor: right center; size: 11.5; color: faint; opacity: 100% - 100% * touch.hover; family: "Space Grotesk" }
         ellipse { at: floor(258 * cu + 0.5), 17; radius: 9 * cu; color: if(del_z.hover, alert, ink); opacity: (if(del_z.hover, 80%, 12%)) * touch.hover }
         line { from: floor(258 * cu + 0.5) - 3.2 * cu, 17 - 3.2 * cu; to: floor(258 * cu + 0.5) + 3.2 * cu, 17 + 3.2 * cu; width: 1.4 * cu; color: ink; opacity: 70% * touch.hover }
         line { from: floor(258 * cu + 0.5) + 3.2 * cu, 17 - 3.2 * cu; to: floor(258 * cu + 0.5) - 3.2 * cu, 17 + 3.2 * cu; width: 1.4 * cu; color: ink; opacity: 70% * touch.hover }
-        zone box del_z { at: floor(258 * cu + 0.5), 17; size: 24 * cu, 24 * cu; corner: 12 * cu; cursor: pointer }
+        zone box del_z { at: floor(258 * cu + 0.5), 17; size: 24 * cu, 24 * cu; corner: 12 * cu; cursor: pointer; active: live; label: "Dismiss" }
         on press del_z { emit del(h.index) }
     }
 
@@ -5805,8 +5850,9 @@ scene Vitreus {
     let list_max    = 220
     //  The notifications window has a Do Not Disturb row and its timer chips above its list (84 more), and a
     //  shorter list. Its rows are 54 px with 6 between, whole pixels.
-    let nt_rows_h = (max(1, nt_hist.count) * 60 - 6) / u
-    let list_view_h = min(if(showing_sub == btview, bt_rows_h, if(showing_sub == notifview, nt_rows_h, wifi_rows_h)), if(showing_sub == notifview, 150, if(showing_sub == btview, 180, list_max)))
+    //  A row opened to read it all makes the list taller (`nt_ph`, up to 170 more), then it scrolls.
+    let nt_rows_h = (max(1, nt_hist.count) * 60 - 6 + nt_ph) / u
+    let list_view_h = min(if(showing_sub == btview, bt_rows_h, if(showing_sub == notifview, nt_rows_h, wifi_rows_h)), if(showing_sub == notifview, 150 + min(nt_ph, 170) / u, if(showing_sub == btview, 180, list_max)))
     //  The Caffeine window is a row and two lines of chips (91 under its title), and has no list.
     //  Every window opened from a tile is at least as tall as the stack of cards it replaces (the brightness and volume rows
     //  included), so the drawer keeps one height from one window to the next; a longer list grows it past that. The

@@ -750,7 +750,8 @@ part ControlsDrawer {
                 at: floor(pcx - 138 * cu + 0.5), floor(nx_top + 114 * cu + 0.5)
                 view: 276 * cu, list_view_h * cu
                 gap: 6
-                for h in nt_hist { NtHistRow(h, del: nt_hist_del) }
+                space 0                 // not only a `for`: a list of only rows is cut into slices as tall as the first, and an opened row is taller
+                for h in nt_hist { NtHistRow(h, del: nt_hist_del, live: pointer.y - ty.att > nx_top + 114 * cu and pointer.y - ty.att < nx_top + 114 * cu + list_view_h * cu) }
             }
             //  A thin thumb beside the list while there is more of it than fits: how far it is scrolled, and how much is seen.
             box { from: pcx + 141 * cu, nx_top + 114 * cu + nt_hist_col.scroll / max(nt_hist_col.content, 1) * (list_view_h * cu); size: 3 * cu, (list_view_h * cu) * (list_view_h * cu) / max(nt_hist_col.content, list_view_h * cu); corner: 1.5 * cu; color: ink; opacity: if(nt_hist_col.content > (list_view_h * cu) + 1, 35%, 0%) }
