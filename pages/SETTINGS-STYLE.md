@@ -27,9 +27,13 @@ Choices made in a `repeat` cannot have their zones read from outside it: put a p
 ## The page
 
 - Cards are 438 wide, corner 14, with a hairline edge (`stroke: 1 * pu`, ink at `hair`, after the veil box), on `spx + 219`; content starts at `spx + 14` and controls end at `spx + 424`.
+- **14 inside every card, on all four sides.** The first row's top (a picker's slot, a pill, a label's cap height) is 14 below the card's top, and the last row's bottom
+  (a pill's edge, the descenders of a hint) is 14 above the card's bottom, as the content is 14 in from either side. Nothing touches or crowds an edge.
+  A single row with a hint (label at `ty - 6`, hint at `ty + 8`) makes a card 58 tall, `ty` at its top + 29. A plain row (a slider, a picker) has its middle at the top + 26.
 - **8 units between cards**, always: the bottom of one card to the top of the next. A loose caption or hint between two cards keeps 8 above and 8 below its line box. A page's length (`xx.h` in vitreus.plm) follows its last card.
 - A page opens with what it is: a title card (19 / 700), a one-line hint, and the page's master switch when it has one.
-- A card that holds several rows is named in small caps (13.5 / 700, faint) at its top left.
+- **A section's name sits above its card, never inside it**: small caps (16 / 700, faint) at `spx + 14`, its middle 13 above the card's top, with 17 from the
+  card above's bottom to that middle (so 30 between the two cards). Every section on a page is named the same way, or none is.
 
 ## The words
 
@@ -38,7 +42,7 @@ Choices made in a `repeat` cannot have their zones read from outside it: put a p
 | Card title | 19 | 700 | ink |
 | Row label | 17 | 600 | ink |
 | Hint under a label | 13.5 | – | faint |
-| Section caps | 13.5 | 700 | faint |
+| Section caps | 16 | 700 | faint |
 | A slider's value | 19.5 | 700 | mint, right-aligned at `spx + 424` |
 | A word in a picker | 14 to 15.5 | 600–700 | ink, mint when chosen |
 

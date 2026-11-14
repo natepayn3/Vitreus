@@ -3921,7 +3921,7 @@ do
     end
     local function show()
         all[1].label = "Default · " .. default_font()
-        text.font_for = "Font for " .. label()
+        text.font_for = string.upper("Font for " .. label())
         text.font_name = chosen or default_font()
         local same = (chosen or default_font()) == inuse
         if same then

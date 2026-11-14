@@ -14,33 +14,33 @@ part Addons {
                 move: 0, -ad.off
                 group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 16 * pu + 0.5); text "Turn on the ones you want · drag a card to reorder the dock" { at: floor(spx + 14 * pu + 0.5), floor(sby + 16 * pu + 0.5); anchor: left center; size: 13.5; color: faint; width: (420 * pu) / rs; lines: 1; family: "Space Grotesk" } }
                 group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 70 * pu + 0.5); show: addons.count == 0; text "No add-ons yet" { at: floor(spx + 14 * pu + 0.5), floor(sby + 70 * pu + 0.5); anchor: left center; size: 17; weight: 700; color: faint; family: "Space Grotesk" } }
-                zone box adr_area { from: spx - 8 * pu, sby + 26 * pu; size: 454 * pu, (addons.count * 74 + 20) * pu; active: addons.count > 1 }
+                zone box adr_area { from: spx - 8 * pu, sby + 26 * pu; size: 454 * pu, (addons.count * 80 + 20) * pu; active: addons.count > 1 }
                 on drag adr_area while adr_drag >= 0 { adr_py = (pointer.y - sby + ad.off) / pu; emit adr_move }
                 on release adr_area while adr_drag >= 0 { emit adr_drop }
                 //  Drag a card to move it: the add-on pill follows the order of the cards. The card being dragged follows the pointer and is drawn last (pass 1); the others glide to the slots the logic gives them
                 //  (`adry.$i`, in logic/addons.luau). Its zone is apart from the drawing and under the switch's, and a zone that stays still under the cards takes the drag, as in the Island layout.
                 repeat pass in 0..2 {
                 repeat i in 0..12 {
-                    let adt = if(adr_drag == i, adr_py - adr_gy, 36 + adry.$i * 74)       // the card's top
-                    let adc = adt + 33                                                     // and its middle
+                    let adt = if(adr_drag == i, adr_py - adr_gy, 36 + adry.$i * 80)       // the card's top
+                    let adc = adt + 36                                                     // and its middle
                     let adl = if(adr_drag == i, 1, 0)
                     group {
                         show: i < addons.count and ((pass == 0 and adr_drag != i) or (pass == 1 and adr_drag == i))
-                    body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + adc * pu; size: 438 * pu, 66 * pu; corner: 14 * pu } }
-                    DdCard(spx + 219 * pu, sby + adc * pu, 438 * pu, 66 * pu, 189.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-                    box { at: spx + 219 * pu, sby + adc * pu; size: 438 * pu, 66 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-                    box { at: spx + 219 * pu, sby + adc * pu; size: 438 * pu, 66 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-                    box { at: spx + 219 * pu, sby + adc * pu; size: 438 * pu, 66 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-                    group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (adt + 17) * pu + 0.5); text addons.$i.name { at: floor(spx + 14 * pu + 0.5), floor(sby + (adt + 17) * pu + 0.5); anchor: left center; size: 19; weight: 700; width: (350 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
-                    group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (adt + 36) * pu + 0.5); text addons.$i.desc { at: floor(spx + 14 * pu + 0.5), floor(sby + (adt + 36) * pu + 0.5); anchor: left center; size: 14; width: (350 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
-                    group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (adt + 53) * pu + 0.5); text addons.$i.by { at: floor(spx + 14 * pu + 0.5), floor(sby + (adt + 53) * pu + 0.5); anchor: left center; size: 12.5; width: (350 * pu) / rs; lines: 1; color: mix(faint, mint, if(addons.$i.need, 1, 0)); opacity: 65% + 30% * if(addons.$i.need, 1, 0); family: "Space Grotesk" } }
+                    body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + adc * pu; size: 438 * pu, 72 * pu; corner: 14 * pu } }
+                    DdCard(spx + 219 * pu, sby + adc * pu, 438 * pu, 72 * pu, 189.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+                    box { at: spx + 219 * pu, sby + adc * pu; size: 438 * pu, 72 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+                    box { at: spx + 219 * pu, sby + adc * pu; size: 438 * pu, 72 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+                    box { at: spx + 219 * pu, sby + adc * pu; size: 438 * pu, 72 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+                    group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (adt + 20) * pu + 0.5); text addons.$i.name { at: floor(spx + 14 * pu + 0.5), floor(sby + (adt + 20) * pu + 0.5); anchor: left center; size: 19; weight: 700; width: (350 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+                    group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (adt + 38) * pu + 0.5); text addons.$i.desc { at: floor(spx + 14 * pu + 0.5), floor(sby + (adt + 38) * pu + 0.5); anchor: left center; size: 14; width: (350 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                    group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (adt + 54) * pu + 0.5); text addons.$i.by { at: floor(spx + 14 * pu + 0.5), floor(sby + (adt + 54) * pu + 0.5); anchor: left center; size: 12.5; width: (350 * pu) / rs; lines: 1; color: mix(faint, mint, if(addons.$i.need, 1, 0)); opacity: 65% + 30% * if(addons.$i.need, 1, 0); family: "Space Grotesk" } }
                     SettingsSwitch(spx + 424 * pu, sby + adc * pu, ad_pill.$i, ad_hit.$pass.$i.pressed, ad_hit.$pass.$i.hover, mint)
-                        zone box adr_card.$pass.$i { at: spx + 219 * pu, sby + adc * pu; size: 438 * pu, 66 * pu; corner: 14 * pu; cursor: if(adr_drag == i, grabbing, grab); active: addons.count > 1 and (sby + adc * pu) - ad.off > sby and (sby + adc * pu) - ad.off < sby + set.h * pu; label: "Drag to reorder this add-on" }
-                        on press adr_card.$pass.$i { adr_py = (pointer.y - sby + ad.off) / pu; adr_gy = adr_py - (36 + adry.$i * 74); adr_drag = i; emit adr_grab }
+                        zone box adr_card.$pass.$i { at: spx + 219 * pu, sby + adc * pu; size: 438 * pu, 72 * pu; corner: 14 * pu; cursor: if(adr_drag == i, grabbing, grab); active: addons.count > 1 and (sby + adc * pu) - ad.off > sby and (sby + adc * pu) - ad.off < sby + set.h * pu; label: "Drag to reorder this add-on" }
+                        on press adr_card.$pass.$i { adr_py = (pointer.y - sby + ad.off) / pu; adr_gy = adr_py - (36 + adry.$i * 80); adr_drag = i; emit adr_grab }
                         on release adr_card.$pass.$i { emit adr_drop }
                         zone box ad_hit.$pass.$i { at: spx + 405 * pu, sby + adc * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + adc * pu) - ad.off > sby and (sby + adc * pu) - ad.off < sby + set.h * pu; label: "Add-on" }
                         on press ad_hit.$pass.$i { emit addon_toggle(i) }
-                        zone box ad_src.$pass.$i { at: spx + 14 * pu + 175 * pu, sby + (adt + 53) * pu; size: 350 * pu, 16 * pu; cursor: pointer; active: addons.$i.has and (sby + adc * pu) - ad.off > sby and (sby + adc * pu) - ad.off < sby + set.h * pu; label: "Open this add-on's repository" }
+                        zone box ad_src.$pass.$i { at: spx + 14 * pu + 175 * pu, sby + (adt + 54) * pu; size: 350 * pu, 16 * pu; cursor: pointer; active: addons.$i.has and (sby + adc * pu) - ad.off > sby and (sby + adc * pu) - ad.off < sby + set.h * pu; label: "Open this add-on's repository" }
                         on press ad_src.$pass.$i { emit addon_repo(i) }
                         //  The bin, on the cards of the user's own add-ons: the first press asks (the card says so), the second deletes the folder (to the trash).
                         let adbx = spx + 361 * pu
@@ -49,15 +49,15 @@ part Addons {
                         PBin(adbx, adby, adbh, 55% + 45% * adbh, pu)
                         zone box adel.$pass.$i { at: adbx, adby; size: 26 * pu, 30 * pu; cursor: pointer; active: (sby + adc * pu) - ad.off > sby and (sby + adc * pu) - ad.off < sby + set.h * pu; label: "Remove this add-on" }
                         on press adel.$pass.$i { emit addon_del(i) }
-                        box { at: spx + 219 * pu, sby + adc * pu; size: 438 * pu, 66 * pu; corner: 14 * pu; stroke: 1.5 * pu; color: mint; opacity: 100% * adl }
+                        box { at: spx + 219 * pu, sby + adc * pu; size: 438 * pu, 72 * pu; corner: 14 * pu; stroke: 1.5 * pu; color: mint; opacity: 100% * adl }
                     }
                 }
                 }
-                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (36 + max(1, addons.count) * 74 + 5) * pu + 0.5); text ad_note { at: floor(spx + 14 * pu + 0.5), floor(sby + (36 + max(1, addons.count) * 74 + 5) * pu + 0.5); anchor: left center; size: 13; width: (410 * pu) / rs; lines: 1; color: if(ad_err, alert, faint); opacity: if(ad_err, 100%, 70%); family: "Space Grotesk" } }
-                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (36 + max(1, addons.count) * 74 + 25) * pu + 0.5); text ad_tpl { at: floor(spx + 14 * pu + 0.5), floor(sby + (36 + max(1, addons.count) * 74 + 25) * pu + 0.5); anchor: left center; size: 13; width: (410 * pu) / rs; lines: 1; color: faint; opacity: 70%; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (36 + max(1, addons.count) * 80 + 5) * pu + 0.5); text ad_note { at: floor(spx + 14 * pu + 0.5), floor(sby + (36 + max(1, addons.count) * 80 + 5) * pu + 0.5); anchor: left center; size: 13; width: (410 * pu) / rs; lines: 1; color: if(ad_err, alert, faint); opacity: if(ad_err, 100%, 70%); family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (36 + max(1, addons.count) * 80 + 25) * pu + 0.5); text ad_tpl { at: floor(spx + 14 * pu + 0.5), floor(sby + (36 + max(1, addons.count) * 80 + 25) * pu + 0.5); anchor: left center; size: 13; width: (410 * pu) / rs; lines: 1; color: faint; opacity: 70%; family: "Space Grotesk" } }
                 //  Add-ons that shipped with the shell and were removed from here (the bin): one line brings them all back.
-                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (36 + max(1, addons.count) * 74 + 45) * pu + 0.5); text ad_hid { at: floor(spx + 14 * pu + 0.5), floor(sby + (36 + max(1, addons.count) * 74 + 45) * pu + 0.5); anchor: left center; size: 13; width: (410 * pu) / rs; lines: 1; color: mix(faint, mint, ad_unh.hover); opacity: 70% + 30% * ad_unh.hover; family: "Space Grotesk" } }
-                zone box ad_unh { from: spx + 6 * pu, sby + (36 + max(1, addons.count) * 74 + 35) * pu; size: 300 * pu, 20 * pu; cursor: pointer; active: ad_hidn > 0.5 and set_pgo > 0.5 and (sby + (36 + max(1, addons.count) * 74 + 45) * pu) - ad.off > sby and (sby + (36 + max(1, addons.count) * 74 + 45) * pu) - ad.off < sby + set.h * pu; label: "Bring the removed add-ons back" }
+                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (36 + max(1, addons.count) * 80 + 45) * pu + 0.5); text ad_hid { at: floor(spx + 14 * pu + 0.5), floor(sby + (36 + max(1, addons.count) * 80 + 45) * pu + 0.5); anchor: left center; size: 13; width: (410 * pu) / rs; lines: 1; color: mix(faint, mint, ad_unh.hover); opacity: 70% + 30% * ad_unh.hover; family: "Space Grotesk" } }
+                zone box ad_unh { from: spx + 6 * pu, sby + (36 + max(1, addons.count) * 80 + 35) * pu; size: 300 * pu, 20 * pu; cursor: pointer; active: ad_hidn > 0.5 and set_pgo > 0.5 and (sby + (36 + max(1, addons.count) * 80 + 45) * pu) - ad.off > sby and (sby + (36 + max(1, addons.count) * 80 + 45) * pu) - ad.off < sby + set.h * pu; label: "Bring the removed add-ons back" }
                 on press ad_unh { emit addons_unhide }
             }
             let ad.thh = set.h * set.h / max(set.h, ad.h)

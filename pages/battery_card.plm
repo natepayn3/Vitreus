@@ -20,6 +20,7 @@ part BatteryCard {
 
         //  Health: the number big in its colour (green from 80 %, yellow from 60 %, red under), what it holds and a gauge of it, and what the battery is.
         text "HEALTH" { at: floor(b.x0 + 2 * cu + 0.5), floor(b.t + 66 * cu + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
+        box { at: b.x0 + 138 * cu, b.t + 111 * cu; size: 276 * cu, 66 * cu; corner: 15 * cu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
         box { at: b.x0 + 138 * cu, b.t + 111 * cu; size: 276 * cu, 66 * cu; corner: 15 * cu; color: ink; opacity: 8% }
         box { at: b.x0 + 138 * cu, b.t + 111 * cu; size: 276 * cu, 66 * cu; corner: 15 * cu; stroke: 1 * cu; color: ink; opacity: 10% }
         text number(bc.health, 0, "%") { at: floor(b.x0 + 16 * cu + 0.5), floor(b.t + 102 * cu + 0.5); anchor: left center; size: 25; weight: 700; color: b.ht; family: "Space Grotesk"; show: bc.health >= 0 }
@@ -60,6 +61,7 @@ part BatteryCard {
             let val = if(r == 0, bc.start, bc.end)
             group {
                 show: bc.thr and (r == 1 or bc.hasstart)
+                box { at: b.x0 + 138 * cu, ry; size: 276 * cu, 32 * cu; corner: 12 * cu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
                 box { at: b.x0 + 138 * cu, ry; size: 276 * cu, 32 * cu; corner: 12 * cu; color: ink; opacity: 8% }
                 text pick(r, "Start charging below", "Stop charging at") { at: floor(b.x0 + 14 * cu + 0.5), floor(ry + 0.5); anchor: left center; size: 12; weight: 600; width: 150 * cu; lines: 1; color: ink; family: "Space Grotesk" }
                 text number(val, 0, " %") { at: floor(b.x0 + 222 * cu + 0.5), floor(ry + 0.5); anchor: center; align: center; size: 13; weight: 700; color: mint; family: "Space Grotesk" }
@@ -80,6 +82,7 @@ part BatteryCard {
         group {
             show: bc.pwask
             let py = b.t + (bc.ty + 16) * cu
+            box { at: b.x0 + 88 * cu, py; size: 176 * cu, 32 * cu; corner: 12 * cu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
             box { at: b.x0 + 88 * cu, py; size: 176 * cu, 32 * cu; corner: 12 * cu; color: ink; opacity: 8% }
             box { at: b.x0 + 88 * cu, py; size: 176 * cu, 32 * cu; corner: 12 * cu; stroke: 1.2 * cu; color: mint; opacity: 45% }
             input bc_bpw { at: floor(b.x0 + 12 * cu + 0.5), floor(py - 7 * cu + 0.5); width: 152 * cu; size: 13; color: ink; family: "Space Grotesk"; placeholder: "BIOS password"; secret: true; label: "BIOS password"; agent: hidden }

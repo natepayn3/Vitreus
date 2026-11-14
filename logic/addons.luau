@@ -285,7 +285,7 @@ return function()
     -- Dragging a card (Settings > Add-ons; the scene is pages/addons.plm, the way the Island layout's chips are dragged): the cards stand in slots (`adr.<n>`, card n's slot, 0 first) that
     -- follow `order`; while one is held, the others close the gap it left and open one where it would land (the slot the pointer is nearest), and the held one follows the pointer.
     -- Letting go keeps the order, which is the order of the add-on pill.
-    local CARD_TOP, CARD_STEP = 36, 74          -- as the page lays the cards out
+    local CARD_TOP, CARD_STEP = 36, 80          -- as the page lays the cards out
     local dragc = nil                            -- { id, slot, float } while a card is held
     local function place_cards(drag)
         norm_order()

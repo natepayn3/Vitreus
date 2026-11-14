@@ -1218,7 +1218,7 @@ scene Vitreus {
 
     //  The colours live in palette-live.plm (ink, faint, mint, tint…); only the veil is the scene's.
     let veil  = 8%
-    let card_fill = 78%                          // a card with something on it is less see-through than its panel: this much of the shell's own dark tint is laid under its veil (glass only; the opaque themes have their own plates)
+    let card_fill = 45%                          // a card with something on it is less see-through than its panel: this much of the shell's own dark tint is laid under its veil (glass only; the opaque themes have their own plates)
     let hair = 14%                               // the Settings cards' hairline edge
     let glyph_a = 0.4 * (1 - uwu_k)              // how strong the little marks on the toggle knobs are: kept subtle
 
@@ -5967,7 +5967,7 @@ scene Vitreus {
     //  How tall the settings page in view is (unscaled): Wallpaper, Glass, Display.
     //  The Display page: its cards down to the profiles one, which is as tall as its rows (none: a line).
     let disp.prows = max(24, disp_pn_s * 30)
-    let disp.h = 554 + disp.prows + 110 + if(gpu_has, 94, 0) + 74
+    let disp.h = 640 + disp.prows + 158 + if(gpu_has, 92, 0) + 52
     //  The System monitor page: the storage card has a row for each drive and the temperature card one for each sensor, and what is under
     //  them slides up as they shrink (see the page, which is generated: sm.ds and sm.dt are how much each has given back).
     //  The sidebar, top to bottom: LOOK (Wallpaper, Theme, Glass), SHELL (Bar, Widgets, Add-ons, Notifications, Lock screen), SCREEN (Display, Night mode, Idle, Greeter) and SYSTEM
@@ -6000,22 +6000,22 @@ scene Vitreus {
     let side.ab = side.last + 28
     let sm.ds = (4 - clamp(sm_mnt.count, 1, 4)) * 38
     let sm.dt = (8 - clamp(sm_tmp.count, 1, 8)) * 24
-    let sm.h = 1536 - sm.ds - sm.dt
+    let sm.h = 1585 - sm.ds - sm.dt
     //  The VPN page: the profiles card is as tall as its rows, and the add card as its form (WireGuard 5 rows, OpenVPN 4, a file 1 and a line).
-    let vpn.pb = 84
-    let vpn.pbh = 34 + max(1, vpn_count) * 32 + 6
-    let vpn.ab = vpn.pb + vpn.pbh + 8
+    let vpn.pb = 119
+    let vpn.pbh = max(1, vpn_count) * 32 + 20
+    let vpn.ab = vpn.pb + vpn.pbh + 30
     let vpn.fh = if(vpn_mode == vpm_wg, 180, if(vpn_mode == vpm_ovpn, 144, 276))
-    let wm.h = 938                     // the Pleamar-WM page: to the bottom of its last card
-    let ad.h = 36 + max(1, addons.count) * 74 + 51 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (74 apart), and the line under them
-    let ck.h = 1198                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
-    let br.h = 627                     // the Bar page: to the bottom of its last card
-    let wsg.h = 868                    // the Workspaces page, the same
-    let gl.h = 1056                    // the Glass page: to the bottom of its last card
-    let lk.h = 789                     // the Lock screen page: its cards, to the bottom of the last
+    let wm.h = 1017                     // the Pleamar-WM page: to the bottom of its last card
+    let ad.h = 36 + max(1, addons.count) * 80 + 51 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (80 apart), and the line under them
+    let ck.h = 1400                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
+    let br.h = 792                     // the Bar page: to the bottom of its last card
+    let wsg.h = 872                    // the Workspaces page, the same
+    let gl.h = 1338                    // the Glass page: to the bottom of its last card
+    let lk.h = 881                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36
-    let nt.h = 246 + 148 + 552 - nt.ds + 8 + if(nta_sel >= 0, 456, 0) + 12              // 146 of it the quiet hours card on top
+    let nt.h = 159 + 803 - nt.ds + if(nta_sel >= 0, 488, 0) + 12              // 146 of it the quiet hours card on top
     //  A fixed height, whatever the page: the panel used to follow the page in view (262 to 456), so it resized, and moved what hangs from it, with
     //  every click in the sidebar. A page taller than this scrolls inside it (they have their scroll thumb and "More" cue); a shorter one has
     //  empty glass at its foot. It never goes below the sidebar's last row.
@@ -6024,7 +6024,7 @@ scene Vitreus {
     let th_np = max(1, floor((themes.count + 7) / 8))
     let th_pgc = clamp(th_pg, 0, th_np - 1)
     let th_ex = min(1, max(0, floor((themes.count + 3) / 4) - 1)) + if(th_np > 1, 14 / 88, 0)
-    let wp.h = 707                    // the Wallpaper page: to the bottom of the gallery (it scrolls inside the panel when the panel is shorter)
+    let wp.h = 778                    // the Wallpaper page: to the bottom of the gallery (it scrolls inside the panel when the panel is shorter)
     let set.h = 480                    // the sidebar's and the page's height: one height for every page, short enough for a 1080 p screen with the Island and the dock (what is longer scrolls)
     //  The sidebar's thumb (the page that is open): the row it is on, followed by its two edges as the pickers' thumb is (SetPick), the leading one
     //  quickly and the trailing one late, so it stretches from the old row to the new one and gathers there.
