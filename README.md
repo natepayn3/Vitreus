@@ -106,6 +106,7 @@ Requirements, options, Debian/Ubuntu and setting it up by hand are in **[docs/IN
 * **Lock screen**, a matching **login screen** ([SDDM theme](sddm/README.md)) with your own picture or a looping video (**Settings > Greeter**), and a **polkit** password dialog.
 * **Audio visualiser**: the bottom edge of the screen rises with the music.
 * **Desktop**: right-click the wallpaper for sticky notes, a clock and a system monitor.
+* **Parallax**: the wallpaper leans away from the pointer, as far and as loosely as you set it (**Settings > Wallpaper**).
 * **Night mode** and a **desktop clock**.
 
 ---

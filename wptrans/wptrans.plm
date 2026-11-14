@@ -34,12 +34,54 @@ scene Wptrans {
     event go ->                         // everything is ready (src, target, ox, oy): begin
     on change active while active { t0 = time }
 
+    //  Parallax (Settings > Wallpaper, off unless switched on): the wallpaper's picture, drawn here a little larger than the screen over awww's, leans away
+    //  from the mouse by up to `para_amt` pixels (Strength), on the spring Motion names. The shell says whether it is wanted and which wallpaper it is (`para_want`, `pwall`, then `para_set`:
+    //  see wptrans.luau, which makes the picture). `cursor.x` is the mouse wherever it is; it is only followed while this is on, so off it costs nothing
+    //  (measured: a scene that names it and does not move with it idles at the same 0.1 % as one that does not).
+    text psrc = ""                      // the picture, at the screen's shape, with a version on the end
+    text pwall = ""                     // the wallpaper it is made from, as the shell names it ("" : ask awww)
+    image pimg = from psrc, 4096, 2304   // 16:9, as the logic makes the file (squeezed to that shape and stretched back here, as the dissolve's is), at the
+                                         // size it is drawn: the screen and the most it can lean, not 1080p. Past 2046 wide it is a texture of its own.
+    fact para_want = false              // what the shell asks for (it says no while a video is the wallpaper)
+    fact para = false                   // it is on
+    fact pshow = false                  // the picture is ready: it fades away while a new one is made, and awww's own shows
+    fact para_amt = 40                  // how far it leans at the screen's edge, in pixels (Settings: Strength)
+    fact para_mode = 1                  // how it follows the mouse (Settings: Motion): 0 tight, 1 smooth, 2 floaty (slow, and it sways past where it stops)
+    event para_set ->
+    spring psp0 = 190, 27
+    spring psp1 = 46, 13.5
+    spring psp2 = 11, 4.6
+    let ptx = if(para, clamp((cursor.x - screen.width / 2) / (screen.width / 2), -1, 1), 0)
+    let pty = if(para, clamp((cursor.y - screen.height / 2) / (screen.height / 2), -1, 1), 0)
+    prop px0 = 0 ~psp0
+    prop py0 = 0 ~psp0
+    prop px1 = 0 ~psp1
+    prop py1 = 0 ~psp1
+    prop px2 = 0 ~psp2
+    prop py2 = 0 ~psp2
+    follow px0 = if(para_mode < 0.5, ptx, 0)        // only the chosen one moves
+    follow py0 = if(para_mode < 0.5, pty, 0)
+    follow px1 = if(para_mode > 0.5 and para_mode < 1.5, ptx, 0)
+    follow py1 = if(para_mode > 0.5 and para_mode < 1.5, pty, 0)
+    follow px2 = if(para_mode > 1.5, ptx, 0)
+    follow py2 = if(para_mode > 1.5, pty, 0)
+    let px = px0 + px1 + px2
+    let py = py0 + py1 + py2
+    prop pfade = 0 ~220ms
+    follow pfade = if(para and pshow, 1, 0)
+    prop pamt = 40 ~300ms               // the strength, eased, so the slider does not jerk the picture
+    follow pamt = para_amt
+    let pmx = pamt
+    let pmy = pamt * screen.height / screen.width
+
     // The right press on the bare wallpaper (Hyprland only: under pleamar-wm the window manager's `desk` facts do it, see vitreus.luau; niri has none).
     // (A square as big as the longest side of any monitor: `screen.width` and `screen.height` are those of the first one.)
     fact mmon = 0                       // which monitor it was pressed on
     event edit_req ->
     zone box wall { from: 0, 0; size: 2560, 2560; active: wp_dec > 0.5 }
     on press right wall { mmon = screen.index; emit edit_req }
+
+    image pimg { at: -pmx - pmx * px, -pmy - pmy * py; size: screen.width + 2 * pmx, screen.height + 2 * pmy; opacity: pfade; show: pfade > 0.002 }
 
     group {
         show: active

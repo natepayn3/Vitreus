@@ -914,6 +914,14 @@ scene Vitreus {
     text wp_show_sub = ""           // Next change in 4:31
     text wp_mins_text = ""          // 5 min
     event wp_show_toggle ->
+    fact wp_para = false            // the wallpaper leans away from the mouse (drawn by wptrans/, told by logic `para_fx`)
+    event wp_para_toggle ->
+    fact wp_para_lv = 0.27          // Strength, as the slider's level (0 to 1: 10 to 120 pixels)
+    text wp_para_text = "40 px"
+    fact wp_para_mode = 1           // Motion: 0 tight, 1 smooth, 2 floaty
+    event wp_para_lv_set ->
+    event wp_para_mode_set ->
+    event para_ask ->               // wptrans has started and asks whether the parallax is on
     fact rand_turn = 0              // how many times Random has been pressed: the die turns once for each
     //  The font picker on the Theme page: the typeface the shell is drawn in for the chosen theme (Glass: Space Grotesk, Retro: Better VCR, unless picked
     //  otherwise), as a dropdown with a picture of the typeface under it. A scene cannot change its font while it runs, so Apply saves the choice and
@@ -982,7 +990,7 @@ scene Vitreus {
     event adr_grab ->
     event adr_move ->
     event adr_drop ->
-    fact iris_int = 1                // how strongly the wallpaper's accent is pushed: 0 subtle, 1 medium, 2 bold
+    fact iris_int = 1                // how strongly the wallpaper's accent is pushed: 0 subtle, 1 medium, 2 bold (Settings > Wallpaper: Subtle, Normal, Vivid)
     event theme_pick ->
     fact snd_on = true               // Settings > Theme: the little sound when a panel opens
     event snd_toggle ->
@@ -1864,6 +1872,8 @@ scene Vitreus {
     follow rec_pill = if(rec_on, 1, 0)
     follow pow_th = if(pow_prof < 0, 1, pow_prof)
     follow wp_show_pill = if(wp_show, 1, 0)
+    prop wp_para_pill = 0 ~pop
+    follow wp_para_pill = if(wp_para, 1, 0)
     follow iris_pill = if(iris_on, 1, 0)
     prop bar_zs = 1 ~102ms
     follow bar_zs = bar_size
@@ -5910,7 +5920,7 @@ scene Vitreus {
     let th_np = max(1, floor((themes.count + 7) / 8))
     let th_pgc = clamp(th_pg, 0, th_np - 1)
     let th_ex = min(1, max(0, floor((themes.count + 3) / 4) - 1)) + if(th_np > 1, 14 / 88, 0)
-    let wp.h = 533                    // the Wallpaper page: to the bottom of the gallery (it scrolls inside the panel when the panel is shorter)
+    let wp.h = 707                    // the Wallpaper page: to the bottom of the gallery (it scrolls inside the panel when the panel is shorter)
     let set.h = 480                    // the sidebar's and the page's height: one height for every page, short enough for a 1080 p screen with the Island and the dock (what is longer scrolls)
     //  The sidebar's thumb (the page that is open): the row it is on, followed by its two edges as the pickers' thumb is (SetPick), the leading one
     //  quickly and the trailing one late, so it stretches from the old row to the new one and gathers there.

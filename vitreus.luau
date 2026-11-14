@@ -2876,7 +2876,7 @@ end)
 -- goes to the scene as facts (`pal_*`, three per colour), which `palette-live.plm` turns into its `let` colours with
 -- `rgb(...)`; the lock screen, another program, still gets `palette.plm`. `iris.json` in Vitreus's data folder
 -- holds the two settings: { enabled = true, intensity = "medium" | "subtle" | "bold" }.
-local iris_cfg = { enabled = true, intensity = "bold" }       -- how far the wallpaper's accent is pushed: always Bold (the Theme page no longer offers a choice)
+local iris_cfg = { enabled = true, intensity = "bold" }       -- how far the wallpaper's accent is pushed: Subtle, Normal or Vivid on the Wallpaper page (subtle, medium, bold here); Vivid unless chosen
 local iris_last_wp = nil
 local iris_last_text = nil
 
@@ -3611,6 +3611,7 @@ local function check_wallpaper()
         if path and shown ~= iris_last_wp then
             iris_last_wp = shown
             lens_image(path)
+            if para_fx then para_fx.tell(path, wpv.from_poster(path) ~= nil) end
             wp_on_change(shown)
             run_iris(framed or path, not (iris_cfg.enabled and not iris_cfg.preset))
         end
@@ -3669,6 +3670,7 @@ do
     local ok, saved = pcall(sys.ask, "files.read", "iris.json", "json")
     if ok and type(saved) == "table" then
         if saved.enabled ~= nil then iris_cfg.enabled = saved.enabled and true or false end
+        if saved.intensity == "subtle" or saved.intensity == "medium" or saved.intensity == "bold" then iris_cfg.intensity = saved.intensity end
         local pr = tonumber(saved.preset)
         if pr and (math.floor(pr) == iris_fx.CASSETTE or math.floor(pr) == iris_fx.UWU or math.floor(pr) == iris_fx.CYBER or math.floor(pr) == iris_fx.MILK or math.floor(pr) == iris_fx.PROXY or math.floor(pr) == iris_fx.PAPER or math.floor(pr) == iris_fx.DOODLE or math.floor(pr) == iris_fx.CUSTOM) then iris_cfg.preset = math.floor(pr) end
         -- The look (the shape of the shell) is its own setting, apart from where the colours come from: Iris may colour a Retro or UwU shell and it stays one.
@@ -4288,6 +4290,9 @@ local function wp_apply(path, how, started, hex, quiet)
                     if started then started() end     -- `started`: awww has the picture, the change is under way
                 end)
             end
+            -- The parallax draws its own copy of the wallpaper over awww's: it is told at once which picture is coming (a try from the cards too), or the old
+            -- one would cover the change. (The dissolve hands its own picture over itself.)
+            if not hex then para_fx.tell(pic, wpv.is(path)) end
             if hex then
                 -- the video (or the stop of the one playing) waits for the end of the dissolve: see `check_wallpaper`
                 wp_hex(pic, hex.x, hex.y, function() wpv.next = { path }; if started then started() end end, by_awww)
@@ -4601,6 +4606,62 @@ do
     if wp_show then wp_next = os.time() + wp_mins * 60 end
     wp_show_refresh()
 end
+
+-- Parallax: the wallpaper leans away from the mouse. The wallpaper's own layer draws it (wptrans/: the picture, a little larger than the screen, over
+-- awww's); this keeps the switch (`parallax.json`) and tells that scene whether it is wanted and which picture awww shows. Not while a video is the
+-- wallpaper: mpvpaper's is the picture then. A global: this chunk is at Luau's limit of locals.
+para_fx = { on = false, amt = 40, mode = 1, due = false }       -- `amt`: pixels at the screen's edge (10 to 120); `mode`: 0 tight, 1 smooth, 2 floaty
+do
+    local ok, saved = pcall(sys.ask, "files.read", "parallax.json", "json")
+    if ok and type(saved) == "table" then
+        para_fx.on = saved.on == true
+        if type(saved.amt) == "number" then para_fx.amt = math.max(10, math.min(120, saved.amt)) end
+        if saved.mode == 0 or saved.mode == 1 or saved.mode == 2 then para_fx.mode = saved.mode end
+    end
+end
+function para_fx.refresh()
+    fact.wp_para = para_fx.on
+    fact.wp_para_lv = (para_fx.amt - 10) / 110
+    fact.wp_para_mode = para_fx.mode
+    text.wp_para_text = para_fx.amt .. " px"
+end
+para_fx.refresh()
+function para_fx.save() pcall(sys.call, "files.write", "parallax.json", { on = para_fx.on, amt = para_fx.amt, mode = para_fx.mode }) end
+-- Strength and Motion, to the scene: by themselves (a slider being dragged says it at most every 80 ms, and the picture is not made again).
+function para_fx.look()
+    if para_fx.due then return end
+    para_fx.due = true
+    after(80, function()
+        para_fx.due = false
+        run("pleamar", { "--say", "wptrans", "fact para_amt " .. para_fx.amt, "fact para_mode " .. para_fx.mode }, function() end)
+        para_fx.save()
+    end)
+end
+-- `pic`: what awww is showing or about to show, when it is known (else the scene asks awww). `video`: that picture is a video's poster.
+function para_fx.tell(pic, video)
+    local want = para_fx.on and not video and not (pic == nil and wpv.cur)
+    run("pleamar", { "--say", "wptrans", "fact para_amt " .. para_fx.amt, "fact para_mode " .. para_fx.mode, "text pwall " .. (pic or ""),
+                     "fact para_want " .. (want and "true" or "false"), "emit para_set" }, function() end)
+end
+on("wp_para_toggle", function()
+    para_fx.on = not para_fx.on
+    para_fx.refresh()
+    para_fx.save()
+    para_fx.tell()
+end)
+on("wp_para_lv_set", function(t)
+    para_fx.amt = math.floor((10 + 110 * math.max(0, math.min(1, tonumber(t) or 0))) / 2 + 0.5) * 2
+    para_fx.refresh()
+    para_fx.look()
+end)
+on("wp_para_mode_set", function(i)
+    i = math.floor((tonumber(i) or 1) + 0.5)
+    if i < 0 or i > 2 then return end
+    para_fx.mode = i
+    para_fx.refresh()
+    para_fx.look()
+end)
+on("para_ask", function() para_fx.tell() end)
 
 on("wp_show_toggle", function()
     wp_show = not wp_show
@@ -6729,7 +6790,7 @@ end
     end
     -- Each command: title, what it is, what it does, and words that find it besides its title (all searched, spaces ignored).
     local COMMANDS = {
-        { "Settings: Wallpaper", "open", open_settings("pg_wall"), "background picture image folder slideshow desktop" },
+        { "Settings: Wallpaper", "open", open_settings("pg_wall"), "background picture image folder slideshow desktop parallax depth mouse" },
         { "Settings: Glass", "open", open_settings("pg_glass"), "blur transparency frosted liquid look appearance theme" },
         { "Settings: Display", "open", open_settings("pg_disp"), "monitor screen resolution refresh rate scale arrangement vrr position" },
         { "Settings: Idle and sleep", "open", open_settings("pg_idle"), "lock screen off sleep suspend timeout hypridle inactivity minutes" },
