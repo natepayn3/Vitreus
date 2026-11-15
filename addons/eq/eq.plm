@@ -71,7 +71,7 @@ scene Equalizer {
     fact slot_w = 0
     fact slot_h = 0
     let mon_here = if(screen.index == 0, if(mon_c0, 1, 0), if(screen.index == 1, if(mon_c1, 1, 0), if(screen.index == 2, if(mon_c2, 1, 0), if(mon_c3, 1, 0))))
-    let onmon = if(mon_known, mon_here > 0.5, slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh))       // this copy is on the panel's monitor (still told while it shuts)
+    let onmon = if(mon_known, mon_here > 0.5, slot_sw == 0 or screen.width == slot_sw)       // this copy is on the panel's monitor (still told while it shuts)
     let here = if(slot_open and onmon, 1, 0)       // 1 on that copy, while the panel is out
     let shown = if(onmon and (slot_open or en1 > 0.004 or tail > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has). `en1` is one for every copy: the monitor test keeps the others shut
 
@@ -179,12 +179,12 @@ scene Equalizer {
     every 500ms while here > 0.5 and en1 < 0.01 { slx: slot_x ~0ms; sly: slot_y ~0ms }
     let left = slx - slot_w / 2
     let top = sly - slot_h / 2
-    let wd = slot_w - 48
-    let x0 = left + 24
+    let wd = slot_w                       // the whole rectangle: the shell has already kept its margin round it
+    let x0 = left
 
     //  The bands: 12 dB up and down. A column is 1/10 of the width; y is worked out the same way in the rules below.
     let by0 = top + (178 - 30 * (1 - boost_ok)) * u       // the Boost row is not there while its plugins are missing (Settings > Add-ons says so): the bands take its room
-    let by1 = top + slot_h - 34 * u
+    let by1 = top + slot_h - 20 * u              // (the labels under the bands end on the rectangle's bottom: the shell's margin is under them already)
     let bh = by1 - by0
     let bym = (by0 + by1) / 2
     let colw = wd / 10

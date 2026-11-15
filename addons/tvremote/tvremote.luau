@@ -53,10 +53,10 @@ local was_open = false
 -- Where the field is, from the content's top left, in the pixels the scene draws it at: the design box (260 x 406 units) is scaled to the panel and centred, as in tvremote.plm.
 local function field_box()
     local w, h = tonumber(fact.slot_w) or 0, tonumber(fact.slot_h) or 0
-    local W0, H0 = 260 * U, 406 * U
+    local W0, H0 = 216 * U, 406 * U
     local sc = math.max(0.5, math.min(2.5, math.min(w / W0, h / H0)))
     if w <= 0 or h <= 0 then sc = 1 end
-    local l = (w - sc * W0) / 2 + 22 * U * sc
+    local l = (w - sc * W0) / 2
     local t = 61 * U * sc
     return { "fact axf_l " .. math.floor(l), "fact axf_t " .. math.floor(t), "fact axf_r " .. math.floor(l), "fact axf_h " .. math.floor(34 * U * sc) }
 end

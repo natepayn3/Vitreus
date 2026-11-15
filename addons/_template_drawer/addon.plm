@@ -100,7 +100,7 @@ scene MyDrawer {
     fact slot_w = 0
     fact slot_h = 0
     let mon_here = if(screen.index == 0, if(mon_c0, 1, 0), if(screen.index == 1, if(mon_c1, 1, 0), if(screen.index == 2, if(mon_c2, 1, 0), if(mon_c3, 1, 0))))
-    let onmon = if(mon_known, mon_here > 0.5, slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh))       // this copy is on the panel's monitor (still told while it shuts)
+    let onmon = if(mon_known, mon_here > 0.5, slot_sw == 0 or screen.width == slot_sw)       // this copy is on the panel's monitor (still told while it shuts)
     let here = if(slot_open and onmon, 1, 0)       // 1 on the copy on the panel's monitor, while the panel is out
     let shown = if(onmon and (slot_open or en1 > 0.004 or tail > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has). `en1` is one for every copy: the monitor test keeps the others shut
 
@@ -154,6 +154,7 @@ scene MyDrawer {
     event field_esc ->
     text hello = ""                                   // what Enter kept (addon.luau)
     measure fq
+    //  The rectangle the shell gives (`slot_*`) is already inside the glass by the shell's one margin (30 px, `mg` in vitreus.plm): draw to its edges, with no padding of your own.
     let left = slx - slot_w / 2
     let top = sly - slot_h / 2
     group {
@@ -161,15 +162,15 @@ scene MyDrawer {
         move: 0, (1 - en1) * 12
 
         //  The content follows the panel's size: this bar is as wide as the panel, and the dots keep to its right edge.
-        box { at: left + slot_w / 2, top + slot_h - 24; size: slot_w - 48, 4; corner: 2; color: mint; opacity: 40% * shown }
-        text "Your panel goes here" { at: left + 24, top + 28; anchor: left center; size: 18; weight: 700; color: ink; opacity: shown; family: "Space Grotesk" }
-        text wx_temp { at: left + 24, top + 56; anchor: left center; size: 16; color: faint; opacity: shown; family: "Space Grotesk" }
+        box { at: left + slot_w / 2, top + slot_h - 2; size: slot_w, 4; corner: 2; color: mint; opacity: 40% * shown }
+        text "Your panel goes here" { at: left, top + 28; anchor: left center; size: 18; weight: 700; color: ink; opacity: shown; family: "Space Grotesk" }
+        text wx_temp { at: left, top + 56; anchor: left center; size: 16; color: faint; opacity: shown; family: "Space Grotesk" }
         //  ── A card in the shell's style ──  Its outline is in pencil (inside the card by half its stroke and its wobble, so the wobble is never cut by a clip), its switch and its slider are the
         //  Control Center's, the fill rises from the switch, the icon is drawn from a shared set of strokes, and the text is centred on the card. Each piece of drawing rests (`f: 0`) unless the card
         //  is on or under the pointer, which is the shell's rule: only what is being used moves.
-        let cx0 = left + 24
+        let cx0 = left
         let cy0 = top + 76
-        let cw0 = slot_w - 48
+        let cw0 = slot_w
         let ch0 = 88 * u
         let con = sw_on
         let chot = if(con > 0.5 or card_z.hover > 0.5, 1, 0)
@@ -186,24 +187,24 @@ scene MyDrawer {
         zone box sl_z { from: cx0 + 8 * u, cy0 + ch0 - 30 * u; size: cw0 - 16 * u, 26 * u; cursor: pointer; label: "Level"; active: here > 0.5 }
         on press sl_z { lvl = clamp((pointer.x - (cx0 + 16 * u)) / (cw0 - 32 * u), 0, 1) }
         on drag sl_z { lvl = clamp((pointer.x - (cx0 + 16 * u)) / (cw0 - 32 * u), 0, 1) }
-        box { at: left + 70, top + 210; size: 124, 36; corner: 18; color: mint; opacity: 80% * shown }
-        text "Press me" { at: left + 70, top + 210; anchor: center; size: 15; weight: 700; color: onmint; opacity: shown; family: "Space Grotesk" }
-        zone box press_me { at: left + 70, top + 210; size: 124, 36; corner: 18; cursor: pointer; active: here > 0.5 }
+        box { at: left + 62, top + 210; size: 124, 36; corner: 18; color: mint; opacity: 80% * shown }
+        text "Press me" { at: left + 62, top + 210; anchor: center; size: 15; weight: 700; color: onmint; opacity: shown; family: "Space Grotesk" }
+        zone box press_me { at: left + 62, top + 210; size: 124, 36; corner: 18; cursor: pointer; active: here > 0.5 }
         on press press_me { clicks = clicks + 1 }
         repeat i in 0..8 {
-            ellipse { at: left + slot_w - 24 - (7 - i) * 16, top + 210; radius: 5; color: mint; opacity: if(clicks > i, 1, 0.2) * shown }
+            ellipse { at: left + slot_w - 5 - (7 - i) * 16, top + 210; radius: 5; color: mint; opacity: if(clicks > i, 1, 0.2) * shown }
         }
-        //  The field: 24 from the content's left and right edges, 246 down, 36 tall (what addon.luau tells the shell). Drawn here; no zone over it, so the click is the shell's.
-        box { at: left + slot_w / 2, top + 264; size: slot_w - 48, 36; corner: 18; color: ink; opacity: (8% + 6% * if(field_kb, 1, 0)) * shown }
-        text "Type your name, then Enter" { at: left + 42, top + 264; anchor: left center; size: 15; color: faint; opacity: 70% * shown * if(fq.width < 1, 1, 0); family: "Space Grotesk" }
-        text field_q { at: left + 42, top + 264; anchor: left center; size: 15; color: ink; opacity: shown; family: "Space Grotesk"; measure: fq }
-        box { at: left + 43 + fq.width, top + 264; size: 2, 20; color: mint; opacity: shown * if(field_kb, 1, 0) }
-        text hello { at: left + 24, top + 302; anchor: left center; size: 15; weight: 700; color: mint; opacity: shown; family: "Space Grotesk" }
+        //  The field: as wide as the content, 246 down, 36 tall (what addon.luau tells the shell). Drawn here; no zone over it, so the click is the shell's.
+        box { at: left + slot_w / 2, top + 264; size: slot_w, 36; corner: 18; color: ink; opacity: (8% + 6% * if(field_kb, 1, 0)) * shown }
+        text "Type your name, then Enter" { at: left + 18, top + 264; anchor: left center; size: 15; color: faint; opacity: 70% * shown * if(fq.width < 1, 1, 0); family: "Space Grotesk" }
+        text field_q { at: left + 18, top + 264; anchor: left center; size: 15; color: ink; opacity: shown; family: "Space Grotesk"; measure: fq }
+        box { at: left + 19 + fq.width, top + 264; size: 2, 20; color: mint; opacity: shown * if(field_kb, 1, 0) }
+        text hello { at: left, top + 302; anchor: left center; size: 15; weight: 700; color: mint; opacity: shown; family: "Space Grotesk" }
         //  ── Pick one of several ──  PPick draws the slot and the thumb; the words, their hover and their zones are yours. One zone over the whole slot, declared before the choices' (the last one declared gets the press), tells it the pointer is there.
-        let pk0 = left + 24 + (slot_w - 48) / 6
-        let pkp = (slot_w - 48) / 3
+        let pk0 = left + slot_w / 6
+        let pkp = slot_w / 3
         PPick(x0: pk0, y: top + 344, pitch: pkp, n: 3, h: 30 * u, sel: mode, hot: if(pick_z.hover > 0.5, 1, 0), a: shown)
-        zone box pick_z { at: left + slot_w / 2, top + 344; size: slot_w - 48, 30 * u; active: here > 0.5 }
+        zone box pick_z { at: left + slot_w / 2, top + 344; size: slot_w, 30 * u; active: here > 0.5 }
         repeat i in 0..3 {
             box { at: pk0 + i * pkp, top + 344; size: pkp - 4 * u, 30 * u; corner: 11 * u; color: ink; opacity: 7% * pick_c.$i.hover * shown }
             text pick(i, "Warm", "Neutral", "Cool") { at: pk0 + i * pkp, top + 344; anchor: center; size: 14; weight: 700; color: mix(ink, mint, if(mode == i, 1, 0)); opacity: shown; family: "Space Grotesk" }

@@ -89,7 +89,7 @@ scene TvRemote {
     fact slot_w = 0
     fact slot_h = 0
     let mon_here = if(screen.index == 0, if(mon_c0, 1, 0), if(screen.index == 1, if(mon_c1, 1, 0), if(screen.index == 2, if(mon_c2, 1, 0), if(mon_c3, 1, 0))))
-    let onmon = if(mon_known, mon_here > 0.5, slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh))       // this copy is on the panel's monitor (still told while it shuts)
+    let onmon = if(mon_known, mon_here > 0.5, slot_sw == 0 or screen.width == slot_sw)       // this copy is on the panel's monitor (still told while it shuts)
     let here = if(slot_open and onmon, 1, 0)       // 1 on the copy on the panel's monitor, while the panel is out
     let shown = if(onmon and (slot_open or en1 > 0.004 or tail > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has). `en1` is one for every copy: the monitor test keeps the others shut
 
@@ -201,12 +201,12 @@ scene TvRemote {
     let live = if(st == 1 and shown > 0.5 and mo < 0.5, 1, 0)
 
     //  The remote is laid out at a design size (W0 x H0) and the whole of it is scaled to the panel, in both directions, centred: `sc`. The logic works out the same box for the field (tvremote.luau).
-    let W0 = 260 * u
+    let W0 = 216 * u                          // (its content: no edge of its own, the shell's margin is already round the rectangle)
     let H0 = 406 * u
     let sc = clamp(min(slot_w / W0, slot_h / H0), 0.5, 2.5)
     let left = slx - sc * W0 / 2                  // where the design box starts (before it is scaled about this corner)
     let top = sly - slot_h / 2                    // top aligned: a panel that is taller than the design leaves its spare room at the bottom, not above the header
-    let m = 22 * u
+    let m = 0
     let cx = left + W0 / 2
     let R = 72 * u
     let cy = top + 104 * u + R

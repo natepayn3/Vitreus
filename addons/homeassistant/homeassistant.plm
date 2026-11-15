@@ -407,7 +407,9 @@ scene HomeAssistant {
     on change shown while shown < 0.5 { wk: 0 ~68ms; en1: 0 ~68ms; en2: 0 ~68ms; en3: 0 ~68ms; en1: 0 ~68ms after 205ms; en2: 0 ~68ms after 205ms; en3: 0 ~68ms after 205ms }
     every 500ms while shown > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
 
-    let W = max(slot_w, 1)
+    //  The shell's rectangle already has its margin round it (STYLE.md). Everything here is laid out 14 in from its own sides, so the box it is laid out in is the
+    //  rectangle widened by those 14 each side: the content then reaches the rectangle's edges, and nothing is in twice.
+    let W = max(slot_w, 1) + 28 * u
     let H = max(slot_h, 1)
 
     //  The grid: as many columns as fit at 170 apiece, up to four (the logic works them out, and lays the tiles in them); a cell is 74 tall
@@ -418,7 +420,7 @@ scene HomeAssistant {
     let tw = (W - 2 * gx - (cols - 1) * gap) / cols
     let hw = (tw - gap) / 2                            // half a column: the grid is laid out in halves (a tile takes one, an icon only, or two or more)
     let th = 74 * u
-    let vh = max(H - gtop - 12 * u, 1)
+    let vh = max(H - gtop, 1)
     let content = hl_content * u
     let most = max(0, content - vh)
     on change most while hl_sp > most { hl_sp: most }
@@ -834,7 +836,7 @@ scene HomeAssistant {
                         text st_title { at: 54 * u, 78 * u; anchor: left center; size: 15; weight: 700; width: W - 80 * u; lines: 1; color: ink; family: "Space Grotesk" }
                     }
                     //  the page: one list that scrolls, everything in it placed by the logic
-                    let stv = max(H - 104 * u - 10 * u, 1)
+                    let stv = max(H - 104 * u, 1)
                     let st_most = max(0, st_content * u - stv)
                     //  (above the placed field, and below it: the field itself is left to the shell)
                     let fld_t = clamp(104 * u + (st_fy + 18) * u - st_sp, 104 * u, 104 * u + stv)

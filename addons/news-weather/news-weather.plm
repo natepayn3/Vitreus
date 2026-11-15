@@ -64,7 +64,17 @@ scene NewsWeather {
     fact slot_h = 0
     fact slot_sw = 0                                  // the size of the monitor the panel is on: the scene has a copy on each (`screens: each`, numbered in its own order) and only the copy of that size draws (0: not told yet, every copy does)
     fact slot_sh = 0
-    let onmon = slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh)       // this copy is on the panel's monitor (still told while it shuts)
+    //  Which copy is on the panel's monitor: by its NAME (`slot_mon`, matched to a copy by the logic: news-weather.luau, `find_monitor`), as the template does.
+    //  Not by size alone: a copy started while the Island reserved its 62 at the top is 1018 tall, not 1080, and the size test then never let it draw (an empty panel
+    //  in some layouts, depending on the layout the add-on had last been started in). The size is only the fallback until the name is known.
+    text slot_mon = ""
+    fact mon_known = false
+    fact mon_c0 = false
+    fact mon_c1 = false
+    fact mon_c2 = false
+    fact mon_c3 = false
+    let mon_here = if(screen.index == 0, if(mon_c0, 1, 0), if(screen.index == 1, if(mon_c1, 1, 0), if(screen.index == 2, if(mon_c2, 1, 0), if(mon_c3, 1, 0))))
+    let onmon = if(mon_known, mon_here > 0.5, slot_sw == 0 or screen.width == slot_sw)       // this copy is on the panel's monitor (still told while it shuts)
     let here = if(slot_open and onmon, 1, 0)       // 1 on the copy on the panel's monitor, while the panel is out
     let shown = if(onmon and (slot_open or en1 > 0.004 or tail > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has)
 
@@ -173,7 +183,9 @@ scene NewsWeather {
     spin ax_clk by if(shown > 0.5, 1, 0)
     let fr = if(shown > 0.5 and look != 5, floor(ax_clk * 8), 0)     // the pencil's redrawing (STYLE.md): still while shut, and on Proxy, whose HUD is crisp
     let gz = u                                        // pencil-glyphs.plm's icons are drawn on a 24-unit square: one unit is `gz` pixels
-    let ns.w = max(slot_w, 1)
+    //  The shell's rectangle already has its margin round it (STYLE.md). This page is laid out 22 in from its own sides, so the box it is laid out in is the rectangle
+    //  widened by those 22 each side: its content reaches the rectangle's edges, and the margin is not there twice.
+    let ns.w = max(slot_w, 1) + 44 * u
     let ns.h = max(slot_h, 1)
     let nsk1 = ink
     let nsk2 = mix(ink, tint, 0.35)                   // quieter writing, and quieter still
@@ -248,9 +260,9 @@ scene NewsWeather {
                 }
 
                 //  the list: a row a story (title over its source line, measured together; the thumbnail on the right)
-                let nsr.w = ns.w - 28 * u
-                let nsr.v = ns.h - 146 * u - 16 * u
-                column news_feed { at: 14 * u, 146 * u; view: nsr.w, nsr.v; gap: 4 * u; show: not news_mng
+                let nsr.w = ns.w - 44 * u                    // (on the page's 22 each side, as everything else is: the rows' cards reach the shell's rectangle exactly)
+                let nsr.v = ns.h - 146 * u
+                column news_feed { at: 22 * u, 146 * u; view: nsr.w, nsr.v; gap: 4 * u; show: not news_mng
                     for r in news_items {
                         group {
                             size: nsr.w, 66 * u
@@ -305,7 +317,7 @@ scene NewsWeather {
                     for f in news_feeds {
                         let nsfy = 180 * u + f.index * 34 * u
                         group {
-                            show: nsfy + 30 * u <= ns.h - 70 * u
+                            show: nsfy + 30 * u <= ns.h - 52 * u
                             zone box news_feedx_z { from: ns.w - 46 * u, nsfy - 2 * u; size: 24 * u, 24 * u; corner: 12 * u; cursor: pointer; label: "Remove {f.name}" }
                             on press news_feedx_z { emit news_mng_del(f.index) }
                             box { from: 22 * u, nsfy - 2 * u; size: ns.w - 44 * u, 30 * u; corner: 8 * u; color: ink; opacity: 4% + 4% * news_feedx_z.hover }
@@ -317,31 +329,31 @@ scene NewsWeather {
                     }
                     text "no feeds yet — add one below" { at: ns.w / 2, 220 * u; anchor: center center; size: 12 * nsf; weight: 500; color: nsk2; family: "Space Grotesk"; show: news_feeds.count == 0 }
                     //  the writing's size, along the bottom
-                    box { from: 22 * u, ns.h - 60 * u; size: ns.w - 44 * u, 1; color: ink; opacity: 10% }
-                    text "TEXT SIZE" { at: 22 * u, ns.h - 32 * u; anchor: left center; size: 11 * nsf; weight: 700; color: nsk3; family: "Space Grotesk" }
-                    zone box news_fm_z { from: ns.w - 112 * u, ns.h - 46 * u; size: 28 * u, 28 * u; corner: 14 * u; cursor: pointer; label: "Smaller writing" }
+                    box { from: 22 * u, ns.h - 42 * u; size: ns.w - 44 * u, 1; color: ink; opacity: 10% }
+                    text "TEXT SIZE" { at: 22 * u, ns.h - 14 * u; anchor: left center; size: 11 * nsf; weight: 700; color: nsk3; family: "Space Grotesk" }
+                    zone box news_fm_z { from: ns.w - 112 * u, ns.h - 28 * u; size: 28 * u, 28 * u; corner: 14 * u; cursor: pointer; label: "Smaller writing" }
                     on press news_fm_z { emit news_font(-1) }
-                    zone box news_fp_z { from: ns.w - 50 * u, ns.h - 46 * u; size: 28 * u, 28 * u; corner: 14 * u; cursor: pointer; label: "Bigger writing" }
+                    zone box news_fp_z { from: ns.w - 50 * u, ns.h - 28 * u; size: 28 * u, 28 * u; corner: 14 * u; cursor: pointer; label: "Bigger writing" }
                     on press news_fp_z { emit news_font(1) }
-                    ellipse { at: ns.w - 98 * u, ns.h - 32 * u; radius: 14 * u; color: ink; opacity: 8% + 8% * news_fm_z.hover }
-                    text "−" { at: ns.w - 98 * u, ns.h - 33 * u; anchor: center center; size: 15 * nsf; weight: 700; color: nsk1; family: "Space Grotesk" }
-                    text number(news_fsz * 100, 0, "%") { at: ns.w - 67 * u, ns.h - 32 * u; anchor: center center; size: 11 * nsf; weight: 700; width: 40 * u; lines: 1; align: center; color: nsk2; family: "Space Grotesk" }
-                    ellipse { at: ns.w - 36 * u, ns.h - 32 * u; radius: 14 * u; color: ink; opacity: 8% + 8% * news_fp_z.hover }
-                    text "+" { at: ns.w - 36 * u, ns.h - 33 * u; anchor: center center; size: 15 * nsf; weight: 700; color: nsk1; family: "Space Grotesk" }
+                    ellipse { at: ns.w - 98 * u, ns.h - 14 * u; radius: 14 * u; color: ink; opacity: 8% + 8% * news_fm_z.hover }
+                    text "−" { at: ns.w - 98 * u, ns.h - 15 * u; anchor: center center; size: 15 * nsf; weight: 700; color: nsk1; family: "Space Grotesk" }
+                    text number(news_fsz * 100, 0, "%") { at: ns.w - 67 * u, ns.h - 14 * u; anchor: center center; size: 11 * nsf; weight: 700; width: 40 * u; lines: 1; align: center; color: nsk2; family: "Space Grotesk" }
+                    ellipse { at: ns.w - 36 * u, ns.h - 14 * u; radius: 14 * u; color: ink; opacity: 8% + 8% * news_fp_z.hover }
+                    text "+" { at: ns.w - 36 * u, ns.h - 15 * u; anchor: center center; size: 15 * nsf; weight: 700; color: nsk1; family: "Space Grotesk" }
                     //  popular feeds, under the ones that are in: a click adds it
                     let nsd.y = 196 * u + max(1, min(news_feeds.count, 10)) * 34 * u + 22 * u
-                    let nsd.v = ns.h - 70 * u - nsd.y
+                    let nsd.v = ns.h - 52 * u - nsd.y
                     group {
                         show: nsd.v > 60 * u and news_sugg.count > 0
                         text "POPULAR FEEDS" { at: 22 * u, nsd.y - 14 * u; anchor: left center; size: 11 * nsf; weight: 700; color: nsk3; family: "Space Grotesk"; show: not news_qon }
                         text "MATCHES" { at: 22 * u, nsd.y - 14 * u; anchor: left center; size: 11 * nsf; weight: 700; color: nsk3; family: "Space Grotesk"; show: news_qon }
-                        column news_dir { at: 14 * u, nsd.y; view: ns.w - 28 * u, nsd.v; gap: 2 * u
+                        column news_dir { at: 22 * u, nsd.y; view: ns.w - 44 * u, nsd.v; gap: 2 * u
                             for s in news_sugg {
                                 group {
-                                    size: ns.w - 28 * u, 32 * u
-                                    zone box news_sug_z { from: 0, 0; size: ns.w - 28 * u, 32 * u; corner: 8 * u; cursor: pointer; active: s.index * 34 * u - news_dscr >= -6 and s.index * 34 * u - news_dscr < nsd.v - 18; label: "Add {s.name}" }
+                                    size: ns.w - 44 * u, 32 * u
+                                    zone box news_sug_z { from: 0, 0; size: ns.w - 44 * u, 32 * u; corner: 8 * u; cursor: pointer; active: s.index * 34 * u - news_dscr >= -6 and s.index * 34 * u - news_dscr < nsd.v - 18; label: "Add {s.name}" }
                                     on press news_sug_z { emit news_mng_pick(s.index) }
-                                    box { from: 0, 0; size: ns.w - 28 * u, 32 * u; corner: 8 * u; color: ink; opacity: 9% * news_sug_z.hover }     // (as the shell's own lists: ink under the pointer, mint for what is on)
+                                    box { from: 0, 0; size: ns.w - 44 * u, 32 * u; corner: 8 * u; color: ink; opacity: 9% * news_sug_z.hover }     // (as the shell's own lists: ink under the pointer, mint for what is on)
                                     text s.name { at: 12 * u, 16 * u; anchor: left center; size: 12.5 * nsf; weight: 700; width: ns.w / 2 - 40 * u; lines: 1; color: nsk1; family: "Space Grotesk" }
                                     text s.sub { at: ns.w - 60 * u, 16 * u; anchor: right center; size: 10.5 * nsf; weight: 500; width: ns.w / 2 - 40 * u; lines: 1; align: right; color: nsk2; family: "Space Grotesk" }
                                     GLn(ns.w - 42 * u, 16 * u, -5, 0, 5, 0, 440, 0.9 * gz, mint, 0.6 + 0.4 * news_sug_z.hover, if(news_sug_z.hover > 0.5, fr, 0))
@@ -403,7 +415,7 @@ scene NewsWeather {
                 }
 
                 //  everything else scrolls under the places
-                let wx.v = ns.h - 100 * u - 12 * u
+                let wx.v = ns.h - 100 * u
                 let wx.x0 = 22 * u
                 let wx.cw = (ns.w - 44 * u) / 47
                 let wx.y0 = 150 * u                       // the temperature graph's top, and its height

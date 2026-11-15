@@ -12,7 +12,7 @@ on("fact:clicks", function(v)
     pcall(sys.call, "files.write", "state.json", { clicks = tonumber(v) or 0 })
 end)
 
--- The field (see the scene): the shell takes the keys for it. Where it is, from the top left of the content: 24 in from the left, 246 down, 36 tall, and 24 in from the
+-- The field (see the scene): the shell takes the keys for it. Where it is, from the top left of the content: 0 in from the left, 246 down, 36 tall, and 0 in from the
 -- right edge (so it follows the panel's width). Told again each time the panel comes out: the shell forgets it when the panel shuts.
 local function say_shell(cmds)
     local args = { "--say", "vitreus" }
@@ -37,7 +37,7 @@ on("fact:slot_open", function(v)       -- (the shell says it again every two sec
     local now = v == true
     if now == was_open then return end
     was_open = now
-    if now then say_shell({ "fact axf_l 24", "fact axf_t 246", "fact axf_r 24", "fact axf_h 36", "text axf_q ", "fact axf_on true" }) end
+    if now then say_shell({ "fact axf_l 0", "fact axf_t 246", "fact axf_r 0", "fact axf_h 36", "text axf_q ", "fact axf_on true" }) end
 end)
 on("field_enter", function()
     text.hello = text.field_q ~= "" and ("Hello, " .. text.field_q) or ""

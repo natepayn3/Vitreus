@@ -173,7 +173,7 @@ return function(api)
     local draft = nil                                -- the entity or room being edited
     local armed = nil                                -- a delete pressed once: the row's key
     local errmsg = nil
-    local function width() return math.max(200, (tonumber(fact.slot_w) or 520) / U - 28) end
+    local function width() return math.max(200, (tonumber(fact.slot_w) or 520) / U) end
     local NOT_LANG = { config = true, layout = true, widget = true }      -- the add-on's own files in the data folder, which are not languages
     local function lang_names()
         local names, seen = {}, {}
@@ -272,7 +272,7 @@ return function(api)
         local W, H = tonumber(fact.slot_w) or 0, tonumber(fact.slot_h) or 0
         local sc = tonumber(fact.st_sc) or 0
         local w = (r.w and r.w > 0) and r.w or width()
-        local l = (14 + (r.x or 0)) * U
+        local l = (r.x or 0) * U                         -- (the scene's 14 at the side lie outside the shell's rectangle)
         local t = (TOP + r.y + 18) * U - sc
         local h = 38 * U
         if t < TOP * U - 2 or t + h > H - 8 * U then          -- scrolled out of sight: no field there

@@ -220,6 +220,20 @@ local function have_feed(url)
     for _, f in ipairs(cfg.feeds) do if f.url == url then return true end end
     return false
 end
+-- ════════════════════════════════ the monitor ════════════════════════════════
+-- Which copy of this scene is on the panel's monitor: the one whose `screen.K.name` is the name the shell sent (`slot_mon`), as in the template (addon.luau).
+local function find_monitor()
+    local name = text.slot_mon or ""
+    local any = false
+    for k = 0, 3 do
+        local here = name ~= "" and text["screen." .. k .. ".name"] == name
+        if fact["mon_c" .. k] ~= here then fact["mon_c" .. k] = here end
+        any = any or here
+    end
+    if fact.mon_known ~= any then fact.mon_known = any end
+end
+on("text:slot_mon", function() find_monitor() end)
+on("fact:slot_open", function() find_monitor() end)
 -- ════════════════════════════════ the field ════════════════════════════════
 -- One field at a time, the feed manager's or the place search's, typed through the shell: this says where it is (from the top left of the content, in the scene's
 -- `u` of 1.1; `axf_r` from the right edge) and the shell sends back `field_q`, `field_kb`, `field_enter` and `field_esc` (Ctrl+V pastes, in the shell).
@@ -234,6 +248,7 @@ end
 local function place_field()
     local l, t, r = 22, 110, 50                    -- (the right end leaves room for the "…" shown while a feed is looked up)
     if field == "place" then l, t, r = 30, 97, 30 end
+    l, r = l - 22, r - 22                          -- the scene's 22 at each side lie outside the shell's rectangle now (news-weather.plm, `ns.w`)
     say_shell({ "fact axf_l " .. l * U, "fact axf_t " .. t * U, "fact axf_r " .. r * U, "fact axf_h " .. 34 * U, "text axf_q " .. (text.field_q or ""), "fact axf_on true", "emit axf_set" })       -- (`axf_set`: already on, from the other field, it would keep that one's writing)
 end
 local function set_field_text(v)       -- the add-on's own change of what is written (emptied after adding, the clipboard's)

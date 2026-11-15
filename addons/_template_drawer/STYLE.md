@@ -51,7 +51,7 @@ The shell can wear a different shape (Settings > Theme), and the add-on tells wh
 ## Layout
 
 - **Use `u`, not pixels.** Declare `let u = 1.1` and write every length as `N * u`.
-- **The shell gives you the rectangle** (`slot_x`, `slot_y`, `slot_w`, `slot_h`): below the title bar, inside the glass by an even margin on every side, and clear of the add-on pill. Draw inside it, and work everything out from its size: the user can resize the panel.
+- **The shell gives you the rectangle** (`slot_x`, `slot_y`, `slot_w`, `slot_h`): below the title bar, inside the glass by the shell's one margin (30 px, the same as every panel of the shell) on every side, and clear of the add-on pill. **Draw to its edges and add no padding of your own**: the margin is already there, and a second one makes the add-on's content sit further in than the shell's panels. Work everything out from its size: the user can resize the panel.
 - **Centre text on its card** (name and status line as a pair), not on a guess.
 - **Grids** are columns that fit (`floor((width + gap) / (cell + gap))`, up to what you want) with the same gap down and across.
 

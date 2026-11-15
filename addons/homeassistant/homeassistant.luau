@@ -539,12 +539,12 @@ local function decimal(v, places)
     return (s:gsub("%.", ","))
 end
 
--- How many columns fit: the scene's rule (170 apiece and 10 between, 14 at each side, all times 1.1), up to four.
+-- How many columns fit: the scene's rule (170 apiece and 10 between, across the whole rectangle, all times 1.1), up to four.
 local function columns()
     local w = tonumber(fact.slot_w) or 0
     if w <= 0 then w = 520 end
     local u = 1.1
-    return math.max(1, math.min(4, math.floor((w - 2 * 14 * u + 10 * u) / (170 * u + 10 * u))))
+    return math.max(1, math.min(4, math.floor((w + 10 * u) / (170 * u + 10 * u))))
 end
 
 -- Lay the tiles out: room by room, each under its head (a room with no name has none), each tile in the first place it fits, left to right and
@@ -1517,7 +1517,7 @@ end)
 local function cell_w()
     local cols = columns()
     local W = (tonumber(fact.slot_w) or 520) / 1.1
-    return ((W - 28 - (cols - 1) * GAP) / cols - GAP) / 2           -- half a column (unscaled)
+    return ((W - (cols - 1) * GAP) / cols - GAP) / 2                -- half a column (unscaled): the scene's 14 each side are outside the rectangle now
 end
 local function preview()
     local m = hl.mv

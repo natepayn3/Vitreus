@@ -68,7 +68,7 @@ scene VpnToggle {
     fact slot_w = 0
     fact slot_h = 0
     let mon_here = if(screen.index == 0, if(mon_c0, 1, 0), if(screen.index == 1, if(mon_c1, 1, 0), if(screen.index == 2, if(mon_c2, 1, 0), if(mon_c3, 1, 0))))
-    let onmon = if(mon_known, mon_here > 0.5, slot_sw == 0 or (screen.width == slot_sw and screen.height == slot_sh))       // this copy is on the panel's monitor (still told while it shuts)
+    let onmon = if(mon_known, mon_here > 0.5, slot_sw == 0 or screen.width == slot_sw)       // this copy is on the panel's monitor (still told while it shuts)
     let here = if(slot_open and onmon, 1, 0)       // 1 on the copy on the panel's monitor, while the panel is out
     let shown = if(onmon and (slot_open or en1 > 0.004 or tail > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has). `en1` is one for every copy: the monitor test keeps the others shut
 
@@ -136,17 +136,17 @@ scene VpnToggle {
         opacity: en1
         move: 0, (1 - en1) * 12
 
-        text head { at: left + 24, top + 22; anchor: left center; size: 18; weight: 700; color: ink; opacity: shown; width: slot_w - 48; lines: 1; family: "Space Grotesk" }
-        text headsub { at: left + 24, top + 42; anchor: left center; size: 12.5; weight: 600; color: faint; opacity: shown; width: slot_w - 48; lines: 1; family: "Space Grotesk" }
+        text head { at: left, top + 22; anchor: left center; size: 18; weight: 700; color: ink; opacity: shown; width: slot_w; lines: 1; family: "Space Grotesk" }
+        text headsub { at: left, top + 42; anchor: left center; size: 12.5; weight: 600; color: faint; opacity: shown; width: slot_w; lines: 1; family: "Space Grotesk" }
 
         text "No VPN profiles yet" { at: left + slot_w / 2, top + 110 * u; anchor: center; size: 15; weight: 700; color: ink; opacity: shown * if(profs.count == 0, 1, 0); family: "Space Grotesk" }
         text "Add one in Settings > VPN" { at: left + slot_w / 2, top + 130 * u; anchor: center; size: 12.5; weight: 600; color: faint; opacity: shown * if(profs.count == 0, 1, 0); family: "Space Grotesk" }
 
         repeat k in 0..8 {
             let has = if(profs.count > k, 1, 0)
-            let cx0 = left + 24
+            let cx0 = left
             let cy0 = top + 56 * u + k * (ch + gap)
-            let cw0 = slot_w - 48
+            let cw0 = slot_w
             let con = profs.$k.act
             let chot = if(con > 0.5 or row.$k.hover > 0.5, 1, 0)
             group {
