@@ -8471,7 +8471,8 @@ end)()
             -- Something that hides the desktop behind an empty workspace and gives it back (a full-screen launcher opened and shut, again
             -- and again) brought you back here each time, and each time every window was copied again for a second and a half.
             local sig = table.concat(front_ids, ",")
-            if sig == last_front.sig and os.time() - last_front.at < 60 then return end
+            -- Still let go: an earlier ask's let-go was cancelled by this one (want_gen), so whatever it still holds is let go here.
+            if sig == last_front.sig and os.time() - last_front.at < 60 then return sys.call("thumbnails.want") end
             last_front = { sig = sig, at = os.time() }
             THUMB_UNTIL = os.time() + math.ceil(ms / 1000) + 4           -- these captures are ours: the screen-sharing light ignores them
             sys.call("thumbnails.want", front_ids)
