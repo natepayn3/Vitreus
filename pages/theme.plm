@@ -97,9 +97,9 @@ part Theme {
             //  The font: a dropdown of the installed typefaces, a picture of the chosen one under it, and Apply (the shell starts again with it).
             let fnt_y = sby + (275 + 88 * th_ex) * pu                       // the trigger's top: 14 inside the font card
             let fnt_x = spx + 14 * pw
-            let fnt_w = 410 * pw                             // as wide as the three looks above
+            let fnt_w = 410 * pw - if(font_dirty, 88 * pu, 0)   // as wide as the three looks above, less Apply's room while it shows
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + (248 + 88 * th_ex) * pu + 0.5); text font_for { at: floor(spx + 14 * pw + 0.5), floor(sby + (248 + 88 * th_ex) * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
-            //  The font card: the typeface's selector on top and, under it, the preview of the one chosen (Apply and the note sit on the label's row).
+            //  The font card: the typeface's selector on top and, under it, the preview of the one chosen (Apply sits beside the selector, the note on the label's row).
             body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + (338 + 88 * th_ex) * pu; size: 438 * pw, 154 * pu; corner: 14 * pu } }
             DdCard(spx + 219 * pw, sby + (338 + 88 * th_ex) * pu, 438 * pw, 154 * pu, 885.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { at: spx + 219 * pw, sby + (338 + 88 * th_ex) * pu; size: 438 * pw, 154 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
@@ -114,14 +114,14 @@ part Theme {
             path { at: fnt_x + fnt_w - 20 * pu, fnt_y + 17 * pu; stroke: 1.6 * pu; color: ink; opacity: 60% + 40% * font_hit.hover; move -4 * pu, (-2 + 4 * font_dd) * pu; line 0, (2 - 4 * font_dd) * pu; line 4 * pu, (-2 + 4 * font_dd) * pu }
             zone box font_hit { from: fnt_x, fnt_y; size: fnt_w, 34 * pu; corner: 12 * pu; cursor: pointer; active: fnt_y + 17 * pu - th.off > sby and fnt_y + 17 * pu - th.off < sby + set.h * pu; label: "Font" }
             on press font_hit { toggle font_dd_open; emit font_open; focus font_q }
-            //  Apply: only while the choice differs from what is in use. On the label's row, at the right, so the selector keeps its whole width.
+            //  Apply: only while the choice differs from what is in use. On the selector's row, at the right; the selector gives it room.
             group {
                 show: font_dirty
-                box { at: spx + 384 * pw, sby + (248 + 88 * th_ex) * pu; size: 80 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: if(font_applying, 55%, 80% + 20% * font_apply_hit.hover) }
-                PPillOutline(spx + 384 * pw, sby + (248 + 88 * th_ex) * pu, 80 * pu, 24 * pu, 12 * pu, font_apply_hit.hover, clamp(3 * (if(font_applying, 55%, 80% + 20% * font_apply_hit.hover)), 0, 1), pu)
-                group { scale: rs; pivot: floor(spx + 384 * pw + 0.5), floor(sby + (248 + 88 * th_ex) * pu + 0.5); text "Applying…" { at: floor(spx + 384 * pw + 0.5), floor(sby + (248 + 88 * th_ex) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 700; color: onmint; family: "Space Grotesk"; show: font_applying } }
-                group { scale: rs; pivot: floor(spx + 384 * pw + 0.5), floor(sby + (248 + 88 * th_ex) * pu + 0.5); text "Apply" { show: not font_applying; at: floor(spx + 384 * pw + 0.5), floor(sby + (248 + 88 * th_ex) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 700; color: onmint; family: "Space Grotesk" } }
-                zone box font_apply_hit { at: spx + 384 * pw, sby + (248 + 88 * th_ex) * pu; size: 80 * pu, 24 * pu; corner: 12 * pu; cursor: pointer; active: sby + (248 + 88 * th_ex) * pu - th.off > sby and sby + (248 + 88 * th_ex) * pu - th.off < sby + set.h * pu; label: "Apply the font" }
+                box { at: spx + 424 * pw - 40 * pu, fnt_y + 17 * pu; size: 80 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: if(font_applying, 55%, 80% + 20% * font_apply_hit.hover) }
+                PPillOutline(spx + 424 * pw - 40 * pu, fnt_y + 17 * pu, 80 * pu, 24 * pu, 12 * pu, font_apply_hit.hover, clamp(3 * (if(font_applying, 55%, 80% + 20% * font_apply_hit.hover)), 0, 1), pu)
+                group { scale: rs; pivot: floor(spx + 424 * pw - 40 * pu + 0.5), floor(fnt_y + 17 * pu + 0.5); text "Applying…" { at: floor(spx + 424 * pw - 40 * pu + 0.5), floor(fnt_y + 17 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 700; color: onmint; family: "Space Grotesk"; show: font_applying } }
+                group { scale: rs; pivot: floor(spx + 424 * pw - 40 * pu + 0.5), floor(fnt_y + 17 * pu + 0.5); text "Apply" { show: not font_applying; at: floor(spx + 424 * pw - 40 * pu + 0.5), floor(fnt_y + 17 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 700; color: onmint; family: "Space Grotesk" } }
+                zone box font_apply_hit { at: spx + 424 * pw - 40 * pu, fnt_y + 17 * pu; size: 80 * pu, 24 * pu; corner: 12 * pu; cursor: pointer; active: fnt_y + 17 * pu - th.off > sby and fnt_y + 17 * pu - th.off < sby + set.h * pu; label: "Apply the font" }
                 on press font_apply_hit { emit font_apply }
             }
             //  The preview: the typeface drawn as it will be, with what it will say.
@@ -164,11 +164,11 @@ part Theme {
             }
             group { scale: rs; pivot: floor(spx + 70 * pw + 0.5), floor(tpw.y - 10 * pu + 0.5); text "Pin wallpaper" { at: floor(spx + 70 * pw + 0.5), floor(tpw.y - 10 * pu + 0.5); anchor: left center; size: 15; weight: 700; width: (90 * pw) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
             //  Change: the gallery over the page
-            box { at: spx + 98 * pw, tpw.y + 11 * pu; size: 56 * pu, 18 * pu; corner: (9 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: 10% + 10% * tpw_ch_hit.hover }
-            PPillOutline(spx + 98 * pw, tpw.y + 11 * pu, 56 * pu, 18 * pu, 9 * pu, tpw_ch_hit.hover, clamp(3 * (10% + 10% * tpw_ch_hit.hover), 0, 1), pu)
-            box { at: spx + 98 * pw, tpw.y + 11 * pu; size: 56 * pu, 18 * pu; corner: (9 * pu) * (1 - 0.85 * dd_k); stroke: 1.2 * pu; color: mint; opacity: 55% + 30% * tpw_ch_hit.hover }
-            group { scale: rs; pivot: floor(spx + 98 * pw + 0.5), floor(tpw.y + 11 * pu + 0.5); text "Change" { at: floor(spx + 98 * pw + 0.5), floor(tpw.y + 11 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; color: mint; family: "Space Grotesk" } }
-            zone box tpw_ch_hit { at: spx + 98 * pw, tpw.y + 11 * pu; size: 56 * pu, 18 * pu; corner: 9 * pu; cursor: pointer; label: "Choose the wallpaper for this theme"; active: set_page == pg_theme and not tpw_open and tpw.vis }
+            box { at: spx + 70 * pw + 28 * pu, tpw.y + 11 * pu; size: 56 * pu, 18 * pu; corner: (9 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: 10% + 10% * tpw_ch_hit.hover }
+            PPillOutline(spx + 70 * pw + 28 * pu, tpw.y + 11 * pu, 56 * pu, 18 * pu, 9 * pu, tpw_ch_hit.hover, clamp(3 * (10% + 10% * tpw_ch_hit.hover), 0, 1), pu)
+            box { at: spx + 70 * pw + 28 * pu, tpw.y + 11 * pu; size: 56 * pu, 18 * pu; corner: (9 * pu) * (1 - 0.85 * dd_k); stroke: 1.2 * pu; color: mint; opacity: 55% + 30% * tpw_ch_hit.hover }
+            group { scale: rs; pivot: floor(spx + 70 * pw + 28 * pu + 0.5), floor(tpw.y + 11 * pu + 0.5); text "Change" { at: floor(spx + 70 * pw + 28 * pu + 0.5), floor(tpw.y + 11 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; color: mint; family: "Space Grotesk" } }
+            zone box tpw_ch_hit { at: spx + 70 * pw + 28 * pu, tpw.y + 11 * pu; size: 56 * pu, 18 * pu; corner: 9 * pu; cursor: pointer; label: "Choose the wallpaper for this theme"; active: set_page == pg_theme and not tpw_open and tpw.vis }
             on press tpw_ch_hit { tpw_open = true; font_dd_open = false; emit tpw_choose }
             SettingsSwitch(spx + 200 * pw, tpw.y, tpw_pill, tpw_hit.pressed, tpw_hit.hover, mint)
             zone box tpw_hit { at: spx + 181 * pw, tpw.y; size: 46 * pu, 30 * pu; cursor: pointer; label: "Pin the wallpaper to this theme"; active: set_page == pg_theme and not tpw_open and tpw.vis }
