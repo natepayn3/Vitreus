@@ -82,7 +82,7 @@ scene Vitreus {
     //  `cdk_on and ws_empty` held every loan on both copies, and the cursor stuck again.
     //  `rate:` is the rate chosen in Settings > Display (`bar_fps`), or 60 while the music moves the frame (its ripple and waves). There is no idle cap: a scene with nothing
     //  moving paints nothing, so a cap only ever slowed what was moving (the notches, the drawers, the bar's hovers each needed an exemption from the old 12 a second).
-    surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995 and not bar_ah; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on) and not sky.calm, 60 while ((media.playing and fw_on) or bar_fps == 60) and not sky.calm, 30 while sky.calm; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
+    surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995 and bar_size < 1.005 and not bar_ah; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on) and not sky.calm, 60 while ((media.playing and fw_on) or bar_fps == 60) and not sky.calm, 30 while sky.calm; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
     permissions { services: "say:*", "files", "files.write", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe", "nordvpn" }
 
@@ -110,7 +110,7 @@ scene Vitreus {
     text clock_mm = ""
     text clock_mn = ""             // the minutes alone, for the bar down the left
     text bar_ap = ""
-    text bar_ap1 = ""              // the first letter of am/pm, for the badge by the hour down the left (the second is always an m)
+    text bar_ap1 = ""              // the first letter of am/pm (the badge by the hour down the left is gone: the strip is as thick as the Island now; kept for the logic that sets it)
     text bar_date = ""              // the short day stacked above the am/pm: MON
     text datelong = ""
     //  The clock card's pieces: the numerals, the am/pm tucked beside them, and the date as weekday | month day.
@@ -764,7 +764,7 @@ scene Vitreus {
     //  edge, `lp_w` wide (the one last opened), their left edge by the strip.
     fact bar_anchor: top | left | right | bottom = top
     fact bar_frame = false                   // the frame round the screen is on (the Island is the bar without it)
-    fact bar_size = 1                        // Settings > Bar > Size: how big the bar is, 0.7 to 1, on every layout; the logic sets it (logic/bar_size.luau)
+    fact bar_size = 1                        // Settings > Bar > Size: how big the bar is, 0.7 to 1.25, on every layout; the logic sets it (logic/bar_size.luau)
     event bar_pick_size ->                   // the slider: 0 to 1 along it, 70 to 100 %
     text bar_size_text = "100%"
     fact bar_seg = false                     // along the top with a frame: a thin frame, and the bar in three pieces of glass (workspaces, clock, controls) out of it
@@ -2946,7 +2946,7 @@ scene Vitreus {
     let du = 1.5525 * rs             // the Desk's own unit: cu (u * 1.15) at the scale of the screen
     let pu = 1.6875 * rs             // u * 1.25: the Settings and the launcher are laid out 25% larger than the rest, at real size (not zoomed)
     let pw = pu * 1.25               // the Settings page's horizontal unit: its cards and what is laid out across them are 25% wider than tall (heights, type and round things stay on `pu`)
-    //  The bar has its own unit: `bu` and `bcu` are `u` and `cu` at the bar's size (`bz`, 1 to 0.7 with Settings > Bar > Size), used for what the bar itself is made of: its strip, its
+    //  The bar has its own unit: `bu` and `bcu` are `u` and `cu` at the bar's size (`bz`, 0.7 to 1.25 with Settings > Bar > Size), used for what the bar itself is made of: its strip, its
     //  pieces, icons, texts and click areas. The panels and the frame keep `u`, so only the bar gets smaller.
     let bz = bar_zs
     let bu = u * bz
@@ -3331,16 +3331,18 @@ scene Vitreus {
     }
 
     //  The bar's battery: a rounded cell (`w` by `h`) drawn in pencil twice over with a little jitter that boils with `f`, a wash and hatching up to `lv` (0 to 1), a terminal on the right, and the percentage inside.
-    component BarBatt(cx: number, cy: number, w: number, h: number, lv: number, c: color, fc: color, o: number, f: number, u: number, pct: number) {
+    component BarBatt(cx: number, cy: number, w: number, h: number, lv: number, c: color, fc: color, o: number, f: number, u: number, pct: number, tx: number) {
         let a = w / 2
         let b = h / 2
         let r = 7 * u
         let n = w - 8 * u
         let x0 = -a + 4 * u
         box { at: cx - a + 3 * u + max(2 * u, lv * n) / 2, cy; size: max(2 * u, lv * n), h - 6 * u; corner: 4 * u; color: fc; opacity: 24% * o }
+        //  The hatching's strokes are always as far apart as in the bar's full-size cell (34 / 15 u): a shorter cell has fewer of them, not the same ones crowded together.
         repeat k in 0..15 {
-            let hx = x0 + k * n / 15
-            line { from: cx + hx + 1.5 * u, cy - (b - 4 * u) + 0.3 * u * sin(f * 47 + k * 31); to: cx + hx - 1.5 * u, cy + (b - 4 * u) + 0.3 * u * sin(f * 53 + k * 37); width: 1 * u; color: fc; opacity: 55% * o * clamp((lv * n - k * n / 15) / (2 * u), 0, 1) }
+            let hd = 34 * u / 15
+            let hx = x0 + k * hd
+            line { from: cx + hx + 0.25 * (b - 4 * u), cy - (b - 4 * u) + 0.3 * u * sin(f * 47 + k * 31); to: cx + hx - 0.25 * (b - 4 * u), cy + (b - 4 * u) + 0.3 * u * sin(f * 53 + k * 37); width: 1 * u; color: fc; opacity: 55% * o * clamp((lv * n - k * hd) / (2 * u), 0, 1) * if(k * hd < n, 1, 0) }
         }
         repeat bp in 0..2 {
             let bo = bp * 0.5 * u
@@ -3359,7 +3361,7 @@ scene Vitreus {
                    close }
         }
         path { at: cx, cy; stroke: 2.4 * u; color: c; opacity: o; move a + 2.5 * u, -3 * u; line a + 2.5 * u, 3 * u }
-        text "{pct}%" { at: floor(cx + 0.5), floor(cy + 0.5); anchor: center; size: 12.5; weight: 700; color: ink; opacity: o; family: "Space Grotesk" }
+        text "{pct}%" { at: floor(cx + 0.5), floor(cy + 0.5); anchor: center; size: 12.5; weight: 700; color: ink; opacity: o * tx; family: "Space Grotesk" }      // (`tx`: 0 where the percentage is drawn outside the cell)
     }
 
     //  The battery, in the control center's pencil manner: the body twice with its rounded corners, a wash and the charge in the battery's colour, hatching on the charge, a terminal and (while charging) the bolt twice.
@@ -5466,7 +5468,7 @@ scene Vitreus {
     let sg = clamp(bar_sg, 0, 1) * sb                             // the top frame in three pieces (see `sg.*`); not on a monitor with only the frame (`sb`)
     let tu = clamp(1 - lm, 0, 1)                                  // the drawers that come out of a horizontal edge: the Island's pill, and the top and bottom frames
     let lf.t = 8 * u
-    let lf.w = mix(lf.t, 46 * bu, sb)
+    let lf.w = mix(lf.t, (40 + 6 * sg) * bu, sb)          // as thick as the Island's bar (40); the Notches keep 46, which their pieces' middle line is set from (`bar.y0`)
     let lf.x = lf.w / 2                                    // the strip's middle line, where its pieces sit
     let th.l = mix(lf.t, lf.w, lm)
     let th.t = mix(lf.t, lf.w, tm)
@@ -5585,15 +5587,25 @@ scene Vitreus {
     let lside = if(lp_k == 2, tm * (1 - bt), 0)
     let lbot = if(lp_k == 2, tm * bt, 0)                    // along the bottom (flipped, so the top on screen) the launcher comes out of the bottom notch, as Settings does otherwise
     let ssd = if(lp_k == 1, tm * bt, 0)                     // and Settings out of the left one
-    let dl.cL = mix(th.l / 2, th.l + 24 * u + 221.5 * pu + 20.5 * cu, dsl)        // the middle of what a left-notch drawer holds: it leaves the frame and ends 24 out from it
+    //  THE MARGIN. Every panel's glass is its content's box and `mg` on every side (on the side it comes out of, `mg` from the bar's or the strip's inner edge).
+    //  `*.cw` is how wide a panel's content is, `*.ct` how far under `ck` it starts, `*.ch` how tall it is: the glass is worked out from these, never set
+    //  on its own, so a change of size anywhere (the bar, a strip, a card, a whole panel) cannot change a margin. Set in pixels: it is not scaled.
+    let mg = 30
+    let dk.cw = 288 * cu                                            // the control center and the battery panel: their cards
+    let dc.cw = 426 * cu                                            // the dashboard: its cards, from the tab row (7 under `ck`) to the foot of the tab's last card (`dc_h` keeps 24 under it)
+    let ss.cw = 705.5 * pu                                          // Settings: its header (8 under `ck`), the sidebar and the page
+    let dl.cw = 430 * pu                                            // the launcher: its header (9 under `ck`) to the line of hints under the rows
+    let dm.cw = 288 * cu                                            // a tray app's menu (or the player): its plate (8 under `ck`) to its last row
+    let dl.cL = mix(th.l / 2, th.l + 24 * u + dl.cw / 2 + mg, dsl)        // the middle of what a left-notch drawer holds: it leaves the frame and ends 24 out from it
     let ds.cL = mix(th.l / 2, cx, dsl)                          // (it ends in the middle of the screen)
     let ku = if(lp_k == 1 or lp_k == 2, pu, if(lp_k == 9 or (lp_k >= 3 and lp_k <= 6), cu, u))                      // the unit of the panel that is open: the Settings and the launcher are larger
+    let pc.cw = if(lp_k == 1, ss.cw, if(lp_k == 2, dl.cw, if(lp_k == 3, dk.cw, if(lp_k == 4, dc.cw, if(lp_k == 5 or lp_k == 6, dm.cw, pw_x * ku)))))     // and how wide it is
     let dsk_w = 356 * du                                   // the desk's width and height, once out: a tablet, its screen 10 in from each side
     let dsk_h = 524 * du
     let lp.gx0 = lf.x
-    let lp.gxf = ccx - (pw_x / 2 + 6.5) * ku
+    let lp.gxf = ccx - pc.cw / 2 - mg
     let lp.xl = mix(lp.gx0 + (lp.gxf - lp.gx0) * dsl, lf.x, att)
-    let pcx0 = mix(cx, mix(mix(ccx - (lp.gxf - lp.gx0) * (1 - dsl), mix(mix(if(lp_k == 1, cx, ccx), dl.cL, lside), ds.cL, ssd), edg), mix(lf.w + 6.5 * ku + pw_x * ku / 2, screen.width - th.r - 6.5 * u - pw_x * u / 2, rgt), att), lmk)
+    let pcx0 = mix(cx, mix(mix(ccx - (lp.gxf - lp.gx0) * (1 - dsl), mix(mix(if(lp_k == 1, cx, ccx), dl.cL, lside), ds.cL, ssd), edg), mix(lf.w + mg + pc.cw / 2, screen.width - th.r - 6.5 * u - pw_x * u / 2, rgt), att), lmk)
     //  Along the top or the bottom the control centre hangs from the strip's right end (where its button is), not from the middle as on the Island: `rtop` is how far
     //  over that is, with its right edge against the right frame.
     let rtop = if(lp_k == 3, tm, 0)         // (only the control centre: the dashboard hangs from the middle of the bar, where the clock and the title now are)
@@ -5621,7 +5633,7 @@ scene Vitreus {
     //  The marks are laid out along one line with the SAME empty space between every neighbouring pair, whatever their sizes: each one has a slot as long
     //  as itself (as it rests, or as the mark in view while it is the active one, and in between while it morphs), and the slots follow each other `ws.g`
     //  apart from the overview button on. `ws.c[i]` is where slot i's middle is, from where the row starts (`ws.o`); `ws.a[i]` the same on the screen.
-    let ws.U = mix(bu, bcu, lm)
+    let ws.U = bu                                                    // (down a strip too: it is as thick as the Island's bar now)
     let ws.K = ws.U * ws.sz                                          // the marks' own unit (Settings > Bar > Workspaces, Size)
     let ws.g = ws.gp * ws.U * (1 - 0.72 * ws.st.0)                   // (the capsule's segments all but touch: they are one track)
     //  The look, each 0..1 so one morphs into the next (`ws.st.k`): in K, a mark's length along the bar as it rests and as the one in view.
@@ -5815,7 +5827,7 @@ scene Vitreus {
     let sg.rl = screen.width - sg.in - sg.pad - bw.ctl - bw.set - bw.sr - sg.bw + bar.gap - sg.pad - sg.fl
     //  Where the panels hang from in this layout: the calendar, the window title's, the tray's and the player's from the middle of the screen, where the middle piece is; the controls
     //  from the right end as along the other top frames. (`pcx0`, `rtop` are above; the panels are drawn about `pcx`.)
-    let pcx.o = mix(pcx0, screen.width - th.r - 6.5 * ku - pw_x * ku / 2, rtop)
+    let pcx.o = mix(pcx0, screen.width - th.r - mg - pc.cw / 2, rtop)
     let pcx = mix(pcx.o, if(lp_k == 4, cx, pcx.o), sg)              // (the calendar is centred on the screen like the title and the tray, which already are)
     let room = 14 * bu
     let roomv = 14 * bcu                    // and down the left, where the dots are larger
@@ -5844,8 +5856,8 @@ scene Vitreus {
     //  (`lv.bt` to `lv.bb`); the title's card goes between them, with room for its own.
     let lv.at = ob.y - ob.s / 2 - 9 * bu                   // the top card: from above the overview button to under the last mark and the plus
     let lv.ab = max(ws.o + max(ws.end, ws.q.10 * ws.pon + ws.psv), ws.o + 24 * ws.U * ws.sp) + 9 * bu      // (and under a special workspace's mark, the sparkle, notes or eye, that takes the marks' place)
-    let lv.bat = lv.sr - 34 * bu                           // the battery above search (when it is shown)
-    let lv.bt = lv.sr - 20 * bu - 34 * bu * bs.bat
+    let lv.bat = lv.sr - 46 * bu                           // the battery above search (when it is shown): the upright cell, its percentage under it
+    let lv.bt = lv.sr - 20 * bu - 46 * bu * bs.bat
     let lv.bb = lv.ctl + 22 * bu
     let lv.tt = lv.ab + 24 * bu
     let lv.bot = lv.bt - 24 * bu
@@ -5917,7 +5929,7 @@ scene Vitreus {
     //  The controls drawer: as wide as its plates and their margins need (288 + 2 x 12), coming
     //  out of the bar. It starts narrow and wide-open in height last, and widens to its place.
     //  It reaches up into the bar so the two can melt; `dk.hh` is how far down it goes.
-    let dk.w = (120 + 209 * (min(1, dk0 * 1.6) + max(0, dk0 - 1) * 0.6)) * cu     // its widest card (288) and the calendar's margin, 20.5 each side
+    let dk.w = 120 * cu + (dk.cw + 2 * mg - 120 * cu) * (min(1, dk0 * 1.6) + max(0, dk0 - 1) * 0.6)
     //  The plates stack from a shared cursor, each one naming where the one
     //  before it ended, so a plate that changes height (the media one, which
     //  shrinks to a sliver with nothing playing) pushes what is under it
@@ -5988,15 +6000,19 @@ scene Vitreus {
     prop bat_bot = 160 ~calm
     follow bat_bot = 18 + if(bc.opt, bc.ty + if(bc.pwask, 48, if(bc.ask or bc.bios or bc.busy or bc.err, 14, 0)) - 6, 144)      // (10 more than the content: the card under it reaches 6 below, and 4 is `ck` under the bar's middle)
     let content_bot = mix(ctl_bot, bat_bot, clamp(dkb, 0, 1))
-    let dk.hh = bar.h / 2 + (content_bot + 20.5) * cu * dk0 + 13 * cu * tm * dk0 + max(0, sag)      // (the 13 is `lp.dd`: along the top or bottom the margins are made 18.5 all round here too)
+    let dk.ct = mix(8, 2, clamp(dkb, 0, 1)) * cu                    // (the controls' tiles start 8 under `ck`, the battery's card 2)
+    let dk.ch = mix(ctl_bot - 8, bat_bot - 6, clamp(dkb, 0, 1)) * cu
+    let dk.hh = bar.h / 2 + (dk.ch + 2 * mg) * dk0 + max(0, sag)
     //  The player's panel: the same drawer as the controls, centred on the bar, and as tall as
     //  its one plate.
     //  The calendar's drawer: it falls as a narrow drop out of the bar and widens to exactly the bar's width as it
     //  lands, with the liquid neck of the other drawers while it is narrower (see `dc.bell`). It starts at the bar's
     //  middle, as they do, so the blend has the bar to melt into; as tall as the bar's lower half plus its content.
-    let dc.w = (120 + 347 * (min(1, dc0 * 1.6) + max(0, dc0 - 1) * 0.6)) * cu
+    let dc.w = 120 * cu + (dc.cw + 2 * mg - 120 * cu) * (min(1, dc0 * 1.6) + max(0, dc0 - 1) * 0.6)
     let dc.neck = 1                // how much of the others' liquid neck the calendar's join to the bar has: all of it in every layout, the same winged curve as the other panels (it was halved outside the frame layouts, which left a tighter, sharper join)
-    let dc.hh = bar.h / 2 + card.h + 6 * cu * tm * dc0 + max(0, sag)
+    let dc.ct = 7 * cu
+    let dc.ch = (dc_h - 31) * cu
+    let dc.hh = bar.h / 2 + (dc.ch + 2 * mg) * dc0 + max(0, sag)
     //  Once it is as wide as the bar (`f` 1) it must be a straight continuation of the bar's sides, so it moves its top up to
     //  the bar's top edge and stops blending: a blend there would puff the join out at the bar's corners.
     let dc.f = clamp((dc.w - bar.w + 24 * u) / (24 * u), 0, 1)
@@ -6083,17 +6099,21 @@ scene Vitreus {
     prop sb_tl = 42 ~238ms
     follow sb_ld = side.sel
     follow sb_tl = side.sel
-    let ss.w = (120 + 585.5 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * pu + 41 * cu * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)     // its content (705.5) and a margin of 20.5 `cu` each side, the calendar's
-    let ss.hh = bar.h / 2 + ((8 + 36 + 8 + set.h) * pu + 20.5 * cu) * ds0 + max(0, sag)
+    let ss.ct = 8 * pu
+    let ss.ch = (44 + set.h) * pu
+    let ss.w = 120 * pu + (ss.cw + 2 * mg - 120 * pu) * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)
+    let ss.hh = bar.h / 2 + (ss.ch + 2 * mg) * ds0 + max(0, sag)
     let ss.f = clamp((ss.w - bar.w + 24 * u) / (24 * u), 0, 1)     // as for the calendar: as wide as the bar, it goes on from the bar's sides with no blend (a blend there puffs the sides out at the join)
     let ss.top = mix(bar.y, bar.y - bar.h / 2, ss.f)
     //  The launcher: a drop that widens to the bar's width as it lands, like the calendar. The search field (40), the
     //  rows (44 each, up to eight; seven where there is a preview beside them) and a line of hints.
-    let dl.w = (120 + 323 * (min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6)) * pu + 41 * cu * (min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6)     // its card (443: the content, 430, and 6.5 each side) and the calendar's margin, 20.5 `cu` each side
-    let dl.hh = bar.h / 2 + ((170 + lr * 44) * pu + 20.5 * cu) * dl0 + max(0, sag)
+    let dl.ct = 9 * pu
+    let dl.ch = (152 + lr * 44) * pu
+    let dl.w = 120 * pu + (dl.cw + 2 * mg - 120 * pu) * (min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6)
+    let dl.hh = bar.h / 2 + (dl.ch + 2 * mg) * dl0 + max(0, sag)
     let dl.f = clamp((dl.w - bar.w + 24 * u) / (24 * u), 0, 1)     // as for the calendar
     let dl.top = mix(bar.y, bar.y - bar.h / 2, dl.f)
-    let dm.w = (120 + 208 * (min(1, dm0 * 1.6) + max(0, dm0 - 1) * 0.6)) * cu
+    let dm.w = 120 * cu + (dm.cw + 2 * mg - 120 * cu) * (min(1, dm0 * 1.6) + max(0, dm0 - 1) * 0.6)
     //  Under the player's plate, the running windows and then the tray apps, each a header and rows, scrolling past a few.
     //  The dashboard's Apps tab: the workspaces that have windows as little monitors, two across (12 apart; the empty ones are not there), 140 tall: the number and how many
     //  windows on the chin, the windows tiled on the screen. Windows anywhere else (a scratchpad) have a strip of their own under them.
@@ -6123,18 +6143,17 @@ scene Vitreus {
     //  The tray menu: the app's plate (8..60), Open and Alt (66..92), then its menu from 100 (or a line saying it has none).
     let tm.list = min(tm_h, 224)
     let tm_bot = 100 + if(tm_has_menu, tm.list, 30) + 8
-    let dm.hh = bar.h / 2 + (if(dm_mode == dmm_tray, tm_bot + 16, panel_bot + dm_foot)) * cu * dm0 + 13 * cu * tm * dm0 + max(0, sag)
+    let dm.ct = 8 * cu
+    let dm.ch = (if(dm_mode == dmm_tray, tm_bot - 16, panel_bot - 8)) * cu
+    let dm.hh = bar.h / 2 + (dm.ch + 2 * mg) * dm0 + max(0, sag)
     let mdx = pcx
     //  Down the left, where the open panel is (`lp_k`: which was opened last), in its own coordinates: it ends up in the middle of the screen,
     //  except the volume, which is low, and the notification, which is high. It leaves the strip at the height of its button (`lp.btn`; the volume
     //  and the notification leave at their own height) and its middle travels from there to its place with the drop (`lp.cy`). `pw_y` follows its top.
     let lp.btn = if(lp_k == 1, mix(vb - th.b / 2, vcc, ssd), if(lp_k == 2, mix(mix(yo + th.t / 2, vcc, lside), vb - th.b / 2, lbot), if(lp_k == 3, lv.ctl, if(lp_k == 4, lv.clk + 30 * u, if(lp_k == 5, lv.tray + 9 * u, if(lp_k == 6, lv.tm, 0))))))
-    //  Margins: the plates are 12 in from a drawer's top and bottom in their own layouts and 18.5 in from its sides, so a panel's content is moved by
-    //  `lp.dy` and the drawer made `lp.dd` taller to make them 18.5 all round (Settings included).
-    let lpm = max(lmk, tm * att)                  // the corrections apply to the strip's own panels on a top or bottom frame as well as on a side one
-    let lp.dy = if(lp_k == 1, 4.5, if(lp_k == 2 or lp_k == 3 or lp_k == 7 or lp_k == 8, 6.5, if(lp_k == 4, -0.5, 0))) * ku * lpm
-    let lp.dd = if(lp_k == 1, 11, if(lp_k == 2, 11, if(lp_k == 3 or lp_k == 7 or lp_k == 8, 13, if(lp_k == 4, 6, 0)))) * ku * lpm
-    let lp.hd = (if(lp_k == 1, ((8 + 36 + 8 + set.h) * pu + 20.5 * cu), if(lp_k == 2, ((170 + lr * 44) * pu + 20.5 * cu), if(lp_k == 3, (content_bot + 20.5) * cu, if(lp_k == 4, dc_h * cu, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot + 16, panel_bot + dm_foot)) * cu, if(lp_k == 9, dsk_h, (8 + osd_h + 16) * u))))))) + lp.dd
+    //  Margins: every panel is its content and `mg` round it (see `mg`); `pc.*` is the open panel's content box, `lp.hd` its glass's height.
+    let pc.ct = if(lp_k == 1, ss.ct, if(lp_k == 2, dl.ct, if(lp_k == 3, dk.ct, if(lp_k == 4, dc.ct, if(lp_k == 5 or lp_k == 6, dm.ct, mg - 4 * ku)))))     // where the open panel's content starts under `ck`
+    let lp.hd = if(lp_k == 1, ss.ch, if(lp_k == 2, dl.ch, if(lp_k == 3, dk.ch, if(lp_k == 4, dc.ch, if(lp_k == 5 or lp_k == 6, dm.ch, 0))))) + if(lp_k >= 1 and lp_k <= 6, 2 * mg, if(lp_k == 9, dsk_h, osd_h * u * if(osd_kind == note, clamp(nt_size, 0.5, 1), 1) + 2 * mg))      // (the volume's and a notification's: `os.hd`)
     //  Where it settles, as drawn (`ty`): Settings in the middle of the screen, the launcher high, a good way from the middle, and clear of the frame; then back to the panel's
     //  own coordinates (the contents are scaled about the middle of the screen).
     let lp.ty = if(lp_k == 1, vc, mix(mix(max(vc - 210 * u, yo + th.t + 24 * u + lp.hd / 2), vcc, lside), vb - th.b - 24 * u - lp.hd / 2, lbot))
@@ -6196,17 +6215,17 @@ scene Vitreus {
     //  they will end up, and the drawer's shape uncovers them (they are clipped to it).
     let dk.gl = mix(min(dtrav, dk0), dk0, att)
     let dk.lf = min(1, dk.gl * 1.6) + max(0, dk.gl - 1) * 0.6
-    let dk.rt = mix(2 * (164.5 + 6.5) * cu, (lf.w - lf.x) + 342 * cu, att)
+    let dk.rt = mix(dk.cw + 2 * mg, (lf.w - lf.x) + dk.cw + 2 * mg, att)      // (down a strip: from its middle line, past its inner edge, `mg`, the content and `mg`)
     let dk.gw = max(0.1, dk.rt * dk.lf)
-    let dk.gh = (((content_bot + 20.5) * cu) + lp.dd + max(0, sag)) * dk.lf
+    let dk.gh = (dk.ch + 2 * mg + max(0, sag)) * dk.lf
     let dk.gx = mix(lp.xl + dk.gw / 2, ccx, edg)
     //  Close to the right frame the glass reaches into that too (as at the bottom, `lp.ext`), so the panel's corner is the frame's.
     //  Along the top or the bottom the drawers come out of the strip as they do down the sides, turned a quarter: a small blob at the strip's edge, in the panel's
     //  middle, that grows both ways (`*.lf`). `*.tR` is how far it reaches from the strip's middle line when it is out; its top is that line.
-    let dk.tR = bar.h / 2 + (content_bot + 20.5) * cu + 13 * cu * tm + max(0, sag)
+    let dk.tR = bar.h / 2 + dk.ch + 2 * mg + max(0, sag)
     let dk.teh = dk.tR * dk.lf
     let dk.tey = bar.y + dk.teh / 2
-    let dk.tew = (329 * cu + (13 * cu + 14 * u * if(lp_k == 3, 1, 0)) * tm) * dk.lf
+    let dk.tew = (dk.cw + 2 * mg + 14 * u * if(lp_k == 3, 1, 0) * tm) * dk.lf      // (along a top or bottom strip it sits against the right frame and reaches 14 into it)
     let dk.tex = mix(if(bar_frame, mix(ctl.x, bat.x, dkb), pcx), pcx, dk.lf) + 7 * u * if(lp_k == 3, 1, 0) * dk.lf * tm     // along a frame's top or bottom it comes out of its own button and slides to its place as it grows (as an add-on's drawer does out of its pill); the Island's drops straight, from the middle
     let dk.er = if(lp_k == 3, 14 * u * lm * clamp((dk.gx + dk.gw / 2 - (screen.width - th.r - 14 * u)) / (14 * u), 0, 1), 0) * dk.lf
     let dk.ew = mix(mix(dk.w, dk.gw + dk.er, lm), dk.tew, tu)
@@ -6215,15 +6234,15 @@ scene Vitreus {
     let dk.ey = mix(mix(bar.y + dk.hh / 2, mix(if(lp_k == 3, lv.ctl, lp.cy), lp.cy, dk.lf) + if(lp_k == 3, lp.ext * dk.lf, 0) / 2, lm), dk.tey, tu)     // down a side strip it starts level with its own button and slides to its place as it grows
     let dc.gl = mix(min(dtrav, dc0), dc0, att)
     let dc.lf = min(1, dc.gl * 1.6) + max(0, dc.gl - 1) * 0.6
-    let dc.rt = mix(2 * (233.5 + 6.5) * cu, (lf.w - lf.x) + 480 * cu, att)
+    let dc.rt = mix(dc.cw + 2 * mg, (lf.w - lf.x) + dc.cw + 2 * mg, att)
     let dc.gw = max(0.1, dc.rt * dc.lf)
-    let dc.gh = ((dc_h * cu) + lp.dd + max(0, sag)) * dc.lf
+    let dc.gh = (dc.ch + 2 * mg + max(0, sag)) * dc.lf
     let dc.gx = mix(lp.xl + dc.gw / 2, ccx, edg)
-    let dc.tR = bar.h / 2 + dc_h * cu + 6 * cu * tm + max(0, sag)
+    let dc.tR = bar.h / 2 + dc.ch + 2 * mg + max(0, sag)
     let dc.teh = dc.tR * dc.lf
     let dc.tey = bar.y + dc.teh / 2
-    let dc.mf = if(lp_k == 4, clamp((pcx + 247 * cu - (screen.width - th.r - 14 * u)) / (14 * u), 0, 1), 0)    // how far the calendar's glass reaches into the right frame: only when it sits against it, so a centred one is even on both sides
-    let dc.tew = (467 * cu + (13 * cu + 14 * u * dc.mf) * tm) * dc.lf
+    let dc.mf = if(lp_k == 4, clamp((pcx + dc.cw / 2 + mg - (screen.width - th.r - 14 * u)) / (14 * u), 0, 1), 0)    // how far the calendar's glass reaches into the right frame: only when it sits against it, so a centred one is even on both sides
+    let dc.tew = (dc.cw + 2 * mg + 14 * u * dc.mf * tm) * dc.lf
     let dc.tex = pcx + 7 * u * dc.mf * dc.lf * tm
     let dc.er = if(lp_k == 4, 14 * u * lm * clamp((dc.gx + dc.gw / 2 - (screen.width - th.r - 14 * u)) / (14 * u), 0, 1), 0) * dc.lf
     //  Out of the Island's pill or a floating bar (not a frame), the same as `dc.f` above: once the calendar is as wide as the bar its glass reaches up to
@@ -6236,25 +6255,25 @@ scene Vitreus {
     let dc.ey = mix(mix((dc.top + bar.y + dc.hh) / 2, lp.cy + if(lp_k == 4, lp.ext * dc.lf, 0) / 2, lm), dc.tey - dc.tup / 2, tu)
     let ds.gl = min(dtrav_s, ds0)
     let ds.lf = mix(min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6, min(1, ds.gl * 1.6) + max(0, ds.gl - 1) * 0.6, fm)
-    let ds.rt = 2 * ((352.75 + 6.5) * pu + 20.5 * cu)
+    let ds.rt = ss.cw + 2 * mg
     let ds.gw = max(0.1, ds.rt * ds.lf)
-    let ds.gh = ((((8 + 36 + 8 + set.h) * pu + 20.5 * cu)) + lp.dd + max(0, sag)) * ds.lf
+    let ds.gh = (ss.ch + 2 * mg + max(0, sag)) * ds.lf
     let ds.gx = mix(mix(lp.xl + ds.gw / 2, cx, edg), ds.cL, ssd)
     //  On the Island, Settings leaves the bar as it opens and settles in the middle of the screen: `ss.det` is how far it has left, `ss.dt` its glass's top
     //  once it has (a little above the content, as the bottom is below it), `ss.dy` how far down it has gone.
     let ss.det = (1 - fm) * clamp(ds0, 0, 1)
-    let ss.dt = bar.y + bar.h / 2 - 10 * pu
+    let ss.dt = bar.y + bar.h / 2
     let ss.t2 = mix(ss.top, ss.dt, ss.det)
-    let ss.dy = ss.det * (vc - (ss.dt + bar.y + bar.h / 2 + ((8 + 36 + 8 + set.h) * pu + 20.5 * cu)) / 2)
+    let ss.dy = ss.det * (vc - (ss.dt + bar.y + bar.h / 2 + ss.ch + 2 * mg) / 2)
     let ds.ew = mix(ss.w, ds.gw, fm)
     let ds.eh = mix(bar.y + ss.hh - ss.t2, ds.gh, fm)
     let ds.ex = mix(pcx, ds.gx, fm)
     let ds.ey = mix((ss.t2 + bar.y + ss.hh) / 2 + ss.dy, lp.cy, fm)
     let dl.gl = min(dtrav, dl0)
     let dl.lf = mix(min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6, min(1, dl.gl * 1.6) + max(0, dl.gl - 1) * 0.6, fm)
-    let dl.rt = 2 * ((215 + 6.5) * pu + 20.5 * cu)
+    let dl.rt = dl.cw + 2 * mg
     let dl.gw = max(0.1, dl.rt * dl.lf)
-    let dl.gh = ((((170 + lr * 44) * pu + 20.5 * cu)) + lp.dd + max(0, sag)) * dl.lf
+    let dl.gh = (dl.ch + 2 * mg + max(0, sag)) * dl.lf
     let dl.gx = mix(mix(lp.xl + dl.gw / 2, ccx, edg), dl.cL, lside)
     let dl.ew = mix(dl.w, dl.gw, fm)
     let dl.eh = mix((bar.y + dl.hh - dl.top), dl.gh, fm)
@@ -6266,7 +6285,7 @@ scene Vitreus {
     //  A notification's drawer at its size (`nt_size`), the volume's and a screenshot's always whole: the glass is made smaller here, from its top right corner (the
     //  top stays 24 under the frame, the right edge in it), and what it holds is scaled about the same corner (pages/osd_drawer.plm), so the margins shrink with it.
     let nk = if(osd_kind == note, clamp(nt_size, 0.5, 1), 1)
-    let os.hd = (8 + osd_h + 16 + 13) * u * nk
+    let os.hd = osd_h * u * nk + 2 * mg                       // its plate and `mg` above and below it (the plate is scaled by `nk`, the margin is not)
     let os.cy = if(if(osd_kind == vol or osd_kind == shot, 1, 0) + bt == 1, vb - th.b - 24 * u - os.hd / 2, yo + th.t + 24 * u + os.hd / 2)
     //  The same two places in both layouts (the left layout's): the volume low and the notification high, out of the right edge of the screen. Along the top there
     //  is no frame there, so they come out of the edge of the screen itself. Content hangs from `os.ck`, centred on `os.px`.
@@ -6276,11 +6295,11 @@ scene Vitreus {
     //  as the drawer opens and kept until it has closed, so it never jumps while it is out.
     let ol = if(nt_left, 1, 0)
     let ol.d = th.l - th.r
-    let os.px0 = screen.width - th.r - 176.5 * u
+    let os.px0 = screen.width - th.r - mg / nk - 158 * u        // the plate's middle: `mg` in from the right frame once scaled by `nk` about it
     let os.px = mix(os.px0, screen.width - os.px0 + ol.d, ol)
     let os.ck = os.cy - (8 + osd_h / 2) * u
     let do.lf = min(1, do0 * 1.6) + max(0, do0 - 1) * 0.6
-    let do.rt = th.r + (26 + 353 * nk) * u
+    let do.rt = th.r + 26 * u + 316 * u * nk + 2 * mg
     let do.gw = max(0.1, do.rt * do.lf)
     let do.gh = (os.hd + max(0, sag)) * do.lf
     let do.gx = screen.width + 26 * u * do.lf - do.gw / 2
@@ -6288,7 +6307,7 @@ scene Vitreus {
     let do.eh = do.gh
     let do.ex = mix(do.gx, screen.width - do.gx + ol.d, ol)
     let do.ey = os.cy
-    let do.iw = max(0.1, 352 * u * nk * do.lf)                       // along the top the panel is wholly on screen (the right frame's 8 in from the edge), so its corners are all rounded
+    let do.iw = max(0.1, (316 * u * nk + 2 * mg) * do.lf)                       // along the top the panel is wholly on screen (the right frame's 8 in from the edge), so its corners are all rounded
     let do.ix0 = screen.width - th.r - do.iw / 2
     let do.ix = mix(do.ix0, screen.width - do.ix0 + ol.d, ol)
     let do.edge0 = mix(screen.width - th.r, screen.width + 26 * u, fm)         // the edge it grows out of, and the corner a smaller notification is scaled about
@@ -6298,14 +6317,14 @@ scene Vitreus {
     let do.stretch = clamp(vel(do) * 0.07, 0, 0.5)
     let dm.gl = mix(min(dtrav, dm0), dm0, att)
     let dm.lf = min(1, dm.gl * 1.6) + max(0, dm.gl - 1) * 0.6
-    let dm.rt = mix(2 * (164 + 6.5) * cu, (lf.w - lf.x) + 341 * cu, att)
+    let dm.rt = mix(dm.cw + 2 * mg, (lf.w - lf.x) + dm.cw + 2 * mg, att)
     let dm.gw = max(0.1, dm.rt * dm.lf)
-    let dm.gh = (((if(dm_mode == dmm_tray, tm_bot + 16, panel_bot + dm_foot)) * cu) + lp.dd + max(0, sag)) * dm.lf
+    let dm.gh = (dm.ch + 2 * mg + max(0, sag)) * dm.lf
     let dm.gx = mix(lp.xl + dm.gw / 2, ccx, edg)
-    let dm.tR = bar.h / 2 + (if(dm_mode == dmm_tray, tm_bot + 16, panel_bot + dm_foot)) * cu + 13 * cu * tm + max(0, sag)
+    let dm.tR = bar.h / 2 + dm.ch + 2 * mg + max(0, sag)
     let dm.teh = dm.tR * dm.lf
     let dm.tey = bar.y + dm.teh / 2
-    let dm.tew = 328 * cu * dm.lf
+    let dm.tew = (dm.cw + 2 * mg) * dm.lf
     let dm.tex = pcx
     let dm.ew = mix(mix(dm.w, dm.gw, lm), dm.tew, tu)
     let dm.eh = mix(mix(dm.hh, dm.gh + if(lp_k == 5 or lp_k == 6, lp.ext * dm.lf, 0), lm), dm.teh, tu)
@@ -6467,7 +6486,7 @@ scene Vitreus {
     //  own (unmirrored) drawing; the icons are drawn where the mirror image falls. `cdk_cx.$screen`, `cdk_cy.$screen` is where its middle is: carried to the pointer while it is
     //  pulled, to its corner otherwise.
     let cdk.g = max(cdk_ga, dkm * adk_ga) * sb                                        // how far out it is on this monitor: only where the bar is (`sb`)
-    let dbu = bu * mix(mix(40, 46, fm), 36, sg) / 34       // the docks' own unit: a dock is as thick as the bar is in each layout (the Island's 40 * bu, the frame strips' 46, the Notches' pieces' 36)
+    let dbu = (40 * bu - lf.t * fm) / 34                  // the docks' own unit: a dock reaches as far from the screen's edge as the bar is thick (40 * bu): on the Island it is that thick; in a frame it stands on the frame's edge, so that is taken off
     let cdk.s = 24 * dbu
     let cdk.p = cdk.s + 6 * dbu
     let cdk.t = cdk.s + 10 * dbu
@@ -6658,16 +6677,17 @@ scene Vitreus {
     let pxk_adk_sk = min(clamp(pxk_adk_h * 0.055, 7 * u, 20 * u), 0.3 * max(0, pxk_adk_h))
     let pxk_adk_l = sqrt(pxk_adk_sk * pxk_adk_sk + pxk_adk_h * pxk_adk_h) + 0.01
     let axs.hh = 38 * cu                                   // the shell's title bar across the top of the panel (title, grip, X): the content is below it
-    let axs.m = 14 * cu                                    // the margin all round the content: the rectangle an add-on is given is this much inside the glass on every side (below the title bar, and clear of the pill's strip)
+    let axs.m = mg                                         // the margin all round the content (`mg`, every panel's): the rectangle an add-on is given is this much inside the glass on every side (below the title bar, and clear of the pill's strip)
     let axs.mt = 0 * cu                                    // the margin above the content, under the title bar: none (the add-ons keep a little room of their own at their tops)
-    let axs.rt = max(axs.hh, cdk.t * (1 - adk.sb) * (1 - axb) * (1 - lm))   // what the content leaves free: the title bar, or the pill's strip when the pill is at the top, whichever is taller (the strip is inside the title bar's height: added together they left a gap as tall as the pill's strip)
+    let axs.pt = (1 - axb) * (1 - lm) * (1 - dkm) * mix(1 - adk.sb, adk.sb, bt)     // the pill along the panel's top as it is on the screen (`adk.sb` is in the unmirrored drawing: with the strip along the bottom, `bt`, its bottom is the screen's top)
+    let axs.rt = max(axs.hh, cdk.t * axs.pt)   // what the content leaves free: the title bar, or the pill's strip when the pill is at the top, whichever is taller (the strip is inside the title bar's height: added together they left a gap as tall as the pill's strip)
     //  `axs.rn`: whether the panel is against the frame's edge the pill's strip is on. Pulled away, the pill stays in the frame and the strip is empty, so the strip lets go as the glass lets go of the frame (`dax.nr`), but from
     //  where the panel is being taken (`ax_gx`), not the spring, so the content is told its place once.
     let axs.rn = clamp(1 - (axs.x1 - (axs.fx + ax_gx + axs.w / 2) - 14 * cu) / (50 * cu), 0, 1)
     let axs.rr = cdk.t * lm * (1 - axb) * axs.rn                   // down a side strip the pill stands upright against the frame's edge, in the panel's side: its strip is taken from the panel's width (on the side of the frame, mirrored with `rt`)
 
-    let axs.rb = cdk.t * adk.sb * (1 - axb) * (1 - lm) * (1 - dkm)     // ... and the pill's strip along the bottom (the pill is in the panel's corner, its icons showing)
-    let ax.yoff = if(bar_anchor == top and not bar_frame and bar_size > 0.995 and not bar_ah and not wm_session, 62, 0)       // as the shell's own surface reserves (`reserve:` on it): an add-on's scene is laid out below it, so what it is told is moved up by this
+    let axs.rb = cdk.t * (1 - axb) * (1 - lm) * (1 - dkm) * mix(adk.sb, 1 - adk.sb, bt)     // ... and the pill's strip along the bottom (the pill is in the panel's corner, its icons showing)
+    let ax.yoff = if(bar_anchor == top and not bar_frame and bar_size > 0.995 and bar_size < 1.005 and not bar_ah and not wm_session, 62, 0)       // as the shell's own surface reserves (`reserve:` on it): an add-on's scene is laid out below it, so what it is told is moved up by this
     //  How far it may be pulled (offsets from its place, in the glass's drawing): anywhere inside the frame, right up against it, as the Desk can be.
     let axs.xmin = cdk.xs - (axs.fx - axs.w / 2)
     let axs.xmax = cdk.xe - (axs.fx + axs.w / 2)
@@ -7040,7 +7060,7 @@ scene Vitreus {
     on change dm > 0.5 while dm > 0.5 and panel == player { lp_k = 6; lp_w = 328 }
     //  Where the contents hang from: the panel's old middle, so they keep their
     //  place when the panel grows to make room for the player.
-    let cy = mix(bar.y + bar.h / 2, lp.top, lmk) + (6 + 125 * (1 + (mix(drop, 1, lmk) - 1) * (1 - 2 * bt))) * ku + lp.dy
+    let cy = mix(bar.y + bar.h / 2, lp.top, lmk) + (2 + 125 * (1 + (mix(drop, 1, lmk) - 1) * (1 - 2 * bt))) * ku + mg - pc.ct      // (at rest `ck` is `mg` above where the content starts: the content starts `mg` inside the glass)
     //  The controls' content hangs from here: 127 above `cy`, so the volume plate starts 12 under the
     //  bar and the drawer is only as tall as its two plates and their margins.
     let ck = cy - 127 * ku
@@ -7995,12 +8015,14 @@ scene Vitreus {
         let bat.c = ink
         let bat.fc = if(chg_now, #4cd964, mix(mix(#e0655a, #f2c230, clamp((batt_fill - 0.15) / 0.15, 0, 1)), #4cd964, clamp((batt_fill - 0.4) / 0.25, 0, 1)))      // red under 15 %, yellow about 30 to 40 %, green from 65 %
         let bat.o = 80% + 20% * bat_z.hover
+        //  Down the strip the cell stands upright (its tip up), narrow enough for a strip as thick as the Island's bar, and its percentage sits under it.
         group {
             pivot: bat.x + (lf.x - bat.x) * lm, bar.y + (lv.bat - bar.y) * lm
-            scale: 1 - 0.26 * lm       // a smaller cell down the strip
-            BarBatt(bat.x + (lf.x - bat.x) * lm - 1.85 * bu, bar.y + (lv.bat - bar.y) * lm, mix(42, 36, lm) * bu, 20 * bu, batt_fill, bat.c, bat.fc, bat.o, bat.f, bu, bat_pct)
+            rotate: -90deg * lm
+            BarBatt(bat.x + (lf.x - bat.x) * lm - 1.85 * bu, bar.y + (lv.bat - bar.y) * lm, mix(42, 26, lm) * bu, mix(20, 15, lm) * bu, batt_fill, bat.c, bat.fc, bat.o, bat.f, bu, bat_pct, 1 - lm)
         }
-        zone box bat_z { at: bat.x + (lf.x - bat.x) * lm, bar.y + (lv.bat - bar.y) * lm; size: mix(fw.bat + 6 * bu, lf.w - 6 * bu, lm), 30 * bu; corner: 10 * bu; cursor: pointer; active: bs.bat > 0.6 and sb > 0.5; label: "Battery" }
+        text "{bat_pct}%" { at: floor(lf.x + 0.5), floor(lv.bat + 21 * bu + 0.5); anchor: center; align: center; size: 11 * bz; weight: 700; color: ink; opacity: bat.o * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        zone box bat_z { at: bat.x + (lf.x - bat.x) * lm, bar.y + (lv.bat + 4 * bu - bar.y) * lm; size: mix(fw.bat + 6 * bu, lf.w - 6 * bu, lm), mix(30, 52, lm) * bu; corner: 10 * bu; cursor: pointer; active: bs.bat > 0.6 and sb > 0.5; label: "Battery" }
         on press bat_z { pending = none; panel_scr = screen.index; panel = if(panel == battery, none, battery) }
     }
     //  The clock runs while something needs it. It is here, after the bar's zones, because it reads their hover: the bar's icons only boil under the pointer.
@@ -8025,26 +8047,23 @@ scene Vitreus {
         //  In the Notches layout the line under the clock is gone, and a smaller one sits between the day and the am/pm instead.
         PBLine(clock.r - clock.col / 2, bar.y - 0.5, bar_hit.hover, clock.col * 0.6, 0.5 * bs.clock * (1 - lm) * sg)
     }
-    //  Down the left the clock is stacked in the strip: the hour, the minutes under it in the accent, and the am/pm.
+    //  Down the left the clock is stacked in the strip: the hour, the minutes under it in the accent, the day and the date, all on the strip's middle line
+    //  (no am/pm: the strip is as thick as the Island's bar, and there is no room beside the hour for it).
     group {
         pivot: lf.x, lv.clk + 28 * bu
-        text clock_h { at: floor(lf.x - 5 * bu + 0.5), floor(lv.clk + 0.5); anchor: center; align: center; size: 30 * bz; weight: 700; gradient: 0, lv.clk - 18 * bu to 0, lv.clk + 33 * bu, minthi, mint 55%, mintlo; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-        text clock_mn { at: floor(lf.x - 5 * bu + 0.5), floor(lv.clk + 28 * bu + 0.5); anchor: center; align: center; size: 17 * bz; weight: 700; gradient: 0, lv.clk - 18 * bu to 0, lv.clk + 33 * bu, minthi, mint 55%, mintlo; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-        PBLine(lf.x - 5 * bu, lv.clk + 16.5 * bu, bar_hit.hover, 18 * bu, 0.85 * bs.clock * lm)   // the rule under the hour, in pencil
-        //  am/pm: two letters one over the other, on the right, level with the rule (the hour and the minutes are moved left to make room).
-        text bar_ap1 { at: floor(lf.x + 12.5 * bu + 0.5), floor(lv.clk + 11.9 * bu + 0.5); anchor: center; align: center; size: 11 * bz; weight: 700; color: mint; opacity: bs.clock * lm; family: "Space Grotesk" }
-        text "m" { at: floor(lf.x + 12.5 * bu + 0.5), floor(lv.clk + 21.1 * bu + 0.5); anchor: center; align: center; size: 11 * bz; weight: 700; color: mint; opacity: bs.clock * lm; family: "Space Grotesk" }
-        //  Under them the day of the week and the date.
-        text bar_date { at: floor(lf.x + 5 * bu + 0.5), floor(lv.clk + 41 * bu + 0.5); anchor: center; align: center; size: 11 * bz; weight: 700; color: faint; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
-        text date_md { at: floor(lf.x + 0.5), floor(lv.clk + 55 * bu + 0.5); anchor: center; align: center; size: 14 * bz; weight: 700; color: ink; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        text clock_h { at: floor(lf.x + 0.5), floor(lv.clk + 0.5); anchor: center; align: center; size: 30 * bz; weight: 700; gradient: 0, lv.clk - 18 * bu to 0, lv.clk + 33 * bu, minthi, mint 55%, mintlo; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        text clock_mn { at: floor(lf.x + 0.5), floor(lv.clk + 28 * bu + 0.5); anchor: center; align: center; size: 17 * bz; weight: 700; gradient: 0, lv.clk - 18 * bu to 0, lv.clk + 33 * bu, minthi, mint 55%, mintlo; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        PBLine(lf.x, lv.clk + 16.5 * bu, bar_hit.hover, 18 * bu, 0.85 * bs.clock * lm)   // the rule under the hour, in pencil
+        text bar_date { at: floor(lf.x + 0.5), floor(lv.clk + 41 * bu + 0.5); anchor: center; align: center; size: 11 * bz; weight: 700; color: faint; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        text date_md { at: floor(lf.x + 0.5), floor(lv.clk + 55 * bu + 0.5); anchor: center; align: center; size: 12 * bz; weight: 700; color: ink; opacity: bs.clock * lm; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     }
     //  The window title down the left: the app, and under it (to its right once turned) the title, turned a quarter anticlockwise so that it reads
     //  from the foot up, each centred on the strip's middle line and on the stretch `lv.tm` and cut with an ellipsis where that ends.
     group {
-        pivot: lf.x - 9 * bcu * (1 - 2 * rt), lv.tm
+        pivot: lf.x - 8 * bu * (1 - 2 * rt), lv.tm
         rotate: (2 * rt - 1) * 90deg
         opacity: lm * bs.title0
-        text win.class { at: floor(lf.x - 9 * bcu * (1 - 2 * rt) + 0.5), floor(lv.tm + 0.5); anchor: center; align: center; size: 15 * bz; weight: 600; width: max(1, lv.span); lines: 1; color: faint; opacity: 70%; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        text win.class { at: floor(lf.x - 8 * bu * (1 - 2 * rt) + 0.5), floor(lv.tm + 0.5); anchor: center; align: center; size: 15 * bz; weight: 600; width: max(1, lv.span); lines: 1; color: faint; opacity: 70%; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     }
     group {
         opacity: lm * bs.title0 * lv.none
@@ -8053,10 +8072,10 @@ scene Vitreus {
         }
     }
     group {
-        pivot: lf.x + 9 * bcu * (1 - 2 * rt), lv.tm
+        pivot: lf.x + 8 * bu * (1 - 2 * rt), lv.tm
         rotate: (2 * rt - 1) * 90deg
         opacity: lm * bs.title0
-        text win.title { at: floor(lf.x + 9 * bcu * (1 - 2 * rt) + 0.5), floor(lv.tm + 0.5); anchor: center; align: center; size: 14 * bz; weight: 500; width: max(1, lv.span); lines: 1; color: ink; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
+        text win.title { at: floor(lf.x + 8 * bu * (1 - 2 * rt) + 0.5), floor(lv.tm + 0.5); anchor: center; align: center; size: 14 * bz; weight: 500; width: max(1, lv.span); lines: 1; color: ink; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     }
     text win.class { at: floor(win.xs + 0.5), floor(bar.y - 6.5 * bu + 0.5); anchor: left center; size: 17 * bz; weight: 600; width: max(0, win.hw - 12 * bu - mctl); lines: 1; color: faint; opacity: 55% * bs.title; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }
     text win.title { at: floor(win.xs + 0.5), floor(bar.y + 8.75 * bu + 0.5); anchor: left center; size: 13.5 * bz; weight: 500; width: max(0, win.hw - 12 * bu); lines: 1; color: ink; opacity: bs.title; shadow: 0, 1, 3, 40%, deep; family: "Space Grotesk" }

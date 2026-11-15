@@ -72,7 +72,7 @@ return function()
     -- How far down the add-on scenes' surfaces start: the bar's reserve on the Island (the same rule as `ax.yoff` in vitreus.plm). Worked out here from the facts, not read from `ax_yoff`:
     -- that one is set by a scene rule that may not have run yet when the panel's first message is sent, which told News & Weather a height that matched none of its copies.
     local function yoff()
-        if fact.bar_anchor == "top" and fact.bar_frame ~= true and fact.wm_session ~= true and (tonumber(fact.bar_size) or 1) > 0.995 then return 62 end
+        if fact.bar_anchor == "top" and fact.bar_frame ~= true and fact.wm_session ~= true and math.abs((tonumber(fact.bar_size) or 1) - 1) < 0.005 then return 62 end
         return 0
     end
     local function cur_pin() return pins[(tonumber(fact.ax_cur) or -1) + 1] end

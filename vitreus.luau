@@ -3200,27 +3200,30 @@ function dock_fx.room()
     if dock_fx.ah and not bar_fx.left then return r end           -- auto-hidden (the Island only): the windows go under where the docks come out
     local anchor = fact.bar_anchor
     local bu = 1.35 * (bar_fx and bar_fx.size or 1)
-    local k = (fact.bar_seg == true and 36 or (fact.bar_frame == true and 46 or 40)) / 34       -- a dock is as thick as the bar is in each layout (`dbu` in vitreus.plm)
+    local k = 40 / 34                                         -- a dock is as thick as the Island's bar in every layout (`dbu` in vitreus.plm)
     if anchor == "left" or anchor == "right" then
-        r[anchor == "left" and "right" or "left"] = math.floor(1.35 * 8 + 34 * bu * k + 13 + 0.5)       -- (the pills stand upright down a side strip: as thick as along the top)
+        r[anchor == "left" and "right" or "left"] = math.floor(40 * bu + 13 + 0.5)       -- (in a frame the dock stands on its edge and ends as far out as the strip, 40 * u)       -- (the pills stand upright down a side strip: as thick as along the top)
     elseif not bar_fx.left then
         -- The Island: as the bar's room on top (8 over it, the bar, then the user's gap), so the windows are as far from the dock as from the bar. The centred dock floats 8 above
         -- the edge (`dkm`); in the corners the pills stand on it.
         local gap = (bar_fx.orig and bar_fx.orig[3]) or 20
         r.bottom = math.floor((dock_fx.mid and 8 or 0) + 34 * bu * k + gap + 0.5)
     else
-        r[anchor == "bottom" and "top" or "bottom"] = math.floor(1.35 * 8 + 34 * bu * k + 13 + 0.5)
+        r[anchor == "bottom" and "top" or "bottom"] = math.floor(40 * bu + 13 + 0.5)
     end
     return r
 end
 -- Raises the gaps `g` ({ top, right, bottom, left }) where a dock needs the room. Not for the gaps as they were (`left == false`), and not for what is written to Hyprland's file.
-function dock_fx.raise(g)
+-- `side` (optional): what Hyprland's scrolling layout adds at the left and right on top of gaps_out (`iris_fx.side_comp`), taken off a dock's room there,
+-- so the windows are as far from a dock down a side as from the frame (it was 8 more: 21 against 13).
+function dock_fx.raise(g, side)
     local r = dock_fx.room()
+    local c = side or 0
     local out = { g[1], g[2], g[3], g[4] }
     if r.top then out[1] = math.max(out[1], r.top) end
-    if r.right then out[2] = math.max(out[2], r.right) end
+    if r.right then out[2] = math.max(out[2], r.right - c) end
     if r.bottom then out[3] = math.max(out[3], r.bottom) end
-    if r.left then out[4] = math.max(out[4], r.left) end
+    if r.left then out[4] = math.max(out[4], r.left - c) end
     return out
 end
 function dock_fx.on() local r = dock_fx.room(); return r.top ~= nil or r.right ~= nil or r.bottom ~= nil or r.left ~= nil end
@@ -3247,7 +3250,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
 -- and `bar_fx.on` where the bar is ("all", or a monitor's name); the Bar page below keeps both. A rule for each monitor (`m[NAME]`) says what its
 -- own gaps are, and the global gaps are what a monitor without a rule gets, so a monitor plugged in later does not borrow the bar's room.
 -- `left` says where the bar is for this code (false: the gaps as they were before us); left out, it is where the bar is now.
-function iris_fx.island_min() return (bar_fx.size or 1) < 0.995 and not bar_fx.left and bar_fx.edge == "top" and not dock_fx.ah end   -- the Island below 100 %: no reserved strip (a reserve is a plain number)
+function iris_fx.island_min() return math.abs((bar_fx.size or 1) - 1) > 0.005 and not bar_fx.left and bar_fx.edge == "top" and not dock_fx.ah end   -- the Island below 100 %: no reserved strip (a reserve is a plain number)
 function iris_fx.island_room() return math.floor(8 + 1.35 * 40 * (bar_fx.size or 1) + 0.5) end                  -- what it keeps above the windows instead: 8 and the bar (62 at 100 %): the window gap does the rest
 function iris_fx.gaps_code(left, nodock)
     local isl = left == nil and iris_fx.island_min()     -- (asked for the gaps as they were: `left` false, then none of this)
@@ -3258,8 +3261,8 @@ function iris_fx.gaps_code(left, nodock)
     if not left and not o then return nil end
     o = o or { 20, 20, 20, 20 }
     local px = math.floor(1.35 * 8 + 0.5) + 13            -- the frame's thickness (8 * u) and a gap
-    local bz = bar_fx.size or 1                           -- Settings > Bar > Size: the bar's size, 0.7 to 1 (`bz` in vitreus.plm)
-    local lp = math.floor(1.35 * 46 * bz + 0.5) + 14
+    local bz = bar_fx.size or 1                           -- Settings > Bar > Size: the bar's size, 0.7 to 1.25 (`bz` in vitreus.plm)
+    local lp = math.floor(1.35 * 40 * bz + 0.5) + 13       -- the strip (as thick as the Island's bar, 40 * u) and the same gap as the frame's
     local function cfg(g)
         return string.format("hl.config({ general = { gaps_out = { top = %d, right = %d, bottom = %d, left = %d } } })", g[1], g[2], g[3], g[4])
     end
@@ -3268,7 +3271,7 @@ function iris_fx.gaps_code(left, nodock)
     end
     local WIDE = { top = { lp, px, px, px }, right = { px, lp, px, px }, bottom = { px, px, lp, px }, left = { px, px, px, lp } }   -- top, right, bottom, left: the wide one is the strip's
     local bar_gaps = WIDE[bar_fx.edge] or WIDE.left
-    if bar_fx.seg then bar_gaps = { math.floor(1.35 * 36 * bz + 0.5) + 10, px, px, px } end       -- the top frame in pieces: thin, but the windows start below the pieces (36 * u) and a gap
+    if bar_fx.seg then bar_gaps = { math.floor(1.35 * 36 * bz + 0.5) + 13, px, px, px } end       -- the top frame in pieces: thin, but the windows start below the pieces (36 * u) and a gap
     -- The scrolling layout keeps `gaps_in` between a column and the screen's left and right edges on top of `gaps_out` (the windows sat 8 px further in at the sides than on top, with the default),
     -- so the room we give is that much less there: `iris_fx.side_comp`, set from Settings > Hyprland (the layout and the gaps_in it reads). Only the room the frame asks for, not the user's own gaps.
     local function comp(g)
@@ -3285,7 +3288,7 @@ function iris_fx.gaps_code(left, nodock)
     -- (Until the monitors are known, or with a scene file from before the copies, there are no rules: then the global gaps carry it, as before.)
     local ruled = #(bar_fx.mons or {}) > 0
     local base = (left and everywhere and not ruled) and bar_gaps or o
-    if docked and everywhere and not ruled then base = dock_fx.raise(base) end
+    if docked and everywhere and not ruled then base = dock_fx.raise(base, iris_fx.side_comp) end
     local parts = { cfg(base) }
     for _, name in ipairs(bar_fx.mons or {}) do
         if name:match("^[%w%._%-]+$") then
@@ -3296,7 +3299,7 @@ function iris_fx.gaps_code(left, nodock)
             -- Only in this monitor's rule: the global gaps stay the user's, which is what is read back as the original at the next start (logic/bar_position.luau).
             if even and not left and (everywhere or (bar_fx.sel ~= nil and bar_fx.sel[name] == true)) then g = comp(o) end
             -- the docks are on the monitors the bar is on, framed or not
-            if docked and (everywhere or (bar_fx.sel ~= nil and bar_fx.sel[name] == true)) then g = dock_fx.raise(g) end
+            if docked and (everywhere or (bar_fx.sel ~= nil and bar_fx.sel[name] == true)) then g = dock_fx.raise(g, iris_fx.side_comp) end
             parts[#parts + 1] = rule(name, g)
         end
     end
@@ -3339,10 +3342,10 @@ end
 function iris_fx.niri_code(gap)
     local px = math.floor(1.35 * 8 + 0.5) + 13
     local bz = bar_fx.size or 1
-    local lp = math.floor(1.35 * 46 * bz + 0.5) + 14
+    local lp = math.floor(1.35 * 40 * bz + 0.5) + 13       -- the strip (as thick as the Island's bar, 40 * u) and the same gap as the frame's
     local WIDE = { top = { lp, px, px, px }, right = { px, lp, px, px }, bottom = { px, px, lp, px }, left = { px, px, px, lp } }
     local bar_gaps = WIDE[bar_fx.edge] or WIDE.left
-    if bar_fx.seg then bar_gaps = { math.floor(1.35 * 36 * bz + 0.5) + 10, px, px, px } end
+    if bar_fx.seg then bar_gaps = { math.floor(1.35 * 36 * bz + 0.5) + 13, px, px, px } end
     local isl = iris_fx.island_min()
     local everywhere = (bar_fx.on or "all") == "all"
     local function struts(g)
@@ -6265,17 +6268,26 @@ do
     -- The room the shell's frame keeps round the bar's monitor, which pleamar-wm keeps the windows out of (its `fr.MONITOR.EDGE`; Hyprland has the
     -- same in `gaps_out`, see `iris_fx.gaps_code`): with the bar on the left, 24 px on the top, right and bottom and 76 on the left, from the edge of
     -- the screen; none on a monitor without the bar, or with the bar on top. The window manager puts its gap on top of whatever is set, so that gap is taken off.
-    local FRAME_ROOM = { top = 24, right = 24, bottom = 24, left = 76 }
-    local FRAME_ROOMS = {
-        left = FRAME_ROOM,
-        right = { top = 24, right = 76, bottom = 24, left = 24 },
-        top = { top = 76, right = 24, bottom = 24, left = 24 },
-        bottom = { top = 24, right = 24, bottom = 76, left = 24 },
-    }
-    local FRAME_SEG = { top = 59, right = 24, bottom = 24, left = 24 }
+    -- The frame's room on each edge: 24 (its 11 and a gap of 13) on the thin sides, the strip (as thick as the Island's bar, 40 * u at the bar's size) and the same 13 on its own.
+    local FRAME_ROOM = { top = 24, right = 24, bottom = 24, left = 67 }
+    local FRAME_ROOMS, FRAME_SEG
+    local function frame_rooms()
+        local bz = bar_fx.size or 1
+        local w = math.floor(1.35 * 40 * bz + 0.5) + 13
+        FRAME_ROOM = { top = 24, right = 24, bottom = 24, left = w }
+        FRAME_ROOMS = {
+            left = FRAME_ROOM,
+            right = { top = 24, right = w, bottom = 24, left = 24 },
+            top = { top = w, right = 24, bottom = 24, left = 24 },
+            bottom = { top = 24, right = 24, bottom = w, left = 24 },
+        }
+        FRAME_SEG = { top = math.floor(1.35 * 36 * bz + 0.5) + 13, right = 24, bottom = 24, left = 24 }
+    end
+    frame_rooms()
     local EDGES = { "top", "right", "bottom", "left" }
     function wm_frame_sync()
         if on_hyprland then return end
+        frame_rooms()
         hypr_monitors(30, function(mons)
             if not mons then return end
             local names = {}

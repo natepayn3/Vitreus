@@ -12,10 +12,13 @@ part AddonDock {
         let axb.top = mix(dax.ey, yo + vb - dax.ey, bt) - dax.eh / 2
         let axb.y = axb.top + 24 * cu                     
         let axb.xs = cdk.t * lm * (1 - adk.sb)                  // the upright pill at the top of a side strip stands in the panel's top corner on the strip's far side: the X (strip on the left) or the title (strip on the right) and the grip's end stand clear of it
-        let axb.xl = axb.xs * rt                                // (down a strip on the right everything is mirrored: the pill is at the panel's left)
-        let axb.xr = axb.xs * (1 - rt)
+        //  Along the panel's top (`axs.pt`: the strip along the bottom puts the pill there) the pill lies in its left or right corner: the title or the X and the grip's end stand clear of it too.
+        let axb.pw = (adk_pins.count * cdk.p + 8 * dbu) * axs.pt
+        let axb.pr = mix(adk.sr, 1 - adk.sr, rt)
+        let axb.xl = axb.xs * rt + axb.pw * (1 - axb.pr)        // (down a strip on the right everything is mirrored: the pill is at the panel's left)
+        let axb.xr = axb.xs * (1 - rt) + axb.pw * axb.pr
                       // as the Desk's tab row: a tall bar, the grip near its top and the title and X level with the middle
-        group { scale: rs; pivot: floor(axb.cx - dax.ew / 2 + 26 * cu + axb.xl + 0.5), floor(axb.y + 0.5); text ax_title { at: floor(axb.cx - dax.ew / 2 + 26 * cu + axb.xl + 0.5), floor(axb.y + 0.5); anchor: left center; size: 20; weight: 700; width: (dax.ew - 90 - axb.xs) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+        group { scale: rs; pivot: floor(axb.cx - dax.ew / 2 + 26 * cu + axb.xl + 0.5), floor(axb.y + 0.5); text ax_title { at: floor(axb.cx - dax.ew / 2 + 26 * cu + axb.xl + 0.5), floor(axb.y + 0.5); anchor: left center; size: 20; weight: 700; width: (dax.ew - 90 - axb.xl - axb.xr) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
         box { at: axb.cx, axb.top + 11 * cu; size: 34 * cu, 4 * cu; corner: 2 * cu; color: ink; opacity: 20% + 35% * max(ax_grip.hover, if(ax_hold, 1, 0)) }
         //  While it is held (or resized) the zone is the whole screen: the surface takes input only where a zone is, so a pull upward, off the panel, would be lost.
         zone box ax_grip { at: if(ax_hold, screen.width / 2, axb.cx - 20 + (axb.xl - axb.xr) / 2), if(ax_hold, vc, axb.top + 22 * cu); size: if(ax_hold, screen.width, dax.ew - 74 - axb.xl - axb.xr), if(ax_hold, screen.height, 44 * cu); cursor: pointer; label: "Move the add-on panel" }
