@@ -8832,7 +8832,10 @@ require("logic/clock")()
             text.vpn_title = "Not connected"
             text.vpn_sub = #profs == 0 and "No profiles yet: add one below" or "Pick a profile to connect"
         end
-        if nord.on then
+        if nord.on and active then           -- both at once: the card names both, and its Disconnect ends both (`vpn_down`)
+            text.vpn_title = "NordVPN + " .. active.name
+            text.vpn_sub = "Two VPNs connected: Disconnect ends both"
+        elseif nord.on then
             fact.vpn_on = true
             text.vpn_title = "NordVPN"
             text.vpn_sub = nord.country .. (nord.ip ~= "" and (" · " .. nord.ip) or "")
@@ -8924,7 +8927,7 @@ require("logic/clock")()
             render()
         end)
     end
-    local function nord_run(args, label)
+    local function nord_run(args, label, after_fn)        -- `after_fn`: run once it has finished (the status card's Disconnect, with a profile up too)
         if working then return end
         set_working(true)
         say(label)
@@ -8936,6 +8939,7 @@ require("logic/clock")()
             elseif args[1] == "connect" then say(last ~= "" and last or "Connected.")
             else say("") end
             nord_refresh()
+            if after_fn then after_fn() end
         end)
     end
     local function nord_go()
@@ -9005,8 +9009,10 @@ require("logic/clock")()
     end
     on("vpn_toggle", toggle)
     on("vpn_down", function()
-        if nord.on then nord_run({ "disconnect" }, "Disconnecting NordVPN…") return end
-        for i, p in ipairs(profs) do if p.active then return toggle(i - 1) end end
+        local up
+        for i, p in ipairs(profs) do if p.active then up = i - 1; break end end
+        if nord.on then nord_run({ "disconnect" }, "Disconnecting NordVPN…", up and function() toggle(up) end) return end
+        if up then return toggle(up) end
     end)
 
     on("vpn_arm_ask", function(i)
