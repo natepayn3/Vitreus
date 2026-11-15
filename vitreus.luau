@@ -3601,6 +3601,9 @@ end
 -- watcher, while the wallpaper is hidden, ignores SIGTERM and stayed behind, a second one playing. The video is decoded on the card (`hwdec=auto-safe`):
 -- a 4K60 one decoded on the CPU took cores while the wallpaper showed.
 function wpv.settle(f, keep_running)
+    -- `wpv.keep`: the picker's cards are already playing this video as a try; it is kept running, not started again from the top
+    if wpv.keep and wpv.keep == f then keep_running = true end
+    wpv.keep = nil
     wpv.cur = wpv.is(f) and f or nil
     wpv_save()
     local line = "pkill -9 -x mpvpaper"
@@ -8182,12 +8185,20 @@ require("logic/keybinds")()
             if not f or f == wp_prev.shown then return end
             wp_prev.on, wp_prev.shown = true, f
             -- A video in use plays over awww's picture (mpvpaper), so nothing tried through awww could be seen: it is stopped for as long as the cards are in use (put
-            -- back, or the kept one started, when the picker closes). A video card is tried as its poster, a still frame of it.
-            if wpv.cur and not wp_prev.stopped then
+            -- back, or the kept one started, when the picker closes). A video card is tried as its poster, a still frame of it, and then plays over it once awww has
+            -- it (stopped again when the focus moves on to a picture).
+            if not wpv.is(f) and (C.vid or (wpv.cur and not wp_prev.stopped)) then
+                C.vid = nil
                 wp_prev.stopped = true
                 exec_on_desktop("pkill -9 -x mpvpaper")
             end
-            wp_apply(f, { "--transition-type", "fade", "--transition-duration", "0.35", "--transition-fps", "60" }, nil, nil, true)
+            wp_apply(f, { "--transition-type", "fade", "--transition-duration", "0.35", "--transition-fps", "60" }, function()
+                if t ~= C.tok or not fact.wp_picker_open or not wpv.is(f) then return end
+                C.vid = f
+                wp_prev.stopped = true
+                exec_on_desktop("pkill -9 -x mpvpaper; exec mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no hwdec=auto-safe' '*' '"
+                    .. f:gsub("'", "'\\''") .. "' < /dev/null > /dev/null 2>&1")
+            end, nil, true)
         end)
     end
     local function card_set(i)
@@ -8254,6 +8265,8 @@ require("logic/keybinds")()
             -- Not quiet even for putting the old one back: that starts its video again if it was one (the colours are not worked out twice: it is the one they were
             -- worked out for, and `iris_last_wp` still says so).
             if target then
+                if C.vid and C.vid == target then wpv.keep = target end      -- the try playing now is the one kept: it goes on playing
+                C.vid = nil
                 wp_apply(target, { "--transition-type", "fade", "--transition-duration", "0.35", "--transition-fps", "60" }, done, nil, false)
             else
                 done()
