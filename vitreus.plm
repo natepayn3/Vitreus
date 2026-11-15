@@ -6222,10 +6222,14 @@ scene Vitreus {
     let dc.tew = (467 * cu + (13 * cu + 14 * u * dc.mf) * tm) * dc.lf
     let dc.tex = pcx + 7 * u * dc.mf * dc.lf * tm
     let dc.er = if(lp_k == 4, 14 * u * lm * clamp((dc.gx + dc.gw / 2 - (screen.width - th.r - 14 * u)) / (14 * u), 0, 1), 0) * dc.lf
+    //  Out of the Island's pill or a floating bar (not a frame), the same as `dc.f` above: once the calendar is as wide as the bar its glass reaches up to
+    //  the bar's top edge and stops blending, so the bar looks widened to it with flush sides (a blend there puffs the join out at the bar's corners).
+    let dc.tf = clamp((dc.tew - bar.w + 24 * u) / (24 * u), 0, 1) * (1 - tm)
+    let dc.tup = bar.h / 2 * dc.tf
     let dc.ew = mix(mix(dc.w, dc.gw + dc.er, lm), dc.tew, tu)
-    let dc.eh = mix(mix((bar.y + dc.hh - dc.top), dc.gh + if(lp_k == 4, lp.ext * dc.lf, 0), lm), dc.teh, tu)
+    let dc.eh = mix(mix((bar.y + dc.hh - dc.top), dc.gh + if(lp_k == 4, lp.ext * dc.lf, 0), lm), dc.teh + dc.tup, tu)
     let dc.ex = mix(mix(pcx, dc.gx + dc.er / 2, lm), dc.tex, tu)
-    let dc.ey = mix(mix((dc.top + bar.y + dc.hh) / 2, lp.cy + if(lp_k == 4, lp.ext * dc.lf, 0) / 2, lm), dc.tey, tu)
+    let dc.ey = mix(mix((dc.top + bar.y + dc.hh) / 2, lp.cy + if(lp_k == 4, lp.ext * dc.lf, 0) / 2, lm), dc.tey - dc.tup / 2, tu)
     let ds.gl = min(dtrav_s, ds0)
     let ds.lf = mix(min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6, min(1, ds.gl * 1.6) + max(0, ds.gl - 1) * 0.6, fm)
     let ds.rt = 2 * ((352.75 + 6.5) * pu + 20.5 * cu)
