@@ -3187,7 +3187,7 @@ end
 -- take round the windows (gaps_out: the layer's own reserved zone is not moved when the surface changes edge). It is sent at once and kept in
 -- vitreus_colors.lua, which hyprland.lua loads last (the installer adds the line). Up on the top, the gaps go back to what they were (bar_fx.orig, read once).
 -- Which docks are out (set by logic/dock.luau and logic/addons.luau): the windows keep clear of them (`wm_frame_sync`).
-dock_fx = { c = false, a = false, nc = 0, na = 0, enabled = true }     -- `enabled`: Settings > Bar > "Corner docks overlap windows" (off)
+dock_fx = { c = false, a = false, nc = 0, na = 0, enabled = true, ah = false }     -- `enabled`: Settings > Bar > "Corner docks overlap windows" (off); `ah`: "Auto-hide the bar and docks" (no room for either)
 -- The corner dock and the add-on pill stand over the windows' area, against the edge opposite the bar (the bottom for the Island and the top frame, the top for the
 -- bottom frame; down a side strip it is the far edge, the right one for the strip on the left and the left one for the strip on the right, where each pill stands upright in the top
 -- or the bottom corner and reaches in as far as it is thick). While one is out, that edge keeps the room for it: how far from the screen's edge the windows start, in pixels:
@@ -3197,11 +3197,17 @@ function dock_fx.room()
     local r = {}
     local c, a = dock_fx.c, dock_fx.a
     if not dock_fx.enabled or not (c or a) then return r end
+    if dock_fx.ah and not bar_fx.left then return r end           -- auto-hidden (the Island only): the windows go under where the docks come out
     local anchor = fact.bar_anchor
     local bu = 1.35 * (bar_fx and bar_fx.size or 1)
     local k = (fact.bar_seg == true and 36 or (fact.bar_frame == true and 46 or 40)) / 34       -- a dock is as thick as the bar is in each layout (`dbu` in vitreus.plm)
     if anchor == "left" or anchor == "right" then
         r[anchor == "left" and "right" or "left"] = math.floor(1.35 * 8 + 34 * bu * k + 13 + 0.5)       -- (the pills stand upright down a side strip: as thick as along the top)
+    elseif not bar_fx.left then
+        -- The Island: as the bar's room on top (8 over it, the bar, then the user's gap), so the windows are as far from the dock as from the bar. The centred dock floats 8 above
+        -- the edge (`dkm`); in the corners the pills stand on it.
+        local gap = (bar_fx.orig and bar_fx.orig[3]) or 20
+        r.bottom = math.floor((dock_fx.mid and 8 or 0) + 34 * bu * k + gap + 0.5)
     else
         r[anchor == "bottom" and "top" or "bottom"] = math.floor(1.35 * 8 + 34 * bu * k + 13 + 0.5)
     end
@@ -3241,11 +3247,12 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
 -- and `bar_fx.on` where the bar is ("all", or a monitor's name); the Bar page below keeps both. A rule for each monitor (`m[NAME]`) says what its
 -- own gaps are, and the global gaps are what a monitor without a rule gets, so a monitor plugged in later does not borrow the bar's room.
 -- `left` says where the bar is for this code (false: the gaps as they were before us); left out, it is where the bar is now.
-function iris_fx.island_min() return (bar_fx.size or 1) < 0.995 and not bar_fx.left and bar_fx.edge == "top" end   -- the Island below 100 %: no reserved strip (a reserve is a plain number)
+function iris_fx.island_min() return (bar_fx.size or 1) < 0.995 and not bar_fx.left and bar_fx.edge == "top" and not dock_fx.ah end   -- the Island below 100 %: no reserved strip (a reserve is a plain number)
 function iris_fx.island_room() return math.floor(8 + 1.35 * 40 * (bar_fx.size or 1) + 0.5) end                  -- what it keeps above the windows instead: 8 and the bar (62 at 100 %): the window gap does the rest
 function iris_fx.gaps_code(left, nodock)
     local isl = left == nil and iris_fx.island_min()     -- (asked for the gaps as they were: `left` false, then none of this)
     local docked = left == nil and not nodock and dock_fx.on()      -- (`left` false asks for the gaps as they were, and `nodock` for what Hyprland keeps in its file: with no docks)
+    local even = left == nil and not nodock                          -- the Island's sides evened out (below); not for the gaps as they were, nor for Hyprland's file
     if left == nil then left = bar_fx.left or isl end
     local o = bar_fx.orig
     if not left and not o then return nil end
@@ -3270,7 +3277,7 @@ function iris_fx.gaps_code(left, nodock)
         return { g[1], math.max(0, g[2] - c), g[3], math.max(0, g[4] - c) }
     end
     bar_gaps = comp(bar_gaps)
-    if isl then bar_gaps = { o[1] + iris_fx.island_room(), o[2], o[3], o[4] } end
+    if isl then bar_gaps = comp({ o[1] + iris_fx.island_room(), o[2], o[3], o[4] }) end
     local everywhere = (bar_fx.on or "all") == "all"      -- the bar is on every monitor there is
     -- The global gaps stay the user's own, also with the bar on every monitor: each monitor's rule below carries the bar's room. On the next start
     -- they are read back as the gaps as they were (logic/bar_position.luau), and a Vitreus restarted with the Island's room in them (the bar on
@@ -3285,6 +3292,9 @@ function iris_fx.gaps_code(left, nodock)
             local has_bar = left and (everywhere or (bar_fx.sel ~= nil and bar_fx.sel[name] == true))
             -- a monitor with only the frame (Settings > Bar, "Frame on the other monitors"; logic/bar_monitors.luau) gets the frame's room on every side
             local g = has_bar and bar_gaps or ((left and bar_fx.thin and not isl) and comp({ px, px, px, px }) or o)
+            -- The Island (no frame): the user's own gaps, but the scrolling layout's extra room at the sides taken off them (`comp`), so the windows sit as far from every edge.
+            -- Only in this monitor's rule: the global gaps stay the user's, which is what is read back as the original at the next start (logic/bar_position.luau).
+            if even and not left and (everywhere or (bar_fx.sel ~= nil and bar_fx.sel[name] == true)) then g = comp(o) end
             -- the docks are on the monitors the bar is on, framed or not
             if docked and (everywhere or (bar_fx.sel ~= nil and bar_fx.sel[name] == true)) then g = dock_fx.raise(g) end
             parts[#parts + 1] = rule(name, g)
@@ -3446,7 +3456,7 @@ function iris_fx.apply_hypr()
     if g then parts[#parts + 1] = g; if bar_fx.left or iris_fx.island_min() then keep[#keep + 1] = iris_fx.gaps_code(nil, true) end end
     -- The gaps are Hyprland's settings, so they outlive the shell (a layer's reserved zone does not). gaps-undo.lua says how to give
     -- them back, and bin/vitreus-keep sends it when it stops for good; empty with the bar on the top, where there is nothing to undo.
-    pcall(sys.call, "files.write", "gaps-undo.lua", (bar_fx.left or iris_fx.island_min() or dock_fx.on()) and (iris_fx.gaps_code(false) or "") or "")
+    pcall(sys.call, "files.write", "gaps-undo.lua", (bar_fx.left or iris_fx.island_min() or dock_fx.on() or (iris_fx.side_comp or 0) > 0) and (iris_fx.gaps_code(false) or "") or "")
     if #parts == 0 then return end
     run("hyprctl", { "eval", table.concat(parts, " ") }, function() end)
     with_dirs(function(d)

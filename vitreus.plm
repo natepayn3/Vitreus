@@ -82,7 +82,7 @@ scene Vitreus {
     //  `cdk_on and ws_empty` held every loan on both copies, and the cursor stuck again.
     //  `rate:` is the rate chosen in Settings > Display (`bar_fps`), or 60 while the music moves the frame (its ripple and waves). There is no idle cap: a scene with nothing
     //  moving paints nothing, so a cap only ever slowed what was moving (the notches, the drawers, the bar's hovers each needed an exemption from the old 12 a second).
-    surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on) and not sky.calm, 60 while ((media.playing and fw_on) or bar_fps == 60) and not sky.calm, 30 while sky.calm; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
+    surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995 and not bar_ah; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on) and not sky.calm, 60 while ((media.playing and fw_on) or bar_fps == 60) and not sky.calm, 30 while sky.calm; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
     permissions { services: "say:*", "files", "files.write", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe" }
 
@@ -820,6 +820,13 @@ scene Vitreus {
     fact bar_beat = true
     event bar_dockroom_toggle ->     // Settings > Bar > "Corner docks overlap windows": windows keep clear of the docks, or go under them (logic/dock.luau)
     fact bar_dockroom = true
+    //  Settings > Bar > "Auto-hide the bar and docks" (Island only; logic/dock.luau keeps it): the bar slides up off the top edge and the docks down off the bottom one, and the
+    //  windows get their room. Pushing the pointer against that edge brings them back (`ah_top_z`, `ah_bot_z`); they go again 600 ms after it has left them (`ah_bar_z`, `ah_dk_z`).
+    //  The pointer is read from the zones' `.hover`, not from enter/away rules: those go to the topmost zone only, so the bar's own buttons, over `ah_bar_z`, counted as away.
+    //  `ah_bt`, `ah_dt`: 1 while the pointer is on the bar, the docks (or their edge), falling back over about half a second once it leaves: that is the wait before they go.
+    //  An open panel, the Desk, the overview… keep the bar out; a dock held or pulled, or its add-on drawer, the docks.
+    event bar_ah_toggle ->
+    fact bar_ah = false
     event bar_show_bat ->
     event bar_show_dsk ->            // Settings > Bar > "Show the icons" (logic/bar_layout.luau)
     event bar_show_sr ->
@@ -2190,6 +2197,10 @@ scene Vitreus {
     prop bar_oth_pill = 0 ~pop
     follow bar_oth_pill = if(bar_others, 1, 0)
     prop bar_dr_pill = 0 ~pop
+    prop ah_b = 0 ~calm                // how far the bar has gone up off the screen: 0 there, 1 hidden
+    prop ah_bpill = 0 ~pop
+    prop ah_bt = 0 ~600ms
+    prop ah_dt = 0 ~600ms
     prop bar_beat_pill = 0 ~pop
     prop bbk = 1 ~calm                 // how much of the beat the Island takes (Settings > Bar > "Island moves to the music")
     follow bbk = if(bar_beat, 1, 0)
@@ -2221,6 +2232,10 @@ scene Vitreus {
     on enter bar_hit { fr_hov = true }
     on leave bar_hit { fr_hov = false }
     follow bar_dr_pill = if(bar_dockroom, 0, 1)         // the switch says "Corner docks overlap windows": on when there is no room
+    follow ah_bpill = if(bar_ah, 1, 0)
+    follow ah_b = if(ah.bh, 1, 0)
+    follow ah_bt = if(ah_top_z.hover > 0.01 or ah_bar_z.hover > 0.01, 1, 0)
+    follow ah_dt = if(ah_bot_z.hover > 0.01 or ah_dk_z.hover > 0.01 or cdk_bg.hover > 0.01 or adk_bg.hover > 0.01, 1, 0)
     follow night_auto_pill = if(night_auto, 1, 0)
     //  Settings > Lock screen: what the lock screen scene holds. The logic asks it when the page opens (`lk_ok` is false if it did not
     //  answer) and tells it what is changed; the lock screen keeps them in its own lockscreen.json.
@@ -5570,6 +5585,16 @@ scene Vitreus {
     //  Along the top or the bottom the control centre hangs from the strip's right end (where its button is), not from the middle as on the Island: `rtop` is how far
     //  over that is, with its right edge against the right frame.
     let rtop = if(lp_k == 3, tm, 0)         // (only the control centre: the dashboard hangs from the middle of the bar, where the clock and the title now are)
+    //  Auto-hide (`bar_ah`, see its fact). `ah.bh`, `ah.dh` (before `cdk.resty`): the bar, the docks, are to be hidden now; `ah.dko` how far below their place the docks go (their spring is `cdk_cy`'s).
+    //  The zones go before `away_z` so that it, and everything after, still wins the presses: these only need to know where the pointer is (a zone underneath still reports hover).
+    //  The edge strips are there only while what they bring is hidden, and the zones round the bar and the docks only while they are out, so neither takes clicks from the windows longer than that.
+    //  (Every zone here reaches 20 past the screen's edge: one whose side lies on the edge does not count the edge's own row, where a pushed pointer rests.
+    //  The edge strips stay while auto-hide is on, so the pointer is never between zones while a slide is under way; the one round the centred dock is there only while it is out.
+    //  In the corners the pills' own zones, `cdk_bg` and `adk_bg`, keep the docks out.)
+    zone box ah_top_z { from: 0, -20; size: screen.width, 23; active: ah.on; label: "Show the bar" }
+    zone box ah_bar_z { from: bar.l - 40 * bu, -20; size: bar.r - bar.l + 80 * bu, 20 + 8 + 40 * bu + 12; active: ah.on and ah_b < 0.5; agent: hidden }      // (from the edge to under the bar where it rests, gap included; not where it is mid-slide)
+    zone box ah_bot_z { from: 0, vb - 3; size: screen.width, 23; active: ah.on; label: "Show the docks" }
+    zone box ah_dk_z { at: screen.width / 2, vb - (cdk.t + 24) / 2; size: dkm.W + 8 * dbu + 40, cdk.t + 24; active: ah.on and not ah.dh and dkm > 0.5; agent: hidden }
     //  Click away. The surface is the whole screen (its input region is only what has a zone, so the rest lets clicks through), and this
     //  zone, declared before everything else so that everything else wins over it, closes the panel on a press anywhere that is not
     //  the panel or the bar. A second surface for this would take Escape away from the panel, so it is done here.
@@ -5660,7 +5685,7 @@ scene Vitreus {
     let bw.ax = (fw.ax + bar.gap * min(1, adk_pins.count)) * bs.ax * (1 - fm) + ax.mg
     //  Along the top with a frame the bar is the strip: as long as the screen, as thick as the left one is wide, its pieces spread along it.
     let bar.h = mix(40 * bu, lf.w + 10 * bu * sg, tm)               // (the top frame in pieces: the pieces are 36 * bu deep, so the middle line is 5 higher and the strip 10 taller, which leaves where the panels start where it was)
-    let bar.y0 = mix(8 + 20 * bu, th.t / 2 - 5 * bu * sg, tm)
+    let bar.y0 = mix(8 + 20 * bu, th.t / 2 - 5 * bu * sg, tm) - ah_b * (8 + 40 * bu + 40) * (1 - fm)      // (auto-hidden, `ah_b`: up off the screen, its shadow too)
     //  Down the left the panels come out of the strip at the height of their button: `pw_y` is where the open panel's top is (see `lp.top`), and
     //  the bar's "middle line" is half a bar above it, so that the first plate keeps the 12 it has under a panel's top (`bar.y` + 32).
     let bar.y = bar.y0
@@ -6018,7 +6043,7 @@ scene Vitreus {
     let wm.h = 1017                     // the Pleamar-WM page: to the bottom of its last card
     let ad.h = 36 + max(1, addons.count) * 80 + 51 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (80 apart), and the line under them
     let ck.h = 1420                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
-    let br.h = 792                     // the Bar page: to the bottom of its last card
+    let br.h = 854                     // the Bar page: to the bottom of its last card
     let wsg.h = 872                    // the Workspaces page, the same
     let hy.h = 503                     // the Hyprland page: to the bottom of its last card
     let gl.h = 1298                    // the Glass page: to the bottom of its last card (its first 40, where a header was, are taken off in `gl.off`)
@@ -6454,7 +6479,12 @@ scene Vitreus {
     let cdk.mx = dkm.cx + (2 * cdk.sr - 1) * (dkm.W - dkm.Wc) / 2          // each keeps its side: the app dock on the right if it was in the right corner (`cdk.sr`), else on the left
     let adk.mx = dkm.cx + (1 - 2 * cdk.sr) * (dkm.W - dkm.Wa) / 2
     let cdk.restx = mix(mix(cdk.xs + cdk.W / 2, cdk.xe - cdk.W / 2, cdk.sr), cdk.mx, dkm)
-    let cdk.resty = mix(cdk.yt + cdk.H / 2, cdk.ye - cdk.H / 2, cdk.sb) - 8 * dkm          // (one centred dock floats 8 above the edge, as the Island bar does below the top)
+    //  Auto-hide (`bar_ah`): see the zones before `away_z`. (`bv.ax`, not `axb`: that one comes later; with auto-hide on there is no frame, so they agree.)
+    let ah.on = bar_ah and not bar_frame
+    let ah.bh = ah.on and ah_bt < 0.1 and panel == none and not desk_open and not ov_open and not dash_open and not wp_picker_open and not pk_open and not (ax_open and bv.ax)
+    let ah.dh = ah.on and ah_dt < 0.1 and cdk_down < 0.5 and adk_down < 0.5 and cdk_drag < 0.5 and adk_drag < 0.5 and not (ax_open and not bv.ax)
+    let ah.dko = if(ah.dh, cdk.t + 8 + 40, 0) * (1 - fm) * (1 - lm)
+    let cdk.resty = mix(cdk.yt + cdk.H / 2, cdk.ye - cdk.H / 2, cdk.sb) - 8 * dkm + ah.dko          // (one centred dock floats 8 above the edge, as the Island bar does below the top; auto-hidden, below it)
     let cdk.rcx = mix(pick(screen.index, cdk_cx.0, cdk_cx.1), screen.width - pick(screen.index, cdk_cx.0, cdk_cx.1), rt)           // where its middle is on the screen
     let cdk.rcy = mix(pick(screen.index, cdk_cy.0, cdk_cy.1), yo + vb - pick(screen.index, cdk_cy.0, cdk_cy.1), bt)
     follow cdk_cx.$screen = if(cdk_drag > 0.5 and dkm < 0.5, mix(cdk_px, screen.width - cdk_px, rt), cdk.restx)
@@ -6472,7 +6502,7 @@ scene Vitreus {
     let adk.sr = if(lm > 0.5, 1, adk.cor)
     let adk.sb = if(lm > 0.5, adk.cor, 1)
     let adk.restx = mix(mix(cdk.xs + adk.W / 2, cdk.xe - adk.W / 2, adk.sr), adk.mx, dkm)
-    let adk.resty = mix(cdk.yt + adk.H / 2, cdk.ye - adk.H / 2, adk.sb) - 8 * dkm
+    let adk.resty = mix(cdk.yt + adk.H / 2, cdk.ye - adk.H / 2, adk.sb) - 8 * dkm + ah.dko
     let adk.rcx = mix(pick(screen.index, adk_cx.0, adk_cx.1), screen.width - pick(screen.index, adk_cx.0, adk_cx.1), rt)
     let adk.rcy = mix(pick(screen.index, adk_cy.0, adk_cy.1), yo + vb - pick(screen.index, adk_cy.0, adk_cy.1), bt)
     follow adk_cx.$screen = if(adk_drag > 0.5 and dkm < 0.5, mix(adk_px, screen.width - adk_px, rt), adk.restx)
@@ -6618,7 +6648,7 @@ scene Vitreus {
     let axs.rr = cdk.t * lm * (1 - axb) * axs.rn                   // down a side strip the pill stands upright against the frame's edge, in the panel's side: its strip is taken from the panel's width (on the side of the frame, mirrored with `rt`)
 
     let axs.rb = cdk.t * adk.sb * (1 - axb) * (1 - lm) * (1 - dkm)     // ... and the pill's strip along the bottom (the pill is in the panel's corner, its icons showing)
-    let ax.yoff = if(bar_anchor == top and not bar_frame and bar_size > 0.995 and not wm_session, 62, 0)       // as the shell's own surface reserves (`reserve:` on it): an add-on's scene is laid out below it, so what it is told is moved up by this
+    let ax.yoff = if(bar_anchor == top and not bar_frame and bar_size > 0.995 and not bar_ah and not wm_session, 62, 0)       // as the shell's own surface reserves (`reserve:` on it): an add-on's scene is laid out below it, so what it is told is moved up by this
     //  How far it may be pulled (offsets from its place, in the glass's drawing): anywhere inside the frame, right up against it, as the Desk can be.
     let axs.xmin = cdk.xs - (axs.fx - axs.w / 2)
     let axs.xmax = cdk.xe - (axs.fx + axs.w / 2)

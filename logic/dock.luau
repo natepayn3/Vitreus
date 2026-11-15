@@ -7,11 +7,12 @@ return function()
     local pins = {}
     local shown = true
     local mid_on = false               -- Settings > Bar: on the Island, the app dock and the add-on pill are one dock in the middle of the bottom edge (`dock_mid`)
+    local ah_on = false                -- Settings > Bar: the bar and the docks hide until the pointer is pushed against their edge (`bar_ah`; only written to `dock_fx.ah`, as `room_on`)
     local room_on = true               -- Settings > Bar: windows keep clear of the docks (kept here and only written to `dock_fx`: a handler reads that table as it was when it was made)
     local known = {}                  -- id -> the app as the apps service reports it, to keep the icons right
 
     local function save()
-        pcall(sys.call, "files.write", "dock-pins.json", { pins = pins, corner = (fact.cdk_corner == 1 or fact.cdk_corner == true) and 1 or 0, on = shown, room = room_on, mid = mid_on })
+        pcall(sys.call, "files.write", "dock-pins.json", { pins = pins, corner = (fact.cdk_corner == 1 or fact.cdk_corner == true) and 1 or 0, on = shown, room = room_on, mid = mid_on, ah = ah_on })
     end
     local was = 0                 -- whether the dock was out at the last `render`, for the room the windows keep clear of it (`dock_fx`, vitreus.luau)
     local function render()
@@ -39,7 +40,8 @@ return function()
         take(saved.b)
         if saved.on == false then shown = false end
         if saved.room == false then room_on = false; dock_fx.enabled = false end
-        if saved.mid == true then mid_on = true end
+        if saved.mid == true then mid_on = true; dock_fx.mid = true end
+        if saved.ah == true then ah_on = true; dock_fx.ah = true end
         fact.cdk_corner = saved.corner == 1 and 1 or 0
     end
     render()
@@ -79,8 +81,17 @@ return function()
     on("fact:cdk_corner", function() save() end)
     fact.bar_dockroom = room_on
     fact.dock_mid = mid_on
+    fact.bar_ah = ah_on
+    on("bar_ah_toggle", function()             -- Settings > Bar: auto-hide the bar and the docks (the windows take their room while it is on)
+        ah_on = not ah_on
+        dock_fx.ah = ah_on
+        fact.bar_ah = ah_on
+        save()
+        dock_fx.changed()
+    end)
     on("dock_mid_toggle", function()
         mid_on = not mid_on
+        dock_fx.mid = mid_on
         fact.dock_mid = mid_on
         save()
         dock_fx.changed()          -- (the room the windows keep clear of it follows its height)
