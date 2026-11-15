@@ -3632,7 +3632,7 @@ function wph.src_of(p)
     if p and r and r.out == p then return r.src end
     return nil
 end
--- The wallpaper is asked of awww every half second; when it changes, Iris is run on the new one.
+-- The wallpaper is asked of awww every six seconds; when it changes, Iris is run on the new one.
 local wp_on_change = function(path) end       -- the wallpaper page, further down, takes this over
 -- A wallpaper that the hexagon dissolve is bringing in: awww is told about it only when the dissolve is over, a couple of seconds on, and
 -- until then it still says the old one. Taking that for a change made from outside would run Iris on the old wallpaper again (the colours
@@ -4349,6 +4349,12 @@ local function wp_hex(path, x, y, ok_fn, fail_fn)
     end)
 end
 
+-- The dissolve says when it is over (awww shows the new picture): the video that goes with it starts now, not at the watcher's next look.
+on("wp_hex_done", function()
+    wp_pending = nil
+    wpv.flush()
+end)
+
 -- `how`: awww's transition flags. `hex`, `{ x =, y = }`: the dissolve from that point instead (the wallpaper picker's).
 -- `quiet`: a try, not a change: no video, no colours (Iris), and the wallpaper in use is not changed (the cards' live preview).
 local function wp_apply(path, how, started, hex, quiet)
@@ -4369,7 +4375,7 @@ local function wp_apply(path, how, started, hex, quiet)
             -- one would cover the change. (The dissolve hands its own picture over itself.)
             if not hex then para_fx.tell(pic, wpv.is(path)) end
             if hex then
-                -- the video (or the stop of the one playing) waits for the end of the dissolve: see `check_wallpaper`
+                -- the video (or the stop of the one playing) waits for the end of the dissolve: see `wp_hex_done`
                 wp_hex(pic, hex.x, hex.y, function() wpv.next = { path }; if started then started() end end, by_awww)
             else
                 by_awww()

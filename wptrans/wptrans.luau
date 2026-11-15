@@ -80,6 +80,8 @@ after(1500, function() run("pleamar", { "--say", "vitreus", "emit para_ask" }, f
 
 local function finish()
     run("awww", { "img", text.target, "--transition-type", "none" }, function()
+        -- the shell is told at once, so that a video wallpaper starts now (it waited for its next look at awww, every 6 s)
+        run("pleamar", { "--say", "vitreus", "emit wp_hex_done" }, function() end)
         -- awww has to have drawn it before the overlay goes, or the old wallpaper shows for a frame
         after(350, function()
             if fact.para then                       -- the parallax's own picture of the new wallpaper, made while the dissolve played (the dissolve's, at 1080p, if it is not there)
