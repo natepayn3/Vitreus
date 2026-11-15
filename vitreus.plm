@@ -170,6 +170,11 @@ scene Vitreus {
     measure lhw7
     measure lhw8
     measure lhw9
+    measure wsm1                   // Settings > Workspaces: how tall each picker row's hint is (one line or two), so its title and hint stay centred on the picker
+    measure wsm2
+    measure wsm3
+    measure wsm4
+    measure wsm5
     measure titw                   // and its window title
     measure vclw                   // the same two, at the size they are drawn down the left bar
     measure vtiw
@@ -959,7 +964,7 @@ scene Vitreus {
     text font_prevurl = ""
     text font_q = ""                   // what is typed in the dropdown to find a typeface (the list narrows to the names that have it)
     fact font_none = false             // nothing matches it
-    image font_prev = from font_prevurl, 692, 214
+    image font_prev = from font_prevurl, 865, 141            // the preview the logic draws, 1775 x 290: loaded at the size it is shown (410 x 84 on `pw`, `pu`), so it keeps its shape
     fact font_dirty = false
     fact font_applying = false             // Apply was pressed: the shell is about to start again with the font (the button says so meanwhile)
     fact font_dd_open = false
@@ -2352,13 +2357,16 @@ scene Vitreus {
     event lk_mon_set ->
     event lk_test ->                   // lock now, as a test: Esc or a minute opens it
     fact gl_scroll_to = 0              // the Glass page scrolls like the Lock screen's
+    fact hy_scroll_to = 0              // and the Hyprland page, a little
     fact br_scroll_to = 0              // and the Bar page
     prop br_scroll = 0 ~quick
     follow br_scroll = br_scroll_to
     prop gl_scroll = 0 ~quick
+    prop hy_scroll = 0 ~quick
     prop wp_scroll = 0 ~quick
     fact wp_scroll_to = 0              // where the Wallpaper page is scrolled to (unscaled, from the top)
     follow gl_scroll = gl_scroll_to
+    follow hy_scroll = hy_scroll_to
     follow wp_scroll = wp_scroll_to
     fact lk_scroll_to = 0              // the page scrolls like System monitor's
     fact th_scroll_to = 0              // the Theme page too (Settings > Theme)
@@ -2870,7 +2878,7 @@ scene Vitreus {
     follow vm = if(vm_open and panel == controls, 1, 0)
     follow mvis = if(mixer.count > 0 or vm_open, 1, 0)
     //  launch_toggle and settings_toggle are handled by the logic (logic/panel_monitor.luau): it opens them on the focused monitor.
-    on change panel { wp_scroll_to = 0; wpd_open = false; grd_open = false; font_dd_open = false; dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; gl_scroll_to = 0; br_scroll_to = 0; wsg_scroll_to = 0; ck_scroll_to = 0; ad_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0 }
+    on change panel { wp_scroll_to = 0; wpd_open = false; grd_open = false; font_dd_open = false; dd_open = false; vm_open = false; panel_sub = none; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; hy_scroll_to = 0; gl_scroll_to = 0; br_scroll_to = 0; wsg_scroll_to = 0; ck_scroll_to = 0; ad_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0 }
     on change set_page { wh_dd = false; wp_scroll_to = 0; font_dd_open = false; disp_res_open = false; disp_scroll_to = 0; sm_scroll_to = 0; nt_scroll_to = 0; lk_scroll_to = 0; gl_scroll_to = 0; br_scroll_to = 0; wsg_scroll_to = 0; ck_scroll_to = 0; ad_scroll_to = 0; wm_scroll_to = 0; vpn_scroll_to = 0; vpn_arm = -1 }
     //  The Hyprland and Pleamar-WM pages read their settings from the system when they are shown, and only then: reading them on every page change
     //  (a dozen commands and a couple of hundred fact writes) stalled the scene for half a second on each click anywhere in Settings.
@@ -2910,6 +2918,7 @@ scene Vitreus {
     let bk = 1 - 0.85 * sq                   // how much of a melt (a neck) is left
     let du = 1.5525 * rs             // the Desk's own unit: cu (u * 1.15) at the scale of the screen
     let pu = 1.6875 * rs             // u * 1.25: the Settings and the launcher are laid out 25% larger than the rest, at real size (not zoomed)
+    let pw = pu * 1.25               // the Settings page's horizontal unit: its cards and what is laid out across them are 25% wider than tall (heights, type and round things stay on `pu`)
     //  The bar has its own unit: `bu` and `bcu` are `u` and `cu` at the bar's size (`bz`, 1 to 0.7 with Settings > Bar > Size), used for what the bar itself is made of: its strip, its
     //  pieces, icons, texts and click areas. The panels and the frame keep `u`, so only the bar gets smaller.
     let bz = bar_zs
@@ -5256,17 +5265,17 @@ scene Vitreus {
         }
     }
 
-    //  One wallpaper in the gallery: its picture in rounded corners, a ring when it is the one in use.
+    //  One wallpaper in the gallery (96 x 54 on `pw`: four across fill the wider Settings page and stay 16:9): its picture in rounded corners, a ring when it is the one in use.
     component WpThumb(t: record, pick: event) {
-        size: 96 * pu, 54 * pu
-        zone box touch { from: 0, 0; size: 96 * pu, 54 * pu; corner: 8 * pu; cursor: pointer }
+        size: 96 * pw, 54 * pw
+        zone box touch { from: 0, 0; size: 96 * pw, 54 * pw; corner: 8 * pu; cursor: pointer }
         //  The pictures are cropped to 16:9 in a cache by the logic, so every tile is the same.
         group {
-            clip inset 0 box { from: 0, 0; size: 96 * pu, 54 * pu; corner: 8 * pu }
-            image t.thumb { at: 0, 0; size: 96 * pu, 54 * pu }
-        box { from: 0, 0; size: 96 * pu, 54 * pu; color: ink; opacity: 14% * touch.hover }
+            clip inset 0 box { from: 0, 0; size: 96 * pw, 54 * pw; corner: 8 * pu }
+            image t.thumb { at: 0, 0; size: 96 * pw, 54 * pw }
+        box { from: 0, 0; size: 96 * pw, 54 * pw; color: ink; opacity: 14% * touch.hover }
         }
-        box { from: 0, 0; size: 96 * pu, 54 * pu; corner: 8 * pu; stroke: 2 * pu; color: mint; opacity: if(wp_sel == t.index, 100%, 0) }
+        box { from: 0, 0; size: 96 * pw, 54 * pw; corner: 8 * pu; stroke: 2 * pu; color: mint; opacity: if(wp_sel == t.index, 100%, 0) }
         on press touch { emit pick(t.index) }
         on scroll touch { wp_scroll_to = clamp(wp_scroll_to - wheel * 44, 0, max(0, wp.h - set.h)) }
         //  The bin, small in the top right corner, as on the add-ons' cards: on the gallery's own pictures (not Wallhaven's results, nor the wallpaper in
@@ -5275,12 +5284,12 @@ scene Vitreus {
         let wdok = if(wp_src == 0 and wp_sel != t.index, 1, 0)
         let wdv = wdok * max(max(touch.hover, wdel.hover), wda)
         let wdh = max(wdel.hover, wda)
-        box { from: 0, 0; size: 96 * pu, 54 * pu; corner: 8 * pu; color: deep; opacity: 62% * wda }
-        box { from: 0, 0; size: 96 * pu, 54 * pu; corner: 8 * pu; stroke: 1.5 * pu; color: mint; opacity: 90% * wda }
-        group { scale: rs; pivot: floor(48 * pu + 0.5), floor(27 * pu + 0.5); text "Delete?" { at: floor(48 * pu + 0.5), floor(27 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; color: ink; opacity: wda; family: "Space Grotesk" } }
-        ellipse { at: 84 * pu, 12 * pu; radius: 9 * pu; color: deep; opacity: 60% * wdv }
-        PBin(84 * pu, 13 * pu, wdh, wdv, 0.85 * pu)
-        zone box wdel { at: 84 * pu, 12 * pu; size: 22 * pu, 22 * pu; corner: 11 * pu; cursor: pointer; active: wdok > 0.5; label: "Delete this wallpaper" }
+        box { from: 0, 0; size: 96 * pw, 54 * pw; corner: 8 * pu; color: deep; opacity: 62% * wda }
+        box { from: 0, 0; size: 96 * pw, 54 * pw; corner: 8 * pu; stroke: 1.5 * pu; color: mint; opacity: 90% * wda }
+        group { scale: rs; pivot: floor(48 * pw + 0.5), floor(27 * pw + 0.5); text "Delete?" { at: floor(48 * pw + 0.5), floor(27 * pw + 0.5); anchor: center; align: center; size: 12.5; weight: 700; color: ink; opacity: wda; family: "Space Grotesk" } }
+        ellipse { at: 84 * pw, 12 * pu; radius: 9 * pu; color: deep; opacity: 60% * wdv }
+        PBin(84 * pw, 13 * pu, wdh, wdv, 0.85 * pu)
+        zone box wdel { at: 84 * pw, 12 * pu; size: 22 * pu, 22 * pu; corner: 11 * pu; cursor: pointer; active: wdok > 0.5; label: "Delete this wallpaper" }
         on press wdel { emit wp_del(t.index) }
         on scroll wdel { wp_scroll_to = clamp(wp_scroll_to - wheel * 44, 0, max(0, wp.h - set.h)) }
     }
@@ -5549,7 +5558,7 @@ scene Vitreus {
     let lside = if(lp_k == 2, tm * (1 - bt), 0)
     let lbot = if(lp_k == 2, tm * bt, 0)                    // along the bottom (flipped, so the top on screen) the launcher comes out of the bottom notch, as Settings does otherwise
     let ssd = if(lp_k == 1, tm * bt, 0)                     // and Settings out of the left one
-    let dl.cL = mix(th.l / 2, th.l + 24 * u + 231.5 * pu, dsl)        // the middle of what a left-notch drawer holds: it leaves the frame and ends 24 out from it
+    let dl.cL = mix(th.l / 2, th.l + 24 * u + 221.5 * pu + 20.5 * cu, dsl)        // the middle of what a left-notch drawer holds: it leaves the frame and ends 24 out from it
     let ds.cL = mix(th.l / 2, cx, dsl)                          // (it ends in the middle of the screen)
     let ku = if(lp_k == 1 or lp_k == 2, pu, if(lp_k == 9 or (lp_k >= 3 and lp_k <= 6), cu, u))                      // the unit of the panel that is open: the Settings and the launcher are larger
     let dsk_w = 356 * du                                   // the desk's width and height, once out: a tablet, its screen 10 in from each side
@@ -5871,7 +5880,7 @@ scene Vitreus {
     //  The controls drawer: as wide as its plates and their margins need (288 + 2 x 12), coming
     //  out of the bar. It starts narrow and wide-open in height last, and widens to its place.
     //  It reaches up into the bar so the two can melt; `dk.hh` is how far down it goes.
-    let dk.w = (120 + 192 * (min(1, dk0 * 1.6) + max(0, dk0 - 1) * 0.6)) * cu
+    let dk.w = (120 + 209 * (min(1, dk0 * 1.6) + max(0, dk0 - 1) * 0.6)) * cu     // its widest card (288) and the calendar's margin, 20.5 each side
     //  The plates stack from a shared cursor, each one naming where the one
     //  before it ended, so a plate that changes height (the media one, which
     //  shrinks to a sliver with nothing playing) pushes what is under it
@@ -5941,7 +5950,7 @@ scene Vitreus {
     prop bat_bot = 160 ~calm
     follow bat_bot = 8 + if(bc.opt, bc.ty + if(bc.pwask, 48, if(bc.ask or bc.bios or bc.busy or bc.err, 14, 0)) - 6, 144)
     let content_bot = mix(ctl_bot, bat_bot, clamp(dkb, 0, 1))
-    let dk.hh = bar.h / 2 + (content_bot + 16) * cu * dk0 + 13 * cu * tm * dk0 + max(0, sag)      // (the 13 is `lp.dd`: along the top or bottom the margins are made 18.5 all round here too)
+    let dk.hh = bar.h / 2 + (content_bot + 20.5) * cu * dk0 + 13 * cu * tm * dk0 + max(0, sag)      // (the 13 is `lp.dd`: along the top or bottom the margins are made 18.5 all round here too)
     //  The player's panel: the same drawer as the controls, centred on the bar, and as tall as
     //  its one plate.
     //  The calendar's drawer: it falls as a narrow drop out of the bar and widens to exactly the bar's width as it
@@ -5963,7 +5972,7 @@ scene Vitreus {
     let nt_content = if(nt_body_on, 39 + nt_th + nt_bh, 35 + nt_th)
     let nt_h = max(68, nt_content + if(nt_acts.count > 0, 34, 0) + 12)
     follow osd_h = if(osd_kind == note, nt_h, if(osd_kind == shot, 248, 64 + 72 * max(0, if(osd_v, 1, 0) + if(osd_b, 1, 0) + if(osd_m, 1, 0) - 1)))
-    //  The settings panel: 620 wide. A header (36), then the sidebar and the page side by side (352).
+    //  The settings panel: 620 wide, plus the quarter the page is wider on `pw` (729.5). A header (36), then the sidebar and the page side by side (352).
     //  How tall the settings page in view is (unscaled): Wallpaper, Glass, Display.
     //  The Display page: its cards down to the profiles one, which is as tall as its rows (none: a line).
     let disp.prows = max(24, disp_pn_s * 30)
@@ -6008,10 +6017,11 @@ scene Vitreus {
     let vpn.fh = if(vpn_mode == vpm_wg, 180, if(vpn_mode == vpm_ovpn, 144, 276))
     let wm.h = 1017                     // the Pleamar-WM page: to the bottom of its last card
     let ad.h = 36 + max(1, addons.count) * 80 + 51 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (80 apart), and the line under them
-    let ck.h = 1400                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
+    let ck.h = 1420                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
     let br.h = 792                     // the Bar page: to the bottom of its last card
     let wsg.h = 872                    // the Workspaces page, the same
-    let gl.h = 1338                    // the Glass page: to the bottom of its last card
+    let hy.h = 503                     // the Hyprland page: to the bottom of its last card
+    let gl.h = 1298                    // the Glass page: to the bottom of its last card (its first 40, where a header was, are taken off in `gl.off`)
     let lk.h = 881                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36
@@ -6024,7 +6034,7 @@ scene Vitreus {
     let th_np = max(1, floor((themes.count + 7) / 8))
     let th_pgc = clamp(th_pg, 0, th_np - 1)
     let th_ex = min(1, max(0, floor((themes.count + 3) / 4) - 1)) + if(th_np > 1, 14 / 88, 0)
-    let wp.h = 778                    // the Wallpaper page: to the bottom of the gallery (it scrolls inside the panel when the panel is shorter)
+    let wp.h = 840                    // the Wallpaper page: to the bottom of the gallery (it scrolls inside the panel when the panel is shorter)
     let set.h = 480                    // the sidebar's and the page's height: one height for every page, short enough for a 1080 p screen with the Island and the dock (what is longer scrolls)
     //  The sidebar's thumb (the page that is open): the row it is on, followed by its two edges as the pickers' thumb is (SetPick), the leading one
     //  quickly and the trailing one late, so it stretches from the old row to the new one and gathers there.
@@ -6033,13 +6043,13 @@ scene Vitreus {
     prop sb_tl = 42 ~238ms
     follow sb_ld = side.sel
     follow sb_tl = side.sel
-    let ss.w = (120 + 500 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * pu
-    let ss.hh = bar.h / 2 + (8 + 36 + 8 + set.h + 16) * pu * ds0 + max(0, sag)
+    let ss.w = (120 + 585.5 * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)) * pu + 41 * cu * (min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6)     // its content (705.5) and a margin of 20.5 `cu` each side, the calendar's
+    let ss.hh = bar.h / 2 + ((8 + 36 + 8 + set.h) * pu + 20.5 * cu) * ds0 + max(0, sag)
     let ss.f = clamp((ss.w - bar.w + 24 * u) / (24 * u), 0, 1)     // as for the calendar: as wide as the bar, it goes on from the bar's sides with no blend (a blend there puffs the sides out at the join)
     let ss.top = mix(bar.y, bar.y - bar.h / 2, ss.f)
     //  The launcher: a drop that widens to the bar's width as it lands, like the calendar. The search field (40), the
     //  rows (44 each, up to eight; seven where there is a preview beside them) and a line of hints.
-    let dl.w = (120 + 330 * (min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6)) * pu
+    let dl.w = (120 + 310 * (min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6)) * pu + 41 * cu * (min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6)     // its content (430) and the calendar's margin, 20.5 `cu` each side
     let dl.hh = bar.h / 2 + (172 + lr * 44) * pu * dl0 + max(0, sag)
     let dl.f = clamp((dl.w - bar.w + 24 * u) / (24 * u), 0, 1)     // as for the calendar
     let dl.top = mix(bar.y, bar.y - bar.h / 2, dl.f)
@@ -6084,7 +6094,7 @@ scene Vitreus {
     let lpm = max(lmk, tm * att)                  // the corrections apply to the strip's own panels on a top or bottom frame as well as on a side one
     let lp.dy = if(lp_k == 1, 4.5, if(lp_k == 2 or lp_k == 3 or lp_k == 7 or lp_k == 8, 6.5, if(lp_k == 4, -0.5, 0))) * ku * lpm
     let lp.dd = if(lp_k == 1, 11, if(lp_k == 2, 11, if(lp_k == 3 or lp_k == 7 or lp_k == 8, 13, if(lp_k == 4, 6, 0)))) * ku * lpm
-    let lp.hd = (if(lp_k == 1, (8 + 36 + 8 + set.h + 16) * pu, if(lp_k == 2, (172 + lr * 44) * pu, if(lp_k == 3, (content_bot + 16) * cu, if(lp_k == 4, dc_h * cu, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot + 16, panel_bot + dm_foot)) * cu, if(lp_k == 9, dsk_h, (8 + osd_h + 16) * u))))))) + lp.dd
+    let lp.hd = (if(lp_k == 1, ((8 + 36 + 8 + set.h) * pu + 20.5 * cu), if(lp_k == 2, (172 + lr * 44) * pu, if(lp_k == 3, (content_bot + 20.5) * cu, if(lp_k == 4, dc_h * cu, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot + 16, panel_bot + dm_foot)) * cu, if(lp_k == 9, dsk_h, (8 + osd_h + 16) * u))))))) + lp.dd
     //  Where it settles, as drawn (`ty`): Settings in the middle of the screen, the launcher high, a good way from the middle, and clear of the frame; then back to the panel's
     //  own coordinates (the contents are scaled about the middle of the screen).
     let lp.ty = if(lp_k == 1, vc, mix(mix(max(vc - 210 * u, yo + th.t + 24 * u + lp.hd / 2), vcc, lside), vb - th.b - 24 * u - lp.hd / 2, lbot))
@@ -6146,17 +6156,17 @@ scene Vitreus {
     //  they will end up, and the drawer's shape uncovers them (they are clipped to it).
     let dk.gl = mix(min(dtrav, dk0), dk0, att)
     let dk.lf = min(1, dk.gl * 1.6) + max(0, dk.gl - 1) * 0.6
-    let dk.rt = mix(2 * (156 + 6.5) * cu, (lf.w - lf.x) + 325 * cu, att)
+    let dk.rt = mix(2 * (164.5 + 6.5) * cu, (lf.w - lf.x) + 342 * cu, att)
     let dk.gw = max(0.1, dk.rt * dk.lf)
-    let dk.gh = (((content_bot + 16) * cu) + lp.dd + max(0, sag)) * dk.lf
+    let dk.gh = (((content_bot + 20.5) * cu) + lp.dd + max(0, sag)) * dk.lf
     let dk.gx = mix(lp.xl + dk.gw / 2, ccx, edg)
     //  Close to the right frame the glass reaches into that too (as at the bottom, `lp.ext`), so the panel's corner is the frame's.
     //  Along the top or the bottom the drawers come out of the strip as they do down the sides, turned a quarter: a small blob at the strip's edge, in the panel's
     //  middle, that grows both ways (`*.lf`). `*.tR` is how far it reaches from the strip's middle line when it is out; its top is that line.
-    let dk.tR = bar.h / 2 + (content_bot + 16) * cu + 13 * cu * tm + max(0, sag)
+    let dk.tR = bar.h / 2 + (content_bot + 20.5) * cu + 13 * cu * tm + max(0, sag)
     let dk.teh = dk.tR * dk.lf
     let dk.tey = bar.y + dk.teh / 2
-    let dk.tew = (312 * cu + (13 * cu + 14 * u * if(lp_k == 3, 1, 0)) * tm) * dk.lf
+    let dk.tew = (329 * cu + (13 * cu + 14 * u * if(lp_k == 3, 1, 0)) * tm) * dk.lf
     let dk.tex = mix(if(bar_frame, mix(ctl.x, bat.x, dkb), pcx), pcx, dk.lf) + 7 * u * if(lp_k == 3, 1, 0) * dk.lf * tm     // along a frame's top or bottom it comes out of its own button and slides to its place as it grows (as an add-on's drawer does out of its pill); the Island's drops straight, from the middle
     let dk.er = if(lp_k == 3, 14 * u * lm * clamp((dk.gx + dk.gw / 2 - (screen.width - th.r - 14 * u)) / (14 * u), 0, 1), 0) * dk.lf
     let dk.ew = mix(mix(dk.w, dk.gw + dk.er, lm), dk.tew, tu)
@@ -6182,23 +6192,23 @@ scene Vitreus {
     let dc.ey = mix(mix((dc.top + bar.y + dc.hh) / 2, lp.cy + if(lp_k == 4, lp.ext * dc.lf, 0) / 2, lm), dc.tey, tu)
     let ds.gl = min(dtrav_s, ds0)
     let ds.lf = mix(min(1, ds0 * 1.6) + max(0, ds0 - 1) * 0.6, min(1, ds.gl * 1.6) + max(0, ds.gl - 1) * 0.6, fm)
-    let ds.rt = 2 * (310 + 6.5) * pu
+    let ds.rt = 2 * ((352.75 + 6.5) * pu + 20.5 * cu)
     let ds.gw = max(0.1, ds.rt * ds.lf)
-    let ds.gh = (((8 + 36 + 8 + set.h + 16) * pu) + lp.dd + max(0, sag)) * ds.lf
+    let ds.gh = ((((8 + 36 + 8 + set.h) * pu + 20.5 * cu)) + lp.dd + max(0, sag)) * ds.lf
     let ds.gx = mix(mix(lp.xl + ds.gw / 2, cx, edg), ds.cL, ssd)
     //  On the Island, Settings leaves the bar as it opens and settles in the middle of the screen: `ss.det` is how far it has left, `ss.dt` its glass's top
     //  once it has (a little above the content, as the bottom is below it), `ss.dy` how far down it has gone.
     let ss.det = (1 - fm) * clamp(ds0, 0, 1)
     let ss.dt = bar.y + bar.h / 2 - 10 * pu
     let ss.t2 = mix(ss.top, ss.dt, ss.det)
-    let ss.dy = ss.det * (vc - (ss.dt + bar.y + bar.h / 2 + (8 + 36 + 8 + set.h + 16) * pu) / 2)
+    let ss.dy = ss.det * (vc - (ss.dt + bar.y + bar.h / 2 + ((8 + 36 + 8 + set.h) * pu + 20.5 * cu)) / 2)
     let ds.ew = mix(ss.w, ds.gw, fm)
     let ds.eh = mix(bar.y + ss.hh - ss.t2, ds.gh, fm)
     let ds.ex = mix(pcx, ds.gx, fm)
     let ds.ey = mix((ss.t2 + bar.y + ss.hh) / 2 + ss.dy, lp.cy, fm)
     let dl.gl = min(dtrav, dl0)
     let dl.lf = mix(min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6, min(1, dl.gl * 1.6) + max(0, dl.gl - 1) * 0.6, fm)
-    let dl.rt = 2 * (225 + 6.5) * pu
+    let dl.rt = 2 * ((215 + 6.5) * pu + 20.5 * cu)
     let dl.gw = max(0.1, dl.rt * dl.lf)
     let dl.gh = (((172 + lr * 44) * pu) + lp.dd + max(0, sag)) * dl.lf
     let dl.gx = mix(mix(lp.xl + dl.gw / 2, ccx, edg), dl.cL, lside)

@@ -6,31 +6,35 @@ part Theme {
             show: set_pgp > 0.01
             opacity: set_pgp
             //  The page scrolls inside the panel, as the Lock screen page does (the panel keeps one height): the wheel, the thumb at the side, and More.
-            let th.h = 451 + 88 * th_ex                 // the page: its cards, to the bottom of the last (Panel sound)
+            let th.h = 445 + 88 * th_ex                 // the page: its cards, to the bottom of the last (Panel sound); the 32 above the themes' card is taken off in `th.off`
             let th.sc = clamp(th_scroll, 0, max(0, th.h - set.h))
-            let th.off = floor(th.sc * pu + 0.5)        // whole pixels: text that is shifted by a fraction of one is resampled, and looks soft
-            clip box { at: spx + 224 * pu, sby + set.h / 2 * pu; size: 456 * pu, set.h * pu }
-            zone box th_wheel { at: spx + 219 * pu, sby + set.h / 2 * pu; size: 446 * pu, set.h * pu }
+            let th.off = floor((th.sc + 32) * pu + 0.5)        // whole pixels: text that is shifted by a fraction of one is resampled, and looks soft
+            clip box { at: spx + 224 * pw, sby + set.h / 2 * pu; size: 456 * pw, set.h * pu }
+            zone box th_wheel { at: spx + 219 * pw, sby + set.h / 2 * pu; size: 446 * pw, set.h * pu }
             on scroll th_wheel while not tpw_open { th_scroll_to = clamp(th_scroll_to - wheel * 44, 0, max(0, th.h - set.h)) }
             on change set_page { th_scroll_to = 0; th_pg = floor(max(0, theme_sel) / 8) }
             on change panel { th_scroll_to = 0; th_pg = floor(max(0, theme_sel) / 8) }
             group {
             move: 0, -th.off
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 16 * pu + 0.5); text "Theme" { at: floor(spx + 14 * pu + 0.5), floor(sby + 16 * pu + 0.5); anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 16 * pu + 0.5); text "Changes apply right away." { at: floor(spx + 424 * pu + 0.5), floor(sby + 16 * pu + 0.5); anchor: right center; size: 15; color: faint; opacity: 80%; family: "Space Grotesk" } }
             //  Glass, Retro, UwU, Cyber and whatever is in ~/.config/pleamar/vitreus-themes: a card each (the `themes` model, filled by the logic from the theme files),
             //  four to a row and two rows to a page; the pages slide sideways (`th_pgs`) inside the clip. The selected card has a ring and a tick.
             //  With more than eight themes, the wheel over the cards turns the page (one page a turn: a touchpad's many small steps count once the cards have
             //  slid). Its zone is declared before the cards: a press goes to the zone declared last, and the cards must keep theirs.
-            zone box th_cards { at: spx + 219 * pu, sby + 128 * pu; size: 420 * pu, 176 * pu; active: th_np > 1 and not tpw_open and not font_dd_open }
+            //  The themes' card: the grid of themes and the line under it, on a card like every other (14 above the tiles, 14 under the line).
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + (94.5 + 44 * th_ex) * pu; size: 438 * pw, (125 + 88 * th_ex) * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + (94.5 + 44 * th_ex) * pu, 438 * pw, (125 + 88 * th_ex) * pu, 77.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + (94.5 + 44 * th_ex) * pu; size: 438 * pw, (125 + 88 * th_ex) * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + (94.5 + 44 * th_ex) * pu; size: 438 * pw, (125 + 88 * th_ex) * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + (94.5 + 44 * th_ex) * pu; size: 438 * pw, (125 + 88 * th_ex) * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            zone box th_cards { at: spx + 219 * pw, sby + 128 * pu; size: 420 * pw, 176 * pu; active: th_np > 1 and not tpw_open and not font_dd_open }
             on scroll th_cards while wheel < 0 and abs(th_pgs - th_pgc) < 0.25 { th_pg = min(th_pgc + 1, th_np - 1) }
             on scroll th_cards while wheel > 0 and abs(th_pgs - th_pgc) < 0.25 { th_pg = max(th_pgc - 1, 0) }
             group {
-                clip inset 0 box { at: spx + 219 * pu, sby + (84 + 44 * th_ex) * pu; size: 420 * pu, (80 + 88 * th_ex) * pu }
+                clip inset 0 box { at: spx + 219 * pw, sby + (84 + 44 * th_ex) * pu; size: 420 * pw, (80 + 88 * th_ex) * pu }
                 repeat i in 0..16 {
                     let tcp = floor(i / 8)                      // its page
                     let tcj = mod(i, 8)                         // and its place in it
-                    let cx = spx + (62 + 104.67 * mod(tcj, 4) + 420 * (tcp - th_pgs)) * pu
+                    let cx = spx + (62 + 104.67 * mod(tcj, 4) + 420 * (tcp - th_pgs)) * pw
                     let cy = sby + (84 + 88 * floor(tcj / 4)) * pu
                     let swa = rgb(if(themes.$i.live, wcol_tint_r, themes.$i.c0r), if(themes.$i.live, wcol_tint_g, themes.$i.c0g), if(themes.$i.live, wcol_tint_b, themes.$i.c0b))
                     let swb = rgb(if(themes.$i.live, wcol_panel_r, themes.$i.c1r), if(themes.$i.live, wcol_panel_g, themes.$i.c1g), if(themes.$i.live, wcol_panel_b, themes.$i.c1b))
@@ -48,9 +52,10 @@ part Theme {
                             body { gradient: cx - 48 * pu, cy to cx + 48 * pu, cy, mix(swe, mix(#000000, tint, pk), 0.66), mix(swe, mix(#000000, tint, pk), 0.54) 55%, mix(swe, mix(#000000, tint, pk), 0.1); path { at: cx, cy; move 28.1 * pu, -38 * pu; line 56.2 * pu, -38 * pu; line 35.5 * pu, 38 * pu; line 7.5 * pu, 38 * pu; close } }
                             box { at: cx, cy; size: 96 * pu, 76 * pu; color: #ffffff; opacity: 8% * theme_hit.$i.hover }
                         }
+                        box { at: cx, cy; size: 96 * pu, 76 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: if(theme_sel == i, 0, hair * 1.6) }      // a subtle edge, as the cards have (the chosen one has its ring instead)
                         box { at: cx, cy; size: 96 * pu, 76 * pu; corner: 14 * pu; stroke: 1.6 * pu; color: mint; opacity: if(theme_sel == i, 90%, 0) }
-                        group { scale: rs; pivot: floor(cx - 40 * pu + 0.5), floor(cy - 17 * pu + 0.5); text themes.$i.name { at: floor(cx - 40 * pu + 0.5), floor(cy - 17 * pu + 0.5); anchor: left center; size: 17; weight: 700; width: (80 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
-                        group { scale: rs; pivot: floor(cx - 40 * pu + 0.5), floor(cy + 4 * pu + 0.5); text themes.$i.tag { at: floor(cx - 40 * pu + 0.5), floor(cy + 4 * pu + 0.5); anchor: left center; size: 13.5; weight: 500; width: (80 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                        group { scale: rs; pivot: floor(cx - 40 * pu + 0.5), floor(cy - 17 * pu + 0.5); text themes.$i.name { at: floor(cx - 40 * pu + 0.5), floor(cy - 17 * pu + 0.5); anchor: left center; size: 17; weight: 700; width: (80 * pw) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+                        group { scale: rs; pivot: floor(cx - 40 * pu + 0.5), floor(cy + 4 * pu + 0.5); text themes.$i.tag { at: floor(cx - 40 * pu + 0.5), floor(cy + 4 * pu + 0.5); anchor: left center; size: 13.5; weight: 500; width: (80 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
                         ellipse { at: cx + -34 * pu, cy + 24 * pu; radius: 6.4 * pu; color: swa }
                         ellipse { at: cx + -34 * pu, cy + 24 * pu; radius: 6.4 * pu; stroke: 1 * pu; color: ink; opacity: 28% }
                         ellipse { at: cx + -17 * pu, cy + 24 * pu; radius: 6.4 * pu; color: swb }
@@ -81,19 +86,25 @@ part Theme {
             let tcv_y = sby + 128 * pu
             let tcr_a = clamp(th_np - 1 - th_pgs, 0, 1)                // the next page is there
             let tcl_a = clamp(th_pgs, 0, 1)                            // the previous page is there
-            path { at: spx + 434 * pu, tcv_y; stroke: 2 * pu; color: ink; opacity: (55% + 45% * th_next.hover) * tcr_a; move -3 * pu, -7 * pu; line 3 * pu, 0; line -3 * pu, 7 * pu }
-            zone box th_next { at: spx + 432 * pu, tcv_y; size: 22 * pu, 34 * pu; corner: 8 * pu; cursor: pointer; active: th_pgc < th_np - 1 and not tpw_open and not font_dd_open; label: "Next themes" }
+            path { at: spx + 434 * pw, tcv_y; stroke: 2 * pu; color: ink; opacity: (55% + 45% * th_next.hover) * tcr_a; move -3 * pu, -7 * pu; line 3 * pu, 0; line -3 * pu, 7 * pu }
+            zone box th_next { at: spx + 432 * pw, tcv_y; size: 22 * pu, 34 * pu; corner: 8 * pu; cursor: pointer; active: th_pgc < th_np - 1 and not tpw_open and not font_dd_open; label: "Next themes" }
             on press th_next { th_pg = min(th_pgc + 1, th_np - 1) }
-            path { at: spx + 4 * pu, tcv_y; stroke: 2 * pu; color: ink; opacity: (55% + 45% * th_prev.hover) * tcl_a; move 3 * pu, -7 * pu; line -3 * pu, 0; line 3 * pu, 7 * pu }
-            zone box th_prev { at: spx + 6 * pu, tcv_y; size: 22 * pu, 34 * pu; corner: 8 * pu; cursor: pointer; active: th_pgc > 0 and not tpw_open and not font_dd_open; label: "Previous themes" }
+            path { at: spx + 4 * pw, tcv_y; stroke: 2 * pu; color: ink; opacity: (55% + 45% * th_prev.hover) * tcl_a; move 3 * pu, -7 * pu; line -3 * pu, 0; line 3 * pu, 7 * pu }
+            zone box th_prev { at: spx + 6 * pw, tcv_y; size: 22 * pu, 34 * pu; corner: 8 * pu; cursor: pointer; active: th_pgc > 0 and not tpw_open and not font_dd_open; label: "Previous themes" }
             on press th_prev { th_pg = max(th_pgc - 1, 0) }
             //  Under the cards: a line about the files (what went wrong with one, or where to put a theme).
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (135 + 88 * th_ex) * pu + 0.5); text th_note { at: floor(spx + 14 * pu + 0.5), floor(sby + (135 + 88 * th_ex) * pu + 0.5); anchor: left center; size: 13; width: (270 * pu) / rs; lines: 1; color: if(th_err, alert, faint); opacity: if(th_err, 100%, 70%); family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + (135 + 88 * th_ex) * pu + 0.5); text th_note { at: floor(spx + 14 * pw + 0.5), floor(sby + (135 + 88 * th_ex) * pu + 0.5); anchor: left center; size: 13; width: (270 * pw) / rs; lines: 1; color: if(th_err, alert, faint); opacity: if(th_err, 100%, 70%); family: "Space Grotesk" } }
             //  The font: a dropdown of the installed typefaces, a picture of the chosen one under it, and Apply (the shell starts again with it).
-            let fnt_y = sby + (247 + 88 * th_ex) * pu                       // the trigger's top
-            let fnt_x = spx + 14 * pu
-            let fnt_w = 410 * pu                             // as wide as the three looks above
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (234 + 88 * th_ex) * pu + 0.5); text font_for { at: floor(spx + 14 * pu + 0.5), floor(sby + (234 + 88 * th_ex) * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            let fnt_y = sby + (275 + 88 * th_ex) * pu                       // the trigger's top: 14 inside the font card
+            let fnt_x = spx + 14 * pw
+            let fnt_w = 410 * pw                             // as wide as the three looks above
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + (248 + 88 * th_ex) * pu + 0.5); text font_for { at: floor(spx + 14 * pw + 0.5), floor(sby + (248 + 88 * th_ex) * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            //  The font card: the typeface's selector on top and, under it, the preview of the one chosen (Apply and the note sit on the label's row).
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + (338 + 88 * th_ex) * pu; size: 438 * pw, 154 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + (338 + 88 * th_ex) * pu, 438 * pw, 154 * pu, 885.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + (338 + 88 * th_ex) * pu; size: 438 * pw, 154 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + (338 + 88 * th_ex) * pu; size: 438 * pw, 154 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + (338 + 88 * th_ex) * pu; size: 438 * pw, 154 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             body { color: mix(mix(obsidian, ink, (7% + 5% * font_hit.hover + 5% * font_dd) * 1.6), dd_p3, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { from: fnt_x, fnt_y; size: fnt_w, 34 * pu; corner: 12 * pu } }
             DdCard(fnt_x + (fnt_w) / 2, fnt_y + (34 * pu) / 2, fnt_w, 34 * pu, 738.5, mix(mix(obsidian, ink, (7% + 5% * font_hit.hover + 5% * font_dd) * 1.6), dd_p3, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
             box { from: fnt_x, fnt_y; size: fnt_w, 34 * pu; corner: 12 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
@@ -106,137 +117,131 @@ part Theme {
             //  Apply: only while the choice differs from what is in use. On the label's row, at the right, so the selector keeps its whole width.
             group {
                 show: font_dirty
-                box { at: spx + 384 * pu, sby + (234 + 88 * th_ex) * pu; size: 80 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: if(font_applying, 55%, 80% + 20% * font_apply_hit.hover) }
-                PPillOutline(spx + 384 * pu, sby + (234 + 88 * th_ex) * pu, 80 * pu, 24 * pu, 12 * pu, font_apply_hit.hover, clamp(3 * (if(font_applying, 55%, 80% + 20% * font_apply_hit.hover)), 0, 1), pu)
-                group { scale: rs; pivot: floor(spx + 384 * pu + 0.5), floor(sby + (234 + 88 * th_ex) * pu + 0.5); text "Applying…" { at: floor(spx + 384 * pu + 0.5), floor(sby + (234 + 88 * th_ex) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 700; color: onmint; family: "Space Grotesk"; show: font_applying } }
-                group { scale: rs; pivot: floor(spx + 384 * pu + 0.5), floor(sby + (234 + 88 * th_ex) * pu + 0.5); text "Apply" { show: not font_applying; at: floor(spx + 384 * pu + 0.5), floor(sby + (234 + 88 * th_ex) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 700; color: onmint; family: "Space Grotesk" } }
-                zone box font_apply_hit { at: spx + 384 * pu, sby + (234 + 88 * th_ex) * pu; size: 80 * pu, 24 * pu; corner: 12 * pu; cursor: pointer; active: sby + (234 + 88 * th_ex) * pu - th.off > sby and sby + (234 + 88 * th_ex) * pu - th.off < sby + set.h * pu; label: "Apply the font" }
+                box { at: spx + 384 * pw, sby + (248 + 88 * th_ex) * pu; size: 80 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: if(font_applying, 55%, 80% + 20% * font_apply_hit.hover) }
+                PPillOutline(spx + 384 * pw, sby + (248 + 88 * th_ex) * pu, 80 * pu, 24 * pu, 12 * pu, font_apply_hit.hover, clamp(3 * (if(font_applying, 55%, 80% + 20% * font_apply_hit.hover)), 0, 1), pu)
+                group { scale: rs; pivot: floor(spx + 384 * pw + 0.5), floor(sby + (248 + 88 * th_ex) * pu + 0.5); text "Applying…" { at: floor(spx + 384 * pw + 0.5), floor(sby + (248 + 88 * th_ex) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 700; color: onmint; family: "Space Grotesk"; show: font_applying } }
+                group { scale: rs; pivot: floor(spx + 384 * pw + 0.5), floor(sby + (248 + 88 * th_ex) * pu + 0.5); text "Apply" { show: not font_applying; at: floor(spx + 384 * pw + 0.5), floor(sby + (248 + 88 * th_ex) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 700; color: onmint; family: "Space Grotesk" } }
+                zone box font_apply_hit { at: spx + 384 * pw, sby + (248 + 88 * th_ex) * pu; size: 80 * pu, 24 * pu; corner: 12 * pu; cursor: pointer; active: sby + (248 + 88 * th_ex) * pu - th.off > sby and sby + (248 + 88 * th_ex) * pu - th.off < sby + set.h * pu; label: "Apply the font" }
                 on press font_apply_hit { emit font_apply }
             }
             //  The preview: the typeface drawn as it will be, with what it will say.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (298 + 88 * th_ex) * pu + 0.5); text "PREVIEW" { at: floor(spx + 14 * pu + 0.5), floor(sby + (298 + 88 * th_ex) * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + (298 + 88 * th_ex) * pu + 0.5); text font_note { at: floor(spx + 424 * pu + 0.5), floor(sby + (298 + 88 * th_ex) * pu + 0.5); anchor: right center; align: right; size: 14; width: (260 * pu) / rs; lines: 1; color: mint; family: "Space Grotesk" } }
-            body { color: mix(mix(obsidian, ink, (6%) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + (350 + 88 * th_ex) * pu; size: 438 * pu, 78 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pu, sby + (350 + 88 * th_ex) * pu, 438 * pu, 78 * pu, 885.5, mix(mix(obsidian, ink, (6%) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pu, sby + (350 + 88 * th_ex) * pu; size: 438 * pu, 78 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pu, sby + (350 + 88 * th_ex) * pu; size: 438 * pu, 78 * pu; corner: 14 * pu; color: ink; opacity: (6%) * (1 - obs) }
-            box { at: spx + 219 * pu, sby + (350 + 88 * th_ex) * pu; size: 438 * pu, 78 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-            image font_prev { at: spx + 14 * pu, sby + (311 + 88 * th_ex) * pu + 6.5 * pu; size: 410 * pu, 127 * pu; tint: ink }
+            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + (248 + 88 * th_ex) * pu + 0.5); text font_note { at: floor(spx + 424 * pw + 0.5), floor(sby + (248 + 88 * th_ex) * pu + 0.5); anchor: right center; align: right; size: 14; width: (260 * pw) / rs; lines: 1; color: mint; opacity: if(font_dirty, 0, 1); family: "Space Grotesk" } }
+            image font_prev { at: spx + 14 * pw, sby + (317 + 88 * th_ex) * pu; size: 410 * pw, 84 * pu; tint: ink }
             //  Sound: the one switch, a short click when a panel opens.
-            body { color: mix(mix(obsidian, ink, (6%) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + (424 + 88 * th_ex) * pu; size: 438 * pu, 54 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pu, sby + (424 + 88 * th_ex) * pu, 438 * pu, 54 * pu, 920.5, mix(mix(obsidian, ink, (6%) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pu, sby + (424 + 88 * th_ex) * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pu, sby + (424 + 88 * th_ex) * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; color: ink; opacity: (6%) * (1 - obs) }
-            box { at: spx + 219 * pu, sby + (424 + 88 * th_ex) * pu; size: 438 * pu, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + (424 + 88 * th_ex) * pu + 0.5); text "Panel sound" { at: floor(spx + 14 * pu + 0.5), floor(sby + (424 + 88 * th_ex) * pu + 0.5); anchor: left center; size: 16.5; weight: 700; color: ink; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 350 * pu + 0.5), floor(sby + (424 + 88 * th_ex) * pu + 0.5); text "Play a sound when a panel opens" { at: floor(spx + 350 * pu + 0.5), floor(sby + (424 + 88 * th_ex) * pu + 0.5); anchor: right center; size: 14.5; color: faint; family: "Space Grotesk" } }
-            SettingsSwitch(spx + 424 * pu, sby + (424 + 88 * th_ex) * pu, snd_pill, snd_hit.pressed, snd_hit.hover, mint)
-            zone box snd_hit { at: spx + 405 * pu, sby + (424 + 88 * th_ex) * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: sby + (424 + 88 * th_ex) * pu - th.off > sby and sby + (424 + 88 * th_ex) * pu - th.off < sby + set.h * pu; label: "Panel sound" }
+            body { color: mix(mix(obsidian, ink, (6%) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + (450 + 88 * th_ex) * pu; size: 438 * pw, 54 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + (450 + 88 * th_ex) * pu, 438 * pw, 54 * pu, 920.5, mix(mix(obsidian, ink, (6%) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + (450 + 88 * th_ex) * pu; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + (450 + 88 * th_ex) * pu; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (6%) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + (450 + 88 * th_ex) * pu; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + (450 + 88 * th_ex) * pu + 0.5); text "Panel sound" { at: floor(spx + 14 * pw + 0.5), floor(sby + (450 + 88 * th_ex) * pu + 0.5); anchor: left center; size: 16.5; weight: 700; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 350 * pw + 0.5), floor(sby + (450 + 88 * th_ex) * pu + 0.5); text "Play a sound when a panel opens" { at: floor(spx + 350 * pw + 0.5), floor(sby + (450 + 88 * th_ex) * pu + 0.5); anchor: right center; size: 14.5; color: faint; family: "Space Grotesk" } }
+            SettingsSwitch(spx + 424 * pw, sby + (450 + 88 * th_ex) * pu, snd_pill, snd_hit.pressed, snd_hit.hover, mint)
+            zone box snd_hit { at: spx + 424 * pw - 19 * pu, sby + (450 + 88 * th_ex) * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: sby + (450 + 88 * th_ex) * pu - th.off > sby and sby + (450 + 88 * th_ex) * pu - th.off < sby + set.h * pu; label: "Panel sound" }
             on press snd_hit { emit snd_toggle }
             //  Two cards side by side, each half the row: Pin wallpaper and Pin widgets, both off by default (a theme leaves the wallpaper and the widgets as
             //  they are). Pin wallpaper (logic/theme_wallpaper.luau): a wallpaper of the gallery that comes with the theme in use; the switch pins the one up
             //  now, Change picks another from the gallery, over the page. Pin widgets (logic/theme_widgets.luau): the desktop widgets that are on, and where,
             //  kept with the theme in use and put back when it is chosen.
-            let tpw.y = sby + (184 + 88 * th_ex) * pu
+            let tpw.y = sby + (198 + 88 * th_ex) * pu
             let tpw.vis = tpw.y - th.off > sby and tpw.y - th.off < sby + set.h * pu
-            body { color: mix(mix(obsidian, ink, (6%) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 107 * pu, tpw.y; size: 214 * pu, 66 * pu; corner: 14 * pu } }
-            DdCard(spx + 107 * pu, tpw.y, 214 * pu, 66 * pu, 21.5, mix(mix(obsidian, ink, (6%) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 107 * pu, tpw.y; size: 214 * pu, 66 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 107 * pu, tpw.y; size: 214 * pu, 66 * pu; corner: 14 * pu; color: ink; opacity: (6%) * (1 - obs) }
-            box { at: spx + 107 * pu, tpw.y; size: 214 * pu, 66 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            body { color: mix(mix(obsidian, ink, (6%) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 107 * pw, tpw.y; size: 214 * pw, 66 * pu; corner: 14 * pu } }
+            DdCard(spx + 107 * pw, tpw.y, 214 * pw, 66 * pu, 21.5, mix(mix(obsidian, ink, (6%) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 107 * pw, tpw.y; size: 214 * pw, 66 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 107 * pw, tpw.y; size: 214 * pw, 66 * pu; corner: 14 * pu; color: ink; opacity: (6%) * (1 - obs) }
+            box { at: spx + 107 * pw, tpw.y; size: 214 * pw, 66 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             //  the pinned wallpaper, or an empty frame with a small picture in it
             group {
-                clip inset 0 box { at: spx + 36 * pu, tpw.y; size: 48 * pu, 27 * pu; corner: 6 * pu }
-                box { at: spx + 36 * pu, tpw.y; size: 48 * pu, 27 * pu; color: ink; opacity: 7% }
-                image tpw_img { at: spx + 12 * pu, tpw.y - 13.5 * pu; size: 48 * pu, 27 * pu; opacity: tpw_pill }
+                clip inset 0 box { at: spx + 36 * pw, tpw.y; size: 48 * pu, 27 * pu; corner: 6 * pu }
+                box { at: spx + 36 * pw, tpw.y; size: 48 * pu, 27 * pu; color: ink; opacity: 7% }
+                image tpw_img { at: spx + 36 * pw - 24 * pu, tpw.y - 13.5 * pu; size: 48 * pu, 27 * pu; opacity: tpw_pill }
             }
-            box { at: spx + 36 * pu, tpw.y; size: 48 * pu, 27 * pu; corner: 6 * pu; stroke: 1 * pu; color: if(tpw_on, mint, ink); opacity: if(tpw_on, 55%, 22%) }
+            box { at: spx + 36 * pw, tpw.y; size: 48 * pu, 27 * pu; corner: 6 * pu; stroke: 1 * pu; color: if(tpw_on, mint, ink); opacity: if(tpw_on, 55%, 22%) }
             group {
                 opacity: 1 - tpw_pill
-                box { at: spx + 36 * pu, tpw.y; size: 16 * pu, 12 * pu; corner: 2.5 * pu; stroke: 1.3 * pu; color: faint }
-                path { at: spx + 36 * pu, tpw.y; stroke: 1.3 * pu; color: faint; move -6 * pu, 3.5 * pu; line -2 * pu, -0.5 * pu; line 1 * pu, 2 * pu; line 3 * pu, 0.5 * pu; line 6 * pu, 3.5 * pu }
-                ellipse { at: spx + 39 * pu, tpw.y - 2 * pu; radius: 1.3 * pu; color: faint }
+                box { at: spx + 36 * pw, tpw.y; size: 16 * pu, 12 * pu; corner: 2.5 * pu; stroke: 1.3 * pu; color: faint }
+                path { at: spx + 36 * pw, tpw.y; stroke: 1.3 * pu; color: faint; move -6 * pu, 3.5 * pu; line -2 * pu, -0.5 * pu; line 1 * pu, 2 * pu; line 3 * pu, 0.5 * pu; line 6 * pu, 3.5 * pu }
+                ellipse { at: spx + 39 * pw, tpw.y - 2 * pu; radius: 1.3 * pu; color: faint }
             }
-            group { scale: rs; pivot: floor(spx + 70 * pu + 0.5), floor(tpw.y - 10 * pu + 0.5); text "Pin wallpaper" { at: floor(spx + 70 * pu + 0.5), floor(tpw.y - 10 * pu + 0.5); anchor: left center; size: 15; weight: 700; width: (90 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 70 * pw + 0.5), floor(tpw.y - 10 * pu + 0.5); text "Pin wallpaper" { at: floor(spx + 70 * pw + 0.5), floor(tpw.y - 10 * pu + 0.5); anchor: left center; size: 15; weight: 700; width: (90 * pw) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
             //  Change: the gallery over the page
-            box { at: spx + 98 * pu, tpw.y + 11 * pu; size: 56 * pu, 18 * pu; corner: (9 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: 10% + 10% * tpw_ch_hit.hover }
-            PPillOutline(spx + 98 * pu, tpw.y + 11 * pu, 56 * pu, 18 * pu, 9 * pu, tpw_ch_hit.hover, clamp(3 * (10% + 10% * tpw_ch_hit.hover), 0, 1), pu)
-            box { at: spx + 98 * pu, tpw.y + 11 * pu; size: 56 * pu, 18 * pu; corner: (9 * pu) * (1 - 0.85 * dd_k); stroke: 1.2 * pu; color: mint; opacity: 55% + 30% * tpw_ch_hit.hover }
-            group { scale: rs; pivot: floor(spx + 98 * pu + 0.5), floor(tpw.y + 11 * pu + 0.5); text "Change" { at: floor(spx + 98 * pu + 0.5), floor(tpw.y + 11 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; color: mint; family: "Space Grotesk" } }
-            zone box tpw_ch_hit { at: spx + 98 * pu, tpw.y + 11 * pu; size: 56 * pu, 18 * pu; corner: 9 * pu; cursor: pointer; label: "Choose the wallpaper for this theme"; active: set_page == pg_theme and not tpw_open and tpw.vis }
+            box { at: spx + 98 * pw, tpw.y + 11 * pu; size: 56 * pu, 18 * pu; corner: (9 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: 10% + 10% * tpw_ch_hit.hover }
+            PPillOutline(spx + 98 * pw, tpw.y + 11 * pu, 56 * pu, 18 * pu, 9 * pu, tpw_ch_hit.hover, clamp(3 * (10% + 10% * tpw_ch_hit.hover), 0, 1), pu)
+            box { at: spx + 98 * pw, tpw.y + 11 * pu; size: 56 * pu, 18 * pu; corner: (9 * pu) * (1 - 0.85 * dd_k); stroke: 1.2 * pu; color: mint; opacity: 55% + 30% * tpw_ch_hit.hover }
+            group { scale: rs; pivot: floor(spx + 98 * pw + 0.5), floor(tpw.y + 11 * pu + 0.5); text "Change" { at: floor(spx + 98 * pw + 0.5), floor(tpw.y + 11 * pu + 0.5); anchor: center; align: center; size: 12.5; weight: 700; color: mint; family: "Space Grotesk" } }
+            zone box tpw_ch_hit { at: spx + 98 * pw, tpw.y + 11 * pu; size: 56 * pu, 18 * pu; corner: 9 * pu; cursor: pointer; label: "Choose the wallpaper for this theme"; active: set_page == pg_theme and not tpw_open and tpw.vis }
             on press tpw_ch_hit { tpw_open = true; font_dd_open = false; emit tpw_choose }
-            SettingsSwitch(spx + 200 * pu, tpw.y, tpw_pill, tpw_hit.pressed, tpw_hit.hover, mint)
-            zone box tpw_hit { at: spx + 181 * pu, tpw.y; size: 46 * pu, 30 * pu; cursor: pointer; label: "Pin the wallpaper to this theme"; active: set_page == pg_theme and not tpw_open and tpw.vis }
+            SettingsSwitch(spx + 200 * pw, tpw.y, tpw_pill, tpw_hit.pressed, tpw_hit.hover, mint)
+            zone box tpw_hit { at: spx + 181 * pw, tpw.y; size: 46 * pu, 30 * pu; cursor: pointer; label: "Pin the wallpaper to this theme"; active: set_page == pg_theme and not tpw_open and tpw.vis }
             on press tpw_hit { emit tpw_toggle }
             //  Pin widgets: a frame with four small tiles (the Widgets page's sign), the count it keeps, and the switch.
-            body { color: mix(mix(obsidian, ink, (6%) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 331 * pu, tpw.y; size: 214 * pu, 66 * pu; corner: 14 * pu } }
-            DdCard(spx + 331 * pu, tpw.y, 214 * pu, 66 * pu, 217.5, mix(mix(obsidian, ink, (6%) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 331 * pu, tpw.y; size: 214 * pu, 66 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 331 * pu, tpw.y; size: 214 * pu, 66 * pu; corner: 14 * pu; color: ink; opacity: (6%) * (1 - obs) }
-            box { at: spx + 331 * pu, tpw.y; size: 214 * pu, 66 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-            box { at: spx + 260 * pu, tpw.y; size: 48 * pu, 27 * pu; corner: 6 * pu; color: if(twg_on, mint, ink); opacity: 7% + 8% * twg_pill }
-            box { at: spx + 260 * pu, tpw.y; size: 48 * pu, 27 * pu; corner: 6 * pu; stroke: 1 * pu; color: if(twg_on, mint, ink); opacity: if(twg_on, 55%, 22%) }
+            body { color: mix(mix(obsidian, ink, (6%) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 331 * pw, tpw.y; size: 214 * pw, 66 * pu; corner: 14 * pu } }
+            DdCard(spx + 331 * pw, tpw.y, 214 * pw, 66 * pu, 217.5, mix(mix(obsidian, ink, (6%) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 331 * pw, tpw.y; size: 214 * pw, 66 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 331 * pw, tpw.y; size: 214 * pw, 66 * pu; corner: 14 * pu; color: ink; opacity: (6%) * (1 - obs) }
+            box { at: spx + 331 * pw, tpw.y; size: 214 * pw, 66 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            box { at: spx + 260 * pw, tpw.y; size: 48 * pu, 27 * pu; corner: 6 * pu; color: if(twg_on, mint, ink); opacity: 7% + 8% * twg_pill }
+            box { at: spx + 260 * pw, tpw.y; size: 48 * pu, 27 * pu; corner: 6 * pu; stroke: 1 * pu; color: if(twg_on, mint, ink); opacity: if(twg_on, 55%, 22%) }
             repeat i in 0..4 {
-                box { at: spx + (256 + 8 * mod(i, 2)) * pu, tpw.y + (-4 + 8 * floor(i / 2)) * pu; size: 6 * pu, 6 * pu; corner: 1.6 * pu; stroke: 1.3 * pu; color: mix(faint, mint, twg_pill) }
+                box { at: spx + 256 * pw + 8 * mod(i, 2) * pu, tpw.y + (-4 + 8 * floor(i / 2)) * pu; size: 6 * pu, 6 * pu; corner: 1.6 * pu; stroke: 1.3 * pu; color: mix(faint, mint, twg_pill) }
             }
-            group { scale: rs; pivot: floor(spx + 294 * pu + 0.5), floor(tpw.y - 10 * pu + 0.5); text "Pin widgets" { at: floor(spx + 294 * pu + 0.5), floor(tpw.y - 10 * pu + 0.5); anchor: left center; size: 15; weight: 700; width: (88 * pu) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 294 * pu + 0.5), floor(tpw.y + 10 * pu + 0.5); text twg_sub { at: floor(spx + 294 * pu + 0.5), floor(tpw.y + 10 * pu + 0.5); anchor: left center; size: 12.5; width: (88 * pu) / rs; lines: 1; color: if(twg_on, mint, faint); family: "Space Grotesk" } }
-            SettingsSwitch(spx + 424 * pu, tpw.y, twg_pill, twg_hit.pressed, twg_hit.hover, mint)
-            zone box twg_hit { at: spx + 405 * pu, tpw.y; size: 46 * pu, 30 * pu; cursor: pointer; label: "Pin the widgets to this theme"; active: set_page == pg_theme and not tpw_open and tpw.vis }
+            group { scale: rs; pivot: floor(spx + 294 * pw + 0.5), floor(tpw.y - 10 * pu + 0.5); text "Pin widgets" { at: floor(spx + 294 * pw + 0.5), floor(tpw.y - 10 * pu + 0.5); anchor: left center; size: 15; weight: 700; width: (88 * pw) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 294 * pw + 0.5), floor(tpw.y + 10 * pu + 0.5); text twg_sub { at: floor(spx + 294 * pw + 0.5), floor(tpw.y + 10 * pu + 0.5); anchor: left center; size: 12.5; width: (88 * pw) / rs; lines: 1; color: if(twg_on, mint, faint); family: "Space Grotesk" } }
+            SettingsSwitch(spx + 424 * pw, tpw.y, twg_pill, twg_hit.pressed, twg_hit.hover, mint)
+            zone box twg_hit { at: spx + 424 * pw - 19 * pu, tpw.y; size: 46 * pu, 30 * pu; cursor: pointer; label: "Pin the widgets to this theme"; active: set_page == pg_theme and not tpw_open and tpw.vis }
             on press twg_hit { emit twg_toggle }
-            //  The dropdown, drawn last so its rows win the press over everything under it.
-            zone box font_catch { at: spx + 219 * pu, sby + (359 + 88 * th_ex) * pu; size: 438 * pu, 330 * pu; active: font_dd_open }
+            //  The dropdown, drawn last so its rows win the press over everything under it. It opens upwards, over the cards above: the selector sits near the page's foot.
+            zone box font_catch { at: spx + 219 * pw, fnt_y - 60 * pu; size: 438 * pw, 640 * pu; active: font_dd_open }
             on press font_catch { font_dd_open = false; blur }
             on scroll font_catch { emit font_scroll(wheel) }
             group {
                 show: font_dd > 0.02
                 opacity: font_dd
-                move: 0, (font_dd - 1) * 6 * pu
+                move: 0, (1 - font_dd) * 6 * pu
                 body {
                     color: card
                     rim: 12%
                     shadow: 0, 6 * pu, 18 * pu, 40%, #000000
-                    box { from: fnt_x, fnt_y + 38 * pu; size: fnt_w, 236 * pu; corner: 14 * pu }
+                    box { from: fnt_x, fnt_y - 242 * pu; size: fnt_w, 236 * pu; corner: 14 * pu }
                 }
-                box { from: fnt_x + 6 * pu, fnt_y + 38 * pu + 5 * pu; size: fnt_w - 12 * pu, 28 * pu; corner: 10 * pu; color: ink; opacity: 9% }
-                path { at: fnt_x + 20 * pu, fnt_y + 38 * pu + 19 * pu; stroke: 1.5 * pu; color: faint; move 3.2 * pu, 0; line 0, 0 }
-                ellipse { at: fnt_x + 19 * pu, fnt_y + 38 * pu + 18 * pu; radius: 4 * pu; stroke: 1.4 * pu; color: faint }
-                path { at: fnt_x + 19 * pu, fnt_y + 38 * pu + 18 * pu; stroke: 1.5 * pu; color: faint; move 3 * pu, 3 * pu; line 6 * pu, 6 * pu }
-                input font_q { at: floor(fnt_x + 36 * pu + 0.5), floor(fnt_y + 38 * pu + 19 * pu - 9 + 0.5); width: fnt_w - 60 * pu; size: 15; color: ink; family: "Space Grotesk"; placeholder: "Search fonts"; show: font_dd > 0.5 }
-                group { scale: rs; pivot: floor(fnt_x + 18 * pu + 0.5), floor(fnt_y + 38 * pu + 100 * pu + 0.5); text "No typeface has that" { at: floor(fnt_x + 18 * pu + 0.5), floor(fnt_y + 38 * pu + 100 * pu + 0.5); anchor: left center; size: 15.5; color: faint; show: font_none; family: "Space Grotesk" } }
+                box { from: fnt_x + 6 * pu, fnt_y - 242 * pu + 5 * pu; size: fnt_w - 12 * pu, 28 * pu; corner: 10 * pu; color: ink; opacity: 9% }
+                path { at: fnt_x + 20 * pu, fnt_y - 242 * pu + 19 * pu; stroke: 1.5 * pu; color: faint; move 3.2 * pu, 0; line 0, 0 }
+                ellipse { at: fnt_x + 19 * pu, fnt_y - 242 * pu + 18 * pu; radius: 4 * pu; stroke: 1.4 * pu; color: faint }
+                path { at: fnt_x + 19 * pu, fnt_y - 242 * pu + 18 * pu; stroke: 1.5 * pu; color: faint; move 3 * pu, 3 * pu; line 6 * pu, 6 * pu }
+                input font_q { at: floor(fnt_x + 36 * pu + 0.5), floor(fnt_y - 242 * pu + 19 * pu - 9 + 0.5); width: fnt_w - 60 * pu; size: 15; color: ink; family: "Space Grotesk"; placeholder: "Search fonts"; show: font_dd > 0.5 }
+                group { scale: rs; pivot: floor(fnt_x + 18 * pu + 0.5), floor(fnt_y - 242 * pu + 100 * pu + 0.5); text "No typeface has that" { at: floor(fnt_x + 18 * pu + 0.5), floor(fnt_y - 242 * pu + 100 * pu + 0.5); anchor: left center; size: 15.5; color: faint; show: font_none; family: "Space Grotesk" } }
                 repeat i in 0..8 {
-                    let ry = fnt_y + 38 * pu + 39 * pu + i * 24 * pu + 12 * pu
+                    let ry = fnt_y - 242 * pu + 39 * pu + i * 24 * pu + 12 * pu
                     box { at: fnt_x + (fnt_w - 10 * pu) / 2 + 5 * pu, ry; size: fnt_w - 22 * pu, 22 * pu; corner: 11 * pu; color: if(font_r.$i.lit, mint, ink); opacity: if(font_r.$i.on, if(font_r.$i.lit, 24%, 0%) + 10% * font_row_hit.$i.hover, 0%) }
                     group { scale: rs; pivot: floor(fnt_x + 16 * pu + 0.5), floor(ry + 0.5); text font_r.$i.text { at: floor(fnt_x + 16 * pu + 0.5), floor(ry + 0.5); anchor: left center; size: 16.5; weight: 600; width: (fnt_w - 44 * pu) / rs; lines: 1; color: if(font_r.$i.lit, mint, ink); show: font_r.$i.on; family: "Space Grotesk" } }
                     zone box font_row_hit.$i { at: fnt_x + (fnt_w - 10 * pu) / 2 + 5 * pu, ry; size: fnt_w - 20 * pu, 24 * pu; corner: 12 * pu; cursor: pointer; active: font_r.$i.on and font_dd_open }
                     on press font_row_hit.$i { emit font_pick(i); font_dd_open = false; blur }
                 }
-                box { at: fnt_x + fnt_w - 6 * pu, fnt_y + 38 * pu + 135 * pu; size: 3 * pu, 190 * pu; corner: 1.5 * pu; color: ink; opacity: 6% }
-                box { at: fnt_x + fnt_w - 6 * pu, fnt_y + 38 * pu + 40 * pu + (font_sb_y + font_sb_h / 2) * 190 * pu; size: 3 * pu + 2 * pu * font_bar_hit.hover, max(8 * pu, font_sb_h * 190 * pu); corner: 1.5 * pu; color: mint; opacity: if(font_sb_h < 0.999, 55% + 35% * font_bar_hit.hover, 0%) }
+                box { at: fnt_x + fnt_w - 6 * pu, fnt_y - 242 * pu + 135 * pu; size: 3 * pu, 190 * pu; corner: 1.5 * pu; color: ink; opacity: 6% }
+                box { at: fnt_x + fnt_w - 6 * pu, fnt_y - 242 * pu + 40 * pu + (font_sb_y + font_sb_h / 2) * 190 * pu; size: 3 * pu + 2 * pu * font_bar_hit.hover, max(8 * pu, font_sb_h * 190 * pu); corner: 1.5 * pu; color: mint; opacity: if(font_sb_h < 0.999, 55% + 35% * font_bar_hit.hover, 0%) }
                 //  The scrollbar is a handle: pressed or dragged, the list goes to where the pointer is along the track.
-                zone box font_bar_hit { at: fnt_x + fnt_w - 7 * pu, fnt_y + 38 * pu + 135 * pu; size: 14 * pu, 196 * pu; cursor: pointer; active: font_dd_open and font_sb_h < 0.999; label: "Font list scrollbar" }
-                on press font_bar_hit { emit font_bar(((pointer.y - ty.set + th.off) - (fnt_y + 38 * pu + 40 * pu)) / (190 * pu)) }
-                on drag font_bar_hit { emit font_bar(((pointer.y - ty.set + th.off) - (fnt_y + 38 * pu + 40 * pu)) / (190 * pu)) }
+                zone box font_bar_hit { at: fnt_x + fnt_w - 7 * pu, fnt_y - 242 * pu + 135 * pu; size: 14 * pu, 196 * pu; cursor: pointer; active: font_dd_open and font_sb_h < 0.999; label: "Font list scrollbar" }
+                on press font_bar_hit { emit font_bar(((pointer.y - ty.set + th.off) - (fnt_y - 242 * pu + 40 * pu)) / (190 * pu)) }
+                on drag font_bar_hit { emit font_bar(((pointer.y - ty.set + th.off) - (fnt_y - 242 * pu + 40 * pu)) / (190 * pu)) }
             }
             }
             let th.thh = set.h * set.h / max(set.h, th.h)
             let th.thy = th.thh / 2 + th.sc / max(1, th.h - set.h) * (set.h - th.thh)
-            box { at: spx + 442 * pu, sby + set.h / 2 * pu; size: 3 * pu, set.h * pu; corner: 1.5 * pu; color: ink; opacity: if(th.h > set.h, 6%, 0%) }
-            box { at: spx + 442 * pu, sby + th.thy * pu; size: 3 * pu, th.thh * pu; corner: 1.5 * pu; color: mint; opacity: if(th.h > set.h, 55%, 0%) }
+            box { at: spx + 442 * pw, sby + set.h / 2 * pu; size: 3 * pu, set.h * pu; corner: 1.5 * pu; color: ink; opacity: if(th.h > set.h, 6%, 0%) }
+            box { at: spx + 442 * pw, sby + th.thy * pu; size: 3 * pu, th.thh * pu; corner: 1.5 * pu; color: mint; opacity: if(th.h > set.h, 55%, 0%) }
             let th.cue = clamp((th.h - set.h - th.sc) / 24, 0, 1) * (1 - tpw_k) * (1 - font_dd)
             let th.cuey = sby + (set.h - 26) * pu + 2.5 * pu * sin(time * 270)
             repeat i in 0..16 {
                 let fk = (i + 1) / 16
-                box { from: spx - 4 * pu, sby + (set.h - 56 + i * 3.5) * pu; size: 448 * pu, 3.5 * pu + 0.5; color: deep; opacity: 45% * fk * fk * th.cue }
+                box { from: spx - 4 * pw, sby + (set.h - 56 + i * 3.5) * pu; size: 448 * pw, 3.5 * pu + 0.5; color: deep; opacity: 45% * fk * fk * th.cue }
             }
-            box { at: spx + 224 * pu, th.cuey; size: 76 * pu, 26 * pu; corner: 13 * pu; color: deep; opacity: 80% * th.cue }
-            box { at: spx + 224 * pu, th.cuey; size: 76 * pu, 26 * pu; corner: 13 * pu; color: mint; opacity: (10% + 14% * th_cue_hit.hover) * th.cue }
-            path { at: spx + 204 * pu, th.cuey - 1 * pu; stroke: 1.6 * pu; color: mint; opacity: th.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
-            path { at: spx + 204 * pu, th.cuey + 4 * pu; stroke: 1.6 * pu; color: mint; opacity: th.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
-            group { scale: rs; pivot: floor(spx + 232 * pu + 0.5), floor(th.cuey + 0.5); text "More" { at: floor(spx + 232 * pu + 0.5), floor(th.cuey + 0.5); anchor: center; size: 16.5; weight: 700; color: ink; opacity: th.cue; family: "Space Grotesk" } }
-            zone box th_cue_hit { at: spx + 224 * pu, sby + (set.h - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: th.cue > 0.5 }
+            box { at: spx + 224 * pw, th.cuey; size: 76 * pu, 26 * pu; corner: 13 * pu; color: deep; opacity: 80% * th.cue }
+            box { at: spx + 224 * pw, th.cuey; size: 76 * pu, 26 * pu; corner: 13 * pu; color: mint; opacity: (10% + 14% * th_cue_hit.hover) * th.cue }
+            path { at: spx + 204 * pw, th.cuey - 1 * pu; stroke: 1.6 * pu; color: mint; opacity: th.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
+            path { at: spx + 204 * pw, th.cuey + 4 * pu; stroke: 1.6 * pu; color: mint; opacity: th.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
+            group { scale: rs; pivot: floor(spx + 232 * pw + 0.5), floor(th.cuey + 0.5); text "More" { at: floor(spx + 232 * pw + 0.5), floor(th.cuey + 0.5); anchor: center; size: 16.5; weight: 700; color: ink; opacity: th.cue; family: "Space Grotesk" } }
+            zone box th_cue_hit { at: spx + 224 * pw, sby + (set.h - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: th.cue > 0.5 }
             on press th_cue_hit { th_scroll_to = clamp(th_scroll_to + 342, 0, max(0, th.h - set.h)) }
-            zone box th_bar_hit { at: spx + 442 * pu, sby + set.h / 2 * pu; size: 14 * pu, set.h * pu; cursor: pointer; active: th.h > set.h and not tpw_open }
+            zone box th_bar_hit { at: spx + 442 * pw, sby + set.h / 2 * pu; size: 14 * pu, set.h * pu; cursor: pointer; active: th.h > set.h and not tpw_open }
             on press th_bar_hit { th_scroll_to = clamp((((pointer.y - ty.set) - sby) / pu - th.thh / 2) / max(1, set.h - th.thh) * (th.h - set.h), 0, max(0, th.h - set.h)) }
             on drag th_bar_hit { th_scroll_to = clamp((((pointer.y - ty.set) - sby) / pu - th.thh / 2) / max(1, set.h - th.thh) * (th.h - set.h), 0, max(0, th.h - set.h)) }
             //  ── The Pin wallpaper picker, over the page (drawn like the wallpaper page's folder browser): the gallery's wallpapers, sixteen at a
@@ -249,7 +254,7 @@ part Theme {
                 opacity: tpw_k
                 let tpd.l = spx
                 let tpd.t = sby + 12 * pu * (1 - tpw_k)
-                let tpd.w = 438 * pu
+                let tpd.w = 438 * pw
                 let tpd.h = 344 * pu
                 box { from: tpd.l, tpd.t; size: tpd.w, tpd.h; corner: 14 * pu; color: deep; opacity: 100% }
                 body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_p4, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { from: tpd.l, tpd.t; size: tpd.w, tpd.h; corner: 14 * pu } }
@@ -282,7 +287,7 @@ part Theme {
                 }
                 let tpd.py = tpd.t + tpd.h - 26 * pu
                 path { at: tpd.l + 40 * pu, tpd.py; stroke: 1.6 * pu; color: ink; opacity: 55% + 45% * tpd_prev.hover; move 3 * pu, -5 * pu; line -3 * pu, 0; line 3 * pu, 5 * pu }
-                group { scale: rs; pivot: floor(tpd.l + tpd.w / 2 + 0.5), floor(tpd.py + 0.5); text tpw_pager { at: floor(tpd.l + tpd.w / 2 + 0.5), floor(tpd.py + 0.5); anchor: center; align: center; size: 16.5; weight: 600; width: (100 * pu) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(tpd.l + tpd.w / 2 + 0.5), floor(tpd.py + 0.5); text tpw_pager { at: floor(tpd.l + tpd.w / 2 + 0.5), floor(tpd.py + 0.5); anchor: center; align: center; size: 16.5; weight: 600; width: (100 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
                 path { at: tpd.l + tpd.w - 40 * pu, tpd.py; stroke: 1.6 * pu; color: ink; opacity: 55% + 45% * tpd_next.hover; move -3 * pu, -5 * pu; line 3 * pu, 0; line -3 * pu, 5 * pu }
                 zone box tpd_prev { at: tpd.l + 40 * pu, tpd.py; size: 30 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: tpw_open }
                 zone box tpd_next { at: tpd.l + tpd.w - 40 * pu, tpd.py; size: 30 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: tpw_open }

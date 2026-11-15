@@ -26,6 +26,9 @@ Choices made in a `repeat` cannot have their zones read from outside it: put a p
 
 ## The page
 
+- **Across the page, use `pw`; down it, `pu`.** `pw` is `pu * 1.25`: x offsets from `spx`, card and slider widths, a picker's pitch and a repeat's step, and text wrap widths are on `pw`;
+  heights, y offsets, type, corners, round things and small fixed controls (switches, short pills, icons) stay on `pu`. So the numbers below read the same on both.
+  Pills side by side keep their gap: place the right one on `pw` and the others from it on `pu` (`spx + 392 * pw - 70 * pu`), or they drift apart.
 - Cards are 438 wide, corner 14, with a hairline edge (`stroke: 1 * pu`, ink at `hair`, after the veil box), on `spx + 219`; content starts at `spx + 14` and controls end at `spx + 424`.
 - **14 inside every card, on all four sides.** The first row's top (a picker's slot, a pill, a label's cap height) is 14 below the card's top, and the last row's bottom
   (a pill's edge, the descenders of a hint) is 14 above the card's bottom, as the content is 14 in from either side. Nothing touches or crowds an edge.

@@ -3961,9 +3961,19 @@ do
                 pv_n = pv_n + 1
                 local out = d.data .. "/font-preview.png"
                 run("magick", { "-background", "none", "-fill", "#ffffff", "-font", file,
-                    "-pointsize", "78", "label:Aa Bb Cc 0123", "-pointsize", "40", "label:The quick brown fox jumps over",
+                    -- as wide as the card (1775 x 290 is 410 x 84 on `pw`, `pu`), in two columns: a big sample, a sentence and a line of the shell
+                    -- on the left; the alphabet, the figures and the signs on the right
+                    "(", "-pointsize", "84", "label:Aa Bb Cc 0123", "-size", "1x26", "xc:none", "+size",
+                    "-pointsize", "40", "label:The quick brown fox jumps over the lazy dog", "-size", "1x26", "xc:none", "+size",
                     "-pointsize", "32", "label:Settings · 12:45 PM · Wi-Fi 78%",
-                    "-gravity", "west", "-background", "none", "-append", "-gravity", "northwest", "-extent", "1420x440", out },
+                    "-gravity", "west", "-background", "none", "-append", "+repage", "-gravity", "northwest", "-extent", "1010x290", "+repage", ")",
+                    "(", "+gravity", "-pointsize", "36", "label:ABCDEFGHIJKLM", "-size", "1x10", "xc:none", "+size",
+                    "-pointsize", "36", "label:NOPQRSTUVWXYZ", "-size", "1x10", "xc:none", "+size",
+                    "-pointsize", "36", "label:abcdefghijklm", "-size", "1x10", "xc:none", "+size",
+                    "-pointsize", "36", "label:nopqrstuvwxyz", "-size", "1x10", "xc:none", "+size",
+                    "-pointsize", "36", "label:0123456789  ! ? & @ # ( ) / %",
+                    "-gravity", "west", "-background", "none", "-append", "+repage", "-gravity", "northwest", "-extent", "765x290", "+repage", ")",
+                    "+gravity", "+append", "+repage", out },
                     function(_, c2) if c2 == 0 then text.font_prevurl = out .. "?" .. pv_n end end)
             end)
         end, { env = { FONTCONFIG_FILE = "/etc/fonts/fonts.conf" } })

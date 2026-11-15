@@ -1,102 +1,140 @@
 part Hyprland {
         //  The Hyprland page: layout and gaps, border resize and tearing, animations and input.
         //  Every change goes to Hyprland at once and is kept for the next start (see the Hyprland section of
-        //  vitreus.luau). It fits the page, so it does not scroll. Each section's name sits over its card, and every card keeps 14 inside it on all four sides.
+        //  vitreus.luau). It is a little taller than the page, so it scrolls like Glass (`hy.h`). Each section's name sits over its card, and every card keeps 14 inside it on all four sides.
         group {
             show: set_pgh > 0.01 and not wm_niri
             opacity: set_pgh
-            let hsl.x0 = spx + 122 * pu
-            let hsl.w = 250 * pu
+            let hsl.x0 = spx + 122 * pw
+            let hsl.w = 250 * pw
             let hyp_hh = 12 * pu
+            let hy.sc = clamp(hy_scroll, 0, max(0, hy.h - set.h))
+            let hy.off = floor(hy.sc * pu + 0.5)        // whole pixels: text that is shifted by a fraction of one is resampled, and looks soft
+            clip box { at: spx + 224 * pw, sby + set.h / 2 * pu; size: 456 * pw, set.h * pu }
+            //  A scroll goes to the zone declared last under the pointer, and the rows' zones cover most of the page: each one scrolls it too.
+            zone box hy_wheel { at: spx + 219 * pw, sby + set.h / 2 * pu; size: 446 * pw, set.h * pu }
+            on scroll hy_wheel { hy_scroll_to = clamp(hy_scroll_to - wheel * 44, 0, max(0, hy.h - set.h)) }
+            group {
+            move: 0, -hy.off
 
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 130 * pu; size: 438 * pu, 218 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pu, sby + 130 * pu, 438 * pu, 218 * pu, 48.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pu, sby + 130 * pu; size: 438 * pu, 218 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pu, sby + 130 * pu; size: 438 * pu, 218 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            box { at: spx + 219 * pu, sby + 130 * pu; size: 438 * pu, 218 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 139 * pu; size: 438 * pw, 236 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 139 * pu, 438 * pw, 236 * pu, 48.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 139 * pu; size: 438 * pw, 236 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 139 * pu; size: 438 * pw, 236 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 139 * pu; size: 438 * pw, 236 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 298 * pu; size: 438 * pu, 58 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pu, sby + 298 * pu, 438 * pu, 58 * pu, 76.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pu, sby + 298 * pu; size: 438 * pu, 58 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pu, sby + 298 * pu; size: 438 * pu, 58 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            box { at: spx + 219 * pu, sby + 298 * pu; size: 438 * pu, 58 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 316 * pu; size: 438 * pw, 58 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 316 * pu, 438 * pw, 58 * pu, 76.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 316 * pu; size: 438 * pw, 58 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 316 * pu; size: 438 * pw, 58 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 316 * pu; size: 438 * pw, 58 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pu, sby + 418 * pu; size: 438 * pu, 122 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pu, sby + 418 * pu, 438 * pu, 122 * pu, 104.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pu, sby + 418 * pu; size: 438 * pu, 122 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pu, sby + 418 * pu; size: 438 * pu, 122 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            box { at: spx + 219 * pu, sby + 418 * pu; size: 438 * pu, 122 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 8 * pu + 0.5); text "GENERAL & LAYOUT" { at: floor(spx + 14 * pu + 0.5), floor(sby + 8 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 256 * pu + 0.5); text "ANIMATIONS" { at: floor(spx + 14 * pu + 0.5), floor(sby + 256 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 344 * pu + 0.5); text "INPUT" { at: floor(spx + 14 * pu + 0.5), floor(sby + 344 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 439 * pu; size: 438 * pw, 128 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 439 * pu, 438 * pw, 128 * pu, 104.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 439 * pu; size: 438 * pw, 128 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 439 * pu; size: 438 * pw, 128 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 439 * pu; size: 438 * pw, 128 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 8 * pu + 0.5); text "GENERAL & LAYOUT" { at: floor(spx + 14 * pw + 0.5), floor(sby + 8 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 274 * pu + 0.5); text "ANIMATIONS" { at: floor(spx + 14 * pw + 0.5), floor(sby + 274 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 362 * pu + 0.5); text "INPUT" { at: floor(spx + 14 * pw + 0.5), floor(sby + 362 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
 
             //  Layout.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 47 * pu + 0.5); text "Layout" { at: floor(spx + 14 * pu + 0.5), floor(sby + 47 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            zone box hy_lay_hit_sl { at: spx + 164 * pu + (3 - 1) * 90 * pu / 2, sby + 47 * pu + (1 - 1) * 0 / 2; size: 3 * 90 * pu, 24 * pu + (1 - 1) * 0 }
-            SetPick(spx + 164 * pu, sby + 47 * pu, 90 * pu, 3, 24 * pu, hy_layout - 1, hy_lay_hit_sl.hover, pu, 1, 0, 0, if(hy_layout >= 1 and hy_layout <= 3, 1, 0))
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 47 * pu + 0.5); text "Layout" { at: floor(spx + 14 * pw + 0.5), floor(sby + 47 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            zone box hy_lay_hit_sl { at: spx + 164 * pw + (3 - 1) * 90 * pu / 2, sby + 47 * pu + (1 - 1) * 0 / 2; size: 3 * 90 * pu, 24 * pu + (1 - 1) * 0 }
+            on scroll hy_lay_hit_sl { hy_scroll_to = clamp(hy_scroll_to - wheel * 44, 0, max(0, hy.h - set.h)) }
+            SetPick(spx + 164 * pw, sby + 47 * pu, 90 * pw, 3, 24 * pu, hy_layout - 1, hy_lay_hit_sl.hover, pu, 1, 0, 0, if(hy_layout >= 1 and hy_layout <= 3, 1, 0))
             repeat i in 0..3 {
-                let lx = spx + 164 * pu + i * 90 * pu
+                let lx = spx + 164 * pw + i * 90 * pw
                 box { at: lx, sby + 47 * pu; size: 84 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * hy_lay_hit.$i.hover }
-                group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 47 * pu + 0.5); text pick(i, "Dwindle", "Master", "Scrolling") { at: floor(lx + 0.5), floor(sby + 47 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (80 * pu) / rs; lines: 1; color: if(hy_layout == i + 1, mint, ink); family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 47 * pu + 0.5); text pick(i, "Dwindle", "Master", "Scrolling") { at: floor(lx + 0.5), floor(sby + 47 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (80 * pw) / rs; lines: 1; color: if(hy_layout == i + 1, mint, ink); family: "Space Grotesk" } }
                 zone box hy_lay_hit.$i { at: lx, sby + 47 * pu; size: 86 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
+                on scroll hy_lay_hit.$i { hy_scroll_to = clamp(hy_scroll_to - wheel * 44, 0, max(0, hy.h - set.h)) }
                 on press hy_lay_hit.$i { emit hy_layout_set(i + 1) }
             }
 
             //  Gaps, 0 to 30 px.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 77 * pu + 0.5); text "Gaps" { at: floor(spx + 14 * pu + 0.5), floor(sby + 77 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            PSlider(hsl.x0, sby + 77 * pu, hsl.w, clamp(hy_gaps / 30, 0, 1), hy_gaps_hit.hover, cu, hyp_hh, 0)
-            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 77 * pu + 0.5); text hy_gaps_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 77 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
-            zone box hy_gaps_hit { at: hsl.x0 + hsl.w / 2, sby + 77 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 83 * pu + 0.5); text "Gaps" { at: floor(spx + 14 * pw + 0.5), floor(sby + 83 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            PSlider(hsl.x0, sby + 83 * pu, hsl.w, clamp(hy_gaps / 30, 0, 1), hy_gaps_hit.hover, cu, hyp_hh, 0)
+            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 83 * pu + 0.5); text hy_gaps_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 83 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
+            zone box hy_gaps_hit { at: hsl.x0 + hsl.w / 2, sby + 83 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
+            on scroll hy_gaps_hit { hy_scroll_to = clamp(hy_scroll_to - wheel * 44, 0, max(0, hy.h - set.h)) }
             on press hy_gaps_hit { emit hy_gaps_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
             on drag hy_gaps_hit { emit hy_gaps_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
 
             //  Corner rounding, 0 to 30 px.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 107 * pu + 0.5); text "Corner rounding" { at: floor(spx + 14 * pu + 0.5), floor(sby + 107 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            PSlider(hsl.x0, sby + 107 * pu, hsl.w, clamp(hy_round / 30, 0, 1), hy_round_hit.hover, cu, hyp_hh, 0)
-            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 107 * pu + 0.5); text hy_round_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 107 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
-            zone box hy_round_hit { at: hsl.x0 + hsl.w / 2, sby + 107 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 119 * pu + 0.5); text "Corner rounding" { at: floor(spx + 14 * pw + 0.5), floor(sby + 119 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            PSlider(hsl.x0, sby + 119 * pu, hsl.w, clamp(hy_round / 30, 0, 1), hy_round_hit.hover, cu, hyp_hh, 0)
+            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 119 * pu + 0.5); text hy_round_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 119 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
+            zone box hy_round_hit { at: hsl.x0 + hsl.w / 2, sby + 119 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
+            on scroll hy_round_hit { hy_scroll_to = clamp(hy_scroll_to - wheel * 44, 0, max(0, hy.h - set.h)) }
             on press hy_round_hit { emit hy_round_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
             on drag hy_round_hit { emit hy_round_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
 
             //  Border thickness, 0 to 10 px.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 137 * pu + 0.5); text "Border thickness" { at: floor(spx + 14 * pu + 0.5), floor(sby + 137 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            PSlider(hsl.x0, sby + 137 * pu, hsl.w, clamp(hy_border / 10, 0, 1), hy_border_hit.hover, cu, hyp_hh, 0)
-            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 137 * pu + 0.5); text hy_border_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 137 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
-            zone box hy_border_hit { at: hsl.x0 + hsl.w / 2, sby + 137 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 155 * pu + 0.5); text "Border thickness" { at: floor(spx + 14 * pw + 0.5), floor(sby + 155 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            PSlider(hsl.x0, sby + 155 * pu, hsl.w, clamp(hy_border / 10, 0, 1), hy_border_hit.hover, cu, hyp_hh, 0)
+            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 155 * pu + 0.5); text hy_border_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 155 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
+            zone box hy_border_hit { at: hsl.x0 + hsl.w / 2, sby + 155 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
+            on scroll hy_border_hit { hy_scroll_to = clamp(hy_scroll_to - wheel * 44, 0, max(0, hy.h - set.h)) }
             on press hy_border_hit { emit hy_border_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
             on drag hy_border_hit { emit hy_border_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
 
             //  Sensitivity, -1 to 1.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 383 * pu + 0.5); text "Sensitivity" { at: floor(spx + 14 * pu + 0.5), floor(sby + 383 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            PSlider(hsl.x0, sby + 383 * pu, hsl.w, clamp((hy_sens + 1) / 2, 0, 1), hy_sens_hit.hover, cu, hyp_hh, 0)
-            box { at: hsl.x0 + hsl.w / 2, sby + 383 * pu; size: 1.5 * pu, hyp_hh + 6 * pu; corner: 0.75 * pu; color: ink; opacity: 40% }
-            group { scale: rs; pivot: floor(spx + 424 * pu + 0.5), floor(sby + 383 * pu + 0.5); text hy_sens_text { at: floor(spx + 424 * pu + 0.5), floor(sby + 383 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
-            zone box hy_sens_hit { at: hsl.x0 + hsl.w / 2, sby + 383 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 401 * pu + 0.5); text "Sensitivity" { at: floor(spx + 14 * pw + 0.5), floor(sby + 401 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            PSlider(hsl.x0, sby + 401 * pu, hsl.w, clamp((hy_sens + 1) / 2, 0, 1), hy_sens_hit.hover, cu, hyp_hh, 0)
+            box { at: hsl.x0 + hsl.w / 2, sby + 401 * pu; size: 1.5 * pu, hyp_hh + 6 * pu; corner: 0.75 * pu; color: ink; opacity: 40% }
+            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 401 * pu + 0.5); text hy_sens_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 401 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
+            zone box hy_sens_hit { at: hsl.x0 + hsl.w / 2, sby + 401 * pu; size: hsl.w + 24 * pu, 30 * pu; cursor: pointer }
+            on scroll hy_sens_hit { hy_scroll_to = clamp(hy_scroll_to - wheel * 44, 0, max(0, hy.h - set.h)) }
             on press hy_sens_hit { emit hy_sens_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
             on drag hy_sens_hit { emit hy_sens_set(clamp(((pointer.x - tx.pnl) - hsl.x0) / hsl.w, 0, 1)) }
 
             //  Focus follows the mouse: off, on, loose, full.
-            group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(sby + 413 * pu + 0.5); text "Follow mouse" { at: floor(spx + 14 * pu + 0.5), floor(sby + 413 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            zone box hy_fol_hit_sl { at: spx + 152 * pu + (4 - 1) * 66 * pu / 2, sby + 413 * pu + (1 - 1) * 0 / 2; size: 4 * 66 * pu, 24 * pu + (1 - 1) * 0 }
-            SetPick(spx + 152 * pu, sby + 413 * pu, 66 * pu, 4, 24 * pu, hy_follow, hy_fol_hit_sl.hover, pu)
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 437 * pu + 0.5); text "Follow mouse" { at: floor(spx + 14 * pw + 0.5), floor(sby + 437 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            zone box hy_fol_hit_sl { at: spx + 152 * pw + (4 - 1) * 66 * pu / 2, sby + 437 * pu + (1 - 1) * 0 / 2; size: 4 * 66 * pu, 24 * pu + (1 - 1) * 0 }
+            on scroll hy_fol_hit_sl { hy_scroll_to = clamp(hy_scroll_to - wheel * 44, 0, max(0, hy.h - set.h)) }
+            SetPick(spx + 152 * pw, sby + 437 * pu, 66 * pw, 4, 24 * pu, hy_follow, hy_fol_hit_sl.hover, pu)
             repeat i in 0..4 {
-                let fx = spx + 152 * pu + i * 66 * pu
-                box { at: fx, sby + 413 * pu; size: 60 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * hy_fol_hit.$i.hover }
-                group { scale: rs; pivot: floor(fx + 0.5), floor(sby + 413 * pu + 0.5); text pick(i, "Off", "On", "Loose", "Full") { at: floor(fx + 0.5), floor(sby + 413 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (56 * pu) / rs; lines: 1; color: if(hy_follow == i, mint, ink); family: "Space Grotesk" } }
-                zone box hy_fol_hit.$i { at: fx, sby + 413 * pu; size: 62 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
+                let fx = spx + 152 * pw + i * 66 * pw
+                box { at: fx, sby + 437 * pu; size: 60 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * hy_fol_hit.$i.hover }
+                group { scale: rs; pivot: floor(fx + 0.5), floor(sby + 437 * pu + 0.5); text pick(i, "Off", "On", "Loose", "Full") { at: floor(fx + 0.5), floor(sby + 437 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (56 * pw) / rs; lines: 1; color: if(hy_follow == i, mint, ink); family: "Space Grotesk" } }
+                zone box hy_fol_hit.$i { at: fx, sby + 437 * pu; size: 62 * pu, 26 * pu; corner: 13 * pu; cursor: pointer }
+                on scroll hy_fol_hit.$i { hy_scroll_to = clamp(hy_scroll_to - wheel * 44, 0, max(0, hy.h - set.h)) }
                 on press hy_fol_hit.$i { emit hy_follow_set(i) }
             }
 
             //  The switches: resize from the border, tearing, animations, natural scroll.
             repeat i in 0..4 {
-                let ty = sby + pick(i, 173, 209, 298, 449) * pu
+                let ty = sby + pick(i, 191, 227, 316, 473) * pu
                 let tk = pick(i, hy_k0, hy_k1, hy_k2, hy_k3)
-                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(ty - 6 * pu + 0.5); text pick(i, "Resize from border", "Allow screen tearing", "Window manager animations", "Natural scroll (touchpad)") { at: floor(spx + 14 * pu + 0.5), floor(ty - 6 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-                group { scale: rs; pivot: floor(spx + 14 * pu + 0.5), floor(ty + 8 * pu + 0.5); text pick(i, "Grab a window's edge anywhere to resize it", "Lets opted-in fullscreen apps skip vsync", "Hyprland's own window and workspace motion", "Reverses the touchpad's scroll direction") { at: floor(spx + 14 * pu + 0.5), floor(ty + 8 * pu + 0.5); anchor: left center; size: 14.5; color: faint; family: "Space Grotesk" } }
-                SettingsSwitch(spx + 424 * pu, ty, tk, hy_tg_hit.$i.pressed, hy_tg_hit.$i.hover, mint)
-                zone box hy_tg_hit.$i { at: spx + 219 * pu, ty; size: 430 * pu, 32 * pu; corner: 10 * pu; cursor: pointer }
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(ty - 6 * pu + 0.5); text pick(i, "Resize from border", "Allow screen tearing", "Window manager animations", "Natural scroll (touchpad)") { at: floor(spx + 14 * pw + 0.5), floor(ty - 6 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(ty + 8 * pu + 0.5); text pick(i, "Grab a window's edge anywhere to resize it", "Lets opted-in fullscreen apps skip vsync", "Hyprland's own window and workspace motion", "Reverses the touchpad's scroll direction") { at: floor(spx + 14 * pw + 0.5), floor(ty + 8 * pu + 0.5); anchor: left center; size: 14.5; color: faint; family: "Space Grotesk" } }
+                SettingsSwitch(spx + 424 * pw, ty, tk, hy_tg_hit.$i.pressed, hy_tg_hit.$i.hover, mint)
+                zone box hy_tg_hit.$i { at: spx + 219 * pw, ty; size: 430 * pw, 32 * pu; corner: 10 * pu; cursor: pointer }
+                on scroll hy_tg_hit.$i { hy_scroll_to = clamp(hy_scroll_to - wheel * 44, 0, max(0, hy.h - set.h)) }
                 on press hy_tg_hit.$i { emit hy_toggle(i) }
             }
+            }
+            let hy.thh = set.h * set.h / max(set.h, hy.h)
+            let hy.thy = hy.thh / 2 + hy.sc / max(1, hy.h - set.h) * (set.h - hy.thh)
+            box { at: spx + 442 * pw, sby + set.h / 2 * pu; size: 3 * pu, set.h * pu; corner: 1.5 * pu; color: ink; opacity: if(hy.h > set.h, 6%, 0%) }
+            box { at: spx + 442 * pw, sby + hy.thy * pu; size: 3 * pu, hy.thh * pu; corner: 1.5 * pu; color: mint; opacity: if(hy.h > set.h, 55%, 0%) }
+            let hy.cue = clamp((hy.h - set.h - hy.sc) / 24, 0, 1)
+            let hy.cuey = sby + (set.h - 26) * pu + 2.5 * pu * sin(time * 270)
+            repeat i in 0..16 {
+                let hfk = (i + 1) / 16
+                box { from: spx - 4 * pw, sby + (set.h - 56 + i * 3.5) * pu; size: 448 * pw, 3.5 * pu + 0.5; color: deep; opacity: 45% * hfk * hfk * hy.cue }
+            }
+            box { at: spx + 224 * pw, hy.cuey; size: 76 * pu, 26 * pu; corner: 13 * pu; color: deep; opacity: 80% * hy.cue }
+            box { at: spx + 224 * pw, hy.cuey; size: 76 * pu, 26 * pu; corner: 13 * pu; color: mint; opacity: (10% + 14% * hy_cue_hit.hover) * hy.cue }
+            path { at: spx + 204 * pw, hy.cuey - 1 * pu; stroke: 1.6 * pu; color: mint; opacity: hy.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
+            path { at: spx + 204 * pw, hy.cuey + 4 * pu; stroke: 1.6 * pu; color: mint; opacity: hy.cue; move -4 * pu, -3 * pu; line 0, 1 * pu; line 4 * pu, -3 * pu }
+            group { scale: rs; pivot: floor(spx + 232 * pw + 0.5), floor(hy.cuey + 0.5); text "More" { at: floor(spx + 232 * pw + 0.5), floor(hy.cuey + 0.5); anchor: center; size: 16.5; weight: 700; color: ink; opacity: hy.cue; family: "Space Grotesk" } }
+            zone box hy_cue_hit { at: spx + 224 * pw, sby + (set.h - 26) * pu; size: 76 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: hy.cue > 0.5 }
+            on press hy_cue_hit { hy_scroll_to = clamp(hy_scroll_to + 342, 0, max(0, hy.h - set.h)) }
+            zone box hy_bar_hit { at: spx + 442 * pw, sby + set.h / 2 * pu; size: 14 * pu, set.h * pu; cursor: pointer; active: hy.h > set.h }
+            on press hy_bar_hit { hy_scroll_to = clamp((((pointer.y - ty.set) - sby) / pu - hy.thh / 2) / max(1, set.h - hy.thh) * (hy.h - set.h), 0, max(0, hy.h - set.h)) }
+            on drag hy_bar_hit { hy_scroll_to = clamp((((pointer.y - ty.set) - sby) / pu - hy.thh / 2) / max(1, set.h - hy.thh) * (hy.h - set.h), 0, max(0, hy.h - set.h)) }
         }
 }
