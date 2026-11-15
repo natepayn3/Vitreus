@@ -23,11 +23,11 @@
 #                                      on any other distribution it lists what to install by hand).
 #                                      hyprsunset is required on Hyprland (Night mode): without it, this stops
 #   2. pleamar, the runtime           (its own installer, into your home; a few minutes to build)
-#   3. the fonts                      (Space Grotesk, and the five the Retro, UwU, Cyber, Milkbox and Proxy themes are drawn in: Audiowide, Mochiy Pop One, Orbitron, Zen Kurenaido and Titan One;
+#   3. the fonts                      (Space Grotesk, Space Mono for the terminal, and the five the Retro, UwU, Cyber, Milkbox and Proxy themes are drawn in: Audiowide, Mochiy Pop One, Orbitron, Zen Kurenaido and Titan One;
 #                                      into ~/.local/share/fonts, no sudo)
 #   4. the shell                      (into ~/.config/pleamar/shells/vitreus: cloned, or updated)
 #   5. your palette, autostart entry  (made once and never written over)
-#   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent, vitreus-sysmon, vitreus-battery, vitreus-greeter, vitreus-term, vitreus-files, vitreus-edit, vitreus-report and vitreus-btnwait, linked into ~/.local/bin; vitreus-inhibit, built there)
+#   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent, vitreus-sysmon, vitreus-battery, vitreus-greeter, vitreus-term, vitreus-files, vitreus-edit, vitreus-report, vitreus-btnwait and vitfetch, linked into ~/.local/bin; vitreus-inhibit, built there)
 #   5c. Files, as a program            (its icon and entry in ~/.local/share; asked: the file manager for folders and «Show in folder», files/integrate.sh)
 #   5d. View, as a program             (its icon and entry in ~/.local/share; asked: what opens pictures and videos, view/integrate.sh)
 #   6. its Hyprland key binds         (hypr_vitreus.lua linked into ~/.config/hypr, and loaded from hyprland.lua)
@@ -38,12 +38,17 @@
 #   8. the login screen               (sddm/: the lock screen's look as an SDDM theme, with sudo, asked for; where SDDM already has a theme it asks
 #                                      before it is replaced. ./sddm/install.sh [IMAGE] does it again with another picture)
 #
+#   9. the terminal                   (terminal/: Ghostty in the Vitreus look, Space Mono, frosted, a cursor trail, by one config-file line in ~/.config/ghostty/config;
+#                                      and vitfetch, the fetch, when a terminal opens: a line in your shell's rc file, with Ghostty or kitty installed. Both asked)
+#
 # It never installs a compositor: Vitreus is developed on Hyprland, and needs one that has layer-shell.
 set -eu
 
 repo="${VITREUS_REPO:-https://github.com/natepayn3/Vitreus.git}"
 pleamar_installer="${PLEAMAR_INSTALLER:-https://raw.githubusercontent.com/k4ditano/pleamar/main/install.sh}"
 font_url="https://github.com/google/fonts/raw/main/ofl/spacegrotesk/SpaceGrotesk%5Bwght%5D.ttf"
+# The terminal's typeface, Space Mono (Space Grotesk's monospaced sibling; Google Fonts, OFL), for terminal/ghostty.conf.
+spacemono_url="https://github.com/google/fonts/raw/main/ofl/spacemono"
 # The Retro theme's typeface, Audiowide (a rounded sci-fi face), and the UwU theme's (both Google Fonts, OFL).
 # Both are optional: without one, that theme keeps Space Grotesk.
 dot_url="https://github.com/google/fonts/raw/main/ofl/audiowide/Audiowide-Regular.ttf"
@@ -67,10 +72,12 @@ kalam_url="https://github.com/google/fonts/raw/main/ofl/kalam"
 
 conf="${XDG_CONFIG_HOME:-$HOME/.config}"
 data="${XDG_DATA_HOME:-$HOME/.local/share}"
+ghostty_conf="$conf/ghostty/config"
 dest="$conf/pleamar/shells/vitreus"
 autostart="$conf/pleamar/autostart"
 fonts="$data/fonts/SpaceGrotesk"
 fonts_dot="$data/fonts/Audiowide"
+fonts_spacemono="$data/fonts/SpaceMono"
 fonts_mochiy="$data/fonts/MochiyPopOne"
 fonts_orbitron="$data/fonts/Orbitron"
 fonts_kurenaido="$data/fonts/ZenKurenaido"
@@ -79,12 +86,12 @@ fonts_fuzzy="$data/fonts/FuzzyBubbles"
 fonts_kalam="$data/fonts/Kalam"
 
 # Official-repo packages, then AUR ones: what each is for is in the README.
-pacman_pkgs="gcc pkgconf wayland wayland-protocols git curl jq python fontconfig socat glib2 file imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww ffmpeg xdg-desktop-portal-gtk grim slurp wf-recorder power-profiles-daemon polkit python-gobject python-pyte ttf-space-mono-nerd pipewire-audio sound-theme-freedesktop tesseract tesseract-data-eng"
+pacman_pkgs="gcc pkgconf wayland wayland-protocols git curl jq python fontconfig socat glib2 file imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww ffmpeg xdg-desktop-portal-gtk grim slurp wf-recorder power-profiles-daemon polkit python-gobject python-pyte python-pillow fastfetch ttf-space-mono-nerd pipewire-audio sound-theme-freedesktop tesseract tesseract-data-eng"
 aur_pkgs="iris-colors mpvpaper"
 # Debian and Ubuntu: the same list by their names. UNTESTED (written without a Debian machine to try it on), and some of these are
 # not in every release (hypridle, cliphist, wf-recorder...): each is looked up and installed on its own, and a missing one is only said.
 # Not here, because Debian has no package: awww, mpvpaper, hyprsunset, iris, the Space Mono Nerd Font (listed below for hand install).
-apt_pkgs="gcc pkgconf libwayland-dev wayland-protocols git curl jq python3 fontconfig socat libglib2.0-bin file imagemagick cava playerctl network-manager bluez brightnessctl hypridle libnotify-bin xdg-user-dirs xdg-utils wl-clipboard cliphist ffmpeg xdg-desktop-portal-gtk grim slurp wf-recorder power-profiles-daemon polkitd python3-gi python3-pyte pipewire-bin sound-theme-freedesktop tesseract-ocr tesseract-ocr-eng"
+apt_pkgs="gcc pkgconf libwayland-dev wayland-protocols git curl jq python3 fontconfig socat libglib2.0-bin file imagemagick cava playerctl network-manager bluez brightnessctl hypridle libnotify-bin xdg-user-dirs xdg-utils wl-clipboard cliphist ffmpeg xdg-desktop-portal-gtk grim slurp wf-recorder power-profiles-daemon polkitd python3-gi python3-pyte python3-pil fastfetch pipewire-bin sound-theme-freedesktop tesseract-ocr tesseract-ocr-eng"
 
 # Night mode is hyprsunset on Hyprland, and wlsunset everywhere else (niri, pleamar-wm): each is only wanted where its compositor is,
 # and wlsunset also where there is no Hyprland at all. A machine with Hyprland and pleamar-wm gets both. (Here `have` is not defined yet.)
@@ -364,7 +371,7 @@ ask_no() {
 [ "$(id -u)" -ne 0 ] || fail "run this as yourself, not as root: it installs into your home (and asks for sudo only for packages)"
 [ "$(uname -s)" = Linux ] || fail "Vitreus is a Linux (Wayland) shell"
 # The steps the bar counts (an install or update; --no-deps leaves out the first four after the check).
-if [ "$action" = install ]; then if $deps; then stage_total=13; else stage_total=9; fi; fi
+if [ "$action" = install ]; then if $deps; then stage_total=14; else stage_total=10; fi; fi
 ui_start
 
 # ── uninstall ──────────────────────────────────────────────────────────────
@@ -466,6 +473,15 @@ if [ "$action" = uninstall ]; then
     if [ -L "$HOME/.local/bin/vitreus-report" ]; then run rm -f "$HOME/.local/bin/vitreus-report"; fi
     if [ -L "$HOME/.local/bin/vitreus-btnwait" ]; then run rm -f "$HOME/.local/bin/vitreus-btnwait"; fi
     if [ -f "$HOME/.local/bin/vitreus-inhibit" ]; then run rm -f "$HOME/.local/bin/vitreus-inhibit"; fi
+    if [ -L "$HOME/.local/bin/vitfetch" ]; then run rm -f "$HOME/.local/bin/vitfetch"; fi
+    # the terminal: the include line in Ghostty's config, and vitfetch's line in the shell's rc files (both marked)
+    if [ -f "$ghostty_conf" ] && grep -q 'vitreus/terminal/ghostty.conf' "$ghostty_conf"; then
+        run sed -i '/^# Vitreus: the terminal look/d; /vitreus\/terminal\/ghostty\.conf/d' "$ghostty_conf"
+        say "took the Vitreus look out of $ghostty_conf"
+    fi
+    for rc in "$HOME/.bashrc" "$HOME/.zshrc" "$conf/fish/config.fish"; do
+        if [ -f "$rc" ] && grep -q '# vitreus: vitfetch' "$rc"; then run sed -i '/# vitreus: vitfetch/d' "$rc"; say "took vitfetch out of $rc"; fi
+    done
     if [ -L "$conf/hypr/hypr_vitreus.lua" ]; then run rm -f "$conf/hypr/hypr_vitreus.lua"; fi
     run rm -f "$conf/hypr/vitreus_monitors.lua" "$conf/hypr/vitreus_hypr.lua" "$conf/hypr/vitreus_colors.lua"
     if [ -d "$dest" ] && ask_no "delete $dest?"; then run rm -rf "$dest"; fi
@@ -600,6 +616,7 @@ if $deps; then
     wl-clipboard    the launcher copying (wl-copy: results, snippets), and Capture copying a screenshot
     polkit, python-gobject  the authentication dialog (Vitreus asks for your password when something wants admin rights)
     python-pyte, SpaceMono Nerd Font  the Desk's terminal (pyte keeps its screen; the font is Space Grotesk's monospaced sibling)
+    fastfetch, python-pillow  vitfetch, the fetch (bin/vitfetch: fastfetch reads the system, Pillow draws the picture)
     pipewire (pw-play), sound-theme-freedesktop  the sounds notifications make
     tesseract       reading the text of a screenshot (Copy text, Ask), on the screenshot card, and in Snap (Copy text, Blur private info)
     grim, slurp     Capture's screenshots (slurp picks the region for a recording; Snap picks a screenshot's)
@@ -783,6 +800,21 @@ LIST
             mkdir -p "$fonts"
             curl -fsSL -m 120 "$font_url" -o "$fonts/SpaceGrotesk[wght].ttf" || warn "could not download the font: install Space Grotesk yourself"
             have fc-cache && fc-cache -f "$fonts" > /dev/null 2>&1 || true
+        fi
+    fi
+    # Space Mono, the terminal's font (terminal/ghostty.conf). "SpaceMono Nerd Font" from the packages is a different name, so it is not taken for it.
+    if have fc-list && fc-list 2> /dev/null | grep -qi 'space mono'; then
+        say "the Space Mono font is installed"
+    elif ask_font "install the Space Mono font, for the terminal (into $fonts_spacemono)?"; then
+        if $dry; then
+            would "download $spacemono_url/SpaceMono-{Regular,Bold,Italic,BoldItalic}.ttf"
+        else
+            mkdir -p "$fonts_spacemono"
+            for w in Regular Bold Italic BoldItalic; do
+                curl -fsSL -m 120 "$spacemono_url/SpaceMono-$w.ttf" -o "$fonts_spacemono/SpaceMono-$w.ttf" || warn "could not download Space Mono $w: the terminal will use SpaceMono Nerd Font"
+            done
+            curl -fsSL -m 120 "$spacemono_url/OFL.txt" -o "$fonts_spacemono/OFL.txt" 2> /dev/null || true
+            have fc-cache && fc-cache -f "$fonts_spacemono" > /dev/null 2>&1 || true
         fi
     fi
     # The Retro theme's Audiowide and the UwU theme's Mochiy Pop One: what Settings > Theme draws the shell in on those themes (the font picker can
@@ -998,6 +1030,7 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
     [ -x "$dest/bin/vitreus-report" ] && run ln -sf "$dest/bin/vitreus-report" "$HOME/.local/bin/vitreus-report"
     # A desktop widget carried over to another monitor hears the mouse button come up through this (the compositor stops telling it at the edge).
     [ -x "$dest/bin/vitreus-btnwait" ] && run ln -sf "$dest/bin/vitreus-btnwait" "$HOME/.local/bin/vitreus-btnwait"
+    [ -x "$dest/bin/vitfetch" ] && run ln -sf "$dest/bin/vitfetch" "$HOME/.local/bin/vitfetch"       # the fetch: a pixel-art picture with the system's details over it
     # Files among the desktop's programs: its icon and its entry always, and, when asked, the file manager (folders open in it, and «Show in folder» in other programs answer with it): files/integrate.sh
     # (--uninstall and `sh files/integrate.sh --remove` take it away and put the old folder opener back). Not on a trial next to another shell, and not on --refresh, which asks nothing.
     if [ -f "$dest/files/integrate.sh" ]; then
@@ -1334,6 +1367,50 @@ if $do_login && ! $refresh && [ -x "$dest/sddm/install.sh" ] && { have sddm || [
         if $assume_yes; then login_flags="--yes"; else login_flags=""; fi
         run_kept sh "$dest/sddm/install.sh" $login_flags || warn "could not: run  sh $dest/sddm/install.sh  yourself"
     fi
+fi
+
+# ── the terminal ───────────────────────────────────────────────────────────
+# Ghostty in the Vitreus look (terminal/ghostty.conf: Space Mono, frosted, a cursor trail), by one `config-file` line at the top of the person's own
+# config: Ghostty reads an included file last, so its settings replace the same ones there, and taking the line out undoes it. And vitfetch
+# (bin/vitfetch) each time Ghostty or kitty opens a shell: a marked line in the rc file of the person's shell, asked when either is installed (both show
+# its picture). Both asked; --refresh (an update from Settings) leaves them alone.
+stage "the terminal"
+if ! $refresh; then
+    if have ghostty; then
+        if [ -f "$ghostty_conf" ] && grep -q 'vitreus/terminal/ghostty.conf' "$ghostty_conf"; then
+            say "Ghostty has the Vitreus look ($dest/terminal/ghostty.conf, included from $ghostty_conf)"
+        elif ask "give Ghostty the Vitreus look: Space Mono, frosted glass and a cursor trail (it replaces those settings in $ghostty_conf; the rest stays)?"; then
+            if $dry; then
+                would "add  config-file = ?$dest/terminal/ghostty.conf  to the top of $ghostty_conf"
+            else
+                mkdir -p "$(dirname "$ghostty_conf")"
+                [ -f "$ghostty_conf" ] && cp "$ghostty_conf" "$ghostty_conf.before-vitreus"
+                { printf '# Vitreus: the terminal look (./install.sh --uninstall takes these two lines out)\nconfig-file = ?%s\n\n' "$dest/terminal/ghostty.conf"
+                  [ -f "$ghostty_conf" ] && cat "$ghostty_conf"; } > "$ghostty_conf.new" && mv "$ghostty_conf.new" "$ghostty_conf"
+                say "Ghostty has the Vitreus look: it shows in a new window (your config as it was: $ghostty_conf.before-vitreus)"
+            fi
+        fi
+    fi
+    if have ghostty || have kitty; then
+        case "$(basename "${SHELL:-sh}")" in
+            bash) rc="$HOME/.bashrc"; vf_line='case "$TERM" in xterm-ghostty|xterm-kitty) [ -x "$HOME/.local/bin/vitfetch" ] && "$HOME/.local/bin/vitfetch" ;; esac  # vitreus: vitfetch' ;;
+            zsh)  rc="$HOME/.zshrc";  vf_line='case "$TERM" in xterm-ghostty|xterm-kitty) [ -x "$HOME/.local/bin/vitfetch" ] && "$HOME/.local/bin/vitfetch" ;; esac  # vitreus: vitfetch' ;;
+            fish) rc="$conf/fish/config.fish"; vf_line='status is-interactive; and contains -- "$TERM" xterm-ghostty xterm-kitty; and test -x ~/.local/bin/vitfetch; and ~/.local/bin/vitfetch  # vitreus: vitfetch' ;;
+            *)    rc="" ;;
+        esac
+        if [ -z "$rc" ]; then
+            say "vitfetch is in ~/.local/bin: add it to your shell's start-up file to see it in each new terminal"
+        elif [ -f "$rc" ] && grep -q '# vitreus: vitfetch' "$rc"; then
+            say "vitfetch shows when a terminal opens ($rc)"
+        elif ask "show vitfetch, the Vitreus fetch, each time a terminal opens (one line in $rc)?"; then
+            if $dry; then would "add to $rc:  $vf_line"; else
+                mkdir -p "$(dirname "$rc")"
+                printf '\n%s\n' "$vf_line" >> "$rc"
+                say "vitfetch shows in each new Ghostty or kitty window (vitfetch --from IMAGE makes it your own picture)"
+            fi
+        fi
+    fi
+    have ghostty || say "Ghostty is not installed: with it (pacman -S ghostty), run this again for the Vitreus terminal look"
 fi
 
 # ── services it talks to ───────────────────────────────────────────────────

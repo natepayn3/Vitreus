@@ -1,0 +1,180 @@
+#!/usr/bin/env python3
+"""vitfetch: the Vitreus fetch. A pixel-art picture with the system's details written over its top-right corner,
+in the shell's own colours (the palette Vitreus keeps in palette.json, so it follows the wallpaper).
+
+    vitfetch                 show it
+    vitfetch --from IMAGE    make your own picture from IMAGE (any size; it is turned into 160-pixel-wide pixel art)
+    vitfetch --reset         back to the picture Vitreus ships
+
+The picture needs a terminal that shows images (Ghostty, kitty); anywhere else it runs plain fastfetch.
+Your own picture is kept in ~/.config/vitfetch/sprite.png; without one it is terminal/vitfetch.png in the shell.
+"""
+import base64, fcntl, json, math, os, re, shutil, struct, subprocess, sys, termios
+
+HOME = os.path.expanduser("~")
+REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+DATA = os.path.join(os.environ.get("XDG_DATA_HOME", f"{HOME}/.local/share"), "pleamar/vitreus")
+MINE = os.path.join(os.environ.get("XDG_CONFIG_HOME", f"{HOME}/.config"), "vitfetch/sprite.png")
+STOCK_PIC = os.path.join(REPO, "terminal/vitfetch.png")
+
+# Glass's stock colours, for when Vitreus has not written a palette yet
+pal = {"ink": "#f5f7f5", "mint": "#9ed6bd", "minthi": "#d8f3e7", "deep": "#161a1f"}
+try:
+    with open(os.path.join(DATA, "palette.json")) as f:
+        pal.update({k: v for k, v in json.load(f).items() if k in pal and re.fullmatch(r"#[0-9a-fA-F]{6}", str(v))})
+except Exception:
+    pass
+
+
+def rgb(h):
+    return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def sgr(name, bold=False):
+    return "\x1b[%s38;2;%d;%d;%dm" % (("1;" if bold else ""), *rgb(pal[name]))
+
+
+def run(*cmd, timeout=3):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout).stdout.strip()
+    except Exception:
+        return ""
+
+
+def plain():
+    os.execvp("fastfetch", ["fastfetch"] + [a for a in sys.argv[1:] if not a.startswith("--from")])
+
+
+# ── making a picture ────────────────────────────────────────────────────────────────────
+def make_sprite(src, width=160, colours=32):
+    """Pixel art from any picture: smoothed, shrunk, cut to a few colours, and lone pixels tidied away."""
+    from collections import Counter
+    from PIL import Image, ImageEnhance, ImageFilter
+    im = Image.open(src).convert("RGB")
+    im = im.filter(ImageFilter.MedianFilter(7))
+    im = ImageEnhance.Color(ImageEnhance.Contrast(im).enhance(1.25)).enhance(1.4)
+    W, H = width, max(8, round(width * im.height / im.width))
+    q = im.resize((W, H), Image.LANCZOS).quantize(colours, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+    s, p = q.copy().load(), q.load()
+    for y in range(1, H - 1):
+        for x in range(1, W - 1):
+            n = [s[x - 1, y], s[x + 1, y], s[x, y - 1], s[x, y + 1]]
+            if s[x, y] not in n:
+                c, k = Counter(n).most_common(1)[0]
+                if k >= 3:
+                    p[x, y] = c
+    os.makedirs(os.path.dirname(MINE), exist_ok=True)
+    q.convert("RGB").save(MINE)
+    print(f"vitfetch: your picture is {MINE} ({W}×{H})")
+
+
+# ── showing it ──────────────────────────────────────────────────────────────────────────
+def info_lines():
+    """The details as (label, value), from fastfetch."""
+    m = re.match(r"(v[\d.]+)(?:-(\d+)-g\w+)?", run("git", "-C", REPO, "describe", "--tags"))
+    ver = (m.group(1) + (f" +{m.group(2)}" if m.group(2) else "")) if m else "dev"
+    mods = [
+        {"type": "custom", "key": "vitreus", "format": ver},
+        {"type": "wm", "key": "wm", "format": "{pretty-name} {version}"},
+        {"type": "kernel", "key": "kernel", "format": "{release}"},
+        {"type": "cpu", "key": "cpu", "format": "{name} ×{cores-logical}"},
+        {"type": "gpu", "key": "gpu", "format": "{name}"},
+        {"type": "memory", "key": "memory", "format": "{used} / {total}"},
+        {"type": "uptime", "key": "uptime"},
+        {"type": "packages", "key": "pkgs", "format": "{all}"},
+    ]
+    conf = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "vitfetch.jsonc")
+    with open(conf, "w") as f:
+        json.dump({"logo": {"type": "none"}, "display": {"separator": "\x1f", "key": {"width": 0}}, "modules": mods}, f)
+    out = run("fastfetch", "-c", conf, "--pipe", timeout=6)
+    pairs = [l.split("\x1f", 1) for l in out.splitlines() if "\x1f" in l]
+    # the CPU's name without the trade-mark marks and the generation ("11th Gen Intel(R) Core(TM) i7-11850H" -> "Intel Core i7-11850H")
+    return [(k, re.sub(r"\s+", " ", re.sub(r"\((R|TM)\)|\d+th Gen |\bCPU\b| @ .*?(?= ×|$)", "", v)).strip()) for k, v in pairs]
+
+
+def feather(sp, fx=0.11, fy=0.16):
+    """Fade the picture out toward its edges, one picture pixel at a time (so the fade is pixel art too)."""
+    from PIL import Image
+    W, H = sp.size
+    ease = lambda t: t * t * (3 - 2 * t)
+    a = Image.new("L", sp.size)
+    px = a.load()
+    for y in range(H):
+        ty = min(1.0, (min(y, H - 1 - y) + 0.5) / max(1.0, fy * H))
+        for x in range(W):
+            tx = min(1.0, (min(x, W - 1 - x) + 0.5) / max(1.0, fx * W))
+            px[x, y] = round(255 * ease(tx) * ease(ty))
+    from PIL import ImageChops
+    sp.putalpha(ImageChops.multiply(sp.getchannel("A"), a))
+    return sp
+
+
+def show():
+    from PIL import Image, ImageDraw, ImageFilter
+    try:
+        rows_t, cols_t, xpx, ypx = struct.unpack("HHHH", fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, b"\0" * 8))
+    except OSError:
+        return plain()
+    if not (xpx and ypx and cols_t and rows_t):
+        return plain()                                  # the terminal does not say how big its cells are
+    cw, ch = xpx / cols_t, ypx / rows_t
+
+    sp = feather(Image.open(MINE if os.path.exists(MINE) else STOCK_PIC).convert("RGBA"))
+    k = 4                                               # each picture pixel is k×k screen pixels, as big as fits
+    while k > 2 and sp.width * k / cw > cols_t - 1:
+        k -= 1
+    w, h = sp.width * k, sp.height * k
+    C, Rows = math.ceil(w / cw), math.ceil(h / ch)
+
+    pairs = info_lines()
+    title = f"{os.environ.get('USER', '?')}@{run('uname', '-n')}"
+    kw = max([len(a) for a, _ in pairs] + [0])
+    bw = max([len(title)] + [kw + 3 + len(v) for _, v in pairs])
+    # every line ends on the same column, one cell in from the picture's right edge: labels left, values pushed right
+    lines = [sgr("minthi", True) + title.rjust(bw), sgr("mint") + "─" * bw] + \
+            [sgr("mint", True) + a + "\x1b[22m" + " " * (bw - len(a) - len(v)) + sgr("ink") + v for a, v in pairs]
+    off = max(0, C - bw - 1)
+
+    # the picture, padded to whole cells (so the terminal never rescales and blurs it), with a soft shade behind the text
+    canvas = Image.new("RGBA", (round(C * cw), round(Rows * ch)), (0, 0, 0, 0))
+    canvas.paste(sp.resize((w, h), Image.NEAREST), (0, 0))
+    shade = Image.new("L", canvas.size, 0)
+    ImageDraw.Draw(shade).rounded_rectangle(
+        [int((off - 1.5) * cw), int(-ch), int((C + 1) * cw), int((len(lines) + 0.5) * ch)], radius=int(ch * 0.6), fill=110)
+    shade = shade.filter(ImageFilter.GaussianBlur(ch * 0.5))
+    pic = Image.composite(Image.new("RGB", canvas.size, rgb(pal["deep"])), canvas.convert("RGB"), shade).convert("RGBA")
+    pic.putalpha(canvas.getchannel("A"))
+    path = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "vitfetch.png")
+    pic.save(path)
+
+    # room for the picture, back up to its top row, the picture placed there without moving the cursor (C=1) and
+    # under the text (z=-1), then the text over it, and the cursor left below the picture
+    o = ["\n" * Rows, f"\x1b[{Rows}A\r",
+         "\x1b_Ga=T,f=100,t=f,C=1,q=2,z=-1;" + base64.b64encode(path.encode()).decode() + "\x1b\\"]
+    o += [f"\x1b[{off + 1}G{l}\x1b[0m\n" for l in lines]
+    if Rows > len(lines):
+        o.append(f"\x1b[{Rows - len(lines)}B")
+    o.append("\r")
+    sys.stdout.write("".join(o))
+    sys.stdout.flush()
+
+
+if __name__ == "__main__":
+    args = sys.argv[1:]
+    if args[:1] == ["--from"] and len(args) > 1:
+        make_sprite(args[1])
+    elif args[:1] == ["--reset"]:
+        if os.path.exists(MINE):
+            os.remove(MINE)
+        print("vitfetch: back to the picture Vitreus ships")
+    elif args[:1] in (["-h"], ["--help"]):
+        print(__doc__.strip())
+    elif not sys.stdout.isatty() or not (os.environ.get("TERM") in ("xterm-ghostty", "xterm-kitty")
+                                         or os.environ.get("TERM_PROGRAM") == "ghostty"):
+        plain()
+    else:
+        try:
+            show()
+        except ImportError:
+            print("vitfetch: the picture needs Pillow (python-pillow)", file=sys.stderr)
+            plain()
