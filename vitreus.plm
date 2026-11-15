@@ -5948,7 +5948,7 @@ scene Vitreus {
     let bc.my = if(bc.nmodes > 0, 254, 172)                      // under the modes and their line
     let bc.ty = bc.my + if(bc.thr, 76, 0)                         // under the levels
     prop bat_bot = 160 ~calm
-    follow bat_bot = 8 + if(bc.opt, bc.ty + if(bc.pwask, 48, if(bc.ask or bc.bios or bc.busy or bc.err, 14, 0)) - 6, 144)
+    follow bat_bot = 18 + if(bc.opt, bc.ty + if(bc.pwask, 48, if(bc.ask or bc.bios or bc.busy or bc.err, 14, 0)) - 6, 144)      // (10 more than the content: the card under it reaches 6 below, and 4 is `ck` under the bar's middle)
     let content_bot = mix(ctl_bot, bat_bot, clamp(dkb, 0, 1))
     let dk.hh = bar.h / 2 + (content_bot + 20.5) * cu * dk0 + 13 * cu * tm * dk0 + max(0, sag)      // (the 13 is `lp.dd`: along the top or bottom the margins are made 18.5 all round here too)
     //  The player's panel: the same drawer as the controls, centred on the bar, and as tall as
@@ -6049,8 +6049,8 @@ scene Vitreus {
     let ss.top = mix(bar.y, bar.y - bar.h / 2, ss.f)
     //  The launcher: a drop that widens to the bar's width as it lands, like the calendar. The search field (40), the
     //  rows (44 each, up to eight; seven where there is a preview beside them) and a line of hints.
-    let dl.w = (120 + 310 * (min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6)) * pu + 41 * cu * (min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6)     // its content (430) and the calendar's margin, 20.5 `cu` each side
-    let dl.hh = bar.h / 2 + (172 + lr * 44) * pu * dl0 + max(0, sag)
+    let dl.w = (120 + 323 * (min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6)) * pu + 41 * cu * (min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6)     // its card (443: the content, 430, and 6.5 each side) and the calendar's margin, 20.5 `cu` each side
+    let dl.hh = bar.h / 2 + ((170 + lr * 44) * pu + 20.5 * cu) * dl0 + max(0, sag)
     let dl.f = clamp((dl.w - bar.w + 24 * u) / (24 * u), 0, 1)     // as for the calendar
     let dl.top = mix(bar.y, bar.y - bar.h / 2, dl.f)
     let dm.w = (120 + 208 * (min(1, dm0 * 1.6) + max(0, dm0 - 1) * 0.6)) * cu
@@ -6094,7 +6094,7 @@ scene Vitreus {
     let lpm = max(lmk, tm * att)                  // the corrections apply to the strip's own panels on a top or bottom frame as well as on a side one
     let lp.dy = if(lp_k == 1, 4.5, if(lp_k == 2 or lp_k == 3 or lp_k == 7 or lp_k == 8, 6.5, if(lp_k == 4, -0.5, 0))) * ku * lpm
     let lp.dd = if(lp_k == 1, 11, if(lp_k == 2, 11, if(lp_k == 3 or lp_k == 7 or lp_k == 8, 13, if(lp_k == 4, 6, 0)))) * ku * lpm
-    let lp.hd = (if(lp_k == 1, ((8 + 36 + 8 + set.h) * pu + 20.5 * cu), if(lp_k == 2, (172 + lr * 44) * pu, if(lp_k == 3, (content_bot + 20.5) * cu, if(lp_k == 4, dc_h * cu, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot + 16, panel_bot + dm_foot)) * cu, if(lp_k == 9, dsk_h, (8 + osd_h + 16) * u))))))) + lp.dd
+    let lp.hd = (if(lp_k == 1, ((8 + 36 + 8 + set.h) * pu + 20.5 * cu), if(lp_k == 2, ((170 + lr * 44) * pu + 20.5 * cu), if(lp_k == 3, (content_bot + 20.5) * cu, if(lp_k == 4, dc_h * cu, if(lp_k == 5 or lp_k == 6, (if(dm_mode == dmm_tray, tm_bot + 16, panel_bot + dm_foot)) * cu, if(lp_k == 9, dsk_h, (8 + osd_h + 16) * u))))))) + lp.dd
     //  Where it settles, as drawn (`ty`): Settings in the middle of the screen, the launcher high, a good way from the middle, and clear of the frame; then back to the panel's
     //  own coordinates (the contents are scaled about the middle of the screen).
     let lp.ty = if(lp_k == 1, vc, mix(mix(max(vc - 210 * u, yo + th.t + 24 * u + lp.hd / 2), vcc, lside), vb - th.b - 24 * u - lp.hd / 2, lbot))
@@ -6210,7 +6210,7 @@ scene Vitreus {
     let dl.lf = mix(min(1, dl0 * 1.6) + max(0, dl0 - 1) * 0.6, min(1, dl.gl * 1.6) + max(0, dl.gl - 1) * 0.6, fm)
     let dl.rt = 2 * ((215 + 6.5) * pu + 20.5 * cu)
     let dl.gw = max(0.1, dl.rt * dl.lf)
-    let dl.gh = (((172 + lr * 44) * pu) + lp.dd + max(0, sag)) * dl.lf
+    let dl.gh = ((((170 + lr * 44) * pu + 20.5 * cu)) + lp.dd + max(0, sag)) * dl.lf
     let dl.gx = mix(mix(lp.xl + dl.gw / 2, ccx, edg), dl.cL, lside)
     let dl.ew = mix(dl.w, dl.gw, fm)
     let dl.eh = mix((bar.y + dl.hh - dl.top), dl.gh, fm)
@@ -8039,7 +8039,7 @@ scene Vitreus {
         move: rt * (screen.width - 2 * pcx), (1 - fl) * 12 * pu + bt * (yo + vb - 2 * lp.cy)
         let lx = pcx - 215 * pu
         let lhy = ck + 25 * pu                             // the header's middle
-        let ly = ck + 50 * pu                              // the field's top
+        let ly = ck + 55 * pu                              // the field's top: its card's edge 8 under the header's badge, as in Settings
         let lry = ly + 86 * pu                             // the rows start under the two rows of hints
         let lph = max(1, lr * 44 - 4) * pu                 // the rows' height, and the preview's
         let lpx = lx + lw + 8 * pu                         // the preview's left edge
@@ -8077,6 +8077,16 @@ scene Vitreus {
         line { from: lx + 418.5 * pu, lhy - 4.5 * pu; to: lx + 409.5 * pu, lhy + 4.5 * pu; width: 1.5 * pu; color: ink; opacity: 60% + 40% * launch_x.hover }
         zone box launch_x { at: lx + 414 * pu, lhy; size: 28 * pu, 28 * pu; corner: 14 * pu; cursor: pointer }
         on press launch_x { panel = none }
+        //  One card under all of it (the field, the hints, the rows and the foot), 6 out from them: the panel's glass is too clear to read the rows over a
+        //  busy wallpaper. Its sides and bottom are 20.5 cu in from the panel's edge, the margin every panel keeps (the panel's height, `lp.hd`, ends 20.5 cu
+        //  under it); its top is 8 under the header's badge. Drawn like the Settings cards (see `card_fill`).
+        let lcy0 = ly - 6 * pu
+        let lch = (lr * 44 + 117) * pu
+        body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { from: lx - 6.5 * pu, lcy0; size: 443 * pu, lch; corner: 26 * pu } }
+        DdCard(lx + 215 * pu, lcy0 + lch / 2, 443 * pu, lch, 517.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+        box { from: lx - 6.5 * pu, lcy0; size: 443 * pu, lch; corner: 26 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+        box { from: lx - 6.5 * pu, lcy0; size: 443 * pu, lch; corner: 26 * pu; color: ink; opacity: (veil) * (1 - obs) }
+        box { from: lx - 6.5 * pu, lcy0; size: 443 * pu, lch; corner: 26 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
         //  Obsidian: the field is a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
         body { color: mix(mix(obsidian, ink, 8% * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { from: lx, ly; size: 430 * pu, 40 * pu; corner: 20 * pu } }
         DdCard(lx + (430 * pu) / 2, ly + (40 * pu) / 2, 430 * pu, 40 * pu, 440.5, mix(mix(obsidian, ink, 8% * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
