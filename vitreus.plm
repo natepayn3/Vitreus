@@ -1751,6 +1751,8 @@ scene Vitreus {
     model bc_modes max 6 { name: text; on: bool }      // the firmware's charge modes, the chosen one `on`
     fact bc.nmodes = 0
     text bc_desc = ""                 // what the chosen mode does
+    measure bc_dsc                    // how tall that line is drawn (one line or two)
+    measure bc_l1                     // and one line of it, to tell the two apart
     fact bc.thr = false               // the two levels are shown (Custom, or a battery with levels and no modes)
     fact bc.hasstart = false          // there is a level to start charging at, not only one to stop at
     fact bc.start = 50
@@ -5980,7 +5982,8 @@ scene Vitreus {
     let ctl_bot = mix(vol_bot + max(dd.extra, mix.extra), sub_bot, expand0)
     //  The battery panel's height in the same drawer, in `cu` from `ck` (pages/battery_card.plm): the charge and health always, the charging options when there are any.
     let bc.opt = bc.nmodes > 0 or bc.thr
-    let bc.my = if(bc.nmodes > 0, 254, 172)                      // under the modes and their line
+    let bc.dl = if(bc_dsc.height > bc_l1.height * 1.5, 0, bc_l1.height / cu)      // a line on what the mode does that fits on one: what follows comes up a line
+    let bc.my = if(bc.nmodes > 0, 254 - bc.dl, 172)              // under the modes and their line
     let bc.ty = bc.my + if(bc.thr, 76, 0)                         // under the levels
     prop bat_bot = 160 ~calm
     follow bat_bot = 18 + if(bc.opt, bc.ty + if(bc.pwask, 48, if(bc.ask or bc.bios or bc.busy or bc.err, 14, 0)) - 6, 144)      // (10 more than the content: the card under it reaches 6 below, and 4 is `ck` under the bar's middle)

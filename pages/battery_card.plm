@@ -63,7 +63,8 @@ part BatteryCard {
                 on press bc_mz.$i { emit bc_mode(i) }
             }
         }
-        text bc_desc { at: floor(b.x0 + 2 * cu + 0.5), floor(b.t + 218 * cu + 0.5); anchor: left top; size: 11.5; width: 272 * cu; lines: 2; color: faint; family: "Space Grotesk"; show: bc.nmodes > 0 }
+        text bc_desc { at: floor(b.x0 + 138 * cu + 0.5), floor(b.t + 218 * cu + 0.5); anchor: center top; align: center; size: 11.5; width: 272 * cu; lines: 2; color: faint; measure: bc_dsc; family: "Space Grotesk"; show: bc.nmodes > 0 }
+        text "Ag" { at: 0, 0; anchor: left top; size: 11.5; lines: 1; opacity: 0; measure: bc_l1; family: "Space Grotesk" }      // unseen: one line's height (bc.dl)
 
         //  The levels: a row each, its name, the value, and − / + either side of it (5 % a step; written a moment after the last press).
         repeat r in 0..2 {
@@ -85,9 +86,9 @@ part BatteryCard {
                 }
             }
         }
-        text "Changes ask for your password" { at: floor(b.x0 + 2 * cu + 0.5), floor(b.t + (bc.ty + 6) * cu + 0.5); anchor: left center; size: 10.5; color: faint; opacity: 80%; family: "Space Grotesk"; show: bc.opt and bc.ask and not bc.bios and not bc.busy and not bc.err and not bc.pwask }
-        text "Changes need your BIOS password" { at: floor(b.x0 + 2 * cu + 0.5), floor(b.t + (bc.ty + 6) * cu + 0.5); anchor: left center; size: 10.5; color: faint; opacity: 80%; family: "Space Grotesk"; show: bc.opt and bc.bios and not bc.busy and not bc.err and not bc.pwask }
-        text bc_err { at: floor(b.x0 + 2 * cu + 0.5), floor(b.t + (bc.ty + 6) * cu + 0.5); anchor: left center; size: 10.5; width: 272 * cu; lines: 1; color: alert; family: "Space Grotesk"; show: bc.opt and not bc.busy and bc.err and not bc.pwask }
+        text "Changes ask for your password" { at: floor(b.x0 + 138 * cu + 0.5), floor(b.t + (bc.ty + 6) * cu + 0.5); anchor: center; align: center; size: 10.5; color: faint; opacity: 80%; family: "Space Grotesk"; show: bc.opt and bc.ask and not bc.bios and not bc.busy and not bc.err and not bc.pwask }
+        text "Changes need your BIOS password" { at: floor(b.x0 + 138 * cu + 0.5), floor(b.t + (bc.ty + 6) * cu + 0.5); anchor: center; align: center; size: 10.5; color: faint; opacity: 80%; family: "Space Grotesk"; show: bc.opt and bc.bios and not bc.busy and not bc.err and not bc.pwask }
+        text bc_err { at: floor(b.x0 + 138 * cu + 0.5), floor(b.t + (bc.ty + 6) * cu + 0.5); anchor: center; align: center; size: 10.5; width: 272 * cu; lines: 1; color: alert; family: "Space Grotesk"; show: bc.opt and not bc.busy and bc.err and not bc.pwask }
         //  The BIOS password, when a change waits for it: a field, Apply and Cancel, in place of the line above.
         group {
             show: bc.pwask
@@ -106,7 +107,7 @@ part BatteryCard {
             zone box bc_bno { at: b.x0 + 262 * cu, py; size: 28 * cu, 28 * cu; corner: 14 * cu; cursor: pointer; active: bc.pwask and panel == battery; label: "Cancel" }
             on press bc_bno { emit bc_bcancel }
         }
-        text "Applying…" { at: floor(b.x0 + 2 * cu + 0.5), floor(b.t + (bc.ty + 6) * cu + 0.5); anchor: left center; size: 10.5; color: mint; family: "Space Grotesk"; show: bc.opt and bc.busy }
+        text "Applying…" { at: floor(b.x0 + 138 * cu + 0.5), floor(b.t + (bc.ty + 6) * cu + 0.5); anchor: center; align: center; size: 10.5; color: mint; family: "Space Grotesk"; show: bc.opt and bc.busy }
     }
     //  ── The battery panel: END ──
 }
