@@ -1354,6 +1354,19 @@ function F.show_places()
         rows[i] = { at = i - 1, name = p.name, path = p.path or "", pk = p.pk or 0, here = p.path ~= nil and p.path == s.path, pinned = p.pinned == true, kind = p.kind or 0, eject = p.eject == true, use = p.use or -1 }
     end
     model.places = rows
+    -- where the place we are in sits in the column (its highlight's middle and height, as the scene lays the rows out: a heading 30, a drive 44, a place 38, 2 between), for the
+    -- thumb that travels to it
+    local top, found = 0, false
+    for _, r in ipairs(rows) do
+        local h = r.kind == 1 and 30 or (r.kind == 2 and 44 or 38)
+        if r.here and not found then
+            found = true
+            fact["hr.h"] = h - 2
+            fact["hr.y"] = top + (h - 2) / 2
+        end
+        top = top + h + 2
+    end
+    fact["hr.on"] = found
 end
 
 -- drives: the ones that are plugged in and not the computer's own (what is mounted under /run/media, /media or /mnt; a stick or a disk that is not mounted yet is there to be)
@@ -1970,6 +1983,8 @@ function F.menu_step(d, from)
         if i < 1 then i = n elseif i > n then i = 1 end
         if rows[i].on then
             s.menu_cur = i
+            fact["menu.ky"] = rows[i].cy
+            fact["menu.kd"] = rows[i].danger
             fact["menu.cur"] = i - 1
             return
         end
@@ -1983,6 +1998,8 @@ function F.menu_letter(ch)
         local i = (at + k - 1) % n + 1
         if rows[i].on and rows[i].label:sub(1, 1):lower() == ch then
             s.menu_cur = i
+            fact["menu.ky"] = rows[i].cy
+            fact["menu.kd"] = rows[i].danger
             fact["menu.cur"] = i - 1
             return
         end
@@ -1992,7 +2009,11 @@ on("menu_close", F.close_menu)
 
 local function set_menu(kind, rows)
     local h = 14
-    for _, r in ipairs(rows) do h = h + MENU_ROW + (r.sep and 9 or 0) end
+    for _, r in ipairs(rows) do
+        r.cy = h - 14 + (r.sep and 10 or 1) + (MENU_ROW - 2) / 2       -- the middle of its line in the column, for the thumb
+        h = h + MENU_ROW + (r.sep and 9 or 0)
+    end
+    fact["menu.hov"] = false
     s.menu = kind
     s.menu_rows, s.menu_cur = rows, nil
     fact["menu.cur"] = -1
