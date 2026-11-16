@@ -20,7 +20,9 @@
 #               and every settings file in the shell's data folder is still valid JSON
 #
 # All of it runs in a process namespace of its own (bwrap --unshare-pid) with its own runtime folder and dbus: the shell's `pkill -f` patterns
-# and `--say` cannot reach the desktop in use. Exit 0 = passed. Logs: ~/.cache/vitreus-verify/runs/<time>/ (summary.txt first).
+# and `--say` cannot reach the desktop in use. It has a /tmp of its own too: with no view of the desktop's processes, its Xwayland takes the
+# desktop's X display for a stale one (/tmp/.X1-lock names a pid it cannot see) and replaces its socket, after which nothing can open an X window.
+# Exit 0 = passed. Logs: ~/.cache/vitreus-verify/runs/<time>/ (summary.txt first).
 set -u
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 V=${VERIFY_HOME:-$HOME/.cache/vitreus-verify}
@@ -175,7 +177,7 @@ start_copy() {
     env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY -u DBUS_SESSION_BUS_ADDRESS -u PLEAMAR_SOCKETS \
         HOME="$R/home" XDG_RUNTIME_DIR="$R/run" XDG_CONFIG_HOME="$R/conf" XDG_DATA_HOME="$R/data" XDG_CACHE_HOME="$R/cache" \
         PATH="$R/home/.local/bin:$COPY/pleamar-wm:$COPY/bin:$PATH" PLEAMAR_WM_AUTOSTART="$R/autostart" \
-        setsid bwrap --dev-bind / / --proc /proc --unshare-pid --die-with-parent \
+        setsid bwrap --dev-bind / / --proc /proc --unshare-pid --die-with-parent --tmpfs /tmp --bind "$R" "$R" \
         dbus-run-session -- pleamar-wm headless --seconds 600 >> "$RUN/compositor-$1.log" 2>&1 < /dev/null &
     pid=$!
 }

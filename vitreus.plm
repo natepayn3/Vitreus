@@ -654,9 +654,10 @@ scene Vitreus {
     model kb_rows max 12 { name: text; a: text; b: text; c: text; d: text; wa: number; wb: number; wc: number; wd: number; ra: number; rb: number; rc: number; rd: number; chg: bool }
     fact kb_ok = false                 // the file was read and has binds
     fact kb_sel = -1                   // the row being changed
-    fact kb_cap = false                // waiting for a key
+    fact kb_cap = false                // listening for a shortcut (while a row is in edit)
     fact kb_mod = 0
     fact kb_has = false                // a key is chosen
+    fact kb_kw = 0                     // how wide its cap is in the editor
     fact kb_dirty = false              // what is chosen differs from what is in the file
     fact kb_arm = false                // Reset to defaults was pressed once: the next press does it
     text kb_name = ""
@@ -1995,6 +1996,11 @@ scene Vitreus {
     follow set_pgk = if(set_page == pg_clock, 1, 0)
     follow set_pgp = if(set_page == pg_theme, 1, 0)
     follow set_pgy = if(set_page == pg_keys, 1, 0)
+    //  Settings > Keybinds: the lit plate under the row in edit travels to it (`kb_gy`, in rows) and comes up with it (`kb_gk`).
+    prop kb_gy = 0 ~quick
+    follow kb_gy = max(kb_sel, 0)
+    prop kb_gk = 0 ~calm
+    follow kb_gk = if(kb_sel >= 0, 1, 0)
     follow set_pgo = if(set_page == pg_addons, 1, 0)
     follow set_pgi = if(set_page == pg_idle, 1, 0)
     follow set_pgg = if(set_page == pg_greeter, 1, 0)
@@ -2913,6 +2919,9 @@ scene Vitreus {
     on change set_page while set_page == pg_theme { emit themes_refresh }       // a theme file may have been added or edited since
     on change set_page while set_page == pg_addons { emit addons_refresh }       // an add-on folder may have been added since
     on change set_page while set_page == pg_keys { emit kb_refresh }
+    //  Listening ends when the page or the panel is left (the logic gives Hyprland its binds back: `listen` in logic/keybinds.luau).
+    on change set_page while kb_cap { emit kb_cancel }
+    on change panel while kb_cap { emit kb_cancel }
     on change panel while panel == settings and set_page == pg_keys { emit kb_refresh }
     on change set_page while set_page == pg_wm { emit wm_refresh }
     on change panel while panel == settings and set_page == pg_hypr { emit hy_refresh }
@@ -8269,7 +8278,7 @@ scene Vitreus {
     on key Escape while dd_open { dd_open = false }
     on key Escape while font_dd_open { font_dd_open = false; blur }
     on key Escape while panel != none and not dd_open and not font_dd_open and not kb_cap { panel = none }
-    on key Escape while kb_cap { kb_cap = false }
+    on key Escape while kb_cap { emit kb_cancel }
     //  The font picker on the Theme page, from the keyboard: the arrows, Page Up and Down, Home and End move the chosen typeface whether the dropdown is open or
     //  not; typing a letter opens it and searches (`font_q`); Return closes it.
     on key Down while panel == settings and set_page == pg_theme { emit font_step(1) }

@@ -1,6 +1,6 @@
 part Keybinds {
         //  The Keybinds page (System): the shell's keybinds as the window manager has them, one row each with its keys drawn as caps. A row pressed opens its
-        //  editor under the list: the four modifiers as chips, and a box that records the next key pressed; Save writes it into the window manager's own
+        //  editor under the list, which listens: the next shortcut pressed is shown there as keys; Save writes it into the window manager's own
         //  file, Reset puts the key this shell ships with. (logic/keybinds.luau reads and writes the file; pages/keybinds_keys.plm are the rules that hear a key.)
         group {
             show: set_pgy > 0.01
@@ -22,24 +22,64 @@ part Keybinds {
             box { at: spx + 219 * pw, kb.t1 + kb.h1 / 2; size: 438 * pw, kb.h1; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             group { scale: rs; pivot: floor(spx + 219 * pw + 0.5), floor(kb.t1 + kb.h1 / 2 + 0.5); text "No keybinds found in this window manager's file" { at: floor(spx + 219 * pw + 0.5), floor(kb.t1 + kb.h1 / 2 + 0.5); anchor: center; align: center; size: 15.5; color: faint; family: "Space Grotesk"; show: not kb_ok } }
 
+            //  The row in edit: one lit plate that travels from row to row (`kb_gy`, a spring), the accent glowing under it.
+            let kb.base = mix(obsidian, dd_cream, dd_k)                 // what a keycap is cut from: the shell's dark tint (the paper, on the Doodle)
+            let kb.gy = kb.t1 + 6 * pu + kb_gy * kb.rh + kb.rh / 2
+            body { color: mint; opacity: 22% * kb_gk; shadow: 0, 0, 16 * pu, 60% * kb_gk * (1 - dd_k), mint; show: kb_gk > 0.004; box { at: spx + 219 * pw, kb.gy; size: 426 * pw, 24 * pu; corner: 9 * pu } }
+            box { at: spx + 219 * pw, kb.gy; size: 426 * pw, 24 * pu; corner: 9 * pu; stroke: 1.2 * pu; color: mint; opacity: 65% * kb_gk }
+
+            //  The rows. They come in one after another as the page opens (`kbi.e`, off the page's own spring); the pointer lifts a row's keys off
+            //  their shadow and a press pushes them down; while one row is in edit the others step back.
             repeat i in 0..12 {
                 let kbi.y = kb.t1 + 6 * pu + i * kb.rh + kb.rh / 2
+                let kbi.e = clamp(set_pgy * 2.6 - i * 0.13, 0, 1)
+                let kbi.on = if(kb_sel == i, 1, 0)
+                let kbi.up = 1.6 * pu * (kb_hit.$i.hover + kbi.on * (1 - kb_hit.$i.hover)) * (1 - kb_hit.$i.pressed)
                 group {
                     show: kb_rows.count > i
-                    box { at: spx + 219 * pw, kbi.y; size: 426 * pw, 24 * pu; corner: 9 * pu; color: mint; opacity: if(kb_sel == i, 18%, 0%) + 8% * kb_hit.$i.hover * if(kb_sel == i, 0, 1) }
-                    group { scale: rs; pivot: floor(spx + 16 * pw + 0.5), floor(kbi.y + 0.5); text kb_rows.$i.name { at: floor(spx + 16 * pw + 0.5), floor(kbi.y + 0.5); anchor: left center; size: 16; weight: 600; width: (220 * pw) / rs; lines: 1; color: if(kb_sel == i, mint, ink); family: "Space Grotesk" } }
-                    //  The keys, as caps (up to four: the modifiers and the key), the last at the right.
-                    box { at: kb.xr - kb_rows.$i.rd * pu, kbi.y; size: kb_rows.$i.wd * pu, 17 * pu; corner: 6 * pu; color: ink; opacity: 14%; show: kb_rows.$i.wd > 0 }
-                    box { at: kb.xr - kb_rows.$i.rc * pu, kbi.y; size: kb_rows.$i.wc * pu, 17 * pu; corner: 6 * pu; color: ink; opacity: 14%; show: kb_rows.$i.wc > 0 }
-                    box { at: kb.xr - kb_rows.$i.rb * pu, kbi.y; size: kb_rows.$i.wb * pu, 17 * pu; corner: 6 * pu; color: ink; opacity: 14%; show: kb_rows.$i.wb > 0 }
-                    box { at: kb.xr - kb_rows.$i.ra * pu, kbi.y; size: kb_rows.$i.wa * pu, 17 * pu; corner: 6 * pu; color: ink; opacity: 14%; show: kb_rows.$i.wa > 0 }
-                    group { scale: rs; pivot: floor(kb.xr - kb_rows.$i.rd * pu + 0.5), floor(kbi.y + 0.5); text kb_rows.$i.d { at: floor(kb.xr - kb_rows.$i.rd * pu + 0.5), floor(kbi.y + 0.5); anchor: center; align: center; size: 14.5; weight: 600; color: ink; family: "Space Grotesk" } }
-                    group { scale: rs; pivot: floor(kb.xr - kb_rows.$i.rc * pu + 0.5), floor(kbi.y + 0.5); text kb_rows.$i.c { at: floor(kb.xr - kb_rows.$i.rc * pu + 0.5), floor(kbi.y + 0.5); anchor: center; align: center; size: 14.5; weight: 600; color: ink; family: "Space Grotesk" } }
-                    group { scale: rs; pivot: floor(kb.xr - kb_rows.$i.rb * pu + 0.5), floor(kbi.y + 0.5); text kb_rows.$i.b { at: floor(kb.xr - kb_rows.$i.rb * pu + 0.5), floor(kbi.y + 0.5); anchor: center; align: center; size: 14.5; weight: 600; color: ink; family: "Space Grotesk" } }
-                    group { scale: rs; pivot: floor(kb.xr - kb_rows.$i.ra * pu + 0.5), floor(kbi.y + 0.5); text kb_rows.$i.a { at: floor(kb.xr - kb_rows.$i.ra * pu + 0.5), floor(kbi.y + 0.5); anchor: center; align: center; size: 14.5; weight: 600; color: ink; family: "Space Grotesk" } }
-                    ellipse { at: spx + 8 * pw, kbi.y; radius: 2.2 * pu; color: mint; show: kb_rows.$i.chg }
+                    opacity: kbi.e * (1 - 0.5 * kb_gk * (1 - kbi.on))
+                    move: (1 - kbi.e) * 30 * pu, 0
+                    box { at: spx + 219 * pw, kbi.y - kb.rh / 2; size: 406 * pw, 1; color: ink; opacity: 7% * (1 - kb_gk); show: i > 0 }
+                    box { at: spx + 219 * pw, kbi.y; size: 426 * pw, 24 * pu; corner: 9 * pu; color: mint; opacity: 10% * kb_hit.$i.hover * (1 - kbi.on) }
+                    box { at: spx + 8 * pw, kbi.y; size: 3 * pu, (3 + 11 * kb_hit.$i.hover + 11 * kbi.on * (1 - kb_hit.$i.hover)) * pu; corner: 1.5 * pu; color: mint; opacity: kb_hit.$i.hover + kbi.on * (1 - kb_hit.$i.hover) }
+                    group { scale: rs; pivot: floor(spx + 16 * pw + 0.5), floor(kbi.y + 0.5); move: 5 * pu * kb_hit.$i.hover, 0; text kb_rows.$i.name { at: floor(spx + 16 * pw + 0.5), floor(kbi.y + 0.5); anchor: left center; size: 16; weight: 600; width: (220 * pw) / rs; lines: 1; color: mix(ink, mint, kbi.on); family: "Space Grotesk" } }
+                    //  The keys, as caps (up to four: the modifiers and the key, the key itself in the accent): a dark lip under each, and its top above it.
+                    box { at: kb.xr - kb_rows.$i.rd * pu, kbi.y + 1.6 * pu; size: kb_rows.$i.wd * pu, 17 * pu; corner: 6 * pu; color: #000000; opacity: 42% * (1 - dd_k); show: kb_rows.$i.wd > 0 }
+                    group {
+                        move: 0, 0 - kbi.up
+                        show: kb_rows.$i.wd > 0
+                        box { at: kb.xr - kb_rows.$i.rd * pu, kbi.y; size: kb_rows.$i.wd * pu, 17 * pu; corner: 6 * pu; color: if(1 > 0, mint, mix(kb.base, ink, 0.24)); opacity: 96% }
+                        box { at: kb.xr - kb_rows.$i.rd * pu, kbi.y; size: kb_rows.$i.wd * pu, 17 * pu; corner: 6 * pu; stroke: 1 * pu; color: if(1 > 0, #ffffff, ink); opacity: if(1 > 0, 38%, 20% + 30% * kbi.on) }
+                        group { scale: rs; pivot: floor(kb.xr - kb_rows.$i.rd * pu + 0.5), floor(kbi.y + 0.5); text kb_rows.$i.d { at: floor(kb.xr - kb_rows.$i.rd * pu + 0.5), floor(kbi.y + 0.5); anchor: center; align: center; size: 14.5; weight: 700; color: if(1 > 0, kb.base, ink); family: "Space Grotesk" } }
+                    }
+                    box { at: kb.xr - kb_rows.$i.rc * pu, kbi.y + 1.6 * pu; size: kb_rows.$i.wc * pu, 17 * pu; corner: 6 * pu; color: #000000; opacity: 42% * (1 - dd_k); show: kb_rows.$i.wc > 0 }
+                    group {
+                        move: 0, 0 - kbi.up
+                        show: kb_rows.$i.wc > 0
+                        box { at: kb.xr - kb_rows.$i.rc * pu, kbi.y; size: kb_rows.$i.wc * pu, 17 * pu; corner: 6 * pu; color: if(kb_rows.$i.wd == 0, mint, mix(kb.base, ink, 0.24)); opacity: 96% }
+                        box { at: kb.xr - kb_rows.$i.rc * pu, kbi.y; size: kb_rows.$i.wc * pu, 17 * pu; corner: 6 * pu; stroke: 1 * pu; color: if(kb_rows.$i.wd == 0, #ffffff, ink); opacity: if(kb_rows.$i.wd == 0, 38%, 20% + 30% * kbi.on) }
+                        group { scale: rs; pivot: floor(kb.xr - kb_rows.$i.rc * pu + 0.5), floor(kbi.y + 0.5); text kb_rows.$i.c { at: floor(kb.xr - kb_rows.$i.rc * pu + 0.5), floor(kbi.y + 0.5); anchor: center; align: center; size: 14.5; weight: 700; color: if(kb_rows.$i.wd == 0, kb.base, ink); family: "Space Grotesk" } }
+                    }
+                    box { at: kb.xr - kb_rows.$i.rb * pu, kbi.y + 1.6 * pu; size: kb_rows.$i.wb * pu, 17 * pu; corner: 6 * pu; color: #000000; opacity: 42% * (1 - dd_k); show: kb_rows.$i.wb > 0 }
+                    group {
+                        move: 0, 0 - kbi.up
+                        show: kb_rows.$i.wb > 0
+                        box { at: kb.xr - kb_rows.$i.rb * pu, kbi.y; size: kb_rows.$i.wb * pu, 17 * pu; corner: 6 * pu; color: if(kb_rows.$i.wc == 0, mint, mix(kb.base, ink, 0.24)); opacity: 96% }
+                        box { at: kb.xr - kb_rows.$i.rb * pu, kbi.y; size: kb_rows.$i.wb * pu, 17 * pu; corner: 6 * pu; stroke: 1 * pu; color: if(kb_rows.$i.wc == 0, #ffffff, ink); opacity: if(kb_rows.$i.wc == 0, 38%, 20% + 30% * kbi.on) }
+                        group { scale: rs; pivot: floor(kb.xr - kb_rows.$i.rb * pu + 0.5), floor(kbi.y + 0.5); text kb_rows.$i.b { at: floor(kb.xr - kb_rows.$i.rb * pu + 0.5), floor(kbi.y + 0.5); anchor: center; align: center; size: 14.5; weight: 700; color: if(kb_rows.$i.wc == 0, kb.base, ink); family: "Space Grotesk" } }
+                    }
+                    box { at: kb.xr - kb_rows.$i.ra * pu, kbi.y + 1.6 * pu; size: kb_rows.$i.wa * pu, 17 * pu; corner: 6 * pu; color: #000000; opacity: 42% * (1 - dd_k); show: kb_rows.$i.wa > 0 }
+                    group {
+                        move: 0, 0 - kbi.up
+                        show: kb_rows.$i.wa > 0
+                        box { at: kb.xr - kb_rows.$i.ra * pu, kbi.y; size: kb_rows.$i.wa * pu, 17 * pu; corner: 6 * pu; color: if(kb_rows.$i.wb == 0, mint, mix(kb.base, ink, 0.24)); opacity: 96% }
+                        box { at: kb.xr - kb_rows.$i.ra * pu, kbi.y; size: kb_rows.$i.wa * pu, 17 * pu; corner: 6 * pu; stroke: 1 * pu; color: if(kb_rows.$i.wb == 0, #ffffff, ink); opacity: if(kb_rows.$i.wb == 0, 38%, 20% + 30% * kbi.on) }
+                        group { scale: rs; pivot: floor(kb.xr - kb_rows.$i.ra * pu + 0.5), floor(kbi.y + 0.5); text kb_rows.$i.a { at: floor(kb.xr - kb_rows.$i.ra * pu + 0.5), floor(kbi.y + 0.5); anchor: center; align: center; size: 14.5; weight: 700; color: if(kb_rows.$i.wb == 0, kb.base, ink); family: "Space Grotesk" } }
+                    }
+                    //  A bind that is not the one the shell ships with: a dot before its keys.
+                    ellipse { at: kb.xr - (kb_rows.$i.ra + kb_rows.$i.wa / 2 + 9) * pu, kbi.y; radius: 2.4 * pu; color: mint; show: kb_rows.$i.chg }
                 }
-                zone box kb_hit.$i { at: spx + 219 * pw, kbi.y; size: 430 * pw, 24 * pu; corner: 9 * pu; cursor: pointer; active: kb_rows.count > i and set_pgy > 0.5 and not kb_cap }
+                zone box kb_hit.$i { at: spx + 219 * pw, kbi.y; size: 430 * pw, 24 * pu; corner: 9 * pu; cursor: pointer; active: kb_rows.count > i and set_pgy > 0.5 }
                 on press kb_hit.$i { emit kb_select(i) }
             }
 
@@ -56,48 +96,82 @@ part Keybinds {
                 show: kb_sel >= 0
                 //  Which one, and what the chips and the box now say.
                 group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(kb.t2 + 24 * pu + 0.5); text kb_name { at: floor(spx + 14 * pw + 0.5), floor(kb.t2 + 24 * pu + 0.5); anchor: left center; size: 16.5; weight: 700; width: (410 * pw) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
-                //  The modifiers: four chips that switch on and off.
-                repeat m in 0..4 {
-                    let kbm.x = spx + 14 * pw + m * 68 * pw
-                    let kbm.on = mod(floor(kb_mod / pick(m, 1, 2, 4, 8)), 2)
-                    box { from: kbm.x, kb.t2 + 42 * pu; size: 62 * pu, 26 * pu; corner: 13 * pu; color: if(kbm.on, mint, ink); opacity: if(kbm.on, 26%, 8% + 10% * kb_chip.$m.hover) }
-                    PPillOutline((kbm.x) + 31 * pu, (kb.t2 + 42 * pu) + 13 * pu, 62 * pu, 26 * pu, 13 * pu, kb_chip.$m.hover, clamp(3 * (if(kbm.on, 26%, 8% + 10% * kb_chip.$m.hover)), 0, 1), pu)
-                    box { from: kbm.x, kb.t2 + 42 * pu; size: 62 * pu, 26 * pu; corner: 13 * pu; stroke: 1.2 * pu; color: mint; opacity: if(kbm.on, 70%, 0%) }
-                    group { scale: rs; pivot: floor(kbm.x + 31 * pu + 0.5), floor(kb.t2 + 55 * pu + 0.5); text pick(m, "Super", "Shift", "Ctrl", "Alt") { at: floor(kbm.x + 31 * pu + 0.5), floor(kb.t2 + 55 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; color: if(kbm.on, mint, ink); family: "Space Grotesk" } }
-                    zone box kb_chip.$m { from: kbm.x, kb.t2 + 42 * pu; size: 62 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: kb_sel >= 0 and set_pgy > 0.5 }
-                    on press kb_chip.$m { emit kb_mod_toggle(pick(m, 1, 2, 4, 8)) }
+                //  The shortcut itself, as keys: what the row has, until one is pressed. The page listens from the moment a row is chosen (`kb_cap`):
+                //  the keys held with the one pressed are the modifiers (`kb_mod`), and each new press replaces the last. Save keeps it.
+                let kbe.s = mod(kb_mod, 2)
+                let kbe.h = mod(floor(kb_mod / 2), 2)
+                let kbe.c = mod(floor(kb_mod / 4), 2)
+                let kbe.a = mod(floor(kb_mod / 8), 2)
+                let kbe.x2 = kbe.s * 70
+                let kbe.x3 = kbe.x2 + kbe.h * 64
+                let kbe.x4 = kbe.x3 + kbe.c * 56
+                let kbe.x5 = kbe.x4 + kbe.a * 50
+                let kbe.lit = if(kb_cap, 30% + 26% * sin(time * 200), 0%) * if(kb_dirty, 0, 1) + if(kb_dirty, 85%, 0%)
+                group {
+                    show: kbe.s > 0.5
+                    box { from: spx + 14 * pw + (0) * pu, kb.t2 + 42.5 * pu; size: (64) * pu, 28 * pu; corner: 8 * pu; color: #000000; opacity: 45% * (1 - dd_k) }
+                    box { from: spx + 14 * pw + (0) * pu, kb.t2 + 40 * pu; size: (64) * pu, 28 * pu; corner: 8 * pu; color: mix(kb.base, ink, 0.26); opacity: 96% }
+                    box { from: spx + 14 * pw + (0) * pu, kb.t2 + 40 * pu; size: (64) * pu, 28 * pu; corner: 8 * pu; stroke: 1 * pu; color: ink; opacity: 24% }
+                    box { from: spx + 14 * pw + (0) * pu, kb.t2 + 40 * pu; size: (64) * pu, 28 * pu; corner: 8 * pu; stroke: 1.4 * pu; color: mint; opacity: kbe.lit }
+                    group { scale: rs; pivot: floor(spx + 14 * pw + (0) * pu + (64) * pu / 2 + 0.5), floor(kb.t2 + 54 * pu + 0.5); text "Super" { at: floor(spx + 14 * pw + (0) * pu + (64) * pu / 2 + 0.5), floor(kb.t2 + 54 * pu + 0.5); anchor: center; align: center; size: 17; weight: 700; color: ink; family: "Space Grotesk" } }
                 }
-                group { scale: rs; pivot: floor(spx + 290 * pw + 0.5), floor(kb.t2 + 55 * pu + 0.5); text "+" { at: floor(spx + 290 * pw + 0.5), floor(kb.t2 + 55 * pu + 0.5); anchor: center; align: center; size: 19; weight: 600; color: faint; family: "Space Grotesk" } }
-                //  The key: a box that waits for the next key pressed once it is pressed.
-                box { from: spx + 304 * pw, kb.t2 + 42 * pu; size: 120 * pu, 26 * pu; corner: 9 * pu; color: if(kb_cap, mint, ink); opacity: if(kb_cap, 20% + 8% * sin(time * 220), 10% + 8% * kb_key_hit.hover) }
-                PPillOutline((spx + 304 * pw) + 60 * pu, (kb.t2 + 42 * pu) + 13 * pu, 120 * pu, 26 * pu, 9 * pu, kb_key_hit.hover, clamp(3 * (if(kb_cap, 20% + 8% * sin(time * 220), 10% + 8% * kb_key_hit.hover)), 0, 1), pu)
-                box { from: spx + 304 * pw, kb.t2 + 42 * pu; size: 120 * pu, 26 * pu; corner: 9 * pu; stroke: 1.2 * pu; color: mint; opacity: if(kb_cap, 80%, 0%) }
-                group { scale: rs; pivot: floor(spx + 364 * pw + 0.5), floor(kb.t2 + 55 * pu + 0.5); text "Press a key…" { at: floor(spx + 364 * pw + 0.5), floor(kb.t2 + 55 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: mint; family: "Space Grotesk"; show: kb_cap } }
-                group { scale: rs; pivot: floor(spx + 364 * pw + 0.5), floor(kb.t2 + 55 * pu + 0.5); text "Choose a key" { at: floor(spx + 364 * pw + 0.5), floor(kb.t2 + 55 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: faint; family: "Space Grotesk"; show: not kb_cap and not kb_has } }
-                group { scale: rs; pivot: floor(spx + 364 * pw + 0.5), floor(kb.t2 + 55 * pu + 0.5); text kb_key { at: floor(spx + 364 * pw + 0.5), floor(kb.t2 + 55 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (112 * pw) / rs; lines: 1; color: ink; family: "Space Grotesk"; show: not kb_cap and kb_has } }
-                zone box kb_key_hit { from: spx + 304 * pw, kb.t2 + 42 * pu; size: 120 * pu, 26 * pu; corner: 9 * pu; cursor: pointer; active: kb_sel >= 0 and set_pgy > 0.5 and not kb_cap }
-                on press kb_key_hit { kb_cap = true }
-                //  Save, Reset and Cancel, and a line about how it went.
+                group {
+                    show: kbe.h > 0.5
+                    box { from: spx + 14 * pw + (kbe.x2) * pu, kb.t2 + 42.5 * pu; size: (58) * pu, 28 * pu; corner: 8 * pu; color: #000000; opacity: 45% * (1 - dd_k) }
+                    box { from: spx + 14 * pw + (kbe.x2) * pu, kb.t2 + 40 * pu; size: (58) * pu, 28 * pu; corner: 8 * pu; color: mix(kb.base, ink, 0.26); opacity: 96% }
+                    box { from: spx + 14 * pw + (kbe.x2) * pu, kb.t2 + 40 * pu; size: (58) * pu, 28 * pu; corner: 8 * pu; stroke: 1 * pu; color: ink; opacity: 24% }
+                    box { from: spx + 14 * pw + (kbe.x2) * pu, kb.t2 + 40 * pu; size: (58) * pu, 28 * pu; corner: 8 * pu; stroke: 1.4 * pu; color: mint; opacity: kbe.lit }
+                    group { scale: rs; pivot: floor(spx + 14 * pw + (kbe.x2) * pu + (58) * pu / 2 + 0.5), floor(kb.t2 + 54 * pu + 0.5); text "Shift" { at: floor(spx + 14 * pw + (kbe.x2) * pu + (58) * pu / 2 + 0.5), floor(kb.t2 + 54 * pu + 0.5); anchor: center; align: center; size: 17; weight: 700; color: ink; family: "Space Grotesk" } }
+                }
+                group {
+                    show: kbe.c > 0.5
+                    box { from: spx + 14 * pw + (kbe.x3) * pu, kb.t2 + 42.5 * pu; size: (50) * pu, 28 * pu; corner: 8 * pu; color: #000000; opacity: 45% * (1 - dd_k) }
+                    box { from: spx + 14 * pw + (kbe.x3) * pu, kb.t2 + 40 * pu; size: (50) * pu, 28 * pu; corner: 8 * pu; color: mix(kb.base, ink, 0.26); opacity: 96% }
+                    box { from: spx + 14 * pw + (kbe.x3) * pu, kb.t2 + 40 * pu; size: (50) * pu, 28 * pu; corner: 8 * pu; stroke: 1 * pu; color: ink; opacity: 24% }
+                    box { from: spx + 14 * pw + (kbe.x3) * pu, kb.t2 + 40 * pu; size: (50) * pu, 28 * pu; corner: 8 * pu; stroke: 1.4 * pu; color: mint; opacity: kbe.lit }
+                    group { scale: rs; pivot: floor(spx + 14 * pw + (kbe.x3) * pu + (50) * pu / 2 + 0.5), floor(kb.t2 + 54 * pu + 0.5); text "Ctrl" { at: floor(spx + 14 * pw + (kbe.x3) * pu + (50) * pu / 2 + 0.5), floor(kb.t2 + 54 * pu + 0.5); anchor: center; align: center; size: 17; weight: 700; color: ink; family: "Space Grotesk" } }
+                }
+                group {
+                    show: kbe.a > 0.5
+                    box { from: spx + 14 * pw + (kbe.x4) * pu, kb.t2 + 42.5 * pu; size: (44) * pu, 28 * pu; corner: 8 * pu; color: #000000; opacity: 45% * (1 - dd_k) }
+                    box { from: spx + 14 * pw + (kbe.x4) * pu, kb.t2 + 40 * pu; size: (44) * pu, 28 * pu; corner: 8 * pu; color: mix(kb.base, ink, 0.26); opacity: 96% }
+                    box { from: spx + 14 * pw + (kbe.x4) * pu, kb.t2 + 40 * pu; size: (44) * pu, 28 * pu; corner: 8 * pu; stroke: 1 * pu; color: ink; opacity: 24% }
+                    box { from: spx + 14 * pw + (kbe.x4) * pu, kb.t2 + 40 * pu; size: (44) * pu, 28 * pu; corner: 8 * pu; stroke: 1.4 * pu; color: mint; opacity: kbe.lit }
+                    group { scale: rs; pivot: floor(spx + 14 * pw + (kbe.x4) * pu + (44) * pu / 2 + 0.5), floor(kb.t2 + 54 * pu + 0.5); text "Alt" { at: floor(spx + 14 * pw + (kbe.x4) * pu + (44) * pu / 2 + 0.5), floor(kb.t2 + 54 * pu + 0.5); anchor: center; align: center; size: 17; weight: 700; color: ink; family: "Space Grotesk" } }
+                }
+                group {
+                    show: kb_has
+                    box { from: spx + 14 * pw + (kbe.x5) * pu, kb.t2 + 42.5 * pu; size: (kb_kw) * pu, 28 * pu; corner: 8 * pu; color: #000000; opacity: 45% * (1 - dd_k) }
+                    box { from: spx + 14 * pw + (kbe.x5) * pu, kb.t2 + 40 * pu; size: (kb_kw) * pu, 28 * pu; corner: 8 * pu; color: mint; opacity: 96% }
+                    box { from: spx + 14 * pw + (kbe.x5) * pu, kb.t2 + 40 * pu; size: (kb_kw) * pu, 28 * pu; corner: 8 * pu; stroke: 1 * pu; color: #ffffff; opacity: 40% }
+                    box { from: spx + 14 * pw + (kbe.x5) * pu, kb.t2 + 40 * pu; size: (kb_kw) * pu, 28 * pu; corner: 8 * pu; stroke: 1.4 * pu; color: mint; opacity: kbe.lit }
+                    group { scale: rs; pivot: floor(spx + 14 * pw + (kbe.x5) * pu + (kb_kw) * pu / 2 + 0.5), floor(kb.t2 + 54 * pu + 0.5); text kb_key { at: floor(spx + 14 * pw + (kbe.x5) * pu + (kb_kw) * pu / 2 + 0.5), floor(kb.t2 + 54 * pu + 0.5); anchor: center; align: center; size: 17; weight: 700; color: kb.base; family: "Space Grotesk" } }
+                }
+                //  That it is listening, and what to do next.
+                ellipse { at: kb.xr - 4 * pu, kb.t2 + 24 * pu; radius: 3.2 * pu; color: mint; opacity: 55% + 45% * sin(time * 200); show: kb_cap }
+                group { scale: rs; pivot: floor(kb.xr - 13 * pu + 0.5), floor(kb.t2 + 24 * pu + 0.5); text "Listening" { at: floor(kb.xr - 13 * pu + 0.5), floor(kb.t2 + 24 * pu + 0.5); anchor: right center; align: right; size: 14; weight: 700; color: mint; family: "Space Grotesk"; show: kb_cap } }
+                group { scale: rs; pivot: floor(kb.xr + 0.5), floor(kb.t2 + 54 * pu + 0.5); text pick(if(kb_dirty, 1, 0), "Press the new shortcut", "Save to keep it") { at: floor(kb.xr + 0.5), floor(kb.t2 + 54 * pu + 0.5); anchor: right center; align: right; size: 14.5; width: (170 * pw) / rs; lines: 1; color: if(kb_dirty, mint, faint); family: "Space Grotesk" } }
+                //  Save, Reset and Cancel, and a line about how it went. Side by side, 6 apart: the first on `pw`, the rest from it on `pu`, each word on its pill's middle.
                 box { from: spx + 14 * pw, kb.t2 + 78 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: mint; opacity: if(kb_dirty, 26% + 12% * kb_save_hit.hover, 8%) }
                 PPillOutline((spx + 14 * pw) + 39 * pu, (kb.t2 + 78 * pu) + 13 * pu, 78 * pu, 26 * pu, 13 * pu, kb_save_hit.hover, clamp(3 * (if(kb_dirty, 26% + 12% * kb_save_hit.hover, 8%)), 0, 1), pu)
-                group { scale: rs; pivot: floor(spx + 53 * pw + 0.5), floor(kb.t2 + 91 * pu + 0.5); text "Save" { at: floor(spx + 53 * pw + 0.5), floor(kb.t2 + 91 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: mint; opacity: if(kb_dirty, 100%, 40%); family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pw + 39 * pu + 0.5), floor(kb.t2 + 91 * pu + 0.5); text "Save" { at: floor(spx + 14 * pw + 39 * pu + 0.5), floor(kb.t2 + 91 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: mint; opacity: if(kb_dirty, 100%, 40%); family: "Space Grotesk" } }
                 zone box kb_save_hit { from: spx + 14 * pw, kb.t2 + 78 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: kb_dirty and set_pgy > 0.5 }
                 on press kb_save_hit { emit kb_save }
-                box { from: spx + 98 * pw, kb.t2 + 78 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: ink; opacity: 8% + 10% * kb_reset_hit.hover }
-                PPillOutline((spx + 98 * pw) + 39 * pu, (kb.t2 + 78 * pu) + 13 * pu, 78 * pu, 26 * pu, 13 * pu, kb_reset_hit.hover, clamp(3 * (8% + 10% * kb_reset_hit.hover), 0, 1), pu)
-                group { scale: rs; pivot: floor(spx + 137 * pw + 0.5), floor(kb.t2 + 91 * pu + 0.5); text "Reset" { at: floor(spx + 137 * pw + 0.5), floor(kb.t2 + 91 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" } }
-                zone box kb_reset_hit { from: spx + 98 * pw, kb.t2 + 78 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: kb_sel >= 0 and set_pgy > 0.5 }
+                box { from: spx + 14 * pw + 84 * pu, kb.t2 + 78 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: ink; opacity: 8% + 10% * kb_reset_hit.hover }
+                PPillOutline((spx + 14 * pw + 84 * pu) + 39 * pu, (kb.t2 + 78 * pu) + 13 * pu, 78 * pu, 26 * pu, 13 * pu, kb_reset_hit.hover, clamp(3 * (8% + 10% * kb_reset_hit.hover), 0, 1), pu)
+                group { scale: rs; pivot: floor(spx + 14 * pw + 123 * pu + 0.5), floor(kb.t2 + 91 * pu + 0.5); text "Reset" { at: floor(spx + 14 * pw + 123 * pu + 0.5), floor(kb.t2 + 91 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" } }
+                zone box kb_reset_hit { from: spx + 14 * pw + 84 * pu, kb.t2 + 78 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: kb_sel >= 0 and set_pgy > 0.5 }
                 on press kb_reset_hit { emit kb_reset }
-                box { from: spx + 182 * pw, kb.t2 + 78 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: ink; opacity: 8% + 10% * kb_cancel_hit.hover }
-                PPillOutline((spx + 182 * pw) + 39 * pu, (kb.t2 + 78 * pu) + 13 * pu, 78 * pu, 26 * pu, 13 * pu, kb_cancel_hit.hover, clamp(3 * (8% + 10% * kb_cancel_hit.hover), 0, 1), pu)
-                group { scale: rs; pivot: floor(spx + 221 * pw + 0.5), floor(kb.t2 + 91 * pu + 0.5); text "Cancel" { at: floor(spx + 221 * pw + 0.5), floor(kb.t2 + 91 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" } }
-                zone box kb_cancel_hit { from: spx + 182 * pw, kb.t2 + 78 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: kb_sel >= 0 and set_pgy > 0.5 }
+                box { from: spx + 14 * pw + 168 * pu, kb.t2 + 78 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: ink; opacity: 8% + 10% * kb_cancel_hit.hover }
+                PPillOutline((spx + 14 * pw + 168 * pu) + 39 * pu, (kb.t2 + 78 * pu) + 13 * pu, 78 * pu, 26 * pu, 13 * pu, kb_cancel_hit.hover, clamp(3 * (8% + 10% * kb_cancel_hit.hover), 0, 1), pu)
+                group { scale: rs; pivot: floor(spx + 14 * pw + 207 * pu + 0.5), floor(kb.t2 + 91 * pu + 0.5); text "Cancel" { at: floor(spx + 14 * pw + 207 * pu + 0.5), floor(kb.t2 + 91 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" } }
+                zone box kb_cancel_hit { from: spx + 14 * pw + 168 * pu, kb.t2 + 78 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: kb_sel >= 0 and set_pgy > 0.5 }
                 on press kb_cancel_hit { emit kb_cancel }
                 //  Delete takes the bind out of the file (it stays there as a comment; Restore, in the list, puts it back).
-                box { from: spx + 266 * pw, kb.t2 + 78 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: #ff6b6b; opacity: 10% + 16% * kb_delete_hit.hover }
-                PPillOutline((spx + 266 * pw) + 39 * pu, (kb.t2 + 78 * pu) + 13 * pu, 78 * pu, 26 * pu, 13 * pu, kb_delete_hit.hover, clamp(3 * (10% + 16% * kb_delete_hit.hover), 0, 1), pu)
-                group { scale: rs; pivot: floor(spx + 305 * pw + 0.5), floor(kb.t2 + 91 * pu + 0.5); text "Delete" { at: floor(spx + 305 * pw + 0.5), floor(kb.t2 + 91 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: #ff6b6b; family: "Space Grotesk" } }
-                zone box kb_delete_hit { from: spx + 266 * pw, kb.t2 + 78 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; label: "Delete this keybind"; active: kb_sel >= 0 and set_pgy > 0.5 }
+                box { from: spx + 14 * pw + 252 * pu, kb.t2 + 78 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; color: #ff6b6b; opacity: 10% + 16% * kb_delete_hit.hover }
+                PPillOutline((spx + 14 * pw + 252 * pu) + 39 * pu, (kb.t2 + 78 * pu) + 13 * pu, 78 * pu, 26 * pu, 13 * pu, kb_delete_hit.hover, clamp(3 * (10% + 16% * kb_delete_hit.hover), 0, 1), pu)
+                group { scale: rs; pivot: floor(spx + 14 * pw + 291 * pu + 0.5), floor(kb.t2 + 91 * pu + 0.5); text "Delete" { at: floor(spx + 14 * pw + 291 * pu + 0.5), floor(kb.t2 + 91 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: #ff6b6b; family: "Space Grotesk" } }
+                zone box kb_delete_hit { from: spx + 14 * pw + 252 * pu, kb.t2 + 78 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; label: "Delete this keybind"; active: kb_sel >= 0 and set_pgy > 0.5 }
                 on press kb_delete_hit { emit kb_delete }
             }
             //  Every bind of the shell's back to the key it ships with (a second press confirms: it overwrites the keys that were changed).
@@ -111,7 +185,7 @@ part Keybinds {
             }
             //  How the last save went (or why it did not).
             group { scale: rs; pivot: floor(kb.xr + 0.5), floor(kb.t2 + kb.h2 + 17 * pu + 0.5); text kb_msg { at: floor(kb.xr + 0.5), floor(kb.t2 + kb.h2 + 17 * pu + 0.5); anchor: right center; align: right; size: 14.5; width: (420 * pw) / rs; lines: 1; color: mint; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(kb.t2 + kb.h2 + 17 * pu + 0.5); text "The system keeps some keys for itself: those cannot be recorded here" { at: floor(spx + 14 * pw + 0.5), floor(kb.t2 + kb.h2 + 17 * pu + 0.5); anchor: left center; size: 13; width: (420 * pw) / rs; lines: 1; color: faint; opacity: 80%; family: "Space Grotesk"; show: kb_cap } }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(kb.t2 + kb.h2 + 17 * pu + 0.5); text "A shortcut the window manager already uses does its own thing and is not heard here" { at: floor(spx + 14 * pw + 0.5), floor(kb.t2 + kb.h2 + 17 * pu + 0.5); anchor: left center; size: 13; width: (420 * pw) / rs; lines: 1; color: faint; opacity: 80%; family: "Space Grotesk"; show: kb_cap } }
 
             include "keybinds_keys.plm"
         }

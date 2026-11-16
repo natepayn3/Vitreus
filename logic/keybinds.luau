@@ -138,6 +138,24 @@ return function()
         fact.kb_ok = #K.rows > 0
     end
 
+    -- Listening (`kb_cap`) has to be the only thing the keys do: on Hyprland its own binds would act on a shortcut before the shell hears it, so
+    -- while it listens Hyprland is put in a submap with no binds (every key then reaches the shell). Escape leaves that submap by itself, so a shell
+    -- that stopped while listening does not leave the desktop without its keys; it is made each time, a reload of Hyprland's config forgets it.
+    local HYPR_IN = 'hl.define_submap("vitreus_keys", function() hl.bind("Escape", hl.dsp.submap("reset"), { non_consuming = true }) end) hl.dispatch(hl.dsp.submap("vitreus_keys"))'
+    local HYPR_OUT = 'hl.dispatch(hl.dsp.submap("reset"))'
+    local function listen(on)
+        fact.kb_cap = on
+        if wm() ~= "hypr" or K.grab == on then return end
+        K.grab = on
+        run("hyprctl", { "eval", on and HYPR_IN or HYPR_OUT }, function(out, code)
+            if on and code ~= 0 then K.grab = false; text.kb_msg = "Hyprland keeps its own shortcuts while this listens" end
+        end)
+    end
+    -- (a shell that starts while Hyprland is still in that submap: the last one stopped while listening)
+    after(4000, function()
+        if wm() ~= "hypr" then return end
+        run("hyprctl", { "submap" }, function(out) if (out or ""):match("vitreus_keys") then run("hyprctl", { "eval", HYPR_OUT }, function() end) end end)
+    end)
     local function dirty()
         local r = K.rows[K.sel]
         fact.kb_dirty = r ~= nil and K.key ~= "" and (K.mask ~= r.mask or K.key ~= r.key)
@@ -145,6 +163,7 @@ return function()
     local function pick_text()
         text.kb_key = K.key ~= "" and disp_key(K.key) or ""
         fact.kb_has = K.key ~= ""
+        fact.kb_kw = math.max(30, 18 + #disp_key(K.key) * 9)
     end
 
     local function read(fn)
@@ -203,7 +222,7 @@ return function()
     on("kb_refresh", function()
         K.sel = 0
         fact.kb_sel = -1
-        fact.kb_cap = false
+        listen(false)
         fact.kb_dirty = false
         text.kb_msg = ""
         text.kb_where = wm() == "hypr" and "Hyprland  ·  hypr_vitreus.lua" or (wm() == "niri" and "niri  ·  niri_vitreus.kdl" or "Pleamar-WM  ·  keys.conf")
@@ -216,7 +235,7 @@ return function()
         if not r then return end
         K.sel, K.mask, K.key = i, r.mask, r.key
         fact.kb_sel = i - 1
-        fact.kb_cap = false
+        listen(true)          -- it listens from here on: the next shortcut pressed is the new one
         fact.kb_mod = r.mask
         text.kb_name = r.name
         text.kb_msg = ""
@@ -239,8 +258,7 @@ return function()
         local key = KEYS[code % 100 + 1]
         if not key or K.sel == 0 then return end
         K.mask, K.key = math.floor(code / 100), key
-        fact.kb_mod = K.mask
-        fact.kb_cap = false
+        fact.kb_mod = K.mask        -- (and it goes on listening: another press replaces this one)
         text.kb_msg = ""
         pick_text()
         dirty()
@@ -249,7 +267,7 @@ return function()
     on("kb_cancel", function()
         K.sel = 0
         fact.kb_sel = -1
-        fact.kb_cap = false
+        listen(false)
         fact.kb_dirty = false
         text.kb_msg = ""
     end)
@@ -276,6 +294,7 @@ return function()
                 read(function()
                     K.sel = 0
                     fact.kb_sel = -1
+                    listen(false)
                     fact.kb_dirty = false
                     text.kb_msg = wm() == "hypr" and "Saved. Hyprland has the new key." or (wm() == "niri" and "Saved. niri has the new key." or "Saved. Pleamar-WM uses it from its next start.")
                 end)
@@ -311,6 +330,7 @@ return function()
                 read(function()
                     K.sel = 0
                     fact.kb_sel = -1
+                    listen(false)
                     fact.kb_dirty = false
                     text.kb_msg = "Removed “" .. r.name .. "”. Reset to defaults puts it back."
                 end)
@@ -402,6 +422,7 @@ return function()
                     read(function()
                         K.sel = 0
                         fact.kb_sel = -1
+                        listen(false)
                         fact.kb_dirty = false
                         text.kb_msg = (w == "hypr" or w == "niri") and "Back to the default keys." or "Back to the default keys. Pleamar-WM uses them from its next start."
                     end)
