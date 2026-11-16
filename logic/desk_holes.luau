@@ -43,8 +43,8 @@ return function()
             if not mons then return end
             local per = {}
             local ids = {}
-            for name, id in mons:gmatch("Monitor (%S+) %(ID (%d+)%)") do
-                per[name] = { id = tonumber(id), list = {} }
+            for id, name in pairs(mon_names(mons)) do
+                per[name] = { id = id, list = {} }
                 ids[#ids + 1] = name
             end
             if #ids == 0 then return end

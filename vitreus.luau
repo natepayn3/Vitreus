@@ -97,6 +97,21 @@ function hypr_monitors(max_age, cb)
         for _, f in ipairs(w) do f(out, code) end
     end)
 end
+-- The monitors' names by id (`[0] = "DP-1"`) from what `hyprctl monitors` answered: Hyprland's JSON, or pleamar-wm's (a newer one answers
+-- JSON to `-j`, an older one its own text, "Monitor <name> (ID 1):"). The parts that only read the text left the bar no room under a newer one.
+function mon_names(out)
+    local names = {}
+    if not out then return names end
+    local ok, list = pcall(json.decode, out)
+    if ok and type(list) == "table" then
+        for _, m in ipairs(list) do
+            if m.name and tonumber(m.id) then names[tonumber(m.id)] = tostring(m.name) end
+        end
+    else
+        for name, id in out:gmatch("Monitor (%S+) %(ID (%d+)%)") do names[tonumber(id)] = name end
+    end
+    return names
+end
 function exec_on_desktop(cmd)
     local line = 'export PATH="$HOME/.local/bin:$PATH"; ' .. cmd
     if on_hyprland then
@@ -142,7 +157,7 @@ function wm_workspaces()
         local name = bar_mon.name
         local idx = nil
         if name and name ~= "all" and mons then
-            idx = tonumber(mons:match("Monitor " .. name:gsub("%-", "%%-") .. " %\(ID (%d+)%\)"))
+            for id, n in pairs(mon_names(mons)) do if n == name then idx = id end end
         end
         say_many("wm", cmds, function(r)
             if not r then return end
@@ -6290,8 +6305,7 @@ do
         frame_rooms()
         hypr_monitors(30, function(mons)
             if not mons then return end
-            local names = {}
-            for name, id in mons:gmatch("Monitor (%S+) %(ID (%d+)%)") do names[tonumber(id)] = name end
+            local names = mon_names(mons)
             local framed = fact.bar_frame == true and bar_mon.name ~= nil
             local room = FRAME_ROOMS[fact.bar_anchor] or FRAME_ROOM
             if fact.bar_seg == true and fact.bar_anchor == "top" then room = FRAME_SEG end   -- the top frame in pieces: windows start below the pieces, as on Hyprland (`iris_fx.gaps_code`)
