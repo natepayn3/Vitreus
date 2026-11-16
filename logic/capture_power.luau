@@ -131,10 +131,17 @@ return function(set_panel)
             run("printenv", { "HYPRLAND_INSTANCE_SIGNATURE" }, function(out, code)
                 if code == 0 and (out or "") ~= "" then run("hyprctl", { "dispatch", "hl.dsp.exit()" }, function() end)
                 else
-                    -- niri leaves by its own action (the button was held for a second: no need for its "are you sure" box); pleamar-wm by being ended
+                    -- niri leaves by its own action (the button was held for a second: no need for its "are you sure" box); pleamar-wm by being ended.
+                    -- pleamar-wm once stopped half-way out (2026-11-15: its programs gone, the screen frozen on the last frame, a reboot from a TTY);
+                    -- a second TERM while it is leaving ends it at once, so one is sent 5 s later if it is still there. From its own session
+                    -- (`setsid -f`): pleamar-wm ends this bar on its way out, and with it whatever the bar is still running.
                     run("printenv", { "NIRI_SOCKET" }, function(o, c)
                         if c == 0 and (o or "") ~= "" then run("niri", { "msg", "action", "quit", "--skip-confirmation" }, function() end)
-                        else run("pkill", { "-TERM", "-x", "pleamar-wm" }, function() end) end
+                        else
+                            run("setsid", { "-f", "sh", "-c",
+                                'p=$(pgrep -x pleamar-wm); [ -n "$p" ] || exit 0; kill -TERM $p; sleep 5; '
+                                .. 'for i in $p; do kill -0 $i 2> /dev/null && kill -TERM $i; done' }, function() end)
+                        end
                     end)
                 end
             end)
