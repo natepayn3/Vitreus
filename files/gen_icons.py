@@ -4,7 +4,7 @@
 Each stroke is drawn twice, a hair off and fainter, and with `a` (hover) the points tremble and are redrawn about five times a second (`fr`), as the shell's own pencil icons do.
 The drawings are lists of points in a box about 52 across, centred on 0, 0. Run `python3 gen_icons.py` after changing them: it replaces what lies between the two marker lines of files.plm.
 """
-import os, random
+import os, random, math
 
 rng = random.Random(2026)
 here = os.path.dirname(os.path.abspath(__file__))
@@ -100,9 +100,86 @@ GLYPHS = {
     39: [([(-11, 0), (-7, -4), (-3, 0), (-7, 4), (-11, 0)], 'btn', 'm'), ([(-3, 0), (11, 0)], 'btn', 'm'), ([(7, -4), (11, 0), (7, 4)], 'btn', 'm')],
     40: [([(-10, -4), (-4, -10), (4, -10), (10, -4), (10, 4), (4, 10), (-4, 10), (-10, 4), (-10, -4)], 'btn', 'm'), ([(-3, -3), (3, 3)], 'btn', 'm'), ([(3, -3), (-3, 3)], 'btn', 'm')],
 }
+
+# ── the tiles' pictures (PFile), drawn finer: round corners, a soft tone inside, and more of what each thing is ──
+# A point is (x, y), or (x, y, cx, cy): a curve to x, y round the corner cx, cy. How: 'm' a stroke drawn twice, 't' one thin stroke, 'f' a faint hatch stroke, 'o' a ring (x, y, radius),
+# ('F', opacity) a closed shape filled faintly, ('O', opacity) a disc.
+def rnd(pts, r, closed=False):
+    """The same line with its corners rounded (radius r); closed, every corner, and it ends a little past where it began, as a hand does."""
+    n = len(pts)
+    def toward(a, b, d):
+        l = math.hypot(b[0] - a[0], b[1] - a[1])
+        d = min(d, l / 2)
+        return (a[0] + (b[0] - a[0]) * d / l, a[1] + (b[1] - a[1]) * d / l)
+    out = []
+    idx = range(n) if closed else range(1, n - 1)
+    if not closed:
+        out.append(pts[0])
+    for i in idx:
+        a, v, b = pts[i - 1], pts[i], pts[(i + 1) % n]
+        p, q = toward(v, a, r), toward(v, b, r)
+        out.append(p)
+        out.append((q[0], q[1], v[0], v[1]))
+    if closed:
+        out.append(out[0])
+        out.append(toward(out[0], (out[1][0], out[1][1]), 2.5))
+    else:
+        out.append(pts[-1])
+    return out
+def rect(x0, y0, x1, y1, r): return rnd([(x0, y1), (x0, y0), (x1, y0), (x1, y1)], r, True)
+def inside(pts): return pts[:-2]                # a closed outline without its last stretch (back to the start and a little past it): what is filled
+
+N_BACK = rnd([(-26, -3), (-26, -22), (-9, -22), (-4, -16), (26, -16), (26, -3)], 3.5)
+N_FRONT = rect(-26, -6, 26, 22, 4.5)
+N_FOLDER = [
+    (N_BACK, 'fold', 'm'),
+    (rnd([(-20, -7), (-20, -12), (20, -12), (20, -7)], 1.5), 'ink', 't'),             # a sheet showing over the front
+    ([(-17, -9), (17, -9)], 'ink', 'f'),
+    (inside(N_FRONT), 'fold', ('F', 0.13)),
+    (N_FRONT, 'fold', 'm'),
+    ([(-19, 1), (-8, 1)], 'fold', 't'),                                                 # its label
+    ([(-19, 5), (-13, 5)], 'fold', 'f'),
+] + [([(x, 18), (x + 5 + k, 12 - 2 * k)], 'fold', 'f') for k, x in enumerate([2, 7, 12, 17])]   # the shade in its corner
+N_PAGE = rnd([(7, -26), (-17, -26), (-17, 26), (17, 26), (17, -16)], 3) + [(7, -26), (4, -26)]
+N_FOLD = rnd([(7, -26), (7, -16), (17, -16)], 2.5)
+def npage(extra):
+    return [(N_PAGE[:-1], 'ink', ('F', 0.06)), ([(7, -26), (7, -16), (17, -16)], 'ink', ('F', 0.16)), (N_PAGE, 'ink', 'm'), (N_FOLD, 'ink', 'm')] + extra
+N_SHARE = 4
+HILLS = [(-11, 14), (-5, 4), (-1, 9), (4, 1), (11, 14)]
+N_FILES = {
+    0: N_FOLDER,
+    # a picture: framed, hills and a sun
+    1: npage([(rect(-12, -9, 12, 17, 2), 'mint', 'm'), (HILLS, 'mint', ('F', 0.22)), (HILLS, 'mint', 't'), ((-6, -3, 2.3), 'mint', ('O', 0.3)), ((-6, -3, 2.3), 'mint', 'o')]),
+    # a PDF: some lines and its red band, lettered
+    2: npage([([(-10, -10), (1, -10)], 'ink', 'm'), ([(-10, -4), (10, -4)], 'ink', 't'), ([(-10, 2), (6, 2)], 'ink', 't'),
+              (inside(rect(-13, 8, 13, 21, 2.5)), 'alert', ('F', 0.2)), (rect(-13, 8, 13, 21, 2.5), 'alert', 'm'),
+              ([(-9, 18.5), (-9, 10.5), (-6, 10.5), (-4.6, 12.5), (-6, 14.5), (-9, 14.5)], 'alert', 't'),
+              ([(-1.8, 10.5), (-1.8, 18.5), (0.6, 18.5), (2.6, 16.2), (2.6, 12.8), (0.6, 10.5), (-1.8, 10.5)], 'alert', 't'),
+              ([(9.4, 10.5), (5.8, 10.5), (5.8, 18.5)], 'alert', 't'), ([(5.8, 14.5), (8.4, 14.5)], 'alert', 't')]),
+    # a sound: two notes under a double beam
+    3: npage([([(-5, 13), (-5, -9), (9, -12), (9, 10)], 'mint', 'm'), ([(-5, -4.5), (9, -7.5)], 'mint', 'm'),
+              ((-8.4, 13, 3.6), 'mint', ('O', 0.35)), ((-8.4, 13, 3.6), 'mint', 'o'), ((5.6, 10, 3.6), 'mint', ('O', 0.35)), ((5.6, 10, 3.6), 'mint', 'o')]),
+    # a video: a strip of film, and play
+    4: npage([(rect(-13, -10, 13, 18, 2), 'ink', 'm'), ([(-13, -5), (13, -5)], 'ink', 't'), ([(-13, 13), (13, 13)], 'ink', 't'),
+              ([(-7.8, -10), (-7.8, -5)], 'ink', 't'), ([(-2.6, -10), (-2.6, -5)], 'ink', 't'), ([(2.6, -10), (2.6, -5)], 'ink', 't'), ([(7.8, -10), (7.8, -5)], 'ink', 't'),
+              ([(-7.8, 13), (-7.8, 18)], 'ink', 't'), ([(-2.6, 13), (-2.6, 18)], 'ink', 't'), ([(2.6, 13), (2.6, 18)], 'ink', 't'), ([(7.8, 13), (7.8, 18)], 'ink', 't'),
+              ([(-3.5, -1), (4.5, 4), (-3.5, 9)], 'mint', ('F', 0.3)), ([(-3.5, -1), (4.5, 4), (-3.5, 9), (-3.5, -1), (-1.5, 0.2)], 'mint', 'm')]),
+    # code: its brackets, and a line under them
+    5: npage([([(-4, -8), (-11, 1), (-4, 10)], 'mint', 'm'), ([(4, -8), (11, 1), (4, 10)], 'mint', 'm'), ([(2, -10), (-2, 12)], 'ink', 'm'),
+              ([(-10, 17), (4, 17)], 'ink', 't'), ([(-10, 21), (-3, 21)], 'ink', 'f')]),
+    # an archive: a zip down the page, and its pull
+    6: npage([([(-3, -23), (0, -23), (0, -19), (3, -19), (0, -19), (0, -15), (-3, -15), (0, -15), (0, -11), (3, -11), (0, -11), (0, -7), (-3, -7), (0, -7), (0, -3), (3, -3), (0, -3), (0, 1), (-3, 1), (0, 1), (0, 5)], 'ink', 't'),
+              (inside(rect(-4.5, 5, 4.5, 19, 2.5)), 'mint', ('F', 0.25)), (rect(-4.5, 5, 4.5, 19, 2.5), 'mint', 'm'), ([(0, 10), (0, 14.5)], 'mint', 't')]),
+    # any other file: what is written on it
+    7: npage([([(-10, -9), (10, -9)], 'ink', 't'), ([(-10, -3), (10, -3)], 'ink', 't'), ([(-10, 3), (7, 3)], 'ink', 't'), ([(-10, 9), (10, 9)], 'ink', 't'), ([(-10, 15), (10, 15)], 'ink', 't'), ([(-10, 21), (-1, 21)], 'ink', 't')]),
+    # a script: a prompt, what was typed, and what it said
+    8: npage([([(-10, -8), (-4, -2), (-10, 4)], 'mint', 'm'), ([(0, 5), (10, 5)], 'mint', 'm'), ([(-10, 12), (7, 12)], 'ink', 't'), ([(-10, 18), (1, 18)], 'ink', 't')]),
+    # a document: a heading, and its paragraphs
+    9: npage([([(-10, -10), (4, -10)], 'mint', 'm'), ([(-10, -4), (10, -4)], 'ink', 't'), ([(-10, 1), (10, 1)], 'ink', 't'), ([(-10, 6), (5, 6)], 'ink', 't'),
+              ([(-10, 14), (10, 14)], 'ink', 't'), ([(-10, 19), (0, 19)], 'ink', 't')]),
+}
 COL = {'ink': 'ink', 'mint': 'mint', 'alert': 'alert', 'fold': 'mix(mint, ink, 0.25)', 'btn': 'mix(ink, mint, a)'}
 
-import math
 trng = random.Random(99)       # the tremble of a hovered drawing has numbers of its own, so the ones above (what is drawn at rest) stay what they were
 
 def jt(x, y):
@@ -122,6 +199,12 @@ def strokes(items, boil):
     out = []
     for pts, col, how in items:
         c = COL[col]
+        if isinstance(how, tuple) and how[0] == 'O':
+            x, y, r = pts
+            jx, jy = jt(x, y)
+            tx, ty = tremble(boil)
+            out.append(f"            ellipse {{ at: cx + {jx}{tx}, cy + {jy}{ty}; radius: {r} * s; color: {c}; opacity: (o) * {how[1]} }}")
+            continue
         if how == 'o':
             x, y, r = pts
             jx, jy = jt(x, y)
@@ -132,13 +215,21 @@ def strokes(items, boil):
             tx, ty = tremble(boil)
             out.append(f"            ellipse {{ at: cx + {jx} + off{tx}, cy + {jy} + off{ty}; radius: {r} * s; stroke: w2; color: {c}; opacity: (o) * 0.28 }}")
             continue
-        for second in ([False] if how == 'f' else [False, True]):
+        for second in ([False, True] if how == 'm' else [False]):
             steps = []
-            for k, (x, y) in enumerate(pts):
-                jx, jy = jt(x, y)
-                steps.append(("move " if k == 0 else "line ") + f"{jx}, {jy}")
+            for k, pt in enumerate(pts):
+                jx, jy = jt(pt[0], pt[1])
+                if len(pt) == 4:
+                    vx, vy = jt(pt[2], pt[3])
+                    steps.append(f"curve {jx}, {jy} via {vx}, {vy}")
+                else:
+                    steps.append(("move " if k == 0 else "line ") + f"{jx}, {jy}")
             tx, ty = tremble(boil)
-            if how == 'f':
+            if isinstance(how, tuple):
+                out.append(f"            path {{ at: cx{tx}, cy{ty}; color: {c}; opacity: (o) * {how[1]}; " + "; ".join(steps) + "; close }")
+            elif how == 't':
+                out.append(f"            path {{ at: cx{tx}, cy{ty}; stroke: w2; color: {c}; opacity: (o) * 0.85; " + "; ".join(steps) + " }")
+            elif how == 'f':
                 out.append(f"            path {{ at: cx{tx}, cy{ty}; stroke: w2; color: {c}; opacity: (o) * 0.24; " + "; ".join(steps) + " }")
             elif not second:
                 out.append(f"            path {{ at: cx{tx}, cy{ty}; stroke: w1; color: {c}; opacity: (o); " + "; ".join(steps) + " }")
@@ -146,7 +237,7 @@ def strokes(items, boil):
                 out.append(f"            path {{ at: cx + off{tx}, cy + off{ty}; stroke: w2; color: {c}; opacity: (o) * 0.28; " + "; ".join(steps) + " }")
     return out
 
-def comp(name, doc, param, table, boil, share=0):
+def comp(name, doc, param, table, boil, share=0, share_lines=False):
     # `share`: how many leading drawings every kind but 0 has in common (a file's page and its folded corner). They are written once, for all of them, and not again for each kind: the scene
     # takes longer to load for every copy, and Files opens in a window of its own each time. The random numbers are still drawn as before, so what is drawn does not change.
     body = []
@@ -154,7 +245,7 @@ def comp(name, doc, param, table, boil, share=0):
     for k, items in table.items():
         lines = strokes(items, boil)
         if share and k >= 1:
-            n = 2 * share                      # a drawing is two lines (the stroke and its fainter copy)
+            n = len(strokes(items[:share], boil)) if share_lines else 2 * share      # a drawing is two lines (the stroke and its fainter copy), unless it is a fill or a thin one
             if shared is None:
                 shared = lines[:n]
             lines = lines[n:]
@@ -175,7 +266,12 @@ def comp(name, doc, param, table, boil, share=0):
 
 FIXED = [7, 32, 33, 34, 35, 36, 39]            # the kinds `PGlyphS` is called with as a literal in files.plm; the others (a menu line's `m.ic`, a pick's `k.ic`) are chosen while it runs
 block = BEGIN + "\n"
-block += comp("PFile", "A file's or a folder's picture in pencil: a folder, a picture, a PDF, a sound, a video, code, an archive or any other file (`ik`, which the logic sets). `s` is its size (1 is 64 px); `hot` (hover) swells it and redraws it about five times a second. The folder takes the accent and the files the ink, so any palette is theirs.", "ik", FILES, True, share=2) + "\n"
+_ = comp("PFile", "A file's or a folder's picture in pencil: a folder, a picture, a PDF, a sound, a video, code, an archive or any other file (`ik`, which the logic sets). `s` is its size (1 is 64 px); `hot` (hover) swells it and redraws it about five times a second. The folder takes the accent and the files the ink, so any palette is theirs.", "ik", FILES, True, share=2) + "\n"       # (drawn, not written: the places' and the glyphs' random numbers stay what they were)
+_keep = (rng, trng)
+rng, trng = random.Random(4051), random.Random(4052)       # the tiles' new pictures have numbers of their own
+block += comp("PFile", "A file's or a folder's picture in pencil: a folder, a picture, a PDF, a sound, a video, code, an archive or any other file (`ik`, which the logic sets). `s` is its size (1 is 64 px); `hot` (hover) swells it and redraws it about five times a second. The folder takes the accent and the files the ink, so any palette is theirs.", "ik", N_FILES, True, N_SHARE, True) + "\n"
+PFILE0 = comp("PFile0", "`PFile` for a folder alone (the sidebar's pinned-folder marker).", "ik", {0: N_FILES[0]}, True)
+rng, trng = _keep
 block += comp("PPlace", "A place's picture in pencil for the sidebar (`pk`): a folder, home, the trash, this computer, downloads, documents, pictures, music, videos, a drive. Still, and a little crooked.", "pk", PLACES, False) + "\n"
 # (drawn so that the random numbers of the pictures after it stay what they were, but not written: every call site has a table of its own, below)
 _ = comp("PGlyphS", "The same pictures, still (no trembling): for the menus, where a copy of the boiling one for every line would be a long scene to load.", "g", GLYPHS, False)
@@ -186,7 +282,8 @@ MENU = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 24, 2
 PICK = [8, 22, 28, 30]
 block += "\n" + comp("PGlyphSM", "`PGlyphS` for a menu line's picture, which is chosen while it runs: only the kinds the menus use.", "g", {k: GLYPHS[k] for k in MENU}, False)
 block += "\n" + comp("PGlyphSP", "`PGlyphS` for a pick list's picture (apps, archive types): only the kinds those lists use.", "g", {k: GLYPHS[k] for k in PICK}, False)
-block += "\n" + comp("PFile0", "`PFile` for a folder alone (the sidebar's pinned-folder marker).", "ik", {0: FILES[0]}, True)
+_ = comp("PFile0", "", "ik", {0: FILES[0]}, True)
+block += "\n" + PFILE0
 for k in FIXED:
     block += "\n" + comp(f"PGlyphS{k}", f"`PGlyphS` for kind {k} alone.", "g", {k: GLYPHS[k]}, False)
 block += END + "\n"
