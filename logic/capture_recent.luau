@@ -4,6 +4,12 @@
 return function(with_dirs, set_panel)
     local N = 4
     local items = {}                                    -- { path, name }
+    -- the X beside RECENT: nothing saved before this moment is listed again (kept across restarts; the pictures themselves are not touched)
+    local cleared_at = 0
+    do
+        local ok, saved = pcall(sys.ask, "files.read", "capture_recent.json", "json")
+        if ok and type(saved) == "table" and type(saved.cleared_at) == "number" then cleared_at = saved.cleared_at end
+    end
     local thumbs, making = {}, {}                       -- path#mtime -> the file of its picture (false: could not be made); the ones being made
     local render
     local function lua_quote(s) return "'" .. s:gsub("'", "'\\''") .. "'" end
@@ -52,7 +58,7 @@ return function(with_dirs, set_panel)
                         local mt, name = line:match("^%S+%s+%S+%s+%S+%s+%S+%s+%S+%s+(%d+)%s+(.+)$")
                         local ext = name and name:match("%.(%w+)$")
                         ext = ext and ext:lower()
-                        if mt and (ext == "png" or ext == "jpg" or ext == "jpeg" or ext == "webp") and #items < N then
+                        if mt and tonumber(mt) > cleared_at and (ext == "png" or ext == "jpg" or ext == "jpeg" or ext == "webp") and #items < N then
                             local path = dir .. "/" .. name
                             items[#items + 1] = { path = path, name = name, key = path .. "@" .. mt }
                         end
@@ -63,6 +69,12 @@ return function(with_dirs, set_panel)
         end)
     end
     on("capr_refresh", refresh)
+    on("capr_clear", function()
+        cleared_at = (items[1] and tonumber(items[1].key:match("@(%d+)$"))) or os.time()       -- the newest one listed: no clock to disagree with the files' times
+        pcall(sys.call, "files.write", "capture_recent.json", { cleared_at = cleared_at })
+        items = {}
+        render()
+    end)
     on("capr_open", function(k)
         local it = type(k) == "number" and items[k + 1] or nil
         if not it then return end

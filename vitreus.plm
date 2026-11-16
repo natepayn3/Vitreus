@@ -386,6 +386,7 @@ scene Vitreus {
     fact shot_ocr = false
     event capr_refresh ->          // the Capture window opened: read the newest screenshots again
     event capr_open ->             // one of its pictures was pressed (0 to 3)
+    event capr_clear ->            // the X beside RECENT: empty the strip (the files are left alone)
     event shot_done ->
     event shot_act ->                // one of its buttons: 0 open, 1 copy the text, 2 ask about the text, 3 delete
     event shot_close ->
@@ -1242,6 +1243,7 @@ scene Vitreus {
     shader paper = file "paper.wgsl"                    // the Paper theme's worn sheet: rubbed edges, fibres, specks
     shader halftone = file "halftone.wgsl"              // the UwU theme's pop-art dots and corner tape
     shader sky = file "sky.wgsl"                        // the calendar's weather card: the real sky outside, moving
+    shader cardmorph = file "cardmorph.wgsl"                // the card a Control Center tile grows into: a drop of liquid on its way, the plain card once still
     shader pencilhatch = file "pencilhatch.wgsl"            // the pencil shading inside the sliders (PSlider)
     //  The frosting behind the glass, as wide as the Glass page's blur slider says (`hy_blur`, 0 to 20; 0 is off): see blur.wgsl.
     blur = file "blur.wgsl" {
@@ -1271,6 +1273,8 @@ scene Vitreus {
     let sky.calm = lens.sky and cal_out < 0.005 and cal_inn < 0.005 and abs(vel(cal_bx)) < 0.02 and abs(vel(cal_by)) < 0.02 and cal_rip > 0.995 and wx_in > 0.995 and abs(vel(sk.cl)) < 0.01 and abs(vel(sk.dl)) < 0.01
     lens every if(lens.idle, max(lens_interval_ms, 2000), if(sky.calm, max(lens_interval_ms, 500), if(lens.sky, max(lens_interval_ms, 120), lens_interval_ms))) * 1ms
     spring dripl = 180, 16        // the drip down the left: settles in under half a second, still swinging about 10% past where it lands (the neck's stretch is scaled to match: `dj.stretch`)
+    spring tgrow = 150, 17        // a tile growing into its window, down: slower than the drip, and it lands a little past and comes back
+    spring tgx = 280, 26          // and across: quicker and almost without a bounce, so the card widens first and then pours down, as the drawers do
     spring drip = 235, 21         // underdamped: it overshoots and settles back, like a real drop landing
     spring pop = 415, 14         // snappier and much less damped: a toggle knob popping past where it lands
     spring slide = 304, 28        // the Caffeine thumb: quick, with only a hint of overshoot
@@ -1496,7 +1500,8 @@ scene Vitreus {
     prop osd_h = 64 ~calm         // the height of its plate: a notification is taller with text and buttons
     prop nt_ring = 1 ~510ms       // a ripple off the notification's tile: 0 born, 1 gone
     prop nt_sw = 1 ~2040ms        // the bell's swing when it arrives: 0 struck, 1 still (much slower than the ripple)
-    prop expand = 0 ~drip          // a tile growing into its own window, 0 tile .. 1 full window
+    prop tg_x = 0 ~tgx             // the same, across: the card is as wide as its window well before it is as tall
+    prop expand = 0 ~tgrow         // a tile growing into its own window, 0 tile .. 1 full window
     //  The music: fast, and a little loose, so the bar bounces on the beat.
     spring beat = 480, 15
     prop pulse = 0 ~beat
@@ -1549,6 +1554,7 @@ scene Vitreus {
         nt_sw: 1 ~2040ms after 450ms
     }
     follow expand = if(panel_sub != none, 1, 0)
+    follow tg_x = if(panel_sub != none, 1, 0)
     //  Which window to actually draw. It jumps to match `panel_sub` the moment
     //  that becomes something - opening one, or switching straight to the other
     //  - but not back to `none`: closing is `expand` fading the same window out,
@@ -5988,7 +5994,35 @@ scene Vitreus {
     let bat_rows = bat_n                 // (this computer's own battery is in the battery panel, from the bar's icon: pages/battery_card.plm)
     let bat_h = if(bat_rows > 0, 20 + 56 * bat_rows, 0)
     let sub_content = if(showing_sub == capview, if(rec_on, 142, 186) + if(capr_n > 0, 69, 0), if(showing_sub == powview, 151 + bat_h, max(sub_min, if(showing_sub == cafview, 38, if(showing_sub == notifview, 60, if(showing_sub == btview, 40, 0)) + list_view_h))))
-    let sub_bot = tiles_top + 54 + sub_content + 16
+    let sub_fit = 0.955                  // a tile's window is drawn this much smaller, about the middle of its card's top: 276 of content in a 288 card would touch its edge
+    let sub_bot = tiles_top + 54 + sub_content + 7
+    //  A tile GROWS into its window: the window's card starts as the pressed tile's own rectangle (`tg.x0`, `tg.t0`, `tg.h0`: its middle from the drawer's, its top and its
+    //  height, unscaled) and travels to the full card, across first (`tg_x`) and then down (`expand`), a little past and back. Its corners are rounder while it is on its
+    //  way, as a drop's are. What is in the window rides the card's top and middle, scaled to the card's width, comes up into place as it shows, and is cut to the card's
+    //  shape. The pressed tile's name and icon travel with it (`tg.go`); the rest stays where it is and fades.
+    let tg.e  = expand0
+    let tg.ex = max(0, tg_x)
+    let tg.x0 = if(showing_sub == powview, 97, if(showing_sub == netview or showing_sub == btview, -97, 0))
+    let tg.t0 = if(showing_sub == btview, tiles2_top, tiles_top + if(showing_sub == notifview, st_h + st_gap, if(showing_sub == capview or showing_sub == powview, 2 * (st_h + st_gap), 0)))
+    let tg.h0 = if(showing_sub == netview or showing_sub == btview, tiles_h, st_h)
+    let tg.mx = tg.x0 * (1 - tg.ex) * cu                          // how far the card's middle is from the drawer's
+    let tg.my = (tg.t0 - tiles_top) * (1 - tg.e) * cu             // how far its top is below where it ends up
+    let tg.w  = mix(94, 288, tg.ex) * cu
+    let tg.h  = mix(tg.h0, sub_bot - tiles_top, tg.e) * cu
+    let tg.cx = pcx + tg.mx
+    let tg.cy = tiles_top * cu + tg.my + tg.h / 2              // (from `ck`, which is named further down)
+    let tg.mv = clamp(4 * tg.e * (1 - tg.e), 0, 1)                // how much the card is on its way: 0 a tile, 1 halfway, 0 a window
+    let tg.r  = pr + 34 * cu * tg.mv                              // its corner: nearly a pill halfway
+    let tg.s  = sub_fit * mix(94, 288, tg.ex) / 288              // the content's size: as much smaller as the card is narrower, so it always fits across it
+    let tg.py = (tiles_top + 4) * cu                              // the content's pivot (with `pcx`)
+    let tg.in = clamp((tg.e - 0.4) / 0.5, 0, 1)                   // the content shows once the card has some room for it
+    let tg.ry = (1 - tg.in) * 16 * cu                             // and comes up into place as it does
+    let tg.out = clamp(1 - 2.5 * tg.e, 0, 1)                      // the tiles and sliders are gone before the card is over them
+    let tg.go = expand > 0.004                                    // on its way, or there: the pressed tile's name and icon are the travelling ones (pages/controls_drawer.plm)
+    let tg.big = if(showing_sub == netview or showing_sub == btview, 1, 0)       // the two tall tiles: a bigger name and icon, a little lower and higher
+    let tg.i  = if(showing_sub == netview, 0, if(showing_sub == btview, 1, if(showing_sub == notifview, 2, if(showing_sub == cafview, 3, if(showing_sub == capview, 4, 5)))))
+    let tg.ix = if(tg.big > 0, -23, if(showing_sub == cafview, -25, -27))        // the tile's icon, from the tile's middle
+    let tg.iy = if(tg.big > 0, -17, if(showing_sub == notifview, -15, -14))
     //  The output list drops over what is under the volume row; with more than a couple of outputs
     //  it reaches past the drawer, so the drawer grows to hold it while it is open.
     let dd.rows = clamp(outlist.count, 1, 6)

@@ -15,7 +15,7 @@ part ControlsDrawer {
 
         //  ONE card for the three sliders: a veil under all of them (the rows below draw only their own things). It grows at its foot for the mixer.
         group {
-            opacity: f6 * clamp(1 - expand0, 0, 1)
+            opacity: f6 * tg.out
             move: 0, (1 - f6) * 12 * cu
             let card_cy = ck + (bright_top + vp.h / 2) * cu
             //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
@@ -28,7 +28,7 @@ part ControlsDrawer {
 
         //  Brightness: a sun that opens its rays as the backlight climbs. Dimmed with no brightnessctl to move it; with no backlight at all the row is not there (`bri_cut`).
         group {
-            opacity: f6 * brightness.present * mix(0.45, 1, bright_avail) * clamp(1 - expand0, 0, 1)
+            opacity: f6 * brightness.present * mix(0.45, 1, bright_avail) * tg.out
             move: 0, (1 - f6) * 12 * cu
             let bcy = ck + (vol_top - 56 + 8 * dd_k) * cu
             //  Obsidian: the plate is a solid step lighter than the shell, with a small tight shadow under it, in place of the veil.
@@ -49,7 +49,7 @@ part ControlsDrawer {
 
         //  The microphone: the button that mutes it (red, with a slash, while it is muted) and a slider for how loud it listens.
         group {
-            opacity: f6 * clamp(1 - expand0, 0, 1)
+            opacity: f6 * tg.out
             move: 0, (1 - f6) * 12 * cu
             let micy = ck + (vol_top - 16 + 4 * dd_k) * cu
             let msl.x0 = pcx - 96 * cu
@@ -70,7 +70,7 @@ part ControlsDrawer {
 
         //  The volume: the speaker (the mute button), the slider, how loud; a chevron at the end opens the list of outputs, and the dots under it the mixer.
         group {
-            opacity: f5 * clamp(1 - expand0, 0, 1)
+            opacity: f5 * tg.out
             move: 0, (1 - f5) * 12 * cu
             let vol_cy = ck + (vol_top + 24) * cu
             //  The track runs from `sl.x0` for `sl.w`; the pointer is turned into a volume against those two numbers, so they are written once.
@@ -114,7 +114,7 @@ part ControlsDrawer {
         //  them). Right-click the card, or press its dots, to open it.
         group {
             show: vm > 0.01
-            opacity: f5 * clamp(1 - expand0, 0, 1) * clamp(vm, 0, 1) * (1 - clamp(dd * 2, 0, 1))
+            opacity: f5 * tg.out * clamp(vm, 0, 1) * (1 - clamp(dd * 2, 0, 1))
             let mix_top = ck + (vol_top + 42) * cu                   // under the slider, inside the card
             clip inset 0 box { at: pcx, mix_top + (mix.m - 12) * cu * clamp(vm, 0, 1) / 2; size: 288 * cu, (mix.m - 12) * cu * clamp(vm, 0, 1) }
             text "No app is playing sound" { at: floor(pcx + 0.5), floor(mix_top + 12 * cu + 0.5); anchor: center; align: center; size: 12.5; color: faint; family: "Space Grotesk"; show: mixer.count < 1 }
@@ -131,7 +131,7 @@ part ControlsDrawer {
         //  the tile - the toggle has its own small zone, declared after so it
         //  wins there - grows it into its own window, below.
         group {
-            opacity: f2 * clamp(1 - expand0, 0, 1)
+            opacity: f2 * tg.out
             move: 0, (1 - f2) * 12 * cu
             let tile_cy = ck + (tiles_top + tiles_h / 2) * cu
             let tile2_cy = ck + (tiles2_top + tiles_h / 2) * cu
@@ -150,8 +150,8 @@ part ControlsDrawer {
             box { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: pr; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
             box { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: pr; color: ink; opacity: (veil) * (1 - obs) }
             box { at: tb1 - 21 * cu, tile_cy; size: 94 * cu, tiles_h * cu; corner: pr; stroke: 1 * cu; color: ink; opacity: hair * (1 - dd_k) }
-            group { pivot: tb1 - 44 * cu, tile_cy - 17 * cu; scale: 1.2; PWifi(tb1 - 44 * cu, tile_cy - 17 * cu, max(if(on_wifi, 1, 0), wifi_tile_hit.hover), if(on_wifi, 45% + 55% * clamp(net.strength / 0.3, 0, 1), 30%) * (1 - wf_hold), if(on_wifi, 45% + 55% * clamp(net.strength / 0.65, 0, 1), 30%) * (1 - wf_hold), if(on_wifi, 45% + 55% * clamp(net.strength / 1.0, 0, 1), 30%) * (1 - wf_hold)) }
-            text "Wi-Fi" { at: floor(tb1 - 58 * cu + 0.5), floor(tile_cy + 8 * cu + 0.5); anchor: left center; size: 15; color: ink; family: "Space Grotesk" }
+            group { pivot: tb1 - 44 * cu, tile_cy - 17 * cu; scale: 1.2; show: not (showing_sub == netview and tg.go); PWifi(tb1 - 44 * cu, tile_cy - 17 * cu, max(if(on_wifi, 1, 0), wifi_tile_hit.hover), if(on_wifi, 45% + 55% * clamp(net.strength / 0.3, 0, 1), 30%) * (1 - wf_hold), if(on_wifi, 45% + 55% * clamp(net.strength / 0.65, 0, 1), 30%) * (1 - wf_hold), if(on_wifi, 45% + 55% * clamp(net.strength / 1.0, 0, 1), 30%) * (1 - wf_hold)) }
+            text "Wi-Fi" { show: not (showing_sub == netview and tg.go); at: floor(tb1 - 58 * cu + 0.5), floor(tile_cy + 8 * cu + 0.5); anchor: left center; size: 15; color: ink; family: "Space Grotesk" }
             text "{net.name} · {round(net.strength * 100)}%" { at: floor(tb1 - 58 * cu + 0.5), floor(tile_cy + 26 * cu + 0.5); anchor: left center; size: 13; width: 80 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: on_wifi }
             text "Disconnected" { at: floor(tb1 - 58 * cu + 0.5), floor(tile_cy + 26 * cu + 0.5); anchor: left center; size: 13; color: faint; family: "Space Grotesk"; show: net.wifi and not (on_wifi) }
             text "Off" { at: floor(tb1 - 58 * cu + 0.5), floor(tile_cy + 26 * cu + 0.5); anchor: left center; size: 13; color: faint; family: "Space Grotesk"; show: not net.wifi }
@@ -236,8 +236,8 @@ part ControlsDrawer {
             box { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: pr; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
             box { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: pr; color: ink; opacity: (veil) * (1 - obs) }
             box { at: tb1 - 21 * cu, tile2_cy; size: 94 * cu, tiles_h * cu; corner: pr; stroke: 1 * cu; color: ink; opacity: hair * (1 - dd_k) }
-            group { pivot: tb1 - 44 * cu, tile2_cy - 17 * cu; scale: 1.2; PBt(tb1 - 44 * cu, tile2_cy - 17 * cu, max(bt_on, bt_tile_hit.hover), 0.45 + 0.55 * bt_on) }
-            text "Bluetooth" { at: floor(tb1 - 58 * cu + 0.5), floor(tile2_cy + 8 * cu + 0.5); anchor: left center; size: 15; color: ink; family: "Space Grotesk" }
+            group { pivot: tb1 - 44 * cu, tile2_cy - 17 * cu; scale: 1.2; show: not (showing_sub == btview and tg.go); PBt(tb1 - 44 * cu, tile2_cy - 17 * cu, max(bt_on, bt_tile_hit.hover), 0.45 + 0.55 * bt_on) }
+            text "Bluetooth" { show: not (showing_sub == btview and tg.go); at: floor(tb1 - 58 * cu + 0.5), floor(tile2_cy + 8 * cu + 0.5); anchor: left center; size: 15; color: ink; family: "Space Grotesk" }
             text bt_name { at: floor(tb1 - 58 * cu + 0.5), floor(tile2_cy + 26 * cu + 0.5); anchor: left center; size: 13; width: 80 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: bt_connected }
             text "No device" { at: floor(tb1 - 58 * cu + 0.5), floor(tile2_cy + 26 * cu + 0.5); anchor: left center; size: 13; color: faint; family: "Space Grotesk"; show: bt.powered and not bt_connected }
             text "Off" { at: floor(tb1 - 58 * cu + 0.5), floor(tile2_cy + 26 * cu + 0.5); anchor: left center; size: 13; color: faint; family: "Space Grotesk"; show: not bt.powered }
@@ -308,8 +308,8 @@ part ControlsDrawer {
             box { at: tb2 - 21 * cu, s2_cy; size: 94 * cu, st_h * cu; corner: pr; color: ink; opacity: (veil + 6% * dnd_hit.hover) * (1 - obs) }
             box { at: tb2 - 21 * cu, s2_cy; size: 94 * cu, st_h * cu; corner: pr; stroke: 1 * cu; color: ink; opacity: hair * (1 - dd_k) }
             //  A bell: dome, rim and clapper, struck through while it is on.
-            PBell(tb2 - 48 * cu, s2_cy - 15 * cu, max(dnd_pill, dnd_hit.hover), 0.45 + 0.55 * dnd_pill, dnd_pill, dnd_wobble)
-            text "Notifications" { at: floor(tb2 - 58 * cu + 0.5), floor(s2_cy + 7 * cu + 0.5); anchor: left center; size: 13; width: 74 * cu; lines: 1; color: ink; family: "Space Grotesk" }
+            PBell(tb2 - 48 * cu, s2_cy - 15 * cu, max(dnd_pill, dnd_hit.hover), 0.45 + 0.55 * dnd_pill, dnd_pill, dnd_wobble) { show: not (showing_sub == notifview and tg.go) }
+            text "Notifications" { show: not (showing_sub == notifview and tg.go); at: floor(tb2 - 58 * cu + 0.5), floor(s2_cy + 7 * cu + 0.5); anchor: left center; size: 13; width: 74 * cu; lines: 1; color: ink; family: "Space Grotesk" }
             text nt_tile_sub { at: floor(tb2 - 58 * cu + 0.5), floor(s2_cy + 20 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: if(dnd_on, mint, faint); family: "Space Grotesk" }
             //  gdn: the pill, like the Wi-Fi one. `gdn_m` is how much it is moving (0 at rest, 1 half way).
             let gdn_m  = clamp(4 * dnd_pill * (1 - dnd_pill), 0, 1)
@@ -378,12 +378,12 @@ part ControlsDrawer {
                 box { at: tb2 - 21 * cu, s1_cy; size: 94 * cu, st_h * cu; corner: pr; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
                 box { at: tb2 - 21 * cu, s1_cy; size: 94 * cu, st_h * cu; corner: pr; color: ink; opacity: (veil + 6% * caf_hit.hover * caf_avail) * (1 - obs) }
                 box { at: tb2 - 21 * cu, s1_cy; size: 94 * cu, st_h * cu; corner: pr; stroke: 1 * cu; color: ink; opacity: hair * (1 - dd_k) }
-                PCup(tb2 - 46 * cu, s1_cy - 14 * cu, max(caf_pill, caf_hit.hover), 0.45 + 0.55 * caf_pill)
+                PCup(tb2 - 46 * cu, s1_cy - 14 * cu, max(caf_pill, caf_hit.hover), 0.45 + 0.55 * caf_pill) { show: not (showing_sub == cafview and tg.go) }
                 repeat i in 0..3 {
                     let sp = fract(time * 0.7 + i * 0.33)
                     box { at: tb2 - 52 * cu + i * 3.5 * cu, s1_cy - 21 * cu - sp * 6 * cu; size: 1.4 * cu, 5 * cu; corner: 0.7 * cu; color: ink; opacity: caf_pill * 55% * sin(sp * 180) }
                 }
-                text "Caffeine" { at: floor(tb2 - 58 * cu + 0.5), floor(s1_cy + 7 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
+                text "Caffeine" { show: not (showing_sub == cafview and tg.go); at: floor(tb2 - 58 * cu + 0.5), floor(s1_cy + 7 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
                 text "Awake" { at: floor(tb2 - 58 * cu + 0.5), floor(s1_cy + 20 * cu + 0.5); anchor: left center; size: 11.5; color: mint; opacity: 90%; family: "Space Grotesk"; show: caf_on and caf_len == 0 }
                 text caf_tile_sub { at: floor(tb2 - 58 * cu + 0.5), floor(s1_cy + 20 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: caf_on and caf_len > 0 }
                 text "Off" { at: floor(tb2 - 58 * cu + 0.5), floor(s1_cy + 20 * cu + 0.5); anchor: left center; size: 11.5; color: faint; family: "Space Grotesk"; show: not caf_on and caf_avail }
@@ -454,8 +454,8 @@ part ControlsDrawer {
             box { at: tb2 - 21 * cu, s3_cy; size: 94 * cu, st_h * cu; corner: pr; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
             box { at: tb2 - 21 * cu, s3_cy; size: 94 * cu, st_h * cu; corner: pr; color: ink; opacity: (veil + 6% * cap_hit.hover) * (1 - obs) }
             box { at: tb2 - 21 * cu, s3_cy; size: 94 * cu, st_h * cu; corner: pr; stroke: 1 * cu; color: ink; opacity: hair * (1 - dd_k) }
-            PCam(tb2 - 48 * cu, s3_cy - 14 * cu, max(rec_pill, cap_hit.hover), 0.45 + 0.55 * rec_pill)
-            text "Capture" { at: floor(tb2 - 58 * cu + 0.5), floor(s3_cy + 7 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
+            PCam(tb2 - 48 * cu, s3_cy - 14 * cu, max(rec_pill, cap_hit.hover), 0.45 + 0.55 * rec_pill) { show: not (showing_sub == capview and tg.go) }
+            text "Capture" { show: not (showing_sub == capview and tg.go); at: floor(tb2 - 58 * cu + 0.5), floor(s3_cy + 7 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
             text rec_time { at: floor(tb2 - 58 * cu + 0.5), floor(s3_cy + 20 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; family: "Space Grotesk"; show: rec_on }
             text "Shot · Record" { at: floor(tb2 - 58 * cu + 0.5), floor(s3_cy + 20 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: faint; family: "Space Grotesk"; show: not rec_on }
             //  The record button: a ring with a dot in it, which becomes a square (and beats) while it records.
@@ -473,8 +473,8 @@ part ControlsDrawer {
             box { at: tb3 - 21 * cu, s3_cy; size: 94 * cu, st_h * cu; corner: pr; color: ink; opacity: (veil + 6% * pow_hit.hover) * (1 - obs) }
             box { at: tb3 - 21 * cu, s3_cy; size: 94 * cu, st_h * cu; corner: pr; stroke: 1 * cu; color: ink; opacity: hair * (1 - dd_k) }
             //  A power symbol: a ring open at the top, and the bar through the gap.
-            PPower(tb3 - 48 * cu, s3_cy - 14 * cu, pow_hit.hover, 0.75)
-            text "Power" { at: floor(tb3 - 58 * cu + 0.5), floor(s3_cy + 7 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
+            PPower(tb3 - 48 * cu, s3_cy - 14 * cu, pow_hit.hover, 0.75) { show: not (showing_sub == powview and tg.go) }
+            text "Power" { show: not (showing_sub == powview and tg.go); at: floor(tb3 - 58 * cu + 0.5), floor(s3_cy + 7 * cu + 0.5); anchor: left center; size: 13; color: ink; family: "Space Grotesk" }
             text "Power saver" { at: floor(tb3 - 58 * cu + 0.5), floor(s3_cy + 20 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: pow_prof == 0 }
             text "Balanced" { at: floor(tb3 - 58 * cu + 0.5), floor(s3_cy + 20 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: pow_prof == 1 }
             text "Performance" { at: floor(tb3 - 58 * cu + 0.5), floor(s3_cy + 20 * cu + 0.5); anchor: left center; size: 11.5; width: 74 * cu; lines: 1; color: mint; opacity: 90%; family: "Space Grotesk"; show: pow_prof == 2 }
@@ -603,17 +603,71 @@ part ControlsDrawer {
             }
         }
 
+        //  ONE card under whichever window a tile has opened: the same darkened, edged plate as the cards it replaces. It grows out of the pressed tile's own rectangle (`tg.*`) to
+        //  the whole of the drawer's content, and shrinks back into it.
+        group {
+            show: showing_sub != none
+            opacity: clamp(tg.e * 6, 0, 1)
+            //  The glass card is drawn by cardmorph.wgsl: a drop of liquid while it is on its way (lobes that run round its edge, fuller below), the plain card once still.
+            //  Its box is the whole window's card and a margin, which holds the tile it starts from and the bounce past where it lands.
+            let cm_l = pcx - 176 * cu
+            let cm_t = ck + (tiles_top - 32) * cu
+            let cm_w = 352 * cu
+            let cm_h = (sub_bot - tiles_top + 64) * cu
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * cu * dd_k, ink; shadow: 0, 2 * cu, 7 * cu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: tg.cx, (ck + tg.cy); size: tg.w, tg.h; corner: tg.r } }
+            DdCard(tg.cx, (ck + tg.cy), tg.w, tg.h, 547.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, cu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            shader cardmorph { at: cm_l, cm_t; size: cm_w, cm_h; values: tg.cx - cm_l, ck + tg.cy - cm_t, tg.w / 2, tg.h / 2, tg.r, tg.mv, tg.e, 0; colors: obsidian, obsidian; opacity: card_fill * (1 - obs) }
+            shader cardmorph { at: cm_l, cm_t; size: cm_w, cm_h; values: tg.cx - cm_l, ck + tg.cy - cm_t, tg.w / 2, tg.h / 2, tg.r, tg.mv, tg.e, 0; colors: ink, ink; opacity: (veil) * (1 - obs) }
+            shader cardmorph { at: cm_l, cm_t; size: cm_w, cm_h; values: tg.cx - cm_l, ck + tg.cy - cm_t, tg.w / 2, tg.h / 2, tg.r, tg.mv, tg.e, 1; colors: ink, ink; opacity: hair * (1 - dd_k) }
+        }
+
+        //  What the pressed tile carries into its window: its NAME travels with the card from under the tile's icon to the window's title, growing into capitals on the way,
+        //  and its ICON goes to where the back arrow comes up, shrinking away as it gets there. The tile's own name and icon are not drawn meanwhile (`tg.go`), so there is
+        //  only ever one of each. This is the window's title from then on.
+        group {
+            show: showing_sub != none and tg.go
+            let tv_l = tg.cx - tg.w / 2                               // the card's left and top
+            let tv_t = ck + tiles_top * cu + tg.my
+            let tv_x = tv_l + mix(10, 46.6, tg.e) * cu                 // the name: 10 in from the tile's edge, then the title's place
+            let tv_y = tv_t + mix(tg.h0 / 2 + 7 + tg.big, 21.2, tg.e) * cu
+            let tv_k = clamp((tg.e - 0.1) / 0.5, 0, 1)
+            group {
+                pivot: tv_x, tv_y
+                scale: mix((13 + 2 * tg.big) / 17, sub_fit, tg.e)
+                text pick(tg.i, "Wi-Fi", "Bluetooth", "Notifications", "Caffeine", "Capture", "Power") { at: tv_x, tv_y; anchor: left center; size: 17; color: ink; opacity: 1 - tv_k; family: "Space Grotesk" }
+                text pick(tg.i, "WI-FI", "BLUETOOTH", "NOTIFICATIONS", "CAFFEINE", "CAPTURE", "POWER") { at: tv_x, tv_y; anchor: left center; size: 17; weight: 700; color: ink; opacity: tv_k; family: "Space Grotesk" }
+            }
+            //  the icon, drawn where the tile has it and moved from there: `tv_ix`, `tv_iy` are how far
+            let tv_ox = pcx + (tg.x0 + tg.ix) * cu
+            let tv_oy = ck + (tg.t0 + tg.h0 / 2 + tg.iy) * cu
+            let tv_ix = tv_l + mix(47 + tg.ix, 25.6, tg.e) * cu - tv_ox
+            let tv_iy = tv_t + mix(tg.h0 / 2 + tg.iy, 21.2, tg.e) * cu - tv_oy
+            group {
+                pivot: tv_ox, tv_oy
+                scale: mix(1 + 0.2 * tg.big, 0.5, clamp(tg.e, 0, 1))
+                move: tv_ix, tv_iy
+                opacity: 1 - clamp((tg.e - 0.3) / 0.45, 0, 1)
+                PWifi(tv_ox, tv_oy, 1, if(on_wifi, 45% + 55% * clamp(net.strength / 0.3, 0, 1), 30%), if(on_wifi, 45% + 55% * clamp(net.strength / 0.65, 0, 1), 30%), if(on_wifi, 45% + 55% * clamp(net.strength / 0.9, 0, 1), 30%)) { show: showing_sub == netview }
+                PBt(tv_ox, tv_oy, 1, 0.45 + 0.55 * bt_on) { show: showing_sub == btview }
+                PBell(tv_ox, tv_oy, 1, 0.45 + 0.55 * dnd_pill, dnd_pill, 0) { show: showing_sub == notifview }
+                PCup(tv_ox, tv_oy, 1, 0.45 + 0.55 * caf_pill) { show: showing_sub == cafview }
+                PCam(tv_ox, tv_oy, 1, 0.45 + 0.55 * rec_pill) { show: showing_sub == capview }
+                PPower(tv_ox, tv_oy, 1, 0.75) { show: showing_sub == powview }
+            }
+        }
+
         //  The Wi-Fi tile's own window: the networks in range, strongest first.
         //  A known or open one connects on a tap; a secured one not seen before
         //  asks for its password first.
         group {
             show: showing_sub == netview
-            opacity: expand0
+            opacity: tg.in
+            pivot: pcx, (ck + tg.py); scale: tg.s; move: tg.mx, tg.my + tg.ry      // inset from the master card's edge, and riding it while it grows out of the tile
+            clip inset 0 box { at: pcx, (ck + tg.py) + ((ck + tg.cy) - tg.my - tg.ry - (ck + tg.py)) / tg.s; size: tg.w / tg.s, tg.h / tg.s; corner: tg.r / tg.s }
             let ex_top = ck + tiles_top * cu
             let ex_cy = ex_top + 22 * cu
             path { at: pcx - 124 * cu, ex_cy; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * wifi_back.hover; move 4 * cu, -6 * cu; line -4 * cu, 0; line 4 * cu, 6 * cu }
             on press wifi_back { panel_sub = none }
-            text "WI-FI" { at: floor(pcx - 102 * cu + 0.5), floor(ex_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
             //  Enter in the password field of the open row joins like its button does.
             on submit wifi_pw while wifi_open_row >= 0 { emit wifi_join_go(wifi_open_row) }
             box { at: pcx, ex_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
@@ -635,12 +689,13 @@ part ControlsDrawer {
         //  The Bluetooth tile's own window: paired and nearby devices, connected first.
         group {
             show: showing_sub == btview
-            opacity: expand0
+            opacity: tg.in
+            pivot: pcx, (ck + tg.py); scale: tg.s; move: tg.mx, tg.my + tg.ry      // inset from the master card's edge, and riding it while it grows out of the tile
+            clip inset 0 box { at: pcx, (ck + tg.py) + ((ck + tg.cy) - tg.my - tg.ry - (ck + tg.py)) / tg.s; size: tg.w / tg.s, tg.h / tg.s; corner: tg.r / tg.s }
             let ex2_top = ck + tiles_top * cu
             let ex2_cy = ex2_top + 22 * cu
             path { at: pcx - 124 * cu, ex2_cy; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * bt_back.hover; move 4 * cu, -6 * cu; line -4 * cu, 0; line 4 * cu, 6 * cu }
             on press bt_back { panel_sub = none }
-            text "BLUETOOTH" { at: floor(pcx - 102 * cu + 0.5), floor(ex2_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
             //  Enter in the name field of the open device renames it like its button does.
             on submit bt_rename while bt_open_row >= 0 { emit bt_rename_go }
             box { at: pcx, ex2_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
@@ -675,13 +730,14 @@ part ControlsDrawer {
         //  the history of what came in, newest first. Clear empties it; a row's cross removes that one.
         group {
             show: showing_sub == notifview
-            opacity: expand0
+            opacity: tg.in
+            pivot: pcx, (ck + tg.py); scale: tg.s; move: tg.mx, tg.my + tg.ry      // inset from the master card's edge, and riding it while it grows out of the tile
+            clip inset 0 box { at: pcx, (ck + tg.py) + ((ck + tg.cy) - tg.my - tg.ry - (ck + tg.py)) / tg.s; size: tg.w / tg.s, tg.h / tg.s; corner: tg.r / tg.s }
             let nx_top = ck + tiles_top * cu
             let nx_cy = nx_top + 22 * cu
             path { at: pcx - 124 * cu, nx_cy; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * nt_back.hover; move 4 * cu, -6 * cu; line -4 * cu, 0; line 4 * cu, 6 * cu }
             zone box nt_back { at: pcx - 124 * cu, nx_cy; size: 30 * cu, 30 * cu; cursor: pointer }
             on press nt_back { panel_sub = none }
-            text "NOTIFICATIONS" { at: floor(pcx - 102 * cu + 0.5), floor(nx_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
             //  An envelope beside the title: sealed when there is nothing (or while Do Not Disturb is on), open with a letter coming up out of it
             //  and the count when there is history, and it hops when something comes in.
             PEnvelope(pcx + 0 * cu, nx_cy + 5.5 * cu * env_o - 3 * cu * env_pop, (0.8 + 0.12 * env_pop) * cu, env_o, 1, 55% + 45% * clamp(env_o + env_pop, 0, 1))
@@ -790,13 +846,14 @@ part ControlsDrawer {
         //  machine awake for that long and then lets it sleep again; the lit one, pressed again, turns it off.
         group {
             show: showing_sub == cafview
-            opacity: expand0
+            opacity: tg.in
+            pivot: pcx, (ck + tg.py); scale: tg.s; move: tg.mx, tg.my + tg.ry      // inset from the master card's edge, and riding it while it grows out of the tile
+            clip inset 0 box { at: pcx, (ck + tg.py) + ((ck + tg.cy) - tg.my - tg.ry - (ck + tg.py)) / tg.s; size: tg.w / tg.s, tg.h / tg.s; corner: tg.r / tg.s }
             let kx_top = ck + tiles_top * cu
             let kx_cy = kx_top + 22 * cu
             path { at: pcx - 124 * cu, kx_cy; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * caf_back.hover; move 4 * cu, -6 * cu; line -4 * cu, 0; line 4 * cu, 6 * cu }
             zone box caf_back { at: pcx - 124 * cu, kx_cy; size: 30 * cu, 30 * cu; cursor: pointer }
             on press caf_back { panel_sub = none }
-            text "CAFFEINE" { at: floor(pcx - 102 * cu + 0.5), floor(kx_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
             box { at: pcx, kx_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
 
             //  The hero: a cup that steams inside a ring. The ring is the timer: what is left of it, with a bright head, or a full one that
@@ -896,13 +953,14 @@ part ControlsDrawer {
         //  a screen recording (kept in ~/Videos), with a Stop while one is running. Big tiles with an icon each.
         group {
             show: showing_sub == capview
-            opacity: expand0
+            opacity: tg.in
+            pivot: pcx, (ck + tg.py); scale: tg.s; move: tg.mx, tg.my + tg.ry      // inset from the master card's edge, and riding it while it grows out of the tile
+            clip inset 0 box { at: pcx, (ck + tg.py) + ((ck + tg.cy) - tg.my - tg.ry - (ck + tg.py)) / tg.s; size: tg.w / tg.s, tg.h / tg.s; corner: tg.r / tg.s }
             let qx_top = ck + tiles_top * cu
             let qx_cy = qx_top + 22 * cu
             path { at: pcx - 124 * cu, qx_cy; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * qx_back.hover; move 4 * cu, -6 * cu; line -4 * cu, 0; line 4 * cu, 6 * cu }
             zone box qx_back { at: pcx - 124 * cu, qx_cy; size: 30 * cu, 30 * cu; cursor: pointer }
             on press qx_back { panel_sub = none }
-            text "CAPTURE" { at: floor(pcx - 102 * cu + 0.5), floor(qx_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
             box { at: pcx, qx_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
             //  the hairline between the picture options and the video ones
             box { at: pcx, qx_top + 126 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
@@ -940,6 +998,11 @@ part ControlsDrawer {
                 let rb = qx_top + if(rec_on, 200, 244) * cu
                 box { at: pcx, rb; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
                 text "RECENT" { at: floor(pcx - 138 * cu + 0.5), floor(rb + 14 * cu + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
+                //  An X at the end of the row empties the strip (the pictures stay in their folder): it fills again with the next shot.
+                ellipse { at: pcx + 129 * cu, rb + 10.5 * cu; radius: 8 * cu; color: ink; opacity: 0.07 + 0.1 * capr_x.hover }
+                group { scale: cu; pivot: floor(pcx + 129 * cu + 0.5), floor(rb + 11.5 * cu + 0.5); GClose(floor(pcx + 129 * cu + 0.5), floor(rb + 11.5 * cu + 0.5), 10.5 / 24, ink, 1, 0) }
+                zone ellipse capr_x { at: pcx + 129 * cu, rb + 10.5 * cu; radius: 10 * cu; cursor: pointer; label: "Clear recent screenshots" }
+                on press capr_x { emit capr_clear }
                 repeat k in 0..4 {
                     let tcx = pcx - 106.5 * cu + 71 * k * cu
                     let tcy = rb + 40 * cu
@@ -974,13 +1037,14 @@ part ControlsDrawer {
         //  spring that overshoots, to the one in use.
         group {
             show: showing_sub == powview
-            opacity: expand0
+            opacity: tg.in
+            pivot: pcx, (ck + tg.py); scale: tg.s; move: tg.mx, tg.my + tg.ry      // inset from the master card's edge, and riding it while it grows out of the tile
+            clip inset 0 box { at: pcx, (ck + tg.py) + ((ck + tg.cy) - tg.my - tg.ry - (ck + tg.py)) / tg.s; size: tg.w / tg.s, tg.h / tg.s; corner: tg.r / tg.s }
             let px_top = ck + tiles_top * cu
             let px_cy = px_top + 22 * cu
             path { at: pcx - 124 * cu, px_cy; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * px_back.hover; move 4 * cu, -6 * cu; line -4 * cu, 0; line 4 * cu, 6 * cu }
             zone box px_back { at: pcx - 124 * cu, px_cy; size: 30 * cu, 30 * cu; cursor: pointer }
             on press px_back { panel_sub = none }
-            text "POWER" { at: floor(pcx - 102 * cu + 0.5), floor(px_cy + 0.5); anchor: left center; size: 17; weight: 700; color: ink; family: "Space Grotesk" }
             box { at: pcx, px_top + 44 * cu; size: 276 * cu, 1 * cu; color: ink; opacity: 8% }
             text "SESSION" { at: floor(pcx - 138 * cu + 0.5), floor(px_top + 62 * cu + 0.5); anchor: left center; size: 11; weight: 700; color: faint; family: "Space Grotesk" }
             // A click does nothing here: each button acts once it has been held for a second (people clicked and thought it broken, issue #57).
