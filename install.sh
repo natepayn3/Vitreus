@@ -767,15 +767,24 @@ LIST
             # pleamar's installer brings the window manager (pleamar-wm) and Marea too unless told --alone: ask first.
             pleamar_args=""
             if $do_wm && ! ask "install pleamar-wm, the window manager, as well? (otherwise only pleamar, for Hyprland and other compositors)"; then
-                pleamar_args="-s -- --alone"
+                pleamar_args="--alone"
                 do_wm=false
             fi
             if $dry; then
-                would "run: curl -fsSL $pleamar_installer | sh $pleamar_args"
+                would "fetch $pleamar_installer and run it: sh install.sh $pleamar_args"
             else
                 have curl || fail "curl is needed to fetch pleamar's installer"
+                # Fetched to a file and run with the keyboard as its input, not piped into sh: on a pipe pleamar's installer cannot ask,
+                # so where its build packages (rust, clang...) are missing it only prints the command for them and stops.
+                pleamar_sh=$(mktemp) || fail "no temporary file for pleamar's installer"
+                curl -fsSL "$pleamar_installer" -o "$pleamar_sh" || { rm -f "$pleamar_sh"; fail "pleamar's installer could not be fetched from $pleamar_installer"; }
                 # shellcheck disable=SC2086
-                curl -fsSL "$pleamar_installer" | sh $pleamar_args || fail "pleamar's installer failed (see above); Vitreus needs it"
+                pleamar_rc=0
+                if tty_ok; then sh "$pleamar_sh" $pleamar_args < /dev/tty || pleamar_rc=$?
+                else sh "$pleamar_sh" $pleamar_args < /dev/null || pleamar_rc=$?
+                fi
+                rm -f "$pleamar_sh"
+                [ "$pleamar_rc" -eq 0 ] || fail "pleamar's installer failed (see above); Vitreus needs it"
                 pv=$( { pleamar --version 2> /dev/null || "$HOME/.local/bin/pleamar" --version 2> /dev/null; } | sed -n 's/^pleamar \([0-9][0-9.]*\).*/\1/p' | head -1)
                 if [ -n "$pv" ]; then say "pleamar is installed now ($pv)"
                 else warn "pleamar's installer ended, but no pleamar answers: check that ~/.local/bin is in your PATH"
