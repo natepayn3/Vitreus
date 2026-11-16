@@ -35,7 +35,8 @@
 #   6c. niri                        (config.kdl includes vitreus.kdl, the room round the windows the shell writes, and niri_vitreus.kdl, its key binds; with niri installed)
 #   7. pleamar-wm, as a session       (pleamar-wm/: its keys, window scene, hyprctl shim, and, with sudo,
 #                                      its entry in the login screen; only if pleamar-wm is installed)
-#   8. the login screen               (sddm/: the lock screen's look as an SDDM theme, with sudo, asked for; where SDDM already has a theme it asks
+#   8. the login screen               (SDDM itself, installed and enabled where the machine has no display manager; and sddm/: the lock screen's
+#                                      look as an SDDM theme, with sudo, asked for; where SDDM already has a theme it asks
 #                                      before it is replaced. ./sddm/install.sh [IMAGE] does it again with another picture)
 #
 #   9. the terminal                   (terminal/: Ghostty in the Vitreus look, Space Mono, frosted, a cursor trail, by one config-file line in ~/.config/ghostty/config;
@@ -539,6 +540,15 @@ if [ "$action" = install ] && ! $force && ! $refresh && ! { [ -f "$autostart" ] 
             fi
         fi
     fi
+fi
+
+# SDDM, the login screen, goes in with the packages where the machine has no display manager at all (a fresh install): one that is
+# there (GDM, greetd, ly...) is the person's choice and is left alone, as is a machine that logs in on a TTY when told --no-login.
+want_sddm=false
+if $do_login && ! $refresh && ! command -v sddm > /dev/null 2>&1 && [ ! -e /etc/systemd/system/display-manager.service ] && [ ! -L /etc/systemd/system/display-manager.service ]; then
+    want_sddm=true
+    pacman_pkgs="$pacman_pkgs sddm"
+    apt_pkgs="$apt_pkgs sddm"
 fi
 
 # ── 1. packages ────────────────────────────────────────────────────────────
@@ -1377,6 +1387,19 @@ if $do_login && ! $refresh && [ -x "$dest/sddm/install.sh" ] && { have sddm || [
         if $assume_yes; then login_flags="--yes"; else login_flags=""; fi
         run_kept sh "$dest/sddm/install.sh" $login_flags || warn "could not: run  sh $dest/sddm/install.sh  yourself"
     fi
+fi
+# SDDM is turned on for the next boot where no display manager is (it is not started now: that would take the screen from this session).
+# Another one that is enabled is left as it is.
+if $do_login && ! $refresh && have sddm && have systemctl; then
+    if systemctl is-enabled --quiet sddm 2> /dev/null; then
+        say "SDDM is enabled: the machine starts at the login screen"
+    elif [ -e /etc/systemd/system/display-manager.service ] || [ -L /etc/systemd/system/display-manager.service ]; then
+        say "another display manager is enabled ($(basename "$(readlink /etc/systemd/system/display-manager.service 2> /dev/null)" .service)), so SDDM is left off: sudo systemctl enable --force sddm  switches to it"
+    elif ask "enable SDDM, so the machine starts at the login screen (needs sudo)?"; then
+        run sudo systemctl enable sddm && { $dry || say "SDDM is enabled: it shows from the next boot"; } || warn "could not: run  sudo systemctl enable sddm  yourself"
+    fi
+elif $want_sddm && ! have sddm && ! $dry; then
+    warn "SDDM was not installed, so there is no login screen: install the sddm package, then run this again"
 fi
 
 # ── the terminal ───────────────────────────────────────────────────────────
