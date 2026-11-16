@@ -798,7 +798,8 @@ LIST
     # ── 3. the font ──
     # (Settings > About runs this with --refresh, which downloads what a theme draws in without asking: a theme added by an update has its typeface.)
     stage "the fonts"
-    ask_font() { $refresh && return 0; ask "$1"; }
+    # The fonts are not asked for: they go into your home without sudo, and a theme without its typeface draws in the wrong one. (--no-deps skips them.)
+    ask_font() { return 0; }
     if $deps; then
     if have fc-list && fc-list 2> /dev/null | grep -qi 'space grotesk'; then
         say "the Space Grotesk font is installed"
