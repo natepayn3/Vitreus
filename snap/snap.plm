@@ -86,7 +86,7 @@ scene Snap {
     event do_save ->
     event do_quit ->
 
-    fact tool = 1          // 0 select, 1 move the area, 2 pen, 3 arrow, 4 rectangle, 5 ellipse, 6 text, 7 marker, 8 redact, 9 highlighter, 10 eraser
+    fact tool = 1          // 0 select, 1 move the area, 2 pen, 3 arrow, 4 rectangle, 5 ellipse, 6 text, 7 marker, 8 redact, 9 highlighter, 10 eraser, 11 colour picker
     fact col = 0           // which of the nine colours (red, orange, yellow, green, blue, indigo, violet, white, black)
     fact sz = 1            // the stroke size: 0 thin, 1 medium, 2 thick (each tool turns it into its own width, see snap.luau)
 
@@ -145,6 +145,13 @@ scene Snap {
     event do_ocr_copy ->
     event do_hide ->
     event do_redo ->
+    //  The colour picker (tool 11): the logic reads the picture's own pixels round the pointer (`px`, `py`, sent as it moves) into `loupe`, 11 by 11,
+    //  the middle one being `hex`; a click copies `hex`. `a` is 0 for a cell off the picture.
+    model loupe max 121 { r: number; g: number; b: number; a: number }
+    text hex = ""
+    fact hex_ok = false
+    event pick_at ->
+    event pick_copy ->
 
     spring pop = 318, 20
     prop toast_k = 0 ~pop
@@ -176,7 +183,7 @@ scene Snap {
     //  One grid for the whole bar: the icon buttons 40 apart (the tools, undo and redo, drag, text, private), the colours 26 apart, each hairline
     //  24 from what is either side of it, and the same 7 px round the ends (a bead's edge to the bar's). `tl` is the first tool's middle, `abx`
     //  the hairline before undo; everything after it is measured from there.
-    let bw_ = 1178
+    let bw_ = 1218
     let tbx = clamp(sx + sw / 2 - bw_ / 2, 16, max(16, W - bw_ - 16))
     let ears_ = if(look == 2, 16, 0)
     let below_ = sy + sh + 22 + ears_
@@ -184,14 +191,14 @@ scene Snap {
     let tby = if(below_ + 52 + 34 <= H, below_, if(above_ >= 8 + ears_ * 2, above_, H - 52 - 50))
     let tl = tbx + 26
     let ty = tby + 26
-    let abx = tbx + 754
+    let abx = tbx + 794
 
     let cyc = if(sy > 40, sy - 34, sy + 8)
     follow pv = if(phase == 2, 1, 0)
     follow ti = tool
     follow ci = col
     let hx = tl + ti * 40
-    let cx_ = tbx + 474 + ci * 26
+    let cx_ = tbx + 514 + ci * 26
 
     //  A tooltip over a button of the bar: its words in a small chip, in the look's material. `w` is worked out from the words' length (and the
     //  look's typeface, some of which run wide); `x` is the button's middle.
@@ -407,7 +414,7 @@ scene Snap {
     on drag zmove while selm >= 0 { mvx = drag.dx; mvy = drag.dy }
     on release zmove while selm >= 0 { emit sel_move }
     //  The other tools. The pen and the highlighter send each point to the logic; a shape is dragged out here and only sent when it is let go.
-    zone box zdraw { from: sx + 6, sy + 6; size: max(1, sw - 12), max(1, sh - 12); cursor: crosshair; active: phase == 2 and tool >= 2; label: "Draw" }
+    zone box zdraw { from: sx + 6, sy + 6; size: max(1, sw - 12), max(1, sh - 12); cursor: crosshair; active: phase == 2 and tool >= 2 and tool <= 10; label: "Draw" }
     on press zdraw while tool == 2 or tool == 9 { px = pointer.x; py = pointer.y; emit pen_down }
     on drag zdraw while tool == 2 or tool == 9 { px = pointer.x; py = pointer.y; emit pen_pt }
     on release zdraw while tool == 2 or tool == 9 { emit pen_up }
@@ -485,6 +492,13 @@ scene Snap {
         sy = by
         sh = bh
     }
+
+    //  ── The colour picker ─────────────────────────────────────────────────────────────────────────────────────
+    //  Over the whole picture, not just the selection, and over the handles too (the bar, declared later, still wins). Each pixel the pointer
+    //  crosses is sent to the logic, which reads the picture there; a click copies the colour as #rrggbb.
+    zone box zpk { from: ix0, iy0; size: max(1, ix1 - ix0), max(1, iy1 - iy0); cursor: crosshair; active: phase == 2 and tool == 11; label: "Pick a colour" }
+    on change floor(cursor.x) * 16384 + floor(cursor.y) while phase == 2 and tool == 11 { px = cursor.x; py = cursor.y; scrw = W; emit pick_at }
+    on press zpk { px = pointer.x; py = pointer.y; scrw = W; emit pick_copy }
 
     //  The size, in a small chip over the top left corner
     body {
@@ -635,6 +649,10 @@ scene Snap {
         //  10 eraser
         box { at: tl + 10 * 40, ty; size: 9, 20; corner: 3; rotate: 40deg; color: mix(ink, onmint, tool == 10) }
         box { at: tl + 10 * 40 + 5, ty + 8; size: 14, 3; corner: 1; color: mix(ink, onmint, tool == 10); opacity: 70% }
+        //  11 colour picker: a pipette, its bulb up and to the right, a drop at its tip
+        path { at: tl + 11 * 40, ty; stroke: 2.4; color: mix(ink, onmint, tool == 11); move -8, 8; line 3, -3 }
+        box { at: tl + 11 * 40 + 5, ty - 5; size: 7, 11; corner: 3; rotate: 45deg; color: mix(ink, onmint, tool == 11) }
+        box { at: tl + 11 * 40 + 1.5, ty - 1.5; size: 12, 2.4; corner: 1.2; rotate: -45deg; color: mix(ink, onmint, tool == 11) }
 
         zone box tz0 { at: tl + 0 * 40, ty; size: 38, 38; corner: 13; cursor: pointer; label: "Select" }
         zone box tz1 { at: tl + 1 * 40, ty; size: 38, 38; corner: 13; cursor: pointer; label: "Move the area" }
@@ -647,6 +665,7 @@ scene Snap {
         zone box tz8 { at: tl + 8 * 40, ty; size: 38, 38; corner: 13; cursor: pointer; label: "Redact" }
         zone box tz9 { at: tl + 9 * 40, ty; size: 38, 38; corner: 13; cursor: pointer; label: "Highlighter" }
         zone box tz10 { at: tl + 10 * 40, ty; size: 38, 38; corner: 13; cursor: pointer; label: "Eraser" }
+        zone box tz11 { at: tl + 11 * 40, ty; size: 38, 38; corner: 13; cursor: pointer; label: "Colour picker" }
         on press tz0 { tool = 0 }
         on press tz1 { tool = 1 }
         on press tz2 { tool = 2 }
@@ -658,31 +677,32 @@ scene Snap {
         on press tz8 { tool = 8 }
         on press tz9 { tool = 9 }
         on press tz10 { tool = 10 }
+        on press tz11 { tool = 11 }
 
         //  a hairline between the tools and the colours
-        box { at: tbx + 450, ty; size: 1, 24; color: ink; opacity: 22% }
+        box { at: tbx + 490, ty; size: 1, 24; color: ink; opacity: 22% }
 
         //  the nine colours (the rainbow from red to violet, then white and black), with a ring that slides to the one picked
         ellipse { at: cx_, ty; radius: 12; stroke: 2; color: ink }
-        ellipse { at: tbx + 474 + 0 * 26, ty; radius: 8; color: #ff5c5c }
-        ellipse { at: tbx + 474 + 1 * 26, ty; radius: 8; color: #ff9f45 }
-        ellipse { at: tbx + 474 + 2 * 26, ty; radius: 8; color: #ffd93d }
-        ellipse { at: tbx + 474 + 3 * 26, ty; radius: 8; color: #5fd068 }
-        ellipse { at: tbx + 474 + 4 * 26, ty; radius: 8; color: #3fa9ff }
-        ellipse { at: tbx + 474 + 5 * 26, ty; radius: 8; color: #5b5bf0 }
-        ellipse { at: tbx + 474 + 6 * 26, ty; radius: 8; color: #b66cff }
-        ellipse { at: tbx + 474 + 7 * 26, ty; radius: 8; color: #ffffff }
-        ellipse { at: tbx + 474 + 8 * 26, ty; radius: 8; color: #000000 }
-        ellipse { at: tbx + 474 + 8 * 26, ty; radius: 8; stroke: 1; color: #ffffff; opacity: 35% }
-        zone box cz0 { at: tbx + 474 + 0 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Red" }
-        zone box cz1 { at: tbx + 474 + 1 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Orange" }
-        zone box cz2 { at: tbx + 474 + 2 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Yellow" }
-        zone box cz3 { at: tbx + 474 + 3 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Green" }
-        zone box cz4 { at: tbx + 474 + 4 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Blue" }
-        zone box cz5 { at: tbx + 474 + 5 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Indigo" }
-        zone box cz6 { at: tbx + 474 + 6 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Violet" }
-        zone box cz7 { at: tbx + 474 + 7 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "White" }
-        zone box cz8 { at: tbx + 474 + 8 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Black" }
+        ellipse { at: tbx + 514 + 0 * 26, ty; radius: 8; color: #ff5c5c }
+        ellipse { at: tbx + 514 + 1 * 26, ty; radius: 8; color: #ff9f45 }
+        ellipse { at: tbx + 514 + 2 * 26, ty; radius: 8; color: #ffd93d }
+        ellipse { at: tbx + 514 + 3 * 26, ty; radius: 8; color: #5fd068 }
+        ellipse { at: tbx + 514 + 4 * 26, ty; radius: 8; color: #3fa9ff }
+        ellipse { at: tbx + 514 + 5 * 26, ty; radius: 8; color: #5b5bf0 }
+        ellipse { at: tbx + 514 + 6 * 26, ty; radius: 8; color: #b66cff }
+        ellipse { at: tbx + 514 + 7 * 26, ty; radius: 8; color: #ffffff }
+        ellipse { at: tbx + 514 + 8 * 26, ty; radius: 8; color: #000000 }
+        ellipse { at: tbx + 514 + 8 * 26, ty; radius: 8; stroke: 1; color: #ffffff; opacity: 35% }
+        zone box cz0 { at: tbx + 514 + 0 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Red" }
+        zone box cz1 { at: tbx + 514 + 1 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Orange" }
+        zone box cz2 { at: tbx + 514 + 2 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Yellow" }
+        zone box cz3 { at: tbx + 514 + 3 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Green" }
+        zone box cz4 { at: tbx + 514 + 4 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Blue" }
+        zone box cz5 { at: tbx + 514 + 5 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Indigo" }
+        zone box cz6 { at: tbx + 514 + 6 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Violet" }
+        zone box cz7 { at: tbx + 514 + 7 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "White" }
+        zone box cz8 { at: tbx + 514 + 8 * 26, ty; size: 24, 24; corner: 12; cursor: pointer; label: "Black" }
         on press cz0 { col = 0 }
         on press cz1 { col = 1 }
         on press cz2 { col = 2 }
@@ -693,12 +713,12 @@ scene Snap {
         on press cz7 { col = 7 }
         on press cz8 { col = 8 }
 
-        box { at: tbx + 706, ty; size: 1, 24; color: ink; opacity: 22% }
+        box { at: tbx + 746, ty; size: 1, 24; color: ink; opacity: 22% }
 
         //  the stroke size: a dot as thick as the line will be
-        ellipse { at: tbx + 730, ty; radius: pick(sz, 2.5, 4, 6); color: ink }
-        ellipse { at: tbx + 730, ty; radius: 11; stroke: 1.2; color: ink; opacity: 35% }
-        zone box zsz { at: tbx + 730, ty; size: 30, 30; corner: 15; cursor: pointer; label: "Stroke size" }
+        ellipse { at: tbx + 770, ty; radius: pick(sz, 2.5, 4, 6); color: ink }
+        ellipse { at: tbx + 770, ty; radius: 11; stroke: 1.2; color: ink; opacity: 35% }
+        zone box zsz { at: tbx + 770, ty; size: 30, 30; corner: 15; cursor: pointer; label: "Stroke size" }
         on press zsz { sz = mod(sz + 1, 3) }
 
         //  ── The actions pill ─────────────────────────────────────────────────────────────────────────────────────────
@@ -794,6 +814,9 @@ scene Snap {
         on hover tz10 for 400ms { tip = 11 }
         on leave tz10 { tip = 0 }
         on press tz10 { tip = 0 }
+        on hover tz11 for 400ms { tip = 29 }
+        on leave tz11 { tip = 0 }
+        on press tz11 { tip = 0 }
         on hover cz0 for 400ms { tip = 12 }
         on leave cz0 { tip = 0 }
         on press cz0 { tip = 0 }
@@ -856,16 +879,17 @@ scene Snap {
         Tip(9, tl + 8 * 40, tipy, 124, "Redact an area")
         Tip(10, tl + 9 * 40, tipy, 109, "Highlighter")
         Tip(11, tl + 10 * 40, tipy, 72, "Eraser")
-        Tip(12, tbx + 474 + 0 * 26, tipy, 50, "Red")
-        Tip(13, tbx + 474 + 1 * 26, tipy, 80, "Orange")
-        Tip(14, tbx + 474 + 2 * 26, tipy, 80, "Yellow")
-        Tip(15, tbx + 474 + 3 * 26, tipy, 80, "Green")
-        Tip(16, tbx + 474 + 4 * 26, tipy, 65, "Blue")
-        Tip(17, tbx + 474 + 5 * 26, tipy, 80, "Indigo")
-        Tip(18, tbx + 474 + 6 * 26, tipy, 80, "Violet")
-        Tip(19, tbx + 474 + 7 * 26, tipy, 65, "White")
-        Tip(20, tbx + 474 + 8 * 26, tipy, 65, "Black")
-        Tip(21, tbx + 730, tipy, 109, "Stroke size")
+        Tip(29, tl + 11 * 40, tipy, 120, "Colour picker")
+        Tip(12, tbx + 514 + 0 * 26, tipy, 50, "Red")
+        Tip(13, tbx + 514 + 1 * 26, tipy, 80, "Orange")
+        Tip(14, tbx + 514 + 2 * 26, tipy, 80, "Yellow")
+        Tip(15, tbx + 514 + 3 * 26, tipy, 80, "Green")
+        Tip(16, tbx + 514 + 4 * 26, tipy, 65, "Blue")
+        Tip(17, tbx + 514 + 5 * 26, tipy, 80, "Indigo")
+        Tip(18, tbx + 514 + 6 * 26, tipy, 80, "Violet")
+        Tip(19, tbx + 514 + 7 * 26, tipy, 65, "White")
+        Tip(20, tbx + 514 + 8 * 26, tipy, 65, "Black")
+        Tip(21, tbx + 770, tipy, 109, "Stroke size")
         Tip(22, abx + 24, tipy, 117, "Undo  Ctrl+Z")
         Tip(23, abx + 64, tipy, 161, "Redo  Ctrl+Shift+Z")
         Tip(24, abx + 112, tipy, 154, "Drag into any app")
@@ -895,6 +919,30 @@ scene Snap {
 
         //  a small hint of the keys, under the pills
         text "Enter  copy      Ctrl+S  save      Ctrl+Z  undo      Esc  close" { at: tbx + bw_ / 2, tby + 52 + 14 + if(look == 1 or look == 2 or look == 4, 6, 0); anchor: center; size: 12; color: if(look == 1 or look == 2 or look == 4, tint, ink); opacity: if(look == 1 or look == 2 or look == 4, 85%, 62%); family: "Space Grotesk" }
+    }
+
+    //  The colour picker's loupe: the 11 × 11 pixels round the pointer, 11 px each, the middle one outlined, and its #rrggbb with a swatch under
+    //  them. Down and to the right of the pointer, or on the other side where that would leave the screen. Not over the bar.
+    let lpx = if(cursor.x + 24 + 121 > W, cursor.x - 24 - 121, cursor.x + 24)
+    let lpy = if(cursor.y + 24 + 121 + 40 > H, cursor.y - 24 - 121 - 40, cursor.y + 24)
+    group {
+        show: phase == 2 and tool == 11 and hex_ok and zpk.hover > 0.5
+        box { from: lpx - 4, lpy - 4; size: 129, 129 + 38; corner: pick(look, 12, 4, 12, 3, 4); color: #101417; opacity: 92% }
+        box { from: lpx - 4, lpy - 4; size: 129, 129 + 38; corner: pick(look, 12, 4, 12, 3, 4); stroke: pick(look, 1.4, 1.7, 2.5, 1.2, 2); color: pick(look, ink, tint, mint, mint, tint) }
+        group {
+            clip inset 0 box { from: lpx, lpy; size: 121, 121; corner: pick(look, 8, 2, 8, 1, 2) }
+            for c in loupe {
+                box { from: lpx + mod(c.index, 11) * 11, lpy + floor(c.index / 11) * 11; size: 11, 11; color: rgb(c.r, c.g, c.b); opacity: c.a }
+            }
+        }
+        //  the pixel that is picked: a dark ring and a light one, so it shows on any colour
+        box { from: lpx + 5 * 11 - 1, lpy + 5 * 11 - 1; size: 13, 13; stroke: 1.5; color: #000000 }
+        box { from: lpx + 5 * 11, lpy + 5 * 11; size: 11, 11; stroke: 1.2; color: #ffffff }
+        for c in loupe {
+            box { from: lpx + 2, lpy + 128; size: 24, 24; corner: pick(look, 6, 2, 6, 1, 2); color: rgb(c.r, c.g, c.b); show: c.index == 60 }
+            box { from: lpx + 2, lpy + 128; size: 24, 24; corner: pick(look, 6, 2, 6, 1, 2); stroke: 1; color: #ffffff; opacity: 40%; show: c.index == 60 }
+        }
+        text hex { at: lpx + 36, lpy + 140; anchor: left center; size: 15; weight: 700; color: #f5f7f5; family: "Space Grotesk" }
     }
 
     //  While a text is being written the keys are its own: Esc drops the text instead of closing, Enter keeps it (`submit tq`) instead of copying.
