@@ -8952,8 +8952,11 @@ require("logic/clock")()
         text.vpn_nd_note = nord.tech
     end
     local function nord_refresh()
+        -- Only where NordVPN is installed: a command that is not there still answers with text, so it is looked for first.
+        run("which", { "nordvpn" }, function(_, found)
+        if found ~= 0 then nord.have = false; nord.on = false; nord_render(); render(); return end
         run("nordvpn", { "status" }, function(out, code)
-            if code ~= 0 and (out or "") == "" then nord.have = false; nord_render(); render(); return end
+            if code ~= 0 and (out or "") == "" then nord.have = false; nord.on = false; nord_render(); render(); return end
             nord.have = true
             local f = {}
             for _, l in ipairs(nord_lines(out)) do
@@ -8971,6 +8974,7 @@ require("logic/clock")()
             if t ~= "" then nord.tech = t == "NORDLYNX" and "NordLynx" or t end
             nord_render()
             render()
+        end)
         end)
     end
     local function nord_run(args, label, after_fn)        -- `after_fn`: run once it has finished (the status card's Disconnect, with a profile up too)
@@ -9003,7 +9007,7 @@ require("logic/clock")()
             local t = l:match("^Technology:%s*(%S+)") or l:match("^Protocol:%s*(%S+)")
             if t then nord.tech = t:upper() == "NORDLYNX" and "NordLynx" or t end
         end
-        nord_render()
+        if nord.have then nord_render() end
     end)
 
     local function refresh()
