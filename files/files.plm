@@ -16,8 +16,10 @@ scene Files {
     spring calm = 208, 27
     spring quick = 581, 47
     surface { size: 1100, 720; kind: window; title: "Files"; app_id: "vitreus.files"; keyboard: on_demand }
-    //  The glass bends a copy of the wallpaper (as the shell does), not a capture of the screen: a capture needs a moment to start and the window is clear until it does.
-    lens = image "~/.cache/pleamar/vitreus/lens.png"
+    //  The glass bends a copy of the wallpaper (as the shell does) unless the Glass page's Live bend is on (`glive`): then it bends the windows behind it,
+    //  a capture at the page's refresh pace (`gcap`). The copy is the default because a capture needs a moment to start and the window is only blurred until it does.
+    lens = image "~/.cache/pleamar/vitreus/lens.png" while not glive
+    lens every max(gcap, 16) * 1ms
 
     permissions {
         services: "files", "files.write"
@@ -68,6 +70,10 @@ scene Files {
     fact obs = false                 // Vitreus has its glass off: flat obsidian (Vitreus says so with `fact obs true`)
     fact gop = 1                     // the shell's glass settings (Vitreus says so, as with obs): opacity, X-Bend on, edge thickness, rainbow fringe, frost, dome, milk, rim
     fact gbend = false
+    fact gflat = true                // on trial: Files does not bend what is behind it at all, the compositor blurs it (always in its place, also while the window is dragged)
+    let gb = gbend and not gflat     // whether its glass bends
+    fact glive = false               // Live bend: the glass bends the windows behind it, not the wallpaper copy
+    fact gcap = 300                  // the least time between two captures of Live bend, in ms
     fact grefr = 1
     fact gdisp = 1
     fact gclear = 1
@@ -1083,11 +1089,11 @@ scene Files {
     // ── some pieces that come again and again ──
     //  The glass the menus, the dialogs and the cards are made of: dark underneath, so that what is written on it reads, then the glass, or flat obsidian when the shell has its glass off.
     component Pane(px: number, py: number, pw: number, ph: number, rad: number, gl: number) {
-        box { from: px, py; size: pw, ph; corner: rad * rr; color: mix(tint, #000000, 0.2); opacity: 98% - 18% * gbend * (1 - ob) }      // lighter with X-Bend on, or it hides the bend (the tiles behind still mostly stay out of the text)
+        box { from: px, py; size: pw, ph; corner: rad * rr; color: mix(tint, #000000, 0.2); opacity: 98% - 18% * gb * (1 - ob) }      // lighter with X-Bend on, or it hides the bend (the tiles behind still mostly stay out of the text)
         body {
             color: mix(tint, #000000, 0.7 * gsmoke)
             glass: 100%
-            lens: gbend
+            lens: gb
             frost: gclear
             refraction: grefr
             dispersion: gdisp
@@ -1189,7 +1195,7 @@ scene Files {
     body {
         color: mix(tint, #000000, 0.7 * gsmoke)
         glass: 100%
-        lens: gbend
+        lens: gb
         frost: gclear
         refraction: grefr
         dispersion: gdisp

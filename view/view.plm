@@ -60,6 +60,8 @@ scene View {
     fact obs = false                 // Vitreus has its glass off: flat obsidian
     fact gop = 1                     // and its glass settings, as Files wears them: opacity, X-Bend, refraction, fringe, frost, dome, milk, rim
     fact gbend = false
+    fact gflat = true                // on trial, as in Files: View does not bend what is behind it at all, the compositor blurs it (always in its place, also while the window is dragged)
+    let gb = gbend and not gflat     // whether its glass bends
     fact grefr = 1
     fact gdisp = 1
     fact gclear = 1
@@ -331,7 +333,7 @@ scene View {
     body {
         color: mix(if(look == 3, mix(tint, #000000, 0.55), tint), #000000, 0.7 * gsmoke)
         glass: 100%
-        lens: gbend
+        lens: gb
         frost: gclear
         refraction: grefr
         dispersion: gdisp

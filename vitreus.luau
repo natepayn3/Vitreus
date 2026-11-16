@@ -4858,7 +4858,7 @@ function glass.push_obs()
     run("pleamar", { "--say", "files", "fact obs " .. v }, function() end)
     run("pleamar", { "--say", "desktopnotes", "fact obs " .. v }, function() end)
     run("pleamar", { "--say", "files", "fact gop " .. glass.opacity, "fact gbend " .. tostring((glass.bend or glass.live) and not glass.game and not glass.hg), "fact grefr " .. glass.refr, "fact gdisp " .. glass.disp,
-        "fact gclear " .. glass.clear, "fact gdome " .. glass.dome, "fact gmilk " .. glass.milk, "fact gsmoke " .. glass.smoke, "fact grim " .. glass.rim }, function() end)     -- Files wears the same glass
+        "fact gclear " .. glass.clear, "fact gdome " .. glass.dome, "fact gmilk " .. glass.milk, "fact gsmoke " .. glass.smoke, "fact grim " .. glass.rim, "fact glive " .. tostring(glass.live), "fact gcap " .. glass.cap_ms }, function() end)     -- Files wears the same glass
 end
 -- Game Mode (logic/gamemode.luau) takes the glass away while it is on: the bar and the drawers go flat obsidian (`game_on` in the scene's `obs`) and
 -- nothing bends, so nothing is captured behind them, every frame of a game being "something behind that changed"; and with Hyprland's blur off
