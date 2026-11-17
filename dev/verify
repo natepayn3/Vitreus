@@ -116,14 +116,21 @@ if $dirty; then
     git -C "$SRC" diff HEAD --binary | git -C "$T" apply --3way - 2> "$RUN/dirty.log" || fail "1 merge · the uncommitted edits do not apply (dirty.log)"
     note "  + the uncommitted edits"
 fi
-# the person's own palette files are not in git
-for f in palette.plm wm-palette.plm; do [ -f "$SRC/$f" ] && cp "$SRC/$f" "$T/"; done
+# the person's own palette files are not in git (install.sh makes them from the .default ones, and the shell rewrites them from the wallpaper):
+# this checkout's, or, in a fresh clone that has none, the stock ones, as install.sh would make them. Without them every scene that imports
+# ../palette.plm (the system monitor, the lock screen, Files, View...) cannot load, and the system monitor never answers in stage 3.
+put_palettes() {
+    for p in palette wm-palette; do
+        if [ -f "$SRC/$p.plm" ]; then cp "$SRC/$p.plm" "$1/"; elif [ -f "$1/$p.default.plm" ]; then cp "$1/$p.default.plm" "$1/$p.plm"; fi
+    done
+}
+put_palettes "$T"
 note "1 merge · ok"
 
 # ── 2 check ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 B=$V/base; rm -rf "$B"; mkdir -p "$B"
 git -C "$SRC" archive origin/main | tar -x -C "$B"
-for f in palette.plm wm-palette.plm; do [ -f "$SRC/$f" ] && cp "$SRC/$f" "$B/"; done
+put_palettes "$B"
 bad=0; n=0
 for f in $(cd "$T" && grep -rlE '^scene [A-Za-z]' --include='*.plm' . | grep -v '^\./dev/' | sort); do
     n=$((n + 1))
