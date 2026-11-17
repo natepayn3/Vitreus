@@ -3,10 +3,11 @@ language 0.1
 import "../palette-live.plm"
 import "clockface.plm"
 import "clockface_styled.plm"
+import "clockstyle.plm"
 
-//  The desktop clock: the time in digits drawn as glass, on the bottom layer (above the wallpaper, under every window).
-//  Each digit is a single stroke (clockface.plm), and all of them are one body of glass: the light runs round their edges and the compositor
-//  blurs what is behind them. Its tint is the shell's (`tint` of palette.plm, which Iris keeps), the same as the bar's glass.
+//  The desktop clock, on the bottom layer (above the wallpaper, under every window), in one of five styles (`sty`): 0 Glass and 2 Stack are the time in digits drawn
+//  as glass (clockface_styled.plm: each digit a single stroke, a body of glass the compositor blurs behind), 1 Day, 3 Capsule and 4 Editorial are set in type with
+//  glass plates (clockstyle.plm). Its tint is the shell's (`tint` of palette.plm, which Iris keeps), the same as the bar's glass.
 //
 //  Turn it on or off with   pleamar --say desktopclock "fact shown true"   (or false); Settings > Clock has the switch and the rest.
 //  Its settings are kept in desktopclock.json, in ~/.local/share/pleamar/desktopclock (see desktopclock.luau).
@@ -116,17 +117,27 @@ scene DesktopClock {
     fact orphan = false    // its monitor is not plugged in: it is shown only in Edit mode, on the first monitor, marked (the logic)
     text orph = ""         // and that monitor's name
     fact shown = false     // the logic sets it from desktopclock.json (so that `sh` follows it from nothing)
-    fact lay = 0           // 0 pipe, 1 rule, 2 tower, 3 digital, 4 slash, 5 hero (see clockface.plm)
-    fact h12 = true        // a 12 hour clock (the logic turns it into the digits); the Settings page reads it
+    fact sty = 0           // the style: 0 Glass, 1 Day, 2 Stack, 3 Capsule, 4 Editorial
+    fact h12 = true        // a 12 hour clock (the logic turns it into the digits and the texts); the Settings page reads it
     fact d0 = -1           // the digits shown: -1 for none (the hour's tens, with a 12 hour clock, when the hour is below 10)
     fact d1 = 0
     fact d2 = 0
     fact d3 = 0
-    fact px = 220          // the digits' height in pixels
-    fact wti = 1           // the strokes: 0 thin, 1 regular, 2 bold
-    fact cli = 1           // the glass: 0 clear, 1 soft, 2 full
-
-    //  The style of the hours, the minutes and the divider (see clockface_styled.plm): a weight and a size (multipliers; 1 is the normal) and a tint (0 the glass, 1 mint, 2 light, 3 rose, 4 grey)
+    //  The same time and the date as words, for the styles set in type (the logic writes them)
+    text ck_tm = "4:53"
+    text ck_ap = "PM"
+    text ck_wd = "MON"
+    text ck_wdl = "Monday"
+    text ck_dt = "NOVEMBER 16 2026"
+    text ck_dts = "16 November"
+    text ck_dtl = "November 16, 2026"
+    fact px = 100          // the size: a digit's height in pixels (50 to 190)
+    //  The weather, for Day: the shell's (Vitreus fetches it), asked of it now and then by the logic. `wx_on` once there is some.
+    fact wx_on = false
+    fact wx_kind = 2       // 0 clear, 1 partly cloudy, 2 cloud, 3 fog, 4 rain, 5 snow, 6 storm
+    text wx_temp = ""
+    text wx_desc = ""
+    //  clockface_styled.plm reads a style for the hours, the minutes and the divider by these names; the clock no longer offers them, they stay the normal one.
     fact ghw = 1
     fact ghz = 1
     fact ghc = 0
@@ -136,8 +147,6 @@ scene DesktopClock {
     fact gsw = 1
     fact gsz = 1
     fact gsc = 0
-    fact greset = 0          // set to 1 by Settings: every glyph back to the normal style (the logic puts it back to 0)
-    text gpack = ""          // all of them in one line, for the Settings page to read at once: "w,z,c;" for the hours, the minutes and the divider
 
     prop sh = 0 ~calm
     follow sh = if(shown, 1, 0)
@@ -159,21 +168,12 @@ scene DesktopClock {
     follow uk = if(look == 2, 1, 0)
 
     let k = px / 88
-    let wt = if(wti == 0, 0.62, if(wti == 2, 1.4, 1))
-    let clr = if(cli == 0, 55%, if(cli == 1, 80%, 100%))
-    //  Where the middle of the face is, in the surface: the middle of it, or against the edge or corner it sits in (half the face, and its stroke).
-    //  What the style of the parts adds to the face (the same sums as in clockface_styled.plm and in the Settings page): how far each part grows past its normal size, so that
-    //  the cells the clock takes (and the outline of them in Edit mode) hold all of it and not only the normal face.
-    let pm1 = if(lay == 2, 0.6, 1)
-    let pm2 = if(lay == 2, 0.6, if(lay == 5, 0.5, 1))
-    let ugeh = max(0, 1.4 * pm1 * (ghz * (23 + 6.5 * wt * ghw) - (23 + 6.5 * wt)))
-    let ugev = max(0, 1.4 * pm1 * (ghz * (44 + 6.5 * wt * ghw) - (44 + 6.5 * wt)))
-    let umeh = max(0, 1.4 * pm2 * (gmz * (23 + 6.5 * wt * gmw) - (23 + 6.5 * wt)))
-    let umev = max(0, 1.4 * pm2 * (gmz * (44 + 6.5 * wt * gmw) - (44 + 6.5 * wt)))
-    let udv = max(0, 4.2 * wt * (gsw * gsz - 1))
-    let udc = max(0, 9.8 * wt * (gsw * gsz - 1))
-    let hw = (if(lay == 0, 149, if(lay == 1 or lay == 5, 61, if(lay == 2, 31, if(lay == 3, 152, 130)))) + 6.5 * wt + 2 * max(ugeh, umeh) + 1.5 * max(udv, udc)) * k
-    let hh = (if(lay == 0, 59, if(lay == 1, 111, if(lay == 2, 131, if(lay == 3, 44, if(lay == 4, 112, 84))))) + 6.5 * wt + 2.2 * max(ugev, umev) + 1.5 * udv) * k
+    let wt = 1
+    let clr = 80%
+    let lay = if(sty == 2, 1, 0)           // the glass digits' layout (clockface.plm): Glass is the pipe, Stack the rule
+    //  Half the face's width and height, for each style (the same numbers as clockstyle.plm and the Settings page), so that the cells it takes (and their outline in Edit mode) hold it.
+    let hw = pick(sty, 155.5, 172, 67.5, 185, 170) * k
+    let hh = pick(sty, 65.5, 96, 101, 46, 96) * k
     let isl = if(where == top_left or where == left or where == bottom_left, 1, 0)
     let isr = if(where == top_right or where == right or where == bottom_right, 1, 0)
     let ist = if(where == top_left or where == top or where == top_right, 1, 0)
@@ -306,7 +306,11 @@ scene DesktopClock {
                 text orph { at: lx + hw + pad - 14, ly - hh - pad + 16; anchor: right center; size: 12; weight: 700; color: mint; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: orphan }
             }
             group {
-                ClockFaceStyled(k, lay, d0, d1, d2, d3, lx, ly, mix(tint, mint, cy), 1, 0.4, sh * clr, wt, mint, ink, alert, faint, ob, pl, uk, deep, mk, pxk, dd)
+                group {
+                    show: sty == 0 or sty == 2
+                    ClockFaceStyled(k, lay, d0, d1, d2, d3, lx, ly, mix(tint, mint, cy), 1, 0.4, sh * clr, wt, mint, ink, alert, faint, ob, pl, uk, deep, mk, pxk, dd)
+                }
+                ClockStyle(sty, k, lx, ly, ck_tm, ck_ap, ck_wd, ck_wdl, ck_dt, ck_dts, ck_dtl, tint, 1, sh, ink, faint, mint, deep, ob, pl, if(h12, 1, 0), if(wx_on, 1, 0), wx_kind, wx_temp, wx_desc)
             }
         }
     }
@@ -338,7 +342,11 @@ scene DesktopClock {
                 text orph { at: lx + hw + pad - 14, ly - hh - pad + 16; anchor: right center; size: 12; weight: 700; color: mint; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: orphan }
             }
             group {
-                ClockFaceStyled(k, lay, d0, d1, d2, d3, lx, ly, mix(tint, mint, cy), 1, 0.4, sh * clr, wt, mint, ink, alert, faint, ob, pl, uk, deep, mk, pxk, dd)
+                group {
+                    show: sty == 0 or sty == 2
+                    ClockFaceStyled(k, lay, d0, d1, d2, d3, lx, ly, mix(tint, mint, cy), 1, 0.4, sh * clr, wt, mint, ink, alert, faint, ob, pl, uk, deep, mk, pxk, dd)
+                }
+                ClockStyle(sty, k, lx, ly, ck_tm, ck_ap, ck_wd, ck_wdl, ck_dt, ck_dts, ck_dtl, tint, 1, sh, ink, faint, mint, deep, ob, pl, if(h12, 1, 0), if(wx_on, 1, 0), wx_kind, wx_temp, wx_desc)
             }
         }
     }
@@ -370,7 +378,11 @@ scene DesktopClock {
                 text orph { at: lx + hw + pad - 14, ly - hh - pad + 16; anchor: right center; size: 12; weight: 700; color: mint; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: orphan }
             }
             group {
-                ClockFaceStyled(k, lay, d0, d1, d2, d3, lx, ly, mix(tint, mint, cy), 1, 0.4, sh * clr, wt, mint, ink, alert, faint, ob, pl, uk, deep, mk, pxk, dd)
+                group {
+                    show: sty == 0 or sty == 2
+                    ClockFaceStyled(k, lay, d0, d1, d2, d3, lx, ly, mix(tint, mint, cy), 1, 0.4, sh * clr, wt, mint, ink, alert, faint, ob, pl, uk, deep, mk, pxk, dd)
+                }
+                ClockStyle(sty, k, lx, ly, ck_tm, ck_ap, ck_wd, ck_wdl, ck_dt, ck_dts, ck_dtl, tint, 1, sh, ink, faint, mint, deep, ob, pl, if(h12, 1, 0), if(wx_on, 1, 0), wx_kind, wx_temp, wx_desc)
             }
         }
     }
@@ -402,7 +414,11 @@ scene DesktopClock {
                 text orph { at: lx + hw + pad - 14, ly - hh - pad + 16; anchor: right center; size: 12; weight: 700; color: mint; family: "Space Grotesk"; shadow: 0, 1, 5, 70%; show: orphan }
             }
             group {
-                ClockFaceStyled(k, lay, d0, d1, d2, d3, lx, ly, mix(tint, mint, cy), 1, 0.4, sh * clr, wt, mint, ink, alert, faint, ob, pl, uk, deep, mk, pxk, dd)
+                group {
+                    show: sty == 0 or sty == 2
+                    ClockFaceStyled(k, lay, d0, d1, d2, d3, lx, ly, mix(tint, mint, cy), 1, 0.4, sh * clr, wt, mint, ink, alert, faint, ob, pl, uk, deep, mk, pxk, dd)
+                }
+                ClockStyle(sty, k, lx, ly, ck_tm, ck_ap, ck_wd, ck_wdl, ck_dt, ck_dts, ck_dtl, tint, 1, sh, ink, faint, mint, deep, ob, pl, if(h12, 1, 0), if(wx_on, 1, 0), wx_kind, wx_temp, wx_desc)
             }
         }
     }

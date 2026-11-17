@@ -1,24 +1,19 @@
 -- The desktop clock's logic. It reports the digits (the scene draws them) and keeps the settings, which Vitreus's Settings > Clock page changes
--- from outside (`pleamar --say desktopclock "fact lay 1"`).
+-- from outside (`pleamar --say desktopclock "fact sty 1"`).
 --
 -- `desktopclock.json`, in this scene's own folder (~/.local/share/pleamar/desktopclock): what is missing from it is the default below, and a
 -- file that is not there is written so that there is one to edit. It is read when the scene starts.
 --   shown        whether the clock is on the desktop
 --   use_12_hour  12 or 24 hour clock
---   size         the digits' height in pixels (100 to 340)
---   layout       0 pipe (12 | 34), 1 rule (a line between the hour and the minutes), 2 tower (a column), 3 digital (12:34), 4 slash, 5 hero
+--   size         the digits' height in pixels (50 to 190)
+--   style        0 Glass (12 | 34 in glass digits), 1 Day (the weekday huge, the time in a glass chip, the weather), 2 Stack (the hour over the smaller minutes),
+--                3 Capsule (one glass pill: the time and the date), 4 Editorial (the weekday, the time large and light, the date). A file from before the styles
+--                has `layout` (six layouts of the glass digits) instead: the rule becomes Stack, the rest Glass.
 --   gx, gy       the cell of its top left corner on the 16 x 9 grid of the desktop (-1: not chosen yet, `position` says)
 --   position     "top_left", "top", "top_right", "left", "center", "right", "bottom_left", "bottom" or "bottom_right"
 --   monitor      the name of the monitor that shows the clock ("": not chosen yet)
---   weight       the strokes: 0 thin, 1 regular, 2 bold
---   clarity      the glass: 0 clear, 1 soft, 2 full
---   glyphs       a style for the hours ("h"), the minutes ("m") and the divider ("s"): { w = weight multiplier, z = size multiplier, c = tint }, tint 0 the shell's glass,
---                1 mint, 2 light, 3 rose, 4 grey. What is not there is the normal style (1, 1, 0)
 local POSITIONS = { top_left = true, top = true, top_right = true, left = true, center = true, right = true, bottom_left = true, bottom = true, bottom_right = true }
-local cfg = { shown = true, use_12_hour = true, size = 220, layout = 0, position = "center", gx = -1, gy = -1, monitor = "", weight = 1, clarity = 1, grid = 2 }
-local GL = { "h", "m", "s" }
-local glyphs = {}
-for _, g in ipairs(GL) do glyphs[g] = { w = 1, z = 1, c = 0 } end
+local cfg = { shown = true, use_12_hour = true, size = 100, style = 0, position = "center", gx = -1, gy = -1, monitor = "", grid = 2 }
 local function clampi(v, lo, hi) return math.max(lo, math.min(hi, math.floor(v + 0.5))) end
 do
     local ok, saved = pcall(sys.ask, "files.read", "desktopclock.json", "json")
@@ -32,39 +27,28 @@ do
             if cfg.gy >= 0 then cfg.gy = math.floor(cfg.gy * 16 / 9 + 0.5) end
             cfg.migrated = true
         end
-        cfg.size = math.max(100, math.min(340, cfg.size))
-        cfg.layout = clampi(cfg.layout, 0, 5)
-        cfg.weight = clampi(cfg.weight, 0, 2)
-        cfg.clarity = clampi(cfg.clarity, 0, 2)
-        if not POSITIONS[cfg.position] then cfg.position = "center" end
-        if type(saved.glyphs) == "table" then
-            for _, g in ipairs(GL) do
-                local v = saved.glyphs[g]
-                if type(v) == "table" then
-                    if type(v.w) == "number" then glyphs[g].w = math.max(0.4, math.min(2, v.w)) end
-                    if type(v.z) == "number" then glyphs[g].z = math.max(0.5, math.min(1.5, v.z)) end
-                    if type(v.c) == "number" then glyphs[g].c = clampi(v.c, 0, 4) end
-                end
-            end
+        cfg.size = math.max(50, math.min(190, cfg.size))
+        if type(saved.style) ~= "number" and type(saved.layout) == "number" then
+            cfg.style = (clampi(saved.layout, 0, 5) == 1) and 2 or 0
+            cfg.migrated = true
         end
+        cfg.style = clampi(cfg.style, 0, 4)
+        if not POSITIONS[cfg.position] then cfg.position = "center" end
     elseif ok and saved == nil then
         pcall(sys.call, "files.write", "desktopclock.json", cfg)
     end
 end
 local function save()
-    cfg.glyphs = glyphs
     pcall(sys.call, "files.write", "desktopclock.json", cfg)
 end
-if cfg.migrated then cfg.migrated = nil; cfg.grid = 2; save() end
+if cfg.migrated then cfg.migrated = nil; cfg.grid = 2; cfg.layout = nil; cfg.weight = nil; cfg.clarity = nil; cfg.glyphs = nil; save() end
 
 fact.px = cfg.size
 fact.h12 = cfg.use_12_hour
-fact.lay = cfg.layout
+fact.sty = cfg.style
 fact.where = cfg.position
 fact.gx = cfg.gx
 fact.gy = cfg.gy
-fact.wti = cfg.weight
-fact.cli = cfg.clarity
 fact.shown = cfg.shown
 
 -- Which monitor it is on, and moving it to another (pushed over an edge in Edit mode, or Settings > Widgets): widget_place.luau.
@@ -74,20 +58,6 @@ require("widget_place")({
     moved = function(gx, gy) cfg.gx = gx; cfg.gy = gy end,
     placed = function() if hooks.hole then hooks.hole() end end,
 })
-
--- The glyph styles: a fact each (`ghw` is the hours' weight, `ghz` their size, `ghc` their tint; `gm…` the minutes', `gs…` the divider's), and all of them in `gpack`,
--- "w,z,c;" for each glyph in order, so that the Settings page reads them at once.
-local function pack()
-    local parts = {}
-    for _, g in ipairs(GL) do parts[#parts + 1] = string.format("%.2f,%.2f,%d", glyphs[g].w, glyphs[g].z, glyphs[g].c) end
-    text.gpack = table.concat(parts, ";")
-end
-for _, g in ipairs(GL) do
-    fact["g" .. g .. "w"] = glyphs[g].w
-    fact["g" .. g .. "z"] = glyphs[g].z
-    fact["g" .. g .. "c"] = glyphs[g].c
-end
-pack()
 
 local last = nil
 local function show_time(c)
@@ -101,34 +71,29 @@ local function show_time(c)
     fact.d1 = h % 10
     fact.d2 = c.minute // 10
     fact.d3 = c.minute % 10
+    -- and as words, for the styles set in type
+    local DAYS = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }
+    local MONTHS = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" }
+    local hh = cfg.use_12_hour and tostring(h) or string.format("%02d", h)
+    text.ck_tm = string.format("%s:%02d", hh, c.minute)
+    text.ck_ap = cfg.use_12_hour and ((c.hour < 12) and "AM" or "PM") or ""
+    local day = DAYS[(c.weekday or 0) % 7 + 1]
+    local mon = MONTHS[math.max(1, math.min(12, c.month or 1))]
+    text.ck_wdl = day
+    text.ck_wd = string.upper(string.sub(day, 1, 3))
+    text.ck_dt = string.format("%s %d %d", string.upper(mon), c.day or 1, c.year or 2026)
+    text.ck_dts = string.format("%d %s", c.day or 1, mon)
+    text.ck_dtl = string.format("%s %d, %d", mon, c.day or 1, c.year or 2026)
 end
 sys.watch("clock", show_time)
 
 -- What the Settings page tells it (it does not fire for what is set from here).
 on("fact:shown", function(v) cfg.shown = v and true or false; save() end)
-on("fact:px", function(v) if type(v) == "number" then cfg.size = math.max(100, math.min(340, v)); save() end end)
-on("fact:lay", function(v) if type(v) == "number" then cfg.layout = clampi(v, 0, 5); save() end end)
+on("fact:px", function(v) if type(v) == "number" then cfg.size = math.max(50, math.min(190, v)); save() end end)
+on("fact:sty", function(v) if type(v) == "number" then cfg.style = clampi(v, 0, 4); save() end end)
 on("fact:where", function(v) if POSITIONS[v] then cfg.position = v; save() end end)
 on("fact:gx", function(v) if type(v) == "number" then cfg.gx = v; save() end end)
 on("fact:gy", function(v) if type(v) == "number" then cfg.gy = v; save() end end)
-on("fact:wti", function(v) if type(v) == "number" then cfg.weight = clampi(v, 0, 2); save() end end)
-on("fact:cli", function(v) if type(v) == "number" then cfg.clarity = clampi(v, 0, 2); save() end end)
-for _, g in ipairs(GL) do
-    on("fact:g" .. g .. "w", function(v) if type(v) == "number" then glyphs[g].w = math.max(0.4, math.min(2, v)); pack(); save() end end)
-    on("fact:g" .. g .. "z", function(v) if type(v) == "number" then glyphs[g].z = math.max(0.5, math.min(1.5, v)); pack(); save() end end)
-    on("fact:g" .. g .. "c", function(v) if type(v) == "number" then glyphs[g].c = clampi(v, 0, 4); pack(); save() end end)
-end
-on("fact:greset", function(v)
-    if v ~= 1 then return end
-    for _, g in ipairs(GL) do
-        glyphs[g] = { w = 1, z = 1, c = 0 }
-        fact["g" .. g .. "w"] = 1
-        fact["g" .. g .. "z"] = 1
-        fact["g" .. g .. "c"] = 0
-    end
-    pack(); save()
-    fact.greset = 0
-end)
 on("fact:h12", function(v)
     cfg.use_12_hour = v and true or false
     save()
@@ -160,6 +125,26 @@ after(250, ask_look)             -- a reload (the palette changed with the theme
 after(900, ask_look)
 after(2000, ask_look)
 after(4000, ask_look)
+
+-- The weather, for Day: the shell's own (it fetches it for its calendar), asked of it at start and every five minutes. Nothing to show until it has some.
+local function ask_wx()
+    run("pleamar", { "--say", "vitreus", "get wx_ok", "get wx_kind", "get wx_temp", "get wx_desc" }, function(out, code)
+        if code ~= 0 or not out then return end
+        local l = {}
+        for line in (out .. "\n"):gmatch("([^\n]*)\n") do l[#l + 1] = line end
+        local ok = (l[1] or ""):match("true") ~= nil
+        local temp = (l[3] or ""):gsub("%s+$", "")
+        if ok and temp ~= "" then
+            fact.wx_kind = tonumber((l[2] or ""):match("%-?%d+")) or 2
+            text.wx_temp = temp
+            text.wx_desc = (l[4] or ""):gsub("%s+$", "")
+        end
+        fact.wx_on = ok and temp ~= ""
+    end)
+end
+after(3000, ask_wx)
+after(20000, ask_wx)
+every(300000, ask_wx)
 
 -- Where the face is, told to the shell (`text hole_clk`: "monitor|x,y,w,h", empty while it is off the desktop) so that the window manager's desktop-click zone leaves a hole
 -- there: a zone over a bottom-layer widget takes its clicks (logic/desk_holes.luau). Told once it has stopped moving.

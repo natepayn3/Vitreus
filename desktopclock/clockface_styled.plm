@@ -9,7 +9,7 @@ language 0.1
 library ClockFaceStyled {
     component ClockFaceStyled(k: number, lay: number, d0: number, d1: number, d2: number, d3: number, cx: number, cy: number, tint: color, gl: number, rimv: number, op: number, wt: number, p_mint: color, p_ink: color, p_alert: color, p_faint: color, obsv: number, pl: number, uk: number, pdeep: color, mk: number, pxk: number, dk: number = 0) {
         let m01 = if(lay == 2, 0.6, 1)            // the tower is smaller, to fit
-        let m23 = if(lay == 2, 0.6, if(lay == 5, 0.5, 1))   // and the hero's minutes are half the size
+        let m23 = if(lay == 2, 0.6, if(lay == 5, 0.5, if(lay == 1, 0.62, 1)))   // and the hero's minutes are half the size
         let w0 = ghw
         let z0 = ghz
         let ci0 = ghc
@@ -39,13 +39,13 @@ library ClockFaceStyled {
         let ox3 = (1 - z3) * 23 * k * m23
         let oy3 = (1 - z3) * 44 * k * m23
         let hi = if(d0 < 0, 0 - 38 * k, 0)        // no tens in the hour: what is left is still centred (in the layouts where that is the thing to centre)
-        let bx0 = if(lay == 0, cx - 149 * k, if(lay == 1, cx - 61 * k + hi, if(lay == 2, cx - 13.8 * k, if(lay == 3, cx - 152 * k + hi, if(lay == 4, cx - 130 * k, cx - 61 * k + hi)))))
+        let bx0 = if(lay == 0, cx - 149 * k + hi, if(lay == 1, cx - 61 * k + hi, if(lay == 2, cx - 13.8 * k, if(lay == 3, cx - 152 * k + hi, if(lay == 4, cx - 130 * k, cx - 61 * k + hi)))))
         let bx1 = if(lay == 0, bx0 + 76 * k, if(lay == 1, bx0 + 76 * k, if(lay == 2, bx0, if(lay == 3, bx0 + 76 * k, if(lay == 4, bx0 + 76 * k, bx0 + 76 * k)))))
-        let bx2 = if(lay == 0, cx + 27 * k, if(lay == 1, cx - 61 * k, if(lay == 2, cx - 13.8 * k, if(lay == 3, bx1 + 106 * k, if(lay == 4, cx + 8 * k, cx)))))
-        let bx3 = if(lay == 0, bx2 + 76 * k, if(lay == 1, bx2 + 76 * k, if(lay == 2, bx2, if(lay == 3, bx2 + 76 * k, if(lay == 4, bx2 + 76 * k, bx2 + 38 * k)))))
-        let by0 = if(lay == 0, cy - 44 * k, if(lay == 1, cy - 111 * k, if(lay == 2, cy - 130.6 * k, if(lay == 3, cy - 44 * k, if(lay == 4, cy - 112 * k, cy - 84 * k)))))
+        let bx2 = if(lay == 0, cx + 27 * k + hi, if(lay == 1, cx - 37.82 * k, if(lay == 2, cx - 13.8 * k, if(lay == 3, bx1 + 106 * k, if(lay == 4, cx + 8 * k, cx)))))
+        let bx3 = if(lay == 0, bx2 + 76 * k, if(lay == 1, bx2 + 47.12 * k, if(lay == 2, bx2, if(lay == 3, bx2 + 76 * k, if(lay == 4, bx2 + 76 * k, bx2 + 38 * k)))))
+        let by0 = if(lay == 0, cy - 44 * k, if(lay == 1, cy - 94.3 * k, if(lay == 2, cy - 130.6 * k, if(lay == 3, cy - 44 * k, if(lay == 4, cy - 112 * k, cy - 84 * k)))))
         let by1 = if(lay == 0, by0, if(lay == 1, by0, if(lay == 2, by0 + 64.8 * k, if(lay == 3, by0, if(lay == 4, by0, by0)))))
-        let by2 = if(lay == 0, by0, if(lay == 1, cy + 23 * k, if(lay == 2, by1 + 78.8 * k, if(lay == 3, by0, if(lay == 4, cy + 24 * k, cy + 40 * k)))))
+        let by2 = if(lay == 0, by0, if(lay == 1, cy + 39.7 * k, if(lay == 2, by1 + 78.8 * k, if(lay == 3, by0, if(lay == 4, cy + 24 * k, cy + 40 * k)))))
         let by3 = if(lay == 0, by2, if(lay == 1, by2, if(lay == 2, by2 + 64.8 * k, if(lay == 3, by2, if(lay == 4, by2, by2)))))
         let ccx = (bx1 + 46 * k + bx2) / 2
         let wts = wt * gsw
@@ -54,8 +54,8 @@ library ClockFaceStyled {
         //  The bar (pipe, rules): its middle, and its size.
         let bt = 6 * wts * ks
         let bw = if(lay == 0, bt, if(lay == 1, 122 * ks, if(lay == 2, 62 * ks, if(lay == 3, bt, if(lay == 4, bt, 122 * ks)))))
-        let bh = if(lay == 0, 118 * ks, if(lay == 1, bt, if(lay == 2, bt, if(lay == 3, bt, if(lay == 4, bt, bt)))))
-        let bpy = if(lay == 5, cy + 22 * k, cy)       // (the hero's line stays where it is when it grows: it grows in place, not towards the minutes)
+        let bh = if(lay == 0, 76 * ks, if(lay == 1, bt, if(lay == 2, bt, if(lay == 3, bt, if(lay == 4, bt, bt)))))
+        let bpy = if(lay == 5, cy + 22 * k, if(lay == 1, cy + 16.7 * k, cy))       // (the hero's line stays where it is when it grows: it grows in place, not towards the minutes)
         let bd = if(lay == 3 or lay == 4, 30000, 0)
 
         //  Room for what grows. A bigger or bolder part grows round its own middle, so it needs more room than the layout gave it: how much each part grows
@@ -188,7 +188,7 @@ library ClockFaceStyled {
             show: obsv < 0.996
             ellipse { at: ccx + cd, cy - 14 * ks; radius: 7 * wts * ks }
             ellipse { at: ccx + cd, cy + 16 * ks; radius: 7 * wts * ks }
-            box { at: cx + bd, bpy; size: bw, bh; corner: min(bw, bh) / 2 }
+            box { at: cx + bd + if(lay == 0, hi, 0), bpy; size: bw, bh; corner: min(bw, bh) / 2 }
             path { at: cx + if(lay == 4, 0, 30000), cy; stroke: 6 * wts * ks; move 30 * ks, 0 - 70 * ks; line 0 - 30 * ks, 70 * ks }
         }
         //  Obsidian: the same strokes as a flat, dark piece (a `rim` that is an expression keeps a hairline of light even at zero, hence a body of its own).
@@ -201,7 +201,7 @@ library ClockFaceStyled {
             show: obsv > 0.004
             ellipse { at: ccx + cd, cy - 14 * ks; radius: 7 * wts * ks }
             ellipse { at: ccx + cd, cy + 16 * ks; radius: 7 * wts * ks }
-            box { at: cx + bd, bpy; size: bw, bh; corner: min(bw, bh) / 2 }
+            box { at: cx + bd + if(lay == 0, hi, 0), bpy; size: bw, bh; corner: min(bw, bh) / 2 }
             path { at: cx + if(lay == 4, 0, 30000), cy; stroke: 6 * wts * ks; move 30 * ks, 0 - 70 * ks; line 0 - 30 * ks, 70 * ks }
         }
     }

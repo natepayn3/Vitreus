@@ -1,0 +1,180 @@
+language 0.1
+
+//  The desktop clock's styles that are set in type (desktopclock.plm draws the other two, Glass and Stack, with clockface_styled.plm's glass digits):
+//    1 Day        the weekday huge ("MON"), the time in a glass chip above its right end, the date spaced out under the chip, a mint slash
+//    3 Capsule    one glass pill: the time, a hairline, the weekday over the date (no AM/PM: like the glass digits)
+//    4 Editorial  the weekday in mint caps, the time large and light, a hairline, the full date
+//  ClockStyle(st, k, cx, cy, ...): `st` the style (it draws nothing for 0 and 2), `k` the scale (the same as the digits': 1 is a digit 88 tall), `cx`, `cy` the middle of
+//  the whole face. `tm` the time ("4:53"), `ap` "AM"/"PM" or empty (24 hours), `wd` the weekday short and in caps ("MON"), `wdl` long ("Monday"), `dt` the date in caps
+//  ("NOVEMBER 16 2026"), `dts` short ("16 November"), `dtl` long ("November 16, 2026"). `tint` the glass's colour, `gl` how much glass (0: a flat piece, for the badges in Settings), `op` the opacity,
+//  `obsv` the shell's glass is off (flat plates), `pl` a plastic theme (an outline and a hard shadow, like the bar's), `h12` 1 when `ap` is there (a 12 hour clock).
+//  The weather, for Day (the shell's, see desktopclock.luau): `wxon` 1 when there is some, `wxk` its kind (0 clear, 1 partly cloudy, 2 cloud, 3 fog, 4 rain, 5 snow, 6 storm,
+//  as the shell's WxIcon), `wxt` the temperature ("78°F"), `wxd` what it is ("Partly cloudy").
+//  Each style's half width and half height, in the same units, are in desktopclock.plm (`hw`, `hh`) and in the Settings page.
+
+library ClockStyle {
+    component ClockStyle(st: number, k: number, cx: number, cy: number, tm: text, ap: text, wd: text, wdl: text, dt: text, dts: text, dtl: text, tint: color, gl: number, op: number, p_ink: color, p_faint: color, p_mint: color, pdeep: color, obsv: number, pl: number, h12: number = 0, wxon: number = 0, wxk: number = 2, wxt: text = "", wxd: text = "") {
+        //  Type on the wallpaper: a soft shadow under it, or in a plastic theme an outline and a hard shadow.
+        let tol = 1.6 * k * pl
+        let tsx = 2.2 * k * pl
+        let tsy = 2 * k + 1.2 * k * pl
+        let tsb = 14 * k * (1 - pl)
+        let tsa = 38% + 30% * pl
+
+        //  ── 1 Day ──
+        group {
+            show: st == 1
+            opacity: op
+            //  the weather, at the top left before the slash: its icon, the temperature, and what it is under it
+            group {
+                show: wxon > 0.5
+                WxGlyph(wxk, cx - 168 * k, cy - 91 * k, 1.55 * k, p_ink, p_mint)
+                text "{wxt}" { at: cx - 122 * k, cy - 78 * k; anchor: left center; size: 26 * k; weight: 600; color: p_ink; family: "Space Grotesk"; shadow: 0, 1 * k, 8 * k, 45%; outline: tol * 0.8, pdeep }
+                text "{wxd}" { at: cx - 121 * k, cy - 55 * k; anchor: left center; size: 11 * k; weight: 600; color: p_ink; opacity: 75%; family: "Space Grotesk"; width: 120 * k; lines: 1; shadow: 0, 1 * k, 6 * k, 45%; outline: tol * 0.5, pdeep }
+            }
+            //  the slash
+            line { from: cx + 26 * k, cy - 92 * k; to: cx + 6 * k, cy - 36 * k; width: 2 * k; color: p_mint; opacity: 80% }
+            //  the chip
+            body {
+                color: tint
+                glass: gl
+                lens: false
+                rim: 50%
+                shine: 0, 0
+                shadow: 0, 6 * k * gl, 18 * k * gl, 26% * gl
+                opacity: 1 - obsv
+                show: obsv < 0.996
+                box { at: cx + 99 * k, cy - 66 * k; size: 132 * k, 46 * k; corner: 13 * k }
+            }
+            body {
+                color: mix(mix(tint, #000000, 0.45), p_ink, 0.08)
+                rim: 0%
+                opacity: obsv
+                border: 1.8 * k * pl, pdeep
+                shadow: tsx, 4 * k, 16 * k * (1 - pl), 30% + 30% * pl, pdeep
+                show: obsv > 0.004
+                box { at: cx + 99 * k, cy - 66 * k; size: 132 * k, 46 * k; corner: 13 * k }
+            }
+            text "{tm}{? {ap}}" { at: cx + 99 * k, cy - 66 * k; anchor: center; size: 29 * k; weight: 700; color: p_ink; family: "Space Grotesk"; outline: tol, pdeep }
+            //  the date, spaced out, its right end under the chip's
+            text "{dt}" { at: cx + 165 * k, cy - 27 * k; anchor: right center; size: 10.5 * k; weight: 600; color: p_ink; opacity: 78%; family: "Space Grotesk"; letter_move: (letter - (letters - 1)) * 2.6 * k, 0; shadow: 0, 1 * k, 6 * k, 45%; outline: tol * 0.6, pdeep }
+            //  the weekday
+            text "{wd}" { at: cx - 168 * k, cy + 38 * k; anchor: left center; size: 136 * k; weight: 700; color: p_ink; family: "Space Grotesk"; letter_move: letter * -1.5 * k, 0; shadow: tsx, tsy, tsb, tsa, pdeep; outline: tol * 1.4, pdeep }
+        }
+
+        //  ── 3 Capsule ──
+        group {
+            show: st == 3
+            opacity: op
+            body {
+                color: tint
+                glass: gl
+                lens: false
+                rim: 60%
+                shine: 0, 0
+                shadow: 0, 8 * k * gl, 24 * k * gl, 28% * gl
+                opacity: 1 - obsv
+                show: obsv < 0.996
+                box { at: cx, cy; size: 370 * k, 92 * k; corner: 46 * k }
+            }
+            body {
+                color: mix(mix(tint, #000000, 0.45), p_ink, 0.08)
+                rim: 0%
+                opacity: obsv
+                border: 2 * k * pl, pdeep
+                shadow: tsx, 4 * k, 18 * k * (1 - pl), 30% + 30% * pl, pdeep
+                show: obsv > 0.004
+                box { at: cx, cy; size: 370 * k, 92 * k; corner: 46 * k }
+            }
+            text "{tm}" { at: cx - 74 * k, cy + 1 * k; anchor: center; size: 50 * k; weight: 700; color: p_ink; family: "Space Grotesk"; letter_move: (letter - (letters - 1) / 2) * -1.5 * k, 0; outline: tol, pdeep }
+            line { from: cx + 24 * k, cy - 22 * k; to: cx + 24 * k, cy + 22 * k; width: 1.5 * k; color: p_ink; opacity: 35% }
+            text "{upper(wdl)}" { at: cx + 44 * k, cy - 12 * k; anchor: left center; size: 11.5 * k; weight: 700; color: p_mint; family: "Space Grotesk"; letter_move: letter * 1.8 * k, 0; outline: tol * 0.5, pdeep }
+            text "{dts}" { at: cx + 44 * k, cy + 11 * k; anchor: left center; size: 16 * k; weight: 500; color: p_ink; opacity: 88%; family: "Space Grotesk"; outline: tol * 0.5, pdeep }
+        }
+
+        //  ── 4 Editorial ──
+        group {
+            show: st == 4
+            opacity: op
+            text "{upper(wdl)}" { at: cx - 160 * k, cy - 82 * k; anchor: left center; size: 14 * k; weight: 700; color: p_mint; family: "Space Grotesk"; letter_move: letter * 3.4 * k, 0; shadow: 0, 1 * k, 6 * k, 45%; outline: tol * 0.6, pdeep }
+            //  The time with AM/PM (when there is one) just after it, small and up at the top of the digits: one text, so it follows the time's width; its last two letters
+            //  are shrunk and pulled back over the room they took at full size.
+            let eap = if(h12 > 0.5, 1, 0)
+            text "{tm}{? {ap}}" { at: cx - 166 * k, cy - 6 * k; anchor: left center; size: 132 * k; weight: 300; color: p_ink; family: "Space Grotesk"
+                letter_scale: if(eap > 0.5 and letter >= letters - 2, 0.17, 1)
+                letter_move: letter * -4 * k + eap * if(letter == letters - 2, -62 * k, if(letter == letters - 1, -138 * k, 0)), eap * if(letter >= letters - 2, -37 * k, 0)
+                shadow: tsx, tsy, tsb, tsa, pdeep; outline: tol, pdeep }
+            line { from: cx - 160 * k, cy + 62 * k; to: cx + 160 * k, cy + 62 * k; width: 1.4 * k; color: p_ink; opacity: 40% }
+            text "{dtl}" { at: cx - 160 * k, cy + 84 * k; anchor: left center; size: 15 * k; weight: 500; color: p_ink; opacity: 80%; family: "Space Grotesk"; shadow: 0, 1 * k, 6 * k, 45%; outline: tol * 0.6, pdeep }
+        }
+    }
+
+    //  A weather icon from shapes (the shell's WxIcon, which a library cannot reach), its top left at `x`, `y`, 26 x 20 times `u`: `kind` 0 clear, 1 partly cloudy,
+    //  2 cloud, 3 fog, 4 rain, 5 snow, 6 storm. The cloud is `cloud`; the sun, rain, snow and bolt are `sun`.
+    component WxGlyph(kind: number, x: number, y: number, u: number, cloud: color, sun: color) {
+        group {
+            show: kind == 0
+            ellipse { at: x + 13 * u, y + 10 * u; radius: 4.6 * u; color: sun }
+            repeat i in 0..8 {
+                group {
+                    pivot: x + 13 * u, y + 10 * u
+                    rotate: i * 45deg
+                    box { at: x + 13 * u, y + 2.2 * u; size: 1.7 * u, 3 * u; corner: 0.8 * u; color: sun }
+                }
+            }
+        }
+        group {
+            show: kind == 1
+            ellipse { at: x + 8.5 * u, y + 7.5 * u; radius: 3.4 * u; color: sun }
+            repeat i in 0..8 {
+                group {
+                    pivot: x + 8.5 * u, y + 7.5 * u
+                    rotate: i * 45deg
+                    box { at: x + 8.5 * u, y + 1.6 * u; size: 1.4 * u, 2.2 * u; corner: 0.7 * u; color: sun }
+                }
+            }
+            ellipse { at: x + 10 * u, y + 13 * u; radius: 3.6 * u; color: cloud }
+            ellipse { at: x + 15 * u, y + 11.5 * u; radius: 4.6 * u; color: cloud }
+            ellipse { at: x + 19 * u, y + 13.5 * u; radius: 3.2 * u; color: cloud }
+            box { at: x + 14.5 * u, y + 15.5 * u; size: 13 * u, 4.5 * u; corner: 2.2 * u; color: cloud }
+        }
+        group {
+            show: kind == 2 or kind == 4 or kind == 5 or kind == 6
+            let cy0 = y + if(kind == 2, 10, 7.5) * u
+            ellipse { at: x + 9 * u, cy0 + 1 * u; radius: 4 * u; color: cloud }
+            ellipse { at: x + 14 * u, cy0 - 1.5 * u; radius: 5 * u; color: cloud }
+            ellipse { at: x + 18.5 * u, cy0 + 1 * u; radius: 3.6 * u; color: cloud }
+            box { at: x + 13.5 * u, cy0 + 3 * u; size: 14 * u, 5 * u; corner: 2.5 * u; color: cloud }
+        }
+        group {
+            show: kind == 3
+            box { at: x + 13 * u, y + 5.5 * u; size: 17 * u, 2 * u; corner: 1 * u; color: cloud }
+            box { at: x + 13 * u, y + 10 * u; size: 13 * u, 2 * u; corner: 1 * u; color: cloud }
+            box { at: x + 13 * u, y + 14.5 * u; size: 17 * u, 2 * u; corner: 1 * u; color: cloud }
+        }
+        group {
+            show: kind == 4
+            line { from: x + 8.5 * u, y + 14 * u; to: x + 7 * u, y + 18 * u; width: 1.5 * u; color: sun }
+            line { from: x + 13.5 * u, y + 14 * u; to: x + 12 * u, y + 18 * u; width: 1.5 * u; color: sun }
+            line { from: x + 18.5 * u, y + 14 * u; to: x + 17 * u, y + 18 * u; width: 1.5 * u; color: sun }
+        }
+        group {
+            show: kind == 5
+            ellipse { at: x + 8 * u, y + 15.5 * u; radius: 1.3 * u; color: sun }
+            ellipse { at: x + 13 * u, y + 17.5 * u; radius: 1.3 * u; color: sun }
+            ellipse { at: x + 18 * u, y + 15.5 * u; radius: 1.3 * u; color: sun }
+        }
+        path {
+            show: kind == 6
+            at: x + 13 * u, y + 11 * u
+            color: sun
+            move 1.5 * u, 0
+            line -2.5 * u, 4.5 * u
+            line 0.2 * u, 4.5 * u
+            line -1.2 * u, 4 * u
+            line 4 * u, -5.5 * u
+            line 0.5 * u, -5.5 * u
+            close
+        }
+    }
+}
