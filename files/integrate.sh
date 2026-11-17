@@ -52,6 +52,12 @@ else
     ask_prefix='vitreus · '; ask_yn='[Y/n]'
 fi
 have() { command -v "$1" > /dev/null 2>&1; }
+# A D-Bus service file written or taken away in ~/.local/share/dbus-1/services: dbus-broker (Arch's session bus) does not watch that folder and goes on starting
+# the old program (Nautilus for «Show in folder») until told to read it again; dbus-daemon is told the same and does not mind.
+reload_bus() {
+    if have busctl; then busctl --user call org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus ReloadConfig > /dev/null 2>&1 || true
+    elif have dbus-send; then dbus-send --session --type=method_call --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.ReloadConfig > /dev/null 2>&1 || true; fi
+}
 current() { xdg-mime query default inode/directory 2> /dev/null || true; }
 # What the person has chosen for folders (the line in mimeapps.list), not what the desktop's list would give.
 explicit() { sed -n 's/^inode\/directory=\([^;]*\).*/\1/p' "$mimeapps" 2> /dev/null | head -n 1; }
@@ -77,6 +83,7 @@ portal_on() {
     mkdir -p "$(dirname "$pfile")" "$(dirname "$pservice")" "$pconf"
     printf '[portal]\nDBusName=org.freedesktop.impl.portal.desktop.vitreus\nInterfaces=org.freedesktop.impl.portal.FileChooser;\n' > "$pfile"
     printf '[D-BUS Service]\nName=org.freedesktop.impl.portal.desktop.vitreus\nExec="%s/bin/vitreus-portal"\n' "$dest" > "$pservice"
+    reload_bus
     for d in pleamar hyprland; do
         f=$pconf/$d-portals.conf
         if [ ! -f "$f" ]; then
@@ -102,6 +109,7 @@ portal_off() {
     done
     [ -f "$pfile" ] || [ -f "$pservice" ] || return 0
     rm -f "$pfile" "$pservice"
+    reload_bus
     have systemctl && systemctl --user try-restart xdg-desktop-portal.service 2> /dev/null || true
     say "file dialogs are the desktop's own again"
 }
@@ -116,6 +124,7 @@ if [ "$action" = remove ]; then
         esac
     fi
     rm -f "$prev" "$service" "$entry" "$icon"
+    reload_bus
     refresh_caches
     say "Files is no longer registered with the desktop"
     exit 0
@@ -165,6 +174,7 @@ if python3 -c 'import gi; gi.require_version("Gio", "2.0")' 2> /dev/null; then
 Name=org.freedesktop.FileManager1
 Exec="$dest/bin/vitreus-filemanager"
 EOF
+    reload_bus
     say "«Show in folder» opens Files ($service)"
     if have busctl && busctl --user status org.freedesktop.FileManager1 > /dev/null 2>&1; then
         say "another file manager is running and answers it now: it takes effect once that one has quit"
