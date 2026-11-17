@@ -2713,15 +2713,96 @@ local function free_in(name, taken)
 end
 F.free_in = free_in
 
--- the card: what is being done and how far it has got
+-- how long is left, said roughly: a number that jumps between 41 and 39 s every half second is noise
+local function left_text(secs)
+    if secs < 10 then return "a few seconds left" end
+    if secs < 60 then return string.format("%d s left", math.ceil(secs / 5) * 5) end
+    if secs < 3600 then return string.format("about %d min left", math.ceil(secs / 60)) end
+    local h = math.floor(secs / 3600)
+    return string.format("about %d h %d min left", h, math.ceil((secs - h * 3600) / 60))
+end
+
+-- A copy or a move counts in bytes, not in items: one 8 GB film among twenty photos was "1 of 21" for minutes and then everything at once.
+-- What every source weighs is asked once when the job starts (`du`, while the first item is already going); until it answers, items are counted
+-- as before. Each item, when it ends, is either done (its bytes count) or dropped (skipped, failed, onto itself: its bytes leave the total).
+local function job_bytes(job)
+    if not job.sizes then return end
+    local total, done = 0, 0
+    for _, t in ipairs(job.spec.tasks) do
+        local n = job.sizes[t.src]
+        if n then
+            local st = job.st[t]
+            if st ~= "dropped" then total = total + n end
+            if st == "done" then done = done + n
+            elseif t == job.cur_task then done = done + math.min(job.cur_bytes or 0, n) end
+        end
+    end
+    -- (what `cp` has handed over is not on the disk yet: Linux keeps it in memory and writes it out later, so a 1.3 GB copy to a USB stick
+    -- was "done" in a second and then wrote for a minute with nothing on screen. What waits to be written now, more than when the job started,
+    -- is taken off.)
+    return total, math.max(done - (job.pending or 0), 0)
+end
+
+-- the card: what is being done and how far it has got, and, for a copy that takes a while, how much, how fast and how long is left
 function F.job_text()
     local job = s.job
     if not job then return end
     local n = #job.spec.tasks
     local i = math.min(job.i - 1, n)
     text["job.text"] = job.spec.title .. (n > 1 and string.format(" · %d of %d", math.max(i, 1), n) or "") .. (job.cur_name and (" · " .. job.cur_name) or "")
-    if job.indeterminate then fact["job.p"] = -1
-    else fact["job.p"] = math.min(((math.max(i, 1) - 1) + (job.sub or 0)) / math.max(n, 1), 1) end
+    local total, done = job_bytes(job)
+    if job.indeterminate then
+        fact["job.p"] = -1
+        text["job.detail"] = ""
+        return
+    end
+    if not total or total < 1 then
+        fact["job.p"] = math.min(((math.max(i, 1) - 1) + (job.sub or 0)) / math.max(n, 1), 1)
+        text["job.detail"] = job.sizing and "Working out the size…" or ""
+        return
+    end
+    fact["job.p"] = math.min(done / total, 1)
+    -- the speed: what moved in the last few seconds (a rename on the same disk moves gigabytes in an instant, and over the whole job it made a
+    -- copy that followed look far faster than it was)
+    local now = os.clock()
+    local smp = job.samples
+    if #smp == 0 or now - smp[#smp].t >= 0.4 then
+        smp[#smp + 1] = { t = now, b = done }
+        while #smp > 2 and now - smp[1].t > 6 do table.remove(smp, 1) end
+    end
+    local detail = size_text(done) .. " of " .. size_text(total)
+    local first, last = smp[1], smp[#smp]
+    local span = last.t - first.t
+    if span >= 1.5 and now - job.started >= 2 then
+        local rate = (last.b - first.b) / span
+        if rate > 0 then
+            detail = detail .. " · " .. size_text(rate) .. "/s · " .. left_text((total - done) / rate)
+        elseif now - (job.moved_at or job.started) > 5 then
+            detail = detail .. " · waiting"
+        end
+    end
+    if done ~= job.last_done then job.last_done = done; job.moved_at = now end
+    text["job.detail"] = detail
+end
+
+-- what each source weighs, all in one `du` (-0: a name may hold a newline)
+local function size_job(job)
+    local srcs, args = {}, { "-sbx0", "--" }
+    for _, t in ipairs(job.spec.tasks) do
+        if (t.kind == "copy" or t.kind == "move") and t.src and not srcs[t.src] then srcs[t.src] = true; args[#args + 1] = t.src end
+    end
+    if #args == 2 then return end
+    job.sizing = true
+    run("du", args, function(out)
+        job.sizing = false
+        local sizes = {}
+        for rec in (out or ""):gmatch("[^%z]+") do
+            local n, p = rec:match("^(%d+)\t(.*)$")
+            if n then sizes[p] = tonumber(n) end
+        end
+        job.sizes = sizes
+        if s.job == job then F.job_text() end
+    end)
 end
 
 -- run a program as the job's: it can be stopped, and what it said about its trouble is kept
@@ -2736,26 +2817,38 @@ function F.exec(job, cmd, args, cb)
     if ok then job.proc = id else cb(false, "could not start " .. cmd) end
 end
 
--- a long copy says how far it is: the size of the copy so far against the size of the original, looked at twice a second after the first second
-local function watch_progress(job, src, dst)
+-- a long copy says how far it is: the size of the copy so far against the size of the original, looked at twice a second after the first half
+-- second. Joined into a folder that is already there (`base`), what that folder held before is not counted as copied.
+local function watch_progress(job, t, dst, base)
     job.cur_dst = dst
-    after(1000, function()
+    job.cur_task = t
+    job.cur_bytes = 0
+    local src = t.src
+    local function size_of(path, cb)
+        run("du", { "-sbx", "--", path }, function(o) cb(tonumber((o or ""):match("^(%d+)"))) end)
+    end
+    after(500, function()
         if job.cur_dst ~= dst or s.job ~= job then return end
-        run("du", { "-sbx", "--", src }, function(o)
-            local total = tonumber((o or ""):match("^(%d+)"))
+        local function start(total, from)
             if not total or total < 1 or job.cur_dst ~= dst then return end
             local function poll()
                 if job.cur_dst ~= dst or s.job ~= job then return end
-                run("du", { "-sb", "--", dst }, function(o2)
+                size_of(dst, function(got)
                     if job.cur_dst ~= dst or s.job ~= job then return end
-                    local got = tonumber((o2 or ""):match("^(%d+)")) or 0
-                    job.sub = math.min(got / total, 0.99)
+                    local cur = math.max((got or 0) - from, 0)
+                    job.cur_bytes = math.min(cur, total)
+                    job.sub = math.min(cur / total, 0.99)
                     F.job_text()
                     after(500, poll)
                 end)
             end
             poll()
-        end)
+        end
+        local function with_total(from)
+            local known = job.sizes and job.sizes[src]
+            if known then start(known, from) else size_of(src, function(n) start(n, from) end) end
+        end
+        if base then size_of(dst, function(n) with_total(n or 0) end) else with_total(0) end
     end)
 end
 
@@ -2783,10 +2876,13 @@ local function transfer_task(job, t, done)
         -- mode: nil (a new name), "replace" (over what is there), "merge" (a folder into a folder)
         job.cur_name = basename(dst)
         F.job_text()
-        watch_progress(job, t.src, dst)
+        watch_progress(job, t, dst, mode == "merge")
         local function finished(ok, err)
             job.cur_dst = nil
+            job.cur_task = nil
+            job.cur_bytes = 0
             job.sub = 0
+            job.st[t] = (ok and not job.cancel) and "done" or "dropped"
             if job.cancel then
                 -- A half-made COPY is taken away. A move never is: stopped just as `mv` had renamed it, or while it was taking the original away
                 -- after copying to another disk, what is at `dst` is the only whole one there is, and removing it lost the file.
@@ -2833,14 +2929,14 @@ local function transfer_task(job, t, done)
         if not exists then go_on(dst) return end
         if dst == t.src then
             -- onto itself: a copy gets a name of its own; a move is nothing
-            if t.kind == "move" then done() return end
+            if t.kind == "move" then job.st[t] = "dropped"; done() return end
             go_on(join(into, free_in(basename(dst), set)))
             return
         end
         if t.auto_both then go_on(join(into, free_in(basename(dst), set))) return end
         local function decide(choice)
-            if choice == "stop" then job.cancel = true; done()
-            elseif choice == "skip" then job.skipped = job.skipped + 1; done()
+            if choice == "stop" then job.cancel = true; job.st[t] = "dropped"; done()
+            elseif choice == "skip" then job.skipped = job.skipped + 1; job.st[t] = "dropped"; done()
             elseif choice == "both" then go_on(join(into, free_in(basename(dst), set)))
             else
                 -- replace: a folder over a folder is joined with it; a file over a file is written over; anything else puts the old one in the Trash first
@@ -3000,10 +3096,54 @@ function TASK.restore(job, t, done)
     end)
 end
 
+-- what waits in memory to be written to a disk (Dirty + Writeback in /proc/meminfo, for the whole system), in bytes
+local function unwritten(cb)
+    run("cat", { "/proc/meminfo" }, function(o)
+        local d = tonumber((o or ""):match("\nDirty:%s*(%d+)")) or 0
+        local w = tonumber((o or ""):match("\nWriteback:%s*(%d+)")) or 0
+        cb((d + w) * 1024)
+    end)
+end
+local function watch_unwritten(job)
+    unwritten(function(base)
+        job.dirty0 = base
+        local function poll()
+            if s.job ~= job then return end
+            unwritten(function(now)
+                if s.job ~= job then return end
+                job.pending = math.max(now - job.dirty0, 0)
+                F.job_text()
+                after(500, poll)
+            end)
+        end
+        after(500, poll)
+    end)
+end
+-- the last step of a copy or a move: wait until what it wrote is on the disk (`sync -f`, each folder it went into), so the card stays until
+-- the stick can be pulled out, and the bar ends when the writing does
+local function flush(job, cb)
+    local dirs, seen = {}, {}
+    for _, t in ipairs(job.spec.tasks) do
+        if job.st[t] == "done" then
+            local into = t.into or (t.dst and dirname(t.dst))
+            if into and not seen[into] then seen[into] = true; dirs[#dirs + 1] = into end
+        end
+    end
+    if #dirs == 0 or not job.sizes or job.cancel then cb() return end
+    unwritten(function(now)
+        if now - (job.dirty0 or now) < 8000000 then cb() return end      -- nothing much waiting (a copy on the same disk, a rename)
+        job.cur_name = "writing to " .. basename(dirs[1])
+        F.job_text()
+        local args = { "-f", "--" }
+        for _, d in ipairs(dirs) do args[#args + 1] = d end
+        F.exec(job, "sync", args, function() cb() end)
+    end)
+end
+
 local function next_task(job)
     if job.cancel then F.finish_job(job) return end
     local t = job.spec.tasks[job.i]
-    if not t then F.finish_job(job) return end
+    if not t then flush(job, function() F.finish_job(job) end) return end
     job.i = job.i + 1
     job.sub = 0
     local fn = TASK[t.kind]
@@ -3017,9 +3157,10 @@ function F.run_job(spec)
         s.jobq[#s.jobq + 1] = spec
         return
     end
-    local job = { spec = spec, i = 1, results = {}, names = {}, skipped = 0, failed = 0, errors = {} }
+    local job = { spec = spec, i = 1, results = {}, names = {}, skipped = 0, failed = 0, errors = {}, st = {}, samples = {}, started = os.clock() }
     s.job = job
     s.busy = true
+    if not spec.quiet then size_job(job); watch_unwritten(job) end
     if not spec.quiet then
         after(700, function()
             if s.job == job and not (s.cf) then fact["job.on"] = true; F.job_text() end

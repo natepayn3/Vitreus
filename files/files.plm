@@ -23,7 +23,7 @@ scene Files {
 
     permissions {
         services: "files", "files.write"
-        run: "find", "magick", "vitreus-thumb", "ffmpeg", "ffprobe", "identify", "pdftoppm", "stat", "du", "file", "rm", "rmdir", "hyprctl", "xdg-open", "gio", "cp", "mv", "mkdir", "df", "xdg-user-dir", "printenv", "pleamar", "wl-copy", "wl-paste", "fc-match", "vitreus-files", "cat", "head", "chmod", "ln", "touch", "bsdtar", "grep", "sha256sum", "lsblk", "findmnt", "udisksctl", "awww", "which", "readlink", "kitty", "alacritty", "foot", "wezterm", "konsole", "gnome-terminal", "xterm", "date", "sh"
+        run: "find", "magick", "vitreus-thumb", "ffmpeg", "ffprobe", "identify", "pdftoppm", "stat", "du", "file", "rm", "rmdir", "hyprctl", "xdg-open", "gio", "cp", "mv", "mkdir", "df", "xdg-user-dir", "printenv", "pleamar", "wl-copy", "wl-paste", "fc-match", "vitreus-files", "cat", "head", "chmod", "ln", "touch", "bsdtar", "grep", "sha256sum", "lsblk", "findmnt", "udisksctl", "awww", "which", "readlink", "kitty", "alacritty", "foot", "wezterm", "konsole", "gnome-terminal", "xterm", "date", "sync", "sh"
     }
 
     // ── what the logic says ──
@@ -106,6 +106,7 @@ scene Files {
     fact job.on = false              // something is being copied, moved or put away
     fact job.p = 0                   // how far it has got, 0 to 1 (-1 when it cannot say)
     text job.text = ""
+    text job.detail = ""             // how much of how much, how fast and how long is left (a copy or a move)
     fact undo.on = false             // the last thing done can be taken back
     text undo.text = ""
     fact cf.on = false               // the question about a name that is taken
@@ -1661,20 +1662,21 @@ scene Files {
     }
 
     // ── what is going on, and what can be taken back: two cards that float at the bottom of the folder ──
-    let jy = H - sbh - 8 - 70
+    let jy = H - sbh - 8 - 86
     group {
         show: job.on
         let jx = mx + mw / 2 - 220
-        Pane(jx, jy, 440, 62, 16, 0.6)
+        Pane(jx, jy, 440, 78, 16, 0.6)
         text job.text { at: jx + 18, jy + 20; anchor: left center; size: 13; weight: 600; color: ink; width: 310; lines: 1; family: "Space Grotesk" }
         box { from: jx + 18, jy + 40; size: 310, 6; corner: 3; color: ink; opacity: 16% }
         box { from: jx + 18, jy + 40; size: 310 * clamp(job.p, 0, 1), 6; corner: 3; color: mint; opacity: 90%; show: job.p >= 0 }
         box { from: jx + 18 + 250 * fract(time * 0.9), jy + 40; size: 60, 6; corner: 3; color: mint; opacity: 90%; show: job.p < 0 }
+        text job.detail { at: jx + 18, jy + 62; anchor: left center; size: 12; weight: 500; color: faint; width: 404; lines: 1; family: "Space Grotesk" }
         Btn(jx + 346, jy + 14, 80, "Cancel", 0, job_cancel, 0)
     }
     group {
         show: undo.on
-        let uy = jy + if(job.on, -62, 18)
+        let uy = jy + if(job.on, -62, 34)
         let ux = mx + mw / 2 - 200
         Pane(ux, uy, 400, 44, 14, 0.6)
         text undo.text { at: ux + 18, uy + 22; anchor: left center; size: 13; weight: 600; color: ink; width: 270; lines: 1; family: "Space Grotesk" }
