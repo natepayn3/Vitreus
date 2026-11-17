@@ -30,7 +30,8 @@
 #   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent, vitreus-sysmon, vitreus-battery, vitreus-greeter, vitreus-term, vitreus-files, vitreus-edit, vitreus-report, vitreus-btnwait and vitfetch, linked into ~/.local/bin; vitreus-inhibit, built there)
 #   5c. Files, as a program            (its icon and entry in ~/.local/share; asked: the file manager for folders and «Show in folder», files/integrate.sh)
 #   5d. View, as a program             (its icon and entry in ~/.local/share; asked: what opens pictures and videos, view/integrate.sh)
-#   6. its Hyprland key binds         (hypr_vitreus.lua linked into ~/.config/hypr, and loaded from hyprland.lua)
+#   6. its Hyprland key binds         (hypr_vitreus.lua linked into ~/.config/hypr, and loaded from hyprland.lua, which also starts the
+#                                      shell (pleamar --autostart); a hyprland.lua not written yet is made from Hyprland's stock one)
 #   6b. the daemons                   (awww, hypridle and the clipboard history: lines in ~/.config/pleamar/autostart, run on any compositor)
 #   6c. niri                        (config.kdl includes vitreus.kdl, the room round the windows the shell writes, and niri_vitreus.kdl, its key binds; with niri installed)
 #   7. pleamar-wm, as a session       (pleamar-wm/: its keys, window scene, hyprctl shim, and, with sudo,
@@ -1097,26 +1098,54 @@ fi
 stage "the key binds"
 hyprdir="$conf/hypr"
 hyprlua="$hyprdir/hyprland.lua"
+# The line that starts the shell on Hyprland: pleamar runs ~/.config/pleamar/autostart (vitreus.plm and the daemons). Hyprland's PATH,
+# from a display manager, has no ~/.local/bin, so it is put in front.
+hypr_autostart='hl.on("hyprland.start", function () hl.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --autostart") end)'
 if $do_binds; then
+    # A Hyprland that has never been logged in to has no hyprland.lua yet: it writes its stock one on the first login. Without one here,
+    # the shell would never be started on Hyprland, so the stock one is put in place now (what Hyprland would have written) and the
+    # lines go into it. A hyprland.conf of the person's own is left alone.
+    if [ ! -f "$hyprlua" ] && [ ! -f "$hyprdir/hyprland.conf" ] && { have Hyprland || have hyprland; }; then
+        stock=""
+        for f in /usr/share/hypr/hyprland.lua /usr/local/share/hypr/hyprland.lua; do [ -f "$f" ] && { stock="$f"; break; }; done
+        if [ -n "$stock" ]; then
+            run mkdir -p "$hyprdir"
+            run cp "$stock" "$hyprlua"
+            $dry || say "no $hyprlua yet (Hyprland writes it on the first login): made it from the stock one, $stock"
+        else
+            warn "Hyprland is installed but there is no $hyprlua, and no stock one to start it from: log in to Hyprland once, then run this again, or Vitreus will not start on Hyprland"
+        fi
+    fi
     if [ ! -f "$hyprlua" ]; then
-        say "no $hyprlua, so no key binds set up (hyprland.conf users: bind a key to  pleamar --say vitreus \"emit settings_toggle\" )"
+        if [ -f "$hyprdir/hyprland.conf" ]; then
+            warn "Hyprland reads $hyprdir/hyprland.conf, which this does not edit: add  exec-once = ~/.local/bin/pleamar --autostart  to it, or Vitreus will not start on Hyprland"
+        elif ! $dry; then
+            say "no $hyprlua, so no key binds set up (hyprland.conf users: bind a key to  pleamar --say vitreus \"emit settings_toggle\" )"
+        fi
     elif grep -q 'hypr_vitreus' "$hyprlua"; then
         say "hyprland.lua already loads hypr_vitreus.lua"
         run ln -sf "$dest/hypr_vitreus.lua" "$hyprdir/hypr_vitreus.lua"
         # An install from before a file existed never loaded it (vitreus_colors.lua keeps the room the left bar takes; without
         # it, every reload of the config gives the gaps back): add what is missing, inside the block if it is there.
-        for mod in vitreus_monitors vitreus_hypr vitreus_colors; do
-            grep -q "$mod" "$hyprlua" && continue
-            if $dry; then
-                would "add pcall(require, \"$mod\") to $hyprlua"
+        # An install from before the shell was started from here never started it at all on Hyprland: that line too.
+        for mod in autostart vitreus_monitors vitreus_hypr vitreus_colors; do
+            if [ "$mod" = autostart ]; then
+                grep -q 'pleamar --autostart' "$hyprlua" && continue
+                line="$hypr_autostart"
             else
+                grep -q "$mod" "$hyprlua" && continue
                 line="pcall(require, \"$mod\")"
+            fi
+            if $dry; then
+                would "add $line to $hyprlua"
+            else
                 if grep -q '^-- <<< vitreus' "$hyprlua"; then
                     tmp=$(mktemp)
-                    awk -v l="$line" '/^-- <<< vitreus/ { print l } { print }' "$hyprlua" > "$tmp" && cat "$tmp" > "$hyprlua"
+                    # through the environment, not -v: awk -v reads backslashes as escapes, and the autostart line has \" in it
+                    l="$line" awk '/^-- <<< vitreus/ { print ENVIRON["l"] } { print }' "$hyprlua" > "$tmp" && cat "$tmp" > "$hyprlua"
                     rm -f "$tmp"
                 else
-                    echo "$line" >> "$hyprlua"
+                    printf '%s\n' "$line" >> "$hyprlua"
                 fi
                 say "added $line to $hyprlua"
             fi
@@ -1124,12 +1153,13 @@ if $do_binds; then
     elif ask "load Vitreus's key binds (SUPER + L, SUPER + Space) from $hyprlua?"; then
         run ln -sf "$dest/hypr_vitreus.lua" "$hyprdir/hypr_vitreus.lua"
         if $dry; then
-            would "back up $hyprlua and add four pcall(require, ...) lines to its end"
+            would "back up $hyprlua and add the line that starts the shell and four pcall(require, ...) lines to its end"
         else
             cp "$hyprlua" "$hyprlua.before-vitreus"
             {
                 echo ""
                 echo "-- >>> vitreus (added by its installer; ./install.sh --uninstall takes it out)"
+                grep -q 'pleamar --autostart' "$hyprlua" || printf '%s\n' "$hypr_autostart"
                 echo 'pcall(require, "hypr_vitreus")'
                 grep -q 'vitreus_monitors' "$hyprlua" || echo 'pcall(require, "vitreus_monitors")'
                 grep -q 'vitreus_hypr' "$hyprlua" || echo 'pcall(require, "vitreus_hypr")'
