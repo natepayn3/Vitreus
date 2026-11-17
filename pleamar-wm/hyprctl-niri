@@ -25,7 +25,9 @@ def monitors():
         workspaces = []
     active = {w.get("output"): w for w in workspaces if w.get("is_active")}
     result = []
-    for i, name in enumerate(sorted(outs, key=lambda n: (outs[n].get("logical") or {}).get("x", 0))):
+    # (an output niri has turned off has no `logical`: Hyprland leaves such a monitor out, and here it was reported at 0,0 in its first mode)
+    on = [n for n in outs if outs[n].get("logical")]
+    for i, name in enumerate(sorted(on, key=lambda n: (outs[n].get("logical") or {}).get("x", 0))):
         o = outs[name]
         modes, cur = o.get("modes") or [], o.get("current_mode")
         mode = modes[cur] if cur is not None and cur < len(modes) else (modes[0] if modes else {"width": 0, "height": 0, "refresh_rate": 60000})
@@ -202,12 +204,14 @@ def main():
     elif cmd == "dispatch" and len(args) > 1:
         dispatch(" ".join(args[1:]))
     elif cmd == "activewindow":
-        focused = next((w for _, w, _ in windows() if w.get("is_focused")), None)
+        focused, fws = next(((w, ws) for _, w, ws in windows() if w.get("is_focused")), (None, {}))
+        # (the workspace as `clients` and `workspaces` number it, `idx`: niri's own id here did not match them)
+        wnum = fws.get("idx", focused.get("workspace_id", 0)) if focused else 0
         if as_json:
             print(json.dumps({} if focused is None else {
                 "address": "0x" + addr(focused), "title": focused.get("title") or "", "class": focused.get("app_id") or "", "initialClass": focused.get("app_id") or "",
                 "pid": focused.get("pid") or 0, "mapped": True, "floating": bool(focused.get("is_floating")), "fullscreen": 0,
-                "workspace": {"id": focused.get("workspace_id", 0), "name": str(focused.get("workspace_id", 0))}}))
+                "workspace": {"id": wnum, "name": str(wnum)}}))
         elif focused is None:
             print("Invalid")
         else:

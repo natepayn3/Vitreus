@@ -12,7 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Move the pins to the newest releases
         env: { GITHUB_TOKEN: "${{ github.token }}" }
-        run: bin/vitreus-sync-addons bump | tee /tmp/bump.txt
+        shell: bash   # (with pipefail: GitHub's default shell has none, so a bump that failed was `tee`'s success, and a PR followed)
+        run: set -o pipefail; bin/vitreus-sync-addons bump | tee /tmp/bump.txt
       - name: Open a PR if anything moved
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |

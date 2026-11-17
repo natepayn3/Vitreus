@@ -25,7 +25,13 @@ do
         end
     end
 end
-local function save() pcall(sys.call, "files.write", "state.json", st) end
+-- (once a drag has rested: every step of a band's slider wrote the file)
+local save_waiting = false
+local function save()
+    if save_waiting then return end
+    save_waiting = true
+    after(400, function() save_waiting = false; pcall(sys.call, "files.write", "state.json", st) end)
+end
 
 -- ── the helper ──
 local helper = nil
@@ -80,7 +86,11 @@ local function set_spectrum(b, p)
 end
 local function on_line(line)
     local ok, ev = pcall(json.decode, line)
-    if not ok or type(ev) ~= "table" then return end
+    -- (what is not an event is the helper's own error output: it went nowhere, and a helper that kept failing said nothing of why)
+    if not ok or type(ev) ~= "table" then
+        if type(line) == "string" and line:match("%S") then log("eq helper:", line:sub(1, 300)) end
+        return
+    end
     if ev.ev == "spec" then
         if type(ev.b) == "table" and #ev.b == N then set_spectrum(ev.b, type(ev.p) == "table" and #ev.p == N and ev.p or ev.b) end
         return
@@ -106,13 +116,17 @@ on("fact:slot_open", function(v)
     if not now then set_spectrum(nil, nil) end
 end)
 
+local restart_wait, started_at = 3000, 0
 local function start_helper()
     if helper then return end
+    started_at = os.time()
     helper = spawn("vitreus-eq", { folder }, on_line, function(_, code)
         helper = nil
         target = ""
         log("eq helper ended", code)
-        if not stopping then after(3000, start_helper) end
+        -- (one that keeps ending at once waits twice as long each time, up to a minute: it was started again every 3 s for good)
+        if os.time() - started_at < 10 then restart_wait = math.min(60000, restart_wait * 2) else restart_wait = 3000 end
+        if not stopping then after(restart_wait, start_helper) end
     end, { stdin = "open", errors = true })
     apply()
     tell_spectrum()

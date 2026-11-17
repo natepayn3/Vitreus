@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # Writes desktopcards.plm: the calendar and the reminders are two cards of one scene, and what places and drags them is the same text for each
-# (a card is `cal` or `rem` in every fact), so it is written once here. Run it after changing this file:   python3 gen.py
+# (a card is `cal` or `rem` in every fact), so it is written once here.
+# OUT OF DATE: desktopcards.plm has been edited by hand since (the monitor names, `glide`, the holes, the permissions). Running this now would
+# write an older scene over it, which its logic no longer fits. Port those edits back here before running it again.
 import re, pathlib
 here = pathlib.Path(__file__).parent
 pal = [l for l in (here.parent / "desktopclock/desktopclock.plm").read_text().split("\n") if l.strip().startswith("fact pal_")]

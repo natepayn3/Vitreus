@@ -17,6 +17,8 @@
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 dest=$(cd "$here/.." && pwd)
+# (the path quoted in the entries, and its `|`, `&` or `\` escaped for sed: a home with a space in it gave commands that ran nothing)
+bin_esc=$(printf '%s' "$dest/bin/vitreus-files" | sed 's/[\\&|]/\\&/g')
 data=${XDG_DATA_HOME:-$HOME/.local/share}
 conf=${XDG_CONFIG_HOME:-$HOME/.config}
 state=$data/pleamar/vitreus
@@ -74,7 +76,7 @@ portal_on() {
     fi
     mkdir -p "$(dirname "$pfile")" "$(dirname "$pservice")" "$pconf"
     printf '[portal]\nDBusName=org.freedesktop.impl.portal.desktop.vitreus\nInterfaces=org.freedesktop.impl.portal.FileChooser;\n' > "$pfile"
-    printf '[D-BUS Service]\nName=org.freedesktop.impl.portal.desktop.vitreus\nExec=%s/bin/vitreus-portal\n' "$dest" > "$pservice"
+    printf '[D-BUS Service]\nName=org.freedesktop.impl.portal.desktop.vitreus\nExec="%s/bin/vitreus-portal"\n' "$dest" > "$pservice"
     for d in pleamar hyprland; do
         f=$pconf/$d-portals.conf
         if [ ! -f "$f" ]; then
@@ -137,9 +139,9 @@ fi
 
 # The entry: it claims folders only for someone who chose it (now, or before: a refresh keeps that).
 if [ "$mode" = yes ] || [ "$had" = vitreus-files.desktop ]; then
-    sed "s|@BIN@|$dest/bin/vitreus-files|" "$here/vitreus-files.desktop" > "$entry"
+    sed "s|@BIN@|$bin_esc|" "$here/vitreus-files.desktop" > "$entry"
 else
-    sed -e "s|@BIN@|$dest/bin/vitreus-files|" -e '/^MimeType=/d' "$here/vitreus-files.desktop" > "$entry"
+    sed -e "s|@BIN@|$bin_esc|" -e '/^MimeType=/d' "$here/vitreus-files.desktop" > "$entry"
 fi
 refresh_caches
 say "Files has its icon and its entry ($entry)"
@@ -161,7 +163,7 @@ if python3 -c 'import gi; gi.require_version("Gio", "2.0")' 2> /dev/null; then
     cat > "$service" <<EOF
 [D-BUS Service]
 Name=org.freedesktop.FileManager1
-Exec=$dest/bin/vitreus-filemanager
+Exec="$dest/bin/vitreus-filemanager"
 EOF
     say "«Show in folder» opens Files ($service)"
     if have busctl && busctl --user status org.freedesktop.FileManager1 > /dev/null 2>&1; then

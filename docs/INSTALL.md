@@ -38,6 +38,11 @@ The packages `install.sh` installs (from pacman; `iris-colors` and `mpvpaper` co
 | `polkit`, `python-gobject` | the authentication dialog |
 | `python-pyte`, `ttf-space-mono-nerd` | the Desk's terminal |
 | `python` 3.11 or newer | reads the theme `.toml` files (`bin/vitreus-themes`) and sets up the font for each theme |
+| `gcc`, `pkgconf`, `wayland`, `wayland-protocols` | building Caffeine's idle inhibitor (`bin/vitreus-inhibit.c`) |
+| `glib2` | `gio`: the Trash and Open With in Files and View |
+| `file` | telling a file's kind (Files, the Shelf) |
+| `python-pillow` | the terminal greeting's picture (`vitfetch`) |
+| `fastfetch` | the terminal greeting's system lines |
 | `pipewire-audio`, `sound-theme-freedesktop` | notification sounds |
 | `tesseract`, `tesseract-data-eng` | the text of a screenshot, and Snap's Copy text and Redact private info |
 

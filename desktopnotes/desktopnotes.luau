@@ -23,6 +23,7 @@ fact.shown = true
 fact.cli = cfg.clarity
 
 local function trim(s) return ((s or ""):gsub("^%s+", ""):gsub("%s+$", "")) end
+local editing = -1                 -- the sticker being written on (see `fact:eix`)
 
 -- ── where the monitors lie ──
 -- `hyprctl monitors -j`: each one's top left and size in the layout (logical pixels: the size over its scale, turned about when it is rotated a quarter), in the order Hyprland
@@ -203,7 +204,7 @@ on("note_del", function(i)
     slots[k] = nil
     publish(k)
     save_stickers()
-    if math.floor((tonumber(fact.eix) or -1) + 0.5) == k then fact.eix = -1 end
+    if math.floor((tonumber(fact.eix) or -1) + 0.5) == k then fact.eix = -1; editing = -1 end
 end)
 on("note_commit", function()
     local k = math.floor((tonumber(fact.eix) or -1) + 0.5)
@@ -212,22 +213,30 @@ on("note_commit", function()
         publish(k)
         save_stickers()
     end
-    fact.eix = -1
+    fact.eix = -1; editing = -1      -- (set from here, `fact:eix` does not hear it)
     text.ei = ""
 end)
 -- A click on a sticker (the scene sets `eix`): the field starts with what it says.
+-- Clicking another sticker while writing on one keeps what was written on the first: it was dropped, with the field given the second one's
+-- text. (Escape, `eix` -1, still throws an edit away.)
 on("fact:eix", function(v)
     local k = math.floor((tonumber(v) or -1) + 0.5)
+    if editing >= 0 and k >= 0 and k ~= editing and slots[editing] then
+        local t = trim(text.ei)
+        if t ~= slots[editing].t then slots[editing].t = t; publish(editing); save_stickers() end
+    end
+    editing = k
     if k >= 0 and slots[k] then text.ei = slots[k].t end
 end)
 
--- Dragging a sticker sets its `gx`, `gy` over and over: the place is kept once it has stopped for a moment.
-local drag_token = 0
+-- Dragging a sticker sets its `gx`, `gy` over and over: the place is kept once it has stopped for a moment. (A token for each sticker: with one
+-- for all of them, a sticker let go and another dragged within half a second lost the first one's new place.)
+local drag_token = {}
 local function moved(k)
-    drag_token = drag_token + 1
-    local t = drag_token
+    drag_token[k] = (drag_token[k] or 0) + 1
+    local t = drag_token[k]
     after(500, function()
-        if t ~= drag_token then return end
+        if t ~= drag_token[k] then return end
         local s = slots[k]
         local x, y = tonumber(fact["gx" .. k]), tonumber(fact["gy" .. k])
         if s and x and y then s.x, s.y = math.floor(x + 0.5), math.floor(y + 0.5); save_stickers() end

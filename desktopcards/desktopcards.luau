@@ -237,7 +237,14 @@ local function build()
         -- the week number of today (ISO)
         local wd = dow(today.y, today.m, today.d)
         local wk = (yday(today.y, today.m, today.d) - (wd + 1) + 10) // 7
-        text.cal_week = "Week " .. math.max(1, math.min(53, wk))
+        -- How many weeks a year has: 53 when it starts on a Thursday, or on a Wednesday in a leap year. Week 0 is the last of the year before,
+        -- and a week 53 of a year with 52 is week 1 of the next. (Clamped to 1..53, 1 January 2027 said "Week 1" for ISO week 53 of 2026.)
+        local function weeks(y)
+            local p = function(x) return (x + x // 4 - x // 100 + x // 400) % 7 end
+            return (p(y) == 4 or p(y - 1) == 3) and 53 or 52
+        end
+        if wk < 1 then wk = weeks(today.y - 1) elseif wk > weeks(today.y) then wk = 1 end
+        text.cal_week = "Week " .. wk
     else
         text.cal_week = moff > 0 and (moff .. (moff == 1 and " month ahead" or " months ahead")) or (-moff .. (moff == -1 and " month ago" or " months ago"))
     end

@@ -42,7 +42,11 @@ def run(*cmd, timeout=3):
 
 
 def plain():
-    os.execvp("fastfetch", ["fastfetch"] + [a for a in sys.argv[1:] if not a.startswith("--from")])
+    # (it runs in every new terminal: no fastfetch is nothing to show, not a traceback at the top of each one)
+    try:
+        os.execvp("fastfetch", ["fastfetch"] + [a for a in sys.argv[1:] if not a.startswith("--from")])
+    except OSError:
+        sys.exit(0)
 
 
 # ── making a picture ────────────────────────────────────────────────────────────────────
@@ -177,4 +181,6 @@ if __name__ == "__main__":
             show()
         except ImportError:
             print("vitfetch: the picture needs Pillow (python-pillow)", file=sys.stderr)
+            plain()
+        except Exception:                   # (anything else, a picture it cannot read: the plain one, rather than a traceback in each terminal)
             plain()

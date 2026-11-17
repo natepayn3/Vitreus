@@ -66,7 +66,9 @@ fi
 before=$(xdg-mime query default image/png 2> /dev/null || true)      # read before the entry is there, which the desktop's order could pick
 mkdir -p "$(dirname "$icon")" "$(dirname "$entry")"
 cp "$here/vitreus-view.svg" "$icon"
-sed "s|@BIN@|$dest/bin/vitreus-view|" "$here/vitreus-view.desktop" > "$entry"
+# (the path quoted in the entry, and its `|`, `&` or `\` escaped for sed: a home with a space in it gave a command that ran nothing)
+bin_esc=$(printf '%s' "$dest/bin/vitreus-view" | sed 's/[\\&|]/\\&/g')
+sed "s|@BIN@|$bin_esc|" "$here/vitreus-view.desktop" > "$entry"
 refresh_caches
 say "View has its icon and its entry ($entry)"
 

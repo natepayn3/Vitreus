@@ -15,7 +15,7 @@ line, in the environment or on disk, and it is handed to polkit's helper over it
 clears the field as soon as `--ctl submit` returns.
 
 Talking to polkit needs only Python and GLib's D-Bus (python-gobject); the conversation with the helper is over
-/run/polkit/agent-helper.socket, which is how polkit 0.121 and later do it (there is no setuid helper).
+/run/polkit/agent-helper.socket, which is how polkit 126 and later do it (older ones have a setuid helper instead, which this does not use).
 """
 import os
 import pwd
@@ -215,11 +215,9 @@ def on_method_call(connection, sender, path, interface, method, params, invocati
             return
         req = Request(cookie, invocation, user)
         current = req
-        ok = say("text pk_message " + clean(message))
-        ok = ok is not None and say("text pk_user " + user) is not None
-        ok = ok is not None and say("text pk_error ") is not None
-        ok = ok is not None and say("fact pk_busy false") is not None
-        ok = ok is not None and say("fact pk_open true") is not None
+        # (each one answered, in order: `ok` became a bool after the first line, so `ok is not None` was always true and only the last counted)
+        ok = all(say(c) is not None for c in ("text pk_message " + clean(message), "text pk_user " + user, "text pk_error ",
+                                              "fact pk_busy false", "fact pk_open true"))
         if not ok:
             print("vitreus-polkit-agent: the scene '%s' did not answer; cancelling" % SCENE, file=sys.stderr)
             finish(req, False, "no dialog")

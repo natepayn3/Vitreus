@@ -114,6 +114,8 @@ for ref in $refs; do
 done
 if $dirty; then
     git -C "$SRC" diff HEAD --binary | git -C "$T" apply --3way - 2> "$RUN/dirty.log" || fail "1 merge · the uncommitted edits do not apply (dirty.log)"
+    # (the files not added to git yet as well: `git diff` leaves them out, and a new page or logic module was missing from what was tested)
+    git -C "$SRC" ls-files -o --exclude-standard -z | (cd "$SRC" && xargs -0 -r cp --parents -t "$T") 2>> "$RUN/dirty.log" || fail "1 merge · the new files could not be copied (dirty.log)"
     note "  + the uncommitted edits"
 fi
 # the person's own palette files are not in git (install.sh makes them from the .default ones, and the shell rewrites them from the wallpaper):
@@ -181,7 +183,7 @@ SCENES="wptrans/wptrans desktopclock/desktopclock desktopsysmon/desktopsysmon"
 { echo "vitreus-keep $COPY/vitreus.plm"; for s in $SCENES; do echo "vitreus-keep $COPY/$s.plm"; done; } > "$R/autostart"
 
 start_copy() {
-    env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY -u DBUS_SESSION_BUS_ADDRESS -u PLEAMAR_SOCKETS \
+    env -u HYPRLAND_INSTANCE_SIGNATURE -u NIRI_SOCKET -u WAYLAND_DISPLAY -u DISPLAY -u DBUS_SESSION_BUS_ADDRESS -u PLEAMAR_SOCKETS \
         HOME="$R/home" XDG_RUNTIME_DIR="$R/run" XDG_CONFIG_HOME="$R/conf" XDG_DATA_HOME="$R/data" XDG_CACHE_HOME="$R/cache" \
         PATH="$R/home/.local/bin:$COPY/pleamar-wm:$COPY/bin:$PATH" PLEAMAR_WM_AUTOSTART="$R/autostart" \
         setsid bwrap --dev-bind / / --proc /proc --unshare-pid --die-with-parent --tmpfs /tmp --bind "$R" "$R" \

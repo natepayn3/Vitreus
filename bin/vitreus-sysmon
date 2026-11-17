@@ -125,8 +125,23 @@ def mounts():
     return out[:6]
 
 
+def nvidia_asleep():
+    """Whether every NVIDIA card is runtime-suspended. Asking `nvidia-smi` wakes the card, and asked every 2 s it never slept again: on a laptop
+    with two cards that is the battery of a card nobody is using."""
+    states = []
+    for f in glob.glob("/sys/bus/pci/drivers/nvidia/*/power/runtime_status"):
+        try:
+            with open(f) as h:
+                states.append(h.read().strip())
+        except OSError:
+            pass
+    return bool(states) and all(s == "suspended" for s in states)
+
+
 def gpu():
     try:
+        if nvidia_asleep():
+            raise OSError("asleep")
         r = subprocess.run(
             ["nvidia-smi", "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,power.limit,fan.speed,clocks.sm,clocks.mem",
              "--format=csv,noheader,nounits"], capture_output=True, text=True, timeout=3)
@@ -178,7 +193,10 @@ def nice_temps(temps):
     """A short list of the ones worth showing: the CPU package, its hottest core, the drives, and what else a chip reports."""
     out = []
     core = [t for t in temps if t["chip"] == "coretemp" and t["l"].startswith("Core")]
-    pkg = [t for t in temps if t["chip"] == "coretemp" and t["l"].startswith("Package")]
+    # (AMD's is k10temp's Tctl, or Tdie where it has one; zenpower's Tdie: only Intel's coretemp was named, and an AMD machine showed no CPU)
+    pkg = ([t for t in temps if t["chip"] == "coretemp" and t["l"].startswith("Package")]
+           or [t for t in temps if t["chip"] in ("k10temp", "zenpower") and t["l"] == "Tdie"]
+           or [t for t in temps if t["chip"] == "k10temp" and t["l"] == "Tctl"])
     if pkg:
         out.append({"l": "CPU package", "c": pkg[0]["c"]})
     if core:
@@ -188,7 +206,7 @@ def nice_temps(temps):
             out.append({"l": "NVMe drive", "c": t["c"]})
     n = 0
     for t in temps:
-        if t["chip"] in ("coretemp", "nvme") or t["c"] <= 0:
+        if t["chip"] in ("coretemp", "nvme") or t["c"] <= 0 or (pkg and t is pkg[0]):
             continue
         if t["chip"] in ("acpitz", "k10temp", "zenpower") or t["chip"].startswith("dell") or t["chip"].startswith("thinkpad"):
             n += 1

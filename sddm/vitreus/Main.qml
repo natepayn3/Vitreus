@@ -22,6 +22,7 @@ Item {
     property int stage: 0                 // 1 the picture blurs, 2 the clock, 3 the date and the avatar, 4 the bar, 5 the corners
     property string errorText: ""
     property bool leaving: false
+    property bool trying: false     // a login is with SDDM: a second Enter meanwhile was a second try, and with faillock a second failure
     property date now: new Date()
     property int userIndex: userModel.lastIndex >= 0 ? userModel.lastIndex : 0
     property int sessionIndex: sessionModel.lastIndex >= 0 ? sessionModel.lastIndex : 0
@@ -541,12 +542,14 @@ Item {
     function unsayOne() { for (var i = picks.count - 1; i >= 0; i--) if (!picks.get(i).gone) { picks.setProperty(i, "gone", true); return } }
     function dropPick(uid) { for (var i = 0; i < picks.count; i++) if (picks.get(i).uid === uid) { picks.remove(i); return } }
     function tryLogin() {
-        if (pw.text.length === 0 || root.leaving) return
+        if (pw.text.length === 0 || root.leaving || root.trying) return
+        root.trying = true
         sddm.login(root.userName, pw.text, root.sessionIndex)
     }
     Connections {
         target: sddm
         function onLoginFailed() {
+            root.trying = false
             pw.text = ""                                    // (first: emptying the field clears errorText, and set before it the words were never seen)
             root.errorText = qsTr("Wrong password")
             shakeAnim.restart()

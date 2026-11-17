@@ -73,7 +73,9 @@ local function learn(p)
     if p.active and ips[p.uuid] == nil then
         ips[p.uuid] = ""
         nm({ "-g", "IP4.ADDRESS", "connection", "show", "uuid", p.uuid }, function(out, code)
-            ips[p.uuid] = code == 0 and ((trim(out):match("[^\n]+") or ""):gsub("/%d+$", "")) or ""
+            local ip = code == 0 and ((trim(out):match("[^\n]+") or ""):gsub("/%d+$", "")) or ""
+            -- (none yet, a VPN still coming up: asked again at the next look, instead of kept as "no address" for as long as it stayed up)
+            ips[p.uuid] = ip ~= "" and ip or nil
             render()
         end)
     elseif not p.active then

@@ -214,9 +214,11 @@ def main():
                 behind = True
                 print("%s: %s -> %s" % (id, e["tag"], new[0]))
                 if cmd == "bump":
+                    # the release first, and the pin moved only once it is in: a fetch that failed left the pin on the new commit
+                    # with the old folder under it, which the workflow then proposed as a bump
+                    fetch(id, dict(e, tag=new[0], sha=new[1]))
                     rewrite(id, *new)
                     e.update(tag=new[0], sha=new[1])
-                    fetch(id, e)
         if cmd == "check":
             sys.exit(1 if behind else 0)
     elif cmd == "lint":

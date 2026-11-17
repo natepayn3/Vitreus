@@ -104,10 +104,15 @@ on("tile_do", function(i)
         run("pleamar", { "--say", "desktopcards", "get " .. key }, function(out, code)
             if code ~= 0 then
                 start_cards()
-                after(3000, function()
-                    run("pleamar", { "--say", "desktopcards", "fact " .. key .. " true", "fact edit true" }, function() end)
-                    after(400, refresh_cards)
-                end)
+                -- asked every 300 ms until the scene answers, for up to 9 s (a fixed 3 s was too short on a cold start: the tile then did nothing,
+                -- and the scene idled out unused)
+                local function when_up(tries)
+                    run("pleamar", { "--say", "desktopcards", "fact " .. key .. " true", "fact edit true" }, function(o, c)
+                        if c == 0 and (o or ""):find("?", 1, true) ~= 1 then return after(400, refresh_cards) end
+                        if tries < 30 then after(300, function() when_up(tries + 1) end) end
+                    end)
+                end
+                after(500, function() when_up(0) end)
                 return
             end
             local on = (out or ""):match("true") ~= nil

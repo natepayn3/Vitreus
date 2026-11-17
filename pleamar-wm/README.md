@@ -5,7 +5,7 @@ is one that can be chosen at a login screen (SDDM, GDM). What is here is what ma
 
 | File | Where it goes | What it is |
 |---|---|---|
-| `keys.conf` | `~/.config/pleamar/keys.conf` | pleamar-wm's own keys (`defaults`), with the ones that were Marea's pointed at Vitreus: `Super+Space` launcher, `Super+Shift+Space` Settings, `Super+L` lock, `Super+B` wallpaper picker, `Print` and `Super+C` capture, volume, brightness and media keys |
+| `keys.conf` | `~/.config/pleamar/keys.conf` | pleamar-wm's own keys (`defaults`), with the ones that were Marea's pointed at Vitreus: `Super+Space` launcher, `Super+Shift+Space` Settings, `Super+L` lock, `Super+B` wallpaper picker, `Super+D` the Desk, `Super+C` the Control Center, `Super+A` / `Super+Ctrl+A` / `Super+Shift+A` capture (a region, the screen, a recording), `Super+Shift+S` a quick region to the clipboard, `Super+E` Files, volume, brightness and media keys |
 | `hypridle.conf` | `~/.config/hypr/hypridle.conf` | locks before sleep and `source`s `idle.conf`, where Settings > Idle writes its times (the installer links it on every desktop, not only pleamar-wm; without that `source` line the sliders do nothing). Screen off on pleamar-wm is also `idle off-after` in `session.conf` |
 | `wm/` | `~/.config/pleamar/wm` | the window manager's scene: pleamar-wm's own `session.plm` plus Vitreus's window styles (frosted glass title bars with a pill of line icons, Water, Borderless, Glow), borders, corners, shadows, the glass frame's room and the desktop menu's right-click. **It is generated, not edited**: `build-session.py` takes the scene of the installed pleamar-wm and applies the changes, and stops at the patch that no longer fits when pleamar-wm changes those lines (BSD 3-Clause, from pleamar-wm: `wm/LICENSE-pleamar-wm`) |
 | `install-session.sh` | run with `sudo` | puts «pleamar-wm» in the login screen (SDDM, GDM); `--remove` takes it away |
@@ -22,7 +22,7 @@ A login session needs `~/.local/bin` on its PATH (`pleamar-session` finds `pleam
 there when it is not interactive, so set the PATH in `~/.bash_profile`, before it sources `.bashrc`.
 
 **What is Hyprland's and does not work on pleamar-wm yet:** the Hyprland and Display settings pages, the workspace overview's window list
-(pleamar-wm has its own overview on `Super+Tab`), moving and focusing windows from the bar's title, and Night mode (hyprsunset, which is Hyprland's).
+(pleamar-wm has its own overview on `Super+Tab`), and moving and focusing windows from the bar's title. (Night mode works here with wlsunset, which the installer adds.)
 Programs are started directly there, since `hyprctl dispatch exec_cmd` is Hyprland's.
 
 **Updating pleamar-wm:** run `./build-session.py` in this folder after it (all its layouts, such as scrolling, come with it); `wm/session.plm.pre-rebase` is the scene from before the rebase of 2026-10-16. On 2026-10-22 the patches were rebased onto pleamar-wm 0.5.9's scene (repeats, folds and arrays; nine layouts, fractal, phone and wires): the shell's `focus_slot` and `close_slot` events, which its task list emits, are patched in too, so clicking or closing a window from the bar works here.

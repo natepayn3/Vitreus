@@ -57,6 +57,13 @@ def mark(level, section, msg):
     say(f"  [{tag}] {msg}")
 
 
+# pleamar is in ~/.local/bin, which a shell started from a desktop file or a tool may not have on its PATH: without it, every scene
+# "did not compile" and the report gave nothing.
+_lb = os.path.expanduser("~/.local/bin")
+if _lb not in os.environ.get("PATH", "").split(os.pathsep):
+    os.environ["PATH"] = _lb + os.pathsep + os.environ.get("PATH", "")
+
+
 def sh(args, timeout=120, env=None):
     try:
         p = subprocess.run(args, capture_output=True, text=True, timeout=timeout, env=env)
@@ -311,7 +318,9 @@ def live(report_secs):
                 key = b.get("key") or f"code:{b.get('keycode')}"
                 k = (b.get("submap", ""), b.get("modmask", 0), key.lower(), b.get("release"), b.get("mouse"), b.get("longPress"))
                 seen[k].append(f"{b.get('dispatcher')} {b.get('arg', '')}".strip())
-            dups = {k: v for k, v in seen.items() if len(v) > 1}
+            # (the same key with the same dispatcher twice; two different dispatchers on one key is how Hyprland chains actions, as
+            # ALT+Tab's cycle_next then bring_to_top, and was reported as a duplicate)
+            dups = {k: v for k, v in seen.items() if len(v) > len(set(v))}
             for k, v in dups.items():
                 mark("warn", "live", f"Hyprland: mods {k[1]} + {k[2]}{' in submap ' + k[0] if k[0] else ''} is bound {len(v)} times: {' | '.join(v)}")
             if not dups:

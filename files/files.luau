@@ -2759,6 +2759,20 @@ local function watch_progress(job, src, dst)
     end)
 end
 
+-- A move that never takes another's place: `mv -n` exits 0 when it skips, so a name taken meanwhile (another program, a second window) was
+-- reported as done; and given a folder's name it moved the thing INTO that folder. `-T` keeps it from going into one, and the source still
+-- being there afterwards is what says it did not happen.
+function F.mv_nc(job, src, dst, cb)
+    F.exec(job, "mv", { "-nT", "--", src, dst }, function(ok, err)
+        if not ok then return cb(false, err) end
+        -- (only the letters' case changed: on a disk that does not tell them apart, a USB stick's, the old name still answers)
+        if src:lower() == dst:lower() then return cb(true, "") end
+        run("stat", { "-c", "%i", "--", src }, function(_, code)
+            if code == 0 then cb(false, "\"" .. basename(dst) .. "\" is taken") else cb(true, "") end
+        end)
+    end)
+end
+
 local TASK = {}
 
 -- copy and move: the name in the other folder may be taken (and then it is asked, or what was said for all of them is done)
@@ -2809,7 +2823,7 @@ local function transfer_task(job, t, done)
                     else finished(ok, err) end
                 end)
             elseif mode == "replace" then F.exec(job, "mv", { "-f", "--", t.src, dst }, finished)
-            else F.exec(job, "mv", { "-n", "--", t.src, dst }, finished) end
+            else F.mv_nc(job, t.src, dst, finished) end
         end
     end
     names_in(job, into, function(set)
@@ -2857,7 +2871,7 @@ TASK.move = transfer_task
 
 function TASK.rename(job, t, done)
     job.cur_name = basename(t.dst)
-    F.exec(job, "mv", { "-n", "--", t.src, t.dst }, function(ok, err)
+    F.mv_nc(job, t.src, t.dst, function(ok, err)
         if ok then job.results[#job.results + 1] = { kind = "rename", src = t.src, dst = t.dst }
         else job.failed = job.failed + 1; job.errors[#job.errors + 1] = string.format("Could not rename \"%s\": %s", basename(t.src), why(err)) end
         done()
@@ -2971,7 +2985,7 @@ function TASK.restore(job, t, done)
     F.exec(job, "mkdir", { "-p", "--", dir }, function()
         names_in(job, dir, function(set)
             local dst = join(dir, free_in(basename(orig), set))
-            F.exec(job, "mv", { "-n", "--", t.src, dst }, function(ok, err)
+            F.mv_nc(job, t.src, dst, function(ok, err)
                 if ok then
                     set[basename(dst)] = true
                     job.results[#job.results + 1] = { kind = "restore", src = t.src, dst = dst }

@@ -37,12 +37,18 @@ theme_file() {
 if [ "$action" = remove ]; then
     f=$(theme_file)
     bak=$shared/$(basename "$f").before-vitreus
-    if [ -f "$bak" ]; then
-        sudo cp -f "$bak" "$f"; rm -f "$bak"
-    elif [ "$(current_theme)" = vitreus ]; then
-        sudo rm -f "$f"
+    # Only the `Current=` line changes, to the theme in use before (its name, from bin/vitreus-greeter's root-owned note, or read out of an older
+    # backup), or goes when there is none. (The whole file was copied back from a folder the user can write, as root, or deleted outright
+    # when there was no backup, taking any other setting in it along.)
+    if [ "$(current_theme)" = vitreus ] && [ -f "$f" ]; then
+        prev=$(head -n 1 /var/lib/vitreus-greeter/previous-theme 2> /dev/null)
+        [ -n "$prev" ] || prev=$(awk '/^\[/ { sec = $0 } sec == "[Theme]" && /^Current=/ { sub(/^Current=/, ""); v = $0 } END { print v }' "$bak" 2> /dev/null)
+        case $prev in *[!A-Za-z0-9._-]*|""|vitreus|.*) prev= ;; esac
+        if [ -n "$prev" ] && [ -d "$themes/$prev" ]; then sudo sed -i "s|^Current=vitreus\$|Current=$prev|" "$f"
+        else sudo sed -i '/^Current=vitreus$/d' "$f"; fi
     fi
-    sudo rm -rf "$themes/vitreus" /usr/local/share/vitreus-greeter
+    rm -f "$bak"
+    sudo rm -rf "$themes/vitreus" /usr/local/share/vitreus-greeter /var/lib/vitreus-greeter
     echo "taken away; the login screen uses: $(current_theme | sed 's/^$/SDDM'"'"'s own/')"
     exit 0
 fi
@@ -99,6 +105,11 @@ if $use; then
     bak=$shared/$(basename "$f").before-vitreus
     sudo install -d -o "$(id -un)" -m 755 "$shared"
     [ -f "$f" ] && [ ! -f "$bak" ] && cp "$f" "$bak"
+    # the theme in use before, by name, where only root can write it (what --remove and bin/vitreus-greeter put back)
+    prev=$(current_theme)
+    if [ -n "$prev" ] && [ "$prev" != vitreus ] && [ ! -s /var/lib/vitreus-greeter/previous-theme ]; then
+        sudo install -d -o root -g root -m 755 /var/lib/vitreus-greeter && printf '%s\n' "$prev" | sudo tee /var/lib/vitreus-greeter/previous-theme > /dev/null
+    fi
     if [ -f "$f" ] && grep -q '^Current=' "$f"; then
         sudo sed -i 's|^Current=.*|Current=vitreus|' "$f"
     elif [ -f "$f" ] && grep -q '^\[Theme\]' "$f"; then

@@ -373,7 +373,7 @@ ask_no() {
 [ "$(id -u)" -ne 0 ] || fail "run this as yourself, not as root: it installs into your home (and asks for sudo only for packages)"
 [ "$(uname -s)" = Linux ] || fail "Vitreus is a Linux (Wayland) shell"
 # The steps the bar counts (an install or update; --no-deps leaves out the first four after the check).
-if [ "$action" = install ]; then if $deps; then stage_total=14; else stage_total=10; fi; fi
+if [ "$action" = install ]; then if $deps; then stage_total=15; else stage_total=11; fi; fi      # (15 stages, 4 of them packages: the bar ended at "15/14")
 ui_start
 
 # ── uninstall ──────────────────────────────────────────────────────────────
@@ -382,6 +382,14 @@ if [ "$action" = uninstall ]; then
     if [ -f "$autostart" ] && grep -q 'vitreus.plm' "$autostart"; then
         run sed -i '/vitreus\.plm/d' "$autostart"
         say "removed its line from $autostart"
+    fi
+    # hypridle's config, if it is the link to Vitreus's: it would point into the folder about to go, and leave hypridle with no config. The file
+    # it replaced comes back. (Neither was done: a dangling link, and the person's own file left aside.)
+    idle_dst="$conf/hypr/hypridle.conf"
+    if [ -L "$idle_dst" ] && case "$(readlink -f "$idle_dst" 2> /dev/null)" in "$dest"/*) true ;; *) false ;; esac; then
+        run rm -f "$idle_dst"
+        if [ -f "$idle_dst.before-vitreus-idle" ]; then run mv "$idle_dst.before-vitreus-idle" "$idle_dst"; say "put your own $idle_dst back"
+        else say "removed $idle_dst, which was Vitreus's"; fi
     fi
     # The lock screen, the wallpaper transition and the desktop clock are scenes of their own, each with its line.
     if [ -f "$autostart" ] && grep -q 'vitreus/lockscreen/lockscreen.plm' "$autostart"; then
@@ -566,7 +574,8 @@ if $deps; then
         elif [ -n "$missing" ]; then
             say "packages to install:$missing"
             if ask "install them with sudo pacman?"; then
-                run sudo pacman -S --needed --noconfirm $missing
+                # (one package missing from the repos, or a conflict, ended the whole install here, with no word of its own, under `set -e`)
+                run sudo pacman -S --needed --noconfirm $missing || warn "pacman could not install them all:$missing (install what it named yourself, then run this again)"
             else
                 warn "skipped: parts of Vitreus will stay quiet without them"
             fi
@@ -582,7 +591,7 @@ if $deps; then
             if [ -n "$helper" ]; then
                 say "from the AUR (with $helper):$aur_missing"
                 if ask "install them?"; then
-                    run "$helper" -S --needed --noconfirm $aur_missing
+                    run "$helper" -S --needed --noconfirm $aur_missing || warn "$helper could not build them all:$aur_missing (the shell works without them)"
                 fi
             else
                 warn "from the AUR, and no helper (yay, paru) was found:$aur_missing"
@@ -1152,7 +1161,10 @@ if $do_binds; then
                 say "added $line to $hyprlua"
             fi
         done
-    elif ask "load Vitreus's key binds (SUPER + L, SUPER + Space) from $hyprlua?"; then
+    # (the question named two keys, and the file takes about twenty, SUPER + C, Hyprland's own "close window", among them: all are listed first)
+    elif say "Vitreus's key binds take these keys (each one's line is in $dest/hypr_vitreus.lua):" && \
+         { sed -n 's/^hl\.bind("\([^"]*\)".*/\1/p' "$dest/hypr_vitreus.lua" | awk '{ s = (l == "" ? "" : l ", ") $0; if (length(s) > 90) { print "    " l ","; l = $0 } else l = s } END { if (l != "") print "    " l }'; true; } && \
+         ask "load them from $hyprlua?"; then
         run ln -sf "$dest/hypr_vitreus.lua" "$hyprdir/hypr_vitreus.lua"
         if $dry; then
             would "back up $hyprlua and add the line that starts the shell and four pcall(require, ...) lines to its end"
@@ -1203,7 +1215,7 @@ if have niri && $do_binds; then
             {
                 echo ""
                 echo "// >>> vitreus (added by its installer; ./install.sh --uninstall takes it out)"
-                grep -q 'pleamar.*--autostart' "$nirikdl" || echo 'spawn-at-startup "pleamar" "--autostart"'
+                grep -q 'pleamar.*--autostart' "$nirikdl" || echo 'spawn-at-startup "sh" "-c" "PATH=\"$HOME/.local/bin:$PATH\" exec pleamar --autostart"'   # (with ~/.local/bin on its PATH: niri'"'"'s own may not have it, and then nothing started)
                 echo 'include "niri_vitreus.kdl"'
                 echo 'include "vitreus.kdl"'
                 echo "// <<< vitreus"
@@ -1224,6 +1236,9 @@ lockline="PLEAMAR_SWAPCHAIN=1 vitreus-keep $dest/lockscreen/lockscreen.plm"
 transline="vitreus-keep $dest/wptrans/wptrans.plm"
 clockline="vitreus-keep $dest/desktopclock/desktopclock.plm"
 sysmonline="vitreus-keep $dest/desktopsysmon/desktopsysmon.plm"
+# Whether the shell starts with the desktop: the lock screen, the widgets and the daemons are added only then. (They were added after a "no" as
+# well, and the next login had a glass clock and an idle lock with no shell, and on pleamar-wm a session with no bar.)
+shell_auto=false
 if $do_autostart; then
     # Lines from before the keeper started the scenes straight, once: they go through it now (with or without VAR=value words in front: a line that
     # keeps the shell outside the keeper is one that nothing starts again when Settings stops it to apply a theme's font).
@@ -1236,10 +1251,15 @@ if $do_autostart; then
     fi
     if [ -f "$autostart" ] && grep -q 'vitreus.plm' "$autostart"; then
         say "it is already in $autostart"
+        shell_auto=true
     elif ask "start Vitreus with the desktop (add a line to $autostart)?"; then
         run mkdir -p "$(dirname "$autostart")"
         if $dry; then would "add to $autostart: $line"; else printf '%s\n' "$line" >> "$autostart"; fi
+        shell_auto=true
     fi
+  if ! $shell_auto; then
+    say "nothing else is added to $autostart: the lock screen, the widgets and the daemons start with the shell"
+  else
     # The lock screen is a scene of its own (a session lock has to be its own program, so that restarting the shell cannot unlock
     # the session), and the lock buttons and SUPER + L only work while it runs: it always starts with the desktop.
     if [ -f "$autostart" ] && grep -q "^vitreus-keep $dest/lockscreen/lockscreen\.plm" "$autostart"; then
@@ -1275,6 +1295,7 @@ if $do_autostart; then
         if $dry; then would "add to $autostart: $sysmonline"; else printf '%s\n' "$sysmonline" >> "$autostart"; fi
         say "the desktop system monitor starts with the desktop too, hidden (a line in $autostart); \"Desktop system monitor: toggle\" in the launcher shows it"
     fi
+  fi
     # The UwU cursor trail: a scene of its own that only draws while the theme is UwU. The shell starts it when UwU is chosen and stops it on any
     # other theme (see push_look in vitreus.luau), so it no longer starts with the desktop: a line from before is taken out.
     if [ -f "$autostart" ] && grep -q 'cursortrail/cursortrail.plm' "$autostart"; then
@@ -1290,7 +1311,7 @@ fi
 # search has nothing without it). No `wm:` prefix: pleamar runs these lines on Hyprland (`pleamar --autostart`) and in pleamar-wm
 # alike. Each is guarded, so one that is already running (yours, or one from hyprland.lua) is not started twice; the guard
 # matches on the process name, because pgrep -f would find the very `sh -c` that runs the line.
-if $do_autostart; then
+if $do_autostart && $shell_auto; then
     if [ -f "$autostart" ] && grep -q '^# >>> vitreus (session)' "$autostart"; then
         say "the daemon lines are already in $autostart"
     else
@@ -1319,7 +1340,7 @@ fi
 # The Idle page only writes idle.conf in the data folder; hypridle waits for those times only if ~/.config/hypr/hypridle.conf `source`s it.
 # Without that line the sliders do nothing (an old hard-coded lock still fires, Never or not). So: no file, or the stock one of an earlier
 # version, gets Vitreus's (kept in a backup); a file of the user's own is left alone, but the line it needs is said out loud.
-if $do_autostart && [ -f "$dest/pleamar-wm/hypridle.conf" ]; then
+if $do_autostart && $shell_auto && [ -f "$dest/pleamar-wm/hypridle.conf" ]; then
     idle_src="$dest/pleamar-wm/hypridle.conf"
     idle_dst="$conf/hypr/hypridle.conf"
     if [ -L "$idle_dst" ] && [ "$(readlink -f "$idle_dst")" = "$(readlink -f "$idle_src")" ]; then
@@ -1349,7 +1370,8 @@ if $do_wm && [ -d "$wmdir" ] && { have pleamar-wm || [ -x "$HOME/.local/bin/plea
     # `wm:` lines are read by pleamar-wm's session only. Marea is the shell pleamar-wm comes with: with Vitreus as the bar,
     # she and swaybg (which needs a wallpaper file that is not there) are turned off, not deleted.
     # (The daemons Vitreus needs are started for every compositor, in the section above.)
-    if $do_autostart && [ -f "$autostart" ] && ! $dry; then
+    # (only with Vitreus starting in its place: after a "no" it turned the other bar off as well, and pleamar-wm had none at all)
+    if $do_autostart && $shell_auto && [ -f "$autostart" ] && ! $dry; then
         sed -i -e 's/^marea start\([[:space:]].*\)\{0,1\}$/# \0  (turned off by Vitreus: it is the bar now)/' \
                -e 's/^wm: swaybg\(.*\)$/# wm: swaybg\1  (turned off by Vitreus: it is the bar now)/' "$autostart"
     fi
@@ -1520,9 +1542,14 @@ heading "Start it"
 row "now" "$line"
 row "the lock screen" "$lockline"
 row "hexagon dissolve" "$transline"
-row "with the desktop" "autostart is read by pleamar's own session; on Hyprland run \`pleamar --autostart\`:"
-row "" "hyprland.lua:   hl.on(\"hyprland.start\", function () hl.exec_cmd(\"PATH=\\\"\$HOME/.local/bin:\$PATH\\\" pleamar --autostart\") end)"
-row "" "hyprland.conf:  exec-once = ~/.local/bin/pleamar --autostart   (Hyprland's PATH may lack ~/.local/bin)"
+# (only when hyprland.lua does not start it already: followed anyway, the autostart ran twice, and its guards raced into a second hypridle)
+if [ -f "${hyprlua:-}" ] && grep -q 'pleamar --autostart' "$hyprlua"; then
+    row "with the desktop" "hyprland.lua starts it already (pleamar --autostart); pleamar-wm reads $autostart itself"
+else
+    row "with the desktop" "autostart is read by pleamar's own session; on Hyprland run \`pleamar --autostart\`:"
+    row "" "hyprland.lua:   hl.on(\"hyprland.start\", function () hl.exec_cmd(\"PATH=\\\"\$HOME/.local/bin:\$PATH\\\" pleamar --autostart\") end)"
+    row "" "hyprland.conf:  exec-once = ~/.local/bin/pleamar --autostart   (Hyprland's PATH may lack ~/.local/bin)"
+fi
 row "pleamar-wm" "log out and choose «pleamar-wm» in the login screen (SDDM: click the session name under the password field)"
 heading "Good to know"
 row "keys (with the binds)" "SUPER + Space launcher, SUPER + SHIFT + Space settings, SUPER + B wallpaper picker, SUPER + L lock (see lockscreen/README.md)"

@@ -29,7 +29,8 @@ LOG=$RIG/log
 
 rig_env() {
     export XDG_RUNTIME_DIR=$RIG/run XDG_CONFIG_HOME=$RIG/conf XDG_DATA_HOME=$RIG/data XDG_CACHE_HOME=$RIG/cache
-    unset HYPRLAND_INSTANCE_SIGNATURE WAYLAND_DISPLAY DISPLAY
+    # (NIRI_SOCKET too: from a niri session the copy took niri for its own compositor, and its `hyprctl` stand-in sent `niri msg` to the real desktop)
+    unset HYPRLAND_INSTANCE_SIGNATURE WAYLAND_DISPLAY DISPLAY NIRI_SOCKET
     # a home of its own too (the shell reads and writes files in it: ~/.face, ~/.config/niri, the keys' files); the fonts are the real ones
     mkdir -p "$RIG/home/.local/share" "$RIG/home/.config"
     [ -e "$RIG/home/.local/share/fonts" ] || ln -s "$REAL_HOME/.local/share/fonts" "$RIG/home/.local/share/fonts"
