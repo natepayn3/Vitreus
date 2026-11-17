@@ -3136,7 +3136,13 @@ local function flush(job, cb)
         F.job_text()
         local args = { "-f", "--" }
         for _, d in ipairs(dirs) do args[#args + 1] = d end
-        F.exec(job, "sync", args, function() cb() end)
+        -- (Cancel cannot stop a `sync`: it waits inside the kernel until the disk is written, and a signal only lands after. So Cancel does
+        -- not wait for it: `job.flushing` is what it calls instead, and whichever comes first ends the job.)
+        job.flushing = cb
+        F.exec(job, "sync", args, function()
+            local go = job.flushing
+            if go then job.flushing = nil; go() end
+        end)
     end)
 end
 
@@ -3200,6 +3206,27 @@ on("job_cancel", function()
     local job = s.job
     if not job then return end
     job.cancel = true
+    if job.flushing then
+        -- stopped while it was being written out: the copies are taken away (they are not all on the disk yet); what was moved stays, as its
+        -- original is gone. Removing them also drops what of them was still waiting to be written.
+        local go, gone, keep = job.flushing, { "-rf", "--" }, {}
+        for _, r in ipairs(job.results) do
+            if r.kind == "copy" then gone[#gone + 1] = r.dst else keep[#keep + 1] = r end
+        end
+        job.results = keep
+        job.flushing = nil
+        job.proc = nil
+        go()
+        -- (in the background, and not waited for: on a USB stick `rm` waits for the part of the file already being written out, which can be
+        -- the rest of the write, and the card stayed up all that time after Cancel)
+        if #gone > 2 then
+            run("rm", gone, function(_, code)
+                if code ~= 0 then say("Some of the copies could not be taken away", 6) end
+                F.refresh()
+            end)
+        end
+        return
+    end
     -- (asked to stop, not forgotten: it says it has ended, and the job goes on from there, taking away what was half made)
     if job.proc then kill(job.proc, "term") end
 end)
