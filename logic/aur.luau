@@ -19,8 +19,10 @@ return function()
                 local name, old, new = line:match("^(%S+)%s+(%S+)%s+%->%s+(%S+)")
                 if name then rows[#rows + 1] = { name = name, ver = new } end
             end
-            -- no output and a failure is not "up to date": the AUR could not be reached
-            if #rows == 0 and code ~= 0 and (out or ""):match("%S") == nil and code ~= 1 then
+            -- A failure is not "up to date": the AUR could not be reached. paru exits 1 for "nothing to update" and for an error both, so
+            -- what it said tells them apart (its errors come with the output: `errors = true`). Read as up to date, the first check at
+            -- start, often before the network is up, said "up to date" for half an hour.
+            if #rows == 0 and code ~= 0 and (code ~= 1 or (out or ""):lower():find("error", 1, true)) then
                 fact.aur_state = 3
                 text.aur_msg = "Could not check"
                 return
@@ -37,7 +39,7 @@ return function()
             run("pleamar", { "--say", "desktopsysmon", "text aur_txt " .. line }, function()
                 run("pleamar", { "--say", "desktopsysmon", "fact aur_on true" }, function() end)
             end)
-        end)
+        end, { errors = true })
     end
     run("which", { "paru" }, function(_, c)
         if c == 0 then helper = "paru"; check(true); return end

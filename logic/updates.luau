@@ -321,7 +321,9 @@ exit 0]]
                                     -- What this version needs besides the pull (new helpers, autostart lines, binds) is what install.sh
                                     -- does without questions or sudo (--refresh); it also says which packages are missing, and the shell
                                     -- tells you once it is back, since only you can install those.
-                                    busy(true, "Updating…")
+                                    -- (ten minutes: the refresh fetches the add-ons' releases too, and after the default 45 s the page let go and
+                                    -- Update could be pressed a second time beside the first)
+                                    busy(true, "Updating…", 600000)
                                     run("setsid", { "-w", "sh", A.dir .. "/install.sh", "--refresh" }, function(out)
                                         local missing = (out or ""):match("vitreus%-missing:([^\n]*)")
                                         if missing and missing:match("^[%w%-%._+ ]+$") then

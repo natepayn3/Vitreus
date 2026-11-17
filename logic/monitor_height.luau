@@ -44,8 +44,8 @@ return function()
         base = base or latest
         maybe_restart()
     end
-    local function sync()
-        hypr_monitors(4, function(out, code)
+    local function sync(max_age)
+        hypr_monitors(max_age or 4, function(out, code)
             if code ~= 0 or not out then return end
             local ok, list = pcall(json.decode, out)
             if not ok or type(list) ~= "table" then
@@ -76,5 +76,6 @@ return function()
     sync()
     every(4000, sync)
     -- once a change is seen, look again soon, so that the restart comes at once
-    every(1000, function() if changed() then sync() end end)
+    -- (asked afresh: from the 4-second cache the second look was the same answer as the first, and one in-between state restarted the shell)
+    every(1000, function() if changed() then sync(0) end end)
 end

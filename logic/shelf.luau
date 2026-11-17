@@ -177,7 +177,8 @@ return function(with_dirs)
         try(0)
     end
     -- A file put on the shelf from elsewhere on the Desk (the Camera's photos), as a global: the modules cannot hear each other's events.
-    function desk_shelf_add(p) if not locked then add_file(p) end end
+    -- (true when it went on the Shelf: a locked Shelf takes nothing, and the Pad still said "put on the Shelf")
+    function desk_shelf_add(p) if locked then return false end add_file(p) return true end
     on("shelf_act", function(v)
         v = tonumber(v) or -1
         local k, what = math.floor(v / 10), v % 10

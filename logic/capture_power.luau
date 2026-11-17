@@ -2,7 +2,6 @@
 -- Controls drawer's third row, and their windows. Nothing here is drawn by this file: it starts the programs, and reports
 -- the state of the recording and of the profile as facts.
 return function(set_panel)
-    local function lua_quote(s) return (string.format("%q", s):gsub("\\\n", "\\n")) end
     local function spawn(cmd)                      -- start it on the desktop, detached from this shell
         exec_on_desktop(cmd)
     end
@@ -107,8 +106,6 @@ return function(set_panel)
     -- ── The session ──────────────────────────────────────────────────────────────────────────────────────────────
     -- 0 lock, 1 sleep, 2 log out, 3 restart, 4 power off. The scene only says so (`pow_press`) after the button has
     -- been held for one second, so nothing here has to ask again.
-    local user = nil
-    run("printenv", { "USER" }, function(out) user = (out or ""):gsub("%s+$", "") end)
     -- A session action that fails says so, with the program's own last line (polkit "Access denied", an inhibitor, no lock
     -- screen running...): before, a refused `systemctl poweroff` did nothing at all and looked like a broken button (issue #57).
     local function failed(what)

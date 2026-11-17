@@ -907,6 +907,11 @@ every(20000, dnd_refresh)                                   -- quiet hours begin
 -- and every half minute in case an event was missed. (It used to be asked every 2.5 s, and still is without Hyprland.)
 function DQ.check()
     if not DQ.fullscreen then return end
+    -- Off Hyprland, the `window` service says it (and says when it changes). niri's `hyprctl` stand-in always answered 0, so the switch did nothing there.
+    if not on_hyprland then
+        if DQ.wfs ~= DQ.fs then DQ.fs = DQ.wfs; dnd_refresh() end
+        return
+    end
     run("hyprctl", { "activewindow", "-j" }, function(out)
         local ok, j = pcall(json.decode, out or "")
         local fs = ok and type(j) == "table" and (tonumber(j.fullscreen) or 0) >= 2
@@ -918,11 +923,15 @@ function DQ.poke()
     DQ.poking = true
     after(120, function() DQ.poking = false; DQ.check() end)      -- a burst of events (a workspace switch says several) is asked once
 end
--- (Without Hyprland there are no such events, pleamar-wm's `hyprctl activewindow` is asked every 2.5 s, as before.)
+DQ.wfs = false
+pcall(sys.watch, "window", function(w)
+    DQ.wfs = type(w) == "table" and w.fullscreen == true
+    if not on_hyprland then DQ.check() end
+end)
 DQ.ticks = 0
 every(2500, function()
     DQ.ticks = DQ.ticks + 1
-    if not on_hyprland or DQ.ticks % 12 == 0 then DQ.check() end
+    if on_hyprland and DQ.ticks % 12 == 0 then DQ.check() end
 end)
 -- A timer chip; pressing the one that is lit again cancels it.
 on("dnd_for", function(m)
@@ -2614,7 +2623,6 @@ function nt_queue.set_osd(name)
     fact.osd_on = name ~= "none"
 end
 
-local function panel_is(name) return tostring(cur_panel) == name end
 -- The scene tells the logic when `panel` changes from its side, not when the logic changes it, so
 -- every write from here also updates the local copy.
 local function set_panel(name)
@@ -2622,7 +2630,6 @@ local function set_panel(name)
     nt_queue.want = name     -- what was asked for: the scene closes an open panel before opening another (it goes through "none"), see below
     fact.panel = name
 end
-local function osd_free() return true end
 
 local function hide_osd(kind)
     if nt_queue.osd == (kind == "vol" and "volume" or "notif") then nt_queue.set_osd("none") end
@@ -2922,7 +2929,7 @@ local function show_notification(n)
 end
 
 pump = function()
-    if nt_now or #nt_queue == 0 or not osd_free() or nt_queue.hold then return end
+    if nt_now or #nt_queue == 0 or nt_queue.hold then return end
     show_notification(table.remove(nt_queue, 1))
 end
 nt_queue.pump = pump
@@ -3631,7 +3638,8 @@ function wpv.is(f)
     return ext ~= nil and wpv.exts[ext:lower()] == true
 end
 
-function wpv.poster(f) return wpv.frames .. "/" .. (f:match("([^/]+)$") or f) .. ".jpg" end
+-- (the folder is in the name too, as a short hash: by the file name alone, two folders with a picture of the same name shared one poster)
+function wpv.poster(f) return wpv.frames .. "/" .. hash(f:match("^(.*)/") or "") .. "-" .. (f:match("([^/]+)$") or f) .. ".jpg" end
 
 -- The video a poster was taken from, or nil when `path` is not a poster.
 function wpv.from_poster(path)
@@ -3839,6 +3847,7 @@ do
         local v = iris_cfg.look == iris_fx.CASSETTE and 1 or iris_cfg.look == iris_fx.UWU and 2 or iris_cfg.look == iris_fx.CYBER and 3 or iris_cfg.look == iris_fx.MILK and 4 or iris_cfg.look == iris_fx.PROXY and 3 or iris_cfg.look == iris_fx.PAPER and 6 or iris_cfg.look == iris_fx.DOODLE and 7 or 0
         local av = iris_cfg.look == iris_fx.PROXY and 5 or iris_cfg.look == iris_fx.PAPER and 4 or v             -- add-ons know Proxy as 5 (the desktop widgets below still take it as Cyber's 3)
         addon_look = av
+        fact.look_a = av
         local vw = iris_cfg.look == iris_fx.PROXY and 5 or v       -- the clock, system monitor and cards know Proxy as 5 (the other desktop scenes still take it as Cyber's 3)
         fact.look_w = vw          -- and kept, for a widget that starts later to ask for
         fact.look_v = v
@@ -4340,7 +4349,8 @@ local wp_picker_start = function() end   -- the picker takes this over, further 
 local wp_made = {}
 local wp_cache = nil
 
-local function crop_path(f, kind) return wp_cache .. "/" .. (f:match("([^/]+)$") or f) .. "." .. kind .. ".jpg" end
+-- (with its folder's short hash, as the posters: a picture of the same name in another folder showed this one's thumbnail)
+local function crop_path(f, kind) return wp_cache .. "/" .. hash(f:match("^(.*)/") or "") .. "-" .. (f:match("([^/]+)$") or f) .. "." .. kind .. ".jpg" end
 
 -- Make whichever of `files` has no cropped copy yet, then call `done`.
 local function wp_crop(files, kind, w, h, done)
@@ -6066,7 +6076,7 @@ end
 do
     local LAYOUTS = { "dwindle", "master", "scrolling" }
     local hy = { layout = 3, gaps = 5, round = 10, border = 3, blur = 3, blur_on = true, passes = 1, resize = false, tear = false, anim = true, sens = 0, follow = 1, nat = false, center = 0, colw = 1, single = false }
-    local hy_dirty, hy_waiting = false, false
+    local hy_waiting = false
 
     -- The windows' corners follow the theme: each theme has its own rounding (concentric with the shell's frame: Retro and Cyber are squarer, by the 73 % the drawers take),
     -- and the slider edits the current theme's, which is kept in hy-round.json and comes back when that theme is picked again.
@@ -6337,7 +6347,7 @@ do
     -- monitors in the window manager's own order (its `lay.N`), `wm_sel` the one the Layout chips are for.
     local wm_names, wm_sel, wm_names_ok = {}, 1, false
     local function layout_of(name) return (name and wm.lays[name]) or wm.layout end
-    local inp = { ms = 0, ts = 0, nat = false, tap = false, idle = 7, maccel = "adaptive", taccel = "adaptive", dwt = nil }
+    local inp = { ms = 0, ts = 0, nat = false, tap = false, idle = 7, maccel = "adaptive", taccel = "adaptive", dwt = nil, has = {} }   -- (`has`: the lines the file had, or the page changed)
     local wm_waiting, in_waiting = false, false
 
     local function say(line) run("pleamar", { "--say", "wm", line }, function() end) end
@@ -6510,9 +6520,22 @@ do
             local pt = string.format("pointer accel %s speed %.2f", inp.maccel, inp.ms)
             local tp = string.format("touchpad accel %s speed %.2f natural %s tap %s", inp.taccel, inp.ts, onoff(inp.nat), onoff(inp.tap))
             if inp.dwt ~= nil then tp = tp .. " dwt " .. inp.dwt end
-            -- (two passes: `$a` never fires when the last line is one of those just deleted)
-            run("sed", { "-i", "-E", "-e", "/^(pointer|touchpad|idle) /d", path }, function()
-                run("sed", { "-i", "-e", "$a\\" .. pt, "-e", "$a\\" .. tp, "-e", "$a\\idle off-after " .. inp.idle * 60, path }, function() end)
+            -- Only the lines the file had or the page changed: all three were written from the page's defaults, so one toggle put a pointer and a
+            -- touchpad line in a session.conf that had none, over what Hyprland's config gave. (Two passes: `$a` never fires when the last line
+            -- is one of those just deleted.)
+            local kinds, add = {}, {}
+            for _, k in ipairs({ "pointer", "touchpad", "idle" }) do
+                if inp.has[k] then
+                    kinds[#kinds + 1] = k
+                    add[#add + 1] = "-e"
+                    add[#add + 1] = "$a\\" .. (k == "pointer" and pt or k == "touchpad" and tp or ("idle off-after " .. inp.idle * 60))
+                end
+            end
+            if #kinds == 0 then return end
+            run("sed", { "-i", "-E", "-e", "/^(" .. table.concat(kinds, "|") .. ") /d", path }, function()
+                table.insert(add, 1, "-i")
+                add[#add + 1] = path
+                run("sed", add, function() end)
             end)
         end)
     end
@@ -6576,6 +6599,7 @@ do
             run("grep", { "-E", "^(pointer|touchpad|idle) ", path }, function(out)
                 for line in (out or ""):gmatch("[^\n]+") do
                     local kind = line:match("^(%S+)")
+                    inp.has[kind] = true
                     local v = {}
                     for k, val in line:gsub("^%S+%s+", ""):gmatch("(%S+)%s+(%S+)") do v[k] = val end
                     if kind == "pointer" then
@@ -6657,8 +6681,8 @@ do
         elseif k == 1 then wm.rain = not wm.rain; wm_changed()
         elseif k == 2 then wm.snow = not wm.snow; wm_changed()
         elseif k == 5 then wm.tbt = not wm.tbt; wm_changed()
-        elseif k == 3 then inp.nat = not inp.nat; in_changed()
-        else inp.tap = not inp.tap; in_changed() end
+        elseif k == 3 then inp.nat = not inp.nat; inp.has.touchpad = true; in_changed()
+        else inp.tap = not inp.tap; inp.has.touchpad = true; in_changed() end
     end)
     local prev_theme_changed = hy_theme_changed
     hy_theme_changed = function(key)
@@ -6692,6 +6716,7 @@ do
         if i == 0 then inp.ms = math.floor((t * 2 - 1) * 20 + 0.5) / 20
         elseif i == 1 then inp.ts = math.floor((t * 2 - 1) * 20 + 0.5) / 20
         else inp.idle = math.floor(1 + t * 29 + 0.5) end
+        inp.has[({ [0] = "pointer", "touchpad" })[i] or "idle"] = true
         in_changed()
     end)
     on("wm_refresh", function() wm_read() end)
@@ -7269,7 +7294,9 @@ end
     local function search_files(q, done)
         if #q < 2 then return done({}, "Type two letters to search your files") end
         with_dirs(function(d)
-            run("find", { d.home, "-maxdepth", "5", "(", "-name", ".*", "-prune", ")", "-o", "-iname", "*" .. q .. "*", "-print" },
+            -- (the typed text as plain letters: a `*`, `?` or `[` in it was a pattern to `find`)
+            local glob = q:gsub("[%*%?%[%]\\]", "\\%0")
+            run("find", { d.home, "-maxdepth", "5", "(", "-name", ".*", "-prune", ")", "-o", "-iname", "*" .. glob .. "*", "-print" },
                 function(o)
                     local out = {}
                     for path in (o or ""):gmatch("[^\n]+") do
@@ -7278,9 +7305,11 @@ end
                         out[#out + 1] = { title = name, sub = dir, glyph = "F",
                                           run = function() spawn("xdg-open " .. "'" .. path:gsub("'", "'\\''") .. "'") end,
                                           pv = function(seq) preview_file(path, "FILE", seq) end }
-                        if #out >= 60 then break end
+                        if #out >= 2000 then break end
                     end
+                    -- (sorted, then cut: cut at the first 60 `find` printed, the best short match deeper down was never seen)
                     table.sort(out, function(a, b) return #a.title < #b.title end)
+                    for i = #out, 61, -1 do out[i] = nil end
                     done(out)
                 end)
         end)
@@ -7417,7 +7446,23 @@ end
     end
 
     -- ── open windows ──
+    -- Off Hyprland the windows come from the `window` service, which every compositor with wlr-foreign-toplevel gives (pleamar-wm, niri):
+    -- `hyprctl clients` is Hyprland's, and there the search always said that no window matched.
+    local WL = { list = {} }
+    pcall(sys.watch, "window", function(w) WL.list = (type(w) == "table" and type(w.list) == "table") and w.list or {} end)
     local function window_rows(q, limit, fn)
+        if not on_hyprland then
+            local rows, ql = {}, q:lower()
+            for _, w in ipairs(WL.list) do
+                local class, title = tostring(w.class or ""), tostring(w.title or "")
+                if (class ~= "" or title ~= "") and (ql == "" or (title .. " " .. class):lower():find(ql, 1, true)) and #rows < limit then
+                    local cl, id = class:lower(), w.id
+                    rows[#rows + 1] = { title = title ~= "" and title or class, sub = class, glyph = "W", icon = apps_by_class[cl] or cl,
+                                        run = function() pcall(sys.call, "window.activate", id) end }
+                end
+            end
+            return fn(rows)
+        end
         run("hyprctl", { "clients" }, function(out, code)
             if code ~= 0 or not out then return fn({}) end
             local list = {}
@@ -7565,7 +7610,11 @@ end
             .. 'if [ "$ec" -eq 0 ]; then notify-send -a Vitreus "$pkg installed"; else notify-send -a Vitreus "$pkg install failed (exit $ec)"; fi; '
             .. 'echo; printf "Press Enter to close… "; read _x; exit "$ec"'
         local args = "_ " .. PK.tool .. " " .. r.name
-        spawn('t=$(command -v kitty foot alacritty ghostty konsole xterm | head -n1); [ -n "$t" ] || exit 1; case "$t" in *kitty) "$t" sh -c \'' .. inner .. '\' ' .. args
+        -- (the desktop's own choice first, xdg-terminal-exec; and with no terminal at all it says so: the launcher closed and nothing happened)
+        spawn('t=$(command -v xdg-terminal-exec kitty foot alacritty ghostty wezterm konsole gnome-terminal xterm | head -n1); '
+            .. '[ -n "$t" ] || { notify-send -a Vitreus "No terminal to install in" "Install a terminal (kitty, foot, alacritty…) to install packages from here"; exit 1; }; '
+            .. 'case "$t" in *xdg-terminal-exec|*kitty) "$t" sh -c \'' .. inner .. '\' ' .. args
+            .. ' ;; *gnome-terminal) "$t" -- sh -c \'' .. inner .. '\' ' .. args
             .. ' ;; *) "$t" -e sh -c \'' .. inner .. '\' ' .. args .. ' ;; esac')
     end
     local function search_packages(q, seq, done)
@@ -8394,6 +8443,7 @@ require("logic/keybinds")()
     local function cards_open()
         wp_prev.orig, wp_prev.shown, wp_prev.on, wp_prev.touched, wp_prev.cancel, wp_prev.stopped = wp_cur, nil, false, false, false, false
         C.closing = false
+        C.opened = (C.opened or 0) + 1
         card_list()
         C.sel = 0
         for i, f in ipairs(C.list or {}) do if f == wp_cur then C.sel = i - 1 break end end
@@ -8441,7 +8491,10 @@ require("logic/keybinds")()
         C.closing = true
         C.rip = (C.rip or 0) + 1                -- (counted here: a fact the logic has not set may not read back)
         fact.wp_card_rip = C.rip
+        local opened = C.opened
         after(760, function()
+            -- (the picker shut and opened again meanwhile: this ripple was for the one before, and closing now shut the new one)
+            if C.opened ~= opened then return end
             C.closing = false
             if not fact.wp_picker_open then return end
             fact.wp_picker_open = false
@@ -8515,6 +8568,7 @@ end)()
     local TH = {}                            -- the service's windows, in its order: { id, title, app, picture, stale }
     local TH_sig = ""
     local clients = {}                       -- the windows as last read from `hyprctl clients`; a move edits this at once, so its card does not wait for Hyprland
+    local mv_gen = 0                         -- which drop `moving` is for
     local moving = false                     -- a window was dropped on another workspace and Hyprland has not caught up: do not read the old place back yet
     local front_ids = {}                     -- the service ids of the windows on the workspace in front
     local last_open = false                  -- what `set_open` last did
@@ -8662,7 +8716,10 @@ end)()
     end)
     after(4000, function() want_front(2000) end)
     on("ov_toggle", function()
-        if not on_hyprland then                     -- pleamar-wm has its own overview (Super+Tab): the button and the launcher toggle that one
+        -- niri has an overview of its own, and pleamar-wm too (Super+Tab): the button and the launcher toggle that one. (niri was taken for
+        -- pleamar-wm, and the order went to a window-manager scene that is not there.)
+        if on_niri then run("niri", { "msg", "action", "toggle-overview" }, function() end) return end
+        if not on_hyprland then
             wm_get("overview", function(v) wm_say("fact overview " .. (v == 1 and "false" or "true")) end)
             return
         end
@@ -8686,15 +8743,18 @@ end)()
         if not addr or ws < 1 or ws > 5 then return end
         -- The card goes to its new workspace now, and what Hyprland says is not read back until it has done it (otherwise the card shows on the old
         -- workspace again for a moment, until the next read).
+        -- (which move this is: two drops within a second and a half, and the first one's timers let go of `moving` while the second was on its way)
+        mv_gen = mv_gen + 1
+        local mine = mv_gen
         moving = true
         for _, w in ipairs(clients) do
             if w.addr == addr then w.workspace = tostring(ws) end
         end
         render()
         run("hyprctl", { "dispatch", string.format('hl.dsp.window.move({ workspace = %d, follow = false, window = "address:0x%s" })', ws, addr) }, function()
-            after(250, function() moving = false; refresh() end)
+            after(250, function() if mine == mv_gen then moving = false; refresh() end end)
         end)
-        after(1500, function() moving = false end)         -- whatever happens, the overview does not stay frozen
+        after(1500, function() if mine == mv_gen then moving = false end end)         -- whatever happens, the overview does not stay frozen
     end)
     on("ov_focus", function(n)
         local addr = addrs[n + 1]

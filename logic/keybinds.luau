@@ -396,7 +396,10 @@ return function()
                      "-e", "/^\\/\\/ >>> vitreus defaults/,/^\\/\\/ <<< vitreus defaults/d",
                      "-e", "${/^}[[:space:]]*$/d}" }
         elseif w == "hypr" then
-            drop = { "-e", '/^hl\\.bind\\(.*(--say (vitreus|lockscreen) \\\\"(' .. alt .. ')\\\\"|vitreus-files)/d',
+            -- (first: an `hl.unbind` with the Vitreus bind under it goes with it. A key changed on the page rewrites both, and left behind, the
+            -- unbind of the new key went on taking that key from whatever else had it)
+            drop = { "-e", '/^hl\\.unbind\\(/{N;/\\nhl\\.bind\\(.*(--say (vitreus|lockscreen) \\\\"(' .. alt .. ')\\\\"|vitreus-files)/d;P;D}',
+                     "-e", '/^hl\\.bind\\(.*(--say (vitreus|lockscreen) \\\\"(' .. alt .. ')\\\\"|vitreus-files)/d',
                      "-e", "/^-- removed in Settings: /d",
                      "-e", "/^-- >>> vitreus defaults/,/^-- <<< vitreus defaults/d" }
         else

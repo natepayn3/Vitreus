@@ -116,7 +116,15 @@ return function()
             end
         end
         model.adk_pins = rows
-        if was then for i, a in ipairs(pins) do if a.id == was.id then fact.ax_cur = i - 1 break end end end
+        -- (the open one is followed to its new place; gone from the pill, the panel shuts. Left at its old index, the glass stayed open with its
+        -- title while the add-on that now sat there was told the panel was its own.)
+        local gone = was ~= nil
+        if was then for i, a in ipairs(pins) do if a.id == was.id then fact.ax_cur = i - 1; gone = false break end end end
+        if gone and (tonumber(fact.ax_cur) or -1) >= 0 then
+            fact.ax_cur = -1
+            fact.ax_open = false
+            push_shut()
+        end
         fact.ax_on = any
         local out = (fact["bv.ax"] == true and fact.bar_frame ~= true) and 0 or #rows      -- (none while the icons are on the Island: Settings > Bar, the add-ons piece)
         if out ~= pill_out then pill_out = out; dock_fx.na = pill_out; dock_fx.a = pill_out > 0; dock_fx.changed() end
@@ -254,7 +262,7 @@ return function()
         if #addon_scenes == 0 then return end
         iris_fx.push_pal()
         iris_fx.push_room()
-        local look = addon_look or 0                 -- (set by vitreus.luau whenever the theme changes)
+        local look = tonumber(fact.look_a) or 0      -- (a fact, read live: `addon_look`, a global of vitreus.luau, was the look from when this module loaded)
         say_all({ "fact look " .. look })
         addon_push_wx()
         push_slot()
@@ -409,6 +417,7 @@ return function()
 
     local function start(a)
         run("pgrep", { "-f", "pleamar --scene " .. a.scene .. "( |$)" }, function(_, code)
+            if not enabled[a.id] then return end       -- (switched off again before this answered: it was started anyway, its switch off)
             if code ~= 0 then
                 -- single-quoted for the shell: the path comes from an add-on's folder, and in double quotes a `$(…)` in a file name would run
                 exec_on_desktop("vitreus-keep '" .. a.scene:gsub("'", "'\\''") .. "'")
@@ -424,6 +433,7 @@ return function()
     local function stop(a)
         -- The keeper first, or it starts the scene again.
         for k, sk in ipairs(addon_scenes) do if sk == a.sock then table.remove(addon_scenes, k) break end end
+        winopen[a.id] = nil                      -- (a window that was open came back by itself when it was switched on again)
         publish_widgets()
         run("pkill", { "-f", "vitreus-keep " .. a.scene }, function()
             run("pkill", { "-f", "pleamar --scene " .. a.scene .. "( |$)" }, function() end)
@@ -491,7 +501,8 @@ return function()
         run("vitreus-addons", { data }, function(_, code)
             if code ~= 0 or not load_list() then return end
             check_needs(show)
-            if first then
+            -- (on the first scan that works, not only the very first: if that one failed, nothing could be switched on or off until a reload)
+            if not ready then
                 ready = true
                 for k, a in ipairs(list) do if enabled[a.id] then start(a) end end
             end

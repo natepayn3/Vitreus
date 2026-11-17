@@ -36,7 +36,7 @@ return function()
         local i = (tonumber(kb.active_layout_index) or 0) + 1
         local code = list[i] or tostring(kb.active_keymap or ""):sub(1, 2)
         text.kb_code = code:sub(1, 3):upper()
-        text.kb_name = tostring(kb.active_keymap or code)
+        text.kb_layout = tostring(kb.active_keymap or code)
     end
     read(function(kb)
         caps, num = kb.capsLock == true, kb.numLock == true
@@ -62,10 +62,13 @@ return function()
         pop(kind, state)
     end)
 
+    local last_map = nil                -- the layout last seen (a local of this module: see CLAUDE.md on shared globals)
     LOCKKEYS.layout = function()
         read(function(kb)
-            local before = text.kb_name
+            -- (the layout's own name, kept here: `kb_name` was also the Keybinds editor's title, so choosing a row there popped this up)
+            local before = last_map
             show_layout(kb)
+            last_map = kb.active_keymap
             if fact.kb_multi and kb.active_keymap ~= before then pop(2, true) end
         end)
     end

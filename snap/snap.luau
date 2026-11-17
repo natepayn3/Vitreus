@@ -17,6 +17,13 @@ end
 local function trim(s) return (s or ""):gsub("%s+$", "") end
 
 local function say_quit()
+    -- (what it made in the runtime folder goes first: the whole screen as taken, unblurred, stayed there after Snap had gone)
+    if dir then
+        run("sh", { "-c", 'rm -rf -- "$1/shot.png" "$1/shot.rgb" "$1/out.png" "$1/drag"', "sh", dir }, function()
+            run("pleamar", { "--say", "snap", "quit" }, function() end)
+        end)
+        return
+    end
     run("pleamar", { "--say", "snap", "quit" }, function() end)
 end
 
@@ -203,6 +210,15 @@ on("pen_pt", function()
     local p = stroke.pts
     local dx, dy = fact.px - p[#p - 1], fact.py - p[#p]
     if dx * dx + dy * dy < 9 then return end
+    -- (no more than the scene can show: past it, the strokes went on being kept and were in the saved picture, without ever being seen)
+    local n = 0
+    for _, m in ipairs(marks) do if m.pts then n = n + math.max(1, #m.pts / 2 - 1) end end
+    if n >= MAX_SEGS then
+        text.toast = "The pen is full: undo a stroke, or save this one"
+        fact.toast_on = true
+        stroke = nil
+        return
+    end
     p[#p + 1] = fact.px
     p[#p + 1] = fact.py
     show()

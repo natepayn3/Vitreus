@@ -112,7 +112,20 @@ return function(with_dirs)
             end
             table.sort(got, function(a, b) return a.t > b.t end)
             while #got > MAX do table.remove(got) end
+            -- The memo playing is followed by its file, not its row: a memo deleted above it, or a recording finished meanwhile, moved the
+            -- highlight to another row, and a press on the wave restarted a different file. Gone from the list, it stops.
+            local cur = play_k >= 0 and list[play_k + 1] and list[play_k + 1].path or nil
             list = got
+            if cur then
+                local at = -1
+                for i, m in ipairs(list) do if m.path == cur then at = i - 1 end end
+                if at >= 0 then play_k = at
+                else
+                    if playing then kill(playing, "term") end
+                    playing, play_k = nil, -1
+                    fact.memo_pp = 0
+                end
+            end
             for _, m in ipairs(list) do probe(m) end
             render()
         end)

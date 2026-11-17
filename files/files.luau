@@ -417,7 +417,7 @@ local function thumb_batch()
     if not vt_ok or s.vt_busy then return false end
     local batch, rest = {}, {}
     for _, e in ipairs(s.queue) do
-        local stale = dirname(e.path) ~= s.path and s.mode == nil
+        local stale = dirname(e.path) ~= s.path and s.mode == nil and not s.list   -- (Recent and Starred hold files of many folders: every one was "stale", and no thumbnail was ever made there)
         if e.ik == 1 and not e.vt_failed and not stale and #batch < VT_BATCH then batch[#batch + 1] = e else rest[#rest + 1] = e end
     end
     if #batch == 0 then return false end
@@ -478,7 +478,7 @@ function F.pump()
         local e = table.remove(s.queue, at)
         local name = thumb_name(e)
         local out = tdir .. "/" .. name
-        if dirname(e.path) ~= s.path and s.mode == nil then
+        if dirname(e.path) ~= s.path and s.mode == nil and not s.list then
             s.pending[e.path] = nil            -- the folder has changed since: not wanted any more
         else
             s.making = s.making + 1
@@ -2246,7 +2246,7 @@ end
 -- the programs that can open a kind of file: the default first, then the others that say they can
 local APP_DIRS = { "/.local/share/applications", "/usr/share/applications", "/usr/local/share/applications", "/var/lib/flatpak/exports/share/applications", "/.local/share/flatpak/exports/share/applications" }
 function F.apps_for(mime, cb)
-    run("gio", { "mime", mime }, function(out)
+    run("gio", { "mime", mime }, function(out)   -- (in English, below: "Default application for" is translated)
         local ids, seen = {}, {}
         local def = (out or ""):match("Default application for[^:]*: ([^\n]+)")
         if def and def ~= "No default applications" then def = trim(def); ids[1] = def; seen[def] = true else def = nil end
@@ -2271,7 +2271,7 @@ function F.apps_for(mime, cb)
             for _, id in ipairs(ids) do if found[id] then apps[#apps + 1] = found[id] end end
             cb(apps, def)
         end)
-    end)
+    end, { env = { LC_ALL = "C" } })
 end
 function F.mime_of(path, cb)
     run("file", { "-b", "--mime-type", "--", path }, function(m) cb(trim(m)) end)
@@ -2370,7 +2370,7 @@ function show_props()
                 if s.props ~= gen then return end
                 local n = tonumber((d or ""):match("(%d+)%s+total%s*$"))
                 if n then rows[2].value = size_text(n) .. " (" .. commas(n) .. " bytes)"; model.prows = rows end
-            end)
+            end, { env = { LC_ALL = "C" } })   -- (in English: the "total" line is translated)
         end
         return
     end
@@ -2727,10 +2727,12 @@ end
 -- run a program as the job's: it can be stopped, and what it said about its trouble is kept
 function F.exec(job, cmd, args, cb)
     local lines = {}
+    -- (in English: what `gio trash` and the rest say is read here, "not supported" for a disk with no Trash, and in another language it was
+    -- shown raw instead of offering to delete for good)
     local ok, id = pcall(spawn, cmd, args, function(l) lines[#lines + 1] = l end, function(_, code)
         job.proc = nil
         cb(code == 0, table.concat(lines, "\n"))
-    end, { errors = true })
+    end, { errors = true, env = { LC_ALL = "C" } })
     if ok then job.proc = id else cb(false, "could not start " .. cmd) end
 end
 
@@ -2905,6 +2907,9 @@ function TASK.exec(job, t, done)
             job.failed = job.failed + 1
             job.errors[#job.errors + 1] = string.format("%s: %s", t.fail or "That did not work", why(err))
             if t.created then F.exec(job, "rm", { "-rf", "--", t.created }, function() done() end) return end
+            -- (the folder made for it, if nothing went in: a plain .gz is no archive to bsdtar, and the empty folder was left behind. `rmdir`
+            -- takes only an empty one, so whatever did come out stays.)
+            if t.made_dir then F.exec(job, "rmdir", { "--", t.made_dir }, function() done() end) return end
         end
         done()
     end)
@@ -2947,7 +2952,11 @@ function TASK.delete(job, t, done)
     job.cur_name = #t.srcs == 1 and basename(t.srcs[1]) or (#t.srcs .. " items")
     job.indeterminate = true
     local args = { "-rf", "--" }
-    for _, p in ipairs(t.srcs) do args[#args + 1] = p end
+    for _, p in ipairs(t.srcs) do
+        args[#args + 1] = p
+        -- (deleted for good from the Trash, its note of where it came from goes too: left, it was an orphan that Undo later matched)
+        if dirname(p) == s.data .. "/Trash/files" then args[#args + 1] = s.data .. "/Trash/info/" .. basename(p) .. ".trashinfo" end
+    end
     F.exec(job, "rm", args, function(ok, err)
         job.indeterminate = false
         if not ok then job.failed = job.failed + 1; job.errors[#job.errors + 1] = "Could not delete: " .. why(err) end
@@ -3408,7 +3417,8 @@ function F.compress()
             local name = free_in(base .. r.ext, set)
             local dst = join(dir, name)
             local args = { "-a", "-cf", dst, "-C", dir }
-            for _, e in ipairs(list) do args[#args + 1] = e.name end
+            -- (a name that starts with `-` is an option to bsdtar, and one with `@` an archive to copy in: as `./name` it is the file)
+            for _, e in ipairs(list) do args[#args + 1] = e.name:match("^[%-@]") and ("./" .. e.name) or e.name end
             F.run_job({ title = "Making an archive", tasks = { { kind = "exec", cmd = "bsdtar", args = args, created = dst, label = name, fail = "Could not make the archive" } }, pick_name = name,
                 undo = function(job) return { text = "Made " .. name, fn = function() F.run_job({ title = "Removing", quiet = true, tasks = { { kind = "trash", srcs = { dst } } } }) end } end })
         end)
@@ -3424,7 +3434,7 @@ function F.extract()
         local name = free_in(stem_of(e.name), set)
         local dst = join(dir, name)
         F.run_job({ title = "Opening an archive",
-            tasks = { { kind = "mkdir", dst = dst }, { kind = "exec", cmd = "bsdtar", args = { "-xf", e.path, "-C", dst }, label = e.name, fail = "Could not open the archive" } },
+            tasks = { { kind = "mkdir", dst = dst }, { kind = "exec", cmd = "bsdtar", args = { "-xf", e.path, "-C", dst }, label = e.name, fail = "Could not open the archive", made_dir = dst } },
             pick_name = name,
             undo = function(job) return { text = "Opened " .. e.name, fn = function() F.run_job({ title = "Removing", quiet = true, tasks = { { kind = "trash", srcs = { dst } } } }) end } end })
     end)
@@ -4014,6 +4024,8 @@ ACT[1] = function()
     F.ask_dialog("new", "New folder", "", "Create")
 end
 ACT[2] = function()
+    -- (renamed in the Trash, a thing lost the note of where it came from, which is kept under its name: Restore no longer knew where to put it)
+    if fact["in.trash"] == true then say("Things in the Trash cannot be renamed: put it back first") return end
     local list = picked_list()
     if #list == 1 then F.ask_dialog("rename", "Rename", list[1].name, "Rename")
     elseif #list > 1 then F.ask_dialog("batch", string.format("Rename %d items: a name, and they are numbered", #list), "Name", "Rename") end

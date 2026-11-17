@@ -150,8 +150,8 @@ return function()
                     saving = false
                     if c ~= 0 then say("The picture could not be saved"); return end
                     if tonumber(where) == 0 then
-                        if desk_shelf_add then desk_shelf_add(file) end
-                        say("Drawing put on the Shelf")
+                        if desk_shelf_add and desk_shelf_add(file) then say("Drawing put on the Shelf")
+                        else say("Saved to Pictures/myPad (the Shelf is locked)") end
                     else
                         say("Saved to Pictures/myPad, for the slideshow")
                     end

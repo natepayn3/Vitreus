@@ -28,7 +28,11 @@ return function(with_dirs)
         local say = 'PATH="$HOME/.local/bin:$PATH" pleamar --say lockscreen "fact locked true"'
         local out = { "# Written by Vitreus (Settings > Idle): do not edit, it is written again with every change.\n" }
         if I.lock > 0 then out[#out + 1] = string.format("listener {\n    timeout = %d\n    on-timeout = %s\n%s}\n", I.lock * 60, say, I.force == 1 and "    ignore_inhibit = true\n" or "") end
-        if I.off > 0 then
+        -- (niri turns its screens off with its own action and wakes them on input: `hyprctl dispatch dpms` is Hyprland's, and niri's stand-in
+        -- for hyprctl does not know it, so the time set did nothing there)
+        if I.off > 0 and fact.wm_niri == true then
+            out[#out + 1] = string.format("listener {\n    timeout = %d\n    on-timeout = niri msg action power-off-monitors\n}\n", I.off * 60)
+        elseif I.off > 0 then
             out[#out + 1] = string.format("listener {\n    timeout = %d\n    on-timeout = hyprctl dispatch 'hl.dsp.dpms({ action = \"disable\" })'\n    on-resume = hyprctl dispatch 'hl.dsp.dpms({ action = \"enable\" })'\n}\n", I.off * 60)
         end
         if I.sleep > 0 then out[#out + 1] = string.format("listener {\n    timeout = %d\n    on-timeout = systemctl suspend\n}\n", I.sleep * 60) end

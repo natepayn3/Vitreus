@@ -162,9 +162,10 @@ return function()
             run("mkdir", { "-p", dir }, function()
                 run("cp", { frame_file, file }, function(_, c)
                     if c ~= 0 then text.cam_msg = "The photo could not be saved"; return end
-                    if desk_shelf_add then desk_shelf_add(file) end
-                    text.cam_msg = "Saved to Pictures/myPad, and on the Shelf"
-                    after(2500, function() if text.cam_msg == "Saved to Pictures/myPad, and on the Shelf" then text.cam_msg = "" end end)
+                    local shelved = desk_shelf_add and desk_shelf_add(file)      -- (false with the Shelf locked: it was said to be there all the same)
+                    local said = shelved and "Saved to Pictures/myPad, and on the Shelf" or "Saved to Pictures/myPad"
+                    text.cam_msg = said
+                    after(2500, function() if text.cam_msg == said then text.cam_msg = "" end end)
                 end)
             end)
         end)

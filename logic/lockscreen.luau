@@ -91,7 +91,7 @@ return function(key, with_dirs)
             fact.lk_pal = PAL_BACK[trim(r[11])] or "lkc_accent"
         end)
     end
-    on("fact:set_page", function(v) if v == "pg_lock" then refresh() end end)
+    on("lk_refresh", function() refresh() end)
 
     on("lk_blur_set", function(i)
         local v = BLUR[math.floor(i + 0.5) + 1]
@@ -188,6 +188,5 @@ return function(key, with_dirs)
         fact.lb_ok = true
         after(900, clear_bar)
     end)
-    on("fact:set_page", function(v) if v ~= "pg_lock" then clear_bar() end end)
-    on("fact:panel", function(v) if v ~= "settings" then clear_bar() end end)
+    on("lk_leave", function() clear_bar() end)
 end

@@ -83,7 +83,7 @@ scene Vitreus {
     //  `rate:` is the rate chosen in Settings > Display (`bar_fps`), or 60 while the music moves the frame (its ripple and waves). There is no idle cap: a scene with nothing
     //  moving paints nothing, so a cap only ever slowed what was moving (the notches, the drawers, the bar's hovers each needed an exemption from the old 12 a second).
     surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995 and bar_size < 1.005 and not bar_ah; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on) and not sky.calm, 60 while ((media.playing and fw_on) or bar_fps == 60) and not sky.calm, 30 while sky.calm; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
-    permissions { services: "say:*", "files", "files.write", "files.remove", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
+    permissions { services: "say:*", "files", "files.write", "files.remove", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "window.activate", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
                   run: "timeout 15 pw-play", "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe", "nordvpn" }
 
     model wifi_nets max 16 { ssid: text; strength: number; secure: bool; known: bool; active: bool; band: number; bands: text; bandw: number; chan: number; rate: number; sec: text; busy: number }
@@ -466,6 +466,7 @@ scene Vitreus {
     follow uwu_k = if(uwu, 1, 0)
     //  The look the desktop widgets draw (what push_look in vitreus.luau tells them), for a widget that starts after the theme was set to ask for:
     //  `look_w` as the clock, system monitor and cards number them (Proxy is 5), `look_v` as notes and files do (Proxy is Cyber's 3). -1 until the logic has said.
+    fact look_a = 0                // the add-ons' look (logic/addons.luau reads it here: a module reads a global of vitreus.luau as it was at load)
     fact look_w = -1
     fact look_v = -1
     //  The Milk theme: one soft pale material, no outlines; each drawer is pushed out of the surface by a light shadow on its top left and a dark one on its bottom right
@@ -2038,10 +2039,10 @@ scene Vitreus {
     event lockkeys ->                // Caps Lock or Num Lock was pressed (hypr_vitreus.lua's binds)
     event lockkeys_set ->            // the same from pleamar-wm, with the new state: 0 / 1 Caps off / on, 2 / 3 Num off / on (pleamar-wm/wm/session.luau)
     //  Caps Lock and Num Lock: a row of the volume drawer for two seconds when either is pressed (`osd_m`, pages/osd_drawer.plm). `lk_kind`
-    //  0 Caps, 1 Num, 2 a layout switch (`kb_name`); `lk_state` on or off.
+    //  0 Caps, 1 Num, 2 a layout switch (`kb_layout`; `kb_name` is the Keybinds editor's); `lk_state` on or off.
     fact lk_kind = 0
     fact lk_state = false
-    text kb_name = ""
+    text kb_layout = ""
     //  Settings > Hyprland: what Hyprland has now (see the logic), and the toggles' knobs.
     fact hy_layout = 3
     fact hy_gaps = 5
@@ -2927,6 +2928,14 @@ scene Vitreus {
     on change set_page while set_page == pg_keys { emit kb_refresh }
     //  The Display page is read again as it opens (its wallpaper tiles are only asked for while it is open, so they waited for the 5-second watch).
     on change set_page while set_page == pg_disp { emit disp_refresh }
+    //  The Lock screen page: read as it opens, and its example bar cleared as it closes, however that happens (opened from the launcher, the
+    //  page is set by the logic, which fires no `fact:` handler, and it showed stale switches).
+    event lk_refresh ->
+    event lk_leave ->
+    on change set_page while set_page == pg_lock { emit lk_refresh }
+    on change panel while panel == settings and set_page == pg_lock { emit lk_refresh }
+    on change set_page while set_page != pg_lock { emit lk_leave }
+    on change panel while panel != settings { emit lk_leave }
     on change panel while panel == settings and set_page == pg_disp { emit disp_refresh }
     //  Listening ends when the page or the panel is left (the logic gives Hyprland its binds back: `listen` in logic/keybinds.luau).
     on change set_page while kb_cap { emit kb_cancel }

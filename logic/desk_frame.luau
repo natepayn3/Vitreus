@@ -13,6 +13,7 @@ return function(with_dirs)
     text.pf_folder_name = NAMES[cfg.folder]
     local list, at, listed, cur = {}, 0, 0, ""
     local busy = false
+    local frame_gen = 0                  -- which listing of the folder `list` is
     local function hash(str)
         local h = 5381
         for i = 1, #str do h = (h * 33 + str:byte(i)) % 4294967296 end
@@ -39,11 +40,21 @@ return function(with_dirs)
         busy = true
         at = at % #list + 1
         local src = list[at]
+        -- (the list this picture is from: a folder changed while it was being scaled showed the old folder's picture, and its failure took a
+        -- picture out of the new list by its old place)
+        local mine = frame_gen
+        local function stale()
+            if mine == frame_gen then return false end
+            busy = false
+            show_next()
+            return true
+        end
         with_dirs(function(d)
             local dir = (d.cache:gsub("/wp$", "")) .. "/shelf"
             local out = dir .. "/frame3-" .. hash(src) .. ".jpg"
             local function put()
                 run("magick", { "identify", "-ping", "-format", "%w %h", out }, function(dims)
+                    if stale() then return end
                     busy = false
                     cur = src
                     local w, h = (dims or ""):match("(%d+) (%d+)")
@@ -59,7 +70,7 @@ return function(with_dirs)
                 if c == 0 then put(); return end
                 run("mkdir", { "-p", dir }, function()
                     run("magick", { "-limit", "thread", "1", src .. "[0]", "-auto-orient", "-resize", "700x210^", "-gravity", "center", "-crop", "2700x2700+0+0", "+repage", "-quality", "86", out },
-                        function(_, mc) if mc == 0 then put() else busy = false; table.remove(list, at); at = at - 1 end end)
+                        function(_, mc) if stale() then return end if mc == 0 then put() else busy = false; table.remove(list, at); at = at - 1 end end)
                 end)
             end)
         end)
@@ -75,6 +86,7 @@ return function(with_dirs)
                 for line in (out or ""):gmatch("[^\n]+") do got[#got + 1] = line end
                 for i = #got, 2, -1 do local j = math.random(1, i); got[i], got[j] = got[j], got[i] end
                 list, at = got, 0
+                frame_gen = frame_gen + 1
                 if #list == 0 then fact.pf_has = false else show_next() end
             end)
         end)

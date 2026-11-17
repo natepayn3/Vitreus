@@ -82,8 +82,9 @@ return function()
         -- clock on top of the first whenever the page had not read the first yet (a reload, a page left open).
         say("fact shown " .. tostring(b), function(_, code)
             if code ~= 0 and b then
-                exec_on_desktop('vitreus-keep "$HOME/.config/pleamar/shells/vitreus/desktopclock/desktopclock.plm"')
-                after(2500, refresh)
+                exec_on_desktop('vitreus-keep "${XDG_CONFIG_HOME:-$HOME/.config}/pleamar/shells/vitreus/desktopclock/desktopclock.plm"')
+                -- (told to show, as the system monitor is: a clock saved as hidden started hidden, and the switch flipped back off)
+                after(2500, function() say("fact shown true"); refresh() end)
             else
                 refresh()
             end
@@ -183,7 +184,7 @@ return function()
         fact.sy_on = b
         say_sy("fact shown " .. tostring(b), function(_, code)
             if code ~= 0 and b then
-                exec_on_desktop('vitreus-keep "$HOME/.config/pleamar/shells/vitreus/desktopsysmon/desktopsysmon.plm"')
+                exec_on_desktop('vitreus-keep "${XDG_CONFIG_HOME:-$HOME/.config}/pleamar/shells/vitreus/desktopsysmon/desktopsysmon.plm"')
                 after(2500, function() say_sy("fact shown true"); refresh_sy() end)
             else
                 refresh_sy()

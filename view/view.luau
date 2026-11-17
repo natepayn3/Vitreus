@@ -163,6 +163,20 @@ show = function(i)
     if st.tmp then run("sh", { "-c", 'printf "%s" "$2" > "$1/current"', "sh", st.tmp, path }, function() end) end
     fact.has_name = true
     text.name = st.names[i]
+    -- The copies made for pictures pleamar cannot read as they are (EXIF-turned photos, HEIC, TIFF...) are full size and live in the runtime
+    -- folder, which is memory: only this picture's and its two neighbours' are kept. (Every one looked at stayed until logout.)
+    do
+        local keep = { [path] = true }
+        if count > 1 then
+            keep[st.dir .. "/" .. st.names[(i % count) + 1]] = true
+            keep[st.dir .. "/" .. st.names[((i - 2) % count) + 1]] = true
+        end
+        local gone = {}
+        for p, m in pairs(st.meta) do
+            if m.copy and not keep[p] then gone[#gone + 1] = m.file; st.meta[p] = nil end
+        end
+        if #gone > 0 then run("sh", { "-c", 'rm -f -- "$@"', "sh", table.unpack(gone) }, function() end) end
+    end
     local known = st.meta[path] ~= nil
     if not known then fact.ready = false; fact.has_msg = false end
     prepare(path, function(m)
@@ -463,6 +477,19 @@ end
 on("focused", function()
     ask_theme()
     ask_round()
+    -- The picture shown, changed meanwhile (the Edit button, another editor): read again. (The comment above `prepare` said so; nothing did.)
+    local path = st.dir and st.names[st.i] and current() or nil
+    local m = path and st.meta[path]
+    if m and m.src then
+        run("sh", { "-c", 'stat -c %Y -- "$1"', "sh", path }, function(out)
+            local v = trim(out)
+            if v ~= "" and current() == path and not (m.src:sub(-#v - 1) == "?" .. v) then
+                if m.copy then run("sh", { "-c", 'rm -f -- "$1"', "sh", m.file }, function() end) end
+                st.meta[path] = nil
+                show(st.i)
+            end
+        end)
+    end
     if st.dir then
         local keep = st.names[st.i]
         list(st.dir, keep, function(at)
@@ -489,7 +516,9 @@ ask_scale()
 ask_round()
 -- The runtime folder is named after pleamar's own process (the shell's $PPID), so it is the same when the scene reloads: a new theme rewrites ../palette.plm,
 -- which reloads View and starts this logic again. The picture shown is kept there (`current`), and a reload opens it rather than the one View started with.
-run("sh", { "-c", 'd="${XDG_RUNTIME_DIR:-/tmp}/vitreus-view/$PPID"; mkdir -p "$d" && chmod 700 "$d" && echo "$d" && { cat "$d/current" 2> /dev/null; true; }' }, function(out, code)
+-- (the folders of View windows that have closed go first: each window left its own behind, copies and all, until logout)
+run("sh", { "-c", 'for o in "${XDG_RUNTIME_DIR:-/tmp}"/vitreus-view/*/; do p=$(basename "$o"); case $p in *[!0-9]*) continue ;; esac; [ -d "/proc/$p" ] || rm -rf -- "$o"; done; '
+    .. 'd="${XDG_RUNTIME_DIR:-/tmp}/vitreus-view/$PPID"; mkdir -p "$d" && chmod 700 "$d" && echo "$d" && { cat "$d/current" 2> /dev/null; true; }' }, function(out, code)
     local d, cur = (out or ""):match("^([^\n]*)\n?(.*)$")
     if code == 0 and d and d ~= "" then st.tmp = d end
     cur = trim(cur)
