@@ -209,6 +209,9 @@ local function on_line(line)
             text.setup_s = #found > 0 and "Pick yours, or type its address in the field." or "None found. Type its address in the field (the TV's Settings > Network shows it)."
         end
     elseif ev.ev == "state" then
+        -- "Add a TV" stays until a TV is picked or it is cancelled (both leave it through use(), which asks the helper where things stand): the
+        -- TV still connected behind it kept saying `ready` (a volume change is enough), and that threw the screen away
+        if st == 2 then return end
         local s = ev.stage
         if s == "ready" then show_ready(ev)
         elseif s == "connecting" then

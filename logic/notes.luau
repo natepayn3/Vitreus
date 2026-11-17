@@ -89,8 +89,16 @@ return function()
     load()
     render()
 
+    -- The list is full: say so and keep them all. (A new note used to push the oldest one out without a word.)
+    local function full()
+        text.desk_ai_msg = "Notes are full (" .. MAX .. "): delete one first"
+        pcall(run, "notify-send", { "-a", "Vitreus", "Notes are full", "There is room for " .. MAX .. ". Delete one to keep another." }, function() end)
+    end
+
+    -- (false when there was no room for it, and nothing was kept)
     function desk_note_add(title, lines)
         if sel >= 0 then close_open() end
+        if #notes >= MAX then full(); render(); return false end
         local ls = { tostring(title or "") }
         for _, l in ipairs(lines or {}) do
             if #ls >= LINES then break end
@@ -98,14 +106,14 @@ return function()
         end
         for k = #ls + 1, LINES do ls[k] = "" end
         table.insert(notes, 1, { lines = ls, t = os.time(), c = new_look() })
-        while #notes > MAX do table.remove(notes) end
         save()
         render()
+        return true
     end
 
     on("note_new", function()
         if sel >= 0 then close_open() end
-        if #notes >= MAX then table.remove(notes) end
+        if #notes >= MAX then full(); render(); return end
         local ls = {}
         for k = 1, LINES do ls[k] = "" end
         table.insert(notes, 1, { lines = ls, t = os.time(), c = new_look() })

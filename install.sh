@@ -425,7 +425,8 @@ if [ "$action" = uninstall ]; then
     if [ -f "$nirikdl" ] && grep -q '^// >>> vitreus' "$nirikdl"; then
         tmp=$(mktemp)
         sed '/^\/\/ >>> vitreus/,/^\/\/ <<< vitreus/d' "$nirikdl" > "$tmp" && run sh -c "cat '$tmp' > '$nirikdl'"
-        rm -f "$tmp" "$conf/niri/niri_vitreus.kdl" "$conf/niri/vitreus.kdl"
+        rm -f "$tmp"
+        run rm -f "$conf/niri/niri_vitreus.kdl" "$conf/niri/vitreus.kdl"   # (under `run`: --dry-run really deleted them)
         say "removed Vitreus's lines from $nirikdl"
     fi
     if [ -f "$autostart" ] && grep -q -E '^# >>> vitreus \((pleamar-wm|session)\)' "$autostart"; then
@@ -496,8 +497,9 @@ fi
 trial_file="$data/pleamar/vitreus/test-restore"
 if [ "$action" = stop ]; then
     say "stopping Vitreus"
-    run pkill -f "vitreus-keep $dest/"
-    run pkill -f "pleamar --scene $dest/"
+    # (`|| true`: with nothing of Vitreus running, pkill's 1 ended the script under `set -e`, before the other shell was started again)
+    run pkill -f "vitreus-keep $dest/" || true
+    run pkill -f "pleamar --scene $dest/" || true
     if [ -f "$trial_file" ] && ! $dry; then
         sleep 1
         while IFS= read -r cmd; do
@@ -1166,7 +1168,7 @@ if $do_binds; then
                 grep -q 'vitreus_colors' "$hyprlua" || echo 'pcall(require, "vitreus_colors")'
                 echo "-- <<< vitreus"
             } >> "$hyprlua"
-            if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
+            if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
                 say "added to $hyprlua (the old one is $hyprlua.before-vitreus); Hyprland reloads it by itself"
             else
                 say "added to $hyprlua (the old one is $hyprlua.before-vitreus), for when you log in to Hyprland; this session is not Hyprland, so it changes nothing now"
@@ -1449,7 +1451,7 @@ if ! $refresh; then
                 mkdir -p "$(dirname "$ghostty_conf")"
                 [ -f "$ghostty_conf" ] && cp "$ghostty_conf" "$ghostty_conf.before-vitreus"
                 { printf '# Vitreus: the terminal look (./install.sh --uninstall takes these two lines out)\nconfig-file = ?%s\n\n' "$dest/terminal/ghostty.conf"
-                  [ -f "$ghostty_conf" ] && cat "$ghostty_conf"; } > "$ghostty_conf.new" && mv "$ghostty_conf.new" "$ghostty_conf"
+                  if [ -f "$ghostty_conf" ]; then cat "$ghostty_conf"; fi; } > "$ghostty_conf.new" && mv "$ghostty_conf.new" "$ghostty_conf"   # (`if`: with no config yet the group ended in 1 and the `mv` never ran)
                 say "Ghostty has the Vitreus look: it shows in a new window (your config as it was: $ghostty_conf.before-vitreus)"
             fi
         fi
@@ -1493,7 +1495,8 @@ if $trial; then
     else
         [ -n "${WAYLAND_DISPLAY:-}" ] || fail "--test starts Vitreus on the screen: run it from inside your Wayland session"
         mkdir -p "$data/pleamar/vitreus"
-        : > "$trial_file"
+        # (kept if a --test before this one already wrote it: started again with Quickshell stopped, it was emptied, and --stop had nothing to bring back)
+        [ -s "$trial_file" ] || : > "$trial_file"
         # Remember how each running Quickshell was started (qs -c name ...), so --stop can start it again.
         for pid in $(pgrep -x qs; pgrep -x quickshell); do
             args=$(tr '\0' ' ' < "/proc/$pid/cmdline" 2> /dev/null | sed 's/ $//')
@@ -1502,7 +1505,7 @@ if $trial; then
         done
         if [ -s "$trial_file" ]; then
             say "stopping your Quickshell (./install.sh --stop starts it again)"
-            pkill -x qs; pkill -x quickshell
+            pkill -x qs || true; pkill -x quickshell || true   # (one of the two names is never running, and under `set -e` that ended the script here)
             sleep 1
         fi
         export PATH="$HOME/.local/bin:$PATH"

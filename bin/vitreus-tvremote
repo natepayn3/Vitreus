@@ -155,10 +155,14 @@ def ensure_cert():
     os.makedirs(DATA, mode=0o700, exist_ok=True)
     if os.path.exists(CERT) and os.path.exists(KEY):
         return
-    subprocess.run(
-        ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", KEY, "-out", CERT,
-         "-days", "7300", "-subj", "/CN=vitreus-tv-remote"],
-        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        subprocess.run(
+            ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", KEY, "-out", CERT,
+             "-days", "7300", "-subj", "/CN=vitreus-tv-remote"],
+            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError) as e:
+        # (said as the kind of error the callers already handle: without openssl this ended the helper, started again every 3 s)
+        raise OSError("openssl is needed to pair a Google TV (%s)" % e)
     os.chmod(KEY, 0o600)
     os.chmod(CERT, 0o600)
 
@@ -969,12 +973,20 @@ def main():
                 backoff = min(backoff * 2, 20)
         threading.Thread(target=loop, args=(remote,), daemon=True).start()
 
-    ensure_cert()
+    # No certificate (no openssl) is not the end: an LG needs none, and pairing a Google TV asks for it again and says why it failed.
+    try:
+        ensure_cert()
+    except OSError as e:
+        emit(ev="log", msg=str(e))
     emit(ev="hello")
+    sys.stdin.reconfigure(errors="replace")
     for line in sys.stdin:
         try:
             c = json.loads(line)
         except ValueError:
+            continue
+        # (a line that is JSON but not a command, or one with a number where a word goes, ended the helper)
+        if not isinstance(c, dict) or not all(isinstance(c.get(k, ""), str) for k in ("cmd", "host", "kind", "mac", "code", "text", "link", "id")):
             continue
         cmd = c.get("cmd")
         try:
@@ -1026,6 +1038,8 @@ def main():
                     remote.close()
                 if pairing:
                     pairing.close()
+                    pairing = None
+                ensure_cert()
                 pairing = Pairing(host)
                 emit(ev="state", stage="pair_wait_code")
             elif cmd == "code":
@@ -1078,13 +1092,20 @@ def main():
             elif cmd == "stop":
                 want["on"] = False
                 break
-        except (ConnectionError, OSError, ssl.SSLError, PairRefused) as e:
+        # (ValueError and the rest: an unknown key name or a reply that does not parse ended the helper)
+        except (ConnectionError, OSError, ssl.SSLError, PairRefused, ValueError, TypeError, AttributeError, LookupError) as e:
             if cmd == "pair" and c.get("kind", "atv") == "atv" and is_webos(host):
                 emit(ev="kind", host=host, kind="webos")      # a typed address that is an LG, not a Google TV
                 pairing = None
             elif cmd == "pair":
                 emit(ev="state", stage="pairing_failed", msg=str(e))
                 pairing = None
+            elif cmd == "code":
+                # the TV went away or the code's window ran out (15 s without an answer): this was only logged, and the panel stayed on "Type the code"
+                if pairing:
+                    pairing.close()
+                pairing = None
+                emit(ev="state", stage="pairing_failed", msg=str(e))
             else:
                 emit(ev="log", msg="%s: %s" % (cmd, e))
 

@@ -88,7 +88,9 @@ return function(with_dirs)
             end
             render()
             for _, c in ipairs(recent) do
-                if c.image and not thumbs[c.key] and not c.queued then c.queued = true; queue[#queue + 1] = c end
+                -- (`false`: asked for, or tried and not made. The mark was on the row, and the rows are made again at every refresh, so each
+                -- picture was queued again every 3 s, and one that cannot be made was tried again without end.)
+                if c.image and thumbs[c.key] == nil then thumbs[c.key] = false; queue[#queue + 1] = c end
             end
             make_next()
         end)
@@ -158,7 +160,7 @@ return function(with_dirs)
                 run("vitreus-clipimg", { "copy", r.id, r.mime or "image/png" }, function() msg("Copied") end)
             end
         else
-            with_text(r, function(t) run("wl-copy", { "--", t }, function() msg("Copied") end) end)
+            with_text(r, function(t) run("wl-copy", {}, function() msg("Copied") end, { input = t, output = false }) end)
         end
     end)
     on("clip_pin", function(i)
@@ -224,10 +226,31 @@ return function(with_dirs)
         end
         return table.concat(out)
     end
+    -- An empty object and an empty list decode to the same empty table, so "Tidy JSON" printed `{}` as `[]`. Each `{}` outside a string is
+    -- given this one key before decoding, and `pretty` prints a table holding only it as `{}`.
+    local EMPTY = "__vitreus_empty_object__"
+    local function mark_empty(t)
+        local out, i, n = {}, 1, #t
+        while i <= n do
+            local c = t:sub(i, i)
+            if c == '"' then
+                local j = i + 1
+                while j <= n and t:sub(j, j) ~= '"' do j = j + (t:sub(j, j) == "\\" and 2 or 1) end
+                out[#out + 1] = t:sub(i, j)
+                i = j + 1
+            else
+                local e = c == "{" and t:match("^{%s*}()", i)
+                if e then out[#out + 1] = '{"' .. EMPTY .. '":0}'; i = e
+                else out[#out + 1] = c; i = i + 1 end
+            end
+        end
+        return table.concat(out)
+    end
     local function pretty(v, ind)
         ind = ind or ""
         local nx = ind .. "  "
         if type(v) == "table" then
+            if v[EMPTY] == 0 and next(v, EMPTY) == nil and next(v) == EMPTY then return "{}" end
             if #v > 0 or next(v) == nil then
                 if next(v) == nil then return "[]" end
                 local parts = {}
@@ -262,7 +285,7 @@ return function(with_dirs)
                 run("tesseract", { file, "-", "--psm", "3" }, function(out, c)
                     local t = ((out or ""):gsub("\f", ""):gsub("^%s+", ""):gsub("%s+$", ""))
                     if c ~= 0 or t == "" then msg("No text found"); return end
-                    run("wl-copy", { "--", t }, function() msg("Text copied") end)
+                    run("wl-copy", {}, function() msg("Text copied") end, { input = t, output = false })
                 end)
             end
             if r.file then ocr(r.file)
@@ -277,20 +300,27 @@ return function(with_dirs)
         with_text(r, function(t)
             if what == 7 then
                 if not desk_note_add then return end
-                local first = (t:match("[^\n]+") or t):sub(1, 40)
+                -- (cut between letters: a plain `sub` could leave half an accented one, which shows as a box)
+                local function cut(str, n)
+                    if #str <= n then return str end
+                    while n > 0 and (str:byte(n + 1) or 0) >= 0x80 and (str:byte(n + 1) or 0) < 0xC0 do n = n - 1 end
+                    return str:sub(1, n)
+                end
+                local first = cut(t:match("[^\n]+") or t, 40)
                 local lines = {}
                 for line in (t .. "\n"):gmatch("([^\n]*)\n") do if #lines < 9 then lines[#lines + 1] = line end end
-                if lines[1] and lines[1]:sub(1, 40) == first then table.remove(lines, 1) end
-                desk_note_add(first, lines)
-                msg("Kept as a note")
+                if lines[1] and cut(lines[1], 40) == first then table.remove(lines, 1) end
+                if desk_note_add(first, lines) == false then msg("Notes are full: delete one first") else msg("Kept as a note") end
                 return
             end
             local out
-            if what == 0 then out = t:upper()
-            elseif what == 1 then out = t:lower()
+            -- (`upper` and `lower` know the plain letters only: the accented Latin ones, á to þ, are two bytes, C3 and one 0x20 apart, and
+            -- were left as they were. × and ÷ sit among them and have no other case. Other alphabets are still not changed.)
+            if what == 0 then out = (t:upper():gsub("\xC3([\xA0-\xBE])", function(c) return c == "\xB7" and "\xC3\xB7" or "\xC3" .. string.char(c:byte() - 0x20) end))
+            elseif what == 1 then out = (t:lower():gsub("\xC3([\x80-\x9E])", function(c) return c == "\x97" and "\xC3\x97" or "\xC3" .. string.char(c:byte() + 0x20) end))
             elseif what == 2 then out = (t:gsub("^%s+", ""):gsub("%s+$", ""):gsub("[ \t]+\n", "\n"))
             elseif what == 3 then
-                local ok, d = pcall(json.decode, t)
+                local ok, d = pcall(json.decode, mark_empty(t))
                 if not ok then msg("That is not JSON"); return end
                 out = pretty(d)
             elseif what == 4 then out = (t:gsub("%+", " "):gsub("%%(%x%x)", function(h) return string.char(tonumber(h, 16)) end))
@@ -299,10 +329,12 @@ return function(with_dirs)
                 if not out or out == "" then msg("That is not Base64"); return end
             end
             if not out then return end
-            run("wl-copy", { "--", out }, function()
+            -- (the text on its input, never in its arguments, where anyone on the machine could read it and a long one would not fit; and
+            -- `output = false`: wl-copy stays behind holding the clipboard, and waiting for its output ended only at the next copy)
+            run("wl-copy", {}, function()
                 msg(({ [0] = "UPPER copied", "lower copied", "Trimmed and copied", "Tidied and copied", "Decoded and copied", "Decoded and copied" })[what] or "Copied")
                 after(400, function() if refresh then refresh() end end)
-            end)
+            end, { input = out, output = false })
         end)
     end)
     on("clip_clear", function()

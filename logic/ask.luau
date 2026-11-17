@@ -191,6 +191,8 @@ return function()
         local off = os.time(os.date("*t", now)) - now
         local e = os.time(at)
         if e and e < now - 2 * 86400 then at.year = at.year + 1; e = os.time(at) end
+        -- (a time with no date is the next one: "1:10am" read at 11pm was put on today, already past, and the window showed as reset)
+        if e and not mon and e - off <= now then e = e + 86400 end
         return e and (e - off)
     end
     local polled = 0
@@ -267,8 +269,9 @@ return function()
     end
 
     local function run_plain(mine, msgs, name)
-        local p = prompt_for(msgs)
-        local args = name == "codex" and { "exec", p } or { "-p", p }
+        -- (the prompt on its input, as the others get it: in the arguments anyone on the machine could read it, attachments included, and a
+        -- long one did not fit. `codex exec -` reads it from there; gemini answers what is piped to it and ends.)
+        local args = name == "codex" and { "exec", "-" } or {}
         local first = true
         return spawn(name, args, function(line)
             append(mine, (first and "" or "\n") .. line)
@@ -276,7 +279,7 @@ return function()
         end, function(_, code)
             if code ~= 0 then fail(mine, name .. " exited with " .. tostring(code)) end
             finish(mine)
-        end)
+        end, { input = prompt_for(msgs) })
     end
 
     local function ask(v)
@@ -292,9 +295,9 @@ return function()
                         table.insert(state.history, { role = "note", text = LABELS[b] .. " is still answering in its tab. Ask again when it is done, or stop it there.", who = "Note" })
                     end
                 end
-                text.ask_in = v
                 render()
             end
+            text.ask_in = v                 -- (also when it is this chat that is answering: the field was emptied on Enter, and the question was lost)
             return
         end
         for i = #state.history, 1, -1 do
@@ -326,10 +329,13 @@ return function()
         for i = 1, #state.history - 1 do msgs[i] = state.history[i] end
         local mine = { chat = state.history }
         proc = mine
-        local id
-        if state.backend == 1 then id = run_claude(mine, msgs)
-        elseif state.backend == 2 then id = run_ollama(mine, msgs)
-        else id = run_plain(mine, msgs, NAMES[state.backend]) end
+        -- (a program that cannot be started throws: it was left "answering" for good, and nothing else could be asked)
+        local ok, id = pcall(function()
+            if state.backend == 1 then return run_claude(mine, msgs)
+            elseif state.backend == 2 then return run_ollama(mine, msgs)
+            else return run_plain(mine, msgs, NAMES[state.backend]) end
+        end)
+        if not ok then fail(mine, "it could not be started"); finish(mine); return end
         mine.id = id
     end
 
@@ -384,8 +390,14 @@ return function()
             local m = state.history[r.mi]
             str = m and m.text
         end
-        if type(str) == "string" and str ~= "" then run("wl-copy", { "--", str }, function() end) end
+        if type(str) == "string" and str ~= "" then run("wl-copy", {}, function() end, { input = str, output = false }) end
     end)
+    -- The first `n` bytes of a text, less whatever would end in the middle of a letter (a plain `sub` left half an accented one, which shows as a box).
+    local function cut(str, n)
+        if #str <= n then return str end
+        while n > 0 and (str:byte(n + 1) or 0) >= 0x80 and (str:byte(n + 1) or 0) < 0xC0 do n = n - 1 end
+        return str:sub(1, n)
+    end
     -- An answer kept as a note on the Desk (logic/notes.luau's `desk_note_add`): titled with the question it answered, its lines the answer's.
     on("ask_note", function(i)
         local r = model.ask_rows[(tonumber(i) or -1) + 1]
@@ -397,7 +409,7 @@ return function()
             local p = state.history[k]
             if p and p.role == "user" then q = p.text or ""; break end
         end
-        local title = (q:match("[^\n]+") or "From Ask"):sub(1, 40)
+        local title = cut(q:match("[^\n]+") or "From Ask", 40)
         local lines = {}
         for line in (m.text .. "\n"):gmatch("([^\n]*)\n") do
             if line:match("%S") and #lines < 9 then lines[#lines + 1] = line end

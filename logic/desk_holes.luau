@@ -82,5 +82,5 @@ return function()
         end)
     end
     after(3000, function() push(true) end)
-    every(20000, function() push(true) end)
+    every(20000, function() if fact.wm_session == true then push(true) end end)   -- (only pleamar-wm has the scene this is said to: elsewhere it was a failing command every 20 s)
 end

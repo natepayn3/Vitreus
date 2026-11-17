@@ -38,6 +38,8 @@ resolve() {
         "~") p=$HOME ;;
         "~/"*) p=$HOME/${p#"~/"} ;;
     esac
+    # (a path from where the command was typed, `vitreus-files .` or `vitreus-files Documents`: made whole, or Files opened Home instead)
+    case $p in /*|"") ;; *) p="$(pwd)/$p" ;; esac
     folder=$p pick=""
     if [ -d "$p" ] && ! $reveal; then
         return

@@ -10,7 +10,19 @@
 return function()
     local G = { on = false, prior = nil, dnd = false, comp = "wm" }
     -- Which compositor this is, asked once: Hyprland has its signature in the environment, niri its socket, and under pleamar-wm there is neither.
-    run("printenv", { "HYPRLAND_INSTANCE_SIGNATURE" }, function(o, c) if c == 0 and (o or "") ~= "" then G.comp = "hypr" end end)
+    -- What is on is also kept in a file (it was only in memory before: a restart of the shell or its logic while Game mode was on left the
+    -- blur, animations and rounding off, Do Not Disturb on as if set by hand, and the profile on Performance, with the tile saying Off).
+    local function save()
+        pcall(sys.call, "files.write", "game-mode.json", { on = G.on, prior = G.prior, dnd = G.dnd })
+    end
+    local okf, was = pcall(sys.ask, "files.read", "game-mode.json", "json")
+    if not (okf and type(was) == "table" and was.on == true) then was = nil end
+    run("printenv", { "HYPRLAND_INSTANCE_SIGNATURE" }, function(o, c)
+        if c == 0 and (o or "") ~= "" then
+            G.comp = "hypr"
+            if was then run("hyprctl", { "reload" }, function() end) end     -- (the file says it was on: the overrides are dropped, as `stop` does)
+        end
+    end)
     run("printenv", { "NIRI_SOCKET" }, function(o, c) if c == 0 and (o or "") ~= "" then G.comp = "niri" end end)
 
     local ON = [[hl.config({ general = { allow_tearing = true }, decoration = { rounding = 0, active_opacity = 1.0, inactive_opacity = 1.0, blur = { enabled = false }, shadow = { enabled = false } }, animations = { enabled = false }, misc = { vrr = 2 } }) ]]
@@ -54,6 +66,7 @@ return function()
             G.dnd = game_fx.dnd_start()       -- notifications off, unless something was silencing them already
             cava_want()                       -- the visualiser stops listening (cava is stopped)
             show()
+            save()
             if G.comp == "hypr" then run("hyprctl", { "eval", ON }, function() end)
             elseif G.comp == "niri" then game_fx.niri(true)
             else game_fx.wm(true) end
@@ -61,6 +74,7 @@ return function()
                 local p = (out or ""):match("%S+")
                 if c == 0 and p and p ~= "performance" then
                     G.prior = p
+                    if G.on then save() end
                     run("powerprofilesctl", { "set", "performance" }, function() end)
                 end
             end)
@@ -81,6 +95,17 @@ return function()
             run("powerprofilesctl", { "set", G.prior }, function() end)
             G.prior = nil
         end
+        save()
+    end
+
+    -- It was on when the logic last stopped: what it changed is put back, and it starts off. (On niri and pleamar-wm the values the
+    -- compositor had were only in memory, so those are not put back here.)
+    if was then
+        if was.dnd == true then pcall(game_fx.dnd_stop) end
+        if type(was.prior) == "string" and was.prior:match("^[%w%-]+$") then
+            run("powerprofilesctl", { "set", was.prior }, function() end)
+        end
+        save()
     end
 
     on("game_toggle", function()

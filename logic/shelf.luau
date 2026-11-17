@@ -149,7 +149,7 @@ return function(with_dirs)
         local it = (not locked) and type(k) == "number" and items[k + 1]
         if not it then return end
         if it.tag == "TXT" then
-            run("wl-copy", { it.path }, function() end)
+            run("wl-copy", {}, function() end, { input = it.path, output = false })   -- (`--`: a text that starts with a dash is not an option)
         else
             exec_on_desktop("xdg-open " .. quote(it.path))
         end
@@ -206,7 +206,7 @@ return function(with_dirs)
                 add({ name = (t:gsub("%s+", " ")):sub(1, 40), path = t, tag = "TXT" })
                 save()
                 render()
-                run("wl-copy", { "--", t }, function() end)
+                run("wl-copy", {}, function() end, { input = t, output = false })
                 done("Text copied, and on the shelf")
             end)
         elseif kd == "vid" and what == 4 then
@@ -240,7 +240,15 @@ return function(with_dirs)
         locked = true
         render()
     end)
-    -- Closing the desk shuts it too, so that what was open does not stay open behind you.
+    -- Closing the desk shuts it too, so that what was open does not stay open behind you. (`desk_gone` as well: closed with its key, the
+    -- fact is set by the logic, which fires no `fact:` handler, and the Shelf was still open the next time.)
+    on("desk_gone", function()
+        if lock_on and not locked then
+            locked = true
+            text.shelf_pw = ""
+            render()
+        end
+    end)
     on("fact:desk_open", function(v)
         if (v == false or tostring(v) == "false") and lock_on and not locked then
             locked = true

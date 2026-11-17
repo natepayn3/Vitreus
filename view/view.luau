@@ -312,7 +312,7 @@ on("do_copy", function()
     local script = 'case "$1" in *.png|*.PNG) wl-copy -t image/png < "$1" ;; *) magick "$1[0]" -auto-orient png:- | wl-copy -t image/png ;; esac'
     run("sh", { "-c", script, "sh", path }, function(_, code)
         if code == 0 then say("Copied") else say("It could not be copied") end
-    end)
+    end, { output = false })   -- (wl-copy stays behind holding the clipboard: waiting for its output ended only at the next copy)
 end)
 
 -- The trash: `gio trash`, so it can be taken back out of it in Files. Then the next one (or the one before, at the end).

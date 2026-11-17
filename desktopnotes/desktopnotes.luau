@@ -151,7 +151,8 @@ do
                 slots[k] = { t = it.t, x = tonumber(it.x) or 80, y = tonumber(it.y) or 80, c = math.floor(tonumber(it.c) or 0) % 6, f = math.floor(tonumber(it.f) or math.random(0, 3)) % 4 }
             end
         end
-    else
+    elseif ok and saved == nil then
+        -- (only where there is no stickers file yet: one that does not parse is somebody's notes, and saving over it here emptied them)
         -- the earlier notes (a list of lines) become one sticker each, in a row from the corner
         local ok2, old = pcall(sys.ask, "files.read", "desktopnotes-items.json", "json")
         if ok2 and type(old) == "table" and type(old.items) == "table" then

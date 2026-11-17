@@ -180,6 +180,10 @@ def main():
                 new = latest(e)
                 if not new:
                     raise RuntimeError("no release published")
+                # The newest release IS the pin: the copy in git already holds it, with whatever was mended here since. Fetched again, the
+                # release's own files went over those (and showed up as edits nobody made in the working tree).
+                if new[1] == e.get("sha") or new[0] == e.get("tag"):
+                    continue
                 fetch(id, dict(e, tag=new[0], sha=new[1]))
             except (Exception, SystemExit) as err:          # fetch() exits on a bad add-on: that one stays as pinned, the others go on
                 failed = True

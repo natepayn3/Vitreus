@@ -46,7 +46,10 @@ def read(path, builtin):
         pal = {k: colour(p[k], "palette." + k) if k in p else STOCK[k] for k in ORDER}
     elif base != "glass":
         raise ValueError("a theme that is not Glass needs a [palette]")
-    cols = t.get("card", {}).get("colors")
+    card = t.get("card", {})
+    if not isinstance(card, dict):               # (`card = 3` raised an AttributeError nothing caught, and no theme list was written at all)
+        raise ValueError("[card] has to be a table")
+    cols = card.get("colors")
     if cols is None:
         src = pal or STOCK
         cols = [src["tint"], src["panel"], src["ink"], src["mint"], src["alert"]]
@@ -76,14 +79,14 @@ for folder, builtin in ((own, True), (user, False)):
             themes.append(th)
         except tomllib.TOMLDecodeError as e:
             errors.append("%s: %s" % (n, e))
-        except (ValueError, OSError) as e:
+        except Exception as e:                   # (anything else a wrong-typed value raises, such as corner_rounding = inf: this theme is left out, the others stay)
             errors.append("%s: %s" % (n, e))
 
 # Vitreus's own, in their old order (Glass first), then the person's, by file name.
 rank = {"glass": 0, "retro": 1, "uwu": 2, "cyber": 3, "milk": 4, "proxy": 5, "paper": 6, "doodle": 7}
 themes.sort(key=lambda t: (0, rank.get(t["id"], 9)) if t["builtin"] else (1, 0))
 os.makedirs(data, exist_ok=True)
-tmp = os.path.join(data, "themes.json.tmp")
+tmp = os.path.join(data, "themes.json.tmp.%d" % os.getpid())      # (one name for all: two runs at once wrote into each other's file)
 with open(tmp, "w") as f:
     json.dump({"themes": themes, "errors": errors, "folder": user}, f)
 os.replace(tmp, os.path.join(data, "themes.json"))

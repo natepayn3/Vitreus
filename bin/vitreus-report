@@ -57,6 +57,37 @@ else
     out="$desk/vitreus-report-$stamp.txt"
 fi
 raw="$(mktemp 2> /dev/null || echo "/tmp/vitreus-report.$$")"
+# Blank out what is personal: the user, the home folder, the computer's name, network and e-mail addresses, the monitors' connector names.
+# (Up here, before the trap that uses it: what on_exit shows of a run that stopped went out as it was gathered, names and addresses and all.)
+host="$( (hostname 2> /dev/null || cat /etc/hostname 2> /dev/null) | head -1)"
+# (`+ ? ( ) { }` too: the names go into extended patterns, where a user called `a+b` matched nothing and stayed in the report)
+esc() { printf '%s' "$1" | sed 's/[][\.*^$/|&+?(){}]/\\&/g'; }
+user_name="$(id -un 2> /dev/null || echo "${USER:-}")"
+redact() {
+    w='[^[:alnum:]_]'
+    hx='[0-9a-fA-F]{1,4}'
+    oct='(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])'
+    n_user='s/^//'; n_host='s/^//'
+    if [ -n "$user_name" ] && [ "$user_name" != root ]; then n_user="s/(^|$w)$(esc "$user_name")($w|\$)/\\1<user>\\2/g"; fi
+    if [ -n "$host" ]; then n_host="s/(^|$w)$(esc "$host")($w|\$)/\\1<host>\\2/g"; fi
+    # The longer of the two names first: with the user first, the host `john-pc` of the user `john` came out as `<user>-pc`.
+    if [ "${#host}" -ge "${#user_name}" ]; then n1=$n_host; n2=$n_user; else n1=$n_user; n2=$n_host; fi
+    # An IPv4 part is 0 to 255: any four numbers also blanked a driver's version (NVIDIA's 570.86.16.0). The short IPv6 forms (fe80::1, ::1)
+    # were not matched at all; they must stand alone, so that `serde::de::Error` in a log is not taken for one. The connectors now include
+    # DSI, HEADLESS and HDMI-1. (Each pattern that eats the character before and after it runs twice, for two matches side by side.)
+    sed -E \
+        -e "s|$(esc "$HOME")|~|g" \
+        -e "s/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/<email>/g" \
+        -e "s/\b$oct\.$oct\.$oct\.$oct\b/<ip>/g" \
+        -e 's/\b([0-9a-fA-F]{1,4}:){3,7}[0-9a-fA-F]{1,4}\b/<ip6>/g' \
+        -e "s/(^|[^[:alnum:]_:])($hx:){1,7}:($hx(:$hx){0,6})?(\$|[^[:alnum:]_:])/\\1<ip6>\\5/g" \
+        -e "s/(^|[^[:alnum:]_:])($hx:){1,7}:($hx(:$hx){0,6})?(\$|[^[:alnum:]_:])/\\1<ip6>\\5/g" \
+        -e "s/(^|[^[:alnum:]_:])::$hx(:$hx){0,6}(\$|[^[:alnum:]_:])/\\1<ip6>\\3/g" \
+        -e "s/(^|[^[:alnum:]_:])::$hx(:$hx){0,6}(\$|[^[:alnum:]_:])/\\1<ip6>\\3/g" \
+        -e 's/\b([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}\b/<mac>/g' \
+        -e 's/\b(e?DP|HDMI(-[A-Z])?|DVI(-[A-Z])?|VGA|LVDS|DSI|DPI|HEADLESS|Virtual|WL|X11)-[0-9]+\b/<output>/g' \
+        -e "$n1" -e "$n1" -e "$n2" -e "$n2"
+}
 # If anything stops it before the end, say so and show where, instead of leaving without a word (the error is in $raw, which is not shown otherwise).
 # fd 3 is the real stderr: the trap can run inside the block below, where stderr goes into $raw.
 exec 3>&2
@@ -65,7 +96,7 @@ on_exit() {
     if ! $finished; then
         {
             printf '\nvitreus-report stopped before it finished, and wrote no report. The last lines it got to:\n'
-            tail -n 5 "$raw" 2> /dev/null
+            tail -n 5 "$raw" 2> /dev/null | redact
             printf 'Please send these lines (a photo of the screen is fine) to %s\n' "$REPORT_TO"
         } >&3
     fi
@@ -194,16 +225,17 @@ tailf() { # tailf file lines [filter-out-regex]
     printf 'surfaces on screen, by pleamar process:\n'
     if pgrep -x pleamar-wm > /dev/null 2>&1 && have pleamar-wm; then
         # One line a surface: number, program and scene, «name», size, place, monitor, level, pid. Needs `agent on` in session.conf.
-        out="$(tmo pleamar-wm agent layers 2>&1)"
-        if printf '%s\n' "$out" | grep -q ' pid [0-9]'; then
-            printf '%s\n' "$out" | cut -c1-160 | head -40 | sed 's/^/  /'
-            printf '%s\n' "$out" | awk '/ pid [0-9]/ { for (i = 1; i <= NF; i++) if ($i == "pid") n[$(i + 1)]++ } END { for (p in n) printf "  pid %s: %d\n", p, n[p] }'
+        # (`lay`, not `out`: this group is not a subshell, and `out` is where the whole report is written when the group closes)
+        lay="$(tmo pleamar-wm agent layers 2>&1)"
+        if printf '%s\n' "$lay" | grep -q ' pid [0-9]'; then
+            printf '%s\n' "$lay" | cut -c1-160 | head -40 | sed 's/^/  /'
+            printf '%s\n' "$lay" | awk '/ pid [0-9]/ { for (i = 1; i <= NF; i++) if ($i == "pid") n[$(i + 1)]++ } END { for (p in n) printf "  pid %s: %d\n", p, n[p] }'
         else
             printf '  (pleamar-wm did not say: its agent is off, so it cannot be asked; `agent on` in ~/.config/pleamar/session.conf turns it on)\n'
         fi
     elif [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && have hyprctl; then
-        out="$(tmo hyprctl layers 2>&1 | awk '/namespace: pleamar/ { for (i = 1; i <= NF; i++) if ($i == "pid:") n[$(i + 1)]++ } END { for (p in n) printf "  pid %s: %d\n", p, n[p] }')"
-        printf '%s\n' "${out:-  (Hyprland shows no pleamar surface)}"
+        lay="$(tmo hyprctl layers 2>&1 | awk '/namespace: pleamar/ { for (i = 1; i <= NF; i++) if ($i == "pid:") n[$(i + 1)]++ } END { for (p in n) printf "  pid %s: %d\n", p, n[p] }')"
+        printf '%s\n' "${lay:-  (Hyprland shows no pleamar surface)}"
     else
         printf '  (cannot be asked: neither Hyprland nor pleamar-wm is running here)\n'
     fi
@@ -289,25 +321,8 @@ tailf() { # tailf file lines [filter-out-regex]
     sec "End of report"
 } > "$raw" 2>&1
 
-# Blank out what is personal: the user, the home folder, the computer's name, network and e-mail addresses, the monitors' connector names.
-host="$( (hostname 2> /dev/null || cat /etc/hostname 2> /dev/null) | head -1)"
-esc() { printf '%s' "$1" | sed 's/[][\.*^$/|&]/\\&/g'; }
-user_name="$(id -un 2> /dev/null || echo "${USER:-}")"
 {
-    sed -E \
-        -e "s|$(esc "$HOME")|~|g" \
-        -e "s/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/<email>/g" \
-        -e 's/\b[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\b/<ip>/g' \
-        -e 's/\b([0-9a-fA-F]{1,4}:){3,7}[0-9a-fA-F]{1,4}\b/<ip6>/g' \
-        -e 's/\b([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}\b/<mac>/g' \
-        -e 's/\b(e?DP|HDMI-[A-Z]|DVI-[A-Z]|VGA|LVDS|Virtual|WL|X11)-[0-9]+\b/<output>/g' \
-        "$raw" |
-    {
-        if [ -n "$user_name" ] && [ "$user_name" != root ]; then sed -E "s/\b$(esc "$user_name")\b/<user>/g"; else cat; fi
-    } |
-    {
-        if [ -n "$host" ]; then sed -E "s/\b$(esc "$host")\b/<host>/g"; else cat; fi
-    }
+    redact < "$raw"
     if [ -n "$reply" ]; then printf '\nReply to: %s\n' "$reply"; fi
 } > "$out"
 

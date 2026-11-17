@@ -33,6 +33,8 @@ from datetime import datetime, timezone
 UA = "vitreus-desktopfeed/1.0 (+rss reader)"
 TIMEOUT = 12
 MAX_IMG = 2_000_000
+MAX_UNZIPPED = 16_000_000
+THUMB_KEEP = 3 * 86400      # how long a thumbnail no feed names any more stays in the cache
 IMG_EXT = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif", "image/avif": ".avif"}
 
 # A little directory of feeds that are known to answer, for the add row's suggestions (the widget filters it as
@@ -120,16 +122,14 @@ def fetch(url, limit=None, timeout=TIMEOUT):
     with urllib.request.urlopen(req, timeout=timeout) as r:
         data = r.read(limit or MAX_IMG + 1)
         if r.headers.get("Content-Encoding") == "gzip":
+            # a `limit`ed read can cut the stream mid-block: take whatever decompresses (the head is what is read for).
+            # At most MAX_UNZIPPED of it comes out (gzip.decompress had no ceiling: 2 MB of zeros unpacked into 2 GB of memory)
+            import zlib
+            d = zlib.decompressobj(zlib.MAX_WBITS | 32)
             try:
-                data = gzip.decompress(data)
+                data = d.decompress(data, MAX_UNZIPPED)
             except Exception:
-                # a `limit`ed read can cut the stream mid-block: take whatever decompresses (the head is what is read for)
-                import zlib
-                d = zlib.decompressobj(zlib.MAX_WBITS | 32)
-                try:
-                    data = d.decompress(data)
-                except Exception:
-                    pass
+                pass
         return data, r.headers.get("Content-Type", "")
 
 
@@ -230,26 +230,62 @@ def sniff_ext(data):
     return ""
 
 
-def thumbnail(url, thumbs):
-    """Downloads an image into the cache, returns its path or ''."""
+def thumbnail(url, thumbs, used=None):
+    """Downloads an image into the cache, returns its path or ''. `used` collects the names of the cache's files this
+    run still wants (what main() does not find there is pruned once it is old)."""
     if not url or not url.startswith("http"):
         return ""
     h = hashlib.sha1(url.encode()).hexdigest()[:20]
     for ext in IMG_EXT.values():
         p = os.path.join(thumbs, h + ext)
         if os.path.exists(p) and os.path.getsize(p) > 0:
+            if used is not None:
+                used.add(h + ext)
             return p
+    # an image that was too big leaves an empty `.big` file (without it the same 2 MB were downloaded again every cycle)
+    big = os.path.join(thumbs, h + ".big")
+    if os.path.exists(big):
+        if used is not None:
+            used.add(h + ".big")
+        return ""
     try:
         data, ctype = fetch(url, MAX_IMG + 1)
         ext = IMG_EXT.get((ctype or "").split(";")[0].strip().lower()) or sniff_ext(data)
+        if ext and len(data) > MAX_IMG:
+            open(big, "wb").close()
+            if used is not None:
+                used.add(h + ".big")
         if not ext or len(data) > MAX_IMG or len(data) < 200:
             return ""
         p = os.path.join(thumbs, h + ext)
         with open(p, "wb") as f:
             f.write(data)
+        if used is not None:
+            used.add(h + ext)
         return p
     except Exception:
         return ""
+
+
+def prune_thumbs(thumbs, used, now=None):
+    """Removes the cache's files this run did not name and that are older than THUMB_KEEP (nothing ever did: the folder
+    only grew). Only names this script writes (20 hex digits and one of its extensions) are touched."""
+    now = now or time.time()
+    exts = set(IMG_EXT.values()) | {".big"}
+    try:
+        names = os.listdir(thumbs)
+    except OSError:
+        return
+    for n in names:
+        stem, ext = os.path.splitext(n)
+        if n in used or ext not in exts or not re.fullmatch(r"[0-9a-f]{20}", stem):
+            continue
+        p = os.path.join(thumbs, n)
+        try:
+            if now - os.path.getmtime(p) > THUMB_KEEP:
+                os.remove(p)
+        except OSError:
+            pass
 
 
 def is_feed(data, fallback_name):
@@ -399,7 +435,7 @@ def main():
             lastgood = json.load(f)
     except Exception:
         lastgood = {}
-    keep_urls = set()
+    keep_urls, used = set(), set()
     for f in cfg.get("feeds", []):
         name = (f.get("name") or "").strip() or re.sub(r"^https?://(www\.)?", "", f.get("url", "?")).split("/")[0]
         url = f.get("url", "")
@@ -415,22 +451,37 @@ def main():
         except Exception as e:
             cached = lastgood.get(url)
             if cached and cached.get("items"):
-                items = [it for it in cached["items"] if not blocked(it, block)]
+                # copies, as above: the loop below takes `guid` out, and done to the kept ones themselves it was gone from lastgood.json,
+                # so a feed that failed twice running ended the whole fetch with a KeyError
+                items = [dict(it) for it in cached["items"] if not blocked(it, block)]
                 name = name or cached.get("name", "")
                 failed = True
             else:
                 out_feeds.append({"name": name, "url": url, "ok": False, "count": 0})
                 errors.append("%s: %s" % (name, e))
                 continue
+        # a link is made whole against the feed's address (a relative one opened nothing), and only a web address is
+        # kept: the panel hands it to xdg-open, which would as soon open a feed's file:// or any other scheme
+        web = []
+        for it in items:
+            try:
+                link = urllib.parse.urljoin(url, (it.get("link") or "").strip())
+                if urllib.parse.urlparse(link).scheme.lower() in ("http", "https"):
+                    it["link"] = link
+                    web.append(it)
+            except ValueError:
+                pass
+        items = web
         n = 0
         for it in items[:per_feed]:
             it["src"] = name
-            it["id"] = hashlib.sha1((it["guid"] or it["link"]).encode()).hexdigest()[:16]
+            if "guid" in it or "id" not in it:      # (an entry an older run left without its `guid` keeps the id it was given then)
+                it["id"] = hashlib.sha1((it.get("guid") or it["link"]).encode()).hexdigest()[:16]
             if want_thumbs and it.get("img"):
-                it["img"] = thumbnail(it["img"], thumbs)
+                it["img"] = thumbnail(it["img"], thumbs, used)
             else:
                 it["img"] = ""
-            del it["guid"]
+            it.pop("guid", None)
             it.pop("cats", None)
             out_items.append(it)
             n += 1
@@ -444,6 +495,7 @@ def main():
             json.dump(lastgood, f)
     except Exception:
         pass
+    prune_thumbs(thumbs, used)
 
     out_items.sort(key=lambda x: x.get("pub") or 0, reverse=True)
     seen, deduped = set(), []

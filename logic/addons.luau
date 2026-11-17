@@ -187,7 +187,10 @@ return function()
     local function fsend()            -- one say at a time, the newest text once it answers: two in flight can land in the wrong order
         if fbusy or not fowner or fq == fsent then return end
         fbusy, fsent = true, fq
-        run("pleamar", { "--say", fowner, "text field_q " .. fq }, function() fbusy = false; fsend() end)
+        -- Down the add-on's socket, like the slot's place above, not as a command: what is typed in an add-on's field can be a token or a
+        -- password (Home Assistant's), and a command's arguments can be read by anyone on the machine while it runs.
+        pcall(sys.call, "say", fowner, "text field_q " .. fq)
+        fbusy = false
     end
     local function fset(v)
         v = tostring(v or ""):gsub("[\r\n].*$", "")

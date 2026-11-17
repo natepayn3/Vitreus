@@ -71,7 +71,16 @@ if have xdg-mime && have gio; then
     app=$(xdg-mime query default text/plain 2> /dev/null)
     if [ -n "$app" ]; then
         for d in "${XDG_DATA_HOME:-$HOME/.local/share}" $(echo "${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" | tr ':' ' '); do
-            [ -f "$d/applications/$app" ] && go "gio launch $d/applications/$app"
+            [ -f "$d/applications/$app" ] || continue
+            # An editor that lives in a terminal (nvim.desktop, `Terminal=true`): `gio launch` opened nothing for it and this still ended in 0.
+            # Its own command goes in a terminal; with none found, the editors below are tried.
+            if grep -q '^Terminal=true' "$d/applications/$app"; then
+                t=$(term_prefix)
+                x=$(sed -n 's/^Exec=//p' "$d/applications/$app" | head -n 1 | sed 's/ *%[A-Za-z]//g')
+                [ -n "$t" ] && [ -n "$x" ] && have "${x%% *}" && go "$t $x"
+                break
+            fi
+            go "gio launch $d/applications/$app"
         done
     fi
 fi

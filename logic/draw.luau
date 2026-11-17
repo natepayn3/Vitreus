@@ -136,13 +136,13 @@ return function()
             if pics == "" then saving = false; say("The picture could not be saved"); return end
             local dir = pics .. "/myPad"
             local file = dir .. "/drawing-" .. os.date("%Y%m%d-%H%M%S") .. ".png"
-            local args = { "-size", (W * 2) .. "x" .. (H * 2), "xc:#fbf9f3", "-fill", "none", "-stroke", INK[0], "-linecap", "round" }
+            local args = { "-size", (W * 2) .. "x" .. (H * 2), "xc:#fbf9f3", "-fill", "none", "-stroke", INK[0] }   -- (round ends are said in each `-draw`: magick has no `-linecap` option, and with it every save failed)
             local cur_c, cur_w
             for _, s in ipairs(segs) do
                 if s.c ~= cur_c then cur_c = s.c; args[#args + 1] = "-stroke"; args[#args + 1] = INK[s.c] or INK[0] end
                 if s.w ~= cur_w then cur_w = s.w; args[#args + 1] = "-strokewidth"; args[#args + 1] = tostring((1.8 + 2.6 * s.w) * 4) end
                 args[#args + 1] = "-draw"
-                args[#args + 1] = string.format("line %d,%d %d,%d", s.x0 * 2, s.y0 * 2, s.x1 * 2, s.y1 * 2)
+                args[#args + 1] = string.format("stroke-linecap round line %d,%d %d,%d", s.x0 * 2, s.y0 * 2, s.x1 * 2, s.y1 * 2)
             end
             args[#args + 1] = file
             run("mkdir", { "-p", dir }, function()

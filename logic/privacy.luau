@@ -137,7 +137,8 @@ return function()
     every(2000, function()
         ticks = ticks + 1
         tick_cam()
-        if not listening or ticks % 15 == 0 then tick_mic() end
+        -- (not listening is nearly always no sound server at all, where asking fails too: every 10 s then, not a failing `pactl` every 2 s for good)
+        if ticks % (listening and 15 or 5) == 0 then tick_mic() end
     end)
 
 end

@@ -83,8 +83,8 @@ scene Vitreus {
     //  `rate:` is the rate chosen in Settings > Display (`bar_fps`), or 60 while the music moves the frame (its ripple and waves). There is no idle cap: a scene with nothing
     //  moving paints nothing, so a cap only ever slowed what was moving (the notches, the drawers, the bar's hovers each needed an exemption from the old 12 a second).
     surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995 and bar_size < 1.005 and not bar_ah; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on) and not sky.calm, 60 while ((media.playing and fw_on) or bar_fps == 60) and not sky.calm, 30 while sky.calm; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
-    permissions { services: "say:*", "files", "files.write", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe", "nordvpn" }
+    permissions { services: "say:*", "files", "files.write", "files.remove", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
+                  run: "timeout 15 pw-play", "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe", "nordvpn" }
 
     model wifi_nets max 16 { ssid: text; strength: number; secure: bool; known: bool; active: bool; band: number; bands: text; bandw: number; chan: number; rate: number; sec: text; busy: number }
     model bat_devs max 6 { name: text; level: number }
@@ -2925,6 +2925,9 @@ scene Vitreus {
     on change set_page while set_page == pg_theme { emit themes_refresh }       // a theme file may have been added or edited since
     on change set_page while set_page == pg_addons { emit addons_refresh }       // an add-on folder may have been added since
     on change set_page while set_page == pg_keys { emit kb_refresh }
+    //  The Display page is read again as it opens (its wallpaper tiles are only asked for while it is open, so they waited for the 5-second watch).
+    on change set_page while set_page == pg_disp { emit disp_refresh }
+    on change panel while panel == settings and set_page == pg_disp { emit disp_refresh }
     //  Listening ends when the page or the panel is left (the logic gives Hyprland its binds back: `listen` in logic/keybinds.luau).
     on change set_page while kb_cap { emit kb_cancel }
     on change panel while kb_cap { emit kb_cancel }
@@ -3477,20 +3480,23 @@ scene Vitreus {
     //  Wi-Fi arcs, 1 the Bluetooth rune); a tap pops it. While `scanning` it narrows to a round mint button, the glyph
     //  breathes and rings ripple out of it; when the scan ends a tick flashes before the glyph comes back.
     //  It draws where cx, cy say and its zone is declared where the copy is, so the copy goes after the list.
-    component ScanButton(cx: number, cy: number, scanning: bool, kind: number, go: event, name: text) {
+    //  While not `enabled` (the radio is off) it is dimmed and takes no press.
+    component ScanButton(cx: number, cy: number, scanning: bool, kind: number, go: event, name: text, enabled: bool) {
         prop run = 0 ~calm
         prop grow = 0 ~pop
         prop ok = 0 ~quick
         follow run = if(scanning, 1, 0)
         on change scanning while not scanning { ok: 1 ~68ms; ok: 0 ~595ms after 900ms }
+        prop dim = 0 ~quick
+        follow dim = if(enabled, 0, 1)
         let w = (44 - 16 * run + 4 * grow) * cu
-        let gl = 1 - ok
+        let gl = (1 - ok) * (1 - 0.6 * dim)
         //  Rings, three of them a third of a cycle apart: out from the button, fading as they go.
         repeat i in 0..3 {
             let ph = fract(time * 0.8 + i / 3)
             ellipse { at: cx, cy; radius: (10 + 10 * ph) * cu; stroke: 1.3 * cu; color: mint; opacity: 45% * (1 - ph) * run; show: run > 0.02 }
         }
-        box { at: cx, cy; size: w, 24 * cu; corner: 12 * cu; color: mix(ink, mint, run); opacity: 8% + 10% * hit.hover + 14% * run + 10% * ok }
+        box { at: cx, cy; size: w, 24 * cu; corner: 12 * cu; color: mix(ink, mint, run); opacity: (8% + 10% * hit.hover + 14% * run + 10% * ok) * (1 - 0.5 * dim) }
         //  Wi-Fi: a dot and three arcs that light one after the other while it searches.
         group {
             show: kind == 0
@@ -3508,8 +3514,8 @@ scene Vitreus {
             move -3.2 * cu, -3.2 * cu; line 3.2 * cu, 3.2 * cu; line 0, 6.4 * cu; line 0, -6.4 * cu; line 3.2 * cu, -3.2 * cu; line -3.2 * cu, 3.2 * cu
         }
         path { at: cx, cy; stroke: 1.8 * cu; color: mint; opacity: ok; move -3.6 * cu, 0; line -1 * cu, 2.8 * cu; line 3.8 * cu, -3 * cu }
-        zone box hit { at: cx, cy; size: 54 * cu, 26 * cu; corner: 13 * cu; cursor: pointer; label: name }
-        on press hit { grow: 1 ~40ms; grow: 0 ~pop after 90ms; emit go }
+        zone box hit { at: cx, cy; size: 54 * cu, 26 * cu; corner: 13 * cu; cursor: pointer; active: enabled; label: name }
+        on press hit while enabled { grow: 1 ~40ms; grow: 0 ~pop after 90ms; emit go }
     }
 
     //  One row of the Wi-Fi window: a dot if it's the one in use, its name, and

@@ -112,6 +112,7 @@ void main() {
         if N.sun then
             if N.on then
                 with_sunset(function()
+                    if not N.on then return end   -- (switched off again while the daemon was starting: the tint came on under a page that said Off)
                     run("hyprctl", { "hyprsunset", "temperature", tostring(temp()) }, function() end)
                     N.applied = true
                 end)

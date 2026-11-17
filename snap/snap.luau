@@ -521,6 +521,7 @@ end
 on("do_ocr_copy", function()
     if not dir then fact.busy = 0 return end
     read_text("", function(out)
+        if out == nil then toast("The text could not be read (is tesseract installed?)", 3200) return end
         local s = trim((out or ""):gsub("\n\n+", "\n\n"))
         if s == "" then
             toast("No text found here", 2600)
@@ -548,6 +549,8 @@ end
 on("do_hide", function()
     if not dir then fact.busy = 0 return end
     read_text("tsv", function(out, k)
+        -- (not read at all is not "nothing private found": said so, or a screenshot went out unblurred on the word of a tesseract that is not installed)
+        if out == nil then toast("The text could not be read (is tesseract installed?)", 3200) return end
         -- The words, line by line: level 5 rows of the tsv, keyed by block, paragraph and line.
         local lines, order = {}, {}
         for row in (out or ""):gmatch("[^\n]+") do

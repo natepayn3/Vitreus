@@ -4,13 +4,25 @@
 # `activewindow` and `clients`), and under pleamar-wm it is pleamar-wm's own answer in Hyprland's words, which it has for
 # `monitors` and `activewindow`. The rest fails, which is what the program asking has to be ready for on any other desktop.
 # Put it in ~/.local/bin, ahead of /usr/bin.
-if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
+# The real hyprctl is the first one on the PATH that is not this file (it was /usr/bin/hyprctl by name, which a Hyprland in /usr/local,
+# or one from Nix, does not have).
+real() {
+    me=$(readlink -f "$0")
+    old_ifs=$IFS; IFS=:
+    for d in $PATH; do
+        IFS=$old_ifs
+        if [ -x "$d/hyprctl" ] && [ "$(readlink -f "$d/hyprctl")" != "$me" ]; then exec "$d/hyprctl" "$@"; fi
+    done
+    IFS=$old_ifs
     exec /usr/bin/hyprctl "$@"
+}
+if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
+    real "$@"
 fi
 if [ -n "$NIRI_SOCKET" ] && command -v niri > /dev/null 2>&1; then
     exec python3 "$(dirname "$(readlink -f "$0")")/hyprctl-niri" "$@"
 fi
 if ! command -v pleamar-wm > /dev/null 2>&1; then
-    exec /usr/bin/hyprctl "$@"
+    real "$@"
 fi
 exec pleamar-wm hyprctl "$@"

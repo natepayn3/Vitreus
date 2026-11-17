@@ -42,6 +42,10 @@ hl.unbind("SUPER + CTRL + A")
 hl.bind("SUPER + CTRL + A", hl.dsp.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --say vitreus \"emit shot 1\""))
 hl.unbind("SUPER + SHIFT + A")
 hl.bind("SUPER + SHIFT + A", hl.dsp.exec_cmd("PATH=\"$HOME/.local/bin:$PATH\" pleamar --say vitreus \"emit rec_toggle\""))
+-- SUPER + SHIFT + S snips a region straight to the clipboard with grim and slurp (as in pleamar-wm/keys.conf), nothing saved; Escape in slurp cancels.
+-- It replaces hyprland.lua's "move the window to the special workspace" on this key.
+hl.unbind("SUPER + SHIFT + S")
+hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd([[g=$(slurp) || exit 0; grim -g "$g" - | wl-copy --type image/png]]))
 
 -- The brightness keys, again: the same brightnessctl step as hyprland.lua's, and then the new level told to the shell at once (as a share of the
 -- backlight's maximum), so its pop-up follows each press; the brightness service only looks every 700 ms.

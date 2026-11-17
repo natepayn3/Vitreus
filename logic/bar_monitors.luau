@@ -307,7 +307,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
             if v == n then
                 B.fps = n
                 fact.bar_fps = n
-                return save(B.pref or chosen())
+                return save(B.pref)   -- (what was chosen, or nothing: the monitors plugged in right now, written as a choice, left one plugged in later with no bar)
             end
         end
     end)
@@ -343,7 +343,7 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
     on("bar_others_toggle", function()
         if B.busy then return end
         B.others = not B.others
-        save(B.pref or chosen())
+        save(B.pref)   -- (what was chosen, or nothing: the monitors plugged in right now, written as a choice, left one plugged in later with no bar)
         show()
         if B.file ~= nil and B.fit ~= nil and B.started ~= nil and needs(target()) then restart(target()) else publish() end
     end)

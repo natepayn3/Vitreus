@@ -547,8 +547,8 @@ Item {
     Connections {
         target: sddm
         function onLoginFailed() {
+            pw.text = ""                                    // (first: emptying the field clears errorText, and set before it the words were never seen)
             root.errorText = qsTr("Wrong password")
-            pw.text = ""
             shakeAnim.restart()
             pw.forceActiveFocus()
         }

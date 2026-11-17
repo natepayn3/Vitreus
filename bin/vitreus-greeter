@@ -32,13 +32,18 @@ theme_file() {
     f=$(grep -l '^Current=' /etc/sddm.conf.d/*.conf /etc/sddm.conf 2> /dev/null | tail -1 || true)
     [ -n "$f" ] && echo "$f" || echo /etc/sddm.conf.d/theme.conf
 }
-# As root: SDDM uses this greeter. The file that said which theme was in use is kept first (once) in the user's folder ($1), so `unuse` can put it back.
+# As root: SDDM uses this greeter. The NAME of the theme in use is kept first (once), in a folder only root can write, so `unuse` can put it back.
+# (A copy of the whole file used to be kept in the user's folder and copied back over /etc as root: SDDM's config holds commands it runs as
+# root, so anything running as the user could have had its own put there. Root also wrote that copy through whatever link stood at its name.)
+prev_dir=/var/lib/vitreus-greeter
 use_vitreus() {
-    [ "$(current_theme)" = vitreus ] && return 0
+    prev=$(current_theme)
+    [ "$prev" = vitreus ] && return 0
     f=$(theme_file)
     mkdir -p "$(dirname "$f")"
-    bak=$1/$(basename "$f").before-vitreus
-    [ -f "$f" ] && [ ! -f "$bak" ] && cp "$f" "$bak"
+    if [ -n "$prev" ] && [ ! -s "$prev_dir/previous-theme" ]; then
+        install -d -o root -g root -m 755 "$prev_dir" && printf '%s\n' "$prev" > "$prev_dir/previous-theme" && chmod 644 "$prev_dir/previous-theme"
+    fi
     if [ -f "$f" ] && grep -q '^Current=' "$f"; then sed -i 's|^Current=.*|Current=vitreus|' "$f"
     elif [ -f "$f" ] && grep -q '^\[Theme\]' "$f"; then sed -i 's|^\[Theme\]|[Theme]\nCurrent=vitreus|' "$f"
     else printf '\n[Theme]\nCurrent=vitreus\n' >> "$f"; fi
@@ -48,8 +53,11 @@ unuse_vitreus() {
     [ "$(current_theme)" = vitreus ] || return 0
     f=$(grep -l '^Current=vitreus' /etc/sddm.conf.d/*.conf /etc/sddm.conf 2> /dev/null | tail -1 || true)
     [ -n "$f" ] || return 0
-    bak=$1/$(basename "$f").before-vitreus
-    if [ -f "$bak" ] && ! grep -q '^Current=vitreus' "$bak"; then cp -f "$bak" "$f"
+    prev=$(head -n 1 "$prev_dir/previous-theme" 2> /dev/null)
+    # (an install from before kept the whole file in the user's folder: only the theme's name is read from it, nothing else of it is used)
+    [ -n "$prev" ] || prev=$(cat "$1"/*.before-vitreus 2> /dev/null | awk '/^\[/ { sec = $0 } sec == "[Theme]" && /^Current=/ { sub(/^Current=/, ""); v = $0 } END { print v }')
+    case $prev in *[!A-Za-z0-9._-]*|""|vitreus|.*) prev= ;; esac
+    if [ -n "$prev" ] && [ -d "$themes/$prev" ]; then sed -i "s|^Current=vitreus\$|Current=$prev|" "$f"
     else sed -i '/^Current=vitreus$/d' "$f"; fi
 }
 
@@ -79,7 +87,8 @@ info)
         [ -f "$q/qml/QtMultimedia/qmldir" ] && ls "$q"/plugins/multimedia/*.so > /dev/null 2>&1 && mm=1 && break
     done
     # what SDDM goes back to when this one is turned off: the theme in the kept file, or SDDM's own
-    other=$(cat "$shared"/*.before-vitreus 2> /dev/null | awk '/^\[/ { sec = $0 } sec == "[Theme]" && /^Current=/ { sub(/^Current=/, ""); v = $0 } END { print v }')
+    other=$(cat /var/lib/vitreus-greeter/previous-theme 2> /dev/null | head -n 1)
+    [ -n "$other" ] || other=$(cat "$shared"/*.before-vitreus 2> /dev/null | awk '/^\[/ { sec = $0 } sec == "[Theme]" && /^Current=/ { sub(/^Current=/, ""); v = $0 } END { print v }')
     if [ -f "$shared/background.jpg" ]; then
         kind=picture; [ -f "$shared/background.mp4" ] && kind=video
         name=$(cat "$shared/.source-name" 2> /dev/null || true)
@@ -173,7 +182,7 @@ use)
     ;;
 use-root)
     [ "$(id -u)" -eq 0 ] || { echo "use-root is run by use, through pkexec" >&2; exit 1; }
-    sh=$(sed -n 's/^shared=//p' "$themes/vitreus/theme.conf" 2> /dev/null | head -1); [ -n "$sh" ] || sh=/usr/local/share/vitreus-greeter
+    sh=/usr/local/share/vitreus-greeter      # (fixed, not read from theme.conf: the root half takes nothing from a file the user built)
     case "${2:-}" in
         on) use_vitreus "$sh" ;;
         off) unuse_vitreus "$sh" ;;
@@ -194,7 +203,7 @@ install-root)
     chmod -R u=rwX,go=rX "$themes/vitreus.new"
     rm -rf "$themes/vitreus"
     mv "$themes/vitreus.new" "$themes/vitreus"
-    sh=$(sed -n 's/^shared=//p' "$themes/vitreus/theme.conf" | head -1); [ -n "$sh" ] || sh=/usr/local/share/vitreus-greeter
+    sh=/usr/local/share/vitreus-greeter      # (fixed: given another path by the theme.conf the user built, `install -d -o` handed that folder to the user)
     install -d -o "$user" -m 755 "$sh"
     use_vitreus "$sh"
     echo "installed"

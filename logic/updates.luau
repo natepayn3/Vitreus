@@ -310,7 +310,9 @@ git reset --hard --quiet @{u} || exit 1
 [ -n "$3" ] && mv "$g/keep-lock" lockscreen/lockscreen.plm
 exit 0]]
                             run("setsid", { "-w", "sh", "-c", keep, "sh", A.dir, (bar_changed and plausible(bar_mine)) and bar_mine or "", (lock_changed and plausible(lock_mine)) and lock_mine or "" }, function(_, rcode)
-                                local code = fcode ~= 0 and fcode or rcode
+                                -- (the reset's own code: with the fetch failed, the reset to what an earlier Check fetched has still happened,
+                                -- and stopping here left the new files running without the refresh and the restart they need)
+                                local code = rcode
                                 do
                                     pcall(sys.call, "files.write", "update-pending.json", { pending = false })
                                     if code ~= 0 then

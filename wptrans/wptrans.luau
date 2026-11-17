@@ -78,8 +78,11 @@ end)
 -- This scene starts again by itself (below, and after an update): it asks the shell, which answers with `para_set`.
 after(1500, function() run("pleamar", { "--say", "vitreus", "emit para_ask" }, function() end) end)
 
-local function finish()
-    run("awww", { "img", text.target, "--transition-type", "none" }, function()
+-- (`target`: the picture this dissolve was made for. `text.target` is overwritten by a pick made while it plays, and the wallpaper then
+-- went to that one under the parallax picture of this one.)
+local function finish(target)
+    target = target or text.target
+    run("awww", { "img", target, "--transition-type", "none" }, function()
         -- the shell is told at once, so that a video wallpaper starts now (it waited for its next look at awww, every 6 s)
         run("pleamar", { "--say", "vitreus", "emit wp_hex_done" }, function() end)
         -- awww has to have drawn it before the overlay goes, or the old wallpaper shows for a frame
@@ -88,7 +91,7 @@ local function finish()
                 para_n += 1
                 counter = counter + 1
                 text.psrc = (para_next or text.src:match("^[^?]*")) .. "?" .. counter
-                para_path = text.target
+                para_path = target
                 fact.pshow = true
             end
             fact.active = false
@@ -113,11 +116,19 @@ on("go", function()
             -- what awww would show: the picture cropped to fill the screen; then at the size the scene's image is declared at
             run("magick", { path .. "[0]", "-resize", geo .. "^", "-gravity", "center", "-extent", geo,
                             "-resize", "1920x1080!", "-quality", "92", file }, function(_, code)
-                if code ~= 0 then busy = false return end
+                if code ~= 0 then
+                    -- No picture to dissolve into (magick missing, or it cannot read this one): the wallpaper is still changed, with awww's own
+                    -- fade. Returning here dropped the change, with the shell already told it was under way.
+                    run("awww", { "img", path, "--transition-type", "fade" }, function()
+                        run("pleamar", { "--say", "vitreus", "emit wp_hex_done" }, function() end)
+                        busy = false
+                    end)
+                    return
+                end
                 text.src = file .. "?" .. counter
                 after(150, function()           -- a moment for the picture to be read in
                     fact.active = true
-                    after(math.floor(fact.dur * 1000) + 80, finish)
+                    after(math.floor(fact.dur * 1000) + 80, function() finish(path) end)
                 end)
             end)
         end)

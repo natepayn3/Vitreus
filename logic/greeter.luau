@@ -72,7 +72,7 @@ return function(list, entry, home)
             end
             say("", false)
             refresh(true)
-        end)
+        end, { errors = true })   -- (the helper says what went wrong on its error output: without it, every failure read "error 1")
     end
 
     on("gr_browse", function()
@@ -110,13 +110,13 @@ return function(list, entry, home)
             elseif code ~= 0 then say("Not changed: " .. last_line(out, code), true)
             else say("", false) end
             refresh(true)
-        end)
+        end, { errors = true })
     end)
 
     on("gr_preview", function()
         run("vitreus-greeter", { "preview" }, function(out, code)
             if code ~= 0 then say("Could not open it: " .. last_line(out, code), true) end
-        end)
+        end, { errors = true })
     end)
 
     on("fact:set_page", function(v) if v == "pg_greeter" then refresh() end end)

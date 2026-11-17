@@ -1329,7 +1329,7 @@ function F.build_places(found)
     s.places[#s.places + 1] = { name = "DEVICES", kind = 1 }
     s.places[#s.places + 1] = { name = "Computer", path = "/", pk = 3 }
     for _, d in ipairs(s.devices) do
-        s.places[#s.places + 1] = { name = d.name, path = d.path or ("dev:" .. d.dev), pk = d.removable and 14 or 9, kind = 2, eject = d.eject, use = d.use, dev = d.dev, parent = d.parent, mounted = d.path ~= nil }
+        s.places[#s.places + 1] = { name = d.name, path = d.path or ("dev:" .. d.dev), pk = d.removable and 14 or 9, kind = 2, eject = d.eject, use = d.use, dev = d.dev, parent = d.parent, removable = d.removable, mounted = d.path ~= nil }
     end
     s.places[#s.places + 1] = { name = "NETWORK", kind = 1 }
     for _, n in ipairs(s.nets) do
@@ -1481,14 +1481,15 @@ function F.eject_place(p)
     if not p.dev then return end
     say("Putting " .. p.name .. " away…")
     local function power_off()
-        if not p.parent then F.poll_devices() return end
+        -- (only a disk that can be taken out is switched off: a partition of the computer's own disk mounted under /mnt had its whole disk powered off)
+        if not p.parent or not p.removable then F.poll_devices() return end
         run("udisksctl", { "power-off", "-b", "/dev/" .. p.parent }, function() F.poll_devices() end)
     end
     if p.mounted then
         if s.path == p.path or s.path:sub(1, #p.path + 1) == p.path .. "/" then F.go(s.home) end
         run("udisksctl", { "unmount", "-b", p.dev }, function(out, code)
             if code ~= 0 then say("Could not put " .. p.name .. " away: " .. why(out)) return end
-            say(p.name .. " can be taken out now")
+            say(p.removable and (p.name .. " can be taken out now") or (p.name .. " is put away"))
             power_off()
         end, { errors = true })
     else
@@ -2771,11 +2772,22 @@ local function transfer_task(job, t, done)
             job.cur_dst = nil
             job.sub = 0
             if job.cancel then
-                if not mode then F.exec(job, "rm", { "-rf", "--", dst }, function() done() end) else done() end
+                -- A half-made COPY is taken away. A move never is: stopped just as `mv` had renamed it, or while it was taking the original away
+                -- after copying to another disk, what is at `dst` is the only whole one there is, and removing it lost the file.
+                if t.kind == "copy" and not mode then F.exec(job, "rm", { "-rf", "--", dst }, function() done() end)
+                else
+                    if t.kind ~= "copy" and ok and not mode then job.results[#job.results + 1] = { kind = t.kind, src = t.src, dst = dst }
+                    elseif t.kind ~= "copy" and not ok then
+                        job.errors[#job.errors + 1] = string.format("Stopped while moving \"%s\": look in both folders, part of it may be in each", basename(t.src))
+                    end
+                    done()
+                end
                 return
             end
             if ok then
-                job.results[#job.results + 1] = { kind = t.kind, src = t.src, dst = dst }
+                -- (only what went to a new name can be taken back: after Replace or a merge, `dst` also holds what was there before, and undoing
+                -- carried all of it away, or sent it all to the Trash)
+                if not mode then job.results[#job.results + 1] = { kind = t.kind, src = t.src, dst = dst } end
                 local set = job.names[into]
                 if set then set[basename(dst)] = true end
             else
@@ -2954,7 +2966,7 @@ function TASK.restore(job, t, done)
                 if ok then
                     set[basename(dst)] = true
                     job.results[#job.results + 1] = { kind = "restore", src = t.src, dst = dst }
-                    F.exec(job, "rm", { "-f", "--", s.data .. "/Trash/info/" .. basename(t.src) .. ".trashinfo" }, function() done() end)
+                    F.exec(job, "rm", { "-f", "--", t.info or (s.data .. "/Trash/info/" .. basename(t.src) .. ".trashinfo") }, function() done() end)
                 else
                     job.failed = job.failed + 1
                     job.errors[#job.errors + 1] = string.format("Could not put \"%s\" back: %s", basename(orig), why(err))
@@ -3044,34 +3056,76 @@ function F.undo()
     say("Undoing: " .. entry.text)
     entry.fn()
 end
--- the Trash gives back what was put there from these places (what the Trash says it came from is matched by its file)
+-- the Trash gives back what was put there from these places: for each, the one that was put there last (what the Trash says it came from is read from its info files)
 function F.restore_paths(origs, then_fn)
-    local args = { "-r", "-l", "-x", "-F" }
-    for _, p in ipairs(origs) do
-        args[#args + 1] = "-e"
-        args[#args + 1] = "Path=" .. uri_of(p):gsub("^file://", "")
-    end
-    args[#args + 1] = s.data .. "/Trash/info"
-    run("grep", args, function(out)
-        local tasks = {}
-        for f in (out or ""):gmatch("[^\n]+") do
-            local name = basename(f):gsub("%.trashinfo$", "")
-            tasks[#tasks + 1] = { kind = "restore", src = s.data .. "/Trash/files/" .. name }
+    -- (Before, everything that had ever been trashed from one of these paths came back, an old "notes.txt" with the one just trashed; and what went to the Trash of another disk,
+    -- `.Trash-UID` at the top of it, was never found. Now each path gets its newest, and the Trash of the disk each path is on is looked in as well.)
+    local function look(uid, tops)
+        local trashes = { { root = s.data .. "/Trash" } }
+        if uid then
+            for _, top in ipairs(tops) do
+                trashes[#trashes + 1] = { root = join(top, ".Trash-" .. uid), top = top }
+                trashes[#trashes + 1] = { root = join(top, ".Trash/" .. uid), top = top }
+            end
         end
-        -- where each came from: the info files again
-        run("grep", { "-r", "-H", "-E", "^Path=", s.data .. "/Trash/info" }, function(o)
-            local from = {}
+        local args, by_info = { "-r", "-H", "-E", "^(Path|DeletionDate)=" }, {}
+        for _, tr in ipairs(trashes) do
+            args[#args + 1] = tr.root .. "/info"
+            by_info[tr.root .. "/info"] = tr
+        end
+        run("grep", args, function(o)
+            local recs = {}
             for line in (o or ""):gmatch("[^\n]+") do
-                local file, val = line:match("^(.-)%.trashinfo:Path=(.*)$")
-                if file then from[basename(file)] = unescape(val) end
+                local file, key, val = line:match("^(.-)%.trashinfo:(%a+)=(.*)$")
+                local tr = file and by_info[dirname(file)]
+                if tr then
+                    recs[file] = recs[file] or { file = file, tr = tr }
+                    recs[file][key] = val
+                end
             end
-            local keep = {}
-            for _, t in ipairs(tasks) do
-                t.orig = from[basename(t.src)]
-                if t.orig then keep[#keep + 1] = t end
+            -- for each path, the newest thing that came from it (a disk's own Trash writes the path from the top of that disk)
+            local best, tied = {}, {}
+            for _, r in pairs(recs) do
+                if r.Path then
+                    local from = unescape(r.Path)
+                    if r.tr.top and from:sub(1, 1) ~= "/" then from = join(r.tr.top, from) end
+                    local when = r.DeletionDate or ""
+                    local b = best[from]
+                    if not b or when > b.when then best[from] = { r = r, when = when }; tied[from] = nil
+                    elseif when == b.when then tied[from] = true end
+                end
             end
-            if #keep == 0 then say("It is not in the Trash any more") return end
-            F.run_job({ title = "Putting back", tasks = keep, quiet = true, after = then_fn })
+            local tasks, unsure = {}, 0
+            for _, p in ipairs(origs) do
+                local b = best[p]
+                if b and tied[p] then unsure = unsure + 1
+                elseif b then
+                    tasks[#tasks + 1] = { kind = "restore", src = b.r.tr.root .. "/files/" .. basename(b.r.file), orig = p, info = b.r.file .. ".trashinfo" }
+                end
+            end
+            -- (two things trashed from one path in the same second cannot be told apart: neither is touched)
+            if unsure > 0 then say("Two things with that name went to the Trash at the same moment: put the right one back from the Trash", 8) end
+            if #tasks == 0 then
+                if unsure == 0 then say("It is not in the Trash any more") end
+                return
+            end
+            F.run_job({ title = "Putting back", tasks = tasks, quiet = true, after = then_fn })
+        end)
+    end
+    -- which disk each path is on (the folder it was in is asked: the thing itself is gone), and whose Trash to look for there
+    run("stat", { "-c", "%u", "--", s.home }, function(u, ucode)
+        local uid = ucode == 0 and trim(u):match("^%d+$") or nil
+        local args, seen = { "-c", "%m", "--" }, {}
+        for _, p in ipairs(origs) do
+            local d = dirname(p)
+            if not seen[d] then seen[d] = true; args[#args + 1] = d end
+        end
+        run("stat", args, function(out)
+            local tops, have = {}, {}
+            for m in (out or ""):gmatch("[^\n]+") do
+                if m:sub(1, 1) == "/" and not have[m] then have[m] = true; tops[#tops + 1] = m end
+            end
+            look(uid, tops)
         end)
     end)
 end
@@ -3162,9 +3216,10 @@ function F.set_clip(cut)
     local set, uris = {}, { cut and "cut" or "copy" }
     for _, e in ipairs(list) do set[e.path] = true; uris[#uris + 1] = uri_of(e.path) end
     s.clip = { cut = cut, set = set }
-    run("wl-copy", { "-t", "x-special/gnome-copied-files", "--", table.concat(uris, "\n") }, function(_, code)
+    -- (`output = false`: wl-copy stays behind holding the clipboard, and waiting for its output ended only at the next copy)
+    run("wl-copy", { "-t", "x-special/gnome-copied-files" }, function(_, code)
         if code ~= 0 then say("The clipboard could not be written") end
-    end)
+    end, { input = table.concat(uris, "\n"), output = false })
     fact["clip.on"] = true
     say(string.format("%d %s", #list, cut and "cut" or "copied"), 3)
     F.show_rows()
@@ -3172,7 +3227,7 @@ end
 function F.clear_clip()
     s.clip = nil
     fact["clip.on"] = false
-    run("wl-copy", { "--clear" }, function() end)
+    run("wl-copy", { "--clear" }, function() end, { output = false })
 end
 local function paths_of(data)
     local out = {}
@@ -3398,9 +3453,9 @@ function F.copy_path()
     local paths = {}
     for _, e in ipairs(list) do paths[#paths + 1] = e.path end
     if #paths == 0 then paths[1] = s.path end
-    run("wl-copy", { "--", table.concat(paths, "\n") }, function(_, code)
+    run("wl-copy", {}, function(_, code)
         say(code == 0 and (#paths == 1 and "Path copied" or (#paths .. " paths copied")) or "The clipboard could not be written", 3)
-    end)
+    end, { input = table.concat(paths, "\n"), output = false })
 end
 function F.star_toggle()
     local list = picked_list()
@@ -3630,7 +3685,14 @@ function F.run_search(again)
         if path then
             count = count + 1
             items[#items + 1] = make_item(path, basename(path), ty == "d", tonumber(sz) or 0, tonumber(mt) or 0, tonumber(mode, 8) or 0, ty == "l", false)
-            if count >= 500 and s.search_proc then kill(s.search_proc) end
+            -- (`kill(id)` forgets the program: its end is never told, so what the end does is done here. Left to it, the search never
+            -- finished, and the list was published again, the selection emptied, every 450 ms.)
+            if count >= 500 and s.search_proc then
+                kill(s.search_proc)
+                s.search_proc = nil
+                running = false
+                publish(true)
+            end
         end
     end, function()
         s.search_proc = nil

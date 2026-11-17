@@ -13,7 +13,8 @@ import glob, json, os, shutil, struct, subprocess, sys
 data = sys.argv[1]
 lean = "--lean" in sys.argv[2:]
 home = os.path.expanduser("~")
-root = home + "/.local/share/fonts"
+# (where the installer puts them: with XDG_DATA_HOME set that is not ~/.local/share/fonts, and the lean scenes had no Space Grotesk)
+root = (os.environ.get("XDG_DATA_HOME") or home + "/.local/share") + "/fonts"
 
 def write_conf(name, dirs):
     # (written aside and moved in place: every keeper runs this at login, at once)
@@ -48,9 +49,13 @@ def finish(renamed):
     # (a media title or a name may come in any of these. fc-match answers a sans for `sans:lang=ja` even when it has no Japanese: the CJK one is
     # looked for among the faces that cover it, a Noto CJK first)
     cjk = sorted(set(fc(["fc-list", ":lang=ja:style=Regular", "-f", "%{file}\n"]).split()), key=lambda f: ("CJK" not in f, "Regular" not in os.path.basename(f), len(f), f))
-    for what, got in (("sans", fc(["fc-match", "sans", "-f", "%{file}"]).strip()),
-                      ("emoji", fc(["fc-match", "emoji", "-f", "%{file}"]).strip()),
-                      ("cjk", cjk[0] if cjk else "")):
+    picks = [("sans", fc(["fc-match", "sans", "-f", "%{file}"]).strip()),
+             ("emoji", fc(["fc-match", "emoji", "-f", "%{file}"]).strip()),
+             ("cjk", cjk[0] if cjk else "")]
+    # (a Space Grotesk installed for the whole system, by a package, is not under `root`: it is linked in like the others, or a lean scene drew in the sans)
+    if not renamed:
+        picks += [("grotesk%d" % i, f) for i, f in enumerate(sorted(set(fc(["fc-list", ":family=Space Grotesk", "-f", "%{file}\n"]).splitlines())))]
+    for what, got in picks:
         if not got or not os.path.isfile(got) or got.startswith(root + "/"):
             continue
         link = os.path.join(fb, what + os.path.splitext(got)[1])

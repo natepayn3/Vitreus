@@ -102,8 +102,12 @@ if a.list:                                             # a window of the results
             try:
                 raw = os.path.join(a.thumbs, wid + ".raw.jpg")
                 download(url, raw)
-                r = subprocess.run(["magick", raw, "-auto-orient", "-gravity", "center", "-crop", "16:9", "+repage", "-resize", "320x180!", dest], capture_output=True, timeout=20)
-                if r.returncode != 0 or not os.path.exists(dest): os.replace(raw, dest)     # (no magick: the picture as it came)
+                try:
+                    r = subprocess.run(["magick", raw, "-auto-orient", "-gravity", "center", "-crop", "16:9", "+repage", "-resize", "320x180!", dest], capture_output=True, timeout=20)
+                    made = r.returncode == 0 and os.path.exists(dest)
+                except (OSError, subprocess.SubprocessError):       # (magick not installed raises, it does not return: the fallback below was never reached)
+                    made = False
+                if not made: os.replace(raw, dest)     # (no magick: the picture as it came)
                 elif os.path.exists(raw): os.unlink(raw)
             except Exception: return None
         return dest

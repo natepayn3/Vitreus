@@ -218,6 +218,7 @@ on("media_next", function() sys.call("media.next") end)
 -- blurs away.
 local prep_busy = false
 local made_key = nil
+local failed_key = nil
 
 local function hash(str)
     local h = 5381
@@ -260,8 +261,13 @@ local function prepare_wallpaper()
         local geo = line:match("%d+x%d+")
         if not path or not geo then return done() end
         local sigma = cfg.blur / 4              -- the blurred picture is made at 480 wide, a quarter of the screen
-        local key = hash(string.format("5 %g ", sigma) .. path)
-        if key == made_key then return done() end
+        -- (the file's own line from `ls`, its size and date: a wallpaper written again under the same name kept its old pictures. And the
+        -- monitor's shape: the pictures are cropped to it, so another monitor's were the wrong crop.)
+        run("ls", { "-ld", "--time-style=+%s", "--", path }, function(stamp)
+        local key = hash(string.format("6 %g %s ", sigma, geo) .. path .. " " .. ((stamp or ""):match("[^\n]*") or ""))
+        -- (`failed_key`: a wallpaper magick cannot read was tried again, both commands, every five seconds for as long as it was set)
+        if key == made_key or key == failed_key then return done() end
+        local src = path:lower():match("%.gif$") and (path .. "[0]") or path     -- an animated GIF is its first frame, not every frame
         local s, b = dir .. "/sharp-" .. key .. ".jpg", dir .. "/blur-" .. key .. ".jpg"
         -- the pictures of every earlier wallpaper are of no use any more (the two the scene draws are not theirs)
         local function forget_old()
@@ -280,9 +286,9 @@ local function prepare_wallpaper()
                 return
             end
             run("mkdir", { "-p", dir }, function()
-                run("magick", { path, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "1280x720!", "-quality", "90", s }, function(_, c1)
-                    if c1 ~= 0 then return done() end
-                    run("magick", { path, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "480x", "-blur", "0x" .. sigma, "-resize", "960x540!", "-quality", "95", "-sampling-factor", "4:4:4", b }, function(_, c2)
+                run("magick", { src, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "1280x720!", "-quality", "90", s }, function(_, c1)
+                    if c1 ~= 0 then failed_key = key; return done() end
+                    run("magick", { src, "-resize", geo .. "^", "-gravity", "center", "-extent", geo, "-resize", "480x", "-blur", "0x" .. sigma, "-resize", "960x540!", "-quality", "95", "-sampling-factor", "4:4:4", b }, function(_, c2)
                         if c2 == 0 then
                             made_key = key
                             publish(s, b, function()
@@ -290,11 +296,13 @@ local function prepare_wallpaper()
                                 done()
                             end)
                         else
+                            failed_key = key
                             done()
                         end
                     end)
                 end)
             end)
+        end)
         end)
     end)
 end
@@ -422,14 +430,41 @@ end)
 -- shapes, the verdict). This is called from both ways a lock can end: from outside (`fact:locked`, which only fires
 -- for a change made from outside the logic) and from the logic itself, when the password was right, which does not
 -- fire it.
+-- A mark that a lock is on, kept in the runtime folder (gone at logout and at a reboot) for as long as the lock lasts. If this scene stops while
+-- locked (a crash, or the keeper ending one that stopped answering), the compositor keeps the session locked and the scene came back with
+-- `locked` false: no password box, and only a TTY got the person back in. Started again with the mark there, it locks again at once.
+local held = { dir = nil }
+run("printenv", { "XDG_RUNTIME_DIR" }, function(out, code)
+    local rt = (out or ""):gsub("%s+$", "")
+    if code ~= 0 or rt == "" then return end
+    held.dir = rt .. "/vitreus-lock-held"
+    run("ls", { "-d", held.dir }, function(_, c)
+        if c == 0 and not fact.locked then
+            fact.locked = true               -- (set by the logic: `fact:locked` does not fire, so what it does is done here)
+            focus_monitor()
+            reset()
+            fact.settled = false
+            after(2400, function() fact.settled = true end)
+        end
+    end)
+end)
+local function held_mark(on)
+    if not held.dir then return end
+    if on then run("mkdir", { "-p", held.dir }, function() end) else run("rm", { "-rf", "--", held.dir }, function() end) end
+end
+-- A lock that was going on when the logic was reloaded starts clean: no check in progress, no verdict showing (both kept the password box shut).
+if fact.locked then fact.authing = false; fact.right = false; fact.wrong = false end
+
 local function after_unlock()
     reset()
     fact.settled = false
     fact.safe = false                        -- a test lock (safe: Esc or a minute opens it) is a test of one lock only
+    held_mark(false)
 end
 
 on("fact:locked", function(v)
     if v then
+        held_mark(true)
         focus_monitor()
         reset()
         fact.settled = false
@@ -442,12 +477,15 @@ end)
 
 on("tryauth", function()
     local pw = text.password
-    if fact.authing or fact.right or pw == "" then return end
+    -- (`wrong`: the check holds this thread for two seconds on a wrong password, and every Enter pressed meanwhile waits behind it. Each then
+    -- checked the same wrong password again, one more failed login apiece, which is how an account gets locked out by faillock.)
+    if fact.authing or fact.right or fact.wrong or pw == "" then return end
     fact.authing = true
     text.status = "Verifying..."
-    local ok = sys.ask("auth.check", pw)
+    -- (protected: the check can refuse, PAM not starting, and an error here left `authing` set, the screen on "Verifying..." and no way in)
+    local asked, ok = pcall(sys.ask, "auth.check", pw)
     fact.authing = false
-    if ok then
+    if asked and ok == true then
         fact.right = true
         text.status = "Unlocked!"
         after(320, function()
