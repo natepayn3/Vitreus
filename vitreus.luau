@@ -5416,6 +5416,19 @@ local function disp_read(done, max_age)
                 disp_wm.load(function() disp_read(done) end)
                 return
             end
+        elseif ok and type(list) == "table" and #list > 0 and not on_niri and not list[1].availableModes then
+            -- a newer pleamar-wm answers `hyprctl monitors -j` in Hyprland's JSON, but with no list of modes and no way to change a monitor on the fly
+            -- (Hyprland and hyprctl-niri both list `availableModes`): the same read-only page as the text answer, saved to session.conf.
+            if not disp_wm.loaded then
+                disp_wm.loaded = true
+                disp_wm.load(function() disp_read(done) end)
+                return
+            end
+            for _, j in ipairs(list) do
+                j.description = "pleamar-wm: applied at the next login (saved in session.conf)"
+                j.availableModes = disp_wm.modes_of(j.name, j.width, j.height, math.floor((j.refreshRate or 60) + 0.5))
+            end
+            disp_ro = true
         else
             disp_ro = false
         end
