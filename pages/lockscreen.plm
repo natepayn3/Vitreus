@@ -306,17 +306,17 @@ part LockScreen {
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 778 * pu + 0.5); text "Show on" { at: floor(spx + 14 * pw + 0.5), floor(sby + 778 * pu + 0.5); anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 797 * pu + 0.5); text "The clock and password bar go on one monitor; the rest show the wallpaper" { at: floor(spx + 14 * pw + 0.5), floor(sby + 797 * pu + 0.5); anchor: left center; size: 15; width: (410 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             let lkya = sby + 827 * pu
-            zone box lk_mn_sl { at: spx + 52 * pw + (if(lk_m.0.on, 1, 0) + if(lk_m.1.on, 1, 0) + if(lk_m.2.on, 1, 0) + if(lk_m.3.on, 1, 0)) * 41 * pu, lkya; size: (1 + (if(lk_m.0.on, 1, 0) + if(lk_m.1.on, 1, 0) + if(lk_m.2.on, 1, 0) + if(lk_m.3.on, 1, 0))) * 82 * pu, 24 * pu }
+            zone box lk_mn_sl { at: spx + 52 * pw + (if(lk_m.0.on, 1, 0) + if(lk_m.1.on, 1, 0) + if(lk_m.2.on, 1, 0) + if(lk_m.3.on, 1, 0)) * 41 * pw, lkya; size: (1 + (if(lk_m.0.on, 1, 0) + if(lk_m.1.on, 1, 0) + if(lk_m.2.on, 1, 0) + if(lk_m.3.on, 1, 0))) * 82 * pw, 24 * pu }
             SetPick(spx + 52 * pw, lkya, 82 * pw, 1 + (if(lk_m.0.on, 1, 0) + if(lk_m.1.on, 1, 0) + if(lk_m.2.on, 1, 0) + if(lk_m.3.on, 1, 0)), 24 * pu, lk_mon, lk_mn_sl.hover, pu)
-            box { at: spx + 14 * pw + 38 * pu, lkya; size: 76 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * lk_mn_all.hover }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 38 * pu + 0.5), floor(lkya + 0.5); text "All" { at: floor(spx + 14 * pw + 38 * pu + 0.5), floor(lkya + 0.5); anchor: center; align: center; size: 15; weight: 700; width: (70 * pw) / rs; lines: 1; color: if(lk_mon == 0, mint, ink); family: "Space Grotesk" } }
-            zone box lk_mn_all { at: spx + 14 * pw + 38 * pu, lkya; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: lkya - lk.off > sby and lkya - lk.off < sby + set.h * pu }
+            box { at: spx + 52 * pw, lkya; size: 76 * pw, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * lk_mn_all.hover }
+            group { scale: rs; pivot: floor(spx + 52 * pw + 0.5), floor(lkya + 0.5); text "All" { at: floor(spx + 52 * pw + 0.5), floor(lkya + 0.5); anchor: center; align: center; size: 15; weight: 700; width: (70 * pw) / rs; lines: 1; color: if(lk_mon == 0, mint, ink); family: "Space Grotesk" } }
+            zone box lk_mn_all { at: spx + 52 * pw, lkya; size: 82 * pw, 24 * pu; corner: 8 * pu; cursor: pointer; active: lkya - lk.off > sby and lkya - lk.off < sby + set.h * pu }
             on press lk_mn_all { emit lk_mon_set(0) }
             repeat k in 0..4 {
-                let lkx = spx + 14 * pw + 38 * pu + (k + 1) * 82 * pu
-                box { at: lkx, lkya; size: 76 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * lk_mn.$k.hover }
+                let lkx = spx + (52 + (k + 1) * 82) * pw
+                box { at: lkx, lkya; size: 76 * pw, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * lk_mn.$k.hover }
                 group { scale: rs; pivot: floor(lkx + 0.5), floor(lkya + 0.5); text lk_m.$k.name { at: floor(lkx + 0.5), floor(lkya + 0.5); anchor: center; align: center; size: 15; weight: 700; width: (70 * pw) / rs; lines: 1; color: if(lk_mon == k + 1, mint, ink); show: lk_m.$k.on; family: "Space Grotesk" } }
-                zone box lk_mn.$k { at: lkx, lkya; size: 76 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (lk_m.$k.on) and lkya - lk.off > sby and lkya - lk.off < sby + set.h * pu }
+                zone box lk_mn.$k { at: lkx, lkya; size: 82 * pw, 24 * pu; corner: 8 * pu; cursor: pointer; active: (lk_m.$k.on) and lkya - lk.off > sby and lkya - lk.off < sby + set.h * pu }
                 on press lk_mn.$k { emit lk_mon_set(k + 1) }
             }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 871 * pu + 0.5); text "The lock screen is not running: start it to change these" { at: floor(spx + 14 * pw + 0.5), floor(sby + 871 * pu + 0.5); anchor: left center; size: 15; width: (400 * pw) / rs; lines: 1; color: #ef4444; family: "Space Grotesk"; show: not lk_ok } }
