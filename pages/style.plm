@@ -1,0 +1,126 @@
+part Style {
+        //  The Style page (Look, under Glass): how the shell's hand-drawn pencil is drawn, everywhere it is: the sliders, pickers, switches, pills, the bar's and the
+        //  drawers' icons, the workspace marks. Five presets for the line (a picture tile each, its sample drawn the preset's way and boiling under the pointer as that
+        //  preset would), five fills for what is coloured in (fillstyle.wgsl; Pencil is pencilhatch.wgsl), then the four steps. What is chosen: `pn_*_i` in
+        //  vitreus.plm, kept by logic/pencil_style.luau in style.json. The page scrolls inside the panel, as Workspaces does.
+        group {
+            show: set_pgx > 0.01
+            opacity: set_pgx
+            let sty.sc = clamp(sty_scroll, 0, max(0, sty.h - set.h))
+            let sty.off = floor(sty.sc * pu + 0.5)        // whole pixels: text shifted by a fraction of one is resampled, and looks soft
+            clip box { at: spx + 224 * pw, sby + set.h / 2 * pu; size: 456 * pw, set.h * pu }
+            zone box sty_wheel { at: spx + 219 * pw, sby + set.h / 2 * pu; size: 446 * pw, set.h * pu }
+            on scroll sty_wheel { sty_scroll_to = clamp(sty_scroll_to - wheel * 44, 0, max(0, sty.h - set.h)) }
+            group {
+            move: 0, -sty.off
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 13 * pu + 0.5); text "LINE" { at: floor(spx + 14 * pw + 0.5), floor(sby + 13 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 83 * pu; size: 438 * pw, 114 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 83 * pu, 438 * pw, 114 * pu, 915.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 83 * pu; size: 438 * pw, 114 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 83 * pu; size: 438 * pw, 114 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 83 * pu; size: 438 * pw, 114 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            repeat w in 0..5 {
+                let tx = spx + (53 + w * 83) * pw
+                let ty = sby + 72 * pu
+                let tlit = if(pn_pre == w, 1, 0)
+                box { at: tx, ty; size: 78 * pu, 64 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: if(tlit > 0, mint, ink); opacity: if(tlit > 0, 22%, 6% + 10% * pn_tile.$w.hover) }
+                box { at: tx, ty; size: 78 * pu, 64 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); stroke: 1.5 * pu; color: mint; opacity: tlit * 100% }
+                PnSample(tx, ty - 9 * pu, pu, pick(w, 1, 0, 1.6, 0, 0), pick(w, 1, 1, 1.8, 0.4, 0), pick(w, 1, 1, 1.6, 0, 0), pn_hatch, pn_tile.$w.hover, mix(ink, mint, tlit), pn_fill_i)
+                group { scale: rs; pivot: floor(tx + 0.5), floor(ty + 17 * pu + 0.5); text pick(w, "Sketch", "Steady", "Lively", "Ink", "Clean") { at: floor(tx + 0.5), floor(ty + 17 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: (74 * pw) / rs; lines: 1; color: mix(ink, mint, tlit); family: "Space Grotesk" } }
+                zone box pn_tile.$w { at: tx, ty; size: 78 * pu, 64 * pu; corner: 12 * pu; cursor: pointer; label: pick(w, "Sketch", "Steady", "Lively", "Ink", "Clean"); active: ty - sty.off > sby and ty - sty.off < sby + set.h * pu }
+                on scroll pn_tile.$w { sty_scroll_to = clamp(sty_scroll_to - wheel * 44, 0, max(0, sty.h - set.h)) }
+                on press pn_tile.$w { emit pn_pick_preset(w) }
+            }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 120 * pu + 0.5); text pick(pn_pre + 1, "A mix of your own, from the steps below", "The stock pencil: crooked doubled lines that boil under the pointer", "The same pencil, held still: nothing redraws, even under the pointer", "A restless hand: shakier, doubled harder, redrawn faster", "A fine pen: neat single lines that stay still", "Ruled lines: straight, single and still") { at: floor(spx + 14 * pw + 0.5), floor(sby + 120 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 157 * pu + 0.5); text "FILL" { at: floor(spx + 14 * pw + 0.5), floor(sby + 157 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 227 * pu; size: 438 * pw, 114 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 227 * pu, 438 * pw, 114 * pu, 917.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 227 * pu; size: 438 * pw, 114 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 227 * pu; size: 438 * pw, 114 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 227 * pu; size: 438 * pw, 114 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            repeat w in 0..5 {
+                let tx = spx + (53 + w * 83) * pw
+                let ty = sby + 216 * pu
+                let tlit = if(pn_fill_i == w, 1, 0)
+                box { at: tx, ty; size: 78 * pu, 64 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: if(tlit > 0, mint, ink); opacity: if(tlit > 0, 22%, 6% + 10% * pn_ftile.$w.hover) }
+                box { at: tx, ty; size: 78 * pu, 64 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); stroke: 1.5 * pu; color: mint; opacity: tlit * 100% }
+                PnSample(tx, ty - 9 * pu, pu, pn_rate, pn_wob, pn_echo, max(pn_hatch, 0.5), pn_ftile.$w.hover, mix(ink, mint, tlit), w)
+                group { scale: rs; pivot: floor(tx + 0.5), floor(ty + 17 * pu + 0.5); text pick(w, "Pencil", "Marker", "Gradient", "Plain", "Dots") { at: floor(tx + 0.5), floor(ty + 17 * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; width: (74 * pw) / rs; lines: 1; color: mix(ink, mint, tlit); family: "Space Grotesk" } }
+                zone box pn_ftile.$w { at: tx, ty; size: 78 * pu, 64 * pu; corner: 12 * pu; cursor: pointer; label: pick(w, "Pencil", "Marker", "Gradient", "Plain", "Dots"); active: ty - sty.off > sby and ty - sty.off < sby + set.h * pu }
+                on scroll pn_ftile.$w { sty_scroll_to = clamp(sty_scroll_to - wheel * 44, 0, max(0, sty.h - set.h)) }
+                on press pn_ftile.$w { emit pn_pick_fill(w) }
+            }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 264 * pu + 0.5); text pick(pn_fill_i, "Pencil hatching, in tight columns up and down", "Broad felt-tip strokes, darker where they overlap", "The colour rising from faint to strong, with a soft light along the top", "One flat wash of the colour", "Halftone dots that grow towards the end") { at: floor(spx + 14 * pw + 0.5), floor(sby + 264 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 301 * pu + 0.5); text "FINE-TUNE" { at: floor(spx + 14 * pw + 0.5), floor(sby + 301 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 398.875 * pu; size: 438 * pw, 169.75 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 398.875 * pu, 438 * pw, 169.75 * pu, 916.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 398.875 * pu; size: 438 * pw, 169.75 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 398.875 * pu; size: 438 * pw, 169.75 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 398.875 * pu; size: 438 * pw, 169.75 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            //  Boil: Still, Calm, Normal, Lively.
+            measure ldr_sty1
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 337 * pu + 0.5); text "Boil" { at: floor(spx + 14 * pw + 0.5), floor(sby + 337 * pu + 0.5); measure: ldr_sty1; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            measure ldh_sty1
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 351 * pu + 0.5); text "How often lines redraw" { at: floor(spx + 14 * pw + 0.5), floor(sby + 351 * pu + 0.5); measure: ldh_sty1; anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
+            zone box pn_boil_sl { at: spx + 296 * pw, sby + 343 * pu; size: 256 * pw, 24 * pu }
+            SetPick(spx + 200 * pw, sby + 343 * pu, 64 * pw, 4, 24 * pu, pn_boil_i, pn_boil_sl.hover, pu)
+            PLeader(spx + 14 * pw + max(ldr_sty1.width, ldh_sty1.width) * rs + 8 * pu, spx + 200 * pw - 64 * pw / 2 - 6 * pu, sby + 343 * pu, pn_boil_sl.hover, pu)
+            repeat i in 0..4 {
+                let lx = spx + 200 * pw + i * 64 * pw
+                box { at: lx, sby + 343 * pu; size: 58 * pw, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * pn_boil_hit.$i.hover }
+                group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 343 * pu + 0.5); text pick(i, "Still", "Calm", "Normal", "Lively") { at: floor(lx + 0.5), floor(sby + 343 * pu + 0.5); anchor: center; align: center; size: 14.5; weight: 600; width: (60 * pw) / rs; lines: 1; color: if(pn_boil_i == i, mint, ink); family: "Space Grotesk" } }
+                zone box pn_boil_hit.$i { at: lx, sby + 343 * pu; size: 62 * pw, 26 * pu; corner: 13 * pu; cursor: pointer; label: pick(i, "Still", "Calm", "Normal", "Lively"); active: (sby + 343 * pu) - sty.off > sby and (sby + 343 * pu) - sty.off < sby + set.h * pu }
+                on scroll pn_boil_hit.$i { sty_scroll_to = clamp(sty_scroll_to - wheel * 44, 0, max(0, sty.h - set.h)) }
+                on press pn_boil_hit.$i { emit pn_pick_boil(i) }
+            }
+            //  Wobble: Ruled, Neat, Sketchy, Shaky.
+            measure ldr_sty2
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 374.25 * pu + 0.5); text "Wobble" { at: floor(spx + 14 * pw + 0.5), floor(sby + 374.25 * pu + 0.5); measure: ldr_sty2; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            measure ldh_sty2
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 388.25 * pu + 0.5); text "How crooked lines sit" { at: floor(spx + 14 * pw + 0.5), floor(sby + 388.25 * pu + 0.5); measure: ldh_sty2; anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
+            zone box pn_wob_sl { at: spx + 296 * pw, sby + 380.25 * pu; size: 256 * pw, 24 * pu }
+            SetPick(spx + 200 * pw, sby + 380.25 * pu, 64 * pw, 4, 24 * pu, pn_wob_i, pn_wob_sl.hover, pu)
+            PLeader(spx + 14 * pw + max(ldr_sty2.width, ldh_sty2.width) * rs + 8 * pu, spx + 200 * pw - 64 * pw / 2 - 6 * pu, sby + 380.25 * pu, pn_wob_sl.hover, pu)
+            repeat i in 0..4 {
+                let lx = spx + 200 * pw + i * 64 * pw
+                box { at: lx, sby + 380.25 * pu; size: 58 * pw, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * pn_wob_hit.$i.hover }
+                group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 380.25 * pu + 0.5); text pick(i, "Ruled", "Neat", "Sketchy", "Shaky") { at: floor(lx + 0.5), floor(sby + 380.25 * pu + 0.5); anchor: center; align: center; size: 14.5; weight: 600; width: (60 * pw) / rs; lines: 1; color: if(pn_wob_i == i, mint, ink); family: "Space Grotesk" } }
+                zone box pn_wob_hit.$i { at: lx, sby + 380.25 * pu; size: 62 * pw, 26 * pu; corner: 13 * pu; cursor: pointer; label: pick(i, "Ruled", "Neat", "Sketchy", "Shaky"); active: (sby + 380.25 * pu) - sty.off > sby and (sby + 380.25 * pu) - sty.off < sby + set.h * pu }
+                on scroll pn_wob_hit.$i { sty_scroll_to = clamp(sty_scroll_to - wheel * 44, 0, max(0, sty.h - set.h)) }
+                on press pn_wob_hit.$i { emit pn_pick_wobble(i) }
+            }
+            //  Echo line: Off, Faint, Normal, Strong.
+            measure ldr_sty3
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 411.5 * pu + 0.5); text "Echo line" { at: floor(spx + 14 * pw + 0.5), floor(sby + 411.5 * pu + 0.5); measure: ldr_sty3; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            measure ldh_sty3
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 425.5 * pu + 0.5); text "The faint second stroke" { at: floor(spx + 14 * pw + 0.5), floor(sby + 425.5 * pu + 0.5); measure: ldh_sty3; anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
+            zone box pn_echo_sl { at: spx + 296 * pw, sby + 417.5 * pu; size: 256 * pw, 24 * pu }
+            SetPick(spx + 200 * pw, sby + 417.5 * pu, 64 * pw, 4, 24 * pu, pn_echo_i, pn_echo_sl.hover, pu)
+            PLeader(spx + 14 * pw + max(ldr_sty3.width, ldh_sty3.width) * rs + 8 * pu, spx + 200 * pw - 64 * pw / 2 - 6 * pu, sby + 417.5 * pu, pn_echo_sl.hover, pu)
+            repeat i in 0..4 {
+                let lx = spx + 200 * pw + i * 64 * pw
+                box { at: lx, sby + 417.5 * pu; size: 58 * pw, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * pn_echo_hit.$i.hover }
+                group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 417.5 * pu + 0.5); text pick(i, "Off", "Faint", "Normal", "Strong") { at: floor(lx + 0.5), floor(sby + 417.5 * pu + 0.5); anchor: center; align: center; size: 14.5; weight: 600; width: (60 * pw) / rs; lines: 1; color: if(pn_echo_i == i, mint, ink); family: "Space Grotesk" } }
+                zone box pn_echo_hit.$i { at: lx, sby + 417.5 * pu; size: 62 * pw, 26 * pu; corner: 13 * pu; cursor: pointer; label: pick(i, "Off", "Faint", "Normal", "Strong"); active: (sby + 417.5 * pu) - sty.off > sby and (sby + 417.5 * pu) - sty.off < sby + set.h * pu }
+                on scroll pn_echo_hit.$i { sty_scroll_to = clamp(sty_scroll_to - wheel * 44, 0, max(0, sty.h - set.h)) }
+                on press pn_echo_hit.$i { emit pn_pick_echo(i) }
+            }
+            //  Fill strength: Off, Light, Normal, Heavy.
+            measure ldr_sty4
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 448.75 * pu + 0.5); text "Fill strength" { at: floor(spx + 14 * pw + 0.5), floor(sby + 448.75 * pu + 0.5); measure: ldr_sty4; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            measure ldh_sty4
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 462.75 * pu + 0.5); text "How strong the fill is" { at: floor(spx + 14 * pw + 0.5), floor(sby + 462.75 * pu + 0.5); measure: ldh_sty4; anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
+            zone box pn_shade_sl { at: spx + 296 * pw, sby + 454.75 * pu; size: 256 * pw, 24 * pu }
+            SetPick(spx + 200 * pw, sby + 454.75 * pu, 64 * pw, 4, 24 * pu, pn_shade_i, pn_shade_sl.hover, pu)
+            PLeader(spx + 14 * pw + max(ldr_sty4.width, ldh_sty4.width) * rs + 8 * pu, spx + 200 * pw - 64 * pw / 2 - 6 * pu, sby + 454.75 * pu, pn_shade_sl.hover, pu)
+            repeat i in 0..4 {
+                let lx = spx + 200 * pw + i * 64 * pw
+                box { at: lx, sby + 454.75 * pu; size: 58 * pw, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * pn_shade_hit.$i.hover }
+                group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 454.75 * pu + 0.5); text pick(i, "Off", "Light", "Normal", "Heavy") { at: floor(lx + 0.5), floor(sby + 454.75 * pu + 0.5); anchor: center; align: center; size: 14.5; weight: 600; width: (60 * pw) / rs; lines: 1; color: if(pn_shade_i == i, mint, ink); family: "Space Grotesk" } }
+                zone box pn_shade_hit.$i { at: lx, sby + 454.75 * pu; size: 62 * pw, 26 * pu; corner: 13 * pu; cursor: pointer; label: pick(i, "Off", "Light", "Normal", "Heavy"); active: (sby + 454.75 * pu) - sty.off > sby and (sby + 454.75 * pu) - sty.off < sby + set.h * pu }
+                on scroll pn_shade_hit.$i { sty_scroll_to = clamp(sty_scroll_to - wheel * 44, 0, max(0, sty.h - set.h)) }
+                on press pn_shade_hit.$i { emit pn_pick_shade(i) }
+            }
+            }
+        }
+}

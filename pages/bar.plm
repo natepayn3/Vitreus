@@ -28,7 +28,7 @@ part Bar {
                 opacity: if(bar_rest, 1, 0.45)
                 group { scale: rs; pivot: floor(spx + 380 * pw + 0.5), floor(sby + 13 * pu + 0.5); text "Frame on the other monitors" { at: floor(spx + 380 * pw + 0.5), floor(sby + 13 * pu + 0.5); anchor: right center; align: right; size: 15; width: (240 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
                 SettingsSwitch(spx + 424 * pw, sby + 13 * pu, bar_oth_pill, bar_oth_hit.pressed, bar_oth_hit.hover, mint)
-                zone box bar_oth_hit { at: spx + 424 * pw - 19 * pu, sby + 13 * pu; size: 46 * pu, 26 * pu; cursor: pointer; active: bar_rest and br.off < 12 * pu }
+                zone box bar_oth_hit { at: spx + 424 * pw - 19 * cu, sby + 13 * pu; size: 44 * cu, 28 * cu; cursor: pointer; active: bar_rest and br.off < 12 * pu }
                 on scroll bar_oth_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
                 on press bar_oth_hit { emit bar_others_toggle }
             }
@@ -179,9 +179,11 @@ part Bar {
                 box { at: spx + 219 * pw, bbz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
                 box { at: spx + 219 * pw, bbz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
                 box { at: spx + 219 * pw, bbz; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(bbz + 0.5); text "Island moves to the music" { at: floor(spx + 14 * pw + 0.5), floor(bbz + 0.5); anchor: left center; size: 16.5; width: (340 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                measure ldr_barb2
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(bbz + 0.5); text "Island moves to the music" { at: floor(spx + 14 * pw + 0.5), floor(bbz + 0.5); measure: ldr_barb2; anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
                 SettingsSwitch(spx + 424 * pw, bbz, bar_beat_pill, bar_beat_hit.pressed, bar_beat_hit.hover, mint)
-                zone box bar_beat_hit { at: spx + 424 * pw - 19 * pu, bbz; size: 46 * pu, 26 * pu; cursor: pointer; active: not bar_frame; label: "Island moves to the music" }
+                PLeader(spx + 14 * pw + ldr_barb2.width * rs + 8 * pu, spx + 424 * pw - 40 * cu, bbz, bar_beat_hit.hover, pu)
+                zone box bar_beat_hit { at: spx + 424 * pw - 19 * cu, bbz; size: 44 * cu, 28 * cu; cursor: pointer; active: not bar_frame; label: "Island moves to the music" }
                 on scroll bar_beat_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
                 on press bar_beat_hit { emit bar_beat_toggle }
             }
@@ -194,9 +196,11 @@ part Bar {
                 box { at: spx + 219 * pw, ahz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
                 box { at: spx + 219 * pw, ahz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
                 box { at: spx + 219 * pw, ahz; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(ahz + 0.5); text "Auto-hide the bar and docks" { at: floor(spx + 14 * pw + 0.5), floor(ahz + 0.5); anchor: left center; size: 16.5; width: (340 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                measure ldr_barb3
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(ahz + 0.5); text "Auto-hide the bar and docks" { at: floor(spx + 14 * pw + 0.5), floor(ahz + 0.5); measure: ldr_barb3; anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
                 SettingsSwitch(spx + 424 * pw, ahz, ah_bpill, bar_ah_hit.pressed, bar_ah_hit.hover, mint)
-                zone box bar_ah_hit { at: spx + 424 * pw - 19 * pu, ahz; size: 46 * pu, 26 * pu; cursor: pointer; active: not bar_frame; label: "Auto-hide the bar and docks" }
+                PLeader(spx + 14 * pw + ldr_barb3.width * rs + 8 * pu, spx + 424 * pw - 40 * cu, ahz, bar_ah_hit.hover, pu)
+                zone box bar_ah_hit { at: spx + 424 * pw - 19 * cu, ahz; size: 44 * cu, 28 * cu; cursor: pointer; active: not bar_frame; label: "Auto-hide the bar and docks" }
                 on scroll bar_ah_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
                 on press bar_ah_hit { emit bar_ah_toggle }
             }
@@ -211,8 +215,10 @@ part Bar {
             box { at: spx + 219 * pw, bzy; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
             box { at: spx + 219 * pw, bzy; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             box { at: spx + 219 * pw, bzy; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(bzy + 0.5); text "Bar size" { at: floor(spx + 14 * pw + 0.5), floor(bzy + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            measure ldr_bar1
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(bzy + 0.5); text "Bar size" { at: floor(spx + 14 * pw + 0.5), floor(bzy + 0.5); measure: ldr_bar1; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             PSlider(bzx0, bzy, bzw, clamp((bar_size - 0.7) / 0.55, 0, 1), bar_size_hit.hover, cu, bzh, 0)
+            PLeader(spx + 14 * pw + ldr_bar1.width * rs + 8 * pu, bzx0 - 6 * pu, bzy, bar_size_hit.hover, pu)
             group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(bzy + 0.5); text bar_size_text { at: floor(spx + 424 * pw + 0.5), floor(bzy + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
             zone box bar_size_hit { at: bzx0 + bzw / 2, bzy; size: bzw + 24 * pu, 30 * pu; cursor: pointer; label: "Bar size" }
             on scroll bar_size_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
@@ -227,9 +233,11 @@ part Bar {
             box { at: spx + 219 * pw, drz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
             box { at: spx + 219 * pw, drz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             box { at: spx + 219 * pw, drz; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(drz + 0.5); text "Corner docks overlap windows" { at: floor(spx + 14 * pw + 0.5), floor(drz + 0.5); anchor: left center; size: 16.5; width: (340 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+            measure ldr_barb4
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(drz + 0.5); text "Corner docks overlap windows" { at: floor(spx + 14 * pw + 0.5), floor(drz + 0.5); measure: ldr_barb4; anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
             SettingsSwitch(spx + 424 * pw, drz, bar_dr_pill, bar_dr_hit.pressed, bar_dr_hit.hover, mint)
-            zone box bar_dr_hit { at: spx + 424 * pw - 19 * pu, drz; size: 46 * pu, 26 * pu; cursor: pointer; label: "Corner docks overlap windows" }
+            PLeader(spx + 14 * pw + ldr_barb4.width * rs + 8 * pu, spx + 424 * pw - 40 * cu, drz, bar_dr_hit.hover, pu)
+            zone box bar_dr_hit { at: spx + 424 * pw - 19 * cu, drz; size: 44 * cu, 28 * cu; cursor: pointer; label: "Corner docks overlap windows" }
             on scroll bar_dr_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
             on press bar_dr_hit { emit bar_dockroom_toggle }
 
@@ -244,9 +252,11 @@ part Bar {
                 box { at: spx + 219 * pw, dmz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
                 box { at: spx + 219 * pw, dmz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
                 box { at: spx + 219 * pw, dmz; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(dmz + 0.5); text "Docks as one, centred" { at: floor(spx + 14 * pw + 0.5), floor(dmz + 0.5); anchor: left center; size: 16.5; width: (340 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                measure ldr_barb5
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(dmz + 0.5); text "Docks as one, centred" { at: floor(spx + 14 * pw + 0.5), floor(dmz + 0.5); measure: ldr_barb5; anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
                 SettingsSwitch(spx + 424 * pw, dmz, dock_mid_pill, dock_mid_hit.pressed, dock_mid_hit.hover, mint)
-                zone box dock_mid_hit { at: spx + 424 * pw - 19 * pu, dmz; size: 46 * pu, 26 * pu; cursor: pointer; active: not bar_frame; label: "Docks as one, centred" }
+                PLeader(spx + 14 * pw + ldr_barb5.width * rs + 8 * pu, spx + 424 * pw - 40 * cu, dmz, dock_mid_hit.hover, pu)
+                zone box dock_mid_hit { at: spx + 424 * pw - 19 * cu, dmz; size: 44 * cu, 28 * cu; cursor: pointer; active: not bar_frame; label: "Docks as one, centred" }
                 on scroll dock_mid_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
                 on press dock_mid_hit { emit dock_mid_toggle }
             }
@@ -259,9 +269,11 @@ part Bar {
                 box { at: spx + 219 * pw, axz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
                 box { at: spx + 219 * pw, axz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
                 box { at: spx + 219 * pw, axz; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(axz + 0.5); text "Add-on icons on the bar" { at: floor(spx + 14 * pw + 0.5), floor(axz + 0.5); anchor: left center; size: 16.5; width: (340 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                measure ldr_barb6
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(axz + 0.5); text "Add-on icons on the bar" { at: floor(spx + 14 * pw + 0.5), floor(axz + 0.5); measure: ldr_barb6; anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
                 SettingsSwitch(spx + 424 * pw, axz, bar_ax_pill, bar_ax_hit.pressed, bar_ax_hit.hover, mint)
-                zone box bar_ax_hit { at: spx + 424 * pw - 19 * pu, axz; size: 46 * pu, 26 * pu; cursor: pointer; active: not bar_frame; label: "Add-on icons on the bar" }
+                PLeader(spx + 14 * pw + ldr_barb6.width * rs + 8 * pu, spx + 424 * pw - 40 * cu, axz, bar_ax_hit.hover, pu)
+                zone box bar_ax_hit { at: spx + 424 * pw - 19 * cu, axz; size: 44 * cu, 28 * cu; cursor: pointer; active: not bar_frame; label: "Add-on icons on the bar" }
                 on scroll bar_ax_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
                 on press bar_ax_hit { emit bar_ax_toggle }
             }
@@ -273,9 +285,11 @@ part Bar {
                 box { at: spx + 219 * pw, cdz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
                 box { at: spx + 219 * pw, cdz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
                 box { at: spx + 219 * pw, cdz; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(cdz + 0.5); text "Show the corner dock" { at: floor(spx + 14 * pw + 0.5), floor(cdz + 0.5); anchor: left center; size: 16.5; width: (340 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                measure ldr_barb7
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(cdz + 0.5); text "Show the corner dock" { at: floor(spx + 14 * pw + 0.5), floor(cdz + 0.5); measure: ldr_barb7; anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
                 SettingsSwitch(spx + 424 * pw, cdz, cdk_pill, cdk_hit.pressed, cdk_hit.hover, mint)
-                zone box cdk_hit { at: spx + 424 * pw - 19 * pu, cdz; size: 46 * pu, 26 * pu; cursor: pointer; active: true; label: "Show the corner dock" }
+                PLeader(spx + 14 * pw + ldr_barb7.width * rs + 8 * pu, spx + 424 * pw - 40 * cu, cdz, cdk_hit.hover, pu)
+                zone box cdk_hit { at: spx + 424 * pw - 19 * cu, cdz; size: 44 * cu, 28 * cu; cursor: pointer; active: true; label: "Show the corner dock" }
                 on scroll cdk_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
                 on press cdk_hit { emit cdk_show_toggle }
             }

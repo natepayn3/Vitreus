@@ -108,11 +108,14 @@ part Display {
             on press disp_res_hit { toggle disp_res_open }
 
             //  Refresh rate: the rates this resolution has.
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(dtop + 122 * pu + 0.5); text "Refresh rate" { at: floor(spx + 14 * pw + 0.5), floor(dtop + 122 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            zone box disp_hz_sl { at: spx + 148 * pw + (max((if(disp_hz.0.on, 1, 0) + if(disp_hz.1.on, 1, 0) + if(disp_hz.2.on, 1, 0) + if(disp_hz.3.on, 1, 0) + if(disp_hz.4.on, 1, 0) + if(disp_hz.5.on, 1, 0)), 1) - 1) * 28 * pw, dtop + 122 * pu; size: max((if(disp_hz.0.on, 1, 0) + if(disp_hz.1.on, 1, 0) + if(disp_hz.2.on, 1, 0) + if(disp_hz.3.on, 1, 0) + if(disp_hz.4.on, 1, 0) + if(disp_hz.5.on, 1, 0)), 1) * 56 * pw, 24 * pu }
-            SetPick(spx + 148 * pw, dtop + 122 * pu, 56 * pw, max((if(disp_hz.0.on, 1, 0) + if(disp_hz.1.on, 1, 0) + if(disp_hz.2.on, 1, 0) + if(disp_hz.3.on, 1, 0) + if(disp_hz.4.on, 1, 0) + if(disp_hz.5.on, 1, 0)), 1), 24 * pu, (if(disp_hz.1.lit, 1, 0) + 2 * if(disp_hz.2.lit, 1, 0) + 3 * if(disp_hz.3.lit, 1, 0) + 4 * if(disp_hz.4.lit, 1, 0) + 5 * if(disp_hz.5.lit, 1, 0)), disp_hz_sl.hover, pu)
+            measure ldr_dis1
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(dtop + 122 * pu + 0.5); text "Refresh rate" { at: floor(spx + 14 * pw + 0.5), floor(dtop + 122 * pu + 0.5); measure: ldr_dis1; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            let dhz_n = max((if(disp_hz.0.on, 1, 0) + if(disp_hz.1.on, 1, 0) + if(disp_hz.2.on, 1, 0) + if(disp_hz.3.on, 1, 0) + if(disp_hz.4.on, 1, 0) + if(disp_hz.5.on, 1, 0)), 1)          // how many choices there are: the row is laid out from the card's right edge, as every picker is
+            zone box disp_hz_sl { at: spx + (424 - dhz_n * 56 / 2) * pw, dtop + 122 * pu; size: dhz_n * 56 * pw, 24 * pu }
+            SetPick(spx + (424 - (dhz_n - 0.5) * 56) * pw, dtop + 122 * pu, 56 * pw, max((if(disp_hz.0.on, 1, 0) + if(disp_hz.1.on, 1, 0) + if(disp_hz.2.on, 1, 0) + if(disp_hz.3.on, 1, 0) + if(disp_hz.4.on, 1, 0) + if(disp_hz.5.on, 1, 0)), 1), 24 * pu, (if(disp_hz.1.lit, 1, 0) + 2 * if(disp_hz.2.lit, 1, 0) + 3 * if(disp_hz.3.lit, 1, 0) + 4 * if(disp_hz.4.lit, 1, 0) + 5 * if(disp_hz.5.lit, 1, 0)), disp_hz_sl.hover, pu)
+            PLeader(spx + 14 * pw + ldr_dis1.width * rs + 8 * pu, spx + (424 - (dhz_n - 0.5) * 56) * pw - 56 * pw / 2 - 6 * pu, dtop + 122 * pu, disp_hz_sl.hover, pu)
             repeat i in 0..6 {
-                let hx = spx + 148 * pw + i * 56 * pw                // 122 + half a chip: the shared left edge
+                let hx = spx + (424 - (dhz_n - 0.5) * 56) * pw + i * 56 * pw                // 122 + half a chip: the shared left edge
                 box { at: hx, dtop + 122 * pu; size: 52 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * disp_hz_hit.$i.hover }
                 group { scale: rs; pivot: floor(hx + 0.5), floor(dtop + 122 * pu + 0.5); text disp_hz.$i.text { at: floor(hx + 0.5), floor(dtop + 122 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; width: (50 * pw) / rs; lines: 1; color: if(disp_hz.$i.lit, mint, ink); show: disp_hz.$i.on; family: "Space Grotesk" } }
                 zone box disp_hz_hit.$i { at: hx, dtop + 122 * pu; size: 54 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (disp_hz.$i.on) and (dtop + 122 * pu) - disp.off > sby and (dtop + 122 * pu) - disp.off < sby + set.h * pu }
@@ -120,11 +123,13 @@ part Display {
             }
 
             //  Scale.
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(dtop + 158 * pu + 0.5); text "Scale" { at: floor(spx + 14 * pw + 0.5), floor(dtop + 158 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            zone box disp_sc_hit_sl { at: spx + 141.5 * pw + (7 - 1) * 43 * pw / 2, dtop + 158 * pu + (1 - 1) * 0 / 2; size: 7 * 43 * pw, 24 * pu + (1 - 1) * 0 }
-            SetPick(spx + 141.5 * pw, dtop + 158 * pu, 43 * pw, 7, 24 * pu, disp_scale, disp_sc_hit_sl.hover, pu)
+            measure ldr_dis2
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(dtop + 158 * pu + 0.5); text "Scale" { at: floor(spx + 14 * pw + 0.5), floor(dtop + 158 * pu + 0.5); measure: ldr_dis2; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            zone box disp_sc_hit_sl { at: spx + 144.5 * pw + (7 - 1) * 43 * pw / 2, dtop + 158 * pu + (1 - 1) * 0 / 2; size: 7 * 43 * pw, 24 * pu + (1 - 1) * 0 }
+            SetPick(spx + 144.5 * pw, dtop + 158 * pu, 43 * pw, 7, 24 * pu, disp_scale, disp_sc_hit_sl.hover, pu)
+            PLeader(spx + 14 * pw + ldr_dis2.width * rs + 8 * pu, spx + 144.5 * pw - 43 * pw / 2 - 6 * pu, dtop + 158 * pu, disp_sc_hit_sl.hover, pu)
             repeat i in 0..7 {
-                let sx = spx + 141.5 * pw + i * 43 * pw
+                let sx = spx + 144.5 * pw + i * 43 * pw
                 box { at: sx, dtop + 158 * pu; size: 40 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * disp_sc_hit.$i.hover }
                 group { scale: rs; pivot: floor(sx + 0.5), floor(dtop + 158 * pu + 0.5); text pick(i, "Auto", "1.0×", "1.25×", "1.33×", "1.5×", "1.75×", "2.0×") { at: floor(sx + 0.5), floor(dtop + 158 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (38 * pw) / rs; lines: 1; color: if(disp_scale == i, mint, ink); family: "Space Grotesk" } }
                 zone box disp_sc_hit.$i { at: sx, dtop + 158 * pu; size: 42 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (dtop + 158 * pu) - disp.off > sby and (dtop + 158 * pu) - disp.off < sby + set.h * pu }
@@ -132,11 +137,13 @@ part Display {
             }
 
             //  Rotation.
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(dtop + 194 * pu + 0.5); text "Rotation" { at: floor(spx + 14 * pw + 0.5), floor(dtop + 194 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            zone box disp_rot_hit_sl { at: spx + 153 * pw + (4 - 1) * 66 * pw / 2, dtop + 194 * pu + (1 - 1) * 0 / 2; size: 4 * 66 * pw, 24 * pu + (1 - 1) * 0 }
-            SetPick(spx + 153 * pw, dtop + 194 * pu, 66 * pw, 4, 24 * pu, disp_rot, disp_rot_hit_sl.hover, pu)
+            measure ldr_dis3
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(dtop + 194 * pu + 0.5); text "Rotation" { at: floor(spx + 14 * pw + 0.5), floor(dtop + 194 * pu + 0.5); measure: ldr_dis3; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            zone box disp_rot_hit_sl { at: spx + 193 * pw + (4 - 1) * 66 * pw / 2, dtop + 194 * pu + (1 - 1) * 0 / 2; size: 4 * 66 * pw, 24 * pu + (1 - 1) * 0 }
+            SetPick(spx + 193 * pw, dtop + 194 * pu, 66 * pw, 4, 24 * pu, disp_rot, disp_rot_hit_sl.hover, pu)
+            PLeader(spx + 14 * pw + ldr_dis3.width * rs + 8 * pu, spx + 193 * pw - 66 * pw / 2 - 6 * pu, dtop + 194 * pu, disp_rot_hit_sl.hover, pu)
             repeat i in 0..4 {
-                let rx = spx + 153 * pw + i * 66 * pw
+                let rx = spx + 193 * pw + i * 66 * pw
                 box { at: rx, dtop + 194 * pu; size: 60 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * disp_rot_hit.$i.hover }
                 group { scale: rs; pivot: floor(rx + 0.5), floor(dtop + 194 * pu + 0.5); text pick(i, "Normal", "90°", "180°", "270°") { at: floor(rx + 0.5), floor(dtop + 194 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (56 * pw) / rs; lines: 1; color: if(disp_rot == i, mint, ink); family: "Space Grotesk" } }
                 zone box disp_rot_hit.$i { at: rx, dtop + 194 * pu; size: 62 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (dtop + 194 * pu) - disp.off > sby and (dtop + 194 * pu) - disp.off < sby + set.h * pu }
@@ -147,14 +154,18 @@ part Display {
             let dsl.x0 = spx + 122 * pw
             let dsl.w = 250 * pw
             let dh = 12 * pu
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(dtop + 230 * pu + 0.5); text "SDR brightness" { at: floor(spx + 14 * pw + 0.5), floor(dtop + 230 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            measure ldr_dis4
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(dtop + 230 * pu + 0.5); text "SDR brightness" { at: floor(spx + 14 * pw + 0.5), floor(dtop + 230 * pu + 0.5); measure: ldr_dis4; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             PSlider(dsl.x0, dtop + 230 * pu, dsl.w, clamp(clamp(disp_sdrb - 1, 0, 1), 0, 1), disp_sdrb_hit.hover, cu, dh, 0)
+            PLeader(spx + 14 * pw + ldr_dis4.width * rs + 8 * pu, dsl.x0 - 6 * pu, dtop + 230 * pu, disp_sdrb_hit.hover, pu)
             group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(dtop + 230 * pu + 0.5); text disp_sdrb_text { at: floor(spx + 424 * pw + 0.5), floor(dtop + 230 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
             zone box disp_sdrb_hit { at: dsl.x0 + dsl.w / 2, dtop + 230 * pu; size: dsl.w + 24 * pu, 30 * pu; cursor: pointer; active: (dtop + 230 * pu) - disp.off > sby and (dtop + 230 * pu) - disp.off < sby + set.h * pu }
             on press disp_sdrb_hit { emit disp_sdrb_set(clamp(((pointer.x - tx.pnl) - dsl.x0) / dsl.w, 0, 1)) }
             on drag disp_sdrb_hit { emit disp_sdrb_set(clamp(((pointer.x - tx.pnl) - dsl.x0) / dsl.w, 0, 1)) }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(dtop + 266 * pu + 0.5); text "SDR saturation" { at: floor(spx + 14 * pw + 0.5), floor(dtop + 266 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            measure ldr_dis5
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(dtop + 266 * pu + 0.5); text "SDR saturation" { at: floor(spx + 14 * pw + 0.5), floor(dtop + 266 * pu + 0.5); measure: ldr_dis5; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             PSlider(dsl.x0, dtop + 266 * pu, dsl.w, clamp(clamp((disp_sdrs - 0.9) / 0.2, 0, 1), 0, 1), disp_sdrs_hit.hover, cu, dh, 0)
+            PLeader(spx + 14 * pw + ldr_dis5.width * rs + 8 * pu, dsl.x0 - 6 * pu, dtop + 266 * pu, disp_sdrs_hit.hover, pu)
             group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(dtop + 266 * pu + 0.5); text disp_sdrs_text { at: floor(spx + 424 * pw + 0.5), floor(dtop + 266 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
             zone box disp_sdrs_hit { at: dsl.x0 + dsl.w / 2, dtop + 266 * pu; size: dsl.w + 24 * pu, 30 * pu; cursor: pointer; active: (dtop + 266 * pu) - disp.off > sby and (dtop + 266 * pu) - disp.off < sby + set.h * pu }
             on press disp_sdrs_hit { emit disp_sdrs_set(clamp(((pointer.x - tx.pnl) - dsl.x0) / dsl.w, 0, 1)) }
@@ -197,7 +208,7 @@ part Display {
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(ptop + 22.5 * pu + 0.5); text "Reapply automatically" { at: floor(spx + 14 * pw + 0.5), floor(ptop + 22.5 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(ptop + 36.5 * pu + 0.5); text "When the same displays are connected · now: {disp_topo}" { at: floor(spx + 14 * pw + 0.5), floor(ptop + 36.5 * pu + 0.5); anchor: left center; size: 13.5; width: (340 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             SettingsSwitch(spx + 424 * pw, ptop + 29 * pu, disp_auto_pill, disp_auto_hit.pressed, disp_auto_hit.hover, mint)
-            zone box disp_auto_hit { at: spx + 424 * pw - 19 * pu, ptop + 29 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (ptop + 29 * pu) - disp.off > sby and (ptop + 29 * pu) - disp.off < sby + set.h * pu }
+            zone box disp_auto_hit { at: spx + 424 * pw - 19 * cu, ptop + 29 * pu; size: 44 * cu, 28 * cu; cursor: pointer; active: (ptop + 29 * pu) - disp.off > sby and (ptop + 29 * pu) - disp.off < sby + set.h * pu; label: "Reapply automatically" }
             on press disp_auto_hit { emit disp_auto_toggle }
             group { scale: rs; pivot: floor(spx + 219 * pw + 0.5), floor(ptop + 70 * pu + 0.5); text "No saved profiles yet" { at: floor(spx + 219 * pw + 0.5), floor(ptop + 70 * pu + 0.5); anchor: center; size: 16.5; color: faint; opacity: 1 - clamp(disp_pn_s, 0, 1); show: disp_pcount < 1; family: "Space Grotesk" } }
             repeat i in 0..4 {
@@ -237,7 +248,7 @@ part Display {
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(gtop - 13 * pu + 0.5); text "GRAPHICS CARD" { at: floor(spx + 14 * pw + 0.5), floor(gtop - 13 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; show: gpu_has; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(gtop + 24.5 * pu + 0.5); text "Draw the shell on the discrete card" { at: floor(spx + 14 * pw + 0.5), floor(gtop + 24.5 * pu + 0.5); anchor: left center; size: 17; weight: 700; width: (380 * pw) / rs; lines: 1; color: ink; show: gpu_has; family: "Space Grotesk" } }
             group { show: gpu_has; SettingsSwitch(spx + 424 * pw, gtop + 31 * pu, gpu_pill * gon, gpu_hit.pressed, gpu_hit.hover, mint) }
-            zone box gpu_hit { at: spx + 424 * pw - 19 * pu, gtop + 31 * pu; size: 46 * pu, 30 * pu; cursor: pointer; label: "Draw the shell on the discrete graphics card"; active: gpu_has and (gtop + 31 * pu) - disp.off > sby and (gtop + 31 * pu) - disp.off < sby + set.h * pu }
+            zone box gpu_hit { at: spx + 424 * pw - 19 * cu, gtop + 31 * pu; size: 44 * cu, 28 * cu; cursor: pointer; label: "Draw the shell on the discrete graphics card"; active: gpu_has and (gtop + 31 * pu) - disp.off > sby and (gtop + 31 * pu) - disp.off < sby + set.h * pu }
             on press gpu_hit { emit gpu_toggle }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(gtop + 38.5 * pu + 0.5); text gpu_note { at: floor(spx + 14 * pw + 0.5), floor(gtop + 38.5 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pw) / rs; lines: 1; color: faint; show: gpu_has; family: "Space Grotesk" } }
 
@@ -252,10 +263,13 @@ part Display {
             box { at: spx + 219 * pw, ftop + 30 * pu; size: 438 * pw, 60 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             box { at: spx + 219 * pw, ftop + 30 * pu; size: 438 * pw, 60 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(ftop - 13 * pu + 0.5); text "SHELL FRAME RATE" { at: floor(spx + 14 * pw + 0.5), floor(ftop - 13 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(ffy - 6.5 * pu + 0.5); text "Frames a second" { at: floor(spx + 14 * pw + 0.5), floor(ffy - 6.5 * pu + 0.5); anchor: left center; size: 17; weight: 600; width: (150 * pw) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(ffy + 7.5 * pu + 0.5); text "Fewer frames, same movement" { at: floor(spx + 14 * pw + 0.5), floor(ffy + 7.5 * pu + 0.5); anchor: left center; size: 13.5; width: (250 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+            measure ldr_dis6
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(ffy - 6.5 * pu + 0.5); text "Frames a second" { at: floor(spx + 14 * pw + 0.5), floor(ffy - 6.5 * pu + 0.5); measure: ldr_dis6; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            measure ldh_dis6
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(ffy + 7.5 * pu + 0.5); text "Fewer frames, same movement" { at: floor(spx + 14 * pw + 0.5), floor(ffy + 7.5 * pu + 0.5); measure: ldh_dis6; anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
             zone box bar_fps_hit_sl { at: spx + 299 * pw + (3 - 1) * 50 * pw / 2, ffy + (1 - 1) * 0 / 2; size: 3 * 50 * pw, 24 * pu + (1 - 1) * 0 }
             SetPick(spx + 299 * pw, ffy, 50 * pw, 3, 24 * pu, if(bar_fps == 120, 1, 0) + 2 * if(bar_fps == 60, 1, 0), bar_fps_hit_sl.hover, pu)
+            PLeader(spx + 14 * pw + max(ldr_dis6.width, ldh_dis6.width) * rs + 8 * pu, spx + 299 * pw - 50 * pw / 2 - 6 * pu, ffy, bar_fps_hit_sl.hover, pu)
             repeat f in 0..3 {
                 let bfv = pick(f, 480, 120, 60)
                 let bfx = spx + (299 + f * 50) * pw

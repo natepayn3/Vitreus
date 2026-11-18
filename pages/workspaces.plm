@@ -78,96 +78,111 @@ part Workspaces {
             }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 120 * pu + 0.5); text pick(ws_style, "One glass track; the workspace in view fills with the accent", "A dot for each window on it, up to three", "The icons of the apps open on each one", "Each one's number, the one in view underlined", "A ring that fills a third for each window on it") { at: floor(spx + 14 * pw + 0.5), floor(sby + 120 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 157 * pu + 0.5); text "WHICH ONES" { at: floor(spx + 14 * pw + 0.5), floor(sby + 157 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 260 * pu; size: 438 * pw, 180 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pw, sby + 260 * pu, 438 * pw, 180 * pu, 813.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pw, sby + 260 * pu; size: 438 * pw, 180 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pw, sby + 260 * pu; size: 438 * pw, 180 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            box { at: spx + 219 * pw, sby + 260 * pu; size: 438 * pw, 180 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 241.125 * pu; size: 438 * pw, 142.25 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 241.125 * pu, 438 * pw, 142.25 * pu, 813.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 241.125 * pu; size: 438 * pw, 142.25 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 241.125 * pu; size: 438 * pw, 142.25 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 241.125 * pu; size: 438 * pw, 142.25 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             group {
                 opacity: 1
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 195.5 * pu + 0.5); text "Show every workspace" { at: floor(spx + 14 * pw + 0.5), floor(sby + 195.5 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 209.5 * pu + 0.5); text "Empty workspaces get a mark too, not only busy ones" { at: floor(spx + 14 * pw + 0.5), floor(sby + 209.5 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+                measure ldr_wor1
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 195.5 * pu + 0.5); text "Show every workspace" { at: floor(spx + 14 * pw + 0.5), floor(sby + 195.5 * pu + 0.5); measure: ldr_wor1; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                measure ldh_wor1
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 209.5 * pu + 0.5); text "Empty workspaces get a mark too, not only busy ones" { at: floor(spx + 14 * pw + 0.5), floor(sby + 209.5 * pu + 0.5); measure: ldh_wor1; anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
                 SettingsSwitch(spx + 424 * pw, sby + 202 * pu, ws_all_pill, ws_all_hit.pressed, ws_all_hit.hover, mint)
-                zone box ws_all_hit { at: spx + 424 * pw - 19 * pu, sby + 202 * pu; size: 46 * pu, 26 * pu; cursor: pointer; active: (sby + 202 * pu) - wsg.off > sby and (sby + 202 * pu) - wsg.off < sby + set.h * pu and true; label: "Show every workspace" }
+                PLeader(spx + 14 * pw + max(ldr_wor1.width, ldh_wor1.width) * rs + 8 * pu, spx + 424 * pw - 40 * cu, sby + 202 * pu, ws_all_hit.hover, pu)
+                zone box ws_all_hit { at: spx + 424 * pw - 19 * cu, sby + 202 * pu; size: 44 * cu, 28 * cu; cursor: pointer; active: (sby + 202 * pu) - wsg.off > sby and (sby + 202 * pu) - wsg.off < sby + set.h * pu and true; label: "Show every workspace" }
                 on scroll ws_all_hit { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
                 on press ws_all_hit { emit ws_toggle_all }
             }
             group {
                 opacity: if(ws_all, 1, 0.45)
                 let wsm1.k = if(wsm1.height > 26, 2, 1)          // the hint wraps to two lines beside the picker: the title rises so the pair stays centred on it
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 260 * pu - (6.5 + 8 * (wsm1.k - 1)) * pu + 0.5); text "How many" { at: floor(spx + 14 * pw + 0.5), floor(sby + 260 * pu - (6.5 + 8 * (wsm1.k - 1)) * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 260 * pu + (7.5 - 8 * (wsm1.k - 1)) * pu - 8.5 * rs + 0.5); text "How many marks there are while every workspace is shown" { at: floor(spx + 14 * pw + 0.5), floor(sby + 260 * pu + (7.5 - 8 * (wsm1.k - 1)) * pu - 8.5 * rs + 0.5); anchor: left top; size: 13.5; width: (258 * pw - 10 * pu) / rs; lines: 2; measure: wsm1; color: faint; family: "Space Grotesk" } }
-                zone box ws_cnt_hit_sl { at: spx + 348 * pw, sby + 260 * pu; size: 152 * pw, 24 * pu }
-                SetPick(spx + 310 * pw, sby + 260 * pu, 76 * pw, 2, 24 * pu, if(ws_count == 10, 1, 0), ws_cnt_hit_sl.hover, pu)
+                measure ldr_wor2
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 240.75 * pu - (6.5 + 8 * (wsm1.k - 1)) * pu + 0.5); text "How many" { at: floor(spx + 14 * pw + 0.5), floor(sby + 240.75 * pu - (6.5 + 8 * (wsm1.k - 1)) * pu + 0.5); measure: ldr_wor2; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 240.75 * pu + (7.5 - 8 * (wsm1.k - 1)) * pu - 8.5 * rs + 0.5); text "How many marks there are while every workspace is shown" { at: floor(spx + 14 * pw + 0.5), floor(sby + 240.75 * pu + (7.5 - 8 * (wsm1.k - 1)) * pu - 8.5 * rs + 0.5); anchor: left top; size: 13.5; width: (258 * pw - 10 * pu) / rs; lines: 2; measure: wsm1; color: faint; family: "Space Grotesk" } }
+                zone box ws_cnt_hit_sl { at: spx + 348 * pw, sby + 240.75 * pu; size: 152 * pw, 24 * pu }
+                SetPick(spx + 310 * pw, sby + 240.75 * pu, 76 * pw, 2, 24 * pu, if(ws_count == 10, 1, 0), ws_cnt_hit_sl.hover, pu)
+                PLeader(spx + 14 * pw + max(ldr_wor2.width, wsm1.width) * rs + 8 * pu, spx + 310 * pw - 76 * pw / 2 - 6 * pu, sby + 240.75 * pu, ws_cnt_hit_sl.hover, pu)
                 repeat i in 0..2 {
                     let lx = spx + 310 * pw + i * 76 * pw
-                    box { at: lx, sby + 260 * pu; size: 70 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ws_cnt_hit.$i.hover }
-                    group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 260 * pu + 0.5); text pick(i, "Five", "Ten") { at: floor(lx + 0.5), floor(sby + 260 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (66 * pw) / rs; lines: 1; color: if(if(ws_count == 10, 1, 0) == i, mint, ink); family: "Space Grotesk" } }
-                    zone box ws_cnt_hit.$i { at: lx, sby + 260 * pu; size: 72 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 260 * pu) - wsg.off > sby and (sby + 260 * pu) - wsg.off < sby + set.h * pu and ws_all; label: pick(i, "Five", "Ten") }
+                    box { at: lx, sby + 240.75 * pu; size: 70 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ws_cnt_hit.$i.hover }
+                    group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 240.75 * pu + 0.5); text pick(i, "Five", "Ten") { at: floor(lx + 0.5), floor(sby + 240.75 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (66 * pw) / rs; lines: 1; color: if(if(ws_count == 10, 1, 0) == i, mint, ink); family: "Space Grotesk" } }
+                    zone box ws_cnt_hit.$i { at: lx, sby + 240.75 * pu; size: 72 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 240.75 * pu) - wsg.off > sby and (sby + 240.75 * pu) - wsg.off < sby + set.h * pu and ws_all; label: pick(i, "Five", "Ten") }
                     on scroll ws_cnt_hit.$i { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
                     on press ws_cnt_hit.$i { emit ws_pick_count(i) }
                 }
             }
             group {
                 opacity: if(ws_all, 0.45, 1)
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 311.5 * pu + 0.5); text "New-workspace button" { at: floor(spx + 14 * pw + 0.5), floor(sby + 311.5 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 325.5 * pu + 0.5); text "A + after the marks that takes you to an empty workspace" { at: floor(spx + 14 * pw + 0.5), floor(sby + 325.5 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
-                SettingsSwitch(spx + 424 * pw, sby + 318 * pu, ws_plus_pill, ws_plus_hit.pressed, ws_plus_hit.hover, mint)
-                zone box ws_plus_hit { at: spx + 424 * pw - 19 * pu, sby + 318 * pu; size: 46 * pu, 26 * pu; cursor: pointer; active: (sby + 318 * pu) - wsg.off > sby and (sby + 318 * pu) - wsg.off < sby + set.h * pu and not ws_all; label: "New-workspace button" }
+                measure ldr_wor3
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 273.75 * pu + 0.5); text "New-workspace button" { at: floor(spx + 14 * pw + 0.5), floor(sby + 273.75 * pu + 0.5); measure: ldr_wor3; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                measure ldh_wor3
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 287.75 * pu + 0.5); text "A + after the marks that takes you to an empty workspace" { at: floor(spx + 14 * pw + 0.5), floor(sby + 287.75 * pu + 0.5); measure: ldh_wor3; anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
+                SettingsSwitch(spx + 424 * pw, sby + 280.25 * pu, ws_plus_pill, ws_plus_hit.pressed, ws_plus_hit.hover, mint)
+                PLeader(spx + 14 * pw + max(ldr_wor3.width, ldh_wor3.width) * rs + 8 * pu, spx + 424 * pw - 40 * cu, sby + 280.25 * pu, ws_plus_hit.hover, pu)
+                zone box ws_plus_hit { at: spx + 424 * pw - 19 * cu, sby + 280.25 * pu; size: 44 * cu, 28 * cu; cursor: pointer; active: (sby + 280.25 * pu) - wsg.off > sby and (sby + 280.25 * pu) - wsg.off < sby + set.h * pu and not ws_all; label: "New-workspace button" }
                 on scroll ws_plus_hit { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
                 on press ws_plus_hit { emit ws_toggle_plus }
             }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 367 * pu + 0.5); text "NUMBERS" { at: floor(spx + 14 * pw + 0.5), floor(sby + 367 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 441 * pu; size: 438 * pw, 122 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pw, sby + 441 * pu, 438 * pw, 122 * pu, 814.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pw, sby + 441 * pu; size: 438 * pw, 122 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pw, sby + 441 * pu; size: 438 * pw, 122 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            box { at: spx + 219 * pw, sby + 441 * pu; size: 438 * pw, 122 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 329.25 * pu + 0.5); text "NUMBERS" { at: floor(spx + 14 * pw + 0.5), floor(sby + 329.25 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 394.625 * pu; size: 438 * pw, 104.75 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 394.625 * pu, 438 * pw, 104.75 * pu, 814.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 394.625 * pu; size: 438 * pw, 104.75 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 394.625 * pu; size: 438 * pw, 104.75 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 394.625 * pu; size: 438 * pw, 104.75 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             group {
                 opacity: if(ws_style == 3, 0.45, 1)
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 407.5 * pu + 0.5); text "Number on each mark" { at: floor(spx + 14 * pw + 0.5), floor(sby + 407.5 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 421.5 * pu + 0.5); text "Its number beside or inside every mark" { at: floor(spx + 14 * pw + 0.5), floor(sby + 421.5 * pu + 0.5); anchor: left center; size: 13.5; width: (410 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
-                SettingsSwitch(spx + 424 * pw, sby + 414 * pu, ws_nums_pill, ws_nums_hit.pressed, ws_nums_hit.hover, mint)
-                zone box ws_nums_hit { at: spx + 424 * pw - 19 * pu, sby + 414 * pu; size: 46 * pu, 26 * pu; cursor: pointer; active: (sby + 414 * pu) - wsg.off > sby and (sby + 414 * pu) - wsg.off < sby + set.h * pu and ws_style != 3; label: "Number on each mark" }
+                measure ldr_wor4
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 369.75 * pu + 0.5); text "Number on each mark" { at: floor(spx + 14 * pw + 0.5), floor(sby + 369.75 * pu + 0.5); measure: ldr_wor4; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                measure ldh_wor4
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 383.75 * pu + 0.5); text "Its number beside or inside every mark" { at: floor(spx + 14 * pw + 0.5), floor(sby + 383.75 * pu + 0.5); measure: ldh_wor4; anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
+                SettingsSwitch(spx + 424 * pw, sby + 376.25 * pu, ws_nums_pill, ws_nums_hit.pressed, ws_nums_hit.hover, mint)
+                PLeader(spx + 14 * pw + max(ldr_wor4.width, ldh_wor4.width) * rs + 8 * pu, spx + 424 * pw - 40 * cu, sby + 376.25 * pu, ws_nums_hit.hover, pu)
+                zone box ws_nums_hit { at: spx + 424 * pw - 19 * cu, sby + 376.25 * pu; size: 44 * cu, 28 * cu; cursor: pointer; active: (sby + 376.25 * pu) - wsg.off > sby and (sby + 376.25 * pu) - wsg.off < sby + set.h * pu and ws_style != 3; label: "Number on each mark" }
                 on scroll ws_nums_hit { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
                 on press ws_nums_hit { emit ws_toggle_nums }
             }
             group {
                 opacity: if(ws_style == 3 or ws_nums, 1, 0.45)
                 let wsm2.k = if(wsm2.height > 26, 2, 1)          // the hint wraps to two lines beside the picker: the title rises so the pair stays centred on it
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 470 * pu - (6.5 + 8 * (wsm2.k - 1)) * pu + 0.5); text "Numerals" { at: floor(spx + 14 * pw + 0.5), floor(sby + 470 * pu - (6.5 + 8 * (wsm2.k - 1)) * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 470 * pu + (7.5 - 8 * (wsm2.k - 1)) * pu - 8.5 * rs + 0.5); text "How the numbers are written" { at: floor(spx + 14 * pw + 0.5), floor(sby + 470 * pu + (7.5 - 8 * (wsm2.k - 1)) * pu - 8.5 * rs + 0.5); anchor: left top; size: 13.5; width: (128 * pw - 10 * pu) / rs; lines: 2; measure: wsm2; color: faint; family: "Space Grotesk" } }
-                zone box ws_nrl_hit_sl { at: spx + 283 * pw, sby + 470 * pu; size: 282 * pw, 24 * pu }
-                SetPick(spx + 189 * pw, sby + 470 * pu, 94 * pw, 3, 24 * pu, ws_numerals, ws_nrl_hit_sl.hover, pu)
+                measure ldr_wor5
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 415 * pu - (6.5 + 8 * (wsm2.k - 1)) * pu + 0.5); text "Numerals" { at: floor(spx + 14 * pw + 0.5), floor(sby + 415 * pu - (6.5 + 8 * (wsm2.k - 1)) * pu + 0.5); measure: ldr_wor5; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 415 * pu + (7.5 - 8 * (wsm2.k - 1)) * pu - 8.5 * rs + 0.5); text "How the numbers are written" { at: floor(spx + 14 * pw + 0.5), floor(sby + 415 * pu + (7.5 - 8 * (wsm2.k - 1)) * pu - 8.5 * rs + 0.5); anchor: left top; size: 13.5; width: (128 * pw - 10 * pu) / rs; lines: 2; measure: wsm2; color: faint; family: "Space Grotesk" } }
+                zone box ws_nrl_hit_sl { at: spx + 283 * pw, sby + 415 * pu; size: 282 * pw, 24 * pu }
+                SetPick(spx + 189 * pw, sby + 415 * pu, 94 * pw, 3, 24 * pu, ws_numerals, ws_nrl_hit_sl.hover, pu)
+                PLeader(spx + 14 * pw + max(ldr_wor5.width, wsm2.width) * rs + 8 * pu, spx + 189 * pw - 94 * pw / 2 - 6 * pu, sby + 415 * pu, ws_nrl_hit_sl.hover, pu)
                 repeat i in 0..3 {
                     let lx = spx + 189 * pw + i * 94 * pw
-                    box { at: lx, sby + 470 * pu; size: 88 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ws_nrl_hit.$i.hover }
-                    group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 470 * pu + 0.5); text pick(i, "1 2 3", "I II III", "") { at: floor(lx + 0.5), floor(sby + 470 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (84 * pw) / rs; lines: 1; color: if(ws_numerals == i, mint, ink); family: "Space Grotesk" } }
-                    zone box ws_nrl_hit.$i { at: lx, sby + 470 * pu; size: 90 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 470 * pu) - wsg.off > sby and (sby + 470 * pu) - wsg.off < sby + set.h * pu and true; label: pick(i, "1 2 3", "I II III", "") }
+                    box { at: lx, sby + 415 * pu; size: 88 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ws_nrl_hit.$i.hover }
+                    group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 415 * pu + 0.5); text pick(i, "1 2 3", "I II III", "") { at: floor(lx + 0.5), floor(sby + 415 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (84 * pw) / rs; lines: 1; color: if(ws_numerals == i, mint, ink); family: "Space Grotesk" } }
+                    zone box ws_nrl_hit.$i { at: lx, sby + 415 * pu; size: 90 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 415 * pu) - wsg.off > sby and (sby + 415 * pu) - wsg.off < sby + set.h * pu and true; label: pick(i, "1 2 3", "I II III", "") }
                     on scroll ws_nrl_hit.$i { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
                     on press ws_nrl_hit.$i { emit ws_pick_numerals(i) }
                 }
             }
             //  (the third word is kanji, in Zen Kurenaido: Space Grotesk has none, and a text is drawn in its one font)
-            group { scale: rs; pivot: floor(spx + 377 * pw + 0.5), floor(sby + 470 * pu + 0.5); text "一 二 三" { at: floor(spx + 377 * pw + 0.5), floor(sby + 470 * pu + 0.5); anchor: center; align: center; size: 16; color: if(ws_numerals == 2, mint, ink); opacity: if(ws_style == 3 or ws_nums, 1, 0.45); family: "Zen Kurenaido" } }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 519 * pu + 0.5); text "BEHAVIOUR" { at: floor(spx + 14 * pw + 0.5), floor(sby + 519 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 622 * pu; size: 438 * pw, 180 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pw, sby + 622 * pu, 438 * pw, 180 * pu, 815.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pw, sby + 622 * pu; size: 438 * pw, 180 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pw, sby + 622 * pu; size: 438 * pw, 180 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            box { at: spx + 219 * pw, sby + 622 * pu; size: 438 * pw, 180 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            group { scale: rs; pivot: floor(spx + 377 * pw + 0.5), floor(sby + 415 * pu + 0.5); text "一 二 三" { at: floor(spx + 377 * pw + 0.5), floor(sby + 415 * pu + 0.5); anchor: center; align: center; size: 16; color: if(ws_numerals == 2, mint, ink); opacity: if(ws_style == 3 or ws_nums, 1, 0.45); family: "Zen Kurenaido" } }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 464 * pu + 0.5); text "BEHAVIOUR" { at: floor(spx + 14 * pw + 0.5), floor(sby + 464 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 552 * pu; size: 438 * pw, 150 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 552 * pu, 438 * pw, 150 * pu, 815.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 552 * pu; size: 438 * pw, 150 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 552 * pu; size: 438 * pw, 150 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 552 * pu; size: 438 * pw, 150 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             group {
                 opacity: 1
                 let wsm3.k = if(wsm3.height > 26, 2, 1)          // the hint wraps to two lines beside the picker: the title rises so the pair stays centred on it
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 570 * pu - (6.5 + 8 * (wsm3.k - 1)) * pu + 0.5); text "Moving between" { at: floor(spx + 14 * pw + 0.5), floor(sby + 570 * pu - (6.5 + 8 * (wsm3.k - 1)) * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 570 * pu + (7.5 - 8 * (wsm3.k - 1)) * pu - 8.5 * rs + 0.5); text pick(ws_motion, "The lit mark stretches to the next workspace and gathers there", "The lit mark slides across as one piece", "The old one fades out as the new one lights up") { at: floor(spx + 14 * pw + 0.5), floor(sby + 570 * pu + (7.5 - 8 * (wsm3.k - 1)) * pu - 8.5 * rs + 0.5); anchor: left top; size: 13.5; width: (164 * pw - 10 * pu) / rs; lines: 2; measure: wsm3; color: faint; family: "Space Grotesk" } }
-                zone box ws_mo_hit_sl { at: spx + 301 * pw, sby + 570 * pu; size: 246 * pw, 24 * pu }
-                SetPick(spx + 219 * pw, sby + 570 * pu, 82 * pw, 3, 24 * pu, ws_motion, ws_mo_hit_sl.hover, pu)
+                measure ldr_wor6
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 515 * pu - (6.5 + 8 * (wsm3.k - 1)) * pu + 0.5); text "Moving between" { at: floor(spx + 14 * pw + 0.5), floor(sby + 515 * pu - (6.5 + 8 * (wsm3.k - 1)) * pu + 0.5); measure: ldr_wor6; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 515 * pu + (7.5 - 8 * (wsm3.k - 1)) * pu - 8.5 * rs + 0.5); text pick(ws_motion, "The lit mark stretches to the next workspace and gathers there", "The lit mark slides across as one piece", "The old one fades out as the new one lights up") { at: floor(spx + 14 * pw + 0.5), floor(sby + 515 * pu + (7.5 - 8 * (wsm3.k - 1)) * pu - 8.5 * rs + 0.5); anchor: left top; size: 13.5; width: (164 * pw - 10 * pu) / rs; lines: 2; measure: wsm3; color: faint; family: "Space Grotesk" } }
+                zone box ws_mo_hit_sl { at: spx + 301 * pw, sby + 515 * pu; size: 246 * pw, 24 * pu }
+                SetPick(spx + 219 * pw, sby + 515 * pu, 82 * pw, 3, 24 * pu, ws_motion, ws_mo_hit_sl.hover, pu)
+                PLeader(spx + 14 * pw + max(ldr_wor6.width, wsm3.width) * rs + 8 * pu, spx + 219 * pw - 82 * pw / 2 - 6 * pu, sby + 515 * pu, ws_mo_hit_sl.hover, pu)
                 repeat i in 0..3 {
                     let lx = spx + 219 * pw + i * 82 * pw
-                    box { at: lx, sby + 570 * pu; size: 76 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ws_mo_hit.$i.hover }
-                    group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 570 * pu + 0.5); text pick(i, "Stretch", "Slide", "Fade") { at: floor(lx + 0.5), floor(sby + 570 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (72 * pw) / rs; lines: 1; color: if(ws_motion == i, mint, ink); family: "Space Grotesk" } }
-                    zone box ws_mo_hit.$i { at: lx, sby + 570 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 570 * pu) - wsg.off > sby and (sby + 570 * pu) - wsg.off < sby + set.h * pu and true; label: pick(i, "Stretch", "Slide", "Fade") }
+                    box { at: lx, sby + 515 * pu; size: 76 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ws_mo_hit.$i.hover }
+                    group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 515 * pu + 0.5); text pick(i, "Stretch", "Slide", "Fade") { at: floor(lx + 0.5), floor(sby + 515 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (72 * pw) / rs; lines: 1; color: if(ws_motion == i, mint, ink); family: "Space Grotesk" } }
+                    zone box ws_mo_hit.$i { at: lx, sby + 515 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 515 * pu) - wsg.off > sby and (sby + 515 * pu) - wsg.off < sby + set.h * pu and true; label: pick(i, "Stretch", "Slide", "Fade") }
                     on scroll ws_mo_hit.$i { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
                     on press ws_mo_hit.$i { emit ws_pick_motion(i) }
                 }
@@ -175,15 +190,17 @@ part Workspaces {
             group {
                 opacity: 1
                 let wsm4.k = if(wsm4.height > 26, 2, 1)          // the hint wraps to two lines beside the picker: the title rises so the pair stays centred on it
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 626 * pu - (6.5 + 8 * (wsm4.k - 1)) * pu + 0.5); text "Asking for attention" { at: floor(spx + 14 * pw + 0.5), floor(sby + 626 * pu - (6.5 + 8 * (wsm4.k - 1)) * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 626 * pu + (7.5 - 8 * (wsm4.k - 1)) * pu - 8.5 * rs + 0.5); text pick(if(ws_pulse, 1, 0), "A workspace whose app wants you turns coral until you go there", "A workspace whose app wants you turns coral, slowly pulsing") { at: floor(spx + 14 * pw + 0.5), floor(sby + 626 * pu + (7.5 - 8 * (wsm4.k - 1)) * pu - 8.5 * rs + 0.5); anchor: left top; size: 13.5; width: (246 * pw - 10 * pu) / rs; lines: 2; measure: wsm4; color: faint; family: "Space Grotesk" } }
-                zone box ws_urg_hit_sl { at: spx + 342 * pw, sby + 626 * pu; size: 164 * pw, 24 * pu }
-                SetPick(spx + 301 * pw, sby + 626 * pu, 82 * pw, 2, 24 * pu, if(ws_pulse, 1, 0), ws_urg_hit_sl.hover, pu)
+                measure ldr_wor7
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 556 * pu - (6.5 + 8 * (wsm4.k - 1)) * pu + 0.5); text "Asking for attention" { at: floor(spx + 14 * pw + 0.5), floor(sby + 556 * pu - (6.5 + 8 * (wsm4.k - 1)) * pu + 0.5); measure: ldr_wor7; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 556 * pu + (7.5 - 8 * (wsm4.k - 1)) * pu - 8.5 * rs + 0.5); text pick(if(ws_pulse, 1, 0), "A workspace whose app wants you turns coral until you go there", "A workspace whose app wants you turns coral, slowly pulsing") { at: floor(spx + 14 * pw + 0.5), floor(sby + 556 * pu + (7.5 - 8 * (wsm4.k - 1)) * pu - 8.5 * rs + 0.5); anchor: left top; size: 13.5; width: (246 * pw - 10 * pu) / rs; lines: 2; measure: wsm4; color: faint; family: "Space Grotesk" } }
+                zone box ws_urg_hit_sl { at: spx + 342 * pw, sby + 556 * pu; size: 164 * pw, 24 * pu }
+                SetPick(spx + 301 * pw, sby + 556 * pu, 82 * pw, 2, 24 * pu, if(ws_pulse, 1, 0), ws_urg_hit_sl.hover, pu)
+                PLeader(spx + 14 * pw + max(ldr_wor7.width, wsm4.width) * rs + 8 * pu, spx + 301 * pw - 82 * pw / 2 - 6 * pu, sby + 556 * pu, ws_urg_hit_sl.hover, pu)
                 repeat i in 0..2 {
                     let lx = spx + 301 * pw + i * 82 * pw
-                    box { at: lx, sby + 626 * pu; size: 76 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ws_urg_hit.$i.hover }
-                    group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 626 * pu + 0.5); text pick(i, "Still", "Breathe") { at: floor(lx + 0.5), floor(sby + 626 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (72 * pw) / rs; lines: 1; color: if(if(ws_pulse, 1, 0) == i, mint, ink); family: "Space Grotesk" } }
-                    zone box ws_urg_hit.$i { at: lx, sby + 626 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 626 * pu) - wsg.off > sby and (sby + 626 * pu) - wsg.off < sby + set.h * pu and true; label: pick(i, "Still", "Breathe") }
+                    box { at: lx, sby + 556 * pu; size: 76 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ws_urg_hit.$i.hover }
+                    group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 556 * pu + 0.5); text pick(i, "Still", "Breathe") { at: floor(lx + 0.5), floor(sby + 556 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (72 * pw) / rs; lines: 1; color: if(if(ws_pulse, 1, 0) == i, mint, ink); family: "Space Grotesk" } }
+                    zone box ws_urg_hit.$i { at: lx, sby + 556 * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 556 * pu) - wsg.off > sby and (sby + 556 * pu) - wsg.off < sby + set.h * pu and true; label: pick(i, "Still", "Breathe") }
                     on scroll ws_urg_hit.$i { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
                     on press ws_urg_hit.$i { emit ws_pick_urgent(i) }
                 }
@@ -191,39 +208,45 @@ part Workspaces {
             group {
                 opacity: 1
                 let wsm5.k = if(wsm5.height > 26, 2, 1)          // the hint wraps to two lines beside the picker: the title rises so the pair stays centred on it
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 682 * pu - (6.5 + 8 * (wsm5.k - 1)) * pu + 0.5); text "Colour" { at: floor(spx + 14 * pw + 0.5), floor(sby + 682 * pu - (6.5 + 8 * (wsm5.k - 1)) * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 682 * pu + (7.5 - 8 * (wsm5.k - 1)) * pu - 8.5 * rs + 0.5); text "The colour of the workspace you are on" { at: floor(spx + 14 * pw + 0.5), floor(sby + 682 * pu + (7.5 - 8 * (wsm5.k - 1)) * pu - 8.5 * rs + 0.5); anchor: left top; size: 13.5; width: (146 * pw - 10 * pu) / rs; lines: 2; measure: wsm5; color: faint; family: "Space Grotesk" } }
-                zone box ws_acc_hit_sl { at: spx + 292 * pw, sby + 682 * pu; size: 264 * pw, 24 * pu }
-                SetPick(spx + 204 * pw, sby + 682 * pu, 88 * pw, 3, 24 * pu, ws_accent, ws_acc_hit_sl.hover, pu)
+                measure ldr_wor8
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 597 * pu - (6.5 + 8 * (wsm5.k - 1)) * pu + 0.5); text "Colour" { at: floor(spx + 14 * pw + 0.5), floor(sby + 597 * pu - (6.5 + 8 * (wsm5.k - 1)) * pu + 0.5); measure: ldr_wor8; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 597 * pu + (7.5 - 8 * (wsm5.k - 1)) * pu - 8.5 * rs + 0.5); text "The colour of the workspace you are on" { at: floor(spx + 14 * pw + 0.5), floor(sby + 597 * pu + (7.5 - 8 * (wsm5.k - 1)) * pu - 8.5 * rs + 0.5); anchor: left top; size: 13.5; width: (146 * pw - 10 * pu) / rs; lines: 2; measure: wsm5; color: faint; family: "Space Grotesk" } }
+                zone box ws_acc_hit_sl { at: spx + 292 * pw, sby + 597 * pu; size: 264 * pw, 24 * pu }
+                SetPick(spx + 204 * pw, sby + 597 * pu, 88 * pw, 3, 24 * pu, ws_accent, ws_acc_hit_sl.hover, pu)
+                PLeader(spx + 14 * pw + max(ldr_wor8.width, wsm5.width) * rs + 8 * pu, spx + 204 * pw - 88 * pw / 2 - 6 * pu, sby + 597 * pu, ws_acc_hit_sl.hover, pu)
                 repeat i in 0..3 {
                     let lx = spx + 204 * pw + i * 88 * pw
-                    box { at: lx, sby + 682 * pu; size: 82 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ws_acc_hit.$i.hover }
-                    group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 682 * pu + 0.5); text pick(i, "Theme", "Wallpaper", "White") { at: floor(lx + 0.5), floor(sby + 682 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (78 * pw) / rs; lines: 1; color: if(ws_accent == i, mint, ink); family: "Space Grotesk" } }
-                    zone box ws_acc_hit.$i { at: lx, sby + 682 * pu; size: 84 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 682 * pu) - wsg.off > sby and (sby + 682 * pu) - wsg.off < sby + set.h * pu and true; label: pick(i, "Theme", "Wallpaper", "White") }
+                    box { at: lx, sby + 597 * pu; size: 82 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ws_acc_hit.$i.hover }
+                    group { scale: rs; pivot: floor(lx + 0.5), floor(sby + 597 * pu + 0.5); text pick(i, "Theme", "Wallpaper", "White") { at: floor(lx + 0.5), floor(sby + 597 * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; width: (78 * pw) / rs; lines: 1; color: if(ws_accent == i, mint, ink); family: "Space Grotesk" } }
+                    zone box ws_acc_hit.$i { at: lx, sby + 597 * pu; size: 84 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (sby + 597 * pu) - wsg.off > sby and (sby + 597 * pu) - wsg.off < sby + set.h * pu and true; label: pick(i, "Theme", "Wallpaper", "White") }
                     on scroll ws_acc_hit.$i { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
                     on press ws_acc_hit.$i { emit ws_pick_accent(i) }
                 }
             }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 729 * pu + 0.5); text "SIZE" { at: floor(spx + 14 * pw + 0.5), floor(sby + 729 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 807 * pu; size: 438 * pw, 130 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pw, sby + 807 * pu, 438 * pw, 130 * pu, 816.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pw, sby + 807 * pu; size: 438 * pw, 130 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pw, sby + 807 * pu; size: 438 * pw, 130 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            box { at: spx + 219 * pw, sby + 807 * pu; size: 438 * pw, 130 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 766 * pu + 0.5); text "Size" { at: floor(spx + 14 * pw + 0.5), floor(sby + 766 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 766 * pu + 0.5); text ws_size_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 766 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
-            PSlider(spx + 14 * pw, sby + 790 * pu, 410 * pw, clamp((ws_size - 0.75) / 0.75, 0, 1), ws_size_hit.hover, cu, 10 * pu, 0)
-            zone box ws_size_hit { at: spx + 219 * pw, sby + 790 * pu; size: 438 * pw, 26 * pu; cursor: pointer; active: (sby + 790 * pu) - wsg.off > sby and (sby + 790 * pu) - wsg.off < sby + set.h * pu; label: "Size" }
-            on press ws_size_hit { emit ws_set_size(clamp(((pointer.x - tx.pnl) - (spx + 14 * pw)) / (410 * pw), 0, 1)) }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 644 * pu + 0.5); text "SIZE" { at: floor(spx + 14 * pw + 0.5), floor(sby + 644 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 699.5 * pu; size: 438 * pw, 85 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 699.5 * pu, 438 * pw, 85 * pu, 816.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 699.5 * pu; size: 438 * pw, 85 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 699.5 * pu; size: 438 * pw, 85 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 699.5 * pu; size: 438 * pw, 85 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            measure ldr_word1
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 681 * pu + 0.5); text "Size" { at: floor(spx + 14 * pw + 0.5), floor(sby + 681 * pu + 0.5); measure: ldr_word1; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 681 * pu + 0.5); text ws_size_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 681 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
+            PSlider(spx + 122 * pw, sby + 681 * pu, 250 * pw, clamp((ws_size - 0.75) / 0.75, 0, 1), ws_size_hit.hover, cu, 12 * pu, 0)
+            PLeader(spx + 14 * pw + ldr_word1.width * rs + 8 * pu, spx + 122 * pw - 6 * pu, sby + 681 * pu, ws_size_hit.hover, pu)
+            zone box ws_size_hit { at: spx + 247 * pw, sby + 681 * pu; size: 250 * pw + 28 * pu, 26 * pu; cursor: pointer; active: (sby + 681 * pu) - wsg.off > sby and (sby + 681 * pu) - wsg.off < sby + set.h * pu; label: "Size" }
+            on press ws_size_hit { emit ws_set_size(clamp(((pointer.x - tx.pnl) - (spx + 122 * pw)) / (250 * pw), 0, 1)) }
             on scroll ws_size_hit { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
-            on drag ws_size_hit { emit ws_set_size(clamp(((pointer.x - tx.pnl) - (spx + 14 * pw)) / (410 * pw), 0, 1)) }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 822 * pu + 0.5); text "Spacing" { at: floor(spx + 14 * pw + 0.5), floor(sby + 822 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 822 * pu + 0.5); text ws_gap_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 822 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
-            PSlider(spx + 14 * pw, sby + 846 * pu, 410 * pw, clamp((ws_gap - 4) / 12, 0, 1), ws_gap_hit.hover, cu, 10 * pu, 0)
-            zone box ws_gap_hit { at: spx + 219 * pw, sby + 846 * pu; size: 438 * pw, 26 * pu; cursor: pointer; active: (sby + 846 * pu) - wsg.off > sby and (sby + 846 * pu) - wsg.off < sby + set.h * pu; label: "Spacing" }
-            on press ws_gap_hit { emit ws_set_gap(clamp(((pointer.x - tx.pnl) - (spx + 14 * pw)) / (410 * pw), 0, 1)) }
+            on drag ws_size_hit { emit ws_set_size(clamp(((pointer.x - tx.pnl) - (spx + 122 * pw)) / (250 * pw), 0, 1)) }
+            measure ldr_word2
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 716 * pu + 0.5); text "Spacing" { at: floor(spx + 14 * pw + 0.5), floor(sby + 716 * pu + 0.5); measure: ldr_word2; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 716 * pu + 0.5); text ws_gap_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 716 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
+            PSlider(spx + 122 * pw, sby + 716 * pu, 250 * pw, clamp((ws_gap - 4) / 12, 0, 1), ws_gap_hit.hover, cu, 12 * pu, 0)
+            PLeader(spx + 14 * pw + ldr_word2.width * rs + 8 * pu, spx + 122 * pw - 6 * pu, sby + 716 * pu, ws_gap_hit.hover, pu)
+            zone box ws_gap_hit { at: spx + 247 * pw, sby + 716 * pu; size: 250 * pw + 28 * pu, 26 * pu; cursor: pointer; active: (sby + 716 * pu) - wsg.off > sby and (sby + 716 * pu) - wsg.off < sby + set.h * pu; label: "Spacing" }
+            on press ws_gap_hit { emit ws_set_gap(clamp(((pointer.x - tx.pnl) - (spx + 122 * pw)) / (250 * pw), 0, 1)) }
             on scroll ws_gap_hit { wsg_scroll_to = clamp(wsg_scroll_to - wheel * 44, 0, max(0, wsg.h - set.h)) }
-            on drag ws_gap_hit { emit ws_set_gap(clamp(((pointer.x - tx.pnl) - (spx + 14 * pw)) / (410 * pw), 0, 1)) }
+            on drag ws_gap_hit { emit ws_set_gap(clamp(((pointer.x - tx.pnl) - (spx + 122 * pw)) / (250 * pw), 0, 1)) }
             }
             let wsg.thh = set.h * set.h / max(set.h, wsg.h)
             let wsg.thy = wsg.thh / 2 + wsg.sc / max(1, wsg.h - set.h) * (set.h - wsg.thh)

@@ -8,9 +8,9 @@ part Clock {
             opacity: set_pgk
             let ck.sc = clamp(ck_scroll, 0, max(0, ck.h - set.h))
             let ck.off = floor(ck.sc * pu + 0.5)         // whole pixels: text that is shifted by a fraction of one is resampled, and looks soft
-            let fws.x0 = spx + 14 * pw            // the visualiser's sliders: where their tracks start, how long, how thick
-            let fws.w = 336 * pw
-            let fws.h = 10 * pu
+            let fws.x0 = spx + 122 * pw            // the visualiser's sliders: where their tracks start, how long, how thick
+            let fws.w = 250 * pw              // beside its name, in the middle column, the value after it (as every slider in Settings)
+            let fws.h = 12 * pu
             clip box { at: spx + 224 * pw, sby + set.h / 2 * pu; size: 456 * pw, set.h * pu }
             zone box ck_wheel { at: spx + 219 * pw, sby + set.h / 2 * pu; size: 446 * pw, set.h * pu }
             on scroll ck_wheel { ck_scroll_to = clamp(ck_scroll_to - wheel * 44, 0, max(0, ck.h - set.h)) }
@@ -33,11 +33,14 @@ part Clock {
             box { at: spx + 219 * pw, sby + 34 * pu; size: 438 * pw, 56 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
             box { at: spx + 219 * pw, sby + 34 * pu; size: 438 * pw, 56 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             box { at: spx + 219 * pw, sby + 34 * pu; size: 438 * pw, 56 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 24 * pu + 0.5); text "Desktop clock" { at: floor(spx + 14 * pw + 0.5), floor(sby + 24 * pu + 0.5); anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 44 * pu + 0.5); text "The time on your wallpaper, under the windows" { at: floor(spx + 14 * pw + 0.5), floor(sby + 44 * pu + 0.5); anchor: left center; size: 13.5; color: faint; show: ck_ok; family: "Space Grotesk" } }
+            measure ldr_cloc1
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 24 * pu + 0.5); text "Desktop clock" { at: floor(spx + 14 * pw + 0.5), floor(sby + 24 * pu + 0.5); measure: ldr_cloc1; anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" } }
+            measure ldh_cloc1
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 44 * pu + 0.5); text "The time on your wallpaper, under the windows" { at: floor(spx + 14 * pw + 0.5), floor(sby + 44 * pu + 0.5); measure: ldh_cloc1; anchor: left center; size: 13.5; color: faint; show: ck_ok; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 44 * pu + 0.5); text "Not running: turn the switch on to start it" { at: floor(spx + 14 * pw + 0.5), floor(sby + 44 * pu + 0.5); anchor: left center; size: 13.5; color: faint; show: not ck_ok; family: "Space Grotesk" } }
             SettingsSwitch(spx + 424 * pw, sby + 34 * pu, ck_pill, ck_hit.pressed, ck_hit.hover, mint)
-            zone box ck_hit { at: spx + 424 * pw - 19 * pu, sby + 34 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 34 * pu) - ck.off > sby and (sby + 34 * pu) - ck.off < sby + set.h * pu }
+            PLeader(spx + 14 * pw + max(ldr_cloc1.width, ldh_cloc1.width) * rs + 8 * pu, spx + 424 * pw - 40 * cu, sby + 34 * pu, ck_hit.hover, pu)
+            zone box ck_hit { at: spx + 424 * pw - 19 * cu, sby + 34 * pu; size: 44 * cu, 28 * cu; cursor: pointer; active: (sby + 34 * pu) - ck.off > sby and (sby + 34 * pu) - ck.off < sby + set.h * pu; label: "Desktop clock" }
             on press ck_hit { emit ck_toggle }
 
             //  The style: the chosen one large, on a dark stage (the real face, with the clock's own time and date), and the five as picture tiles under it.
@@ -84,39 +87,46 @@ part Clock {
             box { at: spx + 219 * pw, sby + 442 * pu; size: 438 * pw, 124 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             box { at: spx + 219 * pw, sby + 442 * pu; size: 438 * pw, 124 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 367 * pu + 0.5); text "OPTIONS" { at: floor(spx + 14 * pw + 0.5), floor(sby + 367 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 406 * pu + 0.5); text "Size" { at: floor(spx + 14 * pw + 0.5), floor(sby + 406 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            SetPick(spx + 195 * pw, sby + 406 * pu, 66 * pw, 4, 24 * pu, cks1 + 2 * cks2 + 3 * cks3, clamp(ck_s0.hover + ck_s1.hover + ck_s2.hover + ck_s3.hover, 0, 1), pu, 1, 0, 0, clamp(cks0 + cks1 + cks2 + cks3, 0, 1))
-            box { at: spx + 195 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ck_s0.hover }
-            group { scale: rs; pivot: floor(spx + 195 * pw + 0.5), floor(sby + 406 * pu + 0.5); text "Small" { at: floor(spx + 195 * pw + 0.5), floor(sby + 406 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (58 * pw) / rs; lines: 1; color: mix(ink, mint, cks0); family: "Space Grotesk" } }
-            zone box ck_s0 { at: spx + 195 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 406 * pu) - ck.off > sby and (sby + 406 * pu) - ck.off < sby + set.h * pu }
+            measure ldr_clo1
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 406 * pu + 0.5); text "Size" { at: floor(spx + 14 * pw + 0.5), floor(sby + 406 * pu + 0.5); measure: ldr_clo1; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            SetPick(spx + 193 * pw, sby + 406 * pu, 66 * pw, 4, 24 * pu, cks1 + 2 * cks2 + 3 * cks3, clamp(ck_s0.hover + ck_s1.hover + ck_s2.hover + ck_s3.hover, 0, 1), pu, 1, 0, 0, clamp(cks0 + cks1 + cks2 + cks3, 0, 1))
+            PLeader(spx + 14 * pw + ldr_clo1.width * rs + 8 * pu, spx + 193 * pw - 66 * pw / 2 - 6 * pu, sby + 406 * pu, clamp(ck_s0.hover + ck_s1.hover + ck_s2.hover + ck_s3.hover, 0, 1), pu)
+            box { at: spx + 193 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ck_s0.hover }
+            group { scale: rs; pivot: floor(spx + 193 * pw + 0.5), floor(sby + 406 * pu + 0.5); text "Small" { at: floor(spx + 193 * pw + 0.5), floor(sby + 406 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (58 * pw) / rs; lines: 1; color: mix(ink, mint, cks0); family: "Space Grotesk" } }
+            zone box ck_s0 { at: spx + 193 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 406 * pu) - ck.off > sby and (sby + 406 * pu) - ck.off < sby + set.h * pu }
             on press ck_s0 { emit ck_size_set(0) }
-            box { at: spx + 261 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ck_s1.hover }
-            group { scale: rs; pivot: floor(spx + 261 * pw + 0.5), floor(sby + 406 * pu + 0.5); text "Medium" { at: floor(spx + 261 * pw + 0.5), floor(sby + 406 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (58 * pw) / rs; lines: 1; color: mix(ink, mint, cks1); family: "Space Grotesk" } }
-            zone box ck_s1 { at: spx + 261 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 406 * pu) - ck.off > sby and (sby + 406 * pu) - ck.off < sby + set.h * pu }
+            box { at: spx + 259 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ck_s1.hover }
+            group { scale: rs; pivot: floor(spx + 259 * pw + 0.5), floor(sby + 406 * pu + 0.5); text "Medium" { at: floor(spx + 259 * pw + 0.5), floor(sby + 406 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (58 * pw) / rs; lines: 1; color: mix(ink, mint, cks1); family: "Space Grotesk" } }
+            zone box ck_s1 { at: spx + 259 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 406 * pu) - ck.off > sby and (sby + 406 * pu) - ck.off < sby + set.h * pu }
             on press ck_s1 { emit ck_size_set(1) }
-            box { at: spx + 327 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ck_s2.hover }
-            group { scale: rs; pivot: floor(spx + 327 * pw + 0.5), floor(sby + 406 * pu + 0.5); text "Large" { at: floor(spx + 327 * pw + 0.5), floor(sby + 406 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (58 * pw) / rs; lines: 1; color: mix(ink, mint, cks2); family: "Space Grotesk" } }
-            zone box ck_s2 { at: spx + 327 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 406 * pu) - ck.off > sby and (sby + 406 * pu) - ck.off < sby + set.h * pu }
+            box { at: spx + 325 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ck_s2.hover }
+            group { scale: rs; pivot: floor(spx + 325 * pw + 0.5), floor(sby + 406 * pu + 0.5); text "Large" { at: floor(spx + 325 * pw + 0.5), floor(sby + 406 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (58 * pw) / rs; lines: 1; color: mix(ink, mint, cks2); family: "Space Grotesk" } }
+            zone box ck_s2 { at: spx + 325 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 406 * pu) - ck.off > sby and (sby + 406 * pu) - ck.off < sby + set.h * pu }
             on press ck_s2 { emit ck_size_set(2) }
-            box { at: spx + 393 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ck_s3.hover }
-            group { scale: rs; pivot: floor(spx + 393 * pw + 0.5), floor(sby + 406 * pu + 0.5); text "Huge" { at: floor(spx + 393 * pw + 0.5), floor(sby + 406 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (58 * pw) / rs; lines: 1; color: mix(ink, mint, cks3); family: "Space Grotesk" } }
-            zone box ck_s3 { at: spx + 393 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 406 * pu) - ck.off > sby and (sby + 406 * pu) - ck.off < sby + set.h * pu }
+            box { at: spx + 391 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ck_s3.hover }
+            group { scale: rs; pivot: floor(spx + 391 * pw + 0.5), floor(sby + 406 * pu + 0.5); text "Huge" { at: floor(spx + 391 * pw + 0.5), floor(sby + 406 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (58 * pw) / rs; lines: 1; color: mix(ink, mint, cks3); family: "Space Grotesk" } }
+            zone box ck_s3 { at: spx + 391 * pw, sby + 406 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 406 * pu) - ck.off > sby and (sby + 406 * pu) - ck.off < sby + set.h * pu }
             on press ck_s3 { emit ck_size_set(3) }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 442 * pu + 0.5); text "Hours" { at: floor(spx + 14 * pw + 0.5), floor(sby + 442 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            SetPick(spx + 268 * pw, sby + 442 * pu, 106 * pw, 2, 24 * pu, ckh24, clamp(ck_h0.hover + ck_h1.hover, 0, 1), pu, 1, 0, 0, clamp(ckh12 + ckh24, 0, 1))
-            box { at: spx + 268 * pw, sby + 442 * pu; size: 100 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ck_h0.hover }
-            group { scale: rs; pivot: floor(spx + 268 * pw + 0.5), floor(sby + 442 * pu + 0.5); text "12-hour" { at: floor(spx + 268 * pw + 0.5), floor(sby + 442 * pu + 0.5); anchor: center; align: center; size: 14.5; weight: 700; width: (96 * pw) / rs; lines: 1; color: mix(ink, mint, ckh12); family: "Space Grotesk" } }
-            zone box ck_h0 { at: spx + 268 * pw, sby + 442 * pu; size: 100 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 442 * pu) - ck.off > sby and (sby + 442 * pu) - ck.off < sby + set.h * pu }
+            measure ldr_clo2
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 442 * pu + 0.5); text "Hours" { at: floor(spx + 14 * pw + 0.5), floor(sby + 442 * pu + 0.5); measure: ldr_clo2; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            SetPick(spx + 265 * pw, sby + 442 * pu, 106 * pw, 2, 24 * pu, ckh24, clamp(ck_h0.hover + ck_h1.hover, 0, 1), pu, 1, 0, 0, clamp(ckh12 + ckh24, 0, 1))
+            PLeader(spx + 14 * pw + ldr_clo2.width * rs + 8 * pu, spx + 265 * pw - 106 * pw / 2 - 6 * pu, sby + 442 * pu, clamp(ck_h0.hover + ck_h1.hover, 0, 1), pu)
+            box { at: spx + 265 * pw, sby + 442 * pu; size: 100 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ck_h0.hover }
+            group { scale: rs; pivot: floor(spx + 265 * pw + 0.5), floor(sby + 442 * pu + 0.5); text "12-hour" { at: floor(spx + 265 * pw + 0.5), floor(sby + 442 * pu + 0.5); anchor: center; align: center; size: 14.5; weight: 700; width: (96 * pw) / rs; lines: 1; color: mix(ink, mint, ckh12); family: "Space Grotesk" } }
+            zone box ck_h0 { at: spx + 265 * pw, sby + 442 * pu; size: 100 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 442 * pu) - ck.off > sby and (sby + 442 * pu) - ck.off < sby + set.h * pu }
             on press ck_h0 { emit ck_12h_set(1) }
-            box { at: spx + 374 * pw, sby + 442 * pu; size: 100 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ck_h1.hover }
-            group { scale: rs; pivot: floor(spx + 374 * pw + 0.5), floor(sby + 442 * pu + 0.5); text "24-hour" { at: floor(spx + 374 * pw + 0.5), floor(sby + 442 * pu + 0.5); anchor: center; align: center; size: 14.5; weight: 700; width: (96 * pw) / rs; lines: 1; color: mix(ink, mint, ckh24); family: "Space Grotesk" } }
-            zone box ck_h1 { at: spx + 374 * pw, sby + 442 * pu; size: 100 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 442 * pu) - ck.off > sby and (sby + 442 * pu) - ck.off < sby + set.h * pu }
+            box { at: spx + 371 * pw, sby + 442 * pu; size: 100 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * ck_h1.hover }
+            group { scale: rs; pivot: floor(spx + 371 * pw + 0.5), floor(sby + 442 * pu + 0.5); text "24-hour" { at: floor(spx + 371 * pw + 0.5), floor(sby + 442 * pu + 0.5); anchor: center; align: center; size: 14.5; weight: 700; width: (96 * pw) / rs; lines: 1; color: mix(ink, mint, ckh24); family: "Space Grotesk" } }
+            zone box ck_h1 { at: spx + 371 * pw, sby + 442 * pu; size: 100 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 442 * pu) - ck.off > sby and (sby + 442 * pu) - ck.off < sby + set.h * pu }
             on press ck_h1 { emit ck_12h_set(0) }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 478 * pu + 0.5); text "Show on" { at: floor(spx + 14 * pw + 0.5), floor(sby + 478 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            zone box wdc_mn_sl { at: spx + 156 * pw + (max((if(cv_m.0.on, 1, 0) + if(cv_m.1.on, 1, 0) + if(cv_m.2.on, 1, 0) + if(cv_m.3.on, 1, 0)), 1) - 1) * 27 * pu, sby + 478 * pu; size: max((if(cv_m.0.on, 1, 0) + if(cv_m.1.on, 1, 0) + if(cv_m.2.on, 1, 0) + if(cv_m.3.on, 1, 0)), 1) * 54 * pu, 24 * pu }
-            SetPick(spx + 156 * pw, sby + 478 * pu, 54 * pw, max((if(cv_m.0.on, 1, 0) + if(cv_m.1.on, 1, 0) + if(cv_m.2.on, 1, 0) + if(cv_m.3.on, 1, 0)), 1), 24 * pu, ck_mon - 1, wdc_mn_sl.hover, pu, 1, 0, 0, if(ck_mon >= 1, 1, 0))
+            measure ldr_clo3
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 478 * pu + 0.5); text "Show on" { at: floor(spx + 14 * pw + 0.5), floor(sby + 478 * pu + 0.5); measure: ldr_clo3; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            let wdc_n = max((if(cv_m.0.on, 1, 0) + if(cv_m.1.on, 1, 0) + if(cv_m.2.on, 1, 0) + if(cv_m.3.on, 1, 0)), 1)          // how many choices there are: the row is laid out from the card's right edge, as every picker is
+            zone box wdc_mn_sl { at: spx + (424 - wdc_n * 54 / 2) * pw, sby + 478 * pu; size: wdc_n * 54 * pw, 24 * pu }
+            SetPick(spx + (424 - (wdc_n - 0.5) * 54) * pw, sby + 478 * pu, 54 * pw, max((if(cv_m.0.on, 1, 0) + if(cv_m.1.on, 1, 0) + if(cv_m.2.on, 1, 0) + if(cv_m.3.on, 1, 0)), 1), 24 * pu, ck_mon - 1, wdc_mn_sl.hover, pu, 1, 0, 0, if(ck_mon >= 1, 1, 0))
+            PLeader(spx + 14 * pw + ldr_clo3.width * rs + 8 * pu, spx + (424 - (wdc_n - 0.5) * 54) * pw - 54 * pw / 2 - 6 * pu, sby + 478 * pu, wdc_mn_sl.hover, pu)
             repeat k in 0..4 {
-                let wdcx = spx + (156 + k * 54) * pw
+                let wdcx = spx + (424 - (wdc_n - 0.5) * 54 + k * 54) * pw
                 box { at: wdcx, sby + 478 * pu; size: 50 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * wdc_mn.$k.hover }
                 group { scale: rs; pivot: floor(wdcx + 0.5), floor(sby + 478 * pu + 0.5); text cv_m.$k.name { at: floor(wdcx + 0.5), floor(sby + 478 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (46 * pw) / rs; lines: 1; color: mix(ink, mint, if(ck_mon == k + 1, 1, 0)); show: cv_m.$k.on; family: "Space Grotesk" } }
                 zone box wdc_mn.$k { at: wdcx, sby + 478 * pu; size: 50 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; label: "Clock: show on this monitor"; active: (cv_m.$k.on) and (sby + 478 * pu) - ck.off > sby and (sby + 478 * pu) - ck.off < sby + set.h * pu }
@@ -129,11 +139,14 @@ part Clock {
             box { at: spx + 219 * pw, sby + 540 * pu; size: 438 * pw, 56 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
             box { at: spx + 219 * pw, sby + 540 * pu; size: 438 * pw, 56 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             box { at: spx + 219 * pw, sby + 540 * pu; size: 438 * pw, 56 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 530 * pu + 0.5); text "Desktop system monitor" { at: floor(spx + 14 * pw + 0.5), floor(sby + 530 * pu + 0.5); anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 550 * pu + 0.5); text "Processor, memory, graphics and network on your wallpaper" { at: floor(spx + 14 * pw + 0.5), floor(sby + 550 * pu + 0.5); anchor: left center; size: 13.5; color: faint; show: sy_ok; family: "Space Grotesk" } }
+            measure ldr_cloc2
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 530 * pu + 0.5); text "Desktop system monitor" { at: floor(spx + 14 * pw + 0.5), floor(sby + 530 * pu + 0.5); measure: ldr_cloc2; anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" } }
+            measure ldh_cloc2
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 550 * pu + 0.5); text "Processor, memory, graphics and network on your wallpaper" { at: floor(spx + 14 * pw + 0.5), floor(sby + 550 * pu + 0.5); measure: ldh_cloc2; anchor: left center; size: 13.5; color: faint; show: sy_ok; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 550 * pu + 0.5); text "Not running: turn the switch on to start it" { at: floor(spx + 14 * pw + 0.5), floor(sby + 550 * pu + 0.5); anchor: left center; size: 13.5; color: faint; show: not sy_ok; family: "Space Grotesk" } }
             SettingsSwitch(spx + 424 * pw, sby + 540 * pu, sy_pill, sy_hit.pressed, sy_hit.hover, mint)
-            zone box sy_hit { at: spx + 424 * pw - 19 * pu, sby + 540 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 540 * pu) - ck.off > sby and (sby + 540 * pu) - ck.off < sby + set.h * pu }
+            PLeader(spx + 14 * pw + max(ldr_cloc2.width, ldh_cloc2.width) * rs + 8 * pu, spx + 424 * pw - 40 * cu, sby + 540 * pu, sy_hit.hover, pu)
+            zone box sy_hit { at: spx + 424 * pw - 19 * cu, sby + 540 * pu; size: 44 * cu, 28 * cu; cursor: pointer; active: (sby + 540 * pu) - ck.off > sby and (sby + 540 * pu) - ck.off < sby + set.h * pu; label: "Desktop system monitor" }
             on press sy_hit { emit sy_toggle }
             //  Its options: the glass, and which monitor shows it.
             body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 642 * pu; size: 438 * pw, 88 * pu; corner: 14 * pu } }
@@ -142,26 +155,31 @@ part Clock {
             box { at: spx + 219 * pw, sby + 642 * pu; size: 438 * pw, 88 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             box { at: spx + 219 * pw, sby + 642 * pu; size: 438 * pw, 88 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 585 * pu + 0.5); text "OPTIONS" { at: floor(spx + 14 * pw + 0.5), floor(sby + 585 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 624 * pu + 0.5); text "Glass" { at: floor(spx + 14 * pw + 0.5), floor(sby + 624 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            SetPick(spx + 261 * pw, sby + 624 * pu, 66 * pw, 3, 24 * pu, syc1 + 2 * syc2, clamp(sy_c0.hover + sy_c1.hover + sy_c2.hover, 0, 1), pu, 1, 0, 0, clamp(syc0 + syc1 + syc2, 0, 1))
-            box { at: spx + 261 * pw, sby + 624 * pu; size: 62 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * sy_c0.hover }
-            group { scale: rs; pivot: floor(spx + 261 * pw + 0.5), floor(sby + 624 * pu + 0.5); text "Clear" { at: floor(spx + 261 * pw + 0.5), floor(sby + 624 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (58 * pw) / rs; lines: 1; color: mix(ink, mint, syc0); family: "Space Grotesk" } }
-            zone box sy_c0 { at: spx + 261 * pw, sby + 624 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 624 * pu) - ck.off > sby and (sby + 624 * pu) - ck.off < sby + set.h * pu }
+            measure ldr_clo4
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 624 * pu + 0.5); text "Glass" { at: floor(spx + 14 * pw + 0.5), floor(sby + 624 * pu + 0.5); measure: ldr_clo4; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            SetPick(spx + 259 * pw, sby + 624 * pu, 66 * pw, 3, 24 * pu, syc1 + 2 * syc2, clamp(sy_c0.hover + sy_c1.hover + sy_c2.hover, 0, 1), pu, 1, 0, 0, clamp(syc0 + syc1 + syc2, 0, 1))
+            PLeader(spx + 14 * pw + ldr_clo4.width * rs + 8 * pu, spx + 259 * pw - 66 * pw / 2 - 6 * pu, sby + 624 * pu, clamp(sy_c0.hover + sy_c1.hover + sy_c2.hover, 0, 1), pu)
+            box { at: spx + 259 * pw, sby + 624 * pu; size: 62 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * sy_c0.hover }
+            group { scale: rs; pivot: floor(spx + 259 * pw + 0.5), floor(sby + 624 * pu + 0.5); text "Clear" { at: floor(spx + 259 * pw + 0.5), floor(sby + 624 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (58 * pw) / rs; lines: 1; color: mix(ink, mint, syc0); family: "Space Grotesk" } }
+            zone box sy_c0 { at: spx + 259 * pw, sby + 624 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 624 * pu) - ck.off > sby and (sby + 624 * pu) - ck.off < sby + set.h * pu }
             on press sy_c0 { emit sy_cl_set(0) }
-            box { at: spx + 327 * pw, sby + 624 * pu; size: 62 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * sy_c1.hover }
-            group { scale: rs; pivot: floor(spx + 327 * pw + 0.5), floor(sby + 624 * pu + 0.5); text "Soft" { at: floor(spx + 327 * pw + 0.5), floor(sby + 624 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (58 * pw) / rs; lines: 1; color: mix(ink, mint, syc1); family: "Space Grotesk" } }
-            zone box sy_c1 { at: spx + 327 * pw, sby + 624 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 624 * pu) - ck.off > sby and (sby + 624 * pu) - ck.off < sby + set.h * pu }
+            box { at: spx + 325 * pw, sby + 624 * pu; size: 62 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * sy_c1.hover }
+            group { scale: rs; pivot: floor(spx + 325 * pw + 0.5), floor(sby + 624 * pu + 0.5); text "Soft" { at: floor(spx + 325 * pw + 0.5), floor(sby + 624 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (58 * pw) / rs; lines: 1; color: mix(ink, mint, syc1); family: "Space Grotesk" } }
+            zone box sy_c1 { at: spx + 325 * pw, sby + 624 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 624 * pu) - ck.off > sby and (sby + 624 * pu) - ck.off < sby + set.h * pu }
             on press sy_c1 { emit sy_cl_set(1) }
-            box { at: spx + 393 * pw, sby + 624 * pu; size: 62 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * sy_c2.hover }
-            group { scale: rs; pivot: floor(spx + 393 * pw + 0.5), floor(sby + 624 * pu + 0.5); text "Full" { at: floor(spx + 393 * pw + 0.5), floor(sby + 624 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (58 * pw) / rs; lines: 1; color: mix(ink, mint, syc2); family: "Space Grotesk" } }
-            zone box sy_c2 { at: spx + 393 * pw, sby + 624 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 624 * pu) - ck.off > sby and (sby + 624 * pu) - ck.off < sby + set.h * pu }
+            box { at: spx + 391 * pw, sby + 624 * pu; size: 62 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * sy_c2.hover }
+            group { scale: rs; pivot: floor(spx + 391 * pw + 0.5), floor(sby + 624 * pu + 0.5); text "Full" { at: floor(spx + 391 * pw + 0.5), floor(sby + 624 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (58 * pw) / rs; lines: 1; color: mix(ink, mint, syc2); family: "Space Grotesk" } }
+            zone box sy_c2 { at: spx + 391 * pw, sby + 624 * pu; size: 62 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + 624 * pu) - ck.off > sby and (sby + 624 * pu) - ck.off < sby + set.h * pu }
             on press sy_c2 { emit sy_cl_set(2) }
 
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 660 * pu + 0.5); text "Show on" { at: floor(spx + 14 * pw + 0.5), floor(sby + 660 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            zone box wds_mn_sl { at: spx + 156 * pw + (max((if(cv_m.0.on, 1, 0) + if(cv_m.1.on, 1, 0) + if(cv_m.2.on, 1, 0) + if(cv_m.3.on, 1, 0)), 1) - 1) * 27 * pu, sby + 660 * pu; size: max((if(cv_m.0.on, 1, 0) + if(cv_m.1.on, 1, 0) + if(cv_m.2.on, 1, 0) + if(cv_m.3.on, 1, 0)), 1) * 54 * pu, 24 * pu }
-            SetPick(spx + 156 * pw, sby + 660 * pu, 54 * pw, max((if(cv_m.0.on, 1, 0) + if(cv_m.1.on, 1, 0) + if(cv_m.2.on, 1, 0) + if(cv_m.3.on, 1, 0)), 1), 24 * pu, sy_mon - 1, wds_mn_sl.hover, pu, 1, 0, 0, if(sy_mon >= 1, 1, 0))
+            measure ldr_clo5
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 660 * pu + 0.5); text "Show on" { at: floor(spx + 14 * pw + 0.5), floor(sby + 660 * pu + 0.5); measure: ldr_clo5; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            let wds_n = max((if(cv_m.0.on, 1, 0) + if(cv_m.1.on, 1, 0) + if(cv_m.2.on, 1, 0) + if(cv_m.3.on, 1, 0)), 1)          // how many choices there are: the row is laid out from the card's right edge, as every picker is
+            zone box wds_mn_sl { at: spx + (424 - wds_n * 54 / 2) * pw, sby + 660 * pu; size: wds_n * 54 * pw, 24 * pu }
+            SetPick(spx + (424 - (wds_n - 0.5) * 54) * pw, sby + 660 * pu, 54 * pw, max((if(cv_m.0.on, 1, 0) + if(cv_m.1.on, 1, 0) + if(cv_m.2.on, 1, 0) + if(cv_m.3.on, 1, 0)), 1), 24 * pu, sy_mon - 1, wds_mn_sl.hover, pu, 1, 0, 0, if(sy_mon >= 1, 1, 0))
+            PLeader(spx + 14 * pw + ldr_clo5.width * rs + 8 * pu, spx + (424 - (wds_n - 0.5) * 54) * pw - 54 * pw / 2 - 6 * pu, sby + 660 * pu, wds_mn_sl.hover, pu)
             repeat k in 0..4 {
-                let wdsx = spx + (156 + k * 54) * pw
+                let wdsx = spx + (424 - (wds_n - 0.5) * 54 + k * 54) * pw
                 box { at: wdsx, sby + 660 * pu; size: 50 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * wds_mn.$k.hover }
                 group { scale: rs; pivot: floor(wdsx + 0.5), floor(sby + 660 * pu + 0.5); text cv_m.$k.name { at: floor(wdsx + 0.5), floor(sby + 660 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (46 * pw) / rs; lines: 1; color: mix(ink, mint, if(sy_mon == k + 1, 1, 0)); show: cv_m.$k.on; family: "Space Grotesk" } }
                 zone box wds_mn.$k { at: wdsx, sby + 660 * pu; size: 50 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; label: "System monitor: show on this monitor"; active: (cv_m.$k.on) and (sby + 660 * pu) - ck.off > sby and (sby + 660 * pu) - ck.off < sby + set.h * pu }
@@ -174,10 +192,13 @@ part Clock {
             box { at: spx + 219 * pw, sby + 722 * pu; size: 438 * pw, 56 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
             box { at: spx + 219 * pw, sby + 722 * pu; size: 438 * pw, 56 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             box { at: spx + 219 * pw, sby + 722 * pu; size: 438 * pw, 56 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 712 * pu + 0.5); text "Audio visualiser" { at: floor(spx + 14 * pw + 0.5), floor(sby + 712 * pu + 0.5); anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 732 * pu + 0.5); text "The bottom of the screen rises into the music" { at: floor(spx + 14 * pw + 0.5), floor(sby + 732 * pu + 0.5); anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
+            measure ldr_cloc3
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 712 * pu + 0.5); text "Audio visualiser" { at: floor(spx + 14 * pw + 0.5), floor(sby + 712 * pu + 0.5); measure: ldr_cloc3; anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" } }
+            measure ldh_cloc3
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 732 * pu + 0.5); text "The bottom of the screen rises into the music" { at: floor(spx + 14 * pw + 0.5), floor(sby + 732 * pu + 0.5); measure: ldh_cloc3; anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
             SettingsSwitch(spx + 424 * pw, sby + 722 * pu, fw_pill, fw_hit.pressed, fw_hit.hover, mint)
-            zone box fw_hit { at: spx + 424 * pw - 19 * pu, sby + 722 * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: (sby + 722 * pu) - ck.off > sby and (sby + 722 * pu) - ck.off < sby + set.h * pu; label: "Audio visualiser" }
+            PLeader(spx + 14 * pw + max(ldr_cloc3.width, ldh_cloc3.width) * rs + 8 * pu, spx + 424 * pw - 40 * cu, sby + 722 * pu, fw_hit.hover, pu)
+            zone box fw_hit { at: spx + 424 * pw - 19 * cu, sby + 722 * pu; size: 44 * cu, 28 * cu; cursor: pointer; active: (sby + 722 * pu) - ck.off > sby and (sby + 722 * pu) - ck.off < sby + set.h * pu; label: "Audio visualiser" }
             on press fw_hit { emit fw_toggle }
             //  Its layouts: a picture each.
             body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 830 * pu; size: 438 * pw, 100 * pu; corner: 14 * pu } }
@@ -253,61 +274,72 @@ part Clock {
             zone box fw_l1 { at: (spx + 386 * pw), sby + 830 * pu; size: 76 * pu, 72 * pu; corner: 12 * pu; cursor: pointer; active: (sby + 830 * pu) - ck.off > sby and (sby + 830 * pu) - ck.off < sby + set.h * pu; label: "Layout: Corners" }
             on press fw_l1 { emit fw_lay_set(1) }
             //  Its options: four sliders, and which monitor shows it.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 1040 * pu; size: 438 * pw, 260 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pw, sby + 1040 * pu, 438 * pw, 260 * pu, 457.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pw, sby + 1040 * pu; size: 438 * pw, 260 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pw, sby + 1040 * pu; size: 438 * pw, 260 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            box { at: spx + 219 * pw, sby + 1040 * pu; size: 438 * pw, 260 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 1005.25 * pu; size: 438 * pw, 190.5 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 1005.25 * pu, 438 * pw, 190.5 * pu, 457.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 1005.25 * pu; size: 438 * pw, 190.5 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 1005.25 * pu; size: 438 * pw, 190.5 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 1005.25 * pu; size: 438 * pw, 190.5 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 897 * pu + 0.5); text "OPTIONS" { at: floor(spx + 14 * pw + 0.5), floor(sby + 897 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 934 * pu + 0.5); text "Columns" { at: floor(spx + 14 * pw + 0.5), floor(sby + 934 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            measure ldr_clod1
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 934 * pu + 0.5); text "Columns" { at: floor(spx + 14 * pw + 0.5), floor(sby + 934 * pu + 0.5); measure: ldr_clod1; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 934 * pu + 0.5); text fw_cols_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 934 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
             group {
-                PSlider(fws.x0, sby + 958 * pu, fws.w, clamp(clamp((fw_cols - 6) / 41, 0, 1), 0, 1), fw_c_hit.hover, cu, fws.h, 0)
+                PSlider(fws.x0, sby + 934 * pu, fws.w, clamp(clamp((fw_cols - 6) / 41, 0, 1), 0, 1), fw_c_hit.hover, cu, fws.h, 0)
+                PLeader(spx + 14 * pw + ldr_clod1.width * rs + 8 * pu, fws.x0 - 6 * pu, sby + 934 * pu, fw_c_hit.hover, pu)
             }
-            zone box fw_c_hit { at: fws.x0 + fws.w / 2, sby + 958 * pu; size: fws.w + 28 * pu, 26 * pu; cursor: pointer; active: (sby + 958 * pu) - ck.off > sby and (sby + 958 * pu) - ck.off < sby + set.h * pu; label: "Columns" }
+            zone box fw_c_hit { at: fws.x0 + fws.w / 2, sby + 934 * pu; size: fws.w + 28 * pu, 26 * pu; cursor: pointer; active: (sby + 934 * pu) - ck.off > sby and (sby + 934 * pu) - ck.off < sby + set.h * pu; label: "Columns" }
             on press fw_c_hit { emit fw_cols_set(clamp(((pointer.x - tx.pnl) - fws.x0) / fws.w, 0, 1)) }
             on drag fw_c_hit { emit fw_cols_set(clamp(((pointer.x - tx.pnl) - fws.x0) / fws.w, 0, 1)) }
             on scroll fw_c_hit { ck_scroll_to = clamp(ck_scroll_to - wheel * 44, 0, max(0, ck.h - set.h)) }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 984 * pu + 0.5); text "Sensitivity" { at: floor(spx + 14 * pw + 0.5), floor(sby + 984 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 984 * pu + 0.5); text fw_sens_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 984 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
+            measure ldr_clod2
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 969 * pu + 0.5); text "Sensitivity" { at: floor(spx + 14 * pw + 0.5), floor(sby + 969 * pu + 0.5); measure: ldr_clod2; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 969 * pu + 0.5); text fw_sens_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 969 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
             group {
-                PSlider(fws.x0, sby + 1008 * pu, fws.w, clamp(clamp(clamp(log(fw_sens / 0.3) / 2.302585, 0, 1), 0, 1), 0, 1), fw_s_hit.hover, cu, fws.h, 0)
+                PSlider(fws.x0, sby + 969 * pu, fws.w, clamp(clamp(clamp(log(fw_sens / 0.3) / 2.302585, 0, 1), 0, 1), 0, 1), fw_s_hit.hover, cu, fws.h, 0)
+                PLeader(spx + 14 * pw + ldr_clod2.width * rs + 8 * pu, fws.x0 - 6 * pu, sby + 969 * pu, fw_s_hit.hover, pu)
             }
-            zone box fw_s_hit { at: fws.x0 + fws.w / 2, sby + 1008 * pu; size: fws.w + 28 * pu, 26 * pu; cursor: pointer; active: (sby + 1008 * pu) - ck.off > sby and (sby + 1008 * pu) - ck.off < sby + set.h * pu; label: "Sensitivity" }
+            zone box fw_s_hit { at: fws.x0 + fws.w / 2, sby + 969 * pu; size: fws.w + 28 * pu, 26 * pu; cursor: pointer; active: (sby + 969 * pu) - ck.off > sby and (sby + 969 * pu) - ck.off < sby + set.h * pu; label: "Sensitivity" }
             on press fw_s_hit { emit fw_sens_set(clamp(((pointer.x - tx.pnl) - fws.x0) / fws.w, 0, 1)) }
             on drag fw_s_hit { emit fw_sens_set(clamp(((pointer.x - tx.pnl) - fws.x0) / fws.w, 0, 1)) }
             on scroll fw_s_hit { ck_scroll_to = clamp(ck_scroll_to - wheel * 44, 0, max(0, ck.h - set.h)) }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 1034 * pu + 0.5); text "Height" { at: floor(spx + 14 * pw + 0.5), floor(sby + 1034 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 1034 * pu + 0.5); text fw_hgt_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 1034 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
+            measure ldr_clod3
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 1004 * pu + 0.5); text "Height" { at: floor(spx + 14 * pw + 0.5), floor(sby + 1004 * pu + 0.5); measure: ldr_clod3; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 1004 * pu + 0.5); text fw_hgt_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 1004 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
             group {
-                PSlider(fws.x0, sby + 1058 * pu, fws.w, clamp(clamp((fw_hgt - 40) / 260, 0, 1), 0, 1), fw_h_hit.hover, cu, fws.h, 0)
+                PSlider(fws.x0, sby + 1004 * pu, fws.w, clamp(clamp((fw_hgt - 40) / 260, 0, 1), 0, 1), fw_h_hit.hover, cu, fws.h, 0)
+                PLeader(spx + 14 * pw + ldr_clod3.width * rs + 8 * pu, fws.x0 - 6 * pu, sby + 1004 * pu, fw_h_hit.hover, pu)
             }
-            zone box fw_h_hit { at: fws.x0 + fws.w / 2, sby + 1058 * pu; size: fws.w + 28 * pu, 26 * pu; cursor: pointer; active: (sby + 1058 * pu) - ck.off > sby and (sby + 1058 * pu) - ck.off < sby + set.h * pu; label: "Height" }
+            zone box fw_h_hit { at: fws.x0 + fws.w / 2, sby + 1004 * pu; size: fws.w + 28 * pu, 26 * pu; cursor: pointer; active: (sby + 1004 * pu) - ck.off > sby and (sby + 1004 * pu) - ck.off < sby + set.h * pu; label: "Height" }
             on press fw_h_hit { emit fw_hgt_set(clamp(((pointer.x - tx.pnl) - fws.x0) / fws.w, 0, 1)) }
             on drag fw_h_hit { emit fw_hgt_set(clamp(((pointer.x - tx.pnl) - fws.x0) / fws.w, 0, 1)) }
             on scroll fw_h_hit { ck_scroll_to = clamp(ck_scroll_to - wheel * 44, 0, max(0, ck.h - set.h)) }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 1084 * pu + 0.5); text "Blend" { at: floor(spx + 14 * pw + 0.5), floor(sby + 1084 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 1084 * pu + 0.5); text fw_bl_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 1084 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
+            measure ldr_clod4
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 1039 * pu + 0.5); text "Blend" { at: floor(spx + 14 * pw + 0.5), floor(sby + 1039 * pu + 0.5); measure: ldr_clod4; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 1039 * pu + 0.5); text fw_bl_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 1039 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
             group {
-                PSlider(fws.x0, sby + 1108 * pu, fws.w, clamp(clamp(fw_bl, 0, 1), 0, 1), fw_b_hit.hover, cu, fws.h, 0)
+                PSlider(fws.x0, sby + 1039 * pu, fws.w, clamp(clamp(fw_bl, 0, 1), 0, 1), fw_b_hit.hover, cu, fws.h, 0)
+                PLeader(spx + 14 * pw + ldr_clod4.width * rs + 8 * pu, fws.x0 - 6 * pu, sby + 1039 * pu, fw_b_hit.hover, pu)
             }
-            zone box fw_b_hit { at: fws.x0 + fws.w / 2, sby + 1108 * pu; size: fws.w + 28 * pu, 26 * pu; cursor: pointer; active: (sby + 1108 * pu) - ck.off > sby and (sby + 1108 * pu) - ck.off < sby + set.h * pu; label: "Blend" }
+            zone box fw_b_hit { at: fws.x0 + fws.w / 2, sby + 1039 * pu; size: fws.w + 28 * pu, 26 * pu; cursor: pointer; active: (sby + 1039 * pu) - ck.off > sby and (sby + 1039 * pu) - ck.off < sby + set.h * pu; label: "Blend" }
             on press fw_b_hit { emit fw_bl_set(clamp(((pointer.x - tx.pnl) - fws.x0) / fws.w, 0, 1)) }
             on drag fw_b_hit { emit fw_bl_set(clamp(((pointer.x - tx.pnl) - fws.x0) / fws.w, 0, 1)) }
             on scroll fw_b_hit { ck_scroll_to = clamp(ck_scroll_to - wheel * 44, 0, max(0, ck.h - set.h)) }
             //  Which monitor shows it: all of them, or one (the chips are the system monitor's, `cv_m.*`). logic/visualizer.luau keeps it (framewave.json `mon`).
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 1144 * pu + 0.5); text "Show on" { at: floor(spx + 14 * pw + 0.5), floor(sby + 1144 * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-            zone box fw_mn_sl { at: spx + 156 * pw + (if(cv_m.0.on, 1, 0) + if(cv_m.1.on, 1, 0) + if(cv_m.2.on, 1, 0) + if(cv_m.3.on, 1, 0)) * 27 * pu, sby + 1144 * pu; size: (1 + (if(cv_m.0.on, 1, 0) + if(cv_m.1.on, 1, 0) + if(cv_m.2.on, 1, 0) + if(cv_m.3.on, 1, 0))) * 54 * pu, 24 * pu }
-            SetPick(spx + 156 * pw, sby + 1144 * pu, 54 * pw, 1 + (if(cv_m.0.on, 1, 0) + if(cv_m.1.on, 1, 0) + if(cv_m.2.on, 1, 0) + if(cv_m.3.on, 1, 0)), 24 * pu, fw_mon, fw_mn_sl.hover, pu)
-            box { at: spx + 156 * pw, sby + 1144 * pu; size: 50 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * fw_mn_all.hover }
-            group { scale: rs; pivot: floor(spx + 156 * pw + 0.5), floor(sby + 1144 * pu + 0.5); text "All" { at: floor(spx + 156 * pw + 0.5), floor(sby + 1144 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (46 * pw) / rs; lines: 1; color: mix(ink, mint, if(fw_mon == 0, 1, 0)); family: "Space Grotesk" } }
-            zone box fw_mn_all { at: spx + 156 * pw, sby + 1144 * pu; size: 50 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; label: "Audio visualiser: show on every monitor"; active: (sby + 1144 * pu) - ck.off > sby and (sby + 1144 * pu) - ck.off < sby + set.h * pu }
+            measure ldr_clo6
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 1074.5 * pu + 0.5); text "Show on" { at: floor(spx + 14 * pw + 0.5), floor(sby + 1074.5 * pu + 0.5); measure: ldr_clo6; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            let fwm_n = (1 + (if(cv_m.0.on, 1, 0) + if(cv_m.1.on, 1, 0) + if(cv_m.2.on, 1, 0) + if(cv_m.3.on, 1, 0)))          // how many choices there are: the row is laid out from the card's right edge, as every picker is
+            zone box fw_mn_sl { at: spx + (424 - fwm_n * 54 / 2) * pw, sby + 1074.5 * pu; size: fwm_n * 54 * pw, 24 * pu }
+            SetPick(spx + (424 - (fwm_n - 0.5) * 54) * pw, sby + 1074.5 * pu, 54 * pw, 1 + (if(cv_m.0.on, 1, 0) + if(cv_m.1.on, 1, 0) + if(cv_m.2.on, 1, 0) + if(cv_m.3.on, 1, 0)), 24 * pu, fw_mon, fw_mn_sl.hover, pu)
+            PLeader(spx + 14 * pw + ldr_clo6.width * rs + 8 * pu, spx + (424 - (fwm_n - 0.5) * 54) * pw - 54 * pw / 2 - 6 * pu, sby + 1074.5 * pu, fw_mn_sl.hover, pu)
+            box { at: spx + (424 - (fwm_n - 0.5) * 54) * pw, sby + 1074.5 * pu; size: 50 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * fw_mn_all.hover }
+            group { scale: rs; pivot: floor(spx + (424 - (fwm_n - 0.5) * 54) * pw + 0.5), floor(sby + 1074.5 * pu + 0.5); text "All" { at: floor(spx + (424 - (fwm_n - 0.5) * 54) * pw + 0.5), floor(sby + 1074.5 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (46 * pw) / rs; lines: 1; color: mix(ink, mint, if(fw_mon == 0, 1, 0)); family: "Space Grotesk" } }
+            zone box fw_mn_all { at: spx + (424 - (fwm_n - 0.5) * 54) * pw, sby + 1074.5 * pu; size: 50 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; label: "Audio visualiser: show on every monitor"; active: (sby + 1074.5 * pu) - ck.off > sby and (sby + 1074.5 * pu) - ck.off < sby + set.h * pu }
             on press fw_mn_all { emit fw_mon_set(0) }
             repeat k in 0..4 {
-                let fwmx = spx + (210 + k * 54) * pw
-                box { at: fwmx, sby + 1144 * pu; size: 50 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * fw_mn.$k.hover }
-                group { scale: rs; pivot: floor(fwmx + 0.5), floor(sby + 1144 * pu + 0.5); text cv_m.$k.name { at: floor(fwmx + 0.5), floor(sby + 1144 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (46 * pw) / rs; lines: 1; color: mix(ink, mint, if(fw_mon == k + 1, 1, 0)); show: cv_m.$k.on; family: "Space Grotesk" } }
-                zone box fw_mn.$k { at: fwmx, sby + 1144 * pu; size: 50 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; label: "Audio visualiser: show on this monitor"; active: (cv_m.$k.on) and (sby + 1144 * pu) - ck.off > sby and (sby + 1144 * pu) - ck.off < sby + set.h * pu }
+                let fwmx = spx + (424 - (fwm_n - 0.5) * 54 + (k + 1) * 54) * pw
+                box { at: fwmx, sby + 1074.5 * pu; size: 50 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * fw_mn.$k.hover }
+                group { scale: rs; pivot: floor(fwmx + 0.5), floor(sby + 1074.5 * pu + 0.5); text cv_m.$k.name { at: floor(fwmx + 0.5), floor(sby + 1074.5 * pu + 0.5); anchor: center; align: center; size: 14; weight: 700; width: (46 * pw) / rs; lines: 1; color: mix(ink, mint, if(fw_mon == k + 1, 1, 0)); show: cv_m.$k.on; family: "Space Grotesk" } }
+                zone box fw_mn.$k { at: fwmx, sby + 1074.5 * pu; size: 50 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; label: "Audio visualiser: show on this monitor"; active: (cv_m.$k.on) and (sby + 1074.5 * pu) - ck.off > sby and (sby + 1074.5 * pu) - ck.off < sby + set.h * pu }
                 on press fw_mn.$k { emit fw_mon_set(k + 1) }
             }
             }

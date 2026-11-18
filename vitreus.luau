@@ -7156,6 +7156,7 @@ end
         { "Workspace overview", "action", function() spawn('pleamar --say vitreus "emit ov_toggle"') end, "workspaces windows switch expose desktops" },
         { "Random wallpaper", "action", function() local f = wp_random_pick(); if f then wp_apply(f) end end, "shuffle background change surprise" },
         { "Lock session", "action", function() spawn('pleamar --say lockscreen "fact locked true"') end, "lockscreen lock screen secure away password" },
+        { "Settings: Style", "open", open_settings("pg_style"), "style pencil sketch boil wobble hand drawn ink clean shading hatching lines look" },
         { "Settings: Theme", "open", open_settings("pg_theme"), "colours colors palette theme glass retro cassette plastic iris accent wallpaper" },
         { "Settings: Keybinds", "open", open_settings("pg_keys"), "keybinds keyboard shortcuts keys hotkeys bindings shortcut super combo remap" },
         { "Settings: Widgets", "open", open_settings("pg_clock"), "widgets clock system monitor audio visualiser visualizer cava desktop clock glass digits time wallpaper layout inline stacked staggered hero position corner size weight tint 12 24 hour" },
@@ -7893,6 +7894,8 @@ require("logic/bar_beat")()
 
 -- bar layout: see logic/bar_layout.luau
 require("logic/bar_layout")()
+-- how the shell's pencil is drawn (Settings > Style): see logic/pencil_style.luau
+require("logic/pencil_style")()
 -- the workspace marks' look and options (Settings > Bar > Workspaces), and the Apps look's icons: see logic/ws_marks.luau
 require("logic/ws_marks")({
     icon_for = function(class) return apps_by_class[class] or class end,

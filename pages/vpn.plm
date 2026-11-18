@@ -84,23 +84,26 @@ part Vpn {
             repeat i in 0..8 {
                 let ry = vpn.pb + 26 + i * 32
                 ellipse { at: spx + 24 * pw, sby + ry * pu; radius: 3.5 * pu; color: if(vpn_r.$i.active, mint, faint); opacity: if(vpn_r.$i.on, if(vpn_r.$i.active, 100%, 45%), 0%) }
+                //  The kind (WireGuard, OpenVPN) as a badge right after the name, as wide as its word: both are measured by copies nobody sees (the name shown is cut at 150).
+                measure vnm.$i
+                measure vsb.$i
+                group { scale: rs; text vpn_r.$i.name { at: 0, -2000; size: 17; weight: 700; measure: vnm.$i; opacity: 0; family: "Space Grotesk" } }
+                group { scale: rs; text vpn_r.$i.sub { at: 0, -2000; size: 14; measure: vsb.$i; opacity: 0; family: "Space Grotesk" } }
+                let vbw = vsb.$i.width * rs + 20 * pu
+                let vbx = spx + 38 * pw + min(vnm.$i.width * rs, 150 * pw) + 10 * pu + vbw / 2
                 group { scale: rs; pivot: floor(spx + 38 * pw + 0.5), floor(sby + ry * pu + 0.5); text vpn_r.$i.name { at: floor(spx + 38 * pw + 0.5), floor(sby + ry * pu + 0.5); anchor: left center; size: 17; weight: 700; width: (150 * pw) / rs; lines: 1; color: if(vpn_r.$i.active, mint, ink); show: vpn_r.$i.on; family: "Space Grotesk" } }
-                box { at: spx + 232 * pw, sby + ry * pu; size: 72 * pu, 20 * pu; corner: 10 * pu; color: ink; opacity: if(vpn_r.$i.on, 8%, 0%) }
-                group { scale: rs; pivot: floor(spx + 232 * pw + 0.5), floor(sby + ry * pu + 0.5); text vpn_r.$i.sub { at: floor(spx + 232 * pw + 0.5), floor(sby + ry * pu + 0.5); anchor: center; align: center; size: 14; width: (68 * pw) / rs; lines: 1; color: faint; show: vpn_r.$i.on; family: "Space Grotesk" } }
-                box { at: spx + 330 * pw, sby + ry * pu; size: 96 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: if(vpn_r.$i.active, ink, mint); opacity: if(vpn_r.$i.on and vpn_arm != i, if(vpn_r.$i.active, 10% + 9% * vpn_tg_hit.$i.hover, 18% + 14% * vpn_tg_hit.$i.hover), 0%) }
-                PPillOutline(spx + 330 * pw, sby + ry * pu, 96 * pu, 24 * pu, 12 * pu, vpn_tg_hit.$i.hover, clamp(3 * (if(vpn_r.$i.on and vpn_arm != i, if(vpn_r.$i.active, 10% + 9% * vpn_tg_hit.$i.hover, 18% + 14% * vpn_tg_hit.$i.hover), 0%)), 0, 1), pu)
-                group { scale: rs; pivot: floor(spx + 330 * pw + 0.5), floor(sby + ry * pu + 0.5); text "Disconnect" { at: floor(spx + 330 * pw + 0.5), floor(sby + ry * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; color: if(vpn_r.$i.active, ink, mint); show: vpn_r.$i.on and vpn_r.$i.active and vpn_arm != i; family: "Space Grotesk" } }
-                group { scale: rs; pivot: floor(spx + 330 * pw + 0.5), floor(sby + ry * pu + 0.5); text "Connect" { at: floor(spx + 330 * pw + 0.5), floor(sby + ry * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; color: if(vpn_r.$i.active, ink, mint); show: vpn_r.$i.on and not vpn_r.$i.active and vpn_arm != i; family: "Space Grotesk" } }
-                zone box vpn_tg_hit.$i { at: spx + 330 * pw, sby + ry * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (vpn_r.$i.on and vpn_arm != i and not vpn_busy) and (((ry) * pu - vpn.off) > 14 * pu and ((ry) * pu - vpn.off) < 440 * pu) }
+                box { at: vbx, sby + ry * pu; size: vbw, 20 * pu; corner: 10 * pu; color: ink; opacity: if(vpn_r.$i.on, 8%, 0%) }
+                group { scale: rs; pivot: floor(vbx + 0.5), floor(sby + ry * pu + 0.5); text vpn_r.$i.sub { at: floor(vbx + 0.5), floor(sby + ry * pu + 0.5); anchor: center; align: center; size: 14; color: faint; show: vpn_r.$i.on; family: "Space Grotesk" } }
+                box { at: spx + 424 * pw - 132 * pu, sby + ry * pu; size: 96 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: if(vpn_r.$i.active, ink, mint); opacity: if(vpn_r.$i.on and not vpn_r.$i.active, 18% + 14% * vpn_tg_hit.$i.hover, 0%) }
+                PPillOutline(spx + 424 * pw - 132 * pu, sby + ry * pu, 96 * pu, 24 * pu, 12 * pu, vpn_tg_hit.$i.hover, clamp(3 * (if(vpn_r.$i.on and not vpn_r.$i.active, 18% + 14% * vpn_tg_hit.$i.hover, 0%)), 0, 1), pu)
+                group { scale: rs; pivot: floor(spx + 424 * pw - 132 * pu + 0.5), floor(sby + ry * pu + 0.5); text "Connect" { at: floor(spx + 424 * pw - 132 * pu + 0.5), floor(sby + ry * pu + 0.5); anchor: center; align: center; size: 15; weight: 600; color: if(vpn_r.$i.active, ink, mint); show: vpn_r.$i.on and not vpn_r.$i.active and vpn_arm != i; family: "Space Grotesk" } }
+                zone box vpn_tg_hit.$i { at: spx + 424 * pw - 132 * pu, sby + ry * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; label: "Connect"; active: (vpn_r.$i.on and not vpn_r.$i.active and vpn_arm < 0 and not vpn_busy) and (((ry) * pu - vpn.off) > 14 * pu and ((ry) * pu - vpn.off) < 440 * pu) }
                 on press vpn_tg_hit.$i { emit vpn_toggle(i) }
-                box { at: spx + 330 * pw, sby + ry * pu; size: 96 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: alert; opacity: if(vpn_r.$i.on and vpn_arm == i, 26% + 14% * vpn_dl_hit.$i.hover, 0%) }
-                PPillOutline(spx + 330 * pw, sby + ry * pu, 96 * pu, 24 * pu, 12 * pu, vpn_dl_hit.$i.hover, clamp(3 * (if(vpn_r.$i.on and vpn_arm == i, 26% + 14% * vpn_dl_hit.$i.hover, 0%)), 0, 1), pu)
-                group { scale: rs; pivot: floor(spx + 330 * pw + 0.5), floor(sby + ry * pu + 0.5); text "Delete?" { at: floor(spx + 330 * pw + 0.5), floor(sby + ry * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; color: alert; show: vpn_r.$i.on and vpn_arm == i; family: "Space Grotesk" } }
-                zone box vpn_dl_hit.$i { at: spx + 330 * pw, sby + ry * pu; size: 98 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; active: (vpn_r.$i.on and vpn_arm == i and not vpn_busy) and (((ry) * pu - vpn.off) > 14 * pu and ((ry) * pu - vpn.off) < 440 * pu) }
-                on press vpn_dl_hit.$i { emit vpn_delete(i) }
-                line { from: spx + 415.5 * pw, sby + (ry - 3.5) * pu; to: spx + 422.5 * pw, sby + (ry + 3.5) * pu; width: 1.4 * pu; color: ink; opacity: if(vpn_r.$i.on, 45% + 45% * vpn_x_hit.$i.hover, 0%) }
-                line { from: spx + 422.5 * pw, sby + (ry - 3.5) * pu; to: spx + 415.5 * pw, sby + (ry + 3.5) * pu; width: 1.4 * pu; color: ink; opacity: if(vpn_r.$i.on, 45% + 45% * vpn_x_hit.$i.hover, 0%) }
-                zone box vpn_x_hit.$i { at: spx + 419 * pw, sby + ry * pu; size: 22 * pu, 22 * pu; corner: 11 * pu; cursor: pointer; active: (vpn_r.$i.on and not vpn_busy) and (((ry) * pu - vpn.off) > 14 * pu and ((ry) * pu - vpn.off) < 440 * pu) }
+                //  Delete: at the row's right end, in the alert colour. It only asks (the dialog under the page); nothing is deleted until that is accepted.
+                box { at: spx + 424 * pw - 38 * pu, sby + ry * pu; size: 76 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: alert; opacity: if(vpn_r.$i.on, 12% + 14% * vpn_x_hit.$i.hover, 0%) }
+                PPillOutline(spx + 424 * pw - 38 * pu, sby + ry * pu, 76 * pu, 24 * pu, 12 * pu, vpn_x_hit.$i.hover, if(vpn_r.$i.on, 0.5 + 0.4 * vpn_x_hit.$i.hover, 0), pu)
+                group { scale: rs; pivot: floor(spx + 424 * pw - 38 * pu + 0.5), floor(sby + ry * pu + 0.5); text "Delete" { at: floor(spx + 424 * pw - 38 * pu + 0.5), floor(sby + ry * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; color: alert; show: vpn_r.$i.on; family: "Space Grotesk" } }
+                zone box vpn_x_hit.$i { at: spx + 424 * pw - 38 * pu, sby + ry * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; label: "Delete this profile"; agent: no; active: (vpn_r.$i.on and vpn_arm < 0 and not vpn_busy) and (((ry) * pu - vpn.off) > 14 * pu and ((ry) * pu - vpn.off) < 440 * pu) }
                 on press vpn_x_hit.$i { emit vpn_arm_ask(i) }
             }
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
@@ -110,18 +113,18 @@ part Vpn {
             box { at: spx + 219 * pw, sby + (vpn.ab + (59 + vpn.fh + 52) / 2) * pu; size: 438 * pw, (59 + vpn.fh + 52) * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
             box { at: spx + 219 * pw, sby + (vpn.ab + (59 + vpn.fh + 52) / 2) * pu; size: 438 * pw, (59 + vpn.fh + 52) * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.ab - 13) * pu + 0.5); text "ADD A PROFILE" { at: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.ab - 13) * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
-            SetPick(spx + 82.3 * pw, sby + (vpn.ab + 27) * pu, 136.7 * pw, 3, 26 * pu, if(vpn_mode == vpm_ovpn, 1, 0) + 2 * if(vpn_mode == vpm_imp, 1, 0), clamp(vpn_m0_hit.hover + vpn_m1_hit.hover + vpn_m2_hit.hover, 0, 1), pu, 1, 0, 0, clamp(if(vpn_mode == vpm_wg, 1, 0) + if(vpn_mode == vpm_ovpn, 1, 0) + if(vpn_mode == vpm_imp, 1, 0), 0, 1))
-            box { at: spx + 82.3 * pw, sby + (vpn.ab + 27) * pu; size: 128.7 * pu, 26 * pu; corner: (13 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * vpn_m0_hit.hover }
-            group { scale: rs; pivot: floor(spx + 82.3 * pw + 0.5), floor(sby + (vpn.ab + 27) * pu + 0.5); text "WireGuard" { at: floor(spx + 82.3 * pw + 0.5), floor(sby + (vpn.ab + 27) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: if(vpn_mode == vpm_wg, mint, ink); opacity: if(vpn_mode == vpm_wg, 100%, 85%); family: "Space Grotesk" } }
-            zone box vpn_m0_hit { at: spx + 82.3 * pw, sby + (vpn.ab + 27) * pu; size: 128 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: (((vpn.ab + 27) * pu - vpn.off) > 14 * pu and ((vpn.ab + 27) * pu - vpn.off) < 440 * pu) }
+            SetPick(spx + 82.25 * pw, sby + (vpn.ab + 27) * pu, 136.7 * pw, 3, 26 * pu, if(vpn_mode == vpm_ovpn, 1, 0) + 2 * if(vpn_mode == vpm_imp, 1, 0), clamp(vpn_m0_hit.hover + vpn_m1_hit.hover + vpn_m2_hit.hover, 0, 1), pu, 1, 0, 0, clamp(if(vpn_mode == vpm_wg, 1, 0) + if(vpn_mode == vpm_ovpn, 1, 0) + if(vpn_mode == vpm_imp, 1, 0), 0, 1))
+            box { at: spx + 82.25 * pw, sby + (vpn.ab + 27) * pu; size: 128.7 * pu, 26 * pu; corner: (13 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * vpn_m0_hit.hover }
+            group { scale: rs; pivot: floor(spx + 82.25 * pw + 0.5), floor(sby + (vpn.ab + 27) * pu + 0.5); text "WireGuard" { at: floor(spx + 82.25 * pw + 0.5), floor(sby + (vpn.ab + 27) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: if(vpn_mode == vpm_wg, mint, ink); opacity: if(vpn_mode == vpm_wg, 100%, 85%); family: "Space Grotesk" } }
+            zone box vpn_m0_hit { at: spx + 82.25 * pw, sby + (vpn.ab + 27) * pu; size: 128 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: (((vpn.ab + 27) * pu - vpn.off) > 14 * pu and ((vpn.ab + 27) * pu - vpn.off) < 440 * pu) }
             on press vpn_m0_hit { vpn_mode = vpm_wg }
-            box { at: spx + 219 * pw, sby + (vpn.ab + 27) * pu; size: 128.7 * pu, 26 * pu; corner: (13 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * vpn_m1_hit.hover }
-            group { scale: rs; pivot: floor(spx + 219 * pw + 0.5), floor(sby + (vpn.ab + 27) * pu + 0.5); text "OpenVPN" { at: floor(spx + 219 * pw + 0.5), floor(sby + (vpn.ab + 27) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: if(vpn_mode == vpm_ovpn, mint, ink); opacity: if(vpn_mode == vpm_ovpn, 100%, 85%); family: "Space Grotesk" } }
-            zone box vpn_m1_hit { at: spx + 219 * pw, sby + (vpn.ab + 27) * pu; size: 128 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: (((vpn.ab + 27) * pu - vpn.off) > 14 * pu and ((vpn.ab + 27) * pu - vpn.off) < 440 * pu) }
+            box { at: spx + 218.95 * pw, sby + (vpn.ab + 27) * pu; size: 128.7 * pu, 26 * pu; corner: (13 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * vpn_m1_hit.hover }
+            group { scale: rs; pivot: floor(spx + 218.95 * pw + 0.5), floor(sby + (vpn.ab + 27) * pu + 0.5); text "OpenVPN" { at: floor(spx + 218.95 * pw + 0.5), floor(sby + (vpn.ab + 27) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: if(vpn_mode == vpm_ovpn, mint, ink); opacity: if(vpn_mode == vpm_ovpn, 100%, 85%); family: "Space Grotesk" } }
+            zone box vpn_m1_hit { at: spx + 218.95 * pw, sby + (vpn.ab + 27) * pu; size: 128 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: (((vpn.ab + 27) * pu - vpn.off) > 14 * pu and ((vpn.ab + 27) * pu - vpn.off) < 440 * pu) }
             on press vpn_m1_hit { vpn_mode = vpm_ovpn }
-            box { at: spx + 355.7 * pw, sby + (vpn.ab + 27) * pu; size: 128.7 * pu, 26 * pu; corner: (13 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * vpn_m2_hit.hover }
-            group { scale: rs; pivot: floor(spx + 355.7 * pw + 0.5), floor(sby + (vpn.ab + 27) * pu + 0.5); text "Import file" { at: floor(spx + 355.7 * pw + 0.5), floor(sby + (vpn.ab + 27) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: if(vpn_mode == vpm_imp, mint, ink); opacity: if(vpn_mode == vpm_imp, 100%, 85%); family: "Space Grotesk" } }
-            zone box vpn_m2_hit { at: spx + 355.7 * pw, sby + (vpn.ab + 27) * pu; size: 128 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: (((vpn.ab + 27) * pu - vpn.off) > 14 * pu and ((vpn.ab + 27) * pu - vpn.off) < 440 * pu) }
+            box { at: spx + 355.65 * pw, sby + (vpn.ab + 27) * pu; size: 128.7 * pu, 26 * pu; corner: (13 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * vpn_m2_hit.hover }
+            group { scale: rs; pivot: floor(spx + 355.65 * pw + 0.5), floor(sby + (vpn.ab + 27) * pu + 0.5); text "Import file" { at: floor(spx + 355.65 * pw + 0.5), floor(sby + (vpn.ab + 27) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: if(vpn_mode == vpm_imp, mint, ink); opacity: if(vpn_mode == vpm_imp, 100%, 85%); family: "Space Grotesk" } }
+            zone box vpn_m2_hit { at: spx + 355.65 * pw, sby + (vpn.ab + 27) * pu; size: 128 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: (((vpn.ab + 27) * pu - vpn.off) > 14 * pu and ((vpn.ab + 27) * pu - vpn.off) < 440 * pu) }
             on press vpn_m2_hit { vpn_mode = vpm_imp }
             group {
                 show: vpn_mode == vpm_wg
@@ -248,18 +251,18 @@ part Vpn {
             }
             group {
                 show: vpn_mode == vpm_ovpn
-                SetPick(spx + 273 * pw, sby + (vpn.ab + 59 + 1 * 36 + 17) * pu, 102 * pw, 2, 26 * pu, if(vpn_tcp, 1, 0), clamp(vpn_p0_hit.hover + vpn_p1_hit.hover, 0, 1), pu, 1, 0, 0, clamp(if(not vpn_tcp, 1, 0) + if(vpn_tcp, 1, 0), 0, 1))
-                box { at: spx + 273 * pw, sby + (vpn.ab + 59 + 1 * 36 + 17) * pu; size: 98 * pu, 26 * pu; corner: (13 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * vpn_p0_hit.hover }
-                group { scale: rs; pivot: floor(spx + 273 * pw + 0.5), floor(sby + (vpn.ab + 59 + 1 * 36 + 17) * pu + 0.5); text "UDP" { at: floor(spx + 273 * pw + 0.5), floor(sby + (vpn.ab + 59 + 1 * 36 + 17) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: if(not vpn_tcp, mint, ink); family: "Space Grotesk" } }
+                SetPick(spx + 271 * pw, sby + (vpn.ab + 59 + 1 * 36 + 17) * pu, 102 * pw, 2, 26 * pu, if(vpn_tcp, 1, 0), clamp(vpn_p0_hit.hover + vpn_p1_hit.hover, 0, 1), pu, 1, 0, 0, clamp(if(not vpn_tcp, 1, 0) + if(vpn_tcp, 1, 0), 0, 1))
+                box { at: spx + 271 * pw, sby + (vpn.ab + 59 + 1 * 36 + 17) * pu; size: 98 * pu, 26 * pu; corner: (13 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * vpn_p0_hit.hover }
+                group { scale: rs; pivot: floor(spx + 271 * pw + 0.5), floor(sby + (vpn.ab + 59 + 1 * 36 + 17) * pu + 0.5); text "UDP" { at: floor(spx + 271 * pw + 0.5), floor(sby + (vpn.ab + 59 + 1 * 36 + 17) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: if(not vpn_tcp, mint, ink); family: "Space Grotesk" } }
             }
-            zone box vpn_p0_hit { at: spx + 273 * pw, sby + (vpn.ab + 59 + 1 * 36 + 17) * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: vpn_mode == vpm_ovpn and (((vpn.ab + 59 + 1 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 59 + 1 * 36 + 17) * pu - vpn.off) < 440 * pu) }
+            zone box vpn_p0_hit { at: spx + 271 * pw, sby + (vpn.ab + 59 + 1 * 36 + 17) * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: vpn_mode == vpm_ovpn and (((vpn.ab + 59 + 1 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 59 + 1 * 36 + 17) * pu - vpn.off) < 440 * pu) }
             on press vpn_p0_hit { vpn_tcp = false }
             group {
                 show: vpn_mode == vpm_ovpn
-                box { at: spx + 375 * pw, sby + (vpn.ab + 59 + 1 * 36 + 17) * pu; size: 98 * pu, 26 * pu; corner: (13 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * vpn_p1_hit.hover }
-                group { scale: rs; pivot: floor(spx + 375 * pw + 0.5), floor(sby + (vpn.ab + 59 + 1 * 36 + 17) * pu + 0.5); text "TCP" { at: floor(spx + 375 * pw + 0.5), floor(sby + (vpn.ab + 59 + 1 * 36 + 17) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: if(vpn_tcp, mint, ink); family: "Space Grotesk" } }
+                box { at: spx + 373 * pw, sby + (vpn.ab + 59 + 1 * 36 + 17) * pu; size: 98 * pu, 26 * pu; corner: (13 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * vpn_p1_hit.hover }
+                group { scale: rs; pivot: floor(spx + 373 * pw + 0.5), floor(sby + (vpn.ab + 59 + 1 * 36 + 17) * pu + 0.5); text "TCP" { at: floor(spx + 373 * pw + 0.5), floor(sby + (vpn.ab + 59 + 1 * 36 + 17) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: if(vpn_tcp, mint, ink); family: "Space Grotesk" } }
             }
-            zone box vpn_p1_hit { at: spx + 375 * pw, sby + (vpn.ab + 59 + 1 * 36 + 17) * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: vpn_mode == vpm_ovpn and (((vpn.ab + 59 + 1 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 59 + 1 * 36 + 17) * pu - vpn.off) < 440 * pu) }
+            zone box vpn_p1_hit { at: spx + 373 * pw, sby + (vpn.ab + 59 + 1 * 36 + 17) * pu; size: 100 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: vpn_mode == vpm_ovpn and (((vpn.ab + 59 + 1 * 36 + 17) * pu - vpn.off) > 14 * pu and ((vpn.ab + 59 + 1 * 36 + 17) * pu - vpn.off) < 440 * pu) }
             on press vpn_p1_hit { vpn_tcp = true }
             group {
                 show: vpn_mode == vpm_imp
@@ -321,8 +324,10 @@ part Vpn {
             group { scale: rs; pivot: floor(spx + 424 * pw - 29 * pu + 0.5), floor(sby + (vpn.wt + 56) * pu + 0.5); text "Auto" { at: floor(spx + 424 * pw - 29 * pu + 0.5), floor(sby + (vpn.wt + 56) * pu + 0.5); anchor: center; align: center; size: 14.5; weight: 700; width: (54 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             zone box wx_auto_hit { at: spx + 424 * pw - 29 * pu, sby + (vpn.wt + 56) * pu; size: 58 * pu, 28 * pu; corner: 9 * pu; cursor: pointer; active: (sby + (vpn.wt + 56) * pu) - vpn.off > sby and (sby + (vpn.wt + 56) * pu) - vpn.off < sby + set.h * pu }
             on press wx_auto_hit { emit wx_auto }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.wt + 94) * pu + 0.5); text "Units" { at: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.wt + 94) * pu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            measure ldr_vpn1
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.wt + 94) * pu + 0.5); text "Units" { at: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.wt + 94) * pu + 0.5); measure: ldr_vpn1; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
             SetPick(spx + 286 * pw, sby + (vpn.wt + 94) * pu, 92 * pw, 2, 24 * pu, wxcf1, clamp(wx_u0.hover + wx_u1.hover, 0, 1), pu, 1, 0, 0, clamp(wxcf0 + wxcf1, 0, 1))
+            PLeader(spx + 14 * pw + ldr_vpn1.width * rs + 8 * pu, spx + 286 * pw - 92 * pw / 2 - 6 * pu, sby + (vpn.wt + 94) * pu, clamp(wx_u0.hover + wx_u1.hover, 0, 1), pu)
             box { at: spx + 286 * pw, sby + (vpn.wt + 94) * pu; size: 88 * pu, 24 * pu; corner: (8 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 7% * wx_u0.hover }
             group { scale: rs; pivot: floor(spx + 286 * pw + 0.5), floor(sby + (vpn.wt + 94) * pu + 0.5); text "Fahrenheit" { at: floor(spx + 286 * pw + 0.5), floor(sby + (vpn.wt + 94) * pu + 0.5); anchor: center; align: center; size: 14.5; weight: 700; width: (84 * pw) / rs; lines: 1; color: mix(ink, mint, wxcf0); family: "Space Grotesk" } }
             zone box wx_u0 { at: spx + 286 * pw, sby + (vpn.wt + 94) * pu; size: 88 * pu, 24 * pu; corner: 8 * pu; cursor: pointer; active: (sby + (vpn.wt + 94) * pu) - vpn.off > sby and (sby + (vpn.wt + 94) * pu) - vpn.off < sby + set.h * pu }
@@ -352,6 +357,41 @@ part Vpn {
             zone box vpn_bar_hit { at: spx + 442 * pw, sby + set.h / 2 * pu; size: 14 * pu, set.h * pu; cursor: pointer; active: vpn.h > set.h }
             on press vpn_bar_hit { vpn_scroll_to = clamp((((pointer.y - ty.set) - sby) / pu - vpn.thh / 2) / max(1, set.h - vpn.thh) * (vpn.h - set.h), 0, max(0, vpn.h - set.h)) }
             on drag vpn_bar_hit { vpn_scroll_to = clamp((((pointer.y - ty.set) - sby) / pu - vpn.thh / 2) / max(1, set.h - vpn.thh) * (vpn.h - set.h), 0, max(0, vpn.h - set.h)) }
+
+            //  Are you sure? Delete only asks (`vpn_arm`, the row it was pressed on): this dims the page and asks over it. Delete deletes; Cancel, a click anywhere
+            //  else on the page, or Escape lets it go (the logic's `vpn_arm_ask` on the same row again clears it).
+            group {
+                opacity: vpn_dlg
+                show: vpn_dlg > 0.01
+                let dlg.y = sby + set.h / 2 * pu
+                box { at: spx + 224 * pw, dlg.y; size: 456 * pw, set.h * pu; color: deep; opacity: 72% }
+                zone box vpn_dlg_bg { at: spx + 224 * pw, dlg.y; size: 456 * pw, set.h * pu; active: vpn_arm >= 0 }
+                on press vpn_dlg_bg { emit vpn_arm_ask(vpn_arm) }
+                group {
+                    scale: 0.94 + 0.06 * vpn_dlg
+                    pivot: spx + 219 * pw, dlg.y
+                    body { color: mix(obsidian, ink, 7%); border: 1 * pu, mix(ink, alert, 30%); shadow: 0, 6 * pu, 24 * pu, 55%, #000000; box { at: spx + 219 * pw, dlg.y; size: 300 * pw, 168 * pu; corner: 18 * pu } }
+                    group { scale: rs; pivot: floor(spx + 219 * pw + 0.5), floor(dlg.y - 52 * pu + 0.5); text "Delete this profile?" { at: floor(spx + 219 * pw + 0.5), floor(dlg.y - 52 * pu + 0.5); anchor: center; align: center; size: 19; weight: 700; color: ink; family: "Space Grotesk" } }
+                    repeat k in 0..8 {
+                        group { scale: rs; pivot: floor(spx + 219 * pw + 0.5), floor(dlg.y - 24 * pu + 0.5); text vpn_r.$k.name { at: floor(spx + 219 * pw + 0.5), floor(dlg.y - 24 * pu + 0.5); anchor: center; align: center; size: 17; weight: 700; width: (270 * pw) / rs; lines: 1; color: alert; show: vpn_arm == k; family: "Space Grotesk" } }
+                    }
+                    group { scale: rs; pivot: floor(spx + 219 * pw + 0.5), floor(dlg.y + 4 * pu + 0.5); text "It is removed from this computer. This cannot be undone." { at: floor(spx + 219 * pw + 0.5), floor(dlg.y + 4 * pu + 0.5); anchor: center; align: center; size: 13.5; width: (270 * pw) / rs; lines: 2; color: faint; family: "Space Grotesk" } }
+                    //  Cancel on the left, Delete (the alert colour) on the right.
+                    box { at: spx + 219 * pw - 62 * pu, dlg.y + 50 * pu; size: 108 * pu, 28 * pu; corner: (14 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 8% + 10% * vpn_dlg_no.hover }
+                    PPillOutline(spx + 219 * pw - 62 * pu, dlg.y + 50 * pu, 108 * pu, 28 * pu, 14 * pu, vpn_dlg_no.hover, 0.6, pu)
+                    group { scale: rs; pivot: floor(spx + 219 * pw - 62 * pu + 0.5), floor(dlg.y + 50 * pu + 0.5); text "Cancel" { at: floor(spx + 219 * pw - 62 * pu + 0.5), floor(dlg.y + 50 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: ink; family: "Space Grotesk" } }
+                    zone box vpn_dlg_no { at: spx + 219 * pw - 62 * pu, dlg.y + 50 * pu; size: 110 * pu, 30 * pu; corner: 15 * pu; cursor: pointer; active: vpn_arm >= 0 }
+                    on press vpn_dlg_no { emit vpn_arm_ask(vpn_arm) }
+                    box { at: spx + 219 * pw + 62 * pu, dlg.y + 50 * pu; size: 108 * pu, 28 * pu; corner: (14 * pu) * (1 - 0.85 * dd_k); color: alert; opacity: 26% + 16% * vpn_dlg_yes.hover }
+                    PPillOutline(spx + 219 * pw + 62 * pu, dlg.y + 50 * pu, 108 * pu, 28 * pu, 14 * pu, vpn_dlg_yes.hover, 0.8, pu)
+                    group { scale: rs; pivot: floor(spx + 219 * pw + 62 * pu + 0.5), floor(dlg.y + 50 * pu + 0.5); text "Delete" { at: floor(spx + 219 * pw + 62 * pu + 0.5), floor(dlg.y + 50 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 700; color: alert; family: "Space Grotesk" } }
+                    zone box vpn_dlg_yes { at: spx + 219 * pw + 62 * pu, dlg.y + 50 * pu; size: 110 * pu, 30 * pu; corner: 15 * pu; cursor: pointer; label: "Delete the profile"; agent: no; active: vpn_arm >= 0 and not vpn_busy }
+                    on press vpn_dlg_yes { emit vpn_delete(vpn_arm) }
+                }
+            }
+            on key Escape while vpn_arm >= 0 and panel == settings { emit vpn_arm_ask(vpn_arm) }
+            on change set_page while vpn_arm >= 0 { emit vpn_arm_ask(vpn_arm) }
+            on change panel while vpn_arm >= 0 { emit vpn_arm_ask(vpn_arm) }
         }
         //  ── VPN page: END ──
 }

@@ -133,10 +133,12 @@ part Theme {
             box { at: spx + 219 * pw, sby + (450 + 88 * th_ex) * pu; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
             box { at: spx + 219 * pw, sby + (450 + 88 * th_ex) * pu; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (6%) * (1 - obs) }
             box { at: spx + 219 * pw, sby + (450 + 88 * th_ex) * pu; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + (450 + 88 * th_ex) * pu + 0.5); text "Panel sound" { at: floor(spx + 14 * pw + 0.5), floor(sby + (450 + 88 * th_ex) * pu + 0.5); anchor: left center; size: 16.5; weight: 700; color: ink; family: "Space Grotesk" } }
+            measure ldr_theb1
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + (450 + 88 * th_ex) * pu + 0.5); text "Panel sound" { at: floor(spx + 14 * pw + 0.5), floor(sby + (450 + 88 * th_ex) * pu + 0.5); measure: ldr_theb1; anchor: left center; size: 16.5; weight: 700; color: ink; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 350 * pw + 0.5), floor(sby + (450 + 88 * th_ex) * pu + 0.5); text "Play a sound when a panel opens" { at: floor(spx + 350 * pw + 0.5), floor(sby + (450 + 88 * th_ex) * pu + 0.5); anchor: right center; size: 14.5; color: faint; family: "Space Grotesk" } }
             SettingsSwitch(spx + 424 * pw, sby + (450 + 88 * th_ex) * pu, snd_pill, snd_hit.pressed, snd_hit.hover, mint)
-            zone box snd_hit { at: spx + 424 * pw - 19 * pu, sby + (450 + 88 * th_ex) * pu; size: 46 * pu, 30 * pu; cursor: pointer; active: sby + (450 + 88 * th_ex) * pu - th.off > sby and sby + (450 + 88 * th_ex) * pu - th.off < sby + set.h * pu; label: "Panel sound" }
+            PLeader(spx + 14 * pw + ldr_theb1.width * rs + 8 * pu, spx + 424 * pw - 40 * cu, sby + (450 + 88 * th_ex) * pu, snd_hit.hover, pu)
+            zone box snd_hit { at: spx + 424 * pw - 19 * cu, sby + (450 + 88 * th_ex) * pu; size: 44 * cu, 28 * cu; cursor: pointer; active: sby + (450 + 88 * th_ex) * pu - th.off > sby and sby + (450 + 88 * th_ex) * pu - th.off < sby + set.h * pu; label: "Panel sound" }
             on press snd_hit { emit snd_toggle }
             //  Two cards side by side, each half the row: Pin wallpaper and Pin widgets, both off by default (a theme leaves the wallpaper and the widgets as
             //  they are). Pin wallpaper (logic/theme_wallpaper.luau): a wallpaper of the gallery that comes with the theme in use; the switch pins the one up
@@ -171,7 +173,7 @@ part Theme {
             zone box tpw_ch_hit { at: spx + 70 * pw + 28 * pu, tpw.y + 11 * pu; size: 56 * pu, 18 * pu; corner: 9 * pu; cursor: pointer; label: "Choose the wallpaper for this theme"; active: set_page == pg_theme and not tpw_open and tpw.vis }
             on press tpw_ch_hit { tpw_open = true; font_dd_open = false; emit tpw_choose }
             SettingsSwitch(spx + 200 * pw, tpw.y, tpw_pill, tpw_hit.pressed, tpw_hit.hover, mint)
-            zone box tpw_hit { at: spx + 181 * pw, tpw.y; size: 46 * pu, 30 * pu; cursor: pointer; label: "Pin the wallpaper to this theme"; active: set_page == pg_theme and not tpw_open and tpw.vis }
+            zone box tpw_hit { at: spx + 200 * pw - 19 * cu, tpw.y; size: 44 * cu, 28 * cu; cursor: pointer; label: "Pin the wallpaper to this theme"; active: set_page == pg_theme and not tpw_open and tpw.vis }
             on press tpw_hit { emit tpw_toggle }
             //  Pin widgets: a frame with four small tiles (the Widgets page's sign), the count it keeps, and the switch.
             body { color: mix(mix(obsidian, ink, (6%) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 331 * pw, tpw.y; size: 214 * pw, 66 * pu; corner: 14 * pu } }
@@ -187,7 +189,7 @@ part Theme {
             group { scale: rs; pivot: floor(spx + 294 * pw + 0.5), floor(tpw.y - 10 * pu + 0.5); text "Pin widgets" { at: floor(spx + 294 * pw + 0.5), floor(tpw.y - 10 * pu + 0.5); anchor: left center; size: 15; weight: 700; width: (88 * pw) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 294 * pw + 0.5), floor(tpw.y + 10 * pu + 0.5); text twg_sub { at: floor(spx + 294 * pw + 0.5), floor(tpw.y + 10 * pu + 0.5); anchor: left center; size: 12.5; width: (88 * pw) / rs; lines: 1; color: if(twg_on, mint, faint); family: "Space Grotesk" } }
             SettingsSwitch(spx + 424 * pw, tpw.y, twg_pill, twg_hit.pressed, twg_hit.hover, mint)
-            zone box twg_hit { at: spx + 424 * pw - 19 * pu, tpw.y; size: 46 * pu, 30 * pu; cursor: pointer; label: "Pin the widgets to this theme"; active: set_page == pg_theme and not tpw_open and tpw.vis }
+            zone box twg_hit { at: spx + 424 * pw - 19 * cu, tpw.y; size: 44 * cu, 28 * cu; cursor: pointer; label: "Pin the widgets to this theme"; active: set_page == pg_theme and not tpw_open and tpw.vis }
             on press twg_hit { emit twg_toggle }
             //  The dropdown, drawn last so its rows win the press over everything under it. It opens upwards, over the cards above: the selector sits near the page's foot.
             zone box font_catch { at: spx + 219 * pw, fnt_y - 60 * pu; size: 438 * pw, 640 * pu; active: font_dd_open }

@@ -21,7 +21,7 @@ part SettingsPanel {
             //  overshoots) and clicks one tooth round for each page you go to (`gr_t`, a spring that overshoots, like a ratchet).
             pivot: sl + 16 * pu, hy
             rotate: -200deg * (1 - ds) + gr_t * 45deg
-            let gfr = floor(time * 8)
+            let gfr = floor(time * 8 * pn_rate)
             let gcx = sl + 16 * pu
             repeat k in 0..14 {
                 let ga0 = k * 25.7 + 6
@@ -54,9 +54,10 @@ part SettingsPanel {
         group { scale: rs; pivot: floor(sl + 146 * pu + 0.5), floor(hy + 0.5); text "SCREEN" { at: floor(sl + 146 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 17; weight: 700; color: faint; opacity: set_pgd + set_pgn + set_pgi + set_pgg; family: "Space Grotesk" } }
         group { scale: rs; pivot: floor(sl + 146 * pu + 0.5), floor(hy + 0.5); text "SYSTEM" { at: floor(sl + 146 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 17; weight: 700; color: faint; opacity: set_pgh + set_pga + set_pgs + set_pgw + set_pgv + set_pgy; family: "Space Grotesk" } }
         path { at: sl + 201 * pu, hy; stroke: 1.3 * pu; color: faint; move -2 * pu, -3.5 * pu; line 2 * pu, 0; line -2 * pu, 3.5 * pu }
-        group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); text "Wallpaper" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgb - set_pgws - set_pgn - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw - set_pgv - set_pgk - set_pgp - set_pgy - set_pgo - set_pgi - set_pgg; family: "Space Grotesk" } }
+        group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); text "Wallpaper" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: 1 - set_pg - set_pgd - set_pgb - set_pgws - set_pgn - set_pgh - set_pga - set_pgs - set_pgt - set_pgl - set_pgw - set_pgv - set_pgk - set_pgp - set_pgy - set_pgo - set_pgi - set_pgg - set_pgx; family: "Space Grotesk" } }
         group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); text "Display" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: set_pgd; family: "Space Grotesk" } }
         group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); text "Glass" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: set_pg; family: "Space Grotesk" } }
+        group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); text "Style" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: set_pgx; family: "Space Grotesk" } }
         group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); show: wm_hypr; text "Hyprland" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: set_pgh; family: "Space Grotesk" } }
         group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); show: wm_niri; text "niri" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: set_pgh; family: "Space Grotesk" } }
         group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); text "Pleamar-WM" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: set_pgw; family: "Space Grotesk" } }
@@ -124,34 +125,46 @@ part SettingsPanel {
                 let sbt.hm = 9.5 * pu
                 let sbt.sp = max(2.6 * pu, sbt.w / 84)
                 box { at: sl + 75 * pu, sbt.cy; size: sbt.w, sbt.h; corner: (min(sbt.h / 2, 11 * pu)) * (1 - 0.85 * dd_k); color: mint; opacity: 22% }
-                shader pencilhatch { at: sl + 75 * pu - sbt.w / 2 + sbt.hm, sbt.cy - sbt.h; size: sbt.w - 2 * sbt.hm, 2 * sbt.h; values: sbt.sp * 0.5, 9000, sbt.sp, sbt.h * 0.92, (0.18 + 0.25 * side_wheel.hover) * pu, if(side_wheel.hover > 0.02, floor(time * 5), 0), 0.8 * pu, 0; colors: mint; opacity: 0.2 * (1 - dd_k); show: dd_k < 0.998 }
+                shader pencilhatch { at: sl + 75 * pu - sbt.w / 2 + sbt.hm, sbt.cy - sbt.h; size: sbt.w - 2 * sbt.hm, 2 * sbt.h; values: sbt.sp * 0.5, 9000, sbt.sp, sbt.h * 0.92, (0.18 + 0.25 * side_wheel.hover) * pn_wob * pu, if(side_wheel.hover > 0.02, floor(time * 5 * pn_rate), 0), 0.8 * pu, 0; colors: mint; opacity: pn_hatch * (0.2 * (1 - dd_k)); show: pn_fill_i == 0 and (dd_k < 0.998) }
+                shader fillstyle { at: sl + 75 * pu - sbt.w / 2, sbt.cy - sbt.h; size: sbt.w, 2 * sbt.h; values: 0.1 * sbt.h, sbt.w - 0.1 * sbt.h, 0.8 * sbt.h, min(sbt.h / 2, 11 * pu) - 0.1 * sbt.h, pn_fill_i, if(side_wheel.hover > 0.02, floor(time * 5 * pn_rate), 0), (0.18 + 0.25 * side_wheel.hover) * pn_wob * pu, pu; colors: mint; opacity: pn_hatch * 0.32 * (1 - dd_k); show: pn_fill_i > 0 and dd_k < 0.998 }
                 PPillOutline(sl + 75 * pu, sbt.cy, sbt.w, sbt.h, min(sbt.h / 2, 11 * pu), side_wheel.hover, 1, pu)
                 group {
-                    opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg, 0, 1))
+                    opacity: 65% + 35% * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg + set_pgx, 0, 1))
                     pivot: sl + 30 * pu, sby + side.wp * pu
-                    scale: 1 + 0.28 * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg, 0, 1)) + 0.03 * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg, 0, 1)) * sin(floor(time * 5) * 47)
-                    move: (1 - clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg, 0, 1)) * 0.6 * pu * sin(floor(time * 5) * 53 + 40), (1 - clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg, 0, 1)) * 0.6 * pu * sin(floor(time * 5) * 61)
-                    box { at: sl + 30 * pu, sby + side.wp * pu; size: 13 * pu, 10 * pu; corner: 2 * pu; stroke: 1.3 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg, 0, 1)) }
-                    path { at: sl + 30 * pu, sby + side.wp * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg, 0, 1)); move -5 * pu, 3 * pu; line -1.5 * pu, -1 * pu; line 1 * pu, 1.5 * pu; line 2.5 * pu, -1.5 * pu; line 5 * pu, 3 * pu; close }
-                    ellipse { at: sl + 33 * pu, sby + (side.wp - 3) * pu; radius: 1.2 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg, 0, 1)) }
+                    scale: 1 + 0.28 * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg + set_pgx, 0, 1)) + 0.03 * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg + set_pgx, 0, 1)) * sin(floor(time * 5 * pn_rate) * 47)
+                    move: (1 - clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg + set_pgx, 0, 1)) * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), (1 - clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg + set_pgx, 0, 1)) * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
+                    box { at: sl + 30 * pu, sby + side.wp * pu; size: 13 * pu, 10 * pu; corner: 2 * pu; stroke: 1.3 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg + set_pgx, 0, 1)) }
+                    path { at: sl + 30 * pu, sby + side.wp * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg + set_pgx, 0, 1)); move -5 * pu, 3 * pu; line -1.5 * pu, -1 * pu; line 1 * pu, 1.5 * pu; line 2.5 * pu, -1.5 * pu; line 5 * pu, 3 * pu; close }
+                    ellipse { at: sl + 33 * pu, sby + (side.wp - 3) * pu; radius: 1.2 * pu; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg + set_pgx, 0, 1)) }
                 }
-                group { scale: rs * (1 + 0.1 * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg, 0, 1))); pivot: floor(sl + 46 * pu + 0.5), floor(sby + side.wp * pu + 0.5); text "Wallpaper" { at: floor(sl + 46 * pu + 0.5), floor(sby + side.wp * pu + 0.5); anchor: left center; size: 16; weight: 600; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg, 0, 1); family: "Space Grotesk" } }
+                group { scale: rs * (1 + 0.1 * (1 - clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg + set_pgx, 0, 1))); pivot: floor(sl + 46 * pu + 0.5), floor(sby + side.wp * pu + 0.5); text "Wallpaper" { at: floor(sl + 46 * pu + 0.5), floor(sby + side.wp * pu + 0.5); anchor: left center; size: 16; weight: 600; color: mix(mint, ink, clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg + set_pgx, 0, 1)); opacity: 100% - 15% * clamp(set_pg + set_pgd + set_pgb + set_pgws + set_pgn + set_pgh + set_pga + set_pgs + set_pgt + set_pgl + set_pgw + set_pgv + set_pgk + set_pgp + set_pgy + set_pgo + set_pgi + set_pgg + set_pgx, 0, 1); family: "Space Grotesk" } }
                 //  Glass: a pane with a highlight across its corner.
                 group {
                     opacity: 65% + 35% * set_pg
                     pivot: sl + 30 * pu, sby + side.gl * pu
-                    scale: 1 + 0.28 * set_pg + 0.03 * set_pg * sin(floor(time * 5) * 47)
-                    move: set_pg * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pg * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pg + 0.03 * set_pg * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pg * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pg * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     box { at: sl + 30 * pu, sby + side.gl * pu; size: 13 * pu, 13 * pu; corner: 3.5 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pg) }
                     line { from: sl + 26.5 * pu, sby + (side.gl + 2.5) * pu; to: sl + 30.5 * pu, sby + (side.gl - 3) * pu; width: 1.1 * pu; color: mix(ink, mint, set_pg); opacity: 80% }
                 }
                 group { scale: rs * (1 + 0.1 * set_pg); pivot: floor(sl + 46 * pu + 0.5), floor(sby + side.gl * pu + 0.5); text "Glass" { at: floor(sl + 46 * pu + 0.5), floor(sby + side.gl * pu + 0.5); anchor: left center; size: 16; weight: 600; color: mix(ink, mint, set_pg); opacity: 85% + 15% * set_pg; family: "Space Grotesk" } }
+                //  Style: a pencil, leaning, with a wavy stroke drawn under its tip.
+                group {
+                    opacity: 65% + 35% * set_pgx
+                    pivot: sl + 30 * pu, sby + side.st * pu
+                    scale: 1 + 0.28 * set_pgx + 0.03 * set_pgx * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgx * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgx * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
+                    path { at: sl + 30 * pu, sby + side.st * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgx); move 5 * pu, -6.5 * pu; line 7 * pu, -4.5 * pu; line -1.5 * pu, 4 * pu; line -4 * pu, 4.5 * pu; line -3.5 * pu, 2 * pu; close }
+                    line { from: sl + 33 * pu, sby + (side.st - 3.5) * pu; to: sl + 35 * pu, sby + (side.st - 1.5) * pu; width: 1.1 * pu; color: mix(ink, mint, set_pgx) }
+                    path { at: sl + 30 * pu, sby + side.st * pu; stroke: 1.1 * pu; color: mix(ink, mint, set_pgx); opacity: 70%; move -7 * pu, 7 * pu; curve -2 * pu, 7 * pu via -4.5 * pu, 5.2 * pu; curve 3 * pu, 7 * pu via 0.5 * pu, 8.8 * pu }
+                }
+                group { scale: rs * (1 + 0.1 * set_pgx); pivot: floor(sl + 46 * pu + 0.5), floor(sby + side.st * pu + 0.5); text "Style" { at: floor(sl + 46 * pu + 0.5), floor(sby + side.st * pu + 0.5); anchor: left center; size: 16; weight: 600; color: mix(ink, mint, set_pgx); opacity: 85% + 15% * set_pgx; family: "Space Grotesk" } }
                 //  Display: a screen on its stand.
                 group {
                     opacity: 65% + 35% * set_pgd
                     pivot: sl + 30 * pu, sby + side.dp * pu
-                    scale: 1 + 0.28 * set_pgd + 0.03 * set_pgd * sin(floor(time * 5) * 47)
-                    move: set_pgd * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgd * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgd + 0.03 * set_pgd * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgd * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgd * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     box { at: sl + 30 * pu, sby + (side.dp - 2) * pu; size: 14 * pu, 9.5 * pu; corner: 2 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgd) }
                     line { from: sl + 30 * pu, sby + (side.dp + 3.5) * pu; to: sl + 30 * pu, sby + (side.dp + 6) * pu; width: 1.3 * pu; color: mix(ink, mint, set_pgd) }
                     line { from: sl + 26.5 * pu, sby + (side.dp + 6.5) * pu; to: sl + 33.5 * pu, sby + (side.dp + 6.5) * pu; width: 1.3 * pu; color: mix(ink, mint, set_pgd) }
@@ -161,8 +174,8 @@ part SettingsPanel {
                 group {
                     opacity: 65% + 35% * set_pgb
                     pivot: sl + 30 * pu, sby + side.bar * pu
-                    scale: 1 + 0.28 * set_pgb + 0.03 * set_pgb * sin(floor(time * 5) * 47)
-                    move: set_pgb * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgb * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgb + 0.03 * set_pgb * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgb * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgb * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     box { at: sl + 30 * pu, sby + side.bar * pu; size: 16 * pu, 8 * pu; corner: 4 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgb) }
                     repeat k in 0..3 { ellipse { at: sl + (6 + 21 + k * 3) * pu, sby + side.bar * pu; radius: 0.9 * pu; color: mix(ink, mint, set_pgb) } }
                 }
@@ -171,8 +184,8 @@ part SettingsPanel {
                 group {
                     opacity: 65% + 35% * set_pgws
                     pivot: sl + 30 * pu, sby + side.ws * pu
-                    scale: 1 + 0.28 * set_pgws + 0.03 * set_pgws * sin(floor(time * 5) * 47)
-                    move: set_pgws * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgws * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgws + 0.03 * set_pgws * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgws * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgws * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     box { at: sl + 24.5 * pu, sby + side.ws * pu; size: 3.5 * pu, 3.5 * pu; corner: 1.75 * pu; color: mix(ink, mint, set_pgws) }
                     box { at: sl + 30 * pu, sby + side.ws * pu; size: 6.5 * pu, 4 * pu; corner: 2 * pu; color: mix(ink, mint, set_pgws) }
                     box { at: sl + 35.5 * pu, sby + side.ws * pu; size: 3.5 * pu, 3.5 * pu; corner: 1.75 * pu; stroke: 1 * pu; color: mix(ink, mint, set_pgws) }
@@ -182,8 +195,8 @@ part SettingsPanel {
                 group {
                     opacity: 65% + 35% * set_pgn
                     pivot: sl + 30 * pu, sby + side.nm * pu
-                    scale: 1 + 0.28 * set_pgn + 0.03 * set_pgn * sin(floor(time * 5) * 47)
-                    move: set_pgn * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgn * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgn + 0.03 * set_pgn * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgn * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgn * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     path { at: sl + 30 * pu, sby + side.nm * pu; stroke: 1.6 * pu; color: mix(ink, mint, set_pgn); move 5.97 * pu, 2.28 * pu; line 5.59 * pu, 3.07 * pu; line 5.10 * pu, 3.80 * pu; line 4.51 * pu, 4.45 * pu; line 3.84 * pu, 5.02 * pu; line 3.09 * pu, 5.48 * pu; line 2.29 * pu, 5.83 * pu; line 1.44 * pu, 6.06 * pu; line 0.57 * pu, 6.18 * pu; line -0.30 * pu, 6.16 * pu; line -1.17 * pu, 6.03 * pu; line -2.01 * pu, 5.77 * pu; line -2.81 * pu, 5.40 * pu; line -3.54 * pu, 4.92 * pu; line -4.20 * pu, 4.34 * pu; line -4.77 * pu, 3.68 * pu; line -5.24 * pu, 2.94 * pu; line -5.60 * pu, 2.14 * pu; line -5.85 * pu, 1.30 * pu; line -5.97 * pu, 0.42 * pu; line -5.96 * pu, -0.45 * pu; line -5.84 * pu, -1.32 * pu; line -5.59 * pu, -2.16 * pu; line -5.23 * pu, -2.96 * pu; line -4.76 * pu, -3.70 * pu; line -4.18 * pu, -4.36 * pu; line -3.53 * pu, -4.94 * pu; line -2.79 * pu, -5.42 * pu; line -1.99 * pu, -5.79 * pu; line -1.15 * pu, -6.04 * pu; line -0.29 * pu, -6.18 * pu; line -0.70 * pu, -5.70 * pu; line -1.05 * pu, -5.18 * pu; line -1.34 * pu, -4.63 * pu; line -1.56 * pu, -4.05 * pu; line -1.71 * pu, -3.44 * pu; line -1.79 * pu, -2.82 * pu; line -1.80 * pu, -2.20 * pu; line -1.73 * pu, -1.57 * pu; line -1.59 * pu, -0.96 * pu; line -1.38 * pu, -0.37 * pu; line -1.10 * pu, 0.19 * pu; line -0.76 * pu, 0.71 * pu; line -0.36 * pu, 1.20 * pu; line 0.09 * pu, 1.63 * pu; line 0.60 * pu, 2.00 * pu; line 1.14 * pu, 2.31 * pu; line 1.71 * pu, 2.56 * pu; line 2.31 * pu, 2.74 * pu; line 2.93 * pu, 2.84 * pu; line 3.56 * pu, 2.87 * pu; line 4.18 * pu, 2.84 * pu; line 4.80 * pu, 2.72 * pu; line 5.39 * pu, 2.53 * pu; line 5.97 * pu, 2.28 * pu; line 5.97 * pu, 2.28 * pu }
                 }
                 group { scale: rs * (1 + 0.1 * set_pgn); pivot: floor(sl + 46 * pu + 0.5), floor(sby + side.nm * pu + 0.5); text "Night mode" { at: floor(sl + 46 * pu + 0.5), floor(sby + side.nm * pu + 0.5); anchor: left center; size: 16; weight: 600; color: mix(ink, mint, set_pgn); opacity: 85% + 15% * set_pgn; family: "Space Grotesk" } }
@@ -193,8 +206,8 @@ part SettingsPanel {
                 group {
                     opacity: 65% + 35% * set_pgi
                     pivot: sl + 30 * pu, sby + side.id * pu
-                    scale: 1 + 0.28 * set_pgi + 0.03 * set_pgi * sin(floor(time * 5) * 47)
-                    move: set_pgi * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgi * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgi + 0.03 * set_pgi * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgi * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgi * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     ellipse { at: sl + 30 * pu, sby + side.id * pu; radius: 6.5 * pu; stroke: 1.5 * pu; color: mix(ink, mint, set_pgi) }
                     line { from: sl + 30 * pu, sby + side.id * pu; to: sl + 30 * pu, sby + (side.id - 3.6) * pu; width: 1.4 * pu; color: mix(ink, mint, set_pgi) }
                     line { from: sl + 30 * pu, sby + side.id * pu; to: sl + 32.6 * pu, sby + (side.id + 1.6) * pu; width: 1.4 * pu; color: mix(ink, mint, set_pgi) }
@@ -207,8 +220,8 @@ part SettingsPanel {
                     show: gr_sddm
                     opacity: 65% + 35% * set_pgg
                     pivot: sl + 30 * pu, sby + side.gg * pu
-                    scale: 1 + 0.28 * set_pgg + 0.03 * set_pgg * sin(floor(time * 5) * 47)
-                    move: set_pgg * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgg * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgg + 0.03 * set_pgg * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgg * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgg * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     path { at: sl + 30 * pu, sby + side.gg * pu; stroke: 1.5 * pu; color: mix(ink, mint, set_pgg); move 1 * pu, -6.5 * pu; line 5.5 * pu, -6.5 * pu; line 5.5 * pu, 6.5 * pu; line 1 * pu, 6.5 * pu }
                     line { from: sl + 23.5 * pu, sby + side.gg * pu; to: sl + 31.5 * pu, sby + side.gg * pu; width: 1.5 * pu; color: mix(ink, mint, set_pgg) }
                     path { at: sl + 30 * pu, sby + side.gg * pu; stroke: 1.5 * pu; color: mix(ink, mint, set_pgg); move -1.6 * pu, -3.4 * pu; line 1.8 * pu, 0; line -1.6 * pu, 3.4 * pu }
@@ -222,8 +235,8 @@ part SettingsPanel {
                 group {
                     opacity: 65% + 35% * set_pgh
                     pivot: sl + 30 * pu, sby + side.hy * pu
-                    scale: 1 + 0.28 * set_pgh + 0.03 * set_pgh * sin(floor(time * 5) * 47)
-                    move: set_pgh * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgh * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgh + 0.03 * set_pgh * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgh * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgh * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     box { at: sl + 30 * pu, sby + side.hy * pu; size: 14 * pu, 11 * pu; corner: 2 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgh); show: wm_hypr or wm_niri }
                     line { from: sl + 23 * pu, sby + (side.hy - 2) * pu; to: sl + 37 * pu, sby + (side.hy - 2) * pu; width: 1.3 * pu; color: mix(ink, mint, set_pgh); show: wm_hypr or wm_niri }
                 }
@@ -233,8 +246,8 @@ part SettingsPanel {
                 group {
                     opacity: 65% + 35% * set_pgw
                     pivot: sl + 30 * pu, sby + side.wm * pu
-                    scale: 1 + 0.28 * set_pgw + 0.03 * set_pgw * sin(floor(time * 5) * 47)
-                    move: set_pgw * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgw * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgw + 0.03 * set_pgw * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgw * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgw * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     box { at: sl + 30 * pu, sby + side.wm * pu; size: 14 * pu, 11 * pu; corner: 2 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgw); show: wm_pwm }
                     line { from: sl + 32 * pu, sby + (side.wm - 5.5) * pu; to: sl + 32 * pu, sby + (side.wm + 5.5) * pu; width: 1.3 * pu; color: mix(ink, mint, set_pgw); show: wm_pwm }
                 }
@@ -245,8 +258,8 @@ part SettingsPanel {
                 group {
                     opacity: 65% + 35% * set_pga
                     pivot: sl + 30 * pu, sby + side.ab * pu
-                    scale: 1 + 0.28 * set_pga + 0.03 * set_pga * sin(floor(time * 5) * 47)
-                    move: set_pga * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pga * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pga + 0.03 * set_pga * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pga * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pga * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     ellipse { at: sl + 30 * pu, sby + side.ab * pu; radius: 6.5 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pga) }
                     line { from: sl + 30 * pu, sby + side.ab * pu; to: sl + 30 * pu, sby + (side.ab + 3.5) * pu; width: 1.3 * pu; color: mix(ink, mint, set_pga) }
                     ellipse { at: sl + 30 * pu, sby + (side.ab - 3.2) * pu; radius: 0.9 * pu; color: mix(ink, mint, set_pga) }
@@ -256,8 +269,8 @@ part SettingsPanel {
                 group {
                     opacity: 65% + 35% * set_pgs
                     pivot: sl + 30 * pu, sby + side.mon * pu
-                    scale: 1 + 0.28 * set_pgs + 0.03 * set_pgs * sin(floor(time * 5) * 47)
-                    move: set_pgs * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgs * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgs + 0.03 * set_pgs * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgs * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgs * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     path { at: sl + 30 * pu, sby + side.mon * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgs); move -7 * pu, 1 * pu; line -3.5 * pu, 1 * pu; line -1.5 * pu, -5 * pu; line 1.5 * pu, 5 * pu; line 3.5 * pu, -1 * pu; line 7 * pu, -1 * pu }
                 }
                 group { scale: rs * (1 + 0.1 * set_pgs); pivot: floor(sl + 46 * pu + 0.5), floor(sby + side.mon * pu + 0.5); text "System monitor" { at: floor(sl + 46 * pu + 0.5), floor(sby + side.mon * pu + 0.5); anchor: left center; size: 16; weight: 600; width: (102 * pu) / rs; lines: 1; color: mix(ink, mint, set_pgs); opacity: 85% + 15% * set_pgs; family: "Space Grotesk" } }
@@ -265,8 +278,8 @@ part SettingsPanel {
                 group {
                     opacity: 65% + 35% * set_pgt
                     pivot: sl + 30 * pu, sby + side.nt * pu
-                    scale: 1 + 0.28 * set_pgt + 0.03 * set_pgt * sin(floor(time * 5) * 47)
-                    move: set_pgt * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgt * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgt + 0.03 * set_pgt * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgt * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgt * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     path { at: sl + 30 * pu, sby + side.nt * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgt); move -5.5 * pu, 4 * pu; line -5.5 * pu, 3 * pu; line -4 * pu, 1.5 * pu; line -4 * pu, -2.5 * pu; curve 4 * pu, -2.5 * pu via 0, -9 * pu; line 4 * pu, 1.5 * pu; line 5.5 * pu, 3 * pu; line 5.5 * pu, 4 * pu; close }
                     ellipse { at: sl + 30 * pu, sby + (side.nt + 6.5) * pu; radius: 1.6 * pu; color: mix(ink, mint, set_pgt) }
                 }
@@ -275,8 +288,8 @@ part SettingsPanel {
                 group {
                     opacity: 65% + 35% * set_pgl
                     pivot: sl + 30 * pu, sby + side.lk * pu
-                    scale: 1 + 0.28 * set_pgl + 0.03 * set_pgl * sin(floor(time * 5) * 47)
-                    move: set_pgl * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgl * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgl + 0.03 * set_pgl * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgl * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgl * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     path { at: sl + 30 * pu, sby + side.lk * pu - 2.5 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgl); move -3.5 * pu, -1 * pu; line -3.5 * pu, -4 * pu; curve 3.5 * pu, -4 * pu via 0 * pu, -10.5 * pu; line 3.5 * pu, -1 * pu }
                     box { at: sl + 30 * pu, sby + side.lk * pu + 2 * pu; size: 12 * pu, 8.5 * pu; corner: 2.2 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgl) }
                 }
@@ -285,8 +298,8 @@ part SettingsPanel {
                 group {
                     opacity: 65% + 35% * set_pgk
                     pivot: sl + 30 * pu, sby + side.ck * pu
-                    scale: 1 + 0.28 * set_pgk + 0.03 * set_pgk * sin(floor(time * 5) * 47)
-                    move: set_pgk * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgk * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgk + 0.03 * set_pgk * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgk * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgk * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     box { at: sl + 26.5 * pu, sby + (side.ck - 3.5) * pu; size: 5.5 * pu, 5.5 * pu; corner: 1.5 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgk) }
                     box { at: sl + 33.5 * pu, sby + (side.ck - 3.5) * pu; size: 5.5 * pu, 5.5 * pu; corner: 1.5 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgk) }
                     box { at: sl + 26.5 * pu, sby + (side.ck + 3.5) * pu; size: 5.5 * pu, 5.5 * pu; corner: 1.5 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgk) }
@@ -297,8 +310,8 @@ part SettingsPanel {
                 group {
                     opacity: 65% + 35% * set_pgo
                     pivot: sl + 30 * pu, sby + side.ao * pu
-                    scale: 1 + 0.28 * set_pgo + 0.03 * set_pgo * sin(floor(time * 5) * 47)
-                    move: set_pgo * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgo * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgo + 0.03 * set_pgo * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgo * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgo * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     box { at: sl + 30 * pu, sby + side.ao * pu; size: 14 * pu, 14 * pu; corner: 4 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgo) }
                     line { from: sl + 30 * pu, sby + (side.ao - 3) * pu; to: sl + 30 * pu, sby + (side.ao + 3) * pu; width: 1.3 * pu; color: mix(ink, mint, set_pgo) }
                     line { from: sl + 27 * pu, sby + side.ao * pu; to: sl + 33 * pu, sby + side.ao * pu; width: 1.3 * pu; color: mix(ink, mint, set_pgo) }
@@ -310,8 +323,8 @@ part SettingsPanel {
                 group {
                     opacity: 65% + 35% * set_pgp
                     pivot: sl + 30 * pu, sby + side.th * pu
-                    scale: 1 + 0.28 * set_pgp + 0.03 * set_pgp * sin(floor(time * 5) * 47)
-                    move: set_pgp * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgp * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgp + 0.03 * set_pgp * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgp * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgp * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     box { at: sl + 30 * pu, sby + side.th * pu; size: 15 * pu, 12 * pu; corner: 5 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgp) }
                     ellipse { at: sl + 27.5 * pu, sby + (side.th - 1.5) * pu; radius: 1.3 * pu; color: mix(ink, mint, set_pgp) }
                     ellipse { at: sl + 31 * pu, sby + (side.th - 2.5) * pu; radius: 1.3 * pu; color: mix(ink, mint, set_pgp) }
@@ -324,8 +337,8 @@ part SettingsPanel {
                 group {
                     opacity: 65% + 35% * set_pgv
                     pivot: sl + 30 * pu, sby + side.vpn * pu
-                    scale: 1 + 0.28 * set_pgv + 0.03 * set_pgv * sin(floor(time * 5) * 47)
-                    move: set_pgv * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgv * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgv + 0.03 * set_pgv * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgv * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgv * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     path { at: sl + 30 * pu, sby + side.vpn * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgv); move 0, -7 * pu; line 6 * pu, -4.5 * pu; line 6 * pu, 1 * pu; line 0, 7.5 * pu; line -6 * pu, 1 * pu; line -6 * pu, -4.5 * pu; close }
                 }
                 group { scale: rs * (1 + 0.1 * set_pgv); pivot: floor(sl + 46 * pu + 0.5), floor(sby + side.vpn * pu + 0.5); text "VPN" { at: floor(sl + 46 * pu + 0.5), floor(sby + side.vpn * pu + 0.5); anchor: left center; size: 16; weight: 600; width: (102 * pu) / rs; lines: 1; color: mix(ink, mint, set_pgv); opacity: 85% + 15% * set_pgv; family: "Space Grotesk" } }
@@ -335,8 +348,8 @@ part SettingsPanel {
                 group {
                     opacity: 65% + 35% * set_pgy
                     pivot: sl + 30 * pu, sby + side.ky * pu
-                    scale: 1 + 0.28 * set_pgy + 0.03 * set_pgy * sin(floor(time * 5) * 47)
-                    move: set_pgy * 0.6 * pu * sin(floor(time * 5) * 53 + 40), set_pgy * 0.6 * pu * sin(floor(time * 5) * 61)
+                    scale: 1 + 0.28 * set_pgy + 0.03 * set_pgy * sin(floor(time * 5 * pn_rate) * 47)
+                    move: set_pgy * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgy * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
                     box { at: sl + 30 * pu, sby + side.ky * pu; size: 16 * pu, 11 * pu; corner: 2.5 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgy) }
                     repeat k in 0..3 { ellipse { at: sl + (6 + 20.5 + k * 3.5) * pu, sby + (side.ky - 2) * pu; radius: 0.8 * pu; color: mix(ink, mint, set_pgy) } }
                     line { from: sl + 27 * pu, sby + (side.ky + 2.2) * pu; to: sl + 33 * pu, sby + (side.ky + 2.2) * pu; width: 1.2 * pu; color: mix(ink, mint, set_pgy) }
@@ -366,6 +379,8 @@ part SettingsPanel {
                 zone box side_gl { at: sl + 75 * pu, sby + side.gl * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: sby + side.gl * pu - side.off > sby and sby + side.gl * pu - side.off < sby + set.h * pu }
                 on press side_wp { set_page = pg_wall }
                 on press side_gl { set_page = pg_glass }
+                zone box side_st { at: sl + 75 * pu, sby + side.st * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; label: "Style"; active: sby + side.st * pu - side.off > sby and sby + side.st * pu - side.off < sby + set.h * pu }
+                on press side_st { set_page = pg_style }
             }
         }
 
@@ -454,6 +469,9 @@ part SettingsPanel {
         include "addons.plm"
 
         include "theme.plm"
+
+        //  The Style page (Look): how the shell's pencil is drawn: presets, then how often it boils, how crooked, the echo line and the shading.
+        include "style.plm"
 
         include "vpn.plm"
 
