@@ -5156,7 +5156,7 @@ local function disp_changed(m, d)
         or math.abs((cur.sdrs or 1) - (d.sdrs or 1)) > 0.004
 end
 
--- What the page shows: the canvas (each monitor a box, all fitted into 400 x 118), the rows of choices for the
+-- What the page shows: the canvas (each monitor a box, all fitted into 400 x 190), the rows of choices for the
 -- monitor that is selected, and how far its draft is from what is on the screen.
 local function disp_render()
     local n = #disp_mons
@@ -5191,13 +5191,17 @@ local function disp_render()
         -- the pointer, which is what made the drag jump to the top or bottom
         f, ox, oy, x0, y0 = disp_grab_origin.f, disp_grab_origin.ox, disp_grab_origin.oy, disp_grab_origin.x0, disp_grab_origin.y0
     else
-        -- room round the monitors (a quarter of the biggest one on each side), so a box can be moved past the others
-        local mw, mh = 0, 0
-        for _, m in ipairs(disp_mons) do
-            local w, h = disp_size(m, disp_draft[m.name])
-            mw, mh = math.max(mw, w), math.max(mh, h)
+        -- the monitors fill the canvas: one alone takes nearly all of it, and more shrink only as far as they need to
+        -- fit side by side. With more than one, a little room round them (a tenth of the biggest on each side) so a
+        -- box can still be pulled past the edge of the others; while dragging the canvas holds still anyway.
+        if n > 1 then
+            local mw, mh = 0, 0
+            for _, m in ipairs(disp_mons) do
+                local w, h = disp_size(m, disp_draft[m.name])
+                mw, mh = math.max(mw, w), math.max(mh, h)
+            end
+            x0, y0, x1, y1 = x0 - mw / 10, y0 - mh / 10, x1 + mw / 10, y1 + mh / 10
         end
-        x0, y0, x1, y1 = x0 - mw / 4, y0 - mh / 4, x1 + mw / 4, y1 + mh / 4
         f = math.min((cw - 2 * pad) / math.max(1, x1 - x0), (ch - 2 * pad) / math.max(1, y1 - y0))
         ox = (cw - (x1 - x0) * f) / 2
         oy = (ch - (y1 - y0) * f) / 2
