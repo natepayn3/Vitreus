@@ -14,6 +14,10 @@ import "../palette.plm"
 //  Keys: Left / Right (and Page Up / Page Down, Backspace / Space) the one before and after, Home and End the first and the last, + and - zoom, R and Shift+R turn it, E edits it in Snap, Ctrl+C copies it, W makes it the wallpaper, I shows its details, S starts or stops
 //  the slideshow, Delete puts it in the trash, F (or F11) fills the screen, keypad 0 fits and keypad 1 is the real size, Esc stops, closes the details, then View; Q closes.
 //
+//  Videos are listed with the pictures: one shows its first picture with a play button on it, and playing it (the button, Enter) hands it to View's
+//  video player (bin/vitreus-view, mpv). With nothing to show, a link pasted under Peek's button (a video's page) opens in that player too. Cast (the
+//  pill's last button, T) puts the picture or the video on the TV (a Chromecast) with catt, and lit, stops it.
+//
 //  Open it with   bin/vitreus-view FILE   (what the desktop runs for pictures once View is the default: view/integrate.sh --set).
 
 scene View {
@@ -35,6 +39,7 @@ scene View {
     text msg = ""                    // why there is nothing to show, a softer line under it, and whether something went wrong (Peek looks surprised)
     text hint = ""
     text browse = "Find pictures in Files"   // the button under it: what it says (the logic keeps where it goes)
+    text link = ""                   // a video's link, written under Peek's button (the `input` of that name)
     text open_req = ""               // a picture handed over by bin/vitreus-view (`pleamar --say`): open this one
     fact sad = false
     fact has_hint = false
@@ -81,6 +86,12 @@ scene View {
     fact tip = 0                     // the button whose tooltip shows (0 none)
     fact held = false                // the picture is being dragged
     fact playing = false             // the slideshow: the next one every four seconds
+    fact is_video = false            // the one shown is a video (what is drawn is its first picture, and it plays in View's player)
+    fact casting = false             // it is on the TV (Cast is lit, and pressed again stops it)
+    fact cast_pick = false           // the list of TVs is open (Cast pressed): which one to play it on
+    fact scanning = false            // the network is being looked through for them (catt scan, a few seconds)
+    fact tv_n = 0
+    model tvs max 8 { name: text; kind: text; on: bool }   // what was found: its name, what it is, and whether it is the one used last
 
     event nav ->                     // -1 the one before, 1 the one after, -2 the first, 2 the last
     event tap ->                     // a click on the picture (the logic tells a double click from two)
@@ -90,10 +101,15 @@ scene View {
     event do_trash ->
     event do_full ->
     event dbl                        // the logic's answer to a double click
+    event bye                        // the logic's: the player has taken this window's place (Play), so it closes
     event focused ->
     event do_wall ->
     event do_info ->
     event do_browse ->
+    event do_play ->                 // the video shown, to View's player
+    event do_link ->                 // the link written under Peek (`link`), to View's player
+    event do_cast ->                 // on to the TV (the list of them opens), or off it
+    event pick_tv ->                 // the one chosen in that list (its row)
 
     spring pop = 318, 20
     prop zk = 1 ~quick
@@ -311,11 +327,27 @@ scene View {
             path { at: x, y; color: ink; show: g == 13; move -6, 2; line -2, -3.5; line 1, -0.5; line 3, -2.5; line 6.5, 2; close }
             line { from: x - 4, y + 8.5; to: x + 4, y + 8.5; width: 2; color: ink; show: g == 13 }
             line { from: x, y + 4.5; to: x, y + 8.5; width: 2; color: ink; show: g == 13 }
+            //  14 cast: a screen whose corner below on the left gives way to waves going out to it
+            path { at: x, y; stroke: 2.1; color: ink; show: g == 14; move -9.5, -2; line -9.5, -7; line 9.5, -7; line 9.5, 7; line 2.5, 7 }
+            path { at: x, y; stroke: 2; color: ink; show: g == 14; move -9.5, 2.5; curve -5, 7 via -5, 2.5 }
+            path { at: x, y; stroke: 2; color: ink; show: g == 14; move -9.5, -1.5; curve -1, 7 via -1, -1.5 }
+            ellipse { at: x - 9.5, y + 7; radius: 1.4; color: ink; show: g == 14 }
         }
         zone box tz { at: x, y; size: 38, 38; corner: 13; cursor: pointer; label: lbl; active: en > 0.5 }
         on press tz { emit ev(arg) }
         on leave tz { tip = 0 }
         on hover tz for 450ms { tip = n }
+    }
+
+    //  A TV in Cast's list: its name, what it is under it, a dot of the accent by the one used last.
+    component TvRow(r: record, pick: event) {
+        size: 340, 58
+        zone box touch { from: 0, 0; size: 340, 58; corner: 14; cursor: pointer; label: r.name; role: button }
+        box { from: 0, 0; size: 340, 58; corner: pick(look, 14, 4, 14, 3, 2); color: mint; opacity: 20% * touch.hover }
+        ellipse { at: 18, 29; radius: 4.5; color: mint; opacity: if(r.on, 100%, 0%) }
+        text r.name { at: 36 + 3 * touch.hover, 20; anchor: left center; size: 16; weight: 700; color: ink; width: 290; lines: 1; family: "Space Grotesk" }
+        text r.kind { at: 36 + 3 * touch.hover, 40; anchor: left center; size: 13; weight: 500; color: ink; opacity: 62%; width: 290; lines: 1; family: "Space Grotesk" }
+        on press touch { emit pick(r.index) }
     }
 
     //  A tooltip over a button: its words in a small chip of the look's material, `x` the button's middle.
@@ -547,6 +579,12 @@ scene View {
                 ellipse { at: cx + 58 + d * 7, pk.by + 4; radius: 1.8; color: onmint; opacity: bo * (0.35 + 0.65 * clamp(sin(time * 360 - d * 60), 0, 1)) }
             }
         }
+        //  or a video from the web: its link, written or pasted here, plays in View's player (Enter, or Play)
+        box { at: cx, pk.by + 62; size: 380, 42; corner: if(look == 1 or look == 3 or look == 4, 8, 21); color: ink; opacity: 7% + 5% * lk_field.hover }
+        box { at: cx, pk.by + 62; size: 380, 42; corner: if(look == 1 or look == 3 or look == 4, 8, 21); stroke: 1.2; color: ink; opacity: 28% }
+        input link { at: cx - 172, pk.by + 54; width: 270; size: 14; weight: 500; color: ink; family: "Space Grotesk"; placeholder: "Or paste a video link"; label: "Video link" }
+        box { at: cx + 152, pk.by + 62; size: 64, 30; corner: if(look == 1 or look == 3 or look == 4, 6, 15); color: mix(mint, minthi, lk_go.hover) }
+        text "Play" { at: cx + 152, pk.by + 62; anchor: center; size: 13; weight: 700; color: onmint; family: "Space Grotesk" }
     }
 
 
@@ -572,6 +610,24 @@ scene View {
     zone box pk_files { from: cx - 130, pk.by - 23; size: 260, 46; cursor: if(opening, progress, pointer); active: pk.on; label: "Open Files"; role: button }
     follow bp = pk_files.pressed
     on press pk_files while not opening { opening = true; ripple pk_files; impulse bp 6; emit do_browse }
+    zone box lk_field { from: cx - 190, pk.by + 41; size: 300, 42; cursor: text; active: pk.on; label: "Video link" }
+    zone box lk_go { at: cx + 152, pk.by + 62; size: 64, 30; corner: 15; cursor: pointer; active: pk.on; label: "Play the link"; role: button }
+    on press lk_field { focus link }
+    on submit link { emit do_link }
+    on press lk_go { emit do_link }
+
+    //  a video: a play button on its first picture
+    prop vh = 0 ~quick
+    follow vh = vplay.hover
+    group {
+        opacity: ap
+        show: has and is_video
+        ellipse { at: px, py; radius: 40 + 4 * vh; color: if(look == 3, #000000, deep); opacity: 62% + 18% * vh }
+        ellipse { at: px, py; radius: 40 + 4 * vh; stroke: pick(look, 0, 2.5, 3, 1.4, 2.6); color: pick(look, deep, deep, deep, mint, ink); opacity: if(look == 0, 0, 100%) }
+        path { at: px + 4, py; color: peek_eye; move -11, -16; line 17, 0; line -11, 16; close }
+    }
+    zone box vplay { at: px, py; size: 96, 96; corner: 48; cursor: pointer; active: has and is_video; label: "Play the video"; role: button }
+    on press vplay { ripple vplay; emit do_play }
     //  a double click: fitted to its real size (twice the size, if that is what it is already), about the pointer; and back
     on dbl while not zoomed {
         ox = clamp((cx - pointer.x) * (if(real > 1.05, real, 2) - 1), -max(0, (rw * fk * if(real > 1.05, real, 2) - AW) / 2), max(0, (rw * fk * if(real > 1.05, real, 2) - AW) / 2))
@@ -601,7 +657,7 @@ scene View {
     }
 
     // ── the chip, the pill, the details: they make way for the pictures during a slideshow, and come back while the pointer is over the pill ──
-    zone box pillarea { from: cx - 380, H - 96; size: 760, 96; label: "Buttons"; role: region }
+    zone box pillarea { from: cx - 400, H - 96; size: 800, 96; label: "Buttons"; role: region }
     prop ck = 1 ~quick
     follow ck = if(playing and not pillarea.hover, 0, 1)
     every 4s while playing and count > 1 { emit nav(1) }
@@ -662,7 +718,7 @@ scene View {
     }
 
     // ── the pill: the same as the keys, as buttons ──
-    let pw = 684
+    let pw = 728
     let pbx = cx - pw / 2
     let pby = H - 70
     let by_ = pby + 26
@@ -700,12 +756,13 @@ scene View {
     Tb(b0 + 316, by_, 7, 5, "Turn left", turn, -1, if(has, 1, 0))
     Tb(b0 + 360, by_, 8, 6, "Turn right", turn, 1, if(has, 1, 0))
     box { at: b0 + 382, by_; size: 1, 24; color: ink; opacity: 22% }
-    Tb(b0 + 404, by_, 9, 7, "Draw on it in Snap", do_edit, 0, if(has, 1, 0))
+    Tb(b0 + 404, by_, 9, 7, "Draw on it in Snap", do_edit, 0, if(has and not is_video, 1, 0))
     Tb(b0 + 448, by_, 10, 8, "Show in Files", do_reveal, 0, if(has_name, 1, 0))
-    Tb(b0 + 492, by_, 11, 9, "Copy the picture", do_copy, 0, if(has, 1, 0))
-    Tb(b0 + 536, by_, 12, 13, "Make it the wallpaper", do_wall, 0, if(has, 1, 0))
+    Tb(b0 + 492, by_, 11, 9, "Copy the picture", do_copy, 0, if(has and not is_video, 1, 0))
+    Tb(b0 + 536, by_, 12, 13, "Make it the wallpaper", do_wall, 0, if(has and not is_video, 1, 0))
     Tb(b0 + 580, by_, 13, 12, "Details", do_info, 0, if(has_name, 1, 0), if(info_on, 1, 0))
     Tb(b0 + 624, by_, 14, 10, "Move to the trash", do_trash, 0, if(has_name, 1, 0))
+    Tb(b0 + 668, by_, 15, 14, if(casting, "Stop playing on the TV", "Play on the TV"), do_cast, 0, if(has or casting, 1, 0), if(casting, 1, 0))
 
     Tip(1, b0, pby - 22, "Previous  ←")
     Tip(2, b0 + 44, pby - 22, "Next  →")
@@ -721,6 +778,37 @@ scene View {
     Tip(12, b0 + 536, pby - 22, "Make it the wallpaper  W")
     Tip(13, b0 + 580, pby - 22, "Details  I")
     Tip(14, b0 + 624, pby - 22, "Move to the trash  Delete")
+    Tip(15, b0 + 668, pby - 22, if(casting, "Stop playing on the TV  T", "Play on the TV  T"))
+
+    // ── Cast's list: which TV to play it on, over the pill by the Cast button. A press anywhere else closes it. ──
+    prop cpk = 0 ~quick
+    follow cpk = if(cast_pick, 1, 0)
+    let cpw = 360
+    let cph = 66 + max(tv_n, 1) * 60
+    let cpx = min(b0 + 690 - cpw, W - cpw - 16)
+    let cpy = pby - 14 - cph
+    zone box cp_away { from: 0, 0; size: W, H; active: cast_pick; label: "Close the list of TVs" }
+    on press cp_away { cast_pick = false }
+    group {
+        opacity: cpk
+        show: cpk > 0.01
+        move: 0, 10 * (1 - cpk)
+        Mat(cpx, cpy, cpw, cph, 18, 7.5, 1)
+        zone box cp_card { from: cpx, cpy; size: cpw, cph; label: "TVs"; role: region }
+        text "Play on" { at: cpx + 22, cpy + 30; anchor: left center; size: 16; weight: 700; color: ink; family: "Space Grotesk" }
+        //  looking: three dots taking turns, and a word while there is nothing yet
+        repeat d in 0..3 {
+            ellipse { at: cpx + cpw - 42 + d * 9, cpy + 30; radius: 2.2; color: ink; opacity: if(scanning, 0.3 + 0.7 * clamp(sin(time * 360 - d * 60), 0, 1), 0) }
+        }
+        text "Looking for TVs…" { at: cpx + 22, cpy + 88; anchor: left center; size: 14.5; color: ink; opacity: 60%; show: scanning and tv_n == 0; family: "Space Grotesk" }
+        text "No TVs found on this network" { at: cpx + 22, cpy + 88; anchor: left center; size: 14.5; color: ink; opacity: 60%; show: not scanning and tv_n == 0; family: "Space Grotesk" }
+        column {
+            at: cpx + 10, cpy + 58
+            view: 340, max(tv_n, 1) * 60
+            gap: 2
+            for r in tvs { TvRow(r, pick: pick_tv) }
+        }
+    }
     }
 
     //  zoom a step about the middle, keeping what is in the middle there
@@ -763,17 +851,21 @@ scene View {
     on key KP_1 while has { z = real; ox = 0; oy = 0 }
     on key r while has { emit turn(1) }
     on key R while has { emit turn(-1) }
-    on key e while has { emit do_edit }
-    on key Ctrl+c while has { emit do_copy }
-    on key w while has { emit do_wall }
+    on key e while has and not is_video { emit do_edit }
+    on key Ctrl+c while has and not is_video { emit do_copy }
+    on key w while has and not is_video { emit do_wall }
+    on key Return while has and is_video { emit do_play }
+    on key t while has or casting { emit do_cast }
     on key i while has_name { emit do_info }
     on key s { emit play }
     on key Delete while has_name { emit do_trash }
     on key f { emit do_full }
     on key F11 { emit do_full }
     //  Escape first stops the slideshow, then closes the details, then View
-    on key Escape while playing { playing = false }
-    on key Escape while info_on and not playing { emit do_info }
-    on key Escape while not playing and not info_on { quit }
+    on key Escape while cast_pick { cast_pick = false }
+    on key Escape while playing and not cast_pick { playing = false }
+    on key Escape while info_on and not playing and not cast_pick { emit do_info }
+    on key Escape while not playing and not info_on and not cast_pick { quit }
     on key q { quit }
+    on bye { quit }
 }

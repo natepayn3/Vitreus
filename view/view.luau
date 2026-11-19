@@ -10,6 +10,11 @@
 
 local NATIVE = { png = true, jpg = true, jpeg = true, jpe = true, jfif = true, gif = true, webp = true, bmp = true }
 local PICTURES = { "png", "jpg", "jpeg", "jpe", "jfif", "gif", "webp", "bmp", "svg", "tif", "tiff", "avif", "heic", "heif", "jxl", "ico", "tga", "psd", "qoi", "ppm", "pgm", "pnm", "xcf", "dng", "cr2", "nef", "arw" }
+-- Videos are listed with the pictures: what is drawn of one is its first picture (a frame from a few seconds in, made with ffmpeg into the runtime folder),
+-- and it plays in View's player (bin/vitreus-view hands it to mpv, with the others of its folder after it).
+local VIDEOS = { "mp4", "m4v", "mkv", "webm", "mov", "avi", "wmv", "flv", "mpg", "mpeg", "m2ts", "mts", "ts", "ogv", "3gp", "3g2", "vob", "divx", "f4v" }
+local IS_VIDEO = {}
+for _, e in ipairs(VIDEOS) do IS_VIDEO[e] = true end
 -- Orientations that mean the picture is stored turned a quarter (its width and height swap once it is the right way up).
 local QUARTER = { RightTop = true, LeftBottom = true, LeftTop = true, RightBottom = true }
 -- Vitreus's look numbers (`look_v`) as View's: 1 Retro, 2 UwU, 3 Cyber (and Proxy), 7 Doodle; Milk (4) and Paper (6) are drawn as Glass, as Snap does.
@@ -44,6 +49,8 @@ local function say(words)
     after(1800, function() if st.toast_n == n then fact.toast_on = false end end)
 end
 
+local function cut_words(v) v = v or "" if #v > 70 then return v:sub(1, 69) .. "…" end return v end
+
 local function human(bytes)
     bytes = tonumber(bytes) or 0
     if bytes < 1024 then return string.format("%d B", bytes) end
@@ -57,6 +64,7 @@ end
 -- is a button to Files: `where` is the folder it opens (nil: the Pictures folder), `label` what it says.
 local function nothing(why, hint, sad, label, where)
     fact.ready = false
+    fact.is_video = false
     fact.has_msg = true
     fact.sad = sad and true or false
     text.msg = why or ""
@@ -81,6 +89,13 @@ end
 -- Finds out what a file is and gets it ready to draw: measured, and copied into a PNG when pleamar cannot read it as it is. Done once per file; `done(m)`
 -- gets what `st.meta` keeps. What pleamar is given carries the file's modification time as its version (`?mtime`), the same every time it is asked for,
 -- so the picture decoded for a neighbour in advance (below) is the very one shown when it comes, and a file changed meanwhile is read again.
+local function clock(t)
+    t = math.floor(tonumber(t) or 0)
+    local h, m, sec = math.floor(t / 3600), math.floor(t / 60) % 60, t % 60
+    if h > 0 then return string.format("%d:%02d:%02d", h, m, sec) end
+    return string.format("%d:%02d", m, sec)
+end
+
 local function prepare(path, done)
     local m = st.meta[path]
     if m then done(m) return end
@@ -91,6 +106,32 @@ local function prepare(path, done)
         local list = st.waiting[path] or {}
         st.waiting[path] = nil
         for _, f in ipairs(list) do f(res) end
+    end
+    -- a video: its first picture (from 5 s in, or its very first for a shorter one), how long it is, its size and how big the file is
+    if IS_VIDEO[ext_of(path)] then
+        if not st.tmp then finish({ bad = true, why = "There is no room to open this video" }) return end
+        st.n = st.n + 1
+        local out_path = st.tmp .. "/" .. st.n .. ".png"
+        local script = 'ffmpeg -nostdin -v error -ss 5 -i "$1" -frames:v 1 -vf "scale=min(1920\\,iw):-2" -y "$2" 2> /dev/null; '
+            .. '[ -s "$2" ] || ffmpeg -nostdin -v error -i "$1" -frames:v 1 -vf "scale=min(1920\\,iw):-2" -y "$2" 2> /dev/null; '
+            .. '[ -s "$2" ] || exit 5; magick identify -ping -format "%w %h\n" "$2"; '
+            .. 'ffprobe -v error -select_streams v:0 -show_entries stream=width,height:format=duration -of default=nw=1 "$1" 2> /dev/null; '
+            .. 'stat -c "size=%s" "$1" 2> /dev/null'
+        run("sh", { "-c", script, "sh", path, out_path }, function(out, code)
+            out = out or ""
+            local tw, th = out:match("^(%d+) (%d+)")
+            tw, th = tonumber(tw), tonumber(th)
+            if code ~= 0 or not tw then finish({ bad = true, why = "This video could not be opened", video = true }) return end
+            local vw, vh = out:match("width=(%d+)"), out:match("height=(%d+)")
+            local dur, size = tonumber(out:match("duration=([%d.]+)")), out:match("size=(%d+)")
+            local parts = {}
+            if vw and vh then parts[#parts + 1] = string.format("%s × %s", vw, vh) end
+            if dur then parts[#parts + 1] = clock(dur) end
+            if size then parts[#parts + 1] = human(size) end
+            parts[#parts + 1] = "Video"
+            finish({ src = out_path .. "?1", file = out_path, copy = true, video = true, w = tw, h = th, rest = table.concat(parts, "  ·  ") })
+        end)
+        return
     end
     -- the header: width, height, how the camera held it, the format; then how big the file is and when it was last changed
     run("sh", { "-c", 'magick identify -ping -format "%w %h %[orientation] %m\\n" "$1[0]" 2> /dev/null | head -n 1; stat -c "%s %Y" "$1" 2> /dev/null', "sh", path }, function(out)
@@ -182,6 +223,7 @@ show = function(i)
     prepare(path, function(m)
         if st.i ~= i or current() ~= path then return end            -- gone on to another meanwhile
         if m.bad then
+            fact.is_video = false
             st.rest = ""
             text.sub = sub_line()
             nothing(m.why or "This file could not be read as a picture", m.why and "" or "It may be damaged, or a kind of file View does not know", true, "Show it in Files", path)
@@ -189,6 +231,7 @@ show = function(i)
             return
         end
         st.rest = m.rest
+        fact.is_video = m.video and true or false
         st.shown = st.shown + 1
         fact.iw = m.w
         fact.ih = m.h
@@ -207,6 +250,7 @@ end
 local function list(dir, pick, after_list)
     local tests = {}
     for _, e in ipairs(PICTURES) do tests[#tests + 1] = '-iname "*.' .. e .. '"' end
+    for _, e in ipairs(VIDEOS) do tests[#tests + 1] = '-iname "*.' .. e .. '"' end
     local hide = st.hidden and "" or '! -name ".*" '
     local script = 'cd "$1" 2> /dev/null || exit 3; find . -maxdepth 1 -type f ' .. hide .. '\\( ' .. table.concat(tests, " -o ") .. ' \\) -printf "%f\\n" | LC_ALL=C sort -f -V'
     run("sh", { "-c", script, "sh", dir }, function(out, code)
@@ -349,7 +393,7 @@ end)
 on("do_wall", function()
     local path = current()
     local m = path and st.meta[path]
-    if not m or m.bad then return end
+    if not m or m.bad or m.video then return end
     local function set(pic)
         run("awww", { "img", pic, "--transition-type", "fade", "--transition-duration", "0.8" }, function(_, code)
             say(code == 0 and "That is the wallpaper now" or "The wallpaper could not be changed (is awww running?)")
@@ -362,6 +406,133 @@ on("do_wall", function()
         if code ~= 0 or f == "" then say("The wallpaper could not be changed") return end
         set(f)
     end)
+end)
+
+-- Play: the video shown, in View's player (bin/vitreus-view: mpv, with the others of its folder after it). pleamar cannot draw a video itself, so the
+-- player takes this window's place: it is put where this window is (Hyprland: `VIEW_AT`, floating or not and where), this window closes, and once the
+-- player closes View comes back there on `back` (`VIEW_BACK`: the video, or the folder that was shown). The slideshow stops.
+local function to_player(what, back)
+    local script = 'g=$(hyprctl -j clients 2> /dev/null | jq -r --argjson p "$PPID" \'.[] | select(.pid == $p) | "\\(if .floating then 1 else 0 end) \\(.at[0]) \\(.at[1]) \\(.size[0]) \\(.size[1])"\' 2> /dev/null | head -n 1); '
+        .. 'v="${VIEW_SHELL:-$HOME/.config/pleamar/shells/vitreus}"; VIEW_AT="$g" VIEW_BACK="$2" VIEW_FROM="$VIEW_NAME" setsid "$v/bin/vitreus-view" "$1" > /dev/null 2>&1 < /dev/null & '
+        .. '[ -n "$VIEW_NAME" ] || exit 9'
+    -- this window closes once the player's is up (bin/vitreus-view says `bye`); started without a name to be told by, after a moment
+    run("sh", { "-c", script, "sh", what, back or "" }, function(_, code)
+        if code == 9 then after(900, function() emit("bye") end) end
+    end)
+end
+on("do_play", function()
+    local path = current()
+    local m = path and st.meta[path]
+    if not m or not m.video then return end
+    fact.playing = false
+    say("Opening it in the player…")
+    to_player(path, path)
+end)
+
+-- A link written under Peek's button: a video's page (or the video itself) on the web, played in View's player (mpv finds the video with yt-dlp).
+on("do_link", function()
+    local url = trim(text.link)
+    if url == "" then return end
+    if not url:find("^https?://") then
+        if url:find("^[%w-]+%.[%w.-]+/") or url:find("^www%.") then url = "https://" .. url
+        else say("That is not a web link") return end
+    end
+    text.link = ""
+    say("Opening it in the player…")
+    to_player(url, current() or st.dir or st.home or "")
+end)
+
+-- Cast: the picture or the video shown, on a TV (a Chromecast, or a TV with one built in), with catt. Pressing Cast opens the list of what is on the
+-- network (`catt scan`, a few seconds; TVs and screens first, speakers after them, which only play the sound), with the one used last marked; the
+-- one chosen is used, and kept as catt's default (`set_default`), so the video player's Cast and the next time start from it. Pressed again while
+-- it plays (lit), Cast stops that TV.
+-- catt serves a file of this computer to the TV for as long as the TV shows it, so it is started apart (setsid) and outlives View; it is watched for
+-- ten seconds, and if it gave up by then (the TV said no, it was not there), its last words are said here. A picture shown from a copy (HEIC, a
+-- turned photo) goes as that copy, which the TV can read. A device is named by its address: a name can carry spaces of its own at the end.
+local CAST = 'command -v catt > /dev/null 2>&1 || exit 3; log=$(mktemp); setsid catt -d "$2" cast "$1" > "$log" 2>&1 < /dev/null & pid=$!; i=0; '
+    .. 'while [ $i -lt 20 ] && kill -0 $pid 2> /dev/null; do sleep 0.5; i=$((i + 1)); done; '
+    .. 'if kill -0 $pid 2> /dev/null; then rm -f "$log"; exit 0; fi; wait $pid; c=$?; '
+    .. 'if [ $c -eq 0 ]; then rm -f "$log"; exit 0; fi; grep -v "^[[:space:]]*$" "$log" | tail -n 1; rm -f "$log"; exit 1'
+local SCAN = 'command -v catt > /dev/null 2>&1 || exit 3; '
+    .. 'd=$(sed -n "s/^device *= *//p" "${XDG_CONFIG_HOME:-$HOME/.config}/catt/catt.cfg" 2> /dev/null | head -n 1); printf "default\\t%s\\n" "$d"; '
+    .. 'catt scan -j 2> /dev/null | jq -r \'to_entries[] | [.value.host, (.value.friendly_name | gsub("^\\\\s+|\\\\s+$"; "")), (.value.manufacturer // ""), (.value.model_name // "")] | @tsv\''
+local SPEAKER = { "mini", "audio", "speaker", "home$", "max$", "chromecast audio" }
+local cast_tvs = {}
+local cast_host = nil
+local function is_speaker(model)
+    local m = (model or ""):lower()
+    for _, k in ipairs(SPEAKER) do if m:find(k) then return true end end
+    return false
+end
+local function scan()
+    fact.scanning = true
+    st.scan_n = (st.scan_n or 0) + 1
+    local n = st.scan_n
+    run("sh", { "-c", SCAN }, function(out, code)
+        if n ~= st.scan_n then return end
+        fact.scanning = false
+        if code == 3 then fact.cast_pick = false; say("Casting needs catt (yay -S catt)") return end
+        local def = ""
+        local screens, speakers = {}, {}
+        for line in (out or ""):gmatch("[^\n]+") do
+            local a, b, c, d = line:match("^([^\t]*)\t([^\t]*)\t?([^\t]*)\t?([^\t]*)$")
+            if a == "default" then def = trim(b or "")
+            elseif a and a ~= "" then
+                local tv = { host = a, name = b ~= "" and b or a, maker = c or "", model = d or "" }
+                if is_speaker(tv.model) then tv.kind = "Speaker  ·  sound only"; speakers[#speakers + 1] = tv
+                else tv.kind = trim(tv.maker .. " " .. tv.model); screens[#screens + 1] = tv end
+            end
+        end
+        for _, tv in ipairs(speakers) do screens[#screens + 1] = tv end
+        cast_tvs = {}
+        local rows = {}
+        for i, tv in ipairs(screens) do
+            if i > 8 then break end
+            cast_tvs[i] = tv
+            local on = def ~= "" and (def == tv.host or def == tv.name)
+            rows[i] = { name = tv.name, kind = tv.kind ~= "" and tv.kind or tv.host, on = on }
+        end
+        model.tvs = rows
+        fact.tv_n = #rows
+    end)
+end
+local function cast_to(tv)
+    local path = current()
+    local m = path and st.meta[path]
+    if not m or m.bad then return end
+    local what = (m.copy and not m.video) and m.file or path
+    fact.playing = false
+    fact.casting = true
+    cast_host = tv.host
+    say("Sending it to " .. tv.name .. "…")
+    run("sh", { "-c", 'catt -d "$1" set_default > /dev/null 2>&1', "sh", tv.host }, function() end)
+    run("sh", { "-c", CAST, "sh", what, tv.host }, function(out, code)
+        if code == 0 then say("On " .. tv.name) return end
+        fact.casting = false
+        if code == 3 then say("Casting needs catt (yay -S catt)") return end
+        local why = trim(out):gsub("^Error:%s*", "")
+        say(why ~= "" and ("Could not cast: " .. cut_words(why)) or ("Could not cast: " .. tv.name .. " did not answer"))
+    end)
+end
+on("do_cast", function()
+    if fact.casting then
+        fact.casting = false
+        fact.cast_pick = false
+        run("sh", { "-c", 'if [ -n "$1" ]; then catt -d "$1" stop; else catt stop; fi > /dev/null 2>&1', "sh", cast_host or "" }, function() end)
+        say("Stopped the TV")
+        return
+    end
+    if fact.cast_pick then fact.cast_pick = false return end
+    local path = current()
+    local m = path and st.meta[path]
+    if not m or m.bad then return end
+    fact.cast_pick = true
+    scan()
+end)
+on("pick_tv", function(i)
+    local tv = cast_tvs[(tonumber(i) or -1) + 1]
+    fact.cast_pick = false
+    if tv then cast_to(tv) end
 end)
 
 -- The details card: what the file is, where, and what the camera wrote in it (EXIF), when it did. Filled again for each picture while it is open.

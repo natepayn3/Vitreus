@@ -305,6 +305,11 @@ local function icon(out, name, x, y, colour, o)
         line(2.1, { 3.5, -7 }, { 6.5, -4 }, { 3.5, -1 })
         line(2.1, { 7.5, -1.5 }, { 7.5, 4 }, { -6.5, 4 })
         line(2.1, { -3.5, 1 }, { -6.5, 4 }, { -3.5, 7 })
+    elseif name == "cast" then                                     -- a screen, its corner below on the left giving way to waves going out to it
+        line(2.1, { -9.5, -2 }, { -9.5, -7 }, { 9.5, -7 }, { 9.5, 7 }, { 2.5, 7 })
+        ring(-9.5, 7, 4.5, 2, -90, 0)
+        ring(-9.5, 7, 8.5, 2, -90, 0)
+        out[#out + 1] = shape(rr(x - 10.5 * s, y + 6 * s, 2.2 * s, 2.2 * s, 1.1 * s), colour, o)
     elseif name == "info" then                                     -- an i in a ring
         ring(0, 0, 8.5, 2)
         bar(0, 2, 2.4, 7, 1)
@@ -426,6 +431,7 @@ local function draw_controls(out)
     -- from the right
     local r = px + pw - 30 * s - B / 2
     button("full", full and "unfull" or "full", r, full and "Leave full screen (F)" or "Full screen (F)"); r = r - G
+    button("cast", "cast", r, st.casting and "Stop playing on the TV (Shift+T)" or "Play on the TV (T)", true, st.casting or st.pick); st.cast_x, st.pill_y = r, py; r = r - G
     button("info", "info", r, "Details (I)", true, st.info); r = r - G
     local looping = prop("loop-file", "no")
     button("loop", "loop", r, "Loop (L)", true, looping ~= "no" and looping ~= false); r = r - G
@@ -667,7 +673,7 @@ local function draw_peek(out)
         end
     end
     hit(cx - 130 * u, my - 126 * u, 260 * u, 240 * u, "peek")
-    -- why, on View's card, and the way to the file
+    -- why, on View's card, and the way to the file (none for a stream: start-file leaves err_path empty for a web link)
     card(out, cx - 250 * u, my + 130 * u, 500 * u, 68 * u, corner(20 * u))
     out[#out + 1] = text(cx, my + 150 * u, 5, 18 * u, C.ink, 1, "This video could not be played", true)
     out[#out + 1] = text(cx, my + 178 * u, 5, 13 * u, C.faint, 0.7, st.err)
@@ -684,6 +690,36 @@ local function draw_peek(out)
     end
 end
 
+-- ── Cast's list: which TV to play it on (view.plm's, the same), over the pill by the Cast button ──
+local cast_tvs = {}
+local function draw_picker(out)
+    if not st.pick then return end
+    st.moved = now()                                      -- the controls stay while it is open
+    local s = st.s
+    local w = 360 * s
+    local nrows = math.max(#cast_tvs, 1)
+    local h = (66 + nrows * 60) * s
+    local x = math.min((st.cast_x or (st.w - 400 * s)) + 40 * s - w, st.w - w - 16 * s)
+    local y = (st.pill_y or (st.h - 70 * s)) - 14 * s - h
+    card(out, x, y, w, h, corner(18 * s))
+    hit(x, y, w, h, "pick")
+    out[#out + 1] = text(x + 22 * s, y + 30 * s, 4, 16 * s, C.ink, 1, "Play on", true)
+    if st.scanning then out[#out + 1] = text(x + w - 22 * s, y + 30 * s, 6, 13 * s, C.faint, 0.7, "looking…") end
+    if #cast_tvs == 0 then
+        out[#out + 1] = text(x + 22 * s, y + 88 * s, 4, 14.5 * s, C.ink, 0.6, st.scanning and "Looking for TVs…" or "No TVs found on this network")
+        return
+    end
+    for i, tv in ipairs(cast_tvs) do
+        local ry = y + 58 * s + (i - 1) * 60 * s
+        local id = "tv" .. i
+        if st.hover == id then out[#out + 1] = shape(rr(x + 10 * s, ry, 340 * s, 58 * s, corner(14 * s)), C.mint, 0.2) end
+        if tv.on then out[#out + 1] = shape(rr(x + 23.5 * s, ry + 24.5 * s, 9 * s, 9 * s, 4.5 * s), C.mint, 1) end
+        out[#out + 1] = text(x + 46 * s, ry + 20 * s, 4, 16 * s, C.ink, 1, tv.name, true)
+        out[#out + 1] = text(x + 46 * s, ry + 40 * s, 4, 13 * s, C.ink, 0.62, tv.kind)
+        hit(x + 10 * s, ry, 340 * s, 58 * s, id)
+    end
+end
+
 render = function()
     if st.w <= 0 then return end
     local keep = st.shown
@@ -695,6 +731,7 @@ render = function()
     end
     st.shown = 1                                          -- these stay up whatever the controls do
     draw_toast(out)
+    draw_picker(out)
     draw_peek(out)
     st.shown = keep
     draw_tip(out)
@@ -795,6 +832,92 @@ local function toggle_loop()
     say(on and "Looping this one" or "Not looping")
 end
 
+-- Cast: what plays here goes on to the TV (a Chromecast, or a TV with one built in) with catt, from where it is now, and here it pauses.
+-- A web link is handed over as it is (catt finds the video on the page with yt-dlp, and the TV fetches it itself); a file of this computer is served to
+-- the TV by catt (below).
+-- The TV is catt's default (`catt set_default`), or else the first one it finds. Shift+T, or the lit button, stops the TV.
+local function has_catt()
+    local r = mp.command_native({ name = "subprocess", args = { "sh", "-c", "command -v catt" }, capture_stdout = true, playback_only = false })
+    return r and r.status == 0
+end
+-- catt serves a file of this computer to the TV for as long as the TV plays it, so it is started apart (setsid) and outlives the player; it is watched
+-- for ten seconds, and if it gave up by then (the TV said no, it was not there), its last words are said. (View's own Cast does the same: view.luau, CAST.)
+-- Cast opens the list of what is on the network (`catt scan`; TVs and screens first, speakers, which only play the sound, after them), the one used last
+-- marked; the one chosen is kept as catt's default, which View's list marks too. A device is named by its address: a name can end in spaces.
+local CAST = 'log=$(mktemp); setsid catt -d "$3" cast -t "$2" "$1" > "$log" 2>&1 < /dev/null & pid=$!; i=0; '
+    .. 'while [ $i -lt 20 ] && kill -0 $pid 2> /dev/null; do sleep 0.5; i=$((i + 1)); done; '
+    .. 'if kill -0 $pid 2> /dev/null; then rm -f "$log"; exit 0; fi; wait $pid; c=$?; '
+    .. 'if [ $c -eq 0 ]; then rm -f "$log"; exit 0; fi; grep -v "^[[:space:]]*$" "$log" | tail -n 1; rm -f "$log"; exit 1'
+local SCAN = 'command -v catt > /dev/null 2>&1 || exit 3; '
+    .. 'd=$(sed -n "s/^device *= *//p" "${XDG_CONFIG_HOME:-$HOME/.config}/catt/catt.cfg" 2> /dev/null | head -n 1); printf "default\\t%s\\n" "$d"; '
+    .. 'catt scan -j 2> /dev/null | jq -r \'to_entries[] | [.value.host, (.value.friendly_name | gsub("^\\\\s+|\\\\s+$"; "")), (.value.manufacturer // ""), (.value.model_name // "")] | @tsv\''
+local SPEAKER = { "mini", "audio", "speaker", "home$", "max$", "chromecast audio" }
+local cast_host = nil
+local function scan()
+    st.scanning = true
+    cast_tvs = {}
+    mp.command_native_async({ name = "subprocess", args = { "sh", "-c", SCAN }, capture_stdout = true, playback_only = false }, function(ok, r)
+        st.scanning = false
+        if not ok or not r then wake() return end
+        if r.status == 3 then st.pick = false; say("Casting needs catt (yay -S catt)", 3); wake() return end
+        local def, screens, speakers = "", {}, {}
+        for line in (r.stdout or ""):gmatch("[^\n]+") do
+            local a, b, c, d = line:match("^([^\t]*)\t([^\t]*)\t?([^\t]*)\t?([^\t]*)$")
+            if a == "default" then def = (b or ""):gsub("^%s+", ""):gsub("%s+$", "")
+            elseif a and a ~= "" then
+                local tv = { host = a, name = (b ~= "" and b or a) }
+                local m = (d or ""):lower()
+                local spk = false
+                for _, k in ipairs(SPEAKER) do if m:find(k) then spk = true end end
+                tv.kind = spk and "Speaker  ·  sound only" or (((c or "") .. " " .. (d or "")):gsub("^%s+", ""):gsub("%s+$", ""))
+                if tv.kind == "" then tv.kind = a end
+                tv.on = def ~= "" and (def == tv.host or def == tv.name)
+                if spk then speakers[#speakers + 1] = tv else screens[#screens + 1] = tv end
+            end
+        end
+        for _, tv in ipairs(speakers) do screens[#screens + 1] = tv end
+        for i = 1, math.min(#screens, 8) do cast_tvs[i] = screens[i] end
+        wake()
+    end)
+end
+local function cast_to(tv)
+    local path = mp.get_property("path")
+    if not path or path == "" or not tv then return end
+    local at = tostring(math.floor(prop("time-pos", 0) or 0))
+    st.pick = false
+    st.casting = true
+    cast_host = tv.host
+    say("Sending it to " .. tv.name .. "…", 12)
+    mp.command_native_async({ name = "subprocess", args = { "catt", "-d", tv.host, "set_default" }, playback_only = false }, function() end)
+    mp.command_native_async({ name = "subprocess", args = { "sh", "-c", CAST, "sh", path, at, tv.host }, capture_stdout = true, playback_only = false }, function(ok, r)
+        if ok and r and r.status == 0 then
+            mp.set_property_bool("pause", true); say("Playing on " .. tv.name, 2.5)
+        else
+            st.casting = false
+            local why = r and (r.stdout or ""):gsub("^%s+", ""):gsub("%s+$", ""):gsub("^Error:%s*", "")
+            say("Could not cast: " .. ((why and why ~= "") and why or (tv.name .. " did not answer")), 4)
+        end
+        wake()
+    end)
+    wake()
+end
+local function cast()
+    if st.casting then return end
+    if st.pick then st.pick = false; wake() return end
+    local path = mp.get_property("path")
+    if not path or path == "" then return end
+    if not has_catt() then say("Casting needs catt (yay -S catt)", 3); wake(); return end
+    st.pick = true
+    scan()
+    wake()
+end
+local function cast_stop()
+    if not has_catt() then say("Casting needs catt (yay -S catt)", 3); wake(); return end
+    local args = cast_host and { "catt", "-d", cast_host, "stop" } or { "catt", "stop" }
+    mp.command_native_async({ name = "subprocess", args = args, playback_only = false }, function() end)
+    st.casting = false
+    say("Stopped the TV", 1.6); wake()
+end
 local function press(id)
     if id == "play" then
         if prop("eof-reached", false) then mp.commandv("seek", "0", "absolute"); mp.set_property_bool("pause", false)
@@ -807,6 +930,8 @@ local function press(id)
     elseif id == "speed" then if prop("speed", 1) >= SPEEDS[#SPEEDS] then mp.set_property_number("speed", 1); say("Speed 1×") else cycle_speed(true) end
     elseif id == "subs" then cycle_track("sub", "Subtitles")
     elseif id == "mute" then mp.command("cycle mute")
+    elseif id == "cast" then if st.casting then cast_stop() else cast() end
+    elseif id:match("^tv%d+$") then cast_to(cast_tvs[tonumber(id:sub(3))])
     elseif id == "peek_files" and st.err_path then
         local files = (opts.shell ~= "" and (opts.shell .. "/bin/vitreus-files")) or "vitreus-files"
         mp.command_native_async({ name = "subprocess", args = { "setsid", files, st.err_path }, detach = true, playback_only = false }, function() end)
@@ -817,6 +942,9 @@ end
 mp.add_forced_key_binding("MBTN_LEFT", "vp-click", function(e)
     local id = under(st.mx, st.my)
     if st.shown < 0.5 then id = nil end
+    if e.event == "down" and st.pick and not (id and (id == "pick" or id == "cast" or id:match("^tv%d+$"))) then
+        st.pick = false; wake(); return
+    end
     if e.event == "down" then
         if id == "seek" then st.drag = "seek"; seek_to(st.mx, false)
         elseif id == "vol" then st.drag = "vol"; vol_to(st.mx)
@@ -846,7 +974,8 @@ mp.add_key_binding(nil, "slower", function() cycle_speed(false); wake() end)
 mp.add_key_binding(nil, "loop", function() toggle_loop(); wake() end)
 mp.add_key_binding(nil, "info", function() st.info = not st.info; wake() end)
 mp.add_key_binding(nil, "escape", function()
-    if prop("fullscreen", false) then mp.set_property_bool("fullscreen", false)
+    if st.pick then st.pick = false; wake()
+    elseif prop("fullscreen", false) then mp.set_property_bool("fullscreen", false)
     elseif st.info then st.info = false; wake()
     else mp.command("quit") end
 end)
@@ -860,6 +989,8 @@ local function wheel(dir)
     st.moved = now()
     wake()
 end
+mp.add_key_binding(nil, "cast", cast)
+mp.add_key_binding(nil, "cast_stop", cast_stop)
 mp.add_key_binding(nil, "wheel_up", function() wheel(1) end)
 mp.add_key_binding(nil, "wheel_down", function() wheel(-1) end)
 
@@ -875,7 +1006,7 @@ mp.observe_property("display-hidpi-scale", "native", size)
 for _, p in ipairs({ "pause", "eof-reached", "fullscreen", "volume", "mute", "speed", "loop-file", "playlist-pos", "track-list", "duration" }) do
     mp.observe_property(p, "native", function() wake() end)
 end
-mp.register_event("start-file", function() st.err = nil; st.err_path = mp.get_property("path"); st.moved = now(); wake() end)
+mp.register_event("start-file", function() st.err = nil; st.err_path = mp.get_property("path"); if st.err_path and st.err_path:find("^%a[%w+.-]*://") then st.err_path = nil end; st.moved = now(); wake() end)
 mp.register_event("end-file", function(e)
     if e.reason == "error" then
         st.err = e.file_error or "mpv could not read it"

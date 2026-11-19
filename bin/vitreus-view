@@ -1,5 +1,6 @@
 #!/bin/sh
-# Opens a picture in View, Vitreus's picture viewer (view/view.plm): `vitreus-view FILE` (or a folder: its first picture). Each call opens a window of its own.
+# Opens a picture in View, Vitreus's picture viewer (view/view.plm): `vitreus-view FILE` (or a folder: its first picture), or a video, or a web link to one
+# (`vitreus-view https://...`: played in View's player). Each call opens a window of its own.
 #
 # It is the program the system runs for pictures once View is the default (view/integrate.sh --set writes vitreus-view.desktop, which passes `%U`: file:// links,
 # as many as were chosen), so an argument may be a path or a file:// link. Only the first one is opened: the others of its folder are a key away.
@@ -12,7 +13,83 @@ shell=$(cd "$here/.." && pwd)
 scene="$shell/view/view.plm"
 export PATH="$HOME/.local/bin:$PATH"
 
+# The player's look: the theme's colours (../palette.plm) and the look Vitreus has (as View asks it: 1 Retro, 2 UwU, 3 Cyber and Proxy, 7 Doodle; the rest
+# Glass), as the --script-opts of View's player (mpv, with view/player as its config folder: its keys, and the controls drawn as View's).
+player_opts() {
+    pal="$shell/palette.plm"
+    o=",vitreus-player-palette=$pal,vitreus-player-shell=$shell"           # (watched by the player: a new theme reaches it while it plays)
+    for k in ink faint mint minthi onmint tint panel deep alert; do
+        c=$(sed -n "s/^ *let $k *= *#\([0-9a-fA-F]\{6\}\).*/\1/p" "$pal" 2> /dev/null | head -n 1)
+        [ -n "$c" ] && o="$o,vitreus-player-$k=$c"
+    done
+    lv=$(pleamar --say vitreus "get look_v" 2> /dev/null | grep -o -- '-\?[0-9]\+' | head -n 1)
+    case $lv in 1) look=1 ;; 2) look=2 ;; 3) look=3 ;; 7) look=4 ;; *) look=0 ;; esac
+    [ -n "${VIEW_LOOK:-}" ] && look=$VIEW_LOOK                               # (to try a look without changing the theme)
+    printf 'vitreus-player-look=%s%s' "$look" "$o"
+}
+
+# Handed over by View itself (its Play, on a video or a link): the player takes View's place, and View comes back when the player closes.
+# $VIEW_AT is where View's window was ("floating x y w h", from Hyprland), $VIEW_BACK what View showed (it is opened on that again). Neither is kept
+# for the View that comes back, which hands over its own when it plays something.
+at=${VIEW_AT:-}
+back=${VIEW_BACK:-}
+stay=${VIEW_STAY:-}                  # View coming back after the player: View itself, even on a video (not the player again)
+from=${VIEW_FROM:-}                  # the View window handing over (its name for `pleamar --say`): it closes once the player's window is up
+unset VIEW_AT VIEW_BACK VIEW_STAY VIEW_FROM
+
+# place PID: waits for the window of that process (30 seconds at most: a link's player opens once yt-dlp has found the video, and not at all if that
+# process ends first), floats it where View was (Hyprland, and only when View floated: a tiled View leaves its tile to the player by itself), and
+# says so to the View handing over (`bye`), which closes then. Without Hyprland there is nothing to wait on: View is told at once.
+place() {
+    if ! command -v hyprctl > /dev/null 2>&1 || ! command -v jq > /dev/null 2>&1; then
+        [ -n "$from" ] && pleamar --say "$from" "emit bye" > /dev/null 2>&1
+        return 0
+    fi
+    i=0; a=""
+    while [ $i -lt 300 ] && [ -d "/proc/$1" ]; do
+        a=$(hyprctl -j clients 2> /dev/null | jq -r --argjson p "$1" '.[] | select(.pid == $p) | .address' 2> /dev/null | head -n 1)
+        [ -n "$a" ] && break
+        sleep 0.1; i=$((i + 1))
+    done
+    [ -n "$a" ] || return 0
+    if [ -n "$at" ]; then
+        set -- $at
+        [ "$1" = 1 ] && hyprctl --batch "dispatch setfloating address:$a; dispatch resizewindowpixel exact $4 $5,address:$a; dispatch movewindowpixel exact $2 $3,address:$a" > /dev/null 2>&1
+    fi
+    [ -n "$from" ] && pleamar --say "$from" "emit bye" > /dev/null 2>&1
+    return 0
+}
+
+# player ARGS...: View's player (mpv, view/player as its config folder) with these, put where View was; when it closes, View again on what it showed.
+player() {
+    so=$(player_opts)
+    (
+        mpv --config-dir="$shell/view/player" --script-opts="$so" "$@" > /dev/null 2>&1 < /dev/null &
+        mp=$!
+        place "$mp" &
+        pl=$!
+        wait "$mp"
+        kill "$pl" 2> /dev/null
+        [ -n "$back" ] && VIEW_AT="$at" VIEW_STAY=1 exec "$here/vitreus-view" "$back"
+    ) > /dev/null 2>&1 &
+}
+
 p=${1:-.}
+
+# A web link (a video's page, or the video itself) goes to View's player too: mpv streams it, finding the video on the page with yt-dlp.
+# There is nothing of it to show in View itself, so without mpv it goes to the browser.
+case $p in
+    http://*|https://*)
+        if [ -n "$stay" ]; then
+            p=.                          # (never: View comes back on a file or a folder; but not on the link again)
+        elif command -v mpv > /dev/null 2>&1; then
+            player -- "$p"
+            exit 0
+        else
+            exec xdg-open "$p"
+        fi ;;
+esac
+
 case $p in
     file://*)
         p=${p#file://}
@@ -27,25 +104,14 @@ case $p in
 esac
 case $p in /*) ;; *) p="$(pwd)/$p" ;; esac
 
-# A video goes to View's player: mpv, with view/player as its config folder (its keys, and the controls drawn as View's: scripts/vitreus-player.lua),
-# given the theme's colours (../palette.plm) and the look Vitreus has (as View asks it: 1 Retro, 2 UwU, 3 Cyber and Proxy, 7 Doodle; the rest Glass).
-# The other videos of its folder come after it in its list, in the order Files gives names, so the one before and after are a key away.
+# A video goes to View's player (player_opts, above). The other videos of its folder come after it in its list, in the order Files gives names, so the one before and after are a key away.
 VIDEOS="mp4 m4v mkv webm mov avi wmv flv mpg mpeg m2ts mts ts ogv 3gp 3g2 vob divx f4v"
 is_video() {
     e=$(printf '%s' "${1##*.}" | tr '[:upper:]' '[:lower:]')
     for v in $VIDEOS; do [ "$e" = "$v" ] && return 0; done
     return 1
 }
-if [ -f "$p" ] && is_video "$p" && command -v mpv > /dev/null 2>&1; then
-    pal="$shell/palette.plm"
-    o=",vitreus-player-palette=$pal,vitreus-player-shell=$shell"           # (watched by the player: a new theme reaches it while it plays)
-    for k in ink faint mint minthi onmint tint panel deep alert; do
-        c=$(sed -n "s/^ *let $k *= *#\([0-9a-fA-F]\{6\}\).*/\1/p" "$pal" 2> /dev/null | head -n 1)
-        [ -n "$c" ] && o="$o,vitreus-player-$k=$c"
-    done
-    lv=$(pleamar --say vitreus "get look_v" 2> /dev/null | grep -o -- '-\?[0-9]\+' | head -n 1)
-    case $lv in 1) look=1 ;; 2) look=2 ;; 3) look=3 ;; 7) look=4 ;; *) look=0 ;; esac
-    [ -n "${VIEW_LOOK:-}" ] && look=$VIEW_LOOK                               # (to try a look without changing the theme)
+if [ -z "$stay" ] && [ -f "$p" ] && is_video "$p" && command -v mpv > /dev/null 2>&1; then
     dir=$(dirname "$p")
     list=$(cd "$dir" 2> /dev/null && for f in *; do [ -f "$f" ] && is_video "$f" && printf '%s\n' "$f"; done | LC_ALL=C sort -f -V)
     start=$(printf '%s\n' "$list" | grep -n -x -F -- "$(basename "$p")" | head -n 1 | cut -d: -f1)
@@ -53,10 +119,9 @@ if [ -f "$p" ] && is_video "$p" && command -v mpv > /dev/null 2>&1; then
         pl=$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/vitreus-view-list.XXXXXX")
         printf '%s\n' "$list" | while IFS= read -r f; do printf '%s/%s\n' "$dir" "$f"; done > "$pl"       # (not sed: an & or | in the folder's name would be read as sed's own)
         ( sleep 30; rm -f "$pl" ) > /dev/null 2>&1 &
-        setsid mpv --config-dir="$shell/view/player" --script-opts="vitreus-player-look=$look$o" \
-            --playlist="$pl" --playlist-start=$((start - 1)) > /dev/null 2>&1 &
+        player --playlist="$pl" --playlist-start=$((start - 1))
     else
-        setsid mpv --config-dir="$shell/view/player" --script-opts="vitreus-player-look=$look$o" -- "$p" > /dev/null 2>&1 &
+        player -- "$p"
     fi
     exit 0
 fi
@@ -93,3 +158,4 @@ else
 fi
 # Each window answers to a name of its own (for the hand-over above).
 VIEW_START="$p" VIEW_SHELL="$shell" VIEW_NAME="view-$$" setsid pleamar --scene "$scene" --no-hud --answer-as "view-$$" > /dev/null 2>&1 &
+[ -n "$at" ] && from="" place $!
