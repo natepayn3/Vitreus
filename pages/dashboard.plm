@@ -193,7 +193,7 @@ part Dashboard {
     }
 
     group {
-        show: dsh_water > 0.004 or dsh_rise > 0.004
+        show: (dsh_water > 0.004 or dsh_rise > 0.004) and panel_scr == screen.index       // only on the monitor it was opened on (the logic sets `panel_scr` to the focused one)
         let dsh.gap = 18
         let dsh.pw = 88                                               // a slider's width
         let dsh.ns = if(brightness.present, 2, 1)                     // how many sliders: no backlight (a desktop, an external monitor) leaves the volume one alone
@@ -266,7 +266,23 @@ part Dashboard {
             zone box dsh_hold.5 { from: dF.l, dF.t; size: dF.w, dF.h; corner: 26; active: dash_open; label: "User" }
             zone box dsh_hold.6 { from: dG.l, dG.t; size: dG.w, dG.h; corner: 26; active: dash_open; label: "System and network" }
             //  The pointer is over a tile: the small animations run (`need_clock`, and their own clock `dsh_tq`).
-            follow dsh_hv = if(dsh_hold.0.hover > 0.01 or dsh_hold.1.hover > 0.01 or dsh_hold.2.hover > 0.01 or dsh_hold.3.hover > 0.01 or dsh_hold.5.hover > 0.01 or dsh_hold.6.hover > 0.01 or dsh_hold.7.hover > 0.01, 1, 0)
+            //  (Rules, not a `follow`: each monitor's copy has its own hover, but `dsh_hv` is one for all, and a follow in the copy that does not show the
+            //  dashboard wrote 0 over the other's 1, so Peek and the rest never moved. Only the shown copy's zones hear enter and leave. Left first, then
+            //  entered, so going from one tile straight to the next keeps it on.)
+            on leave dsh_hold.0 { dsh_hv: 0 }
+            on leave dsh_hold.1 { dsh_hv: 0 }
+            on leave dsh_hold.2 { dsh_hv: 0 }
+            on leave dsh_hold.3 { dsh_hv: 0 }
+            on leave dsh_hold.5 { dsh_hv: 0 }
+            on leave dsh_hold.6 { dsh_hv: 0 }
+            on leave dsh_hold.7 { dsh_hv: 0 }
+            on enter dsh_hold.0 { dsh_hv: 1 }
+            on enter dsh_hold.1 { dsh_hv: 1 }
+            on enter dsh_hold.2 { dsh_hv: 1 }
+            on enter dsh_hold.3 { dsh_hv: 1 }
+            on enter dsh_hold.5 { dsh_hv: 1 }
+            on enter dsh_hold.6 { dsh_hv: 1 }
+            on enter dsh_hold.7 { dsh_hv: 1 }
 
             //  ── Clock and reminders: the time, big and light, the date (and the battery, if there is one) under it; on the right today's
             //  reminders (the calendar's), ticked off with a press ──
@@ -385,76 +401,205 @@ part Dashboard {
                 }
             }
 
-            //  ── Weather: the sky now and the temperature, what it is, and the week ahead ──
+            //  ── Weather: the calendar's weather card, at the tile's size ──
+            //  The real sky fills it (sky.wgsl, the same values as the calendar's): the sun on its arc, the moon and the stars, clouds that drift with
+            //  the wind, rain, snow, fog and lightning. Over it the place, the temperature and what it is, the details down the right, the next 24
+            //  hours as a curve the pointer can run along, and the week: a day under the pointer turns the sky into that day's (`wx_hv`, shared with
+            //  the calendar, which is never open at the same time). Laid out on the calendar card's own grid (426 × 186), stretched to the tile.
             DshTile(dW.l, dW.t, dW.w, dW.h, dsh_c1) {
-                let dWx = dW.l + 43                                         // the icon's own centre (its glyph is narrower than the room left for it): the rays turn round it
-                let dWo = dW.h / 2 - 135                              // the content is 216 tall: this centres it in the card
-                //  The sky behind the forecast: sun rays turning behind the icon for clear and part-clear days, clouds drifting over, rain and snow falling,
-                //  all kept inside the card and quiet enough to read over.
-                group {
-                    clip inset 0 box { from: dW.l, dW.t; size: dW.w, dW.h; corner: 26 }
+                let dkx = dW.w / 426                                   // the calendar card's units, across and down
+                let dky = dW.h / 186
+                let dwx.il = 0.299 * pal_ink_r + 0.587 * pal_ink_g + 0.114 * pal_ink_b
+                let dwx.sh = 45% * smooth(0.42, 0.58, dwx.il) * (1 - max(dd_k, pp_k))
+                let dwx.pack = (floor(max(cy_k, px_k) * 9 + 0.5) * 1000 + floor(max(dd_k, pp_k) * 9 + 0.5) * 100 + floor(max(cas_k, uwu_k) * 9 + 0.5) * 10 + min(9, floor(wx_wind_n / 3))) * if(wx_wdir < 0, -1, 1)
+                shader sky {
+                    at: dW.l + 1, dW.t + 1; size: dW.w - 2, dW.h - 2; corner: 25
+                    values: sk.cl, sk.rn, sk.sn, floor(clamp(sk.fg, 0, 1) * 999) + clamp(sk.st, 0, 0.999), sk.t, sk.dl, floor(clamp(sk.sun, 0, 1) * 1000) + clamp(wx_moon, 0, 0.999), dwx.pack
+                    colors: mint, ink
                     show: wx_ok
-                    group {
-                        show: wx_kind < 2
-                        ellipse { at: dWx, dW.t + dWo + 50; radius: 60 + 5 * sin(dsh_tq * 70); color: mint; opacity: 0.07 }
-                        repeat r in 0..12 {
-                            group {
-                                pivot: dWx, dW.t + dWo + 50
-                                rotate: r * 30deg + dsh_tq * 5deg
-                                box { at: dWx, dW.t + dWo + 50 - 58; size: 3, 26; corner: 1.5; color: mint; opacity: 0.2 + 0.12 * sin(dsh_tq * 90 + r * 50) }
-                            }
-                        }
-                    }
-                    group {
-                        show: wx_kind == 1 or wx_kind == 2 or wx_kind == 3
-                        repeat k in 0..4 {
-                            repeat q in 0..3 {
-                                ellipse { at: dW.l - 80 + fract(dsh_tq * 0.012 + k * 0.25) * (dW.w + 160), dW.t + dWo + 40 + k * 36; radius: (46 + 8 * k) * (1 - q * 0.25); color: ink; opacity: if(wx_kind == 3, 0.06, 0.035) }
-                            }
-                        }
-                    }
-                    group {
-                        show: wx_kind == 4 or wx_kind == 6
-                        repeat d in 0..30 {
-                            let dWd.y = dW.t + fract(dsh_tq * 0.9 + d * 0.173) * (dW.h + 20) - 10
-                            let dWd.x = dW.l + fract(d * 0.381) * dW.w + (dWd.y - dW.t) * 0.12
-                            line { from: dWd.x, dWd.y; to: dWd.x - 3, dWd.y + 13; width: 1.6; color: mint; opacity: 0.35 }
-                        }
-                    }
-                    group {
-                        show: wx_kind == 5
-                        repeat d in 0..26 {
-                            let dWs.y = dW.t + fract(dsh_tq * 0.12 + d * 0.211) * (dW.h + 20) - 10
-                            ellipse { at: dW.l + fract(d * 0.337) * dW.w + 8 * sin(dsh_tq * 80 + d * 40), dWs.y; radius: 1.8 + 0.9 * fract(d * 0.7); color: ink; opacity: 0.5 }
-                        }
-                    }
-                }
-                group { show: wx_ok; group { group { show: true; GWeather(dW.l + 28 + (46) / 2, dW.t + dWo + 50, wx_kind, (46) / 24, mint, 1, 0) } } }
-                //  The details, in the middle of the header: how it feels, the humidity, the wind and today's chance of rain.
-                repeat s in 0..4 {
-                    let dWs.x = dW.l + 128 + (s - floor(s / 2) * 2) * 104
-                    let dWs.y = dW.t + dWo + 36 + floor(s / 2) * 48
-                    group { show: wx_ok; group { group { show: s == 0; GThermo(dWs.x + (17) / 2, dWs.y, (17) / 24, mint, 1, 0) } group { show: s == 1; GDrop(dWs.x + (17) / 2, dWs.y, (17) / 24, mint, 1, 0) } group { show: s == 2; GWind(dWs.x + (17) / 2, dWs.y, (17) / 24, mint, 1, 0) } group { show: s == 3; GWeather(dWs.x + (17) / 2, dWs.y, 4, (17) / 24, mint, 1, 0) } } }
-                    text pick(s, "Feels like", "Humidity", "Wind", "Rain today") { at: dWs.x + 26, dWs.y + 14; anchor: left center; size: 11; family: "Space Grotesk"; color: faint; show: wx_ok }
-                }
-                text wx_feels { at: dW.l + 128 + 26, dW.t + dWo + 36 - 6; anchor: left center; size: 15; weight: 600; width: 74; lines: 1; family: "Space Grotesk"; color: ink; show: wx_ok }
-                text wx_hum { at: dW.l + 128 + 104 + 26, dW.t + dWo + 36 - 6; anchor: left center; size: 15; weight: 600; width: 74; lines: 1; family: "Space Grotesk"; color: ink; show: wx_ok }
-                text wx_wind { at: dW.l + 128 + 26, dW.t + dWo + 84 - 6; anchor: left center; size: 15; weight: 600; width: 74; lines: 1; family: "Space Grotesk"; color: ink; show: wx_ok }
-                text wx_rain { at: dW.l + 128 + 104 + 26, dW.t + dWo + 84 - 6; anchor: left center; size: 15; weight: 600; width: 74; lines: 1; family: "Space Grotesk"; color: ink; show: wx_ok }
-                text wx_temp { at: dW.l + dW.w - 28, dW.t + dWo + 64; anchor: right center; size: 50; weight: 300; family: "Space Grotesk"; color: ink; show: wx_ok }
-                text wx_desc { at: dW.l + 30, dW.t + dWo + 92; anchor: left center; size: 15; width: dW.w - 60; lines: 1; family: "Space Grotesk"; color: faint; show: wx_ok }
-                box { from: dW.l + 24, dW.t + dWo + 128; size: dW.w - 48, 1; color: ink; opacity: 0.1; show: wx_ok }
-                repeat i in 0..7 {
-                    let dWi.x = dW.l + 24 + (dW.w - 48) * (i + 0.5) / 7
-                    group {
-                        show: wx_ok and wx_days.count > i
-                        text wx_days.$i.label { at: dWi.x, dW.t + dWo + 156; anchor: center; size: 13; family: "Space Grotesk"; color: if(wx_days.$i.today, mint, faint) }
-                        group { group { show: true; GWeather(dWi.x, dW.t + dWo + 186, wx_days.$i.kind, (21) / 24, ink, 1, 0) } }
-                        text wx_days.$i.hi { at: dWi.x, dW.t + dWo + 216; anchor: center; size: 13; weight: 600; family: "Space Grotesk"; color: ink }
-                        text wx_days.$i.lo { at: dWi.x, dW.t + dWo + 236; anchor: center; size: 12; family: "Space Grotesk"; color: faint }
-                    }
                 }
                 text "No weather yet" { at: dW.l + dW.w / 2, dW.t + dW.h / 2; anchor: center; size: 14; family: "Space Grotesk"; color: faint; show: not wx_ok }
+                group {
+                    show: wx_ok
+                    //  where: a pin and the place
+                    let dwx.pin = dW.l + 24 * dkx
+                    ellipse { at: dwx.pin, dW.t + 16 * dky; radius: 4.4; stroke: 1.8; color: ink; opacity: 85% }
+                    path { at: dwx.pin, dW.t + 16 * dky; color: ink; opacity: 85%; move -3.8, 2.3; line 0, 8.6; line 3.8, 2.3; close }
+                    text wx_place { at: floor(dwx.pin + 11 + 0.5), floor(dW.t + 16.5 * dky + 0.5); anchor: left center; size: 12; weight: 600; width: 220 * dkx; lines: 1; color: ink; opacity: 90%; family: "Space Grotesk"; shadow: 0, 1, 6, dwx.sh }
+                    //  the temperature, its digits rising in one after another as the tile comes up; with a day of the week under the pointer, that day's high
+                    text wx_temp { at: floor(dW.l + 20 * dkx + 0.5), floor(dW.t + 45 * dky + 0.5); anchor: left center; size: 50; weight: 700; color: ink; family: "Space Grotesk"; show: wx_hv < 0
+                                   shadow: 0, 2, 12, dwx.sh
+                                   letter_opacity: clamp(wx_in * 4 - letter * 0.45, 0, 1)
+                                   letter_move: 0, 22 * pow(1 - clamp(wx_in * 4 - letter * 0.45, 0, 1), 2) }
+                    text "{wx_days[wx_hv].hi}" { at: floor(dW.l + 20 * dkx + 0.5), floor(dW.t + 45 * dky + 0.5); anchor: left center; size: 50; weight: 700; color: ink; family: "Space Grotesk"; show: wx_hv >= 0; shadow: 0, 2, 12, dwx.sh }
+                    text wx_desc { at: floor(dW.l + 23 * dkx + 0.5), floor(dW.t + 71 * dky + 0.5); anchor: left center; size: 14.5; weight: 700; width: 220 * dkx; lines: 1; color: ink; family: "Space Grotesk"; shadow: 0, 1, 6, dwx.sh
+                                   opacity: clamp(wx_in * 3 - 0.6, 0, 1); show: wx_hv < 0 }
+                    text "{wx_days[wx_hv].full} · {wx_days[wx_hv].desc}" { at: floor(dW.l + 23 * dkx + 0.5), floor(dW.t + 71 * dky + 0.5); anchor: left center; size: 14.5; weight: 700; width: 220 * dkx; lines: 1; color: ink; family: "Space Grotesk"; shadow: 0, 1, 6, dwx.sh; show: wx_hv >= 0 }
+                    text "High {wx_days[wx_hv].hi}  ·  Low {wx_days[wx_hv].lo}" { at: floor(dW.l + 23 * dkx + 0.5), floor(dW.t + 86 * dky + 0.5); anchor: left center; size: 11.5; weight: 500; width: 220 * dkx; lines: 1; color: ink; opacity: 75% * clamp(wx_in * 3 - 0.8, 0, 1); family: "Space Grotesk"; shadow: 0, 1, 6, dwx.sh; show: wx_hv >= 0 }
+                    text "High {wx_days[0].hi}  ·  Low {wx_days[0].lo}" { at: floor(dW.l + 23 * dkx + 0.5), floor(dW.t + 86 * dky + 0.5); anchor: left center; size: 11.5; weight: 500; width: 220 * dkx; lines: 1; color: ink; opacity: 75% * clamp(wx_in * 3 - 0.8, 0, 1); family: "Space Grotesk"; shadow: 0, 1, 6, dwx.sh; show: wx_hv < 0 }
+                    //  the details, down the right: each on a frosted pill
+                    repeat r in 0..5 {
+                        let ry = dW.t + (17 + r * 17.5) * dky
+                        let rk = clamp(wx_in * 3 - 0.5 - r * 0.18, 0, 1)
+                        group {
+                            opacity: rk
+                            move: 16 * (1 - rk), 0
+                            box { at: dW.l + 340 * dkx, ry; size: 146 * dkx, 21; corner: 10.5 * (1 - 0.85 * sq); color: if(dwx.il > 0.5, #000000, #ffffff); opacity: if(dwx.il > 0.5, 18%, 45%) }
+                            text pick(r, "Feels like", "Humidity", "Wind", "Rain", "Sun") { at: floor(dW.l + 274 * dkx + 0.5), floor(ry + 0.5); anchor: left center; size: 11; weight: 600; color: ink; opacity: 70%; family: "Space Grotesk" }
+                            text pick(r, wx_feels, wx_hum, wx_wind, wx_rain, wx_rise) { at: floor(dW.l + 405 * dkx + 0.5), floor(ry + 0.5); anchor: right center; size: 11.5; weight: 700; width: 70 * dkx; lines: 1; align: right; color: ink; family: "Space Grotesk"; show: r < 4 and (r != 3 or wx_hv < 0) }
+                            text "{wx_days[wx_hv].popt}" { at: floor(dW.l + 405 * dkx + 0.5), floor(ry + 0.5); anchor: right center; size: 11.5; weight: 700; width: 70 * dkx; lines: 1; align: right; color: ink; family: "Space Grotesk"; show: r == 3 and wx_hv >= 0 }
+                            text "{wx_rise} – {wx_set}" { at: floor(dW.l + 405 * dkx + 0.5), floor(ry + 0.5); anchor: right center; size: 11; weight: 700; width: 90 * dkx; lines: 1; align: right; color: ink; family: "Space Grotesk"; show: r == 4 }
+                        }
+                    }
+                    //  ── the next 24 hours: a curve of the temperature, drawn in from the left as the tile comes up ──
+                    let dhx0 = dW.l + 26 * dkx
+                    let dhdx = 374 * dkx / 24
+                    let dhsp = max(1, wx_hhi - wx_hlo)
+                    let dhb = dW.t + 124 * dky                         // the curve's floor: the coldest hour sits here, the warmest 18 units higher
+                    let dhr.k = if(dhr_z.hover > 0.5, clamp(round((pointer.x - dhx0) / dhdx), 0, 24), -1)
+                    zone box dhr_z { from: dW.l, dW.t + 92 * dky; size: dW.w, 48 * dky; label: "The next 24 hours" }
+                    group {
+                        show: wx_hn > 24
+                        clip box { from: dW.l, dW.t + 86 * dky; size: dW.w * clamp(wx_in * 1.6 - 0.2, 0, 1), 56 * dky }
+                        //  the fill under it, a soft glow, and the line
+                    path { at: 0, 0; color: mint; opacity: 16%
+                        move dhx0, dhb + 10 * dky
+                        line dhx0, dhb - 18 * dky * (wx_hrs[0].t - wx_hlo) / dhsp
+                        curve dhx0 + 1.5 * dhdx, dhb - 9 * dky * (wx_hrs[1].t + wx_hrs[2].t - 2 * wx_hlo) / dhsp via dhx0 + 1 * dhdx, dhb - 18 * dky * (wx_hrs[1].t - wx_hlo) / dhsp
+                        curve dhx0 + 2.5 * dhdx, dhb - 9 * dky * (wx_hrs[2].t + wx_hrs[3].t - 2 * wx_hlo) / dhsp via dhx0 + 2 * dhdx, dhb - 18 * dky * (wx_hrs[2].t - wx_hlo) / dhsp
+                        curve dhx0 + 3.5 * dhdx, dhb - 9 * dky * (wx_hrs[3].t + wx_hrs[4].t - 2 * wx_hlo) / dhsp via dhx0 + 3 * dhdx, dhb - 18 * dky * (wx_hrs[3].t - wx_hlo) / dhsp
+                        curve dhx0 + 4.5 * dhdx, dhb - 9 * dky * (wx_hrs[4].t + wx_hrs[5].t - 2 * wx_hlo) / dhsp via dhx0 + 4 * dhdx, dhb - 18 * dky * (wx_hrs[4].t - wx_hlo) / dhsp
+                        curve dhx0 + 5.5 * dhdx, dhb - 9 * dky * (wx_hrs[5].t + wx_hrs[6].t - 2 * wx_hlo) / dhsp via dhx0 + 5 * dhdx, dhb - 18 * dky * (wx_hrs[5].t - wx_hlo) / dhsp
+                        curve dhx0 + 6.5 * dhdx, dhb - 9 * dky * (wx_hrs[6].t + wx_hrs[7].t - 2 * wx_hlo) / dhsp via dhx0 + 6 * dhdx, dhb - 18 * dky * (wx_hrs[6].t - wx_hlo) / dhsp
+                        curve dhx0 + 7.5 * dhdx, dhb - 9 * dky * (wx_hrs[7].t + wx_hrs[8].t - 2 * wx_hlo) / dhsp via dhx0 + 7 * dhdx, dhb - 18 * dky * (wx_hrs[7].t - wx_hlo) / dhsp
+                        curve dhx0 + 8.5 * dhdx, dhb - 9 * dky * (wx_hrs[8].t + wx_hrs[9].t - 2 * wx_hlo) / dhsp via dhx0 + 8 * dhdx, dhb - 18 * dky * (wx_hrs[8].t - wx_hlo) / dhsp
+                        curve dhx0 + 9.5 * dhdx, dhb - 9 * dky * (wx_hrs[9].t + wx_hrs[10].t - 2 * wx_hlo) / dhsp via dhx0 + 9 * dhdx, dhb - 18 * dky * (wx_hrs[9].t - wx_hlo) / dhsp
+                        curve dhx0 + 10.5 * dhdx, dhb - 9 * dky * (wx_hrs[10].t + wx_hrs[11].t - 2 * wx_hlo) / dhsp via dhx0 + 10 * dhdx, dhb - 18 * dky * (wx_hrs[10].t - wx_hlo) / dhsp
+                        curve dhx0 + 11.5 * dhdx, dhb - 9 * dky * (wx_hrs[11].t + wx_hrs[12].t - 2 * wx_hlo) / dhsp via dhx0 + 11 * dhdx, dhb - 18 * dky * (wx_hrs[11].t - wx_hlo) / dhsp
+                        curve dhx0 + 12.5 * dhdx, dhb - 9 * dky * (wx_hrs[12].t + wx_hrs[13].t - 2 * wx_hlo) / dhsp via dhx0 + 12 * dhdx, dhb - 18 * dky * (wx_hrs[12].t - wx_hlo) / dhsp
+                        curve dhx0 + 13.5 * dhdx, dhb - 9 * dky * (wx_hrs[13].t + wx_hrs[14].t - 2 * wx_hlo) / dhsp via dhx0 + 13 * dhdx, dhb - 18 * dky * (wx_hrs[13].t - wx_hlo) / dhsp
+                        curve dhx0 + 14.5 * dhdx, dhb - 9 * dky * (wx_hrs[14].t + wx_hrs[15].t - 2 * wx_hlo) / dhsp via dhx0 + 14 * dhdx, dhb - 18 * dky * (wx_hrs[14].t - wx_hlo) / dhsp
+                        curve dhx0 + 15.5 * dhdx, dhb - 9 * dky * (wx_hrs[15].t + wx_hrs[16].t - 2 * wx_hlo) / dhsp via dhx0 + 15 * dhdx, dhb - 18 * dky * (wx_hrs[15].t - wx_hlo) / dhsp
+                        curve dhx0 + 16.5 * dhdx, dhb - 9 * dky * (wx_hrs[16].t + wx_hrs[17].t - 2 * wx_hlo) / dhsp via dhx0 + 16 * dhdx, dhb - 18 * dky * (wx_hrs[16].t - wx_hlo) / dhsp
+                        curve dhx0 + 17.5 * dhdx, dhb - 9 * dky * (wx_hrs[17].t + wx_hrs[18].t - 2 * wx_hlo) / dhsp via dhx0 + 17 * dhdx, dhb - 18 * dky * (wx_hrs[17].t - wx_hlo) / dhsp
+                        curve dhx0 + 18.5 * dhdx, dhb - 9 * dky * (wx_hrs[18].t + wx_hrs[19].t - 2 * wx_hlo) / dhsp via dhx0 + 18 * dhdx, dhb - 18 * dky * (wx_hrs[18].t - wx_hlo) / dhsp
+                        curve dhx0 + 19.5 * dhdx, dhb - 9 * dky * (wx_hrs[19].t + wx_hrs[20].t - 2 * wx_hlo) / dhsp via dhx0 + 19 * dhdx, dhb - 18 * dky * (wx_hrs[19].t - wx_hlo) / dhsp
+                        curve dhx0 + 20.5 * dhdx, dhb - 9 * dky * (wx_hrs[20].t + wx_hrs[21].t - 2 * wx_hlo) / dhsp via dhx0 + 20 * dhdx, dhb - 18 * dky * (wx_hrs[20].t - wx_hlo) / dhsp
+                        curve dhx0 + 21.5 * dhdx, dhb - 9 * dky * (wx_hrs[21].t + wx_hrs[22].t - 2 * wx_hlo) / dhsp via dhx0 + 21 * dhdx, dhb - 18 * dky * (wx_hrs[21].t - wx_hlo) / dhsp
+                        curve dhx0 + 22.5 * dhdx, dhb - 9 * dky * (wx_hrs[22].t + wx_hrs[23].t - 2 * wx_hlo) / dhsp via dhx0 + 22 * dhdx, dhb - 18 * dky * (wx_hrs[22].t - wx_hlo) / dhsp
+                        curve dhx0 + 23.5 * dhdx, dhb - 9 * dky * (wx_hrs[23].t + wx_hrs[24].t - 2 * wx_hlo) / dhsp via dhx0 + 23 * dhdx, dhb - 18 * dky * (wx_hrs[23].t - wx_hlo) / dhsp
+                        line dhx0 + 24 * dhdx, dhb - 18 * dky * (wx_hrs[24].t - wx_hlo) / dhsp
+                        line dhx0 + 24 * dhdx, dhb + 10 * dky
+                        close }
+                    path { at: 0, 0; stroke: 7 * dkx; color: mint; opacity: 16%
+                        move dhx0, dhb - 18 * dky * (wx_hrs[0].t - wx_hlo) / dhsp
+                        curve dhx0 + 1.5 * dhdx, dhb - 9 * dky * (wx_hrs[1].t + wx_hrs[2].t - 2 * wx_hlo) / dhsp via dhx0 + 1 * dhdx, dhb - 18 * dky * (wx_hrs[1].t - wx_hlo) / dhsp
+                        curve dhx0 + 2.5 * dhdx, dhb - 9 * dky * (wx_hrs[2].t + wx_hrs[3].t - 2 * wx_hlo) / dhsp via dhx0 + 2 * dhdx, dhb - 18 * dky * (wx_hrs[2].t - wx_hlo) / dhsp
+                        curve dhx0 + 3.5 * dhdx, dhb - 9 * dky * (wx_hrs[3].t + wx_hrs[4].t - 2 * wx_hlo) / dhsp via dhx0 + 3 * dhdx, dhb - 18 * dky * (wx_hrs[3].t - wx_hlo) / dhsp
+                        curve dhx0 + 4.5 * dhdx, dhb - 9 * dky * (wx_hrs[4].t + wx_hrs[5].t - 2 * wx_hlo) / dhsp via dhx0 + 4 * dhdx, dhb - 18 * dky * (wx_hrs[4].t - wx_hlo) / dhsp
+                        curve dhx0 + 5.5 * dhdx, dhb - 9 * dky * (wx_hrs[5].t + wx_hrs[6].t - 2 * wx_hlo) / dhsp via dhx0 + 5 * dhdx, dhb - 18 * dky * (wx_hrs[5].t - wx_hlo) / dhsp
+                        curve dhx0 + 6.5 * dhdx, dhb - 9 * dky * (wx_hrs[6].t + wx_hrs[7].t - 2 * wx_hlo) / dhsp via dhx0 + 6 * dhdx, dhb - 18 * dky * (wx_hrs[6].t - wx_hlo) / dhsp
+                        curve dhx0 + 7.5 * dhdx, dhb - 9 * dky * (wx_hrs[7].t + wx_hrs[8].t - 2 * wx_hlo) / dhsp via dhx0 + 7 * dhdx, dhb - 18 * dky * (wx_hrs[7].t - wx_hlo) / dhsp
+                        curve dhx0 + 8.5 * dhdx, dhb - 9 * dky * (wx_hrs[8].t + wx_hrs[9].t - 2 * wx_hlo) / dhsp via dhx0 + 8 * dhdx, dhb - 18 * dky * (wx_hrs[8].t - wx_hlo) / dhsp
+                        curve dhx0 + 9.5 * dhdx, dhb - 9 * dky * (wx_hrs[9].t + wx_hrs[10].t - 2 * wx_hlo) / dhsp via dhx0 + 9 * dhdx, dhb - 18 * dky * (wx_hrs[9].t - wx_hlo) / dhsp
+                        curve dhx0 + 10.5 * dhdx, dhb - 9 * dky * (wx_hrs[10].t + wx_hrs[11].t - 2 * wx_hlo) / dhsp via dhx0 + 10 * dhdx, dhb - 18 * dky * (wx_hrs[10].t - wx_hlo) / dhsp
+                        curve dhx0 + 11.5 * dhdx, dhb - 9 * dky * (wx_hrs[11].t + wx_hrs[12].t - 2 * wx_hlo) / dhsp via dhx0 + 11 * dhdx, dhb - 18 * dky * (wx_hrs[11].t - wx_hlo) / dhsp
+                        curve dhx0 + 12.5 * dhdx, dhb - 9 * dky * (wx_hrs[12].t + wx_hrs[13].t - 2 * wx_hlo) / dhsp via dhx0 + 12 * dhdx, dhb - 18 * dky * (wx_hrs[12].t - wx_hlo) / dhsp
+                        curve dhx0 + 13.5 * dhdx, dhb - 9 * dky * (wx_hrs[13].t + wx_hrs[14].t - 2 * wx_hlo) / dhsp via dhx0 + 13 * dhdx, dhb - 18 * dky * (wx_hrs[13].t - wx_hlo) / dhsp
+                        curve dhx0 + 14.5 * dhdx, dhb - 9 * dky * (wx_hrs[14].t + wx_hrs[15].t - 2 * wx_hlo) / dhsp via dhx0 + 14 * dhdx, dhb - 18 * dky * (wx_hrs[14].t - wx_hlo) / dhsp
+                        curve dhx0 + 15.5 * dhdx, dhb - 9 * dky * (wx_hrs[15].t + wx_hrs[16].t - 2 * wx_hlo) / dhsp via dhx0 + 15 * dhdx, dhb - 18 * dky * (wx_hrs[15].t - wx_hlo) / dhsp
+                        curve dhx0 + 16.5 * dhdx, dhb - 9 * dky * (wx_hrs[16].t + wx_hrs[17].t - 2 * wx_hlo) / dhsp via dhx0 + 16 * dhdx, dhb - 18 * dky * (wx_hrs[16].t - wx_hlo) / dhsp
+                        curve dhx0 + 17.5 * dhdx, dhb - 9 * dky * (wx_hrs[17].t + wx_hrs[18].t - 2 * wx_hlo) / dhsp via dhx0 + 17 * dhdx, dhb - 18 * dky * (wx_hrs[17].t - wx_hlo) / dhsp
+                        curve dhx0 + 18.5 * dhdx, dhb - 9 * dky * (wx_hrs[18].t + wx_hrs[19].t - 2 * wx_hlo) / dhsp via dhx0 + 18 * dhdx, dhb - 18 * dky * (wx_hrs[18].t - wx_hlo) / dhsp
+                        curve dhx0 + 19.5 * dhdx, dhb - 9 * dky * (wx_hrs[19].t + wx_hrs[20].t - 2 * wx_hlo) / dhsp via dhx0 + 19 * dhdx, dhb - 18 * dky * (wx_hrs[19].t - wx_hlo) / dhsp
+                        curve dhx0 + 20.5 * dhdx, dhb - 9 * dky * (wx_hrs[20].t + wx_hrs[21].t - 2 * wx_hlo) / dhsp via dhx0 + 20 * dhdx, dhb - 18 * dky * (wx_hrs[20].t - wx_hlo) / dhsp
+                        curve dhx0 + 21.5 * dhdx, dhb - 9 * dky * (wx_hrs[21].t + wx_hrs[22].t - 2 * wx_hlo) / dhsp via dhx0 + 21 * dhdx, dhb - 18 * dky * (wx_hrs[21].t - wx_hlo) / dhsp
+                        curve dhx0 + 22.5 * dhdx, dhb - 9 * dky * (wx_hrs[22].t + wx_hrs[23].t - 2 * wx_hlo) / dhsp via dhx0 + 22 * dhdx, dhb - 18 * dky * (wx_hrs[22].t - wx_hlo) / dhsp
+                        curve dhx0 + 23.5 * dhdx, dhb - 9 * dky * (wx_hrs[23].t + wx_hrs[24].t - 2 * wx_hlo) / dhsp via dhx0 + 23 * dhdx, dhb - 18 * dky * (wx_hrs[23].t - wx_hlo) / dhsp
+                        line dhx0 + 24 * dhdx, dhb - 18 * dky * (wx_hrs[24].t - wx_hlo) / dhsp }
+                    path { at: 0, 0; stroke: 2.2 * dkx; color: mint
+                        move dhx0, dhb - 18 * dky * (wx_hrs[0].t - wx_hlo) / dhsp
+                        curve dhx0 + 1.5 * dhdx, dhb - 9 * dky * (wx_hrs[1].t + wx_hrs[2].t - 2 * wx_hlo) / dhsp via dhx0 + 1 * dhdx, dhb - 18 * dky * (wx_hrs[1].t - wx_hlo) / dhsp
+                        curve dhx0 + 2.5 * dhdx, dhb - 9 * dky * (wx_hrs[2].t + wx_hrs[3].t - 2 * wx_hlo) / dhsp via dhx0 + 2 * dhdx, dhb - 18 * dky * (wx_hrs[2].t - wx_hlo) / dhsp
+                        curve dhx0 + 3.5 * dhdx, dhb - 9 * dky * (wx_hrs[3].t + wx_hrs[4].t - 2 * wx_hlo) / dhsp via dhx0 + 3 * dhdx, dhb - 18 * dky * (wx_hrs[3].t - wx_hlo) / dhsp
+                        curve dhx0 + 4.5 * dhdx, dhb - 9 * dky * (wx_hrs[4].t + wx_hrs[5].t - 2 * wx_hlo) / dhsp via dhx0 + 4 * dhdx, dhb - 18 * dky * (wx_hrs[4].t - wx_hlo) / dhsp
+                        curve dhx0 + 5.5 * dhdx, dhb - 9 * dky * (wx_hrs[5].t + wx_hrs[6].t - 2 * wx_hlo) / dhsp via dhx0 + 5 * dhdx, dhb - 18 * dky * (wx_hrs[5].t - wx_hlo) / dhsp
+                        curve dhx0 + 6.5 * dhdx, dhb - 9 * dky * (wx_hrs[6].t + wx_hrs[7].t - 2 * wx_hlo) / dhsp via dhx0 + 6 * dhdx, dhb - 18 * dky * (wx_hrs[6].t - wx_hlo) / dhsp
+                        curve dhx0 + 7.5 * dhdx, dhb - 9 * dky * (wx_hrs[7].t + wx_hrs[8].t - 2 * wx_hlo) / dhsp via dhx0 + 7 * dhdx, dhb - 18 * dky * (wx_hrs[7].t - wx_hlo) / dhsp
+                        curve dhx0 + 8.5 * dhdx, dhb - 9 * dky * (wx_hrs[8].t + wx_hrs[9].t - 2 * wx_hlo) / dhsp via dhx0 + 8 * dhdx, dhb - 18 * dky * (wx_hrs[8].t - wx_hlo) / dhsp
+                        curve dhx0 + 9.5 * dhdx, dhb - 9 * dky * (wx_hrs[9].t + wx_hrs[10].t - 2 * wx_hlo) / dhsp via dhx0 + 9 * dhdx, dhb - 18 * dky * (wx_hrs[9].t - wx_hlo) / dhsp
+                        curve dhx0 + 10.5 * dhdx, dhb - 9 * dky * (wx_hrs[10].t + wx_hrs[11].t - 2 * wx_hlo) / dhsp via dhx0 + 10 * dhdx, dhb - 18 * dky * (wx_hrs[10].t - wx_hlo) / dhsp
+                        curve dhx0 + 11.5 * dhdx, dhb - 9 * dky * (wx_hrs[11].t + wx_hrs[12].t - 2 * wx_hlo) / dhsp via dhx0 + 11 * dhdx, dhb - 18 * dky * (wx_hrs[11].t - wx_hlo) / dhsp
+                        curve dhx0 + 12.5 * dhdx, dhb - 9 * dky * (wx_hrs[12].t + wx_hrs[13].t - 2 * wx_hlo) / dhsp via dhx0 + 12 * dhdx, dhb - 18 * dky * (wx_hrs[12].t - wx_hlo) / dhsp
+                        curve dhx0 + 13.5 * dhdx, dhb - 9 * dky * (wx_hrs[13].t + wx_hrs[14].t - 2 * wx_hlo) / dhsp via dhx0 + 13 * dhdx, dhb - 18 * dky * (wx_hrs[13].t - wx_hlo) / dhsp
+                        curve dhx0 + 14.5 * dhdx, dhb - 9 * dky * (wx_hrs[14].t + wx_hrs[15].t - 2 * wx_hlo) / dhsp via dhx0 + 14 * dhdx, dhb - 18 * dky * (wx_hrs[14].t - wx_hlo) / dhsp
+                        curve dhx0 + 15.5 * dhdx, dhb - 9 * dky * (wx_hrs[15].t + wx_hrs[16].t - 2 * wx_hlo) / dhsp via dhx0 + 15 * dhdx, dhb - 18 * dky * (wx_hrs[15].t - wx_hlo) / dhsp
+                        curve dhx0 + 16.5 * dhdx, dhb - 9 * dky * (wx_hrs[16].t + wx_hrs[17].t - 2 * wx_hlo) / dhsp via dhx0 + 16 * dhdx, dhb - 18 * dky * (wx_hrs[16].t - wx_hlo) / dhsp
+                        curve dhx0 + 17.5 * dhdx, dhb - 9 * dky * (wx_hrs[17].t + wx_hrs[18].t - 2 * wx_hlo) / dhsp via dhx0 + 17 * dhdx, dhb - 18 * dky * (wx_hrs[17].t - wx_hlo) / dhsp
+                        curve dhx0 + 18.5 * dhdx, dhb - 9 * dky * (wx_hrs[18].t + wx_hrs[19].t - 2 * wx_hlo) / dhsp via dhx0 + 18 * dhdx, dhb - 18 * dky * (wx_hrs[18].t - wx_hlo) / dhsp
+                        curve dhx0 + 19.5 * dhdx, dhb - 9 * dky * (wx_hrs[19].t + wx_hrs[20].t - 2 * wx_hlo) / dhsp via dhx0 + 19 * dhdx, dhb - 18 * dky * (wx_hrs[19].t - wx_hlo) / dhsp
+                        curve dhx0 + 20.5 * dhdx, dhb - 9 * dky * (wx_hrs[20].t + wx_hrs[21].t - 2 * wx_hlo) / dhsp via dhx0 + 20 * dhdx, dhb - 18 * dky * (wx_hrs[20].t - wx_hlo) / dhsp
+                        curve dhx0 + 21.5 * dhdx, dhb - 9 * dky * (wx_hrs[21].t + wx_hrs[22].t - 2 * wx_hlo) / dhsp via dhx0 + 21 * dhdx, dhb - 18 * dky * (wx_hrs[21].t - wx_hlo) / dhsp
+                        curve dhx0 + 22.5 * dhdx, dhb - 9 * dky * (wx_hrs[22].t + wx_hrs[23].t - 2 * wx_hlo) / dhsp via dhx0 + 22 * dhdx, dhb - 18 * dky * (wx_hrs[22].t - wx_hlo) / dhsp
+                        curve dhx0 + 23.5 * dhdx, dhb - 9 * dky * (wx_hrs[23].t + wx_hrs[24].t - 2 * wx_hlo) / dhsp via dhx0 + 23 * dhdx, dhb - 18 * dky * (wx_hrs[23].t - wx_hlo) / dhsp
+                        line dhx0 + 24 * dhdx, dhb - 18 * dky * (wx_hrs[24].t - wx_hlo) / dhsp }
+                        //  every third hour: its temperature over the curve and the hour under it; the pointer's hour instead, while it runs along
+                        repeat i in 0..25 {
+                            let px = dhx0 + i * dhdx
+                            let py = dhb - 18 * dky * (wx_hrs[i].t - wx_hlo) / dhsp
+                            let third = if(mod(i, 3) == 0, 1, 0)
+                            let near = if(dhr.k >= 0, clamp(abs(i - dhr.k) / 1.5, 0, 1), 1)
+                            ellipse { at: px, py; radius: 2.6; color: mint; opacity: third * near; show: i > 0 }
+                            text wx_hrs[i].deg { at: floor(px + 0.5), floor(py - 11 + 0.5); anchor: center; size: 10.5; weight: 700; color: ink; opacity: third * near; family: "Space Grotesk"; shadow: 0, 1, 5, dwx.sh; show: third > 0.5 }
+                            text wx_hrs[i].label { at: floor(px + 0.5), floor(dW.t + 135 * dky + 0.5); anchor: center; size: 10.5; weight: 500; color: ink; opacity: 70% * third * near; family: "Space Grotesk"; shadow: 0, 1, 5, dwx.sh; show: third > 0.5 }
+                            group {
+                                show: dhr.k == i
+                                line { from: px, dW.t + 92 * dky; to: px, dW.t + 139 * dky; width: 1.2; color: ink; opacity: 35% }
+                                ellipse { at: px, py; radius: 8.5; color: mint; opacity: 25% }
+                                ellipse { at: px, py; radius: 5; color: mint }
+                                box { at: px, py - 18; size: 48, 20; corner: 10 * (1 - 0.85 * sq); color: mint }
+                                text wx_hrs[i].deg { at: floor(px + 0.5), floor(py - 18 + 0.5); anchor: center; size: 11.5; weight: 700; color: onmint; family: "Space Grotesk" }
+                                text wx_hrs[i].label { at: floor(px + 0.5), floor(dW.t + 135 * dky + 0.5); anchor: center; size: 11; weight: 700; color: ink; family: "Space Grotesk"; shadow: 0, 1, 5, dwx.sh }
+                            }
+                        }
+                        //  now: a dot that sends out a ring, over and over
+                        ellipse { at: dhx0, dhb - 18 * dky * (wx_hrs[0].t - wx_hlo) / dhsp; radius: 5 + 11 * fract(sk.t * 0.6); stroke: 1.8; color: mint; opacity: 80% * (1 - fract(sk.t * 0.6)) }
+                        ellipse { at: dhx0, dhb - 18 * dky * (wx_hrs[0].t - wx_hlo) / dhsp; radius: 5; color: mint }
+                        ellipse { at: dhx0, dhb - 18 * dky * (wx_hrs[0].t - wx_hlo) / dhsp; radius: 2; color: onmint }
+                    }
+                    //  ── the week: each day's name, its weather and where its low and high fall in the week's range ──
+                    box { at: dW.l + dW.w / 2, dW.t + 141 * dky; size: 402 * dkx, 1.5; color: ink; opacity: 14% }
+                    let dwsp = max(1, wx_whi - wx_wlo)
+                    //  (the tile is narrower than the calendar's card: each day's low and high go under its range bar, not beside it, or they run into the next day's)
+                    repeat i in 0..7 {
+                        let dx = dW.l + 12 * dkx + (i + 0.5) * 57.43 * dkx
+                        let dk = clamp(wx_in * 2.4 - 0.6 - i * 0.12, 0, 1)
+                        let lx = dx - 13 + 26 * (wx_days[i].ln - wx_wlo) / dwsp
+                        let hxr = dx - 13 + 26 * (wx_days[i].hn - wx_wlo) / dwsp
+                        group {
+                            opacity: dk
+                            move: 0, 12 * (1 - dk)
+                            show: i < wx_days.count
+                            box { at: dx, dW.t + 163 * dky; size: 53 * dkx, 39 * dky; corner: 14 * (1 - 0.85 * sq); color: if(wx_days[i].today, mint, ink); opacity: if(wx_days[i].today, 14%, 0) + 12% * dwd_z.$i.hover }
+                            text wx_days[i].label { at: floor(dx + 0.5), floor(dW.t + 148 * dky + 0.5); anchor: center; size: 10.5; weight: 700; color: if(wx_days[i].today, mint, ink); opacity: 85%; family: "Space Grotesk"; shadow: 0, 1, 5, dwx.sh }
+                            group {
+                                pivot: dx, dW.t + 158.5 * dky
+                                scale: 0.7 + 0.15 * dwd_z.$i.hover
+                                move: 0, -3 * dwd_z.$i.hover
+                                column { at: dx - 13 * cu, dW.t + 158.5 * dky - 10 * cu; WxIcon(wx_days[i].kind, ink, mint) }
+                            }
+                            box { at: dx, dW.t + 169 * dky; size: 26, 3.5; corner: 2; color: ink; opacity: 14% }
+                            body { gradient: dx - 13, 0 to dx + 13, 0, #6fb3ff, mint, #ffa25e; opacity: 95%
+                                   box { from: lx, dW.t + 169 * dky - 1.75; size: max(3.5, hxr - lx), 3.5; corner: 1.75 } }
+                            text wx_days[i].lo { at: floor(dx - 2 + 0.5), floor(dW.t + 177 * dky + 0.5); anchor: right center; size: 10; weight: 500; color: ink; opacity: 65%; family: "Space Grotesk" }
+                            text wx_days[i].hi { at: floor(dx + 2 + 0.5), floor(dW.t + 177 * dky + 0.5); anchor: left center; size: 10; weight: 700; color: ink; family: "Space Grotesk" }
+                            zone box dwd_z.$i { at: dx, dW.t + 163 * dky; size: 55 * dkx, 41 * dky; corner: 14; label: "Show this day's sky" }
+                        }
+                    }
+                    //  the day under the pointer: cleared first, then set, so moving from one day to the next keeps the new one
+                    repeat i in 0..7 { on leave dwd_z.$i { wx_hv = -1 } }
+                    repeat i in 0..7 { on enter dwd_z.$i { wx_hv = i } }
+                }
             }
 
             //  ── Now playing: the cover, the title and the artist, and the player's buttons ──
@@ -856,8 +1001,11 @@ part Dashboard {
                         GHeart(dPk.x + (-44 + h * 44) * dPk.k + 5 * sin(dPh.p * 360), dPk.y - dPk.h / 2 - 22 * dPk.k - dPh.p * 40, (14) / 24, #ff9bb3, dPk.love * sin(dPh.p * 180), 0)
                     }
                     text "No notifications" { at: dPk.x, dPk.y + dPk.h / 2 + 30 * dPk.k + 8; anchor: center; size: 13; family: "Space Grotesk"; color: faint }
-                    follow dsh_pet = dsh_cat.hover
-                    follow dsh_hup = dsh_cathead.hover
+                    //  (rules, not follows: see `dsh_hv` above; the props' own spring still carries them)
+                    on leave dsh_cat { dsh_pet: 0 }
+                    on leave dsh_cathead { dsh_hup: 0 }
+                    on enter dsh_cat { dsh_pet: 1 }
+                    on enter dsh_cathead { dsh_hup: 1 }
                     zone box dsh_cat { from: dPk.x - dPk.w / 2 - 10 * dPk.k, dPk.y - dPk.h / 2 + 12 * dPk.k; size: dPk.w + 20 * dPk.k, dPk.h; corner: 12; cursor: pointer; active: dash_open and nt_hist.count < 1; label: "Pet Peek" }
                     zone box dsh_cathead { from: dPk.x - dPk.w / 2 - 10 * dPk.k, dPk.y - dPk.h / 2 - 34 * dPk.k; size: dPk.w + 20 * dPk.k, 46 * dPk.k; corner: 10; cursor: pointer; active: dash_open and nt_hist.count < 1; label: "Pet Peek's head" }
                 }

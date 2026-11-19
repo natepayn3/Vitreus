@@ -7886,6 +7886,10 @@ require("logic/gpu")(with_dirs)
 -- panels from a key, on the focused monitor: see logic/panel_monitor.luau
 snd_hook = {}   -- filled by the panel sound below (the key bind sets desk_open from the logic, which fires no fact handler)
 here_toggle = require("logic/panel_monitor")()   -- a global: the wallpaper picker's toggle (further down) opens it on the focused monitor too
+-- The dashboard too: the shared fact alone opened it on every screen.
+on("dash_toggle", function()
+    here_toggle(function() return fact.dash_open == true end, function(v) fact.dash_open = v end)
+end)
 
 -- bar position: see logic/bar_position.luau
 require("logic/bar_position")()
