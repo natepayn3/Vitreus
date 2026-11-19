@@ -263,6 +263,7 @@ class Remote:
         self.alive = False
         self.state = None                           # what the TV last said (model, app, volume), to answer a second connect
         self.stale = False                          # set when another TV was chosen: nothing more is reported from this one
+        self.ime = (0, 0)                           # the TV's text box: (ime_counter, field_counter), from its last IME batch edit
 
     def close(self):
         self.stale = True
@@ -285,6 +286,14 @@ class Remote:
 
     def app(self, link):
         self.send(f_bytes(90, f_bytes(1, link)))
+
+    def text(self, t):
+        # RemoteImeBatchEdit (field 21): ime_counter = 1, field_counter = 2, edit_info = 3 { insert = 1, text_field_status = 2 { start = 1, end = 2, value = 3 } }.
+        # Sets what the TV's focused text box holds, as the Google TV app does: one key press per letter is ignored by many apps' search boxes.
+        ic, fc = self.ime
+        pos = max(0, len(t) - 1)
+        status = f_int(1, pos) + f_int(2, pos) + f_bytes(3, t)
+        self.send(f_bytes(21, f_int(1, ic) + f_int(2, fc) + f_bytes(3, f_int(1, 1) + f_bytes(2, status))))
 
     def run(self):
         """Connect and read until the connection ends; calls emit() for state."""
@@ -321,6 +330,9 @@ class Remote:
                         app = parse(info[1][0]).get(12, [b""])[0].decode(errors="replace")
                         state["app"] = app
                         emit(ev="state", stage="ready", **state)
+                elif 21 in m:                                           # ime batch edit: a text box has the cursor, and its counters
+                    e = parse(m[21][0])
+                    self.ime = (e.get(1, [0])[0], e.get(2, [0])[0])
                 elif 50 in m:                                           # volume
                     v = parse(m[50][0])
                     state["max"] = v.get(6, [100])[0]
@@ -919,13 +931,6 @@ def scan(seconds=3.0):
     return [v for _, v in sorted(found.items())]
 
 
-CHARS = {" ": 62, ".": 56, ",": 55, "-": 69, "/": 76, "@": 77, "'": 75, ";": 74, "=": 70}
-for i, c in enumerate("abcdefghijklmnopqrstuvwxyz"):
-    CHARS[c] = 29 + i
-for i, c in enumerate("0123456789"):
-    CHARS[c] = 7 + i
-
-
 def main():
     remote = None
     pairing = None
@@ -1070,10 +1075,7 @@ def main():
                     remote.text(c.get("text", ""))
             elif cmd == "text":
                 if remote and remote.alive:
-                    for ch in c.get("text", "").lower():
-                        if ch in CHARS:
-                            remote.key(CHARS[ch])
-                            time.sleep(0.03)
+                    remote.text(c.get("text", ""))
             elif cmd == "app":
                 if remote and remote.alive:
                     remote.app(c.get("link", ""))
