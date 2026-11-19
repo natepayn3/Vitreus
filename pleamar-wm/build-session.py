@@ -241,7 +241,8 @@ def dialog(t):
     return t.replace(old, "            box { from: dx, dy; size: dw, dh; corner: rad; stroke: if(wst == 1, 1.5, max(bw, 1)); color: if(wst == 1, mint, wm_border); opacity: if(wst == 2, 0%, 70%) * win.$i.focused }\n")
 
 
-between("    repeat i in 0..16 {\n        let dw = max(win.$i.width, 120)\n", "    // The rain itself, in front of everything", dialog)
+# (From the line that heads the dialogs' loop: what follows it changed when dialogs could be carried.)
+between("    // rest, at the size it chooses, in the middle of its monitor ──\n", "    // The rain itself, in front of everything", dialog)
 
 # Each window's agent basin reads `time` even when no agent is on it (`pick` takes its first branch, a wobble, at 0), and the scene never
 # rests: every round is made again, ~165 a second, for a basin that is not shown. Only an agent's own window needs the wobble.

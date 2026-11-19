@@ -215,6 +215,13 @@ scene Files {
     prop ddk = 0 ~calm
     follow ddk = if(look == 7, 1, 0)                   // Doodle: no hatching, and all but sharp corners, as in the Settings
     shader pencilhatch = file "../pencilhatch.wgsl"    // the pencil shading inside the places' thumb (the Settings' own)
+    shader fillstyle = file "../fillstyle.wgsl"        // ... and the other fills, when Settings > Style > Fill is not Pencil
+    //  Settings > Style, as Vitreus has it (it says so itself when it changes; asked when this starts): the fill (0 Pencil, 1 Marker, 2 Gradient, 3 Plain, 4 Dots)
+    //  and how strong it is (Shade: 0 Off, 1 Light, 2 Normal, 3 Heavy).
+    fact pn_fill_i = 0
+    fact pn_shade_i = 2
+    prop pn_hatch = 1 ~calm
+    follow pn_hatch = pick(pn_shade_i, 0, 0.5, 1, 1.5)
     let rr = 1 - 0.73 * sq                             // what every corner is multiplied by
     //  The window's own corners: the compositor's (Hyprland's `decoration:rounding`, which Vitreus sets from the theme), so the glass fills the rounded window
     //  to its edge and meets its border; -1 (no Hyprland to ask) keeps the theme's own.
@@ -1308,7 +1315,8 @@ scene Files {
             group {
                 move: 0, 72 - hr_sc
                 box { at: side / 2, sbt.cy; size: sbt.w, sbt.h; corner: min(sbt.h / 2, 11) * (1 - 0.85 * ddk); color: mint; opacity: 22% }
-                shader pencilhatch { at: side / 2 - sbt.w / 2 + sbt.hm, sbt.cy - sbt.h; size: sbt.w - 2 * sbt.hm, 2 * sbt.h; values: sbt.sp * 0.5, 9000, sbt.sp, sbt.h * 0.92, 0.18 + 0.25 * sidez.hover, if(sidez.hover > 0.02, floor(time * 5), 0), 0.8, 0; colors: mint; opacity: 0.2 * (1 - ddk); show: ddk < 0.998 }
+                shader pencilhatch { at: side / 2 - sbt.w / 2 + sbt.hm, sbt.cy - sbt.h; size: sbt.w - 2 * sbt.hm, 2 * sbt.h; values: sbt.sp * 0.5, 9000, sbt.sp, sbt.h * 0.92, 0.18 + 0.25 * sidez.hover, if(sidez.hover > 0.02, floor(time * 5), 0), 0.8, 0; colors: mint; opacity: pn_hatch * 0.2 * (1 - ddk); show: pn_fill_i == 0 and ddk < 0.998 }
+                shader fillstyle { at: side / 2 - sbt.w / 2, sbt.cy - sbt.h; size: sbt.w, 2 * sbt.h; values: 0.1 * sbt.h, sbt.w - 0.1 * sbt.h, 0.8 * sbt.h, min(sbt.h / 2, 11) - 0.1 * sbt.h, pn_fill_i, if(sidez.hover > 0.02, floor(time * 5), 0), 0.18 + 0.25 * sidez.hover, 1; colors: mint; opacity: pn_hatch * 0.32 * (1 - ddk); show: pn_fill_i > 0 and ddk < 0.998 }
                 PPillOutline(side / 2, sbt.cy, sbt.w, sbt.h, min(sbt.h / 2, 11), sidez.hover, 1)
             }
         }
@@ -1563,9 +1571,10 @@ scene Files {
                                 show: on > 0.004
                                 box { at: tx + tw / 2, pk.h / 2; size: pk.w, pk.h; corner: min(pk.h / 2, 12) * (1 - 0.85 * ddk); color: mint; opacity: 22% }
                                 //  (The shader draws 88 columns: a line as wide as the window is shaded in three stretches, or its strokes would stand far apart.)
-                                shader pencilhatch { at: tx + tw / 2 - pk.w / 2 + 11, pk.h / 2 - pk.h * 0.55; size: pk.hw, pk.h * 1.1; values: pk.sp * 0.5, 9000, pk.sp, pk.h * 0.92, 0.18 + 0.25 * hv, if(hv > 0.02, floor(time * 5), 0), 0.8, 0; colors: mint; opacity: 0.2 * (1 - ddk); show: ddk < 0.998 }
-                                shader pencilhatch { at: tx + tw / 2 - pk.w / 2 + 11 + pk.hw, pk.h / 2 - pk.h * 0.55; size: pk.hw, pk.h * 1.1; values: pk.sp * 0.5, 9000, pk.sp, pk.h * 0.92, 0.18 + 0.25 * hv, if(hv > 0.02, floor(time * 5), 0), 0.8, 0; colors: mint; opacity: 0.2 * (1 - ddk); show: ddk < 0.998 and view == lines }
-                                shader pencilhatch { at: tx + tw / 2 - pk.w / 2 + 11 + 2 * pk.hw, pk.h / 2 - pk.h * 0.55; size: pk.hw, pk.h * 1.1; values: pk.sp * 0.5, 9000, pk.sp, pk.h * 0.92, 0.18 + 0.25 * hv, if(hv > 0.02, floor(time * 5), 0), 0.8, 0; colors: mint; opacity: 0.2 * (1 - ddk); show: ddk < 0.998 and view == lines }
+                                shader pencilhatch { at: tx + tw / 2 - pk.w / 2 + 11, pk.h / 2 - pk.h * 0.55; size: pk.hw, pk.h * 1.1; values: pk.sp * 0.5, 9000, pk.sp, pk.h * 0.92, 0.18 + 0.25 * hv, if(hv > 0.02, floor(time * 5), 0), 0.8, 0; colors: mint; opacity: pn_hatch * 0.2 * (1 - ddk); show: pn_fill_i == 0 and ddk < 0.998 }
+                                shader pencilhatch { at: tx + tw / 2 - pk.w / 2 + 11 + pk.hw, pk.h / 2 - pk.h * 0.55; size: pk.hw, pk.h * 1.1; values: pk.sp * 0.5, 9000, pk.sp, pk.h * 0.92, 0.18 + 0.25 * hv, if(hv > 0.02, floor(time * 5), 0), 0.8, 0; colors: mint; opacity: pn_hatch * 0.2 * (1 - ddk); show: pn_fill_i == 0 and ddk < 0.998 and view == lines }
+                                shader pencilhatch { at: tx + tw / 2 - pk.w / 2 + 11 + 2 * pk.hw, pk.h / 2 - pk.h * 0.55; size: pk.hw, pk.h * 1.1; values: pk.sp * 0.5, 9000, pk.sp, pk.h * 0.92, 0.18 + 0.25 * hv, if(hv > 0.02, floor(time * 5), 0), 0.8, 0; colors: mint; opacity: pn_hatch * 0.2 * (1 - ddk); show: pn_fill_i == 0 and ddk < 0.998 and view == lines }
+                                shader fillstyle { at: tx + tw / 2 - pk.w / 2, pk.h / 2 - pk.h; size: pk.w, 2 * pk.h; values: 0.1 * pk.h, pk.w - 0.1 * pk.h, 0.8 * pk.h, min(pk.h / 2, 12) - 0.1 * pk.h, pn_fill_i, if(hv > 0.02, floor(time * 5), 0), 0.18 + 0.25 * hv, 1; colors: mint; opacity: pn_hatch * 0.32 * (1 - ddk); show: pn_fill_i > 0 and ddk < 0.998 }
                                 PPillOutline(tx + tw / 2, pk.h / 2, pk.w, pk.h, min(pk.h / 2, 12), hv, 1)
                             }
                             box { from: tx, 0; size: tw, tile.h - 4; corner: 12 * rr; stroke: 1.1; color: ink; opacity: 38%; show: c.cur and not c.picked }
@@ -1880,7 +1889,8 @@ scene Files {
                 opacity: mt_o
                 show: mt_o > 0.004
                 box { at: mpx + 134, mt.cy; size: mt.w, mt.h; corner: min(mt.h / 2, 11) * (1 - 0.85 * ddk); color: mt.c; opacity: 22% }
-                shader pencilhatch { at: mpx + 134 - mt.w / 2 + 11, mt.cy - mt.h; size: mt.w - 22, 2 * mt.h; values: mt.sp * 0.5, 9000, mt.sp, mt.h * 0.92, 0.43, floor(time * 5), 0.8, 0; colors: mt.c; opacity: 0.2 * (1 - ddk); show: ddk < 0.998 }
+                shader pencilhatch { at: mpx + 134 - mt.w / 2 + 11, mt.cy - mt.h; size: mt.w - 22, 2 * mt.h; values: mt.sp * 0.5, 9000, mt.sp, mt.h * 0.92, 0.43, floor(time * 5), 0.8, 0; colors: mt.c; opacity: pn_hatch * 0.2 * (1 - ddk); show: pn_fill_i == 0 and ddk < 0.998 }
+                shader fillstyle { at: mpx + 134 - mt.w / 2, mt.cy - mt.h; size: mt.w, 2 * mt.h; values: 0.1 * mt.h, mt.w - 0.1 * mt.h, 0.8 * mt.h, min(mt.h / 2, 11) - 0.1 * mt.h, pn_fill_i, floor(time * 5), 0.43, 1; colors: mt.c; opacity: pn_hatch * 0.32 * (1 - ddk); show: pn_fill_i > 0 and ddk < 0.998 }
                 PPillOutline(mpx + 134, mt.cy, mt.w, mt.h, min(mt.h / 2, 11), 1, 1)
             }
             column menuc {

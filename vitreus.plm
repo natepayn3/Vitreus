@@ -2487,8 +2487,8 @@ scene Vitreus {
     //  the whole picker swipes between them: Tab goes from one to the other (the arrows belong to the cards; the two dots at the foot can be pressed too). The cards are the logic's `wp_cards`:
     //  fifteen slots around the one in focus (a window onto the list: the atlas could not hold every picture), `wp_card_base` the position of the first slot
     //  in the list and `wp_card_sel` the one in focus. Escape puts the old wallpaper back; Enter, a click on the focused card or a click outside keeps what is showing.
-    fact wp_pg = 0                            // the page asked for: 0 hexagons, 1 cards
-    prop wp_pgp = 0 ~calm                     // and how far the swipe has got
+    fact wp_pg = 1                            // the page asked for: 1 cards (the first page, and the one it opens on), 0 hexagons (the second)
+    prop wp_pgp = 1 ~calm                     // and how far the swipe has got
     follow wp_pgp = wp_pg
     model wp_cards max 15 { img: image 96, 216; ix: number; cur: bool; ok: bool }        // the narrow strip of each wallpaper in the row (a tall crop of its middle)
     model wp_big max 2 { img: image 768, 432; ix: number; cur: bool; ok: bool }           // the picture of the one in focus, and of the one that has just left focus (so it can shrink)
@@ -8477,7 +8477,7 @@ scene Vitreus {
     let g.rows = floor((g.n + g.cols - 1) / g.cols)
     let g.gw = (g.cols + 0.5) * g.w
     let g.gh = (g.rows - 1) * 1.5 * g.R + 2 * g.R
-    let g.pgx = -wp_pgp * screen.width                  // the swipe: the hexagons leave to the left as the cards come in
+    let g.pgx = wp_pgp * screen.width                   // the swipe: the hexagons leave to the right as the cards come in from the left
     let g.x0 = cx - g.gw / 2 + g.pgx
     //  Round the hovered hexagon the others give way: they are pushed outwards (by K, most at about a tile's distance and not at all far
     //  off) and the ring next to it shrinks a little. The hovered one grows on its own spring (`gt`). `sg` is how far this reaches.
@@ -8487,7 +8487,7 @@ scene Vitreus {
     let g.y0 = yo + (vh - g.gh - g.foot) / 2          // centred on the screen
 
     group {
-        show: wp_picker_show > 0.01
+        show: wp_picker_show > 0.01 and panel_scr == screen.index       // only on the monitor it was opened on (the logic sets `panel_scr` to the focused one)
         opacity: wp_picker_show * wp_picker_veil
         //  No sheet or shade over the screen, on either page (the cards change the wallpaper live under them, and it has to be seen).
         //  Where the pointer is on the hovered tile, for its tilt: a grid of invisible zones laid over it, 7 across and 8 down, each of which
@@ -8560,7 +8560,7 @@ scene Vitreus {
         //  The words are the cards' words: the name in the wallpaper's own accent (24, bold), and under it what it is (14), in the same faces and sizes.
         text wp_picker_hero_name { at: floor(cx + g.pgx + 0.5), floor(fy - 6 + 0.5); anchor: center; align: center; size: 24; weight: 700; width: 900; lines: 1; color: rgb(wp_hr, wp_hg, wp_hb); family: "Space Grotesk"; show: wp_picker_hot >= 0 }
         text wp_hex_info { at: floor(cx + g.pgx + 0.5), floor(fy + 22 + 0.5); anchor: center; align: center; size: 14; weight: 500; width: 900; lines: 1; color: #ffffff; opacity: 80%; family: "Space Grotesk"; show: wp_picker_hot >= 0 }
-        text "Pick a wallpaper  ·  Tab for the cards  ·  Esc or a click outside closes" { at: floor(cx + g.pgx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 13; color: #ffffff; opacity: 45%; family: "Space Grotesk"; show: wp_picker_hot < 0 and wp_picker.count > 0 }
+        text "Pick a wallpaper  ·  Tab goes back to the cards  ·  Esc or a click outside closes" { at: floor(cx + g.pgx + 0.5), floor(fy + 0.5); anchor: center; align: center; size: 13; color: #ffffff; opacity: 45%; family: "Space Grotesk"; show: wp_picker_hot < 0 and wp_picker.count > 0 }
         text wp_picker_status { at: floor(cx + g.pgx + 0.5), floor(yo + vh / 2 + 0.5); anchor: center; align: center; size: 16; weight: 600; width: 600; lines: 1; color: #ffffff; opacity: 70%; family: "Space Grotesk"; show: wp_picker.count < 1 }
 
         //  ── the cards ────────────────────────────────────────────────
@@ -8568,7 +8568,7 @@ scene Vitreus {
         //  fills them in drawing order: the left side outwards in, then the right side from far to near, so a nearer slice lies over a farther one). A slice's
         //  place comes from its distance `d` to `wp_cpos`, which glides, so a slice keeps moving when the slots are refilled one place along. The focused
         //  picture is `wp_big`, drawn over its slice in the same shape; there are two of them, so the one that has just lost the focus can shrink back.
-        let wc.px = (1 - wp_pgp) * screen.width
+        let wc.px = -(1 - wp_pgp) * screen.width        // the cards are the first page: they wait off to the left
         let wc.cxm = cx + wc.px
         let wc.W = clamp(screen.width * 0.34, 400, 660)              // the focused card
         let wc.H = wc.W * 9 / 16
@@ -8710,12 +8710,12 @@ scene Vitreus {
             }
         }
         //  Under the card: the keys.
-        text "Left and Right browse  ·  Enter keeps one  ·  Esc puts the old one back  ·  Tab goes back to the hexagons" { at: floor(wc.cxm + 0.5), floor(wc.yb + wc.ext + 66 + 0.5); anchor: center; align: center; size: 13; color: #ffffff; opacity: 45% * clamp(wp_pgp * 3, 0, 1); family: "Space Grotesk" }
-        //  Which page it is on: two dots at the foot.
-        ellipse { at: cx - 9, yo + vh - 24; radius: 3.5 + 1.5 * (1 - wp_pgp); color: mint; opacity: 35% + 65% * (1 - wp_pgp) }
-        ellipse { at: cx + 9, yo + vh - 24; radius: 3.5 + 1.5 * wp_pgp; color: mint; opacity: 35% + 65% * wp_pgp }
-        zone box wp_pg_dot0 { at: cx - 9, yo + vh - 24; size: 18, 18; corner: 9; cursor: pointer; active: wp_picker_show > 0.5 }
-        zone box wp_pg_dot1 { at: cx + 9, yo + vh - 24; size: 18, 18; corner: 9; cursor: pointer; active: wp_picker_show > 0.5 }
+        text "Left and Right browse  ·  Enter keeps one  ·  Esc puts the old one back  ·  Tab for the hexagons" { at: floor(wc.cxm + 0.5), floor(wc.yb + wc.ext + 66 + 0.5); anchor: center; align: center; size: 13; color: #ffffff; opacity: 45% * clamp(wp_pgp * 3, 0, 1); family: "Space Grotesk" }
+        //  Which page it is on: two dots at the foot, the cards' on the left, the hexagons' on the right.
+        ellipse { at: cx + 9, yo + vh - 24; radius: 3.5 + 1.5 * (1 - wp_pgp); color: mint; opacity: 35% + 65% * (1 - wp_pgp) }
+        ellipse { at: cx - 9, yo + vh - 24; radius: 3.5 + 1.5 * wp_pgp; color: mint; opacity: 35% + 65% * wp_pgp }
+        zone box wp_pg_dot0 { at: cx + 9, yo + vh - 24; size: 18, 18; corner: 9; cursor: pointer; active: wp_picker_show > 0.5 }
+        zone box wp_pg_dot1 { at: cx - 9, yo + vh - 24; size: 18, 18; corner: 9; cursor: pointer; active: wp_picker_show > 0.5 }
         on press wp_pg_dot0 { wp_pg = 0 }
         on press wp_pg_dot1 { wp_pg = 1 }
         //  Only here to be focused when the picker opens: it has Hyprland lend the keyboard to this copy of the shell (opened from SUPER+B, the focus stayed on the

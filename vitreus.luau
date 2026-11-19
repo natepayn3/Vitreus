@@ -7885,7 +7885,7 @@ require("logic/gpu")(with_dirs)
 
 -- panels from a key, on the focused monitor: see logic/panel_monitor.luau
 snd_hook = {}   -- filled by the panel sound below (the key bind sets desk_open from the logic, which fires no fact handler)
-require("logic/panel_monitor")()
+here_toggle = require("logic/panel_monitor")()   -- a global: the wallpaper picker's toggle (further down) opens it on the focused monitor too
 
 -- bar position: see logic/bar_position.luau
 require("logic/bar_position")()
@@ -8437,13 +8437,14 @@ require("logic/keybinds")()
         card_publish()
         card_preview()
     end
-    -- Which page it was left on (the hexagons or the cards) is where it opens next time, and the time after a restart.
+    -- Which page it was left on (the cards or the hexagons) is where it opens next time, and the time after a restart. The cards are the first page
+    -- and the default: only a saved `view = "hexagons"` opens it on the hexagons (the older `page` key, from when the hexagons came first, is ignored).
     do
         local ok, saved = pcall(sys.ask, "files.read", "wallpaper-view.json", "json")
-        if ok and type(saved) == "table" and saved.page == 1 then fact.wp_pg = 1 end
+        fact.wp_pg = (ok and type(saved) == "table" and saved.view == "hexagons") and 0 or 1
     end
     on("fact:wp_pg", function(v)
-        pcall(sys.call, "files.write", "wallpaper-view.json", { page = (tonumber(v) or 0) > 0.5 and 1 or 0 })
+        pcall(sys.call, "files.write", "wallpaper-view.json", { view = (tonumber(v) or 0) > 0.5 and "cards" or "hexagons" })
     end)
     -- A swatch pressed (the handler on the wallpaper page sets the filter; this one runs a moment after it): the cards narrow to that colour, keeping the focus where it
     -- is if that one is still among them. Nothing is tried on the desktop for it.
@@ -8530,11 +8531,14 @@ require("logic/keybinds")()
     on("wp_card_pick", function() card_done(false) end)
     on("wp_card_cancel", function() card_done(true) end)
 
+    -- Opened on the focused monitor only, like the panels (`panel_scr`, logic/panel_monitor.luau): the shared fact alone opened it on every screen.
     on("wp_picker_toggle", function()
-        local opening = not fact.wp_picker_open
-        if opening then fact.wp_picker_leaving = false; set_panel("none"); if G.laid then build() end end
-        fact.wp_picker_open = opening
-        if opening then cards_open() else cards_close() end          -- after the fact: the thumbnails are only made while the picker is open; and a close from here (Super+B) is not seen by the fact's handler
+        local function go(opening)
+            if opening then fact.wp_picker_leaving = false; set_panel("none"); if G.laid then build() end end
+            fact.wp_picker_open = opening
+            if opening then cards_open() else cards_close() end          -- after the fact: the thumbnails are only made while the picker is open; and a close from here (Super+B) is not seen by the fact's handler
+        end
+        if here_toggle then here_toggle(function() return fact.wp_picker_open == true end, go) else go(not fact.wp_picker_open) end
     end)
 
     -- A hexagon was pressed: its wallpaper blooms out of it. `wp_picker_px`, `wp_picker_py` are where it is on the screen, from the

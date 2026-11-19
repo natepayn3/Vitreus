@@ -17,6 +17,9 @@ return function()
         fact.pn_echo_i = O.echo
         fact.pn_shade_i = O.shade
         fact.pn_fill_i = O.fill
+        -- Files draws its thumbs with the same fill: tell it (it asks again itself when it starts)
+        run("pleamar", { "--say", "files", "fact pn_fill_i " .. O.fill }, function() end)
+        run("pleamar", { "--say", "files", "fact pn_shade_i " .. O.shade }, function() end)
     end
     local function save() pcall(sys.call, "files.write", "style.json", O) end
 

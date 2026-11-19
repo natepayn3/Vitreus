@@ -18,7 +18,10 @@ set -e
 here=$(cd "$(dirname "$0")" && pwd)
 dest=$(cd "$here/.." && pwd)
 # (the path quoted in the entries, and its `|`, `&` or `\` escaped for sed: a home with a space in it gave commands that ran nothing)
-bin_esc=$(printf '%s' "$dest/bin/vitreus-files" | sed 's/[\\&|]/\\&/g')
+# (quoted in the entry only when it has to be: xdg-open, outside a desktop it knows, takes the quotes as part of the program's name and opens nothing)
+bin=$dest/bin/vitreus-files
+case $bin in *[!A-Za-z0-9/._+-]*) bin="\"$bin\"" ;; esac
+bin_esc=$(printf '%s' "$bin" | sed 's/[\\&|]/\\&/g')
 data=${XDG_DATA_HOME:-$HOME/.local/share}
 conf=${XDG_CONFIG_HOME:-$HOME/.config}
 state=$data/pleamar/vitreus

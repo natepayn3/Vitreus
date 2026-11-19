@@ -4576,10 +4576,20 @@ local function ask_glass()
         end)
     end
 end
+-- Settings > Style's fill and its strength (Vitreus also says so itself when they change: logic/pencil_style.luau)
+local function ask_style()
+    for _, k in ipairs({ "pn_fill_i", "pn_shade_i" }) do
+        run("pleamar", { "--say", "vitreus", "get " .. k }, function(out, code)
+            local n = code == 0 and out and tonumber(out:match("%-?%d+"))
+            if n then fact[k] = n end
+        end)
+    end
+end
 ask_obs()
 ask_look()
 ask_glass()
 ask_round()
-after(4000, function() ask_obs(); ask_look(); ask_glass(); ask_round() end)
+ask_style()
+after(4000, function() ask_obs(); ask_look(); ask_glass(); ask_round(); ask_style() end)
 
 F.start()

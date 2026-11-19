@@ -124,4 +124,5 @@ return function()
             if v and snd_hook and snd_hook.chime then snd_hook.chime() end   -- set from the logic, so the fact handler does not hear it
         end)
     end)
+    return toggle_here      -- for the others opened from a key on the focused monitor (the wallpaper picker, in vitreus.luau)
 end

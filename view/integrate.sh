@@ -66,8 +66,11 @@ fi
 before=$(xdg-mime query default image/png 2> /dev/null || true)      # read before the entry is there, which the desktop's order could pick
 mkdir -p "$(dirname "$icon")" "$(dirname "$entry")"
 cp "$here/vitreus-view.svg" "$icon"
-# (the path quoted in the entry, and its `|`, `&` or `\` escaped for sed: a home with a space in it gave a command that ran nothing)
-bin_esc=$(printf '%s' "$dest/bin/vitreus-view" | sed 's/[\\&|]/\\&/g')
+# The path is quoted in the entry only when it has to be (a space in the home gave a command that ran nothing): xdg-open, outside a desktop it knows, takes
+# the quotes as part of the program's name, finds no such program and opens nothing (a double click in Files did nothing). Then its `|`, `&` or `\` escaped for sed.
+bin=$dest/bin/vitreus-view
+case $bin in *[!A-Za-z0-9/._+-]*) bin="\"$bin\"" ;; esac
+bin_esc=$(printf '%s' "$bin" | sed 's/[\\&|]/\\&/g')
 sed "s|@BIN@|$bin_esc|" "$here/vitreus-view.desktop" > "$entry"
 refresh_caches
 say "View has its icon and its entry ($entry)"
