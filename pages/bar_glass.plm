@@ -1803,6 +1803,17 @@ part BarGlass {
         // ── the bar ──────────────────────────────────────────────────
         //  Under everything else on the bar (declared first, so the pieces win their presses): it only says that the
         //  pointer is over the bar, in the gaps between them.
+        //  The bar's bulge (`bar_bulge`): slivers along the bar, under everything else here, that say where along it the pointer is (the bulge goes there): across the Island's pill or
+        //  a top or bottom strip, down a side one. Every one's leaving is before any one's entering: going from one to the next is both in the same frame, and the rule declared
+        //  last is the one that counts.
+        repeat i in 0..48 {
+            zone box bg_z.$i { at: mix(cx - bar.w / 2 + (i + 0.5) * bar.w / 48, lf.x, lm), mix(bar.y, vc - vh / 2 + (i + 0.5) * vh / 48, lm); size: mix(bar.w / 48, lf.w, lm), mix(bar.h + 8 * bu * (1 - fm), vh / 48, lm); active: bar_bulge }
+            on leave bg_z.$i { bg_hot.$screen: 0 }
+        }
+        repeat i in 0..48 {
+            on enter bg_z.$i { bg_hot.$screen: 1; bg_hx.$screen: mix(cx - bar.w / 2 + (i + 0.5) * bar.w / 48, vc - vh / 2 + (i + 0.5) * vh / 48, lm) }
+            on enter bg_z.$i while bg_hot.$screen < 0.04 { bg_hx.$screen: mix(cx - bar.w / 2 + (i + 0.5) * bar.w / 48, vc - vh / 2 + (i + 0.5) * vh / 48, lm) ~16ms }
+        }
         zone box bar_hover { at: cx, bar.y; size: bar.w, bar.h; active: lm < 0.5 }
         zone box lf_hover { at: lf.x, vc; size: lf.w, vh; active: lm > 0.5 }
         repeat i in 1..11 {

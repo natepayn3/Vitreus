@@ -55,6 +55,16 @@ part AddonDock {
         on press axf_z { axf_kb = true; blur }
     }
 
+    //  The dock's bulge (`adb_*`, vitreus.plm; the glass is in bar_shapes.plm): slivers along the pill, under its own zone and its icons, that say where along it the pointer is.
+    //  Every one's leaving is before any one's entering: going from one to the next is both in the same frame, and the rule declared last is the one that counts.
+    repeat i in 0..10 {
+        zone box adk_bz.$i { at: adk.rcx + (1 - lm) * ((i + 0.5) * mix(adk.W, adk.H, lm) / 10 - mix(adk.W, adk.H, lm) / 2), adk.rcy + lm * ((i + 0.5) * mix(adk.W, adk.H, lm) / 10 - mix(adk.W, adk.H, lm) / 2); size: mix(mix(adk.W, adk.H, lm) / 10, adk.W, lm), mix(adk.H, mix(adk.W, adk.H, lm) / 10, lm); active: adk.g > 0.6 and bar_bulge }
+        on leave adk_bz.$i { adb_hot.$screen: 0 }
+    }
+    repeat i in 0..10 {
+        on enter adk_bz.$i { adb_hot.$screen: 1; adb_x.$screen: mix(adk.rcx + (1 - lm) * (clamp((i + 0.5) * mix(adk.W, adk.H, lm) / 10 - mix(adk.W, adk.H, lm) / 2, 0 - max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu), max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu))), screen.width - (adk.rcx + (1 - lm) * (clamp((i + 0.5) * mix(adk.W, adk.H, lm) / 10 - mix(adk.W, adk.H, lm) / 2, 0 - max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu), max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu)))), rt); adb_y.$screen: mix(adk.rcy + lm * (clamp((i + 0.5) * mix(adk.W, adk.H, lm) / 10 - mix(adk.W, adk.H, lm) / 2, 0 - max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu), max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu))), yo + vb - (adk.rcy + lm * (clamp((i + 0.5) * mix(adk.W, adk.H, lm) / 10 - mix(adk.W, adk.H, lm) / 2, 0 - max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu), max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu)))), bt); adb_l.$screen: min(52 * dbu, mix(adk.W, adk.H, lm)) }
+        on enter adk_bz.$i while adb_hot.$screen < 0.04 { adb_x.$screen: mix(adk.rcx + (1 - lm) * (clamp((i + 0.5) * mix(adk.W, adk.H, lm) / 10 - mix(adk.W, adk.H, lm) / 2, 0 - max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu), max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu))), screen.width - (adk.rcx + (1 - lm) * (clamp((i + 0.5) * mix(adk.W, adk.H, lm) / 10 - mix(adk.W, adk.H, lm) / 2, 0 - max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu), max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu)))), rt) ~16ms; adb_y.$screen: mix(adk.rcy + lm * (clamp((i + 0.5) * mix(adk.W, adk.H, lm) / 10 - mix(adk.W, adk.H, lm) / 2, 0 - max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu), max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu))), yo + vb - (adk.rcy + lm * (clamp((i + 0.5) * mix(adk.W, adk.H, lm) / 10 - mix(adk.W, adk.H, lm) / 2, 0 - max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu), max(0, mix(adk.W, adk.H, lm) / 2 - 26 * dbu)))), bt) ~16ms; adb_l.$screen: min(52 * dbu, mix(adk.W, adk.H, lm)) ~16ms }
+    }
     zone box adk_bg { at: adk.rcx, adk.rcy; size: adk.W, adk.H; cursor: pointer; active: adk.g > 0.6 and dkm < 0.5; label: "Add-ons" }
     on press adk_bg { adk_down = 1; adk_drag = 0; adk_hx = pointer.x - adk.rcx; adk_hy = pointer.y - adk.rcy }
     on drag adk_bg while adk_down > 0.5 { adk_px = clamp(pointer.x - adk_hx, 0, screen.width); adk_py = clamp(pointer.y - adk_hy, 0, screen.height); adk_drag = if(adk_drag > 0.5 or abs(drag.dx) + abs(drag.dy) > 8, 1, 0) }

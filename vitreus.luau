@@ -7904,6 +7904,8 @@ require("logic/desk_holes")()
 require("logic/bar_size")()
 -- the Island moving to the music (Settings > Bar): see logic/bar_beat.luau
 require("logic/bar_beat")()
+-- the bulge under the pointer (Settings > Bar): see logic/bar_bulge.luau
+require("logic/bar_bulge")()
 
 -- bar layout: see logic/bar_layout.luau
 require("logic/bar_layout")()

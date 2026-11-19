@@ -842,6 +842,8 @@ scene Vitreus {
     event bar_others_toggle ->       // Settings > Bar: the frame on the monitors without the bar, or nothing there (logic/bar_monitors.luau)
     event dock_mid_toggle ->         // Settings > Bar: on the Island, the two corner docks are one centred dock at the bottom (logic/dock.luau)
     fact dock_mid = false
+    event bar_bulge_toggle ->        // Settings > Bar: the bar and the docks bulge under the pointer, or do not (logic/bar_bulge.luau)
+    fact bar_bulge = true
     event bar_beat_toggle ->         // Settings > Bar: the Island swells on the music, or holds still (logic/bar_beat.luau)
     fact bar_beat = true
     event bar_dockroom_toggle ->     // Settings > Bar > "Corner docks overlap windows": windows keep clear of the docks, or go under them (logic/dock.luau)
@@ -1736,7 +1738,7 @@ scene Vitreus {
     let pl.H = mix(pl.head, pl.mid, ws.mo1)
     let pl.T = mix(pl.tail, pl.mid, ws.mo1)
     on change drop > 0.97 while drop > 0.97 and panel != settings { impulse sag 220; impulse wobble -260 }
-    on change ds > 0.97 while ds > 0.97 and panel == settings { impulse sag 220; impulse wobble -260 }      // Settings lands later, on its own spring
+    on change ds > 0.97 while ds > 0.97 and panel == settings and bar_frame { impulse sag 220; impulse wobble -260 }      // Settings lands later, on its own spring (not on the Island: it has left the bar there, and the sag pulled the shut drawers out under the title as a flat bulge)
     //  The volume's and notifications' drawer lands the same way (it is no longer a value of `panel`, so `drop` does not follow it).
     on change do0 > 0.97 while do0 > 0.97 { impulse sag 220; impulse wobble -260 }
     //  The same moments as in Marea, for the left layout's drop: it lets go (the edge jumps and bounces, two ripples set off, a small drop stays
@@ -1876,6 +1878,52 @@ scene Vitreus {
     prop bar_lm = 0 ~calm
     prop bar_tm = 0 ~calm
     prop bar_sg = 0 ~calm
+    //  The docks' bulge: the same on the app dock and the add-on dock (corner_dock.plm, addon_dock.plm), each its own (`cdb_*`, `adb_*`: one for both went from one dock to the
+    //  other across the screen). Where it is is in the glass's own coordinates (the docks' glass is drawn mirrored on a right or bottom strip), and `*_l` is how long it is:
+    //  no longer than its dock. Coming in from nothing it is where the pointer is at once; it only travels while it is out.
+    prop cdb_hot.0 = 0 ~calm
+    prop cdb_x.0 = 0 ~gentle
+    prop cdb_y.0 = 0 ~gentle
+    prop cdb_l.0 = 0 ~calm
+    prop cdb_hot.1 = 0 ~calm
+    prop cdb_x.1 = 0 ~gentle
+    prop cdb_y.1 = 0 ~gentle
+    prop cdb_l.1 = 0 ~calm
+    prop cdb_hot.2 = 0 ~calm
+    prop cdb_x.2 = 0 ~gentle
+    prop cdb_y.2 = 0 ~gentle
+    prop cdb_l.2 = 0 ~calm
+    prop cdb_hot.3 = 0 ~calm
+    prop cdb_x.3 = 0 ~gentle
+    prop cdb_y.3 = 0 ~gentle
+    prop cdb_l.3 = 0 ~calm
+    prop adb_hot.0 = 0 ~calm
+    prop adb_x.0 = 0 ~gentle
+    prop adb_y.0 = 0 ~gentle
+    prop adb_l.0 = 0 ~calm
+    prop adb_hot.1 = 0 ~calm
+    prop adb_x.1 = 0 ~gentle
+    prop adb_y.1 = 0 ~gentle
+    prop adb_l.1 = 0 ~calm
+    prop adb_hot.2 = 0 ~calm
+    prop adb_x.2 = 0 ~gentle
+    prop adb_y.2 = 0 ~gentle
+    prop adb_l.2 = 0 ~calm
+    prop adb_hot.3 = 0 ~calm
+    prop adb_x.3 = 0 ~gentle
+    prop adb_y.3 = 0 ~gentle
+    prop adb_l.3 = 0 ~calm
+    //  The bar's bulge (Settings > Bar > "Bulge under the pointer", `bar_bulge`): its glass swells where the pointer is over it, and the swelling goes along with the pointer, on every
+    //  layout: the Island's pill, a frame's strip, the Notches' pieces. One per monitor (`$screen`): how far it is out, and where along the bar (down a side strip, how far down).
+    //  Coming in from nothing it is where the pointer is at once; it only travels while it is out.
+    prop bg_hot.0 = 0 ~calm
+    prop bg_hx.0 = 0 ~gentle
+    prop bg_hot.1 = 0 ~calm
+    prop bg_hx.1 = 0 ~gentle
+    prop bg_hot.2 = 0 ~calm
+    prop bg_hx.2 = 0 ~gentle
+    prop bg_hot.3 = 0 ~calm
+    prop bg_hx.3 = 0 ~gentle
     prop pw_x = 450 ~76ms
     prop dtrav = 0 ~dripl             // how far a panel has come out of the strip, 0 to 1 (the left layout's own, slow, drop)
     prop dtrav_s = 0 ~setdrip         // the same for Settings, on its slower spring
@@ -2245,6 +2293,7 @@ scene Vitreus {
     prop ah_bt = 0 ~600ms
     prop ah_dt = 0 ~600ms
     prop bar_beat_pill = 0 ~pop
+    prop bar_bulge_pill = 0 ~pop
     prop bbk = 1 ~calm                 // how much of the beat the Island takes (Settings > Bar > "Island moves to the music")
     follow bbk = if(bar_beat, 1, 0)
     prop dock_mid_pill = 0 ~pop
@@ -2272,6 +2321,7 @@ scene Vitreus {
     prop ws_plus_pill = 1 ~pop
     follow ws_plus_pill = if(ws_plus_on, 1, 0)
     follow bar_beat_pill = if(bar_beat, 1, 0)
+    follow bar_bulge_pill = if(bar_bulge, 1, 0)
     on enter bar_hit { fr_hov = true }
     on leave bar_hit { fr_hov = false }
     follow bar_dr_pill = if(bar_dockroom, 0, 1)         // the switch says "Corner docks overlap windows": on when there is no room
@@ -6219,7 +6269,7 @@ scene Vitreus {
     let wm.h = 1040                      // the Pleamar-WM page: to the bottom of its last card
     let ad.h = 36 + max(1, addons.count) * 80 + 51 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (80 apart), and the line under them
     let ck.h = 1114.5                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
-    let br.h = 854                     // the Bar page: to the bottom of its last card
+    let br.h = 916                     // the Bar page: to the bottom of its last card
     let wsg.h = 742                    // the Workspaces page, the same
     let hy.h = 500.5                     // the Hyprland page: to the bottom of its last card
     let gl.h = 1133                    // the Glass page: to the bottom of its last card (its first 40, where a header was, are taken off in `gl.off`)
@@ -6407,12 +6457,12 @@ scene Vitreus {
     let ds.gx = mix(mix(lp.xl + ds.gw / 2, cx, edg), ds.cL, ssd)
     //  On the Island, Settings leaves the bar as it opens and settles in the middle of the screen: `ss.det` is how far it has left, `ss.dt` its glass's top
     //  once it has (a little above the content, as the bottom is below it), `ss.dy` how far down it has gone.
-    let ss.det = (1 - fm) * clamp(ds0, 0, 1)
+    let ss.det = (1 - fm) * if(panel == settings, 1, clamp(ds0, 0, 1))      // (opening, it is where it lands from the first frame and grows there: drifting down from the bar, it was a flat slab under the title at first. Closing, it still rises back to the bar as it shrinks)
     let ss.dt = bar.y + bar.h / 2
-    let ss.t2 = mix(ss.top, ss.dt, ss.det)
+    let ss.t2 = mix(ss.top, ss.dt + 6 * pu, 1 - fm)                // (on the Island it never comes out of the bar: it starts 6 under it, apart from it, and grows there; out of the bar it made a flat bulge under the title before it let go)
     let ss.dy = ss.det * (vc - (ss.dt + bar.y + bar.h / 2 + ss.ch + 2 * mg) / 2)
     let ds.ew = mix(ss.w, ds.gw, fm)
-    let ds.eh = mix(bar.y + ss.hh - ss.t2, ds.gh, fm)
+    let ds.eh = mix(max(0.3, bar.y + ss.hh - ss.t2), ds.gh, fm)
     let ds.ex = mix(pcx, ds.gx, fm)
     let ds.ey = mix((ss.t2 + bar.y + ss.hh) / 2 + ss.dy, lp.cy, fm)
     let dl.gl = min(dtrav, dl0)
