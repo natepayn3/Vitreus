@@ -88,12 +88,12 @@ fonts_fuzzy="$data/fonts/FuzzyBubbles"
 fonts_kalam="$data/fonts/Kalam"
 
 # Official-repo packages, then AUR ones: what each is for is in the README.
-pacman_pkgs="gcc pkgconf wayland wayland-protocols git curl jq python fontconfig socat glib2 file imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww ffmpeg xdg-desktop-portal-gtk grim slurp wf-recorder power-profiles-daemon polkit python-gobject python-pyte python-pillow fastfetch ttf-space-mono-nerd pipewire-audio sound-theme-freedesktop tesseract tesseract-data-eng"
+pacman_pkgs="gcc pkgconf wayland wayland-protocols git curl jq python fontconfig socat glib2 file imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww ffmpeg xdg-desktop-portal-gtk grim slurp wf-recorder power-profiles-daemon polkit python-gobject python-pyte python-pillow fastfetch ttf-space-mono-nerd pipewire-audio wireplumber pipewire-pulse pipewire-alsa sound-theme-freedesktop tesseract tesseract-data-eng"
 aur_pkgs="iris-colors mpvpaper"
 # Debian and Ubuntu: the same list by their names. UNTESTED (written without a Debian machine to try it on), and some of these are
 # not in every release (hypridle, cliphist, wf-recorder...): each is looked up and installed on its own, and a missing one is only said.
 # Not here, because Debian has no package: awww, mpvpaper, hyprsunset, iris, the Space Mono Nerd Font (listed below for hand install).
-apt_pkgs="gcc pkgconf libwayland-dev wayland-protocols git curl jq python3 fontconfig socat libglib2.0-bin file imagemagick cava playerctl network-manager bluez brightnessctl hypridle libnotify-bin xdg-user-dirs xdg-utils wl-clipboard cliphist ffmpeg xdg-desktop-portal-gtk grim slurp wf-recorder power-profiles-daemon polkitd python3-gi python3-pyte python3-pil fastfetch pipewire-bin sound-theme-freedesktop tesseract-ocr tesseract-ocr-eng"
+apt_pkgs="gcc pkgconf libwayland-dev wayland-protocols git curl jq python3 fontconfig socat libglib2.0-bin file imagemagick cava playerctl network-manager bluez brightnessctl hypridle libnotify-bin xdg-user-dirs xdg-utils wl-clipboard cliphist ffmpeg xdg-desktop-portal-gtk grim slurp wf-recorder power-profiles-daemon polkitd python3-gi python3-pyte python3-pil fastfetch pipewire-bin wireplumber pipewire-pulse pulseaudio-utils sound-theme-freedesktop tesseract-ocr tesseract-ocr-eng"
 
 # Night mode is hyprsunset on Hyprland, and wlsunset everywhere else (niri, pleamar-wm): each is only wanted where its compositor is,
 # and wlsunset also where there is no Hyprland at all. A machine with Hyprland and pleamar-wm gets both. (Here `have` is not defined yet.)
@@ -104,6 +104,15 @@ $on_hypr && pacman_pkgs="$pacman_pkgs hyprsunset"
 if command -v niri > /dev/null 2>&1 || command -v pleamar-wm > /dev/null 2>&1 || ! $on_hypr; then
     pacman_pkgs="$pacman_pkgs wlsunset"
     apt_pkgs="$apt_pkgs wlsunset"
+fi
+# Sound: pipewire-audio is only PipeWire's audio plugins. Nothing plays without a session manager (wireplumber) to open the card,
+# and the shell's volume, mute and output picker are pactl, which needs a PulseAudio server (pipewire-pulse). A system that runs
+# PulseAudio itself already has both jobs done, and pipewire-pulse conflicts with it there, so the two are left out.
+if command -v pacman > /dev/null 2>&1 && pacman -Qi pulseaudio > /dev/null 2>&1; then
+    pacman_pkgs=$(printf '%s\n' $pacman_pkgs | grep -vxE 'wireplumber|pipewire-pulse' | tr '\n' ' ')
+fi
+if command -v dpkg > /dev/null 2>&1 && dpkg -s pulseaudio > /dev/null 2>&1; then
+    apt_pkgs=$(printf '%s\n' $apt_pkgs | grep -vxE 'wireplumber|pipewire-pulse' | tr '\n' ' ')
 fi
 
 assume_yes=false
@@ -680,6 +689,19 @@ LIST
     # (Flatpaks, Firefox set to use portals) open no file picker. The journal says "the screenshot portal requires an access impl".
     if ! $dry && ! [ -f /usr/share/xdg-desktop-portal/portals/gtk.portal ]; then
         warn "xdg-desktop-portal-gtk is not installed: apps' screenshots, screen sharing and file pickers need it (sudo pacman -S xdg-desktop-portal-gtk on Arch, sudo apt install xdg-desktop-portal-gtk on Debian)"
+    fi
+    # Sound: the packages being there is not the same as it playing. The user services are not always on after an install (a
+    # minimal Arch install has PipeWire running and nothing else), so they are switched on here (no sudo), and then pactl is asked.
+    if ! $dry && have pactl && ! pactl info > /dev/null 2>&1; then
+        if ! $refresh && have systemctl; then
+            for u in wireplumber pipewire-pulse; do
+                systemctl --user cat "$u.service" > /dev/null 2>&1 && { run systemctl --user enable --now "$u.service" || warn "could not start $u: run  systemctl --user enable --now $u  yourself"; }
+            done
+            sleep 1
+        fi
+        pactl info > /dev/null 2>&1 || warn "no sound server answers (pactl info): sound, the volume slider and the output picker will not work. Install wireplumber and pipewire-pulse (sudo pacman -S wireplumber pipewire-pulse pipewire-alsa on Arch), then: systemctl --user enable --now wireplumber pipewire-pulse"
+    elif ! $dry && ! have pactl; then
+        warn "pactl is not installed: the volume slider and the output picker need it (it comes with pipewire-pulse on Arch, pulseaudio-utils on Debian)"
     fi
     have hyprctl || have niri || warn "Neither Hyprland nor niri was found. Vitreus needs a Wayland compositor with layer-shell; the list of running windows needs Hyprland or niri."
 
