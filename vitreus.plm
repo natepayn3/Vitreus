@@ -90,7 +90,7 @@ scene Vitreus {
     model bat_devs max 6 { name: text; level: number }
     model bt_devices max 28 { name: text; address: text; paired: bool; connected: bool; battery: number; busy: number; hd: number; kind: number }
 
-    service clock as now { time: text = "--:--"; date: text; hour: number }
+    service clock as now { time: text = "--:--"; date: text; hour: number; minute: number }
     service clock.seconds as tick { second: number }       // the dashboard clock's ticks: it only runs while the scene reads it
     service audio { volume: number; muted: bool; input: number; input_muted: bool }
     service window as win { title: text; class: text }
@@ -2843,7 +2843,11 @@ scene Vitreus {
     text nt_qto_t = ""
     event nt_q_toggle ->
     event nt_fs_toggle ->
-    event nt_q_step ->                 // 0 start earlier, 1 start later, 2 end earlier, 3 end later
+    fact nt_qfrom = 1320               // the two times, minutes since midnight (the logic's; the texts above are them written out)
+    fact nt_qto = 420
+    fact nt_qdk = 0                    // the handle being dragged on the 24-hour track: 0 none, 1 the start, 2 the end
+    fact nt_qdm = 0                    // where it is, in minutes (half hours, 0 to 23:30)
+    event nt_q_set ->                  // a handle was moved: which * 10000 + minutes (which: 1 the start, 2 the end)
     fact ntg_snd = 0                  // the default sound, 0..7
     fact nta_sel = -1                 // the app whose rules are open (its row), -1 none
     fact nta_count = 0
@@ -2878,6 +2882,14 @@ scene Vitreus {
     follow ntk0 = if(ntg_sounds, 1, 0)
     follow ntk1 = if(ntg_crit, 1, 0)
     follow ntq0 = if(nt_quiet, 1, 0)
+    prop ntq_a = 1320 ~quick           // the track's two handles, in minutes: they glide from half hour to half hour
+    prop ntq_b = 420 ~quick
+    follow ntq_a = if(nt_qdk == 1, nt_qdm, nt_qfrom)
+    follow ntq_b = if(nt_qdk == 2, nt_qdm, nt_qto)
+    prop ntq_ga = 0 ~pop               // a handle swells while it is held
+    prop ntq_gb = 0 ~pop
+    follow ntq_ga = if(nt_qdk == 1, 1, 0)
+    follow ntq_gb = if(nt_qdk == 2, 1, 0)
     follow ntq1 = if(nt_fs, 1, 0)
     follow ntk2 = if(nta_mute, 1, 0)
     follow ntk3 = if(nta_silent, 1, 0)
@@ -6214,7 +6226,7 @@ scene Vitreus {
     let lk.h = 875                     // the Lock screen page: its cards, to the bottom of the last
     //  The Notifications page: the apps card has a row for each app (up to 14), and the rules card is there while one is open.
     let nt.ds = (14 - clamp(nta_count, 1, 14)) * 36
-    let nt.h = 159 + 803 - nt.ds + if(nta_sel >= 0, 488, 0) + 12              // 146 of it the quiet hours card on top
+    let nt.h = 197 + 803 - nt.ds + if(nta_sel >= 0, 488, 0) + 12              // 184 of it the quiet hours card on top
     //  A fixed height, whatever the page: the panel used to follow the page in view (262 to 456), so it resized, and moved what hangs from it, with
     //  every click in the sidebar. A page taller than this scrolls inside it (they have their scroll thumb and "More" cue); a shorter one has
     //  empty glass at its foot. It never goes below the sidebar's last row.

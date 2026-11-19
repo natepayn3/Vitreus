@@ -888,17 +888,22 @@ local function dq_sync()
     fact.nt_fs = DQ.fullscreen
     text.nt_qfrom_t = DQ.clock(DQ.from)
     text.nt_qto_t = DQ.clock(DQ.to)
+    fact.nt_qfrom = DQ.from
+    fact.nt_qto = DQ.to
 end
 on("nt_q_toggle", function() DQ.on = not DQ.on; DQ.skip = false; dnd_save(); dq_sync(); dnd_refresh() end)
 on("nt_fs_toggle", function() DQ.fullscreen = not DQ.fullscreen; DQ.fs = false; DQ.skip = false; dnd_save(); dq_sync(); dnd_refresh(); DQ.check() end)
-on("nt_q_step", function(k)        -- 0 start earlier, 1 start later, 2 end earlier, 3 end later: half an hour at a time
-    k = math.floor((tonumber(k) or 0) + 0.5)
-    if k == 0 then DQ.from = (DQ.from - 30) % 1440
-    elseif k == 1 then DQ.from = (DQ.from + 30) % 1440
-    elseif k == 2 then DQ.to = (DQ.to - 30) % 1440
-    elseif k == 3 then DQ.to = (DQ.to + 30) % 1440 end
+dq_fx = { save_n = 0 }              -- (a global: vitreus.luau is at Luau's 200 locals)
+on("nt_q_set", function(v)        -- a handle of the 24-hour track: which * 10000 + minutes (which: 1 the start, 2 the end), in half hours
+    v = math.floor((tonumber(v) or 0) + 0.5)
+    local k = v // 10000
+    local m = (math.floor((v % 10000) / 30 + 0.5) * 30) % 1440
+    if k == 1 then DQ.from = m elseif k == 2 then DQ.to = m else return end
     DQ.skip = false
-    dnd_save(); dq_sync(); dnd_refresh()
+    dq_sync()
+    dq_fx.save_n = dq_fx.save_n + 1        -- it comes many times a drag: saved once it rests
+    local n = dq_fx.save_n
+    after(400, function() if n == dq_fx.save_n then dnd_save(); dnd_refresh() end end)
 end)
 dq_sync()
 every(20000, dnd_refresh)                                   -- quiet hours begin and end by the clock
