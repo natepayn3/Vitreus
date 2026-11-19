@@ -23,12 +23,12 @@ part Bar {
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 13 * pu + 0.5); text "SHOW THE BAR ON" { at: floor(spx + 14 * pw + 0.5), floor(sby + 13 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
 
             //  Beside the title, as the Island layout's Reset is: with monitors left over, whether they keep the frame alone (the notches stay on the bar's monitor)
-            //  (launcher, Settings, desk) or show nothing. It changes at once, without restarting the bar. Faded while the bar is on every monitor there is.
+            //  (launcher, Settings, desk) or show nothing. It changes at once, without restarting the bar. Faded while the bar is on every monitor there is, and with the Island (no frame there to keep).
             group {
-                opacity: if(bar_rest, 1, 0.45)
+                opacity: if(bar_rest and bar_frame, 1, 0.45)
                 group { scale: rs; pivot: floor(spx + 380 * pw + 0.5), floor(sby + 13 * pu + 0.5); text "Frame on the other monitors" { at: floor(spx + 380 * pw + 0.5), floor(sby + 13 * pu + 0.5); anchor: right center; align: right; size: 15; width: (240 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
                 SettingsSwitch(spx + 424 * pw, sby + 13 * pu, bar_oth_pill, bar_oth_hit.pressed, bar_oth_hit.hover, mint)
-                zone box bar_oth_hit { at: spx + 424 * pw - 19 * cu, sby + 13 * pu; size: 44 * cu, 28 * cu; cursor: pointer; active: bar_rest and br.off < 12 * pu }
+                zone box bar_oth_hit { at: spx + 424 * pw - 19 * cu, sby + 13 * pu; size: 44 * cu, 28 * cu; cursor: pointer; active: bar_rest and bar_frame and br.off < 12 * pu }
                 on scroll bar_oth_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
                 on press bar_oth_hit { emit bar_others_toggle }
             }

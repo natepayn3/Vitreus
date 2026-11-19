@@ -57,13 +57,17 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
     -- plugged in, then the chosen ones that are not, whose copies wait for them (switched on again, or after the session started, the
     -- bar is there at once, with no restart), then, with the frame on the others (`others`) or with none of the chosen ones plugged in,
     -- the rest that are plugged in, left to right. Uncut: what fits is `target()`.
+    -- The frame on the other monitors is a frame layout's (a strip on an edge, with a frame round the rest): the Island has no frame to keep,
+    -- so there the switch is kept as chosen but does nothing (a copy on a monitor without the bar drew only the outline, and its `reserve:` pushed
+    -- that monitor's windows down by the bar's height).
+    local function others() return B.others and fact.bar_frame == true end
     local function layout()
         local out, seen = {}, {}
         local function add(n) if n and not seen[n] and #out < MAX then out[#out + 1] = n; seen[n] = true end end
         local any = false
         for _, n in ipairs(B.pref or {}) do if connected(n) then add(n); any = true end end
         for _, n in ipairs(B.pref or {}) do add(n) end
-        if B.others or not any then for _, m in ipairs(B.mons) do add(m.name) end end
+        if others() or not any then for _, m in ipairs(B.mons) do add(m.name) end end
         return out
     end
     -- What the scene should be started with: `layout()`, no more of it than fit. Every copy is the whole scene again, and three of it
@@ -145,8 +149,8 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         local set = {}
         for _, n in ipairs(sel) do set[n] = true end
         local all = #sel >= #B.mons
-        local thin = (not all) and B.others        -- the other monitors have the frame: their windows get its room
-        if fact.bar_others ~= B.others then fact.bar_others = B.others end
+        local thin = (not all) and others()        -- the other monitors have the frame: their windows get its room
+        if fact.bar_others ~= others() then fact.bar_others = others() end
         bar_mon.set = set
         bar_mon.name = #sel == 1 and sel[1] or "all"
         copies()
@@ -182,10 +186,10 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
             -- More copies wanted than fit (target() stops at B.fit): say so, rather than a monitor left bare without a word.
             if text.bar_msg == "" and B.fit and B.fit < MAX then
                 local l, need = layout(), 0
-                if B.others then need = #l end
+                if others() then need = #l end
                 for _, name in ipairs(chosen()) do for i, n in ipairs(l) do if n == name and i > need then need = i end end end
                 if need > B.fit then
-                    text.bar_msg = "The shell fits on " .. B.fit .. " monitor" .. (B.fit > 1 and "s" or "") .. " at once: " .. (B.others and "turn off the frame on the others, or " or "") .. "choose fewer."
+                    text.bar_msg = "The shell fits on " .. B.fit .. " monitor" .. (B.fit > 1 and "s" or "") .. " at once: " .. (others() and "turn off the frame on the others, or " or "") .. "choose fewer."
                 end
             end
         end
@@ -347,6 +351,12 @@ exec pleamar --scene "$P" --no-hud >>"$L" 2>&1
         show()
         if B.file ~= nil and B.fit ~= nil and B.started ~= nil and needs(target()) then restart(target()) else publish() end
     end)
+    -- The bar moved between the Island and a frame layout (logic/bar_position.luau): the frame on the others comes or goes with it.
+    function bar_mon.refit()
+        if B.busy then return end
+        show()
+        if B.file ~= nil and B.fit ~= nil and B.started ~= nil and needs(target()) then restart(target()) else publish() end
+    end
 
     local ok, saved = pcall(sys.ask, "files.read", "bar.json", "json")
     if ok and type(saved) == "table" then

@@ -66,5 +66,6 @@ return function()
         iris_fx.apply_hypr()
         -- pleamar-wm keeps its windows out of the frame by `fr.*`, which is otherwise only looked at every 5 s: tell it now.
         if wm_frame_sync then wm_frame_sync() end
+        if bar_mon.refit then bar_mon.refit() end
     end)
 end
