@@ -350,11 +350,23 @@ end
 local render
 local function hit(x, y, w, h, id) st.hits[#st.hits + 1] = { x = x, y = y, w = w, h = h, id = id } end
 
+-- ── while casting, the player is the TV's remote: what it shows is the TV's (asked every second, `catt info`), what it is told goes to the TV ──
+local tv = { on = false }
+local function tv_now()                                   -- where the TV is now: the last answer, and the time since, while it plays
+    if not tv.dur then return tv.pos or 0 end
+    if tv.paused then return tv.pos or 0 end
+    return math.min(tv.dur, (tv.pos or 0) + (now() - (tv.at or now())))
+end
+
 local function draw_controls(out)
     local s, w, h = st.s, st.w, st.h
     local pos, dur = prop("time-pos", 0), prop("duration", 0)
     local paused, ended = prop("pause", false), prop("eof-reached", false)
     local vol, muted = prop("volume", 100), prop("mute", false)
+    if tv.on then
+        pos, dur, paused, ended = tv_now(), tv.dur or dur, tv.paused and true or false, false
+        vol, muted = tv.vol or vol, tv.muted and true or false
+    end
     local full = prop("fullscreen", false)
     local count, at = prop("playlist-count", 1), prop("playlist-pos", 0) + 1
 
@@ -720,11 +732,27 @@ local function draw_picker(out)
     end
 end
 
+local function draw_remote(out)
+    if not tv.on then return end
+    local s, w, h = st.s, st.w, st.h
+    out[#out + 1] = shape(rr(0, 0, w, h, 0), C.deep, 0.78)
+    local cw, ch = 440 * s, 112 * s
+    local x, y = (w - cw) / 2, (h - ch) / 2 - 30 * s
+    local keep = st.shown
+    st.shown = 1
+    card(out, x, y, cw, ch, corner(22 * s))
+    icon(out, "cast", x + 48 * s, y + ch / 2, C.mint, 1)
+    out[#out + 1] = text(x + 84 * s, y + 44 * s, 4, 20 * s, C.ink, 1, "Playing on " .. (tv.name or "the TV"), true)
+    out[#out + 1] = text(x + 84 * s, y + 72 * s, 4, 14 * s, C.ink, 0.65, tv.paused and "Paused there  ·  the buttons here control it" or "The buttons here control it")
+    st.shown = keep
+end
+
 render = function()
     if st.w <= 0 then return end
     local keep = st.shown
     st.hits, st.tip = {}, nil
     local out = {}
+    draw_remote(out)
     if st.shown > 0.01 then
         draw_controls(out)
         draw_info(out)
@@ -781,16 +809,118 @@ local function under(x, y)
         if h.id == "pill" and x >= h.x and x <= h.x + h.w and y >= h.y and y <= h.y + h.h then return "pill" end
     end
 end
+local utils = require "mp.utils"
+-- a word to the TV (catt -d its address ...); what the player shows is changed at once, and the TV's answers are not taken for two seconds after,
+-- so a step does not jump back while the TV catches up
+local function tv_cmd(...)
+    local args = { "catt", "-d", tv.host, ... }
+    tv.hold = now() + 2
+    mp.command_native_async({ name = "subprocess", args = args, capture_stdout = true, capture_stderr = true, playback_only = false }, function(ok, r)
+        if tv.on and not (ok and r and r.status == 0) then say("The TV did not answer", 2) end
+        wake()
+    end)
+end
+local function tv_seek(t)
+    t = math.max(0, math.min(t, (tv.dur or t + 1) - 1))
+    tv.pos, tv.at = t, now()
+    tv_cmd("seek", tostring(math.floor(t)))
+    say(clock(t), 0.8)
+end
+local function tv_toggle()
+    tv.pos, tv.at = tv_now(), now()
+    tv.paused = not tv.paused
+    tv_cmd(tv.paused and "pause" or "play")
+end
+local function tv_vol(v)
+    tv.vol = math.max(0, math.min(100, math.floor(v + 0.5)))
+    tv.muted = false
+    tv.hold = now() + 2
+    say(string.format("TV sound %d %%", tv.vol), 0.8)
+    if tv.vt then tv.vt:kill() end                       -- (a drag sends the last of it, not every step)
+    tv.vt = mp.add_timeout(0.25, function() tv.vt = nil; tv_cmd("volume", tostring(tv.vol)) end)
+end
+local function tv_mute()
+    tv.muted = not tv.muted
+    tv_cmd("volumemute", tv.muted and "true" or "false")
+    say(tv.muted and "TV muted" or "TV sound on", 1)
+end
+local remote_stop
+-- the TV's answer, every second: where it is, how long, paused or not, its sound. It ending (or something else put on it) ends the remote.
+local function tv_poll()
+    if not tv.on or tv.busy then return end
+    tv.busy = true
+    mp.command_native_async({ name = "subprocess", args = { "catt", "-d", tv.host, "info", "-j" }, capture_stdout = true, capture_stderr = true, playback_only = false }, function(ok, r)
+        tv.busy = false
+        if not tv.on then return end
+        local j = ok and r and r.status == 0 and utils.parse_json(r.stdout or "") or nil
+        if type(j) ~= "table" or not j.player_state then
+            tv.fails = (tv.fails or 0) + 1
+            if tv.seen and tv.fails >= 4 then remote_stop("The TV stopped playing it") end
+            return
+        end
+        tv.fails = 0
+        local state = j.player_state
+        if state == "PLAYING" or state == "PAUSED" or state == "BUFFERING" then tv.seen = true end
+        if state == "IDLE" and tv.seen then
+            remote_stop(j.idle_reason == "FINISHED" and ("Finished on " .. tv.name) or "The TV stopped playing it")
+            return
+        end
+        if tv.content and j.content_id and j.content_id ~= tv.content and tv.seen then remote_stop("The TV is playing something else now") return end
+        tv.content = tv.content or j.content_id
+        if now() < (tv.hold or 0) then return end
+        if tonumber(j.duration) then tv.dur = tonumber(j.duration) end
+        if tonumber(j.current_time) then tv.pos, tv.at = tonumber(j.current_time), now() end
+        if state == "PAUSED" then tv.paused = true elseif state == "PLAYING" then tv.paused = false end
+        if tonumber(j.volume_level) then tv.vol = math.floor(tonumber(j.volume_level) * 100 + 0.5) end
+        if j.volume_muted ~= nil then tv.muted = j.volume_muted and true or false end
+        wake()
+    end)
+end
+-- the keys that would move the video here move the TV's instead, while it plays there
+local REMOTE_KEYS = {
+    { "SPACE", function() tv_toggle() end }, { "k", function() tv_toggle() end },
+    { "LEFT", function() tv_seek(tv_now() - 5) end }, { "RIGHT", function() tv_seek(tv_now() + 5) end },
+    { "Shift+LEFT", function() tv_seek(tv_now() - 30) end }, { "Shift+RIGHT", function() tv_seek(tv_now() + 30) end },
+    { "HOME", function() tv_seek(0) end },
+    { "UP", function() tv_vol((tv.vol or 50) + 5) end }, { "DOWN", function() tv_vol((tv.vol or 50) - 5) end },
+    { "m", function() tv_mute() end },
+}
+local function remote_start(dev, at)
+    tv = { on = true, host = dev.host, name = dev.name, pos = at, at = now(), dur = prop("duration", nil), paused = false, fails = 0 }
+    mp.set_property_bool("pause", true)
+    for i, k in ipairs(REMOTE_KEYS) do mp.add_forced_key_binding(k[1], "tv-remote-" .. i, function() k[2](); wake() end) end
+    tv.timer = mp.add_periodic_timer(1, tv_poll)
+    wake()
+end
+remote_stop = function(words)
+    if tv.timer then tv.timer:kill() end
+    if tv.vt then tv.vt:kill() end
+    local was = tv.pos and tv_now()
+    for i = 1, #REMOTE_KEYS do mp.remove_key_binding("tv-remote-" .. i) end
+    tv = { on = false }
+    st.casting = false
+    if was and was > 0 then mp.commandv("seek", tostring(math.floor(was)), "absolute") end      -- here, from where the TV got to
+    if words then say(words, 2.5) end
+    wake()
+end
+-- the video here stays still while the TV plays it
+mp.observe_property("pause", "bool", function(_, p) if tv.on and p == false then mp.set_property_bool("pause", true) end end)
+
 local function seek_to(x, exact)
     if not st.seek_x then return end
-    local dur = prop("duration", 0)
+    local dur = tv.on and (tv.dur or 0) or prop("duration", 0)
     if dur <= 0 then return end
     local k = math.max(0, math.min(1, (x - st.seek_x) / st.seek_w))
+    if tv.on then
+        if exact then tv_seek(k * dur) else tv.pos, tv.at, tv.hold = k * dur, now(), now() + 2 end
+        return
+    end
     mp.commandv("seek", tostring(k * dur), exact and "absolute+exact" or "absolute+keyframes")
 end
 local function vol_to(x)
     if not st.vol_x then return end
     local k = math.max(0, math.min(1, (x - st.vol_x) / st.vol_w))
+    if tv.on then tv_vol(k * 100) return end
     mp.set_property_number("volume", math.floor(k * 100 + 0.5))
     if prop("mute", false) then mp.set_property_bool("mute", false) end
 end
@@ -880,22 +1010,22 @@ local function scan()
         wake()
     end)
 end
-local function cast_to(tv)
+local function cast_to(dev)
     local path = mp.get_property("path")
-    if not path or path == "" or not tv then return end
+    if not path or path == "" or not dev then return end
     local at = tostring(math.floor(prop("time-pos", 0) or 0))
     st.pick = false
     st.casting = true
-    cast_host = tv.host
-    say("Sending it to " .. tv.name .. "…", 12)
-    mp.command_native_async({ name = "subprocess", args = { "catt", "-d", tv.host, "set_default" }, playback_only = false }, function() end)
-    mp.command_native_async({ name = "subprocess", args = { "sh", "-c", CAST, "sh", path, at, tv.host }, capture_stdout = true, playback_only = false }, function(ok, r)
+    cast_host = dev.host
+    say("Sending it to " .. dev.name .. "…", 12)
+    mp.command_native_async({ name = "subprocess", args = { "catt", "-d", dev.host, "set_default" }, playback_only = false }, function() end)
+    mp.command_native_async({ name = "subprocess", args = { "sh", "-c", CAST, "sh", path, at, dev.host }, capture_stdout = true, playback_only = false }, function(ok, r)
         if ok and r and r.status == 0 then
-            mp.set_property_bool("pause", true); say("Playing on " .. tv.name, 2.5)
+            remote_start(dev, tonumber(at) or 0); say("Playing on " .. dev.name, 2.5)
         else
             st.casting = false
             local why = r and (r.stdout or ""):gsub("^%s+", ""):gsub("%s+$", ""):gsub("^Error:%s*", "")
-            say("Could not cast: " .. ((why and why ~= "") and why or (tv.name .. " did not answer")), 4)
+            say("Could not cast: " .. ((why and why ~= "") and why or (dev.name .. " did not answer")), 4)
         end
         wake()
     end)
@@ -915,11 +1045,12 @@ local function cast_stop()
     if not has_catt() then say("Casting needs catt (yay -S catt)", 3); wake(); return end
     local args = cast_host and { "catt", "-d", cast_host, "stop" } or { "catt", "stop" }
     mp.command_native_async({ name = "subprocess", args = args, playback_only = false }, function() end)
-    st.casting = false
-    say("Stopped the TV", 1.6); wake()
+    remote_stop("Stopped the TV")
 end
 local function press(id)
-    if id == "play" then
+    if id == "play" and tv.on then tv_toggle()
+    elseif id == "mute" and tv.on then tv_mute()
+    elseif id == "play" then
         if prop("eof-reached", false) then mp.commandv("seek", "0", "absolute"); mp.set_property_bool("pause", false)
         else mp.command("cycle pause") end
     elseif id == "prev" then mp.command("playlist-prev")
@@ -980,6 +1111,12 @@ mp.add_key_binding(nil, "escape", function()
     else mp.command("quit") end
 end)
 local function wheel(dir)
+    if tv.on then
+        if st.shown > 0.5 and (under(st.mx, st.my) == "vol" or under(st.mx, st.my) == "mute") then tv_vol((tv.vol or 50) + 5 * dir)
+        else tv_seek(tv_now() + 5 * dir) end
+        st.moved = now(); wake()
+        return
+    end
     if st.shown > 0.5 and (under(st.mx, st.my) == "vol" or under(st.mx, st.my) == "mute") then
         mp.commandv("add", "volume", tostring(5 * dir))
         say(string.format("Sound %d %%", math.floor(prop("volume", 100) + 0.5)), 0.8)

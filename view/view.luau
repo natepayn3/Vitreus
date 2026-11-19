@@ -347,12 +347,16 @@ on("do_browse", function()
     run("sh", { "-c", script, "sh", st.browse or "" }, function() end)
 end)
 
+local to_player                 -- (below, with Play: the player takes this window's place)
+
 -- A picture handed over by bin/vitreus-view (chosen in Files after the button above): opened here, and this window brought to the front.
 on("text:open_req", function(p)
     p = trim(p or "")
     if p == "" then return end
     fact.opening = false
     open(p)
+    -- a video: it plays at once, the player taking this window's place (View comes back on it when the player closes)
+    if IS_VIDEO[ext_of(p)] then say("Opening it in the player…"); to_player(p, p) return end
     run("sh", { "-c", 'hyprctl dispatch focuswindow "pid:$PPID" > /dev/null 2>&1' }, function() end)
 end)
 
@@ -411,7 +415,7 @@ end)
 -- Play: the video shown, in View's player (bin/vitreus-view: mpv, with the others of its folder after it). pleamar cannot draw a video itself, so the
 -- player takes this window's place: it is put where this window is (Hyprland: `VIEW_AT`, floating or not and where), this window closes, and once the
 -- player closes View comes back there on `back` (`VIEW_BACK`: the video, or the folder that was shown). The slideshow stops.
-local function to_player(what, back)
+to_player = function(what, back)
     local script = 'g=$(hyprctl -j clients 2> /dev/null | jq -r --argjson p "$PPID" \'.[] | select(.pid == $p) | "\\(if .floating then 1 else 0 end) \\(.at[0]) \\(.at[1]) \\(.size[0]) \\(.size[1])"\' 2> /dev/null | head -n 1); '
         .. 'v="${VIEW_SHELL:-$HOME/.config/pleamar/shells/vitreus}"; VIEW_AT="$g" VIEW_BACK="$2" VIEW_FROM="$VIEW_NAME" setsid "$v/bin/vitreus-view" "$1" > /dev/null 2>&1 < /dev/null & '
         .. '[ -n "$VIEW_NAME" ] || exit 9'

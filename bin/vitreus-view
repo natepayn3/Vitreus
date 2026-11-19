@@ -104,6 +104,17 @@ case $p in
 esac
 case $p in /*) ;; *) p="$(pwd)/$p" ;; esac
 
+# An empty View that sent the person to Files to find a picture (its button under the cat) waits for it: the picture chosen there goes to that window,
+# not to a new one, and so does a video (that View hands it to the player in its own place, as its Play does). It leaves its name in the runtime folder (`waiting`); it is asked whether it is still empty, and then told which picture to open.
+w="${XDG_RUNTIME_DIR:-/tmp}/vitreus-view/waiting"
+if [ -z "$stay" ] && [ -f "$p" ] && [ -r "$w" ] && command -v pleamar > /dev/null 2>&1; then
+    n=$(head -n 1 "$w")
+    rm -f "$w"
+    if [ -n "$n" ] && [ "$(pleamar --say "$n" "get ready" 2> /dev/null)" = false ]; then
+        pleamar --say "$n" "text open_req $p" > /dev/null 2>&1 && exit 0
+    fi
+fi
+
 # A video goes to View's player (player_opts, above). The other videos of its folder come after it in its list, in the order Files gives names, so the one before and after are a key away.
 VIDEOS="mp4 m4v mkv webm mov avi wmv flv mpg mpeg m2ts mts ts ogv 3gp 3g2 vob divx f4v"
 is_video() {
@@ -124,17 +135,6 @@ if [ -z "$stay" ] && [ -f "$p" ] && is_video "$p" && command -v mpv > /dev/null 
         player -- "$p"
     fi
     exit 0
-fi
-
-# An empty View that sent the person to Files to find a picture (its button under the cat) waits for it: the picture chosen there goes to that window,
-# not to a new one. It leaves its name in the runtime folder (`waiting`); it is asked whether it is still empty, and then told which picture to open.
-w="${XDG_RUNTIME_DIR:-/tmp}/vitreus-view/waiting"
-if [ -f "$p" ] && [ -r "$w" ] && command -v pleamar > /dev/null 2>&1; then
-    n=$(head -n 1 "$w")
-    rm -f "$w"
-    if [ -n "$n" ] && [ "$(pleamar --say "$n" "get ready" 2> /dev/null)" = false ]; then
-        pleamar --say "$n" "text open_req $p" > /dev/null 2>&1 && exit 0
-    fi
 fi
 
 if [ ! -f "$scene" ] || ! command -v pleamar > /dev/null 2>&1; then
