@@ -3650,7 +3650,11 @@ function wpv.poster(f) return wpv.frames .. "/" .. hash(f:match("^(.*)/") or "")
 function wpv.from_poster(path)
     if not (wpv.frames and wpv.dir and path) then return nil end
     local name = path:match("^" .. wpv.frames:gsub("%p", "%%%0") .. "/([^/]+)%.jpg$")
-    return name and (wpv.dir .. "/" .. name) or nil
+    if not name then return nil end
+    -- (the name starts with the folder's hash, `wpv.poster`: without taking it off, the video "was not the one shown" and the watcher stopped it)
+    local h, rest = name:match("^(%w+)%-(.+)$")
+    if h and h == hash(wpv.dir) then name = rest end
+    return wpv.dir .. "/" .. name
 end
 
 -- Calls `fn` with the picture to read for `f`: `f` itself, or its poster (made first when there is none yet; nil when it cannot be).
@@ -4454,6 +4458,8 @@ end
 on("wp_hex_done", function()
     wp_pending = nil
     wpv.flush()
+    -- the parallax was held off for a video and a picture came through the dissolve: it comes back (wptrans asks awww, which already shows it)
+    if para_fx.held and not wpv.cur then para_fx.tell() end
 end)
 
 -- `how`: awww's transition flags. `hex`, `{ x =, y = }`: the dissolve from that point instead (the wallpaper picker's).
@@ -4474,7 +4480,9 @@ local function wp_apply(path, how, started, hex, quiet)
             end
             -- The parallax draws its own copy of the wallpaper over awww's: it is told at once which picture is coming (a try from the cards too), or the old
             -- one would cover the change. (The dissolve hands its own picture over itself.)
-            if not hex then para_fx.tell(pic, wpv.is(path)) end
+            -- A video through the dissolve is told before it starts: at its end the dissolve lays the parallax's still of the poster over the
+            -- wallpaper, which covered mpvpaper a few frames in (the video looked frozen).
+            if not hex or wpv.is(path) then para_fx.tell(pic, wpv.is(path)) end
             if hex then
                 -- the video (or the stop of the one playing) waits for the end of the dissolve: see `wp_hex_done`
                 wp_hex(pic, hex.x, hex.y, function() wpv.next = { path }; if started then started() end end, by_awww)
@@ -4800,7 +4808,7 @@ end
 -- Parallax: the wallpaper leans away from the mouse. The wallpaper's own layer draws it (wptrans/: the picture, a little larger than the screen, over
 -- awww's); this keeps the switch (`parallax.json`) and tells that scene whether it is wanted and which picture awww shows. Not while a video is the
 -- wallpaper: mpvpaper's is the picture then. A global: this chunk is at Luau's limit of locals.
-para_fx = { on = false, amt = 40, mode = 1, due = false }       -- `amt`: pixels at the screen's edge (10 to 120); `mode`: 0 tight, 1 smooth, 2 floaty
+para_fx = { on = false, amt = 40, mode = 1, due = false, held = false }       -- `amt`: pixels at the screen's edge (10 to 120); `mode`: 0 tight, 1 smooth, 2 floaty
 do
     local ok, saved = pcall(sys.ask, "files.read", "parallax.json", "json")
     if ok and type(saved) == "table" then
@@ -4830,6 +4838,7 @@ end
 -- `pic`: what awww is showing or about to show, when it is known (else the scene asks awww). `video`: that picture is a video's poster.
 function para_fx.tell(pic, video)
     local want = para_fx.on and not video and not (pic == nil and wpv.cur)
+    para_fx.held = para_fx.on and not want          -- on, but kept off for a video
     run("pleamar", { "--say", "wptrans", "fact para_amt " .. para_fx.amt, "fact para_mode " .. para_fx.mode, "text pwall " .. (pic or ""),
                      "fact para_want " .. (want and "true" or "false"), "emit para_set" }, function() end)
 end

@@ -300,7 +300,7 @@ part Glass {
             on scroll glass_hit10 { gl_scroll_to = clamp(gl_scroll_to - wheel * 44, 0, max(0, gl.h - set.h)) }
             on drag glass_hit10 { emit glass_smoke_set(clamp(((pointer.x - tx.pnl) - gsl.x0) / gsl.w, 0, 1)) }
 
-            //  Live bend refresh (the Milk card, copied): the least time between two captures of the screen.
+            //  Live bend refresh (the Milk card, copied): the least time between two captures of the screen. Its track is 30 shorter than the others: "Every frame" is a long value.
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
             body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 1075.25 * pu; size: 438 * pw, 59.5 * pu; corner: 14 * pu } }
             DdCard(spx + 219 * pw, sby + 1075.25 * pu, 438 * pw, 59.5 * pu, 467.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
@@ -312,14 +312,14 @@ part Glass {
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 1087.5 * pu + 0.5); text "Least time between two captures: longer is lighter on the panels" { at: floor(spx + 14 * pw + 0.5), floor(sby + 1087.5 * pu + 0.5); anchor: left center; size: 13.5; color: faint; opacity: 100%; family: "Space Grotesk" } }
             group {
                 opacity: 100%
-                PSlider(gsl.x0, sby + 1065.5 * pu, gsl.w, clamp(if(lens_interval_ms <= 16, 0, lens_interval_ms / 1000), 0, 1), glass_hit9.hover, cu, gls_gh, 0)
+                PSlider(gsl.x0, sby + 1065.5 * pu, gsl.w - 30 * pw, clamp(if(lens_interval_ms <= 16, 0, lens_interval_ms / 1000), 0, 1), glass_hit9.hover, cu, gls_gh, 0)
                 PLeader(spx + 14 * pw + ldr_glad10.width * rs + 8 * pu, gsl.x0 - 6 * pu, sby + 1065.5 * pu, glass_hit9.hover, pu)
             }
             group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 1065.5 * pu + 0.5); text glass_cap_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 1065.5 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; opacity: 100%; family: "Space Grotesk" } }
-            zone box glass_hit9 { at: gsl.x0 + gsl.w / 2, sby + 1065.5 * pu; size: gsl.w + 28 * pu, 26 * pu; cursor: pointer; active: (obs < 0.5) and (sby + 1065.5 * pu) - gl.off > sby and (sby + 1065.5 * pu) - gl.off < sby + set.h * pu }
-            on press glass_hit9 { emit glass_cap_set(clamp(((pointer.x - tx.pnl) - gsl.x0) / gsl.w, 0, 1)) }
+            zone box glass_hit9 { at: gsl.x0 + (gsl.w - 30 * pw) / 2, sby + 1065.5 * pu; size: gsl.w - 30 * pw + 28 * pu, 26 * pu; cursor: pointer; active: (obs < 0.5) and (sby + 1065.5 * pu) - gl.off > sby and (sby + 1065.5 * pu) - gl.off < sby + set.h * pu }
+            on press glass_hit9 { emit glass_cap_set(clamp(((pointer.x - tx.pnl) - gsl.x0) / (gsl.w - 30 * pw), 0, 1)) }
             on scroll glass_hit9 { gl_scroll_to = clamp(gl_scroll_to - wheel * 44, 0, max(0, gl.h - set.h)) }
-            on drag glass_hit9 { emit glass_cap_set(clamp(((pointer.x - tx.pnl) - gsl.x0) / gsl.w, 0, 1)) }
+            on drag glass_hit9 { emit glass_cap_set(clamp(((pointer.x - tx.pnl) - gsl.x0) / (gsl.w - 30 * pw), 0, 1)) }
 
             //  Rest while idle: Live bend captures every 2 s while nothing of the shell is open over the windows (see `lens.idle` in vitreus.plm). Dimmed without Live bend.
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.

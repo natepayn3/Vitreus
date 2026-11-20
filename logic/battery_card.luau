@@ -25,8 +25,11 @@ return function()
         fact["bc.thr"] = has_thr and (#modes == 0 or cur == "Custom")
     end
 
+    -- Demo mode (`fact.demo`, set in vitreus.luau): a made-up healthy battery instead of the helper's answer, so the card has something to show.
+    local DEMO_INFO = "full=50300000\ndesign=57000000\nunit=wh\nmaker=SMP\ntech=Li-ion\ncycles=214\n"
+
     local function refresh()
-        run("vitreus-battery", { "info" }, function(out, code)
+        local function info(out, code)
             if code ~= 0 or not out or out == "" then fact["bc.ok"] = false; return end
             local v = {}
             for k, val in out:gmatch("([%w_]+)=([^\n]*)") do v[k] = val end
@@ -81,7 +84,8 @@ return function()
             fact["bc.ask"] = v.writable ~= "1"
             bios = v.bios == "1"
             fact["bc.bios"] = bios
-        end)
+        end
+        if fact.demo == true then info(DEMO_INFO, 0) else run("vitreus-battery", { "info" }, info) end
     end
 
     -- A change that did not go through says why, in the panel: 126/127 is pkexec's own (the password was cancelled), the rest is what the helper or the kernel said.
