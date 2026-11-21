@@ -1293,13 +1293,14 @@ scene Vitreus {
     //  the refresh's pace; it goes back to that pace the moment something opens. (Not the wallpaper copy instead: switching the lens's source
     //  drops what it has, and the glass would show unbent for a moment each time a panel opened.)
     let lens.idle = glass_rest and bar_frame and panel == none and dc < 0.01 and dk < 0.01 and dm < 0.01 and ds < 0.01 and dl < 0.01 and dax < 0.01 and do < 0.01 and not desk_open and not dash_open and not ov_open and not wp_picker_open and not pk_open and not ax_open and not fr_hov and dk_lv < 0.02 and ws_lv < 0.02 and bar_lv < 0.02
-    //  The calendar open and settled: its weather card's sky moves without rest, and every frame of ours painted would otherwise ask for a capture at the
-    //  refresh's pace (a whole monitor each, 60 a second at 16 ms). What is behind a still panel rarely moves, so it looks at most every 120 ms meanwhile.
+    //  The calendar open and settled: its weather card's sky moves without rest, so the shell paints every frame (see `sky.calm` for the pace).
+    //  Live bend is not slowed for it: once it slowed captures to every 120 ms (500 ms while calm) and a video wallpaper or a window behind the panel
+    //  stuttered. Measured 2026-11-20 with captures on the card: the shell's CPU was the same either way, the compositor's ~8-10 points of a core more.
     let lens.sky = (panel == calendar and dash_tab == dtab_cal and dc > 0.99 and f4 > 0.99) or (dash_open and dsh_rise > 0.995 and dsh_under < 0.002 and dsh_rq >= 0.999)      // (the dashboard's weather tile has the same sky)
     //  ...and while nothing on it moves but the sky (no month sliding, no day's bubble travelling, nothing coming in), the whole shell paints at 30 a
     //  second (`rate:` on the surface): clouds and rain need no more, and a moving sky at the monitor's pace cost a whole core. Anything else moving brings it back.
     let sky.calm = lens.sky and cal_out < 0.005 and cal_inn < 0.005 and abs(vel(cal_bx)) < 0.02 and abs(vel(cal_by)) < 0.02 and cal_rip > 0.995 and wx_in > 0.995 and abs(vel(sk.cl)) < 0.01 and abs(vel(sk.dl)) < 0.01
-    lens every if(lens.idle, max(lens_interval_ms, 2000), if(sky.calm, max(lens_interval_ms, 500), if(lens.sky, max(lens_interval_ms, 120), lens_interval_ms))) * 1ms
+    lens every if(lens.idle, max(lens_interval_ms, 2000), lens_interval_ms) * 1ms
     spring dripl = 180, 16        // the drip down the left: settles in under half a second, still swinging about 10% past where it lands (the neck's stretch is scaled to match: `dj.stretch`)
     spring tgrow = 150, 17        // a tile growing into its window, down: slower than the drip, and it lands a little past and comes back
     spring tgx = 280, 26          // and across: quicker and almost without a bounce, so the card widens first and then pours down, as the drawers do
