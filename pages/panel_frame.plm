@@ -27,15 +27,80 @@ part PanelFrame {
             box { at: pcx - 130 * cu, cy + 4 * cu; size: 166 * cu, 232 * cu; corner: pr; color: obsidian; opacity: card_fill * (1 - obs) }      // a deeper backing under the veil: a card with content is less see-through than the panel
             box { at: pcx - 130 * cu, cy + 4 * cu; size: 166 * cu, 232 * cu; corner: pr; color: ink; opacity: (veil) * (1 - obs) }
             box { at: pcx - 130 * cu, cy + 4 * cu; size: 166 * cu, 232 * cu; corner: pr; stroke: 1 * cu; color: ink; opacity: hair * (1 - dd_k) }
-            text cal.sel_title { at: floor(pcx - 201 * cu + 0.5), floor(cy - 92 * cu + 0.5); anchor: left center; size: 15; weight: 600; width: 142 * cu; lines: 1; color: ink; family: "Space Grotesk" }
-            text cal.sel_sub { at: floor(pcx - 201 * cu + 0.5), floor(cy - 77 * cu + 0.5); anchor: left center; size: 12; width: 142 * cu; lines: 1; color: faint; opacity: 75%; family: "Space Grotesk" }
+            //  The chosen day in big: its number rising in as the card opens, the weekday (in the accent when it is today) over the month.
+            row {
+                at: floor(pcx - 202 * cu + 0.5), floor(cy - 107 * cu + 0.5)
+                gap: 7 * cu
+                align: center
+                text cal.sel_dnum { size: 34; weight: 700; color: ink; family: "Space Grotesk"; tight: true
+                                    letter_opacity: clamp(wx_in * 4 - letter * 0.45, 0, 1)
+                                    letter_move: 0, 14 * pow(1 - clamp(wx_in * 4 - letter * 0.45, 0, 1), 2) }
+                column {
+                    gap: 0
+                    text cal.sel_wday { size: 13.5; weight: 700; width: 96 * cu; lines: 1; color: if(cal.sel_today, mint, ink); family: "Space Grotesk"; opacity: clamp(wx_in * 3 - 0.4, 0, 1) }
+                    text cal.sel_mon { size: 11.5; weight: 500; width: 96 * cu; lines: 1; color: faint; opacity: 85% * clamp(wx_in * 3 - 0.7, 0, 1); family: "Space Grotesk" }
+                }
+            }
+            //  How many reminders, and on the right the day's forecast when it is one of the coming week's.
+            text cal.sel_sub { at: floor(pcx - 201 * cu + 0.5), floor(cy - 62 * cu + 0.5); anchor: left center; size: 11.5; weight: 600; width: 80 * cu; lines: 1; color: faint; opacity: 80%; family: "Space Grotesk" }
+            group {
+                show: wx_ok and cal.sel_wx >= 0 and cal.sel_wx < wx_days.count
+                opacity: clamp(wx_in * 3 - 1, 0, 1)
+                group {
+                    pivot: pcx - 113 * cu, cy - 62 * cu
+                    scale: 0.75
+                    column { at: pcx - 126 * cu, cy - 72 * cu; WxIcon(wx_days[cal.sel_wx].kind, ink, mint) }
+                }
+                text "{wx_days[cal.sel_wx].hi}" { at: floor(pcx - 80 * cu + 0.5), floor(cy - 62 * cu + 0.5); anchor: right center; size: 12; weight: 700; color: ink; family: "Space Grotesk" }
+                text "{wx_days[cal.sel_wx].lo}" { at: floor(pcx - 59 * cu + 0.5), floor(cy - 62 * cu + 0.5); anchor: right center; size: 11.5; weight: 500; color: faint; family: "Space Grotesk" }
+            }
+            //  The day as a line, midnight to midnight: each reminder with a time is a dot on it (filled once it is done), and on today a
+            //  fill up to now, ending in a dot that sends out a ring like the weather's "now".
+            let dln.x0 = pcx - 201 * cu
+            let dln.w = 142 * cu
+            let dln.y = cy - 45 * cu
+            let dln.k = clamp(wx_in * 1.8 - 0.4, 0, 1)
+            box { from: dln.x0, dln.y - 1.5 * cu; size: dln.w * dln.k, 3 * cu; corner: 1.5 * cu; color: ink; opacity: 13% }
+            repeat q in 1..4 {
+                box { at: dln.x0 + dln.w * q / 4, dln.y + 5.5 * cu; size: 1 * cu, 3 * cu; color: ink; opacity: 22% * dln.k }
+                text pick(q - 1, "6a", "12p", "6p") { at: floor(dln.x0 + dln.w * q / 4 + 0.5), floor(dln.y + 14 * cu + 0.5); anchor: center; size: 9.5; weight: 600; color: faint; opacity: 60% * dln.k; family: "Space Grotesk" }
+            }
+            group {
+                show: cal.sel_today
+                box { from: dln.x0, dln.y - 1.5 * cu; size: max(3 * cu, dln.w * cal.dayfrac * dln.k), 3 * cu; corner: 1.5 * cu; color: mint }
+                ellipse { at: dln.x0 + dln.w * cal.dayfrac * dln.k, dln.y; radius: (3.5 + 7 * fract(sk.t * 0.6)) * cu; stroke: 1.3 * cu; color: mint; opacity: 75% * (1 - fract(sk.t * 0.6)) * dln.k }
+                ellipse { at: dln.x0 + dln.w * cal.dayfrac * dln.k, dln.y; radius: 3.5 * cu; color: mint; opacity: dln.k }
+                ellipse { at: dln.x0 + dln.w * cal.dayfrac * dln.k, dln.y; radius: 1.4 * cu; color: onmint; opacity: dln.k }
+            }
+            repeat r in 0..4 {
+                let rk = clamp(wx_in * 2.2 - 0.9 - r * 0.15, 0, 1)
+                group {
+                    show: r < cal_events.count and cal_events[r].at >= 0
+                    opacity: rk
+                    pivot: dln.x0 + dln.w * cal_events[r].at, dln.y
+                    scale: 0.4 + 0.6 * rk
+                    ellipse { at: dln.x0 + dln.w * cal_events[r].at, dln.y; radius: 3.6 * cu; color: ink; opacity: if(cal_events[r].done, 45%, 100%) }
+                    ellipse { at: dln.x0 + dln.w * cal_events[r].at, dln.y; radius: 2.2 * cu; color: mint; opacity: if(cal_events[r].done, 45%, 100%) }
+                }
+            }
             column cal_list {
-                at: floor(pcx - 207 * cu + 0.5), floor(cy - 64 * cu + 0.5)
-                view: 154 * cu, 144 * cu
+                at: floor(pcx - 207 * cu + 0.5), floor(cy - 24 * cu + 0.5)
+                view: 154 * cu, 104 * cu
                 gap: 4
                 for e in cal_events { CalRow(e, tick: cal_check, gone: cal_delete) }
             }
-            text "Add one below" { at: floor(pcx - 201 * cu + 0.5), floor(cy - 50 * cu + 0.5); anchor: left center; size: 13; color: faint; opacity: 55%; family: "Space Grotesk"; show: cal_events.count < 1 }
+            //  Nothing that day: a ring with a tick, floating a little and sending out a slow ring, over two quiet lines.
+            group {
+                show: cal_events.count < 1
+                opacity: clamp(wx_in * 2 - 0.6, 0, 1)
+                let calfl = 2 * sin(sk.t * 80) * cu
+                ellipse { at: pcx - 130 * cu, cy + 14 * cu + calfl; radius: (14 + 9 * fract(sk.t * 0.35)) * cu; stroke: 1.2 * cu; color: mint; opacity: 40% * (1 - fract(sk.t * 0.35)) }
+                ellipse { at: pcx - 130 * cu, cy + 14 * cu + calfl; radius: 14 * cu; color: mint; opacity: 14% }
+                ellipse { at: pcx - 130 * cu, cy + 14 * cu + calfl; radius: 14 * cu; stroke: 1.5 * cu; color: mint; opacity: 85% }
+                path { at: pcx - 130 * cu, cy + 14 * cu + calfl; stroke: 1.8 * cu; color: mint; move -5 * cu, 0; line -1.5 * cu, 3.6 * cu; line 5.5 * cu, -3.8 * cu }
+                text "Nothing planned" { at: floor(pcx - 130 * cu + 0.5), floor(cy + 45 * cu + 0.5); anchor: center; size: 13; weight: 600; color: ink; opacity: 85%; family: "Space Grotesk" }
+                text "Write one below" { at: floor(pcx - 130 * cu + 0.5), floor(cy + 61 * cu + 0.5); anchor: center; size: 11.5; color: faint; opacity: 70%; family: "Space Grotesk" }
+            }
             //  Writing one: the field and its button, on a soft pill at the card's foot. Enter saves it as well.
             box { at: pcx - 130 * cu, cy + 101 * cu; size: 152 * cu, 28 * cu; corner: 14 * cu * (1 - 0.85 * sq); color: ink; opacity: 8% }
             box { at: pcx - 130 * cu, cy + 101 * cu; size: 152 * cu, 28 * cu; corner: 14 * cu * (1 - 0.85 * sq); stroke: 1 * cu; color: ink; opacity: 12% }
@@ -66,10 +131,27 @@ part PanelFrame {
             //  Month, and the three buttons that move it.
             //  The month's name changes letter by letter: they go out with the grid, and come in from the side the month comes from, one after another.
             let cal.e = 1 - cal_inn
-            text cal.month { at: floor(pcx - 30 * cu + 0.5), floor(cy - 92 * cu + 0.5); anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk"
-                             letter_opacity: clamp(cal.e * 2.2 - letter * 0.07, 0, 1) * (1 - cal_out)
-                             letter_move: cal_dir * (16 * pow(1 - clamp(cal.e * 2.2 - letter * 0.07, 0, 1), 2) - 10 * cal_out) * cu, -6 * cu * cal_out
-                             letter_scale: 1 + 0.25 * (1 - clamp(cal.e * 2.2 - letter * 0.07, 0, 1)) }
+            //  The month big, from the ink into the accent with a soft glow of it, and the year small in the accent at its foot; a short accent bar
+            //  under them that grows in with the month. They change letter by letter: out with the grid, in from the side the month comes from.
+            row {
+                at: floor(pcx - 30 * cu + 0.5), floor(cy - 107 * cu + 0.5)
+                size: 165 * cu, 30 * cu                 // (30 tall, so `align: center` puts both on the buttons' line, cy - 92)
+                gap: 6 * cu
+                align: center
+                column cal_mn {
+                text cal.mname { size: 22; weight: 700; family: "Space Grotesk"; tight: true
+                                 gradient: pcx - 30 * cu, 0 to pcx + 95 * cu, 0, ink, ink 35%, mint
+                                 shadow: 0, 0, 14, 35%, mint
+                                 letter_opacity: clamp(cal.e * 2.2 - letter * 0.07, 0, 1) * (1 - cal_out)
+                                 letter_move: cal_dir * (16 * pow(1 - clamp(cal.e * 2.2 - letter * 0.07, 0, 1), 2) - 10 * cal_out) * cu, -6 * cu * cal_out
+                                 letter_scale: 1 + 0.25 * (1 - clamp(cal.e * 2.2 - letter * 0.07, 0, 1)) }
+                }
+                //  (centred on the month, then lowered onto its baseline)
+                text cal.yr { size: 12; weight: 700; color: mint; family: "Space Grotesk"; tight: true
+                              letter_opacity: clamp(cal.e * 2.2 - 0.5 - letter * 0.07, 0, 1) * (1 - cal_out) * 85%
+                              letter_move: 0, (2 + 8 * pow(1 - clamp(cal.e * 2.2 - 0.5 - letter * 0.07, 0, 1), 2) - 6 * cal_out) * cu }
+            }
+            box { from: pcx - 30 * cu, cy - 81.5 * cu; size: cal_mn.width * clamp(cal.e * 1.8 - 0.4, 0, 1) * (1 - cal_out), 2 * cu; corner: 1 * cu; color: mint; opacity: 90% }
             path { at: pcx + 141.5 * cu, cy - 92 * cu; color: ink; stroke: 1.6 * cu; opacity: 55% + 45% * cal_prev_btn.hover; move 2.5 * cu, -5 * cu; line -2.5 * cu, 0; line 2.5 * cu, 5 * cu }
             box { at: pcx + 170.5 * cu, cy - 92 * cu; size: 40 * cu, 20 * cu; corner: (10 * cu) * (1 - 0.85 * dd_k); color: ink; opacity: 8% + 10% * cal_today_btn.hover }
             PPillOutline(pcx + 170.5 * cu, cy - 92 * cu, 40 * cu, 20 * cu, 10 * cu, cal_today_btn.hover, clamp(3 * (8% + 10% * cal_today_btn.hover), 0, 1), cu)
@@ -82,8 +164,14 @@ part PanelFrame {
             on press cal_today_btn { emit cal_today }
             on press cal_next_btn { emit cal_next }
             //  The weekdays.
+            //  The weekdays on a soft strip of their own, today's on an accent pill; the weekend's letters in the accent.
+            box { at: cal.gx + 3 * cal.cw, cy - 66 * cu; size: 7 * cal.cw + 4 * cu, 20 * cu; corner: 10 * cu * (1 - 0.85 * sq); color: ink; opacity: 8% }
+            box { at: cal.gx + 3 * cal.cw, cy - 66 * cu; size: 7 * cal.cw + 4 * cu, 20 * cu; corner: 10 * cu * (1 - 0.85 * sq); stroke: 1 * cu; color: ink; opacity: 10% }
+            box { at: cal.gx + cal.twd * cal.cw, cy - 66 * cu; size: 26 * cu, 16 * cu; corner: 8 * cu * (1 - 0.85 * sq); color: ink; opacity: 14%; show: cal.twd >= 0 }
+            box { at: cal.gx + cal.twd * cal.cw, cy - 66 * cu; size: 26 * cu, 16 * cu; corner: 8 * cu * (1 - 0.85 * sq); stroke: 1 * cu; color: ink; opacity: 18%; show: cal.twd >= 0 }
             repeat w in 1..8 {
-                text cal.wd.$w { at: floor(cal.gx + (w - 1) * cal.cw + 0.5), floor(cy - 66 * cu + 0.5); anchor: center; size: 11; weight: 600; color: faint; opacity: 65%; family: "Space Grotesk" }
+                text cal.wd.$w { at: floor(cal.gx + (w - 1) * cal.cw + 0.5), floor(cy - 66 * cu + 0.5); anchor: center; size: 11; weight: 700
+                                 color: if(w == 1 or w == 7, mint, ink); opacity: if(cal.twd == w - 1, 100%, if(w == 1 or w == 7, 90%, 70%)); family: "Space Grotesk" }
             }
             //  The wheel over the month moves it a month a notch (it is under the days, so they keep their clicks).
             zone box cal_grid_z { at: cal.gx + 3 * cal.cw, cal.gy + 2.5 * cal.ch; size: 7 * cal.cw + 8 * cu, 6 * cal.ch + 8 * cu; label: "The month: the wheel changes it" }
@@ -101,6 +189,7 @@ part PanelFrame {
                 opacity: (1 - cal_out) * clamp(cal.e * 1.6 - 0.3, 0, 1)
                 pivot: cal.bxp, cal.byp
                 rotate: atan2(vel(cal_by) * cal.ch, vel(cal_bx) * cal.cw + 0.0001) * 1deg
+                ellipse { at: cal.bxp, cal.byp; radius: 17 * cu; scale: 1 + cal.bv, 1 - 0.5 * cal.bv; color: mint; opacity: 16% }
                 ellipse { at: cal.bxp, cal.byp; radius: 12 * cu; scale: 1 + cal.bv, 1 - 0.5 * cal.bv; color: mint }
             }
             ellipse { at: cal.sx, cal.sy; radius: (12 + 16 * cal_rip) * cu; stroke: 2 * cu * (1 - cal_rip) + 0.5; color: mint; opacity: 70% * (1 - cal_rip) }
@@ -117,6 +206,7 @@ part PanelFrame {
                 follow cal.pick.$k = if(cal.sel == k, 1, 0)
                 group {
                     opacity: (38% + 62% * if(cal.in.$k, 1, 0)) * dop
+                    move: 0, -1.5 * cu * cal_cell.$k.hover
                     pivot: dx, dy
                     scale: (1 + 0.08 * cal.pick.$k) * (0.8 + 0.2 * ez)
                     ellipse { at: dx, dy; radius: 12 * cu; color: ink; opacity: 9% * cal_cell.$k.hover * (1 - cal.pick.$k) }
@@ -126,7 +216,7 @@ part PanelFrame {
                 }
                 //  The day's number is not inside the group that grows when it is picked: a scaled text is resampled and comes out soft, so it
                 //  stays its size (a text's `size` takes plain numbers only: a prop or a `let` in it counts as 1), and is drawn on whole pixels.
-                text number(cal.day.$k, 0) { at: floor(dx + 0.5), floor(dy - 0.5 * cu + 0.5); anchor: center; size: 13; weight: 500 + 200 * if(cal.today.$k, 1, 0)
+                text number(cal.day.$k, 0) { at: floor(dx + 0.5), floor(dy - 0.5 * cu - 1.5 * cu * cal_cell.$k.hover + 0.5); anchor: center; size: 13; weight: 500 + 200 * if(cal.today.$k, 1, 0)
                                              color: mix(ink, onmint, cal.pick.$k); opacity: (38% + 62% * if(cal.in.$k, 1, 0)) * dop; family: "Space Grotesk" }
                 zone box cal_cell.$k { at: dx0, dy; size: 30 * cu, 26 * cu; corner: 13 * cu; cursor: pointer }
                 on press cal_cell.$k { emit cal_pick(k); cal_rip: 0 ~0ms; cal_rip: 1 after 16ms }

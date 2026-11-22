@@ -145,9 +145,11 @@ return function()
             text.ax_title = a.name
             fact.ax_cur = i
             fact.ax_open = true
+            if snd_hook and snd_hook.chime then snd_hook.chime() end   -- the panel sound, wherever the icons are (the logic set ax_open, so the fact handler does not hear it)
             after(40, push_slot)          -- (as above: it is the logic that set them; 40 ms is enough for the rules to work out where the content goes, and keeps it in step with the glass)
         else
             winopen[a.id] = not winopen[a.id]
+            if winopen[a.id] and snd_hook and snd_hook.chime then snd_hook.chime() end
             say_one(a.sock, { "fact slot_open " .. tostring(winopen[a.id] == true) })
         end
     end

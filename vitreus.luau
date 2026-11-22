@@ -2050,6 +2050,8 @@ end
 local function paint_calendar()
     local y, m = cal.year, cal.month
     text["cal.month"] = string.format("%s %d", MONTHS[m], y)
+    text["cal.mname"] = MONTHS[m]
+    text["cal.yr"] = tostring(y)
     for w = 1, 7 do text["cal.wd." .. w] = LETTERS[w] end
     --  The grid starts on the first day of the week the 1st falls in.
     local py, pm = y, m - 1
@@ -2076,18 +2078,36 @@ local function paint_calendar()
     local sy, sm, sd = parse_key(cal.sel)
     local wday = os.date("*t", os.time({ year = sy, month = sm, day = sd, hour = 12 })).wday   -- 1 is Sunday
     text["cal.sel_title"] = string.format("%s, %s %d", DAYS[wday], MONTHS[sm], sd)
+    fact["cal.twd"] = weekday(ty, tm, td)
+    --  The chosen day in big: its number, weekday and month apart; which day of the forecast it is (-1: none), and whether it is today.
+    text["cal.sel_dnum"] = tostring(sd)
+    text["cal.sel_wday"] = DAYS[wday]
+    text["cal.sel_mon"] = MONTHS[sm]
+    local ahead = math.floor((os.time({ year = sy, month = sm, day = sd, hour = 12 }) - os.time({ year = ty, month = tm, day = td, hour = 12 })) / 86400 + 0.5)
+    fact["cal.sel_wx"] = (ahead >= 0 and ahead < 7) and ahead or -1
+    fact["cal.sel_today"] = ahead == 0
+    local nt = os.date("*t")
+    fact["cal.dayfrac"] = (nt.hour * 60 + nt.min) / 1440
     local list = on_day(cal.sel)
     text["cal.sel_sub"] = #list == 0 and "Free day" or (#list == 1 and "1 reminder" or string.format("%d reminders", #list))
     local rows = {}
     cal.rows = {}
     for i, e in ipairs(list) do
         if i <= 4 then
-            rows[#rows + 1] = { time = e.time ~= "" and time12(e.time) or "all day", title = e.title, done = e.done == true }
+            local hh, mm = (e.time or ""):match("^(%d+):(%d+)$")
+            rows[#rows + 1] = { time = e.time ~= "" and time12(e.time) or "all day", title = e.title, done = e.done == true,
+                                at = hh and (tonumber(hh) * 60 + tonumber(mm)) / 1440 or -1 }
             cal.rows[#cal.rows + 1] = e
         end
     end
     model.cal_events = rows
 end
+
+--  The day line's "now" moves with the clock (a fact a minute: nothing repaints while the panel is shut).
+every(60000, function()
+    local nt = os.date("*t")
+    fact["cal.dayfrac"] = (nt.hour * 60 + nt.min) / 1440
+end)
 
 local function show_month(y, m, sel)
     cal.year, cal.month = y, m

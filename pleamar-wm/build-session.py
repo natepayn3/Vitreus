@@ -236,9 +236,11 @@ between("            show: dragging == i or (landing == i and win.$i.open and wi
 
 def dialog(t):
     t = t.replace("corner: 12 }", "corner: rad }")
-    old = "            box { from: dx, dy; size: dw, dh; corner: 12; stroke: 1.5; color: mint; opacity: 70% * win.$i.focused }\n"
+    # (Where it is drawn is `dlg.px, dlg.py` once a dialog can be carried to another monitor; `dx, dy` before.)
+    at = "dlg.px, dlg.py" if "from: dlg.px, dlg.py; size: dw, dh" in t else "dx, dy"
+    old = "            box { from: %s; size: dw, dh; corner: 12; stroke: 1.5; color: mint; opacity: 70%% * win.$i.focused }\n" % at
     assert t.count(old) == 1
-    return t.replace(old, "            box { from: dx, dy; size: dw, dh; corner: rad; stroke: if(wst == 1, 1.5, max(bw, 1)); color: if(wst == 1, mint, wm_border); opacity: if(wst == 2, 0%, 70%) * win.$i.focused }\n")
+    return t.replace(old, "            box { from: %s; size: dw, dh; corner: rad; stroke: if(wst == 1, 1.5, max(bw, 1)); color: if(wst == 1, mint, wm_border); opacity: if(wst == 2, 0%%, 70%%) * win.$i.focused }\n" % at)
 
 
 # (From the line that heads the dialogs' loop: what follows it changed when dialogs could be carried.)
