@@ -3658,16 +3658,33 @@ end
 -- filter, the hexagon dissolve and the lock screen. What awww says it shows is then mapped back to the video (`wpv.from_poster`).
 wpv = { exts = { mp4 = true, webm = true, mov = true }, frames = nil, dir = nil, cur = nil, next = nil, busy = {} }   -- `dir`: the wallpaper folder
 
+-- A feed's name where the wallpaper's name is shown: never the link itself.
+function wp_stream_name(u) return "Video link" end
+-- A link (a page with a live video, an m3u8, rtsp) is a video too: a live feed, played the same way (mpv asks yt-dlp to find the stream in a page).
+function wpv.url(f) return type(f) == "string" and f:match("^%a[%w+.-]*://") ~= nil end
+-- (for logic/*.luau modules, which may read this table as it was when they were made: these read it as it is)
+function wpv.now() return wpv.cur end
+function wpv.ready() return wpv.frames ~= nil end
 function wpv.is(f)
+    if wpv.url(f) then return true end
     local ext = f and f:match("%.(%w+)$")
     return ext ~= nil and wpv.exts[ext:lower()] == true
 end
 
 -- (the folder is in the name too, as a short hash: by the file name alone, two folders with a picture of the same name shared one poster)
-function wpv.poster(f) return wpv.frames .. "/" .. hash(f:match("^(.*)/") or "") .. "-" .. (f:match("([^/]+)$") or f) .. ".jpg" end
+function wpv.poster(f)
+    if wpv.url(f) then return wpv.frames .. "/stream-" .. hash(f) .. ".jpg" end
+    return wpv.frames .. "/" .. hash(f:match("^(.*)/") or "") .. "-" .. (f:match("([^/]+)$") or f) .. ".jpg"
+end
 
 -- The video a poster was taken from, or nil when `path` is not a poster.
 function wpv.from_poster(path)
+    -- a stream's poster is named by the link's hash: the one playing (or coming) is the only one that can be asked about
+    if wpv.frames and path then
+        for _, u in ipairs({ wpv.cur or false, wpv.next and wpv.next[1] or false }) do
+            if wpv.url(u) and path == wpv.poster(u) then return u end
+        end
+    end
     if not (wpv.frames and wpv.dir and path) then return nil end
     local name = path:match("^" .. wpv.frames:gsub("%p", "%%%0") .. "/([^/]+)%.jpg$")
     if not name then return nil end
@@ -3696,6 +3713,37 @@ function wpv.src(f, fn)
         for _, a in ipairs({ "-i", f, "-frames:v", "1", "-vf", "scale=960:-1", "-q:v", "2", p }) do args[#args + 1] = a end
         run("ffmpeg", args, then_fn)
     end
+    if wpv.url(f) then
+        -- A stream's frame is taken now, not kept from the last time (it is live): yt-dlp finds the video in a page, and a link that is
+        -- already a stream (m3u8, rtsp) goes to ffmpeg as it is. Taken again at most once a minute (the gallery, the wallpaper and the restore all ask).
+        wpv.fresh = wpv.fresh or {}
+        if wpv.fresh[f] and os.time() - wpv.fresh[f] < 60 then finish(true) return end
+        local function take(src)
+            run("ffmpeg", { "-y", "-loglevel", "error", "-rw_timeout", "15000000", "-i", src, "-frames:v", "1", "-vf", "scale=960:-1", "-q:v", "2", p }, function(_, code)
+                if code == 0 then wpv.fresh[f] = os.time() end
+                finish(code == 0)
+            end)
+        end
+        -- `wpv.early[f]`: called as soon as the video is found, before its frame is taken (the link field starts the player then, not a second or two later)
+        local function found()
+            local e = wpv.early and wpv.early[f]
+            if e then wpv.early[f] = nil; e() end
+        end
+        run("mkdir", { "-p", wpv.frames }, function()
+            if f:match("%.m3u8") or not f:match("^https?://") then found(); take(f) return end
+            run("yt-dlp", { "-g", "-f", "bv*[height<=1080]+ba/b[height<=1080]/b", "--no-warnings", "--socket-timeout", "15", "--", f }, function(out, code)
+                local lines = {}
+                for l in (out or ""):gmatch("[^\n]+") do if l:match("^https?://") then lines[#lines + 1] = l end end
+                if code ~= 0 or not lines[1] then finish(false) return end
+                -- what yt-dlp found is kept a moment: the player is given it (`wpv.target`) instead of the page, which it would look up all over again (3 to 4 s)
+                wpv.direct = wpv.direct or {}
+                wpv.direct[f] = { v = lines[1], a = lines[2], t = os.time() }
+                found()
+                take(lines[1])
+            end)
+        end)
+        return
+    end
     run("stat", { "-c", "%s", p }, function(out, code)
         if code == 0 and (tonumber((out or ""):match("%d+")) or 0) > 0 then finish(true) return end
         run("mkdir", { "-p", wpv.frames }, function()
@@ -3715,7 +3763,39 @@ end
 -- The wallpaper `f` is now what awww shows: stop the video that was playing, and play `f` if it is one. mpvpaper is stopped with SIGKILL: with `-s` its
 -- watcher, while the wallpaper is hidden, ignores SIGTERM and stayed behind, a second one playing. The video is decoded on the card (`hwdec=auto-safe`):
 -- a 4K60 one decoded on the CPU took cores while the wallpaper showed.
+-- mpvpaper's options for `f`: a file plays silent; a feed has its sound as the speaker under the picker's cards says (`wpv.sound`), and a socket (`wpv.sock`)
+-- through which that speaker mutes it or not while it plays.
+-- What the player opens for `f`: a link's video as yt-dlp found it a moment ago (and its sound, apart, when the site keeps them apart), or the link itself,
+-- which the player looks up through yt-dlp (slower: at login, or a long while after it was found). Found addresses expire, so they are only used fresh.
+function wpv.target(f)
+    local d = wpv.direct and wpv.direct[f]
+    if d and os.time() - d.t < 120 then return d.v, d.a end
+    return f, nil
+end
+function wpv.opts(f)
+    local o = "input-terminal=no loop-file=inf panscan=1.0 video-unscaled=no hwdec=auto-safe"
+    if not wpv.url(f) then return o .. " no-audio" end
+    local v = wpv.target(f)
+    if v == f then o = o .. " ytdl-format=bv*[height<=1080]+ba/b[height<=1080]/b" end
+    o = o .. " mute=" .. (wpv.sound and "no" or "yes")
+    if wpv.sock then o = o .. " input-ipc-server=" .. wpv.sock end
+    return o
+end
+-- The command that starts the player on `f` (after `exec`, in a shell line). A site that keeps the sound apart from the picture: the picture starts alone, and
+-- the sound is added through the socket once the player answers (`audio-add`). Opened together, the player waited for both, and the picture took twice
+-- as long to move (2.7 s against 1.4). (`-t 8`: socat waits for the answer; opening the sound takes over a second, and with socat's half second the answer never
+-- came, and the loop added the sound again and again.)
+function wpv.launch(f)
+    local v, a = wpv.target(f)
+    local q = function(x) return "'" .. x:gsub("'", "'\\''") .. "'" end
+    local cmd = "exec mpvpaper -vs -o '" .. wpv.opts(f) .. "' '*' " .. q(v) .. " < /dev/null > /dev/null 2>&1"
+    if not (a and wpv.sock) then return cmd end
+    local msg = q('{"command":["audio-add",' .. string.format("%q", a) .. ',"select"]}')
+    return "{ (i=0; while [ $i -lt 100 ]; do case $(printf '%s\\n' " .. msg .. " | socat -t 8 - UNIX-CONNECT:" .. q(wpv.sock)
+        .. " 2>/dev/null) in *success*) break;; esac; i=$((i+1)); sleep 0.3; done) > /dev/null 2>&1 & " .. cmd .. "; }"
+end
 function wpv.settle(f, keep_running)
+    local was = wpv.cur
     -- `wpv.keep`: the picker's cards are already playing this video as a try; it is kept running, not started again from the top
     if wpv.keep and wpv.keep == f then keep_running = true end
     wpv.keep = nil
@@ -3724,10 +3804,11 @@ function wpv.settle(f, keep_running)
     local line = "pkill -9 -x mpvpaper"
     if wpv.cur then
         -- `keep_running`: the shell restarted, and the video it left playing is the one wanted
-        line = (keep_running and "pgrep -x mpvpaper > /dev/null || " or (line .. "; ")) .. "exec mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no hwdec=auto-safe' '*' '"
-            .. f:gsub("'", "'\\''") .. "' < /dev/null > /dev/null 2>&1"
+        line = (keep_running and "pgrep -x mpvpaper > /dev/null || " or (line .. "; ")) .. wpv.launch(f)
     end
     exec_on_desktop(line)
+    -- a feed that is no longer the wallpaper leaves nothing behind: its frames and thumbnails go
+    if wpv.url(was) and was ~= wpv.cur and wpv.forget then wpv.forget(was) end
 end
 
 -- The hexagon dissolve is still bringing the wallpaper in: it is settled when the dissolve is over (see `check_wallpaper`).
@@ -3787,6 +3868,7 @@ local function check_wallpaper()
         local framed = wph.src_of(path)      -- a picture an add-on made: the wallpaper is the one it was made from
         local shown = wpv.from_poster(path) or framed or path
         if path and wpv.cur and shown ~= wpv.cur and not wpv.next then
+            if wpv.url(wpv.cur) and wpv.forget then wpv.forget(wpv.cur) end
             wpv.cur = nil
             wpv_save()
             exec_on_desktop("pkill -9 -x mpvpaper")
@@ -4259,13 +4341,30 @@ end
 -- launched while doing nothing, and every two seconds was still a third of it: every six.
 every(6000, check_wallpaper)
 check_wallpaper()
+-- A video link that stopped (the address it was given expired, the stream dropped) is started again from its link, at most every 30 s while it stays
+-- the wallpaper. Not while the picker's cards are trying others (they stop it on purpose).
+every(10000, function()
+    if not wpv.url(wpv.cur) or wp_prev.on or wpv.next then return end
+    if os.time() - (wpv.healed or 0) < 30 then return end
+    run("pgrep", { "-x", "mpvpaper" }, function(_, code)
+        if code ~= 0 and wpv.url(wpv.cur) and not wp_prev.on then
+            wpv.healed = os.time()
+            if wpv.direct then wpv.direct[wpv.cur] = nil end
+            wpv.settle(wpv.cur, true)
+        end
+    end)
+end)
 -- A video that was playing comes back with the desktop (awww restores its poster; mpvpaper is not restored by anything).
 with_dirs(function(d)
     wpv.frames = d.cache .. "/frames"
+    wpv.sock = d.cache .. "/feed.sock"
+    local okf, feed = pcall(sys.ask, "files.read", "wallpaper-feed.json", "json")
+    wpv.sound = okf and type(feed) == "table" and feed.sound == true
+    fact.st_sound = wpv.sound
     local ok, saved = pcall(sys.ask, "files.read", "wallpaper-video.json", "json")
     local f = ok and type(saved) == "table" and saved.path
     if type(f) == "string" and f ~= "" and wpv.is(f) then
-        wpv.dir = f:match("^(.*)/[^/]+$")
+        if not wpv.url(f) then wpv.dir = f:match("^(.*)/[^/]+$") end
         wpv.src(f, function(src)
             if not src then return end
             wpv.settle(f, true)
@@ -4379,9 +4478,26 @@ local wp_made = {}
 local wp_cache = nil
 
 -- (with its folder's short hash, as the posters: a picture of the same name in another folder showed this one's thumbnail)
-local function crop_path(f, kind) return wp_cache .. "/" .. hash(f:match("^(.*)/") or "") .. "-" .. (f:match("([^/]+)$") or f) .. "." .. kind .. ".jpg" end
+local function crop_path(f, kind)
+    if wpv.url(f) then return wp_cache .. "/stream-" .. hash(f) .. "." .. kind .. ".jpg" end
+    return wp_cache .. "/" .. hash(f:match("^(.*)/") or "") .. "-" .. (f:match("([^/]+)$") or f) .. "." .. kind .. ".jpg"
+end
 
 -- Make whichever of `files` has no cropped copy yet, then call `done`.
+-- A video link that has stopped being the wallpaper is forgotten: its frames (the poster) and every thumbnail of it are deleted, and what yt-dlp found for it
+-- is let go; nothing remembers it. (wallpaper-video.json is written again by `wpv.settle`.)
+function wpv.forget(u)
+    if wpv.fresh then wpv.fresh[u] = nil end
+    if wpv.direct then wpv.direct[u] = nil end
+    if wpv.early then wpv.early[u] = nil end
+    if wp_cache then for _, k in ipairs({ "t", "p", "v", "c" }) do wp_made[crop_path(u, k)] = nil end end
+    local args = {}
+    if wpv.frames then args[#args + 1] = wpv.frames end
+    if wp_cache then args[#args + 1] = wp_cache end
+    if #args == 0 then return end
+    for _, a in ipairs({ "-maxdepth", "1", "-name", "stream-*", "-delete" }) do args[#args + 1] = a end
+    run("find", args, function() end)
+end
 local function wp_crop(files, kind, w, h, done)
     local todo = {}
     for _, f in ipairs(files) do
@@ -4441,7 +4557,7 @@ end
 
 wp_on_change = function(path)
     wp_cur = path
-    text.wp_name = path:match("([^/]+)$") or path
+    text.wp_name = (wpv.url(path) and wp_stream_name(path)) or path:match("([^/]+)$") or path
     if wp_cache then
         wp_crop({ path }, "p", 320, 180, function()
             if wp_cur == path then
@@ -4797,13 +4913,18 @@ end)
 local WP_STEPS = { 1, 2, 5, 10, 15, 30, 60, 120, 240, 480 }
 local wp_show, wp_mins, wp_next = false, 5, 0
 
+-- A video from a link (the field under the picker's cards) holds the slideshow while it plays: its countdown starts again in full once something else is
+-- the wallpaper. A video file from the folder does not.
+function wpv.held_show() return wpv.url(wpv.cur) end
 local function wp_show_save()
     pcall(sys.call, "files.write", "wallpaper.json", { slideshow = wp_show, minutes = wp_mins })
 end
 local function wp_show_refresh()
     fact.wp_show = wp_show
     text.wp_mins_text = wp_mins < 60 and (wp_mins .. " min") or ((wp_mins // 60) .. (wp_mins == 60 and " hour" or " hours"))
-    if wp_show then
+    if wp_show and wpv.held_show() then
+        text.wp_show_sub = "Paused while a video link plays"
+    elseif wp_show then
         local r = math.max(0, wp_next - os.time())
         if r >= 3600 then
             text.wp_show_sub = string.format("Next change in %d:%02d:%02d", r // 3600, (r % 3600) // 60, r % 60)
@@ -4901,7 +5022,9 @@ on("wp_mins_step", function(d)
 end)
 every(1000, function()
     if not wp_show then return end
-    if os.time() >= wp_next then
+    if wpv.held_show() then
+        wp_next = os.time() + wp_mins * 60
+    elseif os.time() >= wp_next then
         wp_next = os.time() + wp_mins * 60
         local f = wp_random_pick()
         if f then wp_apply(f) end
@@ -8295,8 +8418,13 @@ require("logic/keybinds")()
             end
             if keep then out[#out + 1] = f end
         end
+        -- A video feed in use is the first card, whatever the colour: a frame of it taken as the picker opens. It is only here while it is the wallpaper.
+        local feed = wp_prev.orig or wp_cur
+        if wpv.url(feed) then table.insert(out, 1, feed) end
         C.list = out
     end
+    -- (a feed's frame is taken again under the same name each time the picker opens: the number after `?` makes the scene read it again)
+    local function vq(f) return wpv.url(f) and ("?" .. (C.fv or 0)) or "" end
     local function card_rows()
         local files = C.list or {}
         local rows = {}
@@ -8306,7 +8434,7 @@ require("logic/keybinds")()
             local f = files[ix + 1]
             if f then
                 local t = strip_path(f)
-                rows[s + 1] = { img = (t and wp_made[t] == true) and t or "", ix = ix, cur = f == inuse, ok = true }
+                rows[s + 1] = { img = (t and wp_made[t] == true) and (t .. vq(f)) or "", ix = ix, cur = f == inuse, ok = true }
             else
                 rows[s + 1] = { img = "", ix = ix, cur = false, ok = false }
             end
@@ -8318,7 +8446,7 @@ require("logic/keybinds")()
             local f = e and files[e.ix + 1]
             if f then
                 local t = big_path(f)
-                big[k] = { img = (t and wp_made[t] == true) and t or "", ix = e.ix, cur = f == inuse, ok = true }
+                big[k] = { img = (t and wp_made[t] == true) and (t .. vq(f)) or "", ix = e.ix, cur = f == inuse, ok = true }
             else
                 big[k] = { img = "", ix = 0, cur = false, ok = false }
             end
@@ -8367,6 +8495,21 @@ require("logic/keybinds")()
         still = function(f) local h = tonumber(fact.wp_picker_hot); return h ~= nil and h >= 0 and G.files ~= nil and G.files[math.floor(h + 0.5) + 1] == f end,
         pos = function() return math.floor((tonumber(fact.wp_picker_hot) or 0) + 0.5) + 1 end, n = function() return #(G.files or {}) end }
     local function describe(f, ix, n, dest)
+        if wpv.url(f) then
+            text[dest.name] = "Video link"
+            text[dest.info] = string.format("From a link  ·  %d of %d", ix + 1, n)
+            -- its accent as every card's: the main colour of its frame (the one taken as the picker opened: `wpv.src` waits for it), worked out the same way
+            wpv.src(f, function(src)
+                if not src then return end
+                run("magick", { "-limit", "thread", "1", src, "-thumbnail", "100x100", "-colors", "32", "-format", "%c", "histogram:info:" }, function(res, code)
+                    local d = code == 0 and res and colours_of(f, res)
+                    if not d or not dest.still(f) then return end
+                    local r, g, b = hsv_rgb(d.h, 0.35 + 0.4 * math.min(1, d.s * 1.5), 0.95)
+                    fact[dest.r], fact[dest.g], fact[dest.b] = r, g, b
+                end)
+            end)
+            return
+        end
         local d = G.data[f]
         if d then
             local r, g, b = hsv_rgb(d.h, 0.35 + 0.4 * math.min(1, d.s * 1.5), 0.95)
@@ -8459,8 +8602,7 @@ require("logic/keybinds")()
                 if t ~= C.tok or not fact.wp_picker_open or not wpv.is(f) then return end
                 C.vid = f
                 wp_prev.stopped = true
-                exec_on_desktop("pkill -9 -x mpvpaper; exec mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no hwdec=auto-safe' '*' '"
-                    .. f:gsub("'", "'\\''") .. "' < /dev/null > /dev/null 2>&1")
+                exec_on_desktop("pkill -9 -x mpvpaper; " .. wpv.launch(f))
             end, nil, true)
         end)
     end
@@ -8506,6 +8648,14 @@ require("logic/keybinds")()
         C.closing = false
         C.opened = (C.opened or 0) + 1
         card_list()
+        -- A feed in use: a fresh frame of it for its card (the big picture is made by `card_big` below, the strip here; both wait on the one grab)
+        local feed = wpv.url(wp_cur) and wp_cur or nil
+        if feed and wp_cache then
+            if wpv.fresh then wpv.fresh[feed] = nil end
+            wp_made[crop_path(feed, "v")], wp_made[crop_path(feed, "c")] = nil, nil
+            C.fv = (C.fv or 0) + 1
+            wp_crop({ feed }, "v", 96, 216, function() card_rows() end)
+        end
         C.sel = 0
         for i, f in ipairs(C.list or {}) do if f == wp_cur then C.sel = i - 1 break end end
         C.base = C.sel - R
@@ -8569,6 +8719,71 @@ require("logic/keybinds")()
     end)
     on("wp_card_pick", function() card_done(false) end)
     on("wp_card_cancel", function() card_done(true) end)
+    -- A video feed from the field at the foot of the cards (`st_url`): its frame is taken first, which says whether there is a live video at that link at all
+    -- (`wpv.src`: yt-dlp finds it in a page); then the cards' try is dropped, so the picker closing does not put a card back over it, and the feed plays.
+    -- The speaker at the end of the field: the feed's sound, remembered; a feed that plays is told at once through its socket (mpv's `mute`).
+    on("st_sound_toggle", function()
+        wpv.sound = not wpv.sound
+        fact.st_sound = wpv.sound
+        pcall(sys.call, "files.write", "wallpaper-feed.json", { sound = wpv.sound })
+        if wpv.sock and (wpv.url(wpv.cur) or wpv.url(C.vid)) then
+            -- (a feed started before it had a socket, or by an older Vitreus, cannot be told: it is started again with its sound as now asked)
+            run("test", { "-S", wpv.sock }, function(_, code)
+                if code == 0 then
+                    exec_on_desktop("printf '%s\\n' '{\"command\":[\"set_property\",\"mute\"," .. (wpv.sound and "false" or "true") .. "]}' | socat - UNIX-CONNECT:'" .. wpv.sock .. "'")
+                elseif wpv.url(wpv.cur) and not C.vid then
+                    wpv.settle(wpv.cur)
+                end
+            end)
+        end
+    end)
+    on("st_play", function()
+        local u = (text.st_url or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if u == "" then return end
+        if not u:match("^%a[%w+.-]*://") then u = "https://" .. u end      -- "example.com/feed"
+        C.st = (C.st or 0) + 1
+        local mine, dots = C.st, 0
+        local function tick()
+            if C.st ~= mine then return end
+            text.st_status = "Finding the video" .. string.rep(".", dots % 4)
+            dots = dots + 1
+            after(350, tick)
+        end
+        tick()
+        -- the player starts as soon as the video is found, while its frame is still being taken; the wallpaper change below then leaves it running
+        local early = false
+        wpv.early = wpv.early or {}
+        wpv.early[u] = function()
+            if C.st ~= mine then return end
+            early = true
+            wpv.keep = u
+            exec_on_desktop("pkill -9 -x mpvpaper; " .. wpv.launch(u))
+        end
+        wpv.src(u, function(src)
+            if wpv.early then wpv.early[u] = nil end
+            if C.st ~= mine then return end
+            C.st = C.st + 1
+            if not src then
+                -- (found but no frame: the player started early goes, and the wallpaper there was plays again)
+                if early then wpv.keep = nil; wpv.settle(wpv.cur, false) end
+                text.st_status = "No video at that link (offline, private, or not a video)"
+                local gone = C.st
+                after(6000, function() if C.st == gone then text.st_status = "" end end)
+                return
+            end
+            text.st_status = ""
+            text.st_url = ""
+            if fact.wp_picker_open then
+                C.tok = C.tok + 1                -- a card's try still waiting is dropped
+                wp_prev.touched, wp_prev.cancel, wp_prev.on, wp_prev.shown = false, false, false, nil
+                C.vid = nil
+                fact.wp_picker_leaving = true
+                after(350, function() fact.wp_picker_open = false end)
+                after(1800, function() fact.wp_picker_leaving = false end)
+            end
+            wp_apply(u)
+        end)
+    end)
 
     -- Opened on the focused monitor only, like the panels (`panel_scr`, logic/panel_monitor.luau): the shared fact alone opened it on every screen.
     on("wp_picker_toggle", function()

@@ -84,7 +84,7 @@ scene Vitreus {
     //  moving paints nothing, so a cap only ever slowed what was moving (the notches, the drawers, the bar's hovers each needed an exemption from the old 12 a second).
     surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995 and bar_size < 1.005 and not bar_ah; rate: 480, 120 while bar_fps == 120 and not (media.playing and fw_on) and not sky.calm, 60 while ((media.playing and fw_on) or bar_fps == 60) and not sky.calm, 30 while sky.calm; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
     permissions { services: "say:*", "files", "files.write", "files.remove", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "window.activate", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "timeout 15 pw-play", "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe", "nordvpn" }
+                  run: "timeout 15 pw-play", "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe", "nordvpn", "yt-dlp" }
 
     model wifi_nets max 16 { ssid: text; strength: number; secure: bool; known: bool; active: bool; band: number; bands: text; bandw: number; chan: number; rate: number; sec: text; busy: number }
     model bat_devs max 6 { name: text; level: number }
@@ -2510,6 +2510,14 @@ scene Vitreus {
     event wp_picker_toggle ->
     event wp_picker_pick ->
     event wp_picker_random ->
+    //  A video feed as the wallpaper, from the field at the foot of the cards: a page with a live video, an m3u8, rtsp (the picker's part of vitreus.luau).
+    text st_url = ""                          // the link being pasted
+    text st_status = ""                       // "Finding the feed…", or why there is none
+    fact st_edit = false                      // the field is being typed into: the picker's own keys (arrows, Enter, Esc, Tab) leave it alone
+    event st_play ->                          // Enter in the field
+    fact st_sound = false                     // the feed plays with its sound (off until asked: it is remembered, and a feed comes back at login)
+    event st_sound_toggle ->                  // the speaker at the field's right end
+    measure st_mu                             // how wide what is typed in the field is: the field is slid so its words sit in the middle
     fact wp_picker_leaving = false            // a wallpaper was picked: the tray fades so the desktop's own transition shows
     prop wp_picker_veil = 1 ~calm             // 1 normal, 0 while it is leaving
     follow wp_picker_veil = if(wp_picker_leaving, 0, 1)
@@ -2542,7 +2550,9 @@ scene Vitreus {
     on change wp_picker_hot while wp_picker_hot >= 0 { wp_picker_sw: 0 ~40ms }
     on change wp_picker_hot while wp_picker_hot >= 0 { wp_picker_sw: 1 ~595ms after 60ms }
     on change wp_picker_open while not wp_picker_open { wp_picker_hot = -1 }
-    on key Escape while wp_picker_open and wp_pg == 0 { wp_picker_open = false }
+    on key Escape while st_edit { st_edit = false; focus wp_kb }
+    on change wp_picker_open while not wp_picker_open { st_edit = false }
+    on key Escape while wp_picker_open and wp_pg == 0 and not st_edit { wp_picker_open = false }
     //  The picker has a second page, a row of cards along the foot that changes the wallpaper live as they are shifted through. The two sit side by side and
     //  the whole picker swipes between them: Tab goes from one to the other (the arrows belong to the cards; the two dots at the foot can be pressed too). The cards are the logic's `wp_cards`:
     //  fifteen slots around the one in focus (a window onto the list: the atlas could not hold every picture), `wp_card_base` the position of the first slot
@@ -2628,11 +2638,11 @@ scene Vitreus {
     event wp_card_go ->                       // a card pressed, by its place in the list
     event wp_card_pick ->                     // keep this one
     event wp_card_cancel ->                   // put the old one back
-    on key Right while wp_picker_open and wp_pg == 1 { emit wp_card_step(1) }
-    on key Left while wp_picker_open and wp_pg == 1 and wp_card_sel > 0.5 { emit wp_card_step(-1) }
-    on key Tab while wp_picker_open { wp_pg = 1 - wp_pg }
-    on key Return while wp_picker_open and wp_pg == 1 { emit wp_card_pick }
-    on key Escape while wp_picker_open and wp_pg == 1 { emit wp_card_cancel }
+    on key Right while wp_picker_open and wp_pg == 1 and not st_edit { emit wp_card_step(1) }
+    on key Left while wp_picker_open and wp_pg == 1 and wp_card_sel > 0.5 and not st_edit { emit wp_card_step(-1) }
+    on key Tab while wp_picker_open and not st_edit { wp_pg = 1 - wp_pg }
+    on key Return while wp_picker_open and wp_pg == 1 and not st_edit { emit wp_card_pick }
+    on key Escape while wp_picker_open and wp_pg == 1 and not st_edit { emit wp_card_cancel }
     on change wp_pg while wp_pg > 0.5 { wp_picker_hot = -1 }
     //  The workspace overview (the button before the bar's workspace dots, or the launcher): a card for each of the five workspaces,
     //  listing the windows on it. The logic fills `ovw` a slot at a time (nine to a workspace, in order) from `hyprctl clients`, each with a
@@ -8771,6 +8781,38 @@ scene Vitreus {
         }
         //  Under the card: the keys.
         text "Left and Right browse  ·  Enter keeps one  ·  Esc puts the old one back  ·  Tab for the hexagons" { at: floor(wc.cxm + 0.5), floor(wc.yb + wc.ext + 66 + 0.5); anchor: center; align: center; size: 13; color: #ffffff; opacity: 45% * clamp(wp_pgp * 3, 0, 1); family: "Space Grotesk" }
+        //  A video feed: a field between the keys and the dots. A press puts the cursor in it (and the picker's keys leave it alone); Enter finds the feed and plays it,
+        //  and the picker goes as it does for a card kept; Esc leaves the field.
+        let st.y = yo + vh - 92
+        let st.a = clamp(wp_pgp * 3, 0, 1) * clamp(wp_ce4 * 1.6, 0, 1)
+        let st.on = if(st_edit, 1, 0)
+        group {
+            show: st.a > 0.01
+            box { at: wc.cxm, st.y; size: 440, 34; corner: 17; color: #14171f; opacity: st.a }
+            box { at: wc.cxm, st.y; size: 440, 34; corner: 17; stroke: 1.5; color: wc.acc; opacity: (25% + 65% * st.on + 20% * st_z.hover) * st.a }
+            text "VIDEO" { at: floor(wc.cxm - 192 + 0.5), floor(st.y + 0.5); anchor: center; align: center; size: 11; weight: 700; color: wc.acc; opacity: st.a; family: "Space Grotesk" }
+            //  (a field cannot centre its words: what is typed is measured and the field starts half that left of the middle, so an empty one has its cursor in the
+            //  middle and the words grow out from it; a long link starts at the pill's left, past the tag. The hint is drawn here, centred, while the field is empty
+            //  and not being typed into: the field's own placeholder put the cursor at the hint's start, and it jumped to the middle at the first letter.)
+            text st_url { at: 0, 0; size: 14; family: "Space Grotesk"; opacity: 0; measure: st_mu }
+            text "Enter video link here" { at: floor(wc.cxm + 0.5), floor(st.y + 0.5); anchor: center; align: center; size: 14; color: #ffffff; opacity: 45% * st.a; family: "Space Grotesk"; show: st_mu.width < 0.5 and not st_edit }
+            input st_url { at: floor(max(wc.cxm - 172, wc.cxm - st_mu.width / 2) + 0.5), floor(st.y - 8 + 0.5); width: 350; size: 14; color: #ffffff; opacity: st.a; family: "Space Grotesk" }
+            //  The speaker at the right end: the feed's sound on (waves, in the card's accent) or off (a cross). It changes at once, while the feed plays.
+            let st.sx = wc.cxm + 190
+            let st.so = if(st_sound, 1, 0)
+            let st.sh = 70% + 30% * st_snd_z.hover
+            path { at: st.sx, st.y; color: #ffffff; opacity: st.sh * st.a; move 0, -3; line 3, -3; line 7, -7; line 7, 7; line 3, 3; line 0, 3; close }
+            path { at: st.sx, st.y; stroke: 1.6; color: wc.acc; opacity: st.so * st.a; move 10, -3; curve 10, 3 via 13, 0 }
+            path { at: st.sx, st.y; stroke: 1.6; color: wc.acc; opacity: st.so * st.a; move 12.5, -6.5; curve 12.5, 6.5 via 18.5, 0 }
+            path { at: st.sx, st.y; stroke: 1.6; color: #ffffff; opacity: (1 - st.so) * st.sh * st.a; move 10.5, -3.5; line 17, 3.5 }
+            path { at: st.sx, st.y; stroke: 1.6; color: #ffffff; opacity: (1 - st.so) * st.sh * st.a; move 17, -3.5; line 10.5, 3.5 }
+            text st_status { at: floor(wc.cxm + 0.5), floor(st.y + 32 + 0.5); anchor: center; align: center; size: 12.5; width: 440; lines: 1; color: #ffffff; opacity: 60% * st.a; family: "Space Grotesk" }
+        }
+        zone box st_z { at: wc.cxm, st.y; size: 440, 34; corner: 17; cursor: text; label: "Play a video feed as the wallpaper"; active: wp_pg == 1 and wp_pgp > 0.6 and wp_picker_show > 0.5 }
+        on press st_z { st_edit = true; focus st_url }
+        zone box st_snd_z { at: wc.cxm + 199, st.y; size: 30, 30; corner: 15; cursor: pointer; label: if(st_sound, "Mute the video feed", "Play the video feed's sound"); active: wp_pg == 1 and wp_pgp > 0.6 and wp_picker_show > 0.5 }
+        on press st_snd_z { emit st_sound_toggle }
+        on submit st_url { emit st_play; st_edit = false; focus wp_kb }
         //  Which page it is on: two dots at the foot, the cards' on the left, the hexagons' on the right.
         ellipse { at: cx + 9, yo + vh - 24; radius: 3.5 + 1.5 * (1 - wp_pgp); color: mint; opacity: 35% + 65% * (1 - wp_pgp) }
         ellipse { at: cx - 9, yo + vh - 24; radius: 3.5 + 1.5 * wp_pgp; color: mint; opacity: 35% + 65% * wp_pgp }

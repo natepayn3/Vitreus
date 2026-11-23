@@ -88,12 +88,12 @@ fonts_fuzzy="$data/fonts/FuzzyBubbles"
 fonts_kalam="$data/fonts/Kalam"
 
 # Official-repo packages, then AUR ones: what each is for is in the README.
-pacman_pkgs="gcc pkgconf wayland wayland-protocols git curl jq python fontconfig socat glib2 file imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww ffmpeg xdg-desktop-portal-gtk grim slurp wf-recorder power-profiles-daemon polkit python-gobject python-pyte python-pillow fastfetch ttf-space-mono-nerd pipewire-audio wireplumber pipewire-pulse pipewire-alsa sound-theme-freedesktop tesseract tesseract-data-eng"
+pacman_pkgs="gcc pkgconf wayland wayland-protocols git curl jq python fontconfig socat glib2 file imagemagick cava playerctl networkmanager bluez bluez-utils brightnessctl hypridle libnotify xdg-user-dirs xdg-utils wl-clipboard cliphist awww ffmpeg yt-dlp xdg-desktop-portal-gtk grim slurp wf-recorder power-profiles-daemon polkit python-gobject python-pyte python-pillow fastfetch ttf-space-mono-nerd pipewire-audio wireplumber pipewire-pulse pipewire-alsa sound-theme-freedesktop tesseract tesseract-data-eng"
 aur_pkgs="iris-colors mpvpaper"
 # Debian and Ubuntu: the same list by their names. UNTESTED (written without a Debian machine to try it on), and some of these are
 # not in every release (hypridle, cliphist, wf-recorder...): each is looked up and installed on its own, and a missing one is only said.
 # Not here, because Debian has no package: awww, mpvpaper, hyprsunset, iris, the Space Mono Nerd Font (listed below for hand install).
-apt_pkgs="gcc pkgconf libwayland-dev wayland-protocols git curl jq python3 fontconfig socat libglib2.0-bin file imagemagick cava playerctl network-manager bluez brightnessctl hypridle libnotify-bin xdg-user-dirs xdg-utils wl-clipboard cliphist ffmpeg xdg-desktop-portal-gtk grim slurp wf-recorder power-profiles-daemon polkitd python3-gi python3-pyte python3-pil fastfetch pipewire-bin wireplumber pipewire-pulse pulseaudio-utils sound-theme-freedesktop tesseract-ocr tesseract-ocr-eng"
+apt_pkgs="gcc pkgconf libwayland-dev wayland-protocols git curl jq python3 fontconfig socat libglib2.0-bin file imagemagick cava playerctl network-manager bluez brightnessctl hypridle libnotify-bin xdg-user-dirs xdg-utils wl-clipboard cliphist ffmpeg yt-dlp xdg-desktop-portal-gtk grim slurp wf-recorder power-profiles-daemon polkitd python3-gi python3-pyte python3-pil fastfetch pipewire-bin wireplumber pipewire-pulse pulseaudio-utils sound-theme-freedesktop tesseract-ocr tesseract-ocr-eng"
 
 # Night mode is hyprsunset on Hyprland, and wlsunset everywhere else (niri, pleamar-wm): each is only wanted where its compositor is,
 # and wlsunset also where there is no Hyprland at all. A machine with Hyprland and pleamar-wm gets both. (Here `have` is not defined yet.)
@@ -642,6 +642,9 @@ if $deps; then
     awww            the wallpaper picker
     qt6-multimedia, qt6-multimedia-ffmpeg  a video behind the login screen (Settings > Greeter); without them it shows the video's first frame
     mpvpaper (AUR), ffmpeg  video wallpapers (mp4, webm, mov): mpvpaper plays them, ffmpeg takes the frame the rest of the shell reads; ffmpeg also reads the webcam
+    yt-dlp          a video feed as the wallpaper (the link field under the wallpaper picker's cards): it finds the video in a page's link, for
+                    ffmpeg's frame and for mpvpaper. A direct m3u8 or rtsp link needs only those two. Debian's package is often too old for
+                    sites that change: install it with pipx (pipx install yt-dlp) or take the upstream binary
     iris            theming from the wallpaper (https://aur.archlinux.org/packages/iris-colors)
     imagemagick     wallpaper thumbnails, the launcher's picture previews, Snap's marked-up picture, and the pictures' own pictures in Files
     wl-clipboard    the launcher copying (wl-copy: results, snippets), and Capture copying a screenshot
