@@ -3757,7 +3757,8 @@ function wpv.src(f, fn)
 end
 
 local function wpv_save()
-    pcall(sys.call, "files.write", "wallpaper-video.json", { path = wpv.cur or "" })
+    -- (`before`: the wallpaper a video link replaced, put back if the link goes dead: see `wpv.drop`)
+    pcall(sys.call, "files.write", "wallpaper-video.json", { path = wpv.cur or "", before = wpv.url(wpv.cur) and wpv.before or "" })
 end
 
 -- The wallpaper `f` is now what awww shows: stop the video that was playing, and play `f` if it is one. mpvpaper is stopped with SIGKILL: with `-s` its
@@ -4349,8 +4350,14 @@ every(10000, function()
     run("pgrep", { "-x", "mpvpaper" }, function(_, code)
         if code ~= 0 and wpv.url(wpv.cur) and not wp_prev.on then
             wpv.healed = os.time()
-            if wpv.direct then wpv.direct[wpv.cur] = nil end
-            wpv.settle(wpv.cur, true)
+            local u = wpv.cur
+            if wpv.direct then wpv.direct[u] = nil end
+            if wpv.fresh then wpv.fresh[u] = nil end
+            -- looked up again first: a link gone dead (private, offline, removed) is dropped, and the wallpaper before it comes back
+            wpv.src(u, function(src)
+                if wpv.cur ~= u then return end
+                if src then wpv.settle(u, true) else wpv.drop(u) end
+            end)
         end
     end)
 end)
@@ -4363,10 +4370,12 @@ with_dirs(function(d)
     fact.st_sound = wpv.sound
     local ok, saved = pcall(sys.ask, "files.read", "wallpaper-video.json", "json")
     local f = ok and type(saved) == "table" and saved.path
+    if ok and type(saved) == "table" and type(saved.before) == "string" and saved.before ~= "" then wpv.before = saved.before end
     if type(f) == "string" and f ~= "" and wpv.is(f) then
         if not wpv.url(f) then wpv.dir = f:match("^(.*)/[^/]+$") end
         wpv.src(f, function(src)
-            if not src then return end
+            -- a link gone dead while the desktop was off: the wallpaper before it comes back
+            if not src then if wpv.url(f) and wpv.drop then wpv.cur = f; wpv.drop(f) end return end
             wpv.settle(f, true)
             iris_last_wp = nil                       -- awww's poster was taken for the wallpaper before this was known
             check_wallpaper()
@@ -4495,7 +4504,8 @@ function wpv.forget(u)
     if wpv.frames then args[#args + 1] = wpv.frames end
     if wp_cache then args[#args + 1] = wp_cache end
     if #args == 0 then return end
-    for _, a in ipairs({ "-maxdepth", "1", "-name", "stream-*", "-delete" }) do args[#args + 1] = a end
+    -- (`*-stream-*.jpg.*`: thumbnails made of a link's frame itself, when the watcher saw it after the link was gone)
+    for _, a in ipairs({ "-maxdepth", "1", "(", "-name", "stream-*", "-o", "-name", "*-stream-????????.jpg.*", ")", "-delete" }) do args[#args + 1] = a end
     run("find", args, function() end)
 end
 local function wp_crop(files, kind, w, h, done)
@@ -4603,7 +4613,8 @@ end)
 local function wp_apply(path, how, started, hex, quiet)
     -- `src`: the picture awww is given: the wallpaper itself, or a video's poster (made first, once)
     wpv.src(path, function(src)
-        if not src then return end
+        -- (no picture: whoever waits is still told, or the picker's try stayed on and the watcher never looked at the wallpaper again)
+        if not src then if started then started() end return end
         -- `pic`: what awww is given: `src`, or the picture the add-on that frames wallpapers made of it (a quick try from the cards is never sent: it can take seconds)
         local function show(pic)
             local function by_awww()
@@ -4891,6 +4902,15 @@ local function wp_random_pick()
     local f
     repeat f = pool[math.random(1, #pool)] until f ~= wp_cur
     return f
+end
+-- A video link that cannot be played any more (made private, offline, removed): it stops being the wallpaper, and the one it replaced comes back
+-- (`wpv.before`), or a random one when that is not known; changing it forgets the link (`wpv.settle`, then `wpv.forget`).
+function wpv.drop(u)
+    if wpv.cur ~= u then wpv.forget(u) return end
+    local back = wpv.before
+    wpv.before = nil
+    if not back or back == "" or wpv.url(back) then back = wp_random_pick() end
+    if back then wp_apply(back) else wpv.settle(nil); wpv.forget(u) end
 end
 on("wp_random", function()
     local f = wp_random_pick()
@@ -8654,7 +8674,26 @@ require("logic/keybinds")()
             if wpv.fresh then wpv.fresh[feed] = nil end
             wp_made[crop_path(feed, "v")], wp_made[crop_path(feed, "c")] = nil, nil
             C.fv = (C.fv or 0) + 1
-            wp_crop({ feed }, "v", 96, 216, function() card_rows() end)
+            wp_crop({ feed }, "v", 96, 216, function()
+                -- no frame: the link is dead; it is dropped (the wallpaper before it comes back) and the cards are laid out again without it
+                if wp_made[crop_path(feed, "v")] == false and wpv.cur == feed then
+                    wpv.drop(feed)
+                    text.st_status = "That video link is no longer available"
+                    after(6000, function() if text.st_status == "That video link is no longer available" then text.st_status = "" end end)
+                    if not fact.wp_picker_open then return end
+                    wp_prev.orig = wp_cur
+                    card_list()
+                    C.sel = 0
+                    for i, f in ipairs(C.list or {}) do if f == wp_cur then C.sel = i - 1 break end end
+                    C.base = C.sel - R
+                    C.big, C.flip = {}, 0
+                    local f = C.list[C.sel + 1]
+                    if f then card_big(f, C.sel, true) end
+                    card_publish()
+                    return
+                end
+                card_rows()
+            end)
         end
         C.sel = 0
         for i, f in ipairs(C.list or {}) do if f == wp_cur then C.sel = i - 1 break end end
@@ -8766,6 +8805,7 @@ require("logic/keybinds")()
             if not src then
                 -- (found but no frame: the player started early goes, and the wallpaper there was plays again)
                 if early then wpv.keep = nil; wpv.settle(wpv.cur, false) end
+                text.st_url = ""                 -- (the field empties: a dead link is not left in it)
                 text.st_status = "No video at that link (offline, private, or not a video)"
                 local gone = C.st
                 after(6000, function() if C.st == gone then text.st_status = "" end end)
@@ -8773,6 +8813,7 @@ require("logic/keybinds")()
             end
             text.st_status = ""
             text.st_url = ""
+            if not wpv.url(wp_cur) then wpv.before = wp_cur end
             if fact.wp_picker_open then
                 C.tok = C.tok + 1                -- a card's try still waiting is dropped
                 wp_prev.touched, wp_prev.cancel, wp_prev.on, wp_prev.shown = false, false, false, nil
