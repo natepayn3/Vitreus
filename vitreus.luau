@@ -5045,9 +5045,15 @@ every(1000, function()
     if wpv.held_show() then
         wp_next = os.time() + wp_mins * 60
     elseif os.time() >= wp_next then
-        wp_next = os.time() + wp_mins * 60
-        local f = wp_random_pick()
-        if f then wp_apply(f) end
+        -- Not while the session is locked: each change re-runs Iris and rewrites palette.plm, and the lock screen and pleamar-wm's scene
+        -- reload for it (300 times in one night's lock). Asked again a minute later; a lock screen that does not answer counts as unlocked.
+        wp_next = os.time() + 60
+        run("pleamar", { "--say", "lockscreen", "get locked" }, function(locked)
+            if tostring(locked):match("true") then return end
+            wp_next = os.time() + wp_mins * 60
+            local f = wp_random_pick()
+            if f then wp_apply(f) end
+        end)
     end
     -- the countdown is only words on the Wallpaper page: written every second with the page shut, it had the scene put together again each time
     if fact.panel == "settings" and fact.set_page == "pg_wall" then wp_show_refresh() end
