@@ -1265,7 +1265,7 @@ function F.ch_filter_step()
     local c = s.ch
     if not c or #c.filters < 2 then return end
     c.fi = c.fi % #c.filters + 1
-    text["ch.filter"] = c.filters[c.fi].name
+    text["ch.filter"] = c.filters[c.fi].short
     s.items = F.visible()
     F.show_rows()
 end
@@ -1283,6 +1283,9 @@ function F.read_chooser(cb)
                     local parts = {}
                     for p in v:gmatch("[^\t]+") do parts[#parts + 1] = p end
                     local f = { name = parts[1] or "Files", pats = {} }
+                    -- what the button shows: the name without the patterns some programs repeat after it ("Applications (*.exe, *.sh)")
+                    f.short = trim((f.name:gsub("%s*%b()%s*$", "")))
+                    if f.short == "" then f.short = f.name end
                     for i = 2, #parts do f.pats[#f.pats + 1] = glob_pat(parts[i]) end
                     c.filters[#c.filters + 1] = f
                 elseif k == "multi" then c.multi = v == "1"
@@ -1294,7 +1297,7 @@ function F.read_chooser(cb)
             s.ch = c
             local words = { open = "Open", save = "Save", folder = "Select", savemany = "Save here" }
             text["ch.ok"] = c.ok ~= "" and c.ok:gsub("_", "") or words[c.mode] or "Open"
-            text["ch.filter"] = c.filters[c.fi] and c.filters[c.fi].name or ""
+            text["ch.filter"] = c.filters[c.fi] and c.filters[c.fi].short or ""
             fact["ch.filt"] = #c.filters > 1
             fact["ch.save"] = c.mode == "save"
             fact["ch.on"] = true
