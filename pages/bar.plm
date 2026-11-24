@@ -170,15 +170,16 @@ part Bar {
             zone box bsh_ctl_hit { at: msx3, mscy + 7 * pu; size: 64 * pu, 42 * pu; corner: 11 * pu; cursor: pointer; label: "Controls: show or hide" }
             on scroll bsh_ctl_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
             on press bsh_ctl_hit { emit bar_show_ctl }
+            //  One card for the section's switches (rows 36 apart, 14 inside: 3 rows, 128 tall).
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 532 * pu; size: 438 * pw, 128 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 532 * pu, 438 * pw, 128 * pu, 881.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 532 * pu; size: 438 * pw, 128 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 532 * pu; size: 438 * pw, 128 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 532 * pu; size: 438 * pw, 128 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             //  The Island moving to the music: it swells and sends a wave along itself on the bass (cava runs only while it is on). Only the Island does it, so on any other layout the row is dimmed and does nothing.
-            let bbz = sby + 495 * pu
+            let bbz = sby + 496 * pu
             group {
                 opacity: if(bar_frame, 0.45, 1)
-                body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, bbz; size: 438 * pw, 54 * pu; corner: 14 * pu } }
-                DdCard(spx + 219 * pw, bbz, 438 * pw, 54 * pu, 881.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-                box { at: spx + 219 * pw, bbz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-                box { at: spx + 219 * pw, bbz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-                box { at: spx + 219 * pw, bbz; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
                 measure ldr_barb2
                 group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(bbz + 0.5); text "Island moves to the music" { at: floor(spx + 14 * pw + 0.5), floor(bbz + 0.5); measure: ldr_barb2; anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
                 SettingsSwitch(spx + 424 * pw, bbz, bar_beat_pill, bar_beat_hit.pressed, bar_beat_hit.hover, mint)
@@ -188,14 +189,9 @@ part Bar {
                 on press bar_beat_hit { emit bar_beat_toggle }
             }
             //  The bulge: the bar's glass, and the docks', swells a little where the pointer is over it, and the swelling goes along with the pointer. On every layout (logic/bar_bulge.luau).
-            let bgz = sby + 557 * pu
+            let bgz = sby + 532 * pu
             group {
                 opacity: 1
-                body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, bgz; size: 438 * pw, 54 * pu; corner: 14 * pu } }
-                DdCard(spx + 219 * pw, bgz, 438 * pw, 54 * pu, 883.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-                box { at: spx + 219 * pw, bgz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-                box { at: spx + 219 * pw, bgz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-                box { at: spx + 219 * pw, bgz; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
                 measure ldr_barbg
                 group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(bgz + 0.5); text "Bulge under the pointer" { at: floor(spx + 14 * pw + 0.5), floor(bgz + 0.5); measure: ldr_barbg; anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
                 SettingsSwitch(spx + 424 * pw, bgz, bar_bulge_pill, bar_bulge_hit.pressed, bar_bulge_hit.hover, mint)
@@ -205,14 +201,9 @@ part Bar {
                 on press bar_bulge_hit { emit bar_bulge_toggle }
             }
             //  Auto-hide (Island only): the bar slides up off the screen and the docks down, the windows get their room, and the pointer against the edge brings them back. Dimmed, and does nothing, with a frame.
-            let ahz = sby + 619 * pu
+            let ahz = sby + 568 * pu
             group {
                 opacity: if(bar_frame, 0.45, 1)
-                body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, ahz; size: 438 * pw, 54 * pu; corner: 14 * pu } }
-                DdCard(spx + 219 * pw, ahz, 438 * pw, 54 * pu, 886.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-                box { at: spx + 219 * pw, ahz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-                box { at: spx + 219 * pw, ahz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-                box { at: spx + 219 * pw, ahz; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
                 measure ldr_barb3
                 group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(ahz + 0.5); text "Auto-hide the bar and docks" { at: floor(spx + 14 * pw + 0.5), floor(ahz + 0.5); measure: ldr_barb3; anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
                 SettingsSwitch(spx + 424 * pw, ahz, ah_bpill, bar_ah_hit.pressed, bar_ah_hit.hover, mint)
@@ -242,14 +233,15 @@ part Bar {
             on press bar_size_hit { emit bar_pick_size(clamp(((pointer.x - tx.pnl) - bzx0) / bzw, 0, 1)) }
             on drag bar_size_hit { emit bar_pick_size(clamp(((pointer.x - tx.pnl) - bzx0) / bzw, 0, 1)) }
 
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 663 * pu + 0.5); text "DOCKS AND ICONS" { at: floor(spx + 14 * pw + 0.5), floor(sby + 663 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 613 * pu + 0.5); text "DOCKS AND ICONS" { at: floor(spx + 14 * pw + 0.5), floor(sby + 613 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            //  One card for the section's switches (rows 36 apart, 14 inside: 5 rows, 200 tall).
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 726 * pu; size: 438 * pw, 200 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 726 * pu, 438 * pw, 200 * pu, 880.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 726 * pu; size: 438 * pw, 200 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 726 * pu; size: 438 * pw, 200 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 726 * pu; size: 438 * pw, 200 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             //  Room for the docks: off (the default), windows keep clear of the app dock and the add-on pill while they are out (on the edge opposite the bar); on, the docks overlap windows. The fact `bar_dockroom` is the room, so the switch is its opposite.
-            let drz = sby + 703 * pu
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, drz; size: 438 * pw, 54 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pw, drz, 438 * pw, 54 * pu, 880.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pw, drz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pw, drz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            box { at: spx + 219 * pw, drz; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            let drz = sby + 654 * pu
             measure ldr_barb4
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(drz + 0.5); text "Corner docks overlap windows" { at: floor(spx + 14 * pw + 0.5), floor(drz + 0.5); measure: ldr_barb4; anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
             SettingsSwitch(spx + 424 * pw, drz, bar_dr_pill, bar_dr_hit.pressed, bar_dr_hit.hover, mint)
@@ -261,14 +253,9 @@ part Bar {
 
             //  ── How the workspace marks look: a card each, with the marks drawn small (one of four in view, one with a window), as they are on the bar ──
             //  One centred dock (Island only): the app dock and the add-on pill become one pill in the middle of the bottom edge, which is then not pulled about. Dimmed, and does nothing, on the other layouts.
-            let dmz = sby + 765 * pu
+            let dmz = sby + 690 * pu
             group {
                 opacity: if(bar_frame, 0.45, 1)
-                body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, dmz; size: 438 * pw, 54 * pu; corner: 14 * pu } }
-                DdCard(spx + 219 * pw, dmz, 438 * pw, 54 * pu, 882.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-                box { at: spx + 219 * pw, dmz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-                box { at: spx + 219 * pw, dmz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-                box { at: spx + 219 * pw, dmz; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
                 measure ldr_barb5
                 group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(dmz + 0.5); text "Docks as one, centred" { at: floor(spx + 14 * pw + 0.5), floor(dmz + 0.5); measure: ldr_barb5; anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
                 SettingsSwitch(spx + 424 * pw, dmz, dock_mid_pill, dock_mid_hit.pressed, dock_mid_hit.hover, mint)
@@ -278,14 +265,9 @@ part Bar {
                 on press dock_mid_hit { emit dock_mid_toggle }
             }
 
-            let axz = sby + 827 * pu
+            let axz = sby + 726 * pu
             group {
                 opacity: if(bar_frame, 0.45, 1)
-                body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, axz; size: 438 * pw, 54 * pu; corner: 14 * pu } }
-                DdCard(spx + 219 * pw, axz, 438 * pw, 54 * pu, 883.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-                box { at: spx + 219 * pw, axz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-                box { at: spx + 219 * pw, axz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-                box { at: spx + 219 * pw, axz; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
                 measure ldr_barb6
                 group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(axz + 0.5); text "Add-on icons on the bar" { at: floor(spx + 14 * pw + 0.5), floor(axz + 0.5); measure: ldr_barb6; anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
                 SettingsSwitch(spx + 424 * pw, axz, bar_ax_pill, bar_ax_hit.pressed, bar_ax_hit.hover, mint)
@@ -294,14 +276,9 @@ part Bar {
                 on scroll bar_ax_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
                 on press bar_ax_hit { emit bar_ax_toggle }
             }
-            let cdz = sby + 889 * pu
+            let cdz = sby + 762 * pu
             group {
                 opacity: 1
-                body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, cdz; size: 438 * pw, 54 * pu; corner: 14 * pu } }
-                DdCard(spx + 219 * pw, cdz, 438 * pw, 54 * pu, 884.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-                box { at: spx + 219 * pw, cdz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-                box { at: spx + 219 * pw, cdz; size: 438 * pw, 54 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-                box { at: spx + 219 * pw, cdz; size: 438 * pw, 54 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
                 measure ldr_barb7
                 group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(cdz + 0.5); text "Show the corner dock" { at: floor(spx + 14 * pw + 0.5), floor(cdz + 0.5); measure: ldr_barb7; anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
                 SettingsSwitch(spx + 424 * pw, cdz, cdk_pill, cdk_hit.pressed, cdk_hit.hover, mint)
@@ -309,6 +286,17 @@ part Bar {
                 zone box cdk_hit { at: spx + 424 * pw - 19 * cu, cdz; size: 44 * cu, 28 * cu; cursor: pointer; active: true; label: "Show the corner dock" }
                 on scroll cdk_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
                 on press cdk_hit { emit cdk_show_toggle }
+            }
+            let ctz = sby + 798 * pu
+            group {
+                opacity: 1
+                measure ldr_barb8
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(ctz + 0.5); text "Dock apps as single-colour marks" { at: floor(spx + 14 * pw + 0.5), floor(ctz + 0.5); measure: ldr_barb8; anchor: left center; size: 16.5; color: faint; family: "Space Grotesk" } }
+                SettingsSwitch(spx + 424 * pw, ctz, cdk_tl_pill, cdk_tl_hit.pressed, cdk_tl_hit.hover, mint)
+                PLeader(spx + 14 * pw + ldr_barb8.width * rs + 8 * pu, spx + 424 * pw - 40 * cu, ctz, cdk_tl_hit.hover, pu)
+                zone box cdk_tl_hit { at: spx + 424 * pw - 19 * cu, ctz; size: 44 * cu, 28 * cu; cursor: pointer; active: true; label: "Dock apps as single-colour marks" }
+                on scroll cdk_tl_hit { br_scroll_to = clamp(br_scroll_to - wheel * 44, 0, max(0, br.h - set.h)) }
+                on press cdk_tl_hit { emit cdk_tiles_toggle }
             }
             }
             let br.thh = set.h * set.h / max(set.h, br.h)

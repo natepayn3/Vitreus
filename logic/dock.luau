@@ -2,7 +2,7 @@
 -- drawn and started (`id`, `name`, `icon`, `exec`) so it shows before the apps list has arrived. Kept in dock-pins.json: `pins` in order, `corner` (0 or 1, the
 -- scene's `cdk_corner`: where it was left) and `on` (the dock switched on). Pin from the launcher with a right click on an app's row (and again to let it go); in
 -- the dock a click starts the app, a right click unpins it, and pulling it takes the dock to the other corner.
-return function()
+return function(with_dirs)
     local MAX = 8
     local pins = {}
     local shown = true
@@ -10,16 +10,18 @@ return function()
     local ah_on = false                -- Settings > Bar: the bar and the docks hide until the pointer is pushed against their edge (`bar_ah`; only written to `dock_fx.ah`, as `room_on`)
     local room_on = true               -- Settings > Bar: windows keep clear of the docks (kept here and only written to `dock_fx`: a handler reads that table as it was when it was made)
     local known = {}                  -- id -> the app as the apps service reports it, to keep the icons right
+    local tiles = false               -- Settings > Bar: the apps as single-colour marks (`cdk_tiles`); each pin keeps its mark in `logo` once found
 
     local function save()
-        pcall(sys.call, "files.write", "dock-pins.json", { pins = pins, corner = (fact.cdk_corner == 1 or fact.cdk_corner == true) and 1 or 0, on = shown, room = room_on, mid = mid_on, ah = ah_on })
+        pcall(sys.call, "files.write", "dock-pins.json", { pins = pins, corner = (fact.cdk_corner == 1 or fact.cdk_corner == true) and 1 or 0, on = shown, room = room_on, mid = mid_on, ah = ah_on, tiles = tiles })
     end
     local was = 0                 -- whether the dock was out at the last `render`, for the room the windows keep clear of it (`dock_fx`, vitreus.luau)
     local function render()
         local rows = {}
-        for i, p in ipairs(pins) do rows[i] = { icon = p.icon or "" } end
+        for i, p in ipairs(pins) do rows[i] = { icon = p.icon or "", logo = p.logo or "", mono = (p.logo or "") ~= "" } end
         model.cdk_pins = rows
         fact.cdk_on = shown
+        fact.cdk_tiles = tiles
         local out = shown and #pins or 0
         if out ~= was then was = out; dock_fx.nc = out; dock_fx.c = out > 0; dock_fx.changed() end
     end
@@ -42,9 +44,79 @@ return function()
         if saved.room == false then room_on = false; dock_fx.enabled = false end
         if saved.mid == true then mid_on = true; dock_fx.mid = true end
         if saved.ah == true then ah_on = true; dock_fx.ah = true end
+        if saved.tiles == true then tiles = true end
         fact.cdk_corner = saved.corner == 1 and 1 or 0
     end
     render()
+
+    -- The marks: a brand's logo from Simple Icons (simpleicons.org, CC0), fetched once into the data folder (dock-logos/), by the names its slugs are
+    -- likely to be (the app's name squeezed, the last part of its id); else the icon theme's own `-symbolic` drawing of the app. A pin keeps what was
+    -- found (`logo`, "" for nothing) and `looked`, so nothing is asked twice. Only while that look is on.
+    local ALIAS = { ["google-chrome"] = "googlechrome", ["google-chrome-stable"] = "googlechrome", ["firefox"] = "firefoxbrowser", ["org.mozilla.firefox"] = "firefoxbrowser",
+        ["signal-desktop"] = "signal", ["org.signal.Signal"] = "signal", ["com.discordapp.Discord"] = "discord", ["com.spotify.Client"] = "spotify",
+        ["org.telegram.desktop"] = "telegram", ["steam"] = "steam", ["com.valvesoftware.Steam"] = "steam", ["obsidian"] = "obsidian", ["md.obsidian.Obsidian"] = "obsidian" }
+    local function slugs(p)
+        local out, seen = {}, {}
+        local function add(v)
+            v = (v or ""):lower():gsub("%+", "plus"):gsub("&", "and"):gsub("[^%w]", "")
+            if #v > 1 and not seen[v] then seen[v] = true; out[#out + 1] = v end
+        end
+        local id = (p.id or ""):gsub("%.desktop$", "")
+        add(ALIAS[id])
+        add(p.name)
+        local last = id:match("([^%.]+)$") or id
+        add(last)
+        add((last:gsub("%-stable$", ""):gsub("%-desktop$", ""):gsub("%-browser$", "")))
+        add((p.name or ""):match("^(%S+)"))
+        return out
+    end
+    local function brand(dir, list, k, done)
+        if k > #list then return done(nil) end
+        local f = dir .. "/" .. list[k] .. ".svg"
+        run("test", { "-s", f }, function(_, c)
+            if c == 0 then return done(f) end
+            run("curl", { "-fsSL", "--max-time", "8", "-o", f, "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/" .. list[k] .. ".svg" }, function(_, c2)
+                if c2 == 0 then done(f) else brand(dir, list, k + 1, done) end
+            end)
+        end)
+    end
+    local function symbolic(d, p, done)
+        local base = (p.icon or ""):match("([^/]+)$") or ""
+        base = base:gsub("%.svg$", ""):gsub("%.png$", ""):gsub("%.xpm$", "")      -- (an icon's name has dots of its own: org.remmina.Remmina)
+        if base == "" then return done(nil) end
+        run("find", { "/usr/share/icons", d.home .. "/.local/share/icons", "-name", base .. "-symbolic.svg", "-print", "-quit" }, function(out, c)
+            local f = c == 0 and (out or ""):match("^([^\n]+)") or nil
+            done(f)
+        end)
+    end
+    local looking = false
+    local function find_logos()
+        if not tiles or looking then return end
+        local p
+        for _, q in ipairs(pins) do if not q.looked then p = q; break end end
+        if not p then return end
+        looking = true
+        with_dirs(function(d)
+            local dir = d.data .. "/dock-logos"
+            run("mkdir", { "-p", dir }, function()
+                brand(dir, slugs(p), 1, function(f)
+                    local function took(g)
+                        p.logo = g or ""; p.looked = true; looking = false
+                        save(); render()
+                        find_logos()
+                    end
+                    if f then took(f) else symbolic(d, p, took) end
+                end)
+            end)
+        end)
+    end
+    for _, q in ipairs(pins) do if q.looked and (q.logo or "") == "" then q.looked = nil end end   -- nothing found last time: looked for again once a start
+    find_logos()
+    on("cdk_tiles_toggle", function()
+        tiles = not tiles
+        save(); render()
+        find_logos()
+    end)
 
     local function find(a)
         local id = a.id or a.name or ""
@@ -65,6 +137,7 @@ return function()
         local id = a.id or a.name or ""
         pins[#pins + 1] = { id = id, name = a.name or id, icon = a.icon or "", exec = a.exec }
         save(); render()
+        find_logos()
         return true
     end
 

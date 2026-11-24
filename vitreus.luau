@@ -9904,7 +9904,7 @@ end
 require("logic/privacy")()
 
 -- corner docks: see logic/dock.luau
-require("logic/dock")()
+require("logic/dock")(with_dirs)
 
 -- shelf: see logic/shelf.luau
 require("logic/shelf")(with_dirs)

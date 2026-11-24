@@ -295,8 +295,9 @@ scene Vitreus {
     fact tasks_watch = false       // the panel is open: keep the list fresh
     model trays max 16 { title: text; icon: image 30, 30; pinned: bool; menu: bool }
     model bartrays max 8 { icon: image 36, 36 }          // the tray apps that ride the bar
-    model cdk_pins max 8 { icon: image 32, 32 }          // the corner dock's pinned apps (logic/dock.luau)
+    model cdk_pins max 8 { icon: image 32, 32; logo: image 48, 48; mono: bool }   // the corner dock's pinned apps (logic/dock.luau): `logo` a single-colour mark for the glass-tile look (`mono`: there is one)
     fact cdk_on = true                                   // the corner dock is shown
+    fact cdk_tiles = false                               // Settings > Bar: the dock's apps as single-colour marks
     fact cdk_corner = 0                                  // which of the two corners opposite the bar it is in (kept in dock-pins.json)
     fact cdk_down = 0                                    // an icon or the pill is pressed
     fact cdk_hot = 0                                     // the pointer is on an icon (the surface asks for the keyboard on an empty workspace)
@@ -872,6 +873,7 @@ scene Vitreus {
     event bar_ax_toggle ->           // Settings > Bar > "Add-on icons on the bar": the add-on pill's icons sit on the Island instead of the corner pill (logic/bar_layout.luau)
     fact bar_ax = false
     event cdk_show_toggle ->         // Settings > Bar > "Show the corner dock" (logic/dock.luau)
+    event cdk_tiles_toggle ->        // Settings > Bar > "Dock apps as single-colour marks" (logic/dock.luau)
     //  The bar's layout (Settings > Bar): each piece's place in the row, 0 leftmost, and whether it is shown. The
     //  title is the stretch: what comes before it hugs the left, what comes after it the right.
     //  The bar's pieces are in a fixed order (logic/bar_layout.luau): the workspaces, the clock beside the window title, the tray, search, the gear, the controls.
@@ -2321,6 +2323,8 @@ scene Vitreus {
     follow bar_ax_pill = if(bar_ax, 1, 0)
     prop cdk_pill = 0 ~pop
     follow cdk_pill = if(cdk_on, 1, 0)
+    prop cdk_tl_pill = 0 ~pop
+    follow cdk_tl_pill = if(cdk_tiles, 1, 0)
     follow dock_mid_pill = if(dock_mid, 1, 0)
     prop dkm = 0 ~calm                 // how far the docks are one centred dock (only on the Island: `dock_mid`, and `bar_frame` off)
     follow dkm = if(dock_mid and not bar_frame, 1, 0)
@@ -5342,11 +5346,17 @@ scene Vitreus {
         group {
             pivot: 12 * dbu, 12 * dbu
             scale: 1 + 0.16 * touch.hover * (1 - cdk_drag)
-            image t.icon { at: 0, 0; size: floor(24 * dbu + 0.5), floor(24 * dbu + 0.5); opacity: 88% + 12% * touch.hover }
+            image t.icon { at: 0, 0; size: floor(24 * dbu + 0.5), floor(24 * dbu + 0.5); opacity: 88% + 12% * touch.hover; show: not cdk_tiles }
+            //  The single-colour look (Settings > Bar): the app's mark in the icons' colour (`ink`, as the add-on pill's), no plate; an app with no mark keeps its own icon.
+            //  Pencil, as the add-on pill's: the mark twice, a hair off, jumping about eight times a second under the pointer (the clock runs then: `need_clock`), the second fainter.
+            let cpf = floor(time * 8 * pn_rate)
+            image t.logo { at: 12 * dbu - floor(10 * dbu + 0.5) + 0.7 * dbu * sin(cpf * 61 + t.index * 50) * touch.hover, 12 * dbu - floor(10 * dbu + 0.5) + 0.7 * dbu * sin(cpf * 67 + t.index * 30) * touch.hover; size: floor(20 * dbu + 0.5), floor(20 * dbu + 0.5); tint: ink; opacity: 88% + 12% * touch.hover; show: cdk_tiles and t.mono }
+            image t.logo { at: 12 * dbu - floor(10 * dbu + 0.5) + 1.1 * dbu + 0.7 * dbu * sin(cpf * 47 + t.index * 70) * touch.hover, 12 * dbu - floor(10 * dbu + 0.5) - 0.8 * dbu + 0.7 * dbu * sin(cpf * 43 + t.index * 110) * touch.hover; size: floor(20 * dbu + 0.5), floor(20 * dbu + 0.5); tint: ink; opacity: 12% + 24% * touch.hover; show: cdk_tiles and t.mono }
+            image t.icon { at: 0, 0; size: floor(24 * dbu + 0.5), floor(24 * dbu + 0.5); opacity: 88% + 12% * touch.hover; show: cdk_tiles and not t.mono }
         }
         zone box touch { at: 12 * dbu, 12 * dbu; size: 31 * dbu, 33 * dbu; cursor: pointer; active: cdk_ga * sb > 0.6 and ((vert > 0.5) == (lm > 0.5)) }
-        on enter touch { cdk_hot = 1 }
-        on leave touch { cdk_hot = 0 }
+        on enter touch { cdk_hot = cdk_hot + 1 }       // (a count, as adk_hot: going from one icon to the next leaves and enters in the same frame)
+        on leave touch { cdk_hot = max(0, cdk_hot - 1) }
         on press touch { cdk_down = 1; cdk_drag = 0; cdk_hx = pointer.x - cdk.rcx; cdk_hy = pointer.y - cdk.rcy }
         on drag touch while cdk_down > 0.5 { cdk_px = clamp(pointer.x - cdk_hx, 0, screen.width); cdk_py = clamp(pointer.y - cdk_hy, 0, screen.height); cdk_drag = if(cdk_drag > 0.5 or abs(drag.dx) + abs(drag.dy) > 8, 1, 0) }
         on release touch while cdk_down > 0.5 and cdk_drag < 0.5 { emit cdk_go(t.index) }
@@ -6289,7 +6299,7 @@ scene Vitreus {
     let wm.h = 1040                      // the Pleamar-WM page: to the bottom of its last card
     let ad.h = 36 + max(1, addons.count) * 80 + 51 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (80 apart), and the line under them
     let ck.h = 1114.5                    // the Widgets page: the clock's cards, then the system monitor's, to the bottom of the last
-    let br.h = 916                     // the Bar page: to the bottom of its last card
+    let br.h = 826                     // the Bar page: to the bottom of its last card
     let wsg.h = 742                    // the Workspaces page, the same
     let hy.h = 500.5                     // the Hyprland page: to the bottom of its last card
     let gl.h = 1133                    // the Glass page: to the bottom of its last card (its first 40, where a header was, are taken off in `gl.off`)
@@ -8242,7 +8252,7 @@ scene Vitreus {
         on press bat_z { pending = none; panel_scr = screen.index; panel = if(panel == battery, none, battery) }
     }
     //  The clock runs while something needs it. It is here, after the bar's zones, because it reads their hover: the bar's icons only boil under the pointer.
-    let need_clock = (fr_wv > 0 and fm > 0.5) or (cy_on > 0.01) or bar_hit.hover > 0.01 or adk_hot > 0.5 or wsh.1.$screen > 0.01 or wsh.2.$screen > 0.01 or wsh.3.$screen > 0.01 or wsh.4.$screen > 0.01 or wsh.5.$screen > 0.01 or wsh.6.$screen > 0.01 or wsh.7.$screen > 0.01 or wsh.8.$screen > 0.01 or wsh.9.$screen > 0.01 or wsh.10.$screen > 0.01 or set_hit.hover > 0.01 or sr_hit.hover > 0.01 or ctl_hit.hover > 0.01 or ov_btn.hover > 0.01 or bp.prev.hover > 0.01 or bp.play.hover > 0.01 or bp.next.hover > 0.01 or vm_prev.hover > 0.01 or vm_play.hover > 0.01 or vm_next.hover > 0.01 or ds > 0.01 or dl > 0.01 or dk > 0.01 or hm_hot > 0.5 or ((wifi_scanning or bt_scanning or bt_working or caf_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or osd_kind == note or nt_urgent)) or (set_pgd > 0.01 and disp.h > set.h) or time - pw_b0 < 1.5 or time - pw_b1 < 1.5 or time - pw_b2 < 1.5 or time - pw_b3 < 1.5 or time - pw_b4 < 1.5 or rec_on or (dsh_rise > 0.01 and (dsh_rise < 0.995 or dsh_under > 0.002 or media.playing or dsh_hv > 0.5)) or (mf.vis > 0.01 and (media.playing or mf_hv > 0.01))
+    let need_clock = (fr_wv > 0 and fm > 0.5) or (cy_on > 0.01) or bar_hit.hover > 0.01 or adk_hot > 0.5 or (cdk_hot > 0.5 and cdk_tiles) or wsh.1.$screen > 0.01 or wsh.2.$screen > 0.01 or wsh.3.$screen > 0.01 or wsh.4.$screen > 0.01 or wsh.5.$screen > 0.01 or wsh.6.$screen > 0.01 or wsh.7.$screen > 0.01 or wsh.8.$screen > 0.01 or wsh.9.$screen > 0.01 or wsh.10.$screen > 0.01 or set_hit.hover > 0.01 or sr_hit.hover > 0.01 or ctl_hit.hover > 0.01 or ov_btn.hover > 0.01 or bp.prev.hover > 0.01 or bp.play.hover > 0.01 or bp.next.hover > 0.01 or vm_prev.hover > 0.01 or vm_play.hover > 0.01 or vm_next.hover > 0.01 or ds > 0.01 or dl > 0.01 or dk > 0.01 or hm_hot > 0.5 or ((wifi_scanning or bt_scanning or bt_working or caf_on or pw_d0 or pw_d1 or pw_d2 or pw_d3 or pw_d4) and dk > 0.01) or (do > 0.01 and (osd_kind == vol or osd_kind == note or nt_urgent)) or (set_pgd > 0.01 and disp.h > set.h) or time - pw_b0 < 1.5 or time - pw_b1 < 1.5 or time - pw_b2 < 1.5 or time - pw_b3 < 1.5 or time - pw_b4 < 1.5 or rec_on or (dsh_rise > 0.01 and (dsh_rise < 0.995 or dsh_under > 0.002 or media.playing or dsh_hv > 0.5)) or (mf.vis > 0.01 and (media.playing or mf_hv > 0.01))
     spin time by if(need_clock, 1, 0)
 
 
