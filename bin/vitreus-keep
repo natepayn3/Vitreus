@@ -18,6 +18,11 @@
 #   - An update that replaces this script (git reset) does not reach a keeper already running: it reads the old file it opened. So
 #     before each start it looks whether its file is still the one it began with, and if not runs the new one in its place (issue #67:
 #     the old keeper went on starting the bar without `--screen`, and the bar was gone).
+#   - pleamar's timing lines (PLEAMAR_TIMING, which pleamar-wm's session sets for everything it starts) are off for the scenes started
+#     here: with glass on screen one of them lists every piece of it at every painting, and the bar's log grew by 2.4 GB an hour. To have
+#     them while looking into a stutter: `touch ~/.local/share/pleamar/vitreus/timing` (or VITREUS_TIMING=1 in the environment) and start
+#     the scene again; take the file away afterwards.
+#   - The log is kept under 8 MB while the scene runs too (looked at with the hang watch, every 30 s): what there is goes to LOG.1.
 #   - To stop a scene for good, stop its keeper first (pkill -f "vitreus-keep SCENE"), then the scene.
 set -u
 P="${1:?usage: vitreus-keep SCENE.plm [LOG]}"
@@ -51,6 +56,14 @@ undo_gaps() {
     [ -s "$data/gaps-undo.lua" ] || return 0
     hyprctl eval "$(cat "$data/gaps-undo.lua")" > /dev/null 2>&1 && say "gave Hyprland's gaps back"
     sed -i '/gaps_out/d' "$data/vitreus_colors.lua" "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/vitreus_colors.lua" 2> /dev/null
+}
+
+# A log past 8 MB is kept as LOG.1 (one generation) and emptied. The scene has it open to append (`>>`), so what it writes next lands
+# at the start of the emptied file.
+trim_log() {
+    [ "$L" != /dev/null ] && [ -f "$L" ] || return 0
+    [ "$(stat -c %s "$L" 2> /dev/null || echo 0)" -gt 8000000 ] || return 0
+    cp -f "$L" "$L.1" 2> /dev/null && : > "$L"
 }
 
 # The hang watch, run beside the scene (pid $1). `--say` reaches a scene by its file's name; `wait` is answered by the scene's render,
@@ -92,6 +105,7 @@ watch_hang() {
             kill -9 "$1" 2> /dev/null
             return 0
         fi
+        trim_log
         sleep "${VITREUS_KEEP_EVERY:-30}"
     done
 }
@@ -152,15 +166,18 @@ while :; do
         scr=$(head -n 1 "$data/bar-screens" | tr -d ' \t')
         [ -n "$scr" ] && set -- --screen "$scr"
     fi
+    # pleamar's timing lines: off, unless asked for (see the top of this file).
+    timing_unset="-u PLEAMAR_TIMING"; timing_set=""
+    if [ "${VITREUS_TIMING:-0}" = 1 ] || [ -e "$data/timing" ]; then timing_unset=""; timing_set="PLEAMAR_TIMING=1"; fi
     # env takes its options (-u) before its NAME=value words: after the first of those, the next word is the command.
     # In the background, so the hang watch can run beside it; `wait` gives its exit code as running it in the foreground did.
     if [ -n "$fonts" ]; then
         # shellcheck disable=SC2086
-        env $gpu_unset $gpu_set FONTCONFIG_FILE="$fonts" pleamar --scene "$P" --no-hud "$@" >> "$L" 2>&1 9>&- &
+        env $gpu_unset $timing_unset $gpu_set $timing_set FONTCONFIG_FILE="$fonts" pleamar --scene "$P" --no-hud "$@" >> "$L" 2>&1 9>&- &
     else
         # Not the font setup this keeper itself was started under (a theme change since): that one is no longer the shell's typeface.
         # shellcheck disable=SC2086
-        env $gpu_unset -u FONTCONFIG_FILE $gpu_set pleamar --scene "$P" --no-hud "$@" >> "$L" 2>&1 9>&- &
+        env $gpu_unset $timing_unset -u FONTCONFIG_FILE $gpu_set $timing_set pleamar --scene "$P" --no-hud "$@" >> "$L" 2>&1 9>&- &
     fi
     spid=$!
     watch_hang "$spid" "$logsize" 9>&- < /dev/null &
