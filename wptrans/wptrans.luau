@@ -26,20 +26,15 @@ end
 -- The shell says when (`para_set`, with `para_want` and `pwall`): at its start, when the switch is pressed, when the wallpaper changes. While a new picture
 -- is made the old one fades away (awww's own wallpaper is under it, already changing) and the new one fades in over it.
 local para_n, para_path, para_next = 0, nil, nil
--- Makes the picture for `path` and calls `done(file)`, or `done(nil)`. `geo`: the screen, as awww says it ("1920x1080"). The picture is the wallpaper
--- cropped to the screen's shape at the size the scene draws it at its strongest (the screen and 120 pixels a side), never at 1080p; then squeezed
--- to 16:9, the shape the scene's image is declared with, which stretches it back.
-local function para_file(path, geo, done)
-    local sw, sh = geo:match("(%d+)x(%d+)")
-    sw, sh = tonumber(sw) or 1920, tonumber(sh) or 1080
-    local w = math.min(4096, sw + 240)
-    local h = math.floor(w * sh / sw + 0.5)
-    local crop = w .. "x" .. h
+-- Makes the picture for `path` and calls `done(file)`, or `done(nil)`. The picture keeps the wallpaper's own shape (only made smaller when it is
+-- bigger than 4096 a side, and turned the way its camera says): the scene covers each monitor with it (`fit: cover`), cut to that monitor's own
+-- shape there. (It was cut here to the shape of the first monitor awww named and squeezed to 16:9, so with a portrait monitor beside a wide one,
+-- one of the two showed it stretched.)
+local function para_file(path, _geo, done)
     local dir = home .. "/.cache/pleamar/wptrans"
     run("mkdir", { "-p", dir }, function()
         local file = dir .. "/para.jpg"
-        run("magick", { path .. "[0]", "-auto-orient", "-resize", crop .. "^", "-gravity", "center", "-extent", crop,
-                        "-resize", w .. "x" .. math.floor(w * 9 / 16 + 0.5) .. "!", "-quality", "95", file }, function(_, code)
+        run("magick", { path .. "[0]", "-auto-orient", "-resize", "4096x4096>", "-quality", "95", file }, function(_, code)
             done(code == 0 and file or nil)
         end)
     end)
@@ -113,9 +108,8 @@ on("go", function()
         run("mkdir", { "-p", dir }, function()
             counter = counter + 1
             local file = dir .. "/new.jpg"
-            -- what awww would show: the picture cropped to fill the screen; then at the size the scene's image is declared at
-            run("magick", { path .. "[0]", "-resize", geo .. "^", "-gravity", "center", "-extent", geo,
-                            "-resize", "1920x1080!", "-quality", "92", file }, function(_, code)
+            -- the picture in its own shape: the scene cuts it to each monitor's (`fit: cover`), as awww does
+            run("magick", { path .. "[0]", "-auto-orient", "-resize", "4096x4096>", "-quality", "92", file }, function(_, code)
                 if code ~= 0 then
                     -- No picture to dissolve into (magick missing, or it cannot read this one): the wallpaper is still changed, with awww's own
                     -- fade. Returning here dropped the change, with the shell already told it was under way.

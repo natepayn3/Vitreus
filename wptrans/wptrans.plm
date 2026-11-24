@@ -19,7 +19,7 @@ scene Wptrans {
 
     text src = ""                       // the picture, made by the logic: a path, with a version on the end (it is made again each time)
     text target = ""                    // the wallpaper that was picked
-    image nimg = from src, 1920, 1080
+    image nimg = from src, 0, 0          // its own shape: each monitor cuts it to its own (`fit: cover`)
 
     fact active = false                 // the dissolve is on
     fact ox = 960                       // where the wave starts, in pixels from the top left
@@ -40,8 +40,8 @@ scene Wptrans {
     //  (measured: a scene that names it and does not move with it idles at the same 0.1 % as one that does not).
     text psrc = ""                      // the picture, at the screen's shape, with a version on the end
     text pwall = ""                     // the wallpaper it is made from, as the shell names it ("" : ask awww)
-    image pimg = from psrc, 4096, 2304   // 16:9, as the logic makes the file (squeezed to that shape and stretched back here, as the dissolve's is), at the
-                                         // size it is drawn: the screen and the most it can lean, not 1080p. Past 2046 wide it is a texture of its own.
+    image pimg = from psrc, 0, 0         // the wallpaper's own shape: each monitor covers itself with it, cut to its own shape (`fit: cover`), read at
+                                         // the size it is drawn there (the screen and the most it can lean). One shape for all stretched a portrait monitor's.
     fact para_want = false              // what the shell asks for (it says no while a video is the wallpaper)
     fact para = false                   // it is on
     fact pshow = false                  // the picture is ready: it fades away while a new one is made, and awww's own shows
@@ -81,11 +81,11 @@ scene Wptrans {
     zone box wall { from: 0, 0; size: 16384, 16384; active: wp_dec > 0.5 }
     on press right wall { mmon = screen.index; emit edit_req }
 
-    image pimg { at: -pmx - pmx * px, -pmy - pmy * py; size: screen.width + 2 * pmx, screen.height + 2 * pmy; opacity: pfade; show: pfade > 0.002 }
+    image pimg { at: -pmx - pmx * px, -pmy - pmy * py; size: screen.width + 2 * pmx, screen.height + 2 * pmy; fit: cover; opacity: pfade; show: pfade > 0.002 }
 
     group {
         show: active
         shader: hexr, prog, hex_r, ox, oy, 0.8, 0.45, wp_dec
-        image nimg { at: 0, 0; size: screen.width, screen.height }
+        image nimg { at: 0, 0; size: screen.width, screen.height; fit: cover }
     }
 }
