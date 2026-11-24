@@ -133,10 +133,21 @@ return function()
         tick_cam()
     end)
     tick_mic()
+    -- bin/vitreus-watch reads the cameras' power state itself and says when it changes (`watchd` in vitreus.luau): a `cat` every two seconds
+    -- was started only to learn that they were still asleep. While one is awake, who has it is still asked every two seconds; and without
+    -- the watcher (`cam_live`, a local: a handler here reads the shared tables as they were), the timer looks as before.
+    local cam_live, cam_awake = false, false
+    watchd.conf[#watchd.conf + 1] = "cam cam 1000"
+    watchd.subs.cam = function(f)
+        if not f then cam_live = false; return end
+        cam_live = true
+        cam_awake = (tonumber(f[2]) or 1) > 0
+        if cam_awake then tick_cam() else cam_off() end
+    end
     local ticks = 0
     every(2000, function()
         ticks = ticks + 1
-        tick_cam()
+        if not cam_live or cam_awake then tick_cam() end
         -- (not listening is nearly always no sound server at all, where asking fails too: every 10 s then, not a failing `pactl` every 2 s for good)
         if ticks % (listening and 15 or 5) == 0 then tick_mic() end
     end)

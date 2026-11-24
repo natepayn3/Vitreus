@@ -84,10 +84,12 @@ end
 -- `hyprctl monitors -j`, shared. The bar's monitors, the scene's monitor height and the Display page's watch each started it on their own
 -- timer, every four or five seconds. A caller that can use an answer up to `max_age` seconds old gets the last one, and one already on
 -- its way is waited for instead of starting another; with 0 it is always asked again.
-mon_cache = { out = nil, code = nil, at = -1, waiting = nil }
+-- `fed`: bin/vitreus-watch is saying when the monitors change (under pleamar-wm, see `watchd`), and the answer was asked after the last change:
+-- it is good until the next one (and asked again after two minutes all the same). A caller that says 0 still always asks.
+mon_cache = { out = nil, code = nil, at = -1, waiting = nil, fed = false }
 function hypr_monitors(max_age, cb)
     local c = mon_cache
-    if c.out and max_age > 0 and os.time() - c.at <= max_age then return cb(c.out, c.code) end
+    if c.out and max_age > 0 and os.time() - c.at <= (c.fed and 120 or max_age) then return cb(c.out, c.code) end
     if c.waiting then table.insert(c.waiting, cb); return end
     c.waiting = { cb }
     run("hyprctl", { "monitors", "-j" }, function(out, code)
@@ -141,29 +143,68 @@ function scene_say_when_up(name, cmds, tries)
 end
 -- Under pleamar-wm there is no `workspaces` service (it comes from Hyprland); the window manager is a scene, so its workspaces are asked of
 -- it over its socket: which one is shown, and which one each window is on.
+-- bin/vitreus-watch: one small program that stays running and says a line when something it watches changes, instead of a command started
+-- on a timer to learn that nothing did. What it watches is `watchd.conf` (its lines are explained at the top of its source), and each line it
+-- says goes to `watchd.subs[name]` as its fields; `nil` when it has ended, so whoever listens goes back to asking for itself. Started once,
+-- after everyone has said what they want (`watchd_start`, below with the workspaces). Not installed, it is tried again less and less often.
+watchd = { conf = {}, subs = {}, wait = 5000, started = false }
+function watchd_start()
+    if watchd.started or #watchd.conf == 0 then return end
+    watchd.started = true
+    local function start()
+        local ok = pcall(spawn, "vitreus-watch", {}, function(line)
+            if type(line) ~= "string" then return end
+            local f = {}
+            for v in (line .. "\t"):gmatch("(.-)\t") do f[#f + 1] = v end
+            local to = watchd.subs[table.remove(f, 1) or ""]
+            if to then watchd.wait = 5000; to(f) end
+        end, function()
+            for _, to in pairs(watchd.subs) do to(nil) end
+            after(watchd.wait, start)
+            watchd.wait = math.min(600000, watchd.wait * 2)
+        end, { input = table.concat(watchd.conf, "\n") .. "\n" })
+        if not ok then for _, to in pairs(watchd.subs) do to(nil) end end
+    end
+    start()
+end
 function wm_get(name, done) run("pleamar", { "--say", "wm", "get " .. name }, function(out) done(tonumber((out or ""):match("%-?[%d.]+")) or ((out or ""):match("true") and 1) or ((out or ""):match("false") and 0) or nil) end) end
 desk_seen = nil                          -- the last count of right presses on the bare desktop that was looked at
 bar_mon = { name = nil, set = nil }      -- the monitor the bar is on ("all" for two), and the set of the names of the ones it is on; set by logic/bar_monitors.luau
-function wm_workspaces()
+-- The questions are the same every time: made once (`wm_q`, a global table: this chunk is at Luau's limit of locals). `wm_q.live` is whether
+-- bin/vitreus-watch is the one asking (it holds the connections open and says only what changed), and `wm_q.last` what it last said.
+wm_q = { cmds = nil, slots = 16, desk_at = 0, app_at = 0, live = false, last = nil, icons = nil }
+function wm_asks()
+    if wm_q.cmds then return wm_q.cmds end
     -- One connection for every question (`say_many`): a `pleamar --say` process for each one, ten times a second, was what made the shell stutter.
     -- The workspace shown is per monitor: the bar's own, which is the one named in its `screens:` (the order of pleamar-wm's monitors is
     -- the order `hyprctl monitors` gives them: "Monitor <name> (ID 1)"), or the one the pointer is on when the bar is on all of them.
     local cmds = { "get mon", "get win.shown.0", "get win.shown.1", "get win.shown.2", "get win.shown.3" }
     -- (pleamar-wm has 16 window slots, `windows win max 16`: only the first six were asked, so a workspace holding only later windows showed empty)
-    local slots = 16
+    local slots = wm_q.slots
     for i = 0, slots - 1 do cmds[#cmds + 1] = "get win." .. i .. ".open" end
     for i = 0, slots - 1 do cmds[#cmds + 1] = "get win." .. i .. ".workspace" end
-    local desk_at = 6 + 2 * slots
+    wm_q.desk_at = 6 + 2 * slots
     -- (the four after the windows) a right press on the bare desktop, which the window manager's scene counts: the desktop menu opens where it was (see `desk_n` in wm/session.plm)
     for _, k in ipairs({ "desk_n", "desk_x", "desk_y", "desk_mon" }) do cmds[#cmds + 1] = "get " .. k end
+    -- (last, so nothing before them moves: each window's program, for the workspaces' icons, logic/ws_marks.luau)
+    wm_q.app_at = #cmds + 1
+    for i = 0, slots - 1 do cmds[#cmds + 1] = "get win." .. i .. ".app" end
+    wm_q.cmds = cmds
+    return cmds
+end
+function wm_workspaces()
+    say_many("wm", wm_asks(), function(r) if r then wm_apply(r) end end)
+end
+-- What the window manager answered (`r`, in the order of `wm_asks`), put on the bar.
+function wm_apply(r)
+    local slots, desk_at = wm_q.slots, wm_q.desk_at
     hypr_monitors(30, function(mons)
         local name = bar_mon.name
         local idx = nil
         if name and name ~= "all" and mons then
             for id, n in pairs(mon_names(mons)) do if n == name then idx = id end end
         end
-        say_many("wm", cmds, function(r)
-            if not r then return end
+        do
             local n = idx or tonumber((r[1] or ""):match("%d+")) or 0
             local shown = tonumber((r[2 + n] or ""):match("%-?[%d.]+"))
             if shown and fact["ws.active"] ~= shown then fact["ws.active"] = shown end
@@ -199,7 +240,7 @@ function wm_workspaces()
                 end
                 desk_seen = dn
             end
-        end)
+        end
     end)
 end
 -- niri: its workspaces (one list on each monitor, numbered from 1) are asked of `hyprctl workspaces -j`, which pleamar-wm/hyprctl-niri answers from `niri msg`. The
@@ -228,12 +269,42 @@ function niri_workspaces()
     end)
 end
 after(1500, function()
-    if on_niri then every(1000, niri_workspaces)
+    if on_niri then every(1000, niri_workspaces); watchd_start()
     elseif not on_hyprland then
         -- (not Hyprland and not niri was taken to be pleamar-wm: on any other compositor this was a `socat` to a missing socket twice a second, for ever)
         with_sock_dir(function(dir)
-            run("ls", { dir .. "/wm.sock" }, function(_, code) if code == 0 then every(500, wm_workspaces) end end)
+            run("ls", { dir .. "/wm.sock" }, function(_, code)
+                if code ~= 0 then return watchd_start() end
+                -- bin/vitreus-watch asks instead, ten times a second down connections it keeps, and says a line when an answer changes: the
+                -- `socat` twice a second was a third of every program this desktop started. Without it (not built), the timer asks as before.
+                local conf = { "sock wm 100 21 " .. dir .. "/wm.sock" }
+                for _, c in ipairs(wm_asks()) do conf[#conf + 1] = "ask " .. c end
+                watchd.conf[#watchd.conf + 1] = table.concat(conf, "\n")
+                watchd.subs.wm = function(f)
+                    if not f or f[1] == "-" then
+                        wm_q.live = false
+                        if wm_q.icons then wm_q.icons(nil) end
+                        return
+                    end
+                    wm_q.live, wm_q.last = true, f
+                    wm_apply(f)
+                    if wm_q.icons then wm_q.icons(f, 6, 6 + wm_q.slots, wm_q.app_at) end
+                end
+                -- The monitors: the window manager keeps a file that says which there are, where, turned how, and which has the focus. When
+                -- those lines change `hyprctl monitors` is asked once, and until they do its last answer is good (`mon_cache.fed`).
+                watchd.conf[#watchd.conf + 1] = "file mon 250 " .. dir .. "/desktop\nkeep monitor \nkeep turn "
+                watchd.subs.mon = function(m)
+                    mon_cache.fed = false
+                    if m then hypr_monitors(0, function() mon_cache.fed = true end) end
+                end
+                every(500, function() if not wm_q.live then wm_workspaces() end end)
+                -- (the bar moved to another monitor: the same answers, read for that one)
+                every(3000, function() if wm_q.live and wm_q.last then wm_apply(wm_q.last) end end)
+                watchd_start()
+            end)
         end)
+    else
+        watchd_start()
     end
 end)
 function goto_workspace(i)
@@ -3854,9 +3925,10 @@ function lens_image(path)
 end
 local function check_wallpaper()
     run("awww", { "query" }, function(out, code)
-        if code ~= 0 or not out then return end
+        if code ~= 0 or not out then wph.dirty = false; return end
         if wp_prev.on then return end
         if wph.busy then return end          -- an add-on is making the picture: awww shows the old one, which is not a change from outside
+        wph.dirty = false                    -- (looked at: see the timer below)
         local path = out:match("currently displaying: image: ([^\n]+)")
         if wp_pending then
             if path == wp_pending then wp_pending = nil
@@ -4340,7 +4412,16 @@ end
 -- A wallpaper that Vitreus sets is known at once (see `wp_apply`); this is only for one changed from elsewhere, so it
 -- does not need to look often. Every look starts a program (`awww query`): twice a second was most of what the shell
 -- launched while doing nothing, and every two seconds was still a third of it: every six.
-every(6000, check_wallpaper)
+-- With bin/vitreus-watch running, awww is only asked when its own files change (it keeps one a monitor in its cache folder): `wph.fed`.
+-- A change that could not be looked at yet (`wph.dirty`: the picker is open, an add-on is drawing) and a dissolve that is awaited are
+-- still looked at every six seconds, and without the watcher every look is, as before.
+wph.fed, wph.dirty = false, false
+watchd.conf[#watchd.conf + 1] = "tree wp 1000 ~cache/awww"
+watchd.subs.wp = function(f)
+    wph.fed = f ~= nil
+    if f then wph.dirty = true; check_wallpaper() end
+end
+every(6000, function() if not wph.fed or wph.dirty or wp_pending then check_wallpaper() end end)
 check_wallpaper()
 -- A video link that stopped (the address it was given expired, the stream dropped) is started again from its link, at most every 30 s while it stays
 -- the wallpaper. Not while the picker's cards are trying others (they stop it on purpose).

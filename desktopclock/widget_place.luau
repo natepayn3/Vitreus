@@ -114,10 +114,25 @@ return function(w)
     -- Monitors come and go rarely. On Hyprland its event socket says when (added, removed, a config reload that may move one), with a look every
     -- minute for a missed event; elsewhere every five seconds. Never while it is dragged. A copy reporting a new name (a monitor plugged in) is looked at too.
     local events = false
+    -- Not Hyprland: pleamar-wm keeps a file that says which monitors there are, where and turned how. bin/vitreus-watch (the shell's watcher)
+    -- reads it and says a line when that changes, which is when `hyprctl monitors` is worth asking; a line with nothing after its name is no
+    -- such file (another desktop, where the timer asks as before). `stale`: it changed, and has not been looked at yet (a drag was on).
+    local stale, watcher = false, nil
+    local function watch_file()
+        local ok, id = pcall(spawn, "vitreus-watch", {}, function(line)
+            if not line:find("\t", 1, true) then
+                events = false
+                if watcher then kill(watcher, "term") end
+                return
+            end
+            events, stale = true, true
+        end, function() events = false end, { input = "file mon 500 ~wm/desktop\nkeep monitor \nkeep turn \n" })
+        if ok then watcher = id end
+    end
     local function watch()
         run("printenv", { "XDG_RUNTIME_DIR", "HYPRLAND_INSTANCE_SIGNATURE" }, function(out, code)
             local rt, sig = (out or ""):match("^([^\n]+)\n([^\n]+)")
-            if code ~= 0 or not rt or not sig then return end
+            if code ~= 0 or not rt or not sig then return watch_file() end
             local ok = pcall(spawn, "socat", { "-u", "UNIX-CONNECT:" .. rt .. "/hypr/" .. sig .. "/.socket2.sock", "-" }, function(line)
                 if line:match("^monitoradded") or line:match("^monitorremoved") or line:match("^configreloaded") then after(400, refresh) end
             end, function()
@@ -132,6 +147,7 @@ return function(w)
         ticks = ticks + 1
         if (not events or ticks % 12 == 0) and not fact.dragging then refresh() end
     end)
+    every(500, function() if stale and not fact.dragging then stale = false; refresh() end end)
     local pending = false
     for k = 0, 3 do
         on("text:screen." .. k .. ".name", function()

@@ -250,9 +250,13 @@ local function publish(s, b, done)
     end)
 end
 
+-- `wp_fed`: bin/vitreus-watch (the shell's watcher) says when awww's own files change, which is when the wallpaper did. `wp_dirty`: it
+-- changed, or may have, and has not been looked at yet (it is not looked at while locked).
+local wp_fed, wp_dirty = false, true
 local function prepare_wallpaper()
     if prep_busy or fact.locked or home == "" then return end
     prep_busy = true
+    wp_dirty = false
     local dir = home .. "/.cache/pleamar/lockscreen"
     local function done() prep_busy = false end
     run("awww", { "query" }, function(out)
@@ -314,7 +318,17 @@ on("fact:cfg_blur", function(v)
     made_key = nil                          -- the blurred picture is made again, at the new blur
     prepare_wallpaper()
 end)
-every(5000, prepare_wallpaper)
+-- Every five seconds `awww query` and an `ls` were started to learn that the wallpaper was the same one. With the watcher they are started
+-- when it changes, and once a minute for what awww's files do not say (the same file written again); without it, every five seconds.
+pcall(spawn, "vitreus-watch", {}, function()
+    wp_fed, wp_dirty = true, true
+    prepare_wallpaper()
+end, function() wp_fed = false end, { input = "tree wp 1000 ~cache/awww\n" })
+local wp_ticks = 0
+every(5000, function()
+    wp_ticks = wp_ticks + 1
+    if not wp_fed or wp_dirty or wp_ticks % 12 == 0 then prepare_wallpaper() end
+end)
 after(500, prepare_wallpaper)
 
 -- ── The password, as shapes ──────────────────────────────────────────────────────────────────────────

@@ -159,6 +159,22 @@ return function(shared)
         soon = true
         after(150, function() soon = false; refresh() end)
     end)
-    every(2500, refresh)
+    -- Under pleamar-wm with bin/vitreus-watch running, the workspaces' answers come from it whenever one changes (`wm_q.icons`, called from
+    -- vitreus.luau with where the windows' answers are in them): no question of its own every 2.5 s. `fed` is a local: a handler here reads
+    -- the shared tables as they were.
+    local fed = false
+    wm_q.icons = function(f, open_at, ws_at, app_at)
+        if not f then fed = false; return end
+        fed = true
+        if O.style ~= 2 then return end
+        local per, seen = {}, {}
+        for i = 0, 15 do
+            if (f[open_at + i] or ""):match("true") then
+                add(per, seen, math.floor(tonumber((f[ws_at + i] or ""):match("%-?[%d.]+")) or 0), ((f[app_at + i] or ""):gsub("%s+$", "")):lower())
+            end
+        end
+        publish(per)
+    end
+    every(2500, function() if not fed then refresh() end end)
     after(2000, refresh)
 end

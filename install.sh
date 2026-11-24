@@ -27,7 +27,7 @@
 #                                      into ~/.local/share/fonts, no sudo)
 #   4. the shell                      (into ~/.config/pleamar/shells/vitreus: cloned, or updated)
 #   5. your palette, autostart entry  (made once and never written over)
-#   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent, vitreus-sysmon, vitreus-battery, vitreus-greeter, vitreus-term, vitreus-files, vitreus-edit, vitreus-report, vitreus-btnwait and vitfetch, linked into ~/.local/bin; vitreus-inhibit, built there)
+#   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent, vitreus-sysmon, vitreus-battery, vitreus-greeter, vitreus-term, vitreus-files, vitreus-edit, vitreus-report, vitreus-btnwait and vitfetch, linked into ~/.local/bin; vitreus-inhibit and vitreus-watch, built there)
 #   5c. Files, as a program            (its icon and entry in ~/.local/share; asked: the file manager for folders and «Show in folder», files/integrate.sh)
 #   5d. View, as a program             (its icon and entry in ~/.local/share; asked: what opens pictures and videos, view/integrate.sh)
 #   6. its Hyprland key binds         (hypr_vitreus.lua linked into ~/.config/hypr, and loaded from hyprland.lua, which also starts the
@@ -493,6 +493,7 @@ if [ "$action" = uninstall ]; then
     if [ -L "$HOME/.local/bin/vitreus-report" ]; then run rm -f "$HOME/.local/bin/vitreus-report"; fi
     if [ -L "$HOME/.local/bin/vitreus-btnwait" ]; then run rm -f "$HOME/.local/bin/vitreus-btnwait"; fi
     if [ -f "$HOME/.local/bin/vitreus-inhibit" ]; then run rm -f "$HOME/.local/bin/vitreus-inhibit"; fi
+    if [ -f "$HOME/.local/bin/vitreus-watch" ]; then run rm -f "$HOME/.local/bin/vitreus-watch"; fi
     if [ -L "$HOME/.local/bin/vitfetch" ]; then run rm -f "$HOME/.local/bin/vitfetch"; fi
     # the terminal: the include line in Ghostty's config, and vitfetch's line in the shell's rc files (both marked)
     if [ -f "$ghostty_conf" ] && grep -q 'vitreus/terminal/ghostty.conf' "$ghostty_conf"; then
@@ -1119,6 +1120,24 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
             rm -rf "$inhibit_tmp"
         else
             log "vitreus-inhibit not built (needs gcc, wayland-scanner and the wayland headers): Caffeine will not keep pleamar-wm's screens on"
+        fi
+    fi
+    # The watcher (one file of Rust, nothing but its own library): it stays running and tells the shell what changed, instead of the shell
+    # starting a command twice a second to ask. Built here, to a file beside it first so a running one is replaced whole. Without it the
+    # shell asks on its timers, as it did before.
+    if [ -f "$dest/bin/vitreus-watch.rs" ]; then
+        if $dry; then
+            would "build: vitreus-watch into $HOME/.local/bin"
+        elif command -v rustc > /dev/null 2>&1; then
+            if rustc -O --edition 2021 -o "$HOME/.local/bin/vitreus-watch.new" "$dest/bin/vitreus-watch.rs" 2> /dev/null \
+                && mv -f "$HOME/.local/bin/vitreus-watch.new" "$HOME/.local/bin/vitreus-watch"; then
+                :
+            else
+                rm -f "$HOME/.local/bin/vitreus-watch.new"
+                log "vitreus-watch did not build: the shell asks about the workspaces and the cameras on a timer instead"
+            fi
+        else
+            log "vitreus-watch not built (needs rustc): the shell asks about the workspaces and the cameras on a timer instead"
         fi
     fi
     case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) warn "$HOME/.local/bin is not in your PATH: the launcher's clipboard pictures need it" ;; esac
