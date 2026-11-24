@@ -172,7 +172,7 @@ desk_seen = nil                          -- the last count of right presses on t
 bar_mon = { name = nil, set = nil }      -- the monitor the bar is on ("all" for two), and the set of the names of the ones it is on; set by logic/bar_monitors.luau
 -- The questions are the same every time: made once (`wm_q`, a global table: this chunk is at Luau's limit of locals). `wm_q.live` is whether
 -- bin/vitreus-watch is the one asking (it holds the connections open and says only what changed), and `wm_q.last` what it last said.
-wm_q = { cmds = nil, slots = 16, desk_at = 0, app_at = 0, live = false, last = nil, icons = nil }
+wm_q = { cmds = nil, slots = 16, desk_at = 0, app_at = 0, vit_at = 0, live = false, last = nil, icons = nil, on_vit = nil, vit = nil, mons = nil, ticks = 0 }
 function wm_asks()
     if wm_q.cmds then return wm_q.cmds end
     -- One connection for every question (`say_many`): a `pleamar --say` process for each one, ten times a second, was what made the shell stutter.
@@ -189,6 +189,9 @@ function wm_asks()
     -- (last, so nothing before them moves: each window's program, for the workspaces' icons, logic/ws_marks.luau)
     wm_q.app_at = #cmds + 1
     for i = 0, slots - 1 do cmds[#cmds + 1] = "get win." .. i .. ".app" end
+    -- (and whether the window manager still has what this shell chose for it: its scene forgets when it is read in again, see `wm_q.on_vit`)
+    cmds[#cmds + 1] = "get vit"
+    wm_q.vit_at = #cmds
     wm_q.cmds = cmds
     return cmds
 end
@@ -289,13 +292,25 @@ after(1500, function()
                     wm_q.live, wm_q.last = true, f
                     wm_apply(f)
                     if wm_q.icons then wm_q.icons(f, 6, 6 + wm_q.slots, wm_q.app_at) end
+                    local vit = f[wm_q.vit_at]
+                    if wm_q.on_vit and vit ~= wm_q.vit then wm_q.vit = vit; wm_q.on_vit(vit) end
                 end
                 -- The monitors: the window manager keeps a file that says which there are, where, turned how, and which has the focus. When
                 -- those lines change `hyprctl monitors` is asked once, and until they do its last answer is good (`mon_cache.fed`).
                 watchd.conf[#watchd.conf + 1] = "file mon 250 " .. dir .. "/desktop\nkeep monitor \nkeep turn "
                 watchd.subs.mon = function(m)
                     mon_cache.fed = false
-                    if m then hypr_monitors(0, function() mon_cache.fed = true end) end
+                    if not m then return end
+                    -- (which monitor has the focus is the eighth word of its line: that moving is not a monitor changing, for the frame's room)
+                    local where = {}
+                    for i, l in ipairs(m) do where[i] = (l:gsub("^(monitor %S+ %S+ %S+ %S+ %S+ %S+) %S+", "%1")) end
+                    where = table.concat(where, "|")
+                    local moved = where ~= wm_q.mons
+                    wm_q.mons = where
+                    hypr_monitors(0, function()
+                        mon_cache.fed = true
+                        if moved and wm_frame_sync then wm_frame_sync() end
+                    end)
                 end
                 every(500, function() if not wm_q.live then wm_workspaces() end end)
                 -- (the bar moved to another monitor: the same answers, read for that one)
@@ -6976,8 +6991,16 @@ do
 
     -- The scene is read in again when the wallpaper changes the palette (its border takes a colour from it), and that puts every fact back to its
     -- first value: when the gap is not what was chosen, everything chosen is sent again.
+    -- With bin/vitreus-watch asking (`wm_q.live`), it says when that happens (`on_vit`) and when a monitor changes (`watchd.subs.mon`), and this
+    -- timer only looks every half minute; without it, every five seconds as before (a command and a connection each time).
+    wm_q.on_vit = function(v)
+        if not (v == "1" or v == "true") then wm_send() end
+        wm_frame_sync()
+    end
     every(5000, function()
         if on_hyprland or on_niri then return end   -- (niri has no window-manager scene to ask either)
+        wm_q.ticks = wm_q.ticks + 1
+        if wm_q.live and wm_q.ticks % 6 ~= 0 then return end
         wm_get("vit", function(v)
             if v ~= nil and v ~= 1 then wm_send() end
         end)

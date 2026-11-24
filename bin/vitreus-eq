@@ -419,11 +419,11 @@ def sync_volumes():
 
 
 # What the sound server says wakes the two loops: a sink's volume or mute changing wakes the volume's, a sink coming or going (a headset, the filter itself
-# ending) or the default output changing wakes `reconcile`. Between events they only look every 15 s, in case `pactl subscribe` missed something: polling
+# ending) or the default output changing wakes `reconcile`. Between events they only look every minute, in case `pactl subscribe` missed something (every 15 s was still seven commands each time, a fifth of what the idle desktop started): polling
 # every second ran six pactl commands a second while nothing happened.
 wake = threading.Event()
 recon = threading.Event()
-IDLE_LOOK = 15.0
+IDLE_LOOK = 60.0
 
 
 def listen():
