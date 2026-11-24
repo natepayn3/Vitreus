@@ -5541,6 +5541,45 @@ function disp_wm.modes_of(name, w, h, hz)
     end
     return out
 end
+-- The same layout, now: every monitor in one wlr-randr call, which pleamar-wm takes whole or not at all (so two monitors never
+-- cover each other half-way). Its modes must be named exactly (164.834, not 165): the nearest of that size is read from `wlr-randr --json`.
+function disp_wm.live(drafts)
+    run("wlr-randr", { "--json" }, function(out, code)
+        local ok, list = pcall(json.decode, out or "")
+        if code ~= 0 or not ok or type(list) ~= "table" then
+            text.disp_msg = "Saved. It applies at your next login (wlr-randr could not be asked)."
+            return
+        end
+        local by = {}
+        for _, o in ipairs(list) do by[o.name] = o end
+        local args = {}
+        for _, d in ipairs(drafts) do
+            local o = by[d.name]
+            local w, h = string.match(d.res or "", "^(%d+)x(%d+)$")
+            local best
+            for _, md in ipairs((o and o.modes) or {}) do
+                if md.width == tonumber(w) and md.height == tonumber(h) and (not best or math.abs(md.refresh - d.hz) < math.abs(best.refresh - d.hz)) then best = md end
+            end
+            if not best then
+                text.disp_msg = "Saved. It applies at your next login (" .. d.name .. " has no mode " .. tostring(d.res) .. ")."
+                return
+            end
+            local list_args = { "--output", d.name, "--mode", string.format("%dx%d@%.3f", best.width, best.height, best.refresh),
+                "--pos", string.format("%d,%d", d.x, d.y), "--transform", ({ [0] = "normal", [1] = "90", [2] = "180", [3] = "270" })[d.transform % 4] }
+            for _, a in ipairs(list_args) do args[#args + 1] = a end
+            if d.scale ~= "auto" then args[#args + 1] = "--scale"; args[#args + 1] = disp_num(d.scale, 6) end
+        end
+        run("wlr-randr", args, function(_, c)
+            if c == 0 then
+                text.disp_msg = "Applied, and saved to session.conf."
+                after(900, function() disp_wm.read() end)
+            else
+                text.disp_msg = "Saved. pleamar-wm would not change the monitors now: it applies at your next login."
+            end
+        end)
+    end)
+end
+
 -- Apply: every monitor's line in session.conf, from the drafts (positions measured from the top left of the arrangement).
 function disp_wm.apply()
     local mx, my = math.huge, math.huge
@@ -5548,9 +5587,10 @@ function disp_wm.apply()
         local d = disp_draft[m.name]
         mx, my = math.min(mx, d.x), math.min(my, d.y)
     end
-    local lines, names = {}, {}
+    local lines, names, drafts = {}, {}, {}
     for _, m in ipairs(disp_mons) do
         local d = disp_draft[m.name]
+        drafts[#drafts + 1] = { name = m.name, res = d.res, hz = d.hz, x = d.x - mx, y = d.y - my, scale = d.scale, transform = d.transform or 0 }
         local line = string.format("monitor %s %s@%d at %d,%d", m.name, d.res, d.hz, d.x - mx, d.y - my)
         if d.scale ~= "auto" and math.abs(d.scale - 1) > 0.001 then line = line .. " scale " .. disp_num(d.scale, 6) end
         local t = ({ [1] = " transform 90", [2] = " transform 180", [3] = " transform 270" })[d.transform or 0]
@@ -5568,8 +5608,8 @@ function disp_wm.apply()
             args[#args + 1] = path
             run("sed", args, function(_, code)
                 if code ~= 0 then text.disp_msg = "Could not write session.conf."; return end
-                text.disp_msg = "Saved to session.conf. It applies at your next login."
                 disp_wm.load(function() end)
+                disp_wm.live(drafts)
             end)
         end)
     end)
@@ -5591,7 +5631,7 @@ local function disp_read(done, max_age)
                     local t = (disp_wm.conf[name] or {}).transform or 0
                     local nw, nh = tonumber(w), tonumber(h)
                     if t == 1 or t == 3 then nw, nh = nh, nw end
-                    list[#list + 1] = { name = name, description = "pleamar-wm: applied at the next login (saved in session.conf)", width = nw, height = nh,
+                    list[#list + 1] = { name = name, description = "pleamar-wm: applied at once, and kept in session.conf", width = nw, height = nh,
                         refreshRate = tonumber(hz), x = tonumber(x), y = tonumber(y), scale = tonumber(body:match("scale:%s*([%d.]+)")) or 1, transform = t,
                         availableModes = disp_wm.modes_of(name, nw, nh, math.floor(tonumber(hz) + 0.5)) }
                 end
@@ -5612,7 +5652,7 @@ local function disp_read(done, max_age)
                 return
             end
             for _, j in ipairs(list) do
-                j.description = "pleamar-wm: applied at the next login (saved in session.conf)"
+                j.description = "pleamar-wm: applied at once, and kept in session.conf"
                 j.availableModes = disp_wm.modes_of(j.name, j.width, j.height, math.floor((j.refreshRate or 60) + 0.5))
             end
             disp_ro = true
@@ -5655,6 +5695,7 @@ local function disp_read(done, max_age)
         end)
     end)
 end
+disp_wm.read = disp_read                  -- for disp_wm.live, written above it
 
 -- The file `hyprland.lua` loads: every monitor that has been kept, connected or not.
 local function disp_write_file()
