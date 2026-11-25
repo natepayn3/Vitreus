@@ -287,6 +287,11 @@ scene Vitreus {
     //  the apps that live in the tray, for the panel that hangs from the window title. Icons are named
     //  by the logic, which matches each window's class to an app.
     model tasks max 12 { title: text; ws: text; wsn: number; wi: number; active: bool; icon: image 30, 30 }
+    //  A live picture of each of them, for the Apps tab's cards (the logic names it, from the `thumbnails` service: "" while it has none, and the tile shows the app's icon).
+    repeat i in 0..12 { text tpic.$i = "" }
+    repeat i in 0..12 { fact tsnap.$i = false }
+    repeat i in 0..12 { image tpim.$i = from tpic.$i, 400, 225 }
+    repeat i in 0..12 { fact tasp.$i = 1.78 }       // each one's shape, width over height
     repeat k in 1..10 {
         fact tw.$k = 0              // how many windows are on workspace k (the ninth: any other), for the Apps tab's rows
         text twl.$k = ""            // the card's label: the workspace's number, and under pleamar-wm the monitor's name too (each monitor has its own workspaces there,
@@ -3935,8 +3940,9 @@ scene Vitreus {
     //  One window on a workspace's mock monitor: a mini window tiled on its screen (the `n` windows of the workspace `k` fill a grid, the last line stretched to fill the width),
     //  with the app's icon in it. The focused one is ringed in the accent. Under the pointer its title is in a label above the monitor and a cross shows on its corner. A press
     //  gives the window the keyboard; a middle press, or the cross, closes it.
-    component MiniWin(t: record, k: number, n: number, focus: event, kill: event) {
-        let cols = if(n <= 1, 1, if(n <= 4, 2, if(n <= 6, 3, 4)))
+    component MiniWin(t: record, k: number, n: number, idx: number, pic: image, snap: number, asp: number, focus: event, kill: event) {
+        let has = snap > 0.5
+        let cols = if(n <= 1, 1, if(n == 3, 3, if(n <= 4, 2, if(n <= 6, 3, 4))))      // three windows stand side by side, as three columns
         //  (At least one line and one window to a line: a slot of the model that holds no window has `n` 0, and dividing by nothing gave sizes that are
         //  not numbers. A value that is not a number never comes to rest, so the scene ran its rules sixty times a second for as long as it lived.)
         let rws = max(1, floor((n + cols - 1) / cols))
@@ -3956,9 +3962,21 @@ scene Vitreus {
             follow hk = if(touch.hover > 0.01, 1, 0)
             zone box touch { from: 0, 0; size: cw, ch; corner: 5 * cu; cursor: pointer }
             box { from: 0, 0; size: cw, ch; corner: 5 * cu; color: ink; opacity: if(t.active, 22%, 10%) + 9% * hk }
-            box { from: 0, 0; size: cw, 5 * cu; corner: 2.5 * cu; color: ink; opacity: 12% }
+            box { from: 0, 0; size: cw, 5 * cu; corner: 2.5 * cu; color: ink; opacity: 12%; show: not has }
+            //  The window itself, live, filling the tile (cut to its shape); until there is a picture of it, the app's icon.
+            group {
+                show: has
+                clip box { from: 0, 0; size: cw, ch; corner: 5 * cu }
+                let pw = if(asp > cw / ch, ch * asp, cw)
+                let ph = if(asp > cw / ch, ch, cw / asp)
+                //  (The picture is kept whole inside a 16:9 frame, with empty bands beside or above it: the frame is drawn big enough that the window itself is `pw` by `ph`.)
+                let fw = if(asp < 16 / 9, ph * 16 / 9, pw)
+                let fh = if(asp < 16 / 9, ph, pw * 9 / 16)
+                image pic { at: (cw - fw) / 2, (ch - fh) / 2; size: fw, fh }
+                box { from: 0, 0; size: cw, ch; color: ink; opacity: 10% * hk }
+            }
             box { from: 0, 0; size: cw, ch; corner: 5 * cu; stroke: 1.6 * cu; color: mint; opacity: if(t.active, 100%, 0%) }
-            image t.icon { at: floor(cw / 2 - ics / 2 + 0.5), floor(ch / 2 - ics / 2 + 2 * cu + 0.5); size: ics, ics }
+            image t.icon { at: floor(cw / 2 - ics / 2 + 0.5), floor(ch / 2 - ics / 2 + 2 * cu + 0.5); size: ics, ics; show: not has }
             ellipse { at: cw - 4 * cu, 4 * cu; radius: 7 * cu; color: if(close_z.hover, alert, obsidian); opacity: 95% * hk }
             line { from: cw - 6.4 * cu, 1.6 * cu; to: cw - 1.6 * cu, 6.4 * cu; width: 1.3 * cu; color: ink; opacity: 85% * hk }
             line { from: cw - 1.6 * cu, 1.6 * cu; to: cw - 6.4 * cu, 6.4 * cu; width: 1.3 * cu; color: ink; opacity: 85% * hk }
@@ -3973,9 +3991,9 @@ scene Vitreus {
                 show: hk > 0.02
                 text t.title { size: 12.5; lines: 1; width: 140 * cu; color: if(t.active, mint, ink); family: "Space Grotesk"; tight: true }
             }
-            on press touch { emit focus(t.index); panel = none }
-            on press middle touch { emit kill(t.index) }
-            on press close_z { emit kill(t.index) }
+            on press touch { emit focus(idx); panel = none }
+            on press middle touch { emit kill(idx) }
+            on press close_z { emit kill(idx) }
         }
     }
 

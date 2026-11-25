@@ -2381,6 +2381,55 @@ end
 
 -- How many windows each workspace row of the dashboard's Apps tab has (`tw.1`..`tw.9`: the ninth holds any other: scratchpad, none).
 monnames = {}            -- pleamar-wm's monitors' names, by index (refresh_tasks_wm)
+-- The live pictures on the Apps tab's window tiles. `tpx.wins` is the list as the tab shows it (each window's program and title, in the
+-- order of `model.tasks`); each is matched to its entry in pleamar's `thumbnails` service (by program and title, then by program alone) and
+-- the scene is told that entry's picture (`tpic.N`, with `tsnap.N` saying there is one). Only while the tab is open are those windows
+-- copied live; shut, nothing is asked for. The service's reports come through the overview's watch (`tpx.thumbs`).
+tpx = { wins = {}, list = {}, open = false, sig = "", said = {} }
+function tpx.sync()
+    if not tpx.open then return end
+    local taken, ids = {}, {}
+    local function find(w, strict)
+        local app = (w.app or ""):lower()
+        for t, e in ipairs(tpx.list) do
+            if not taken[t] and (e.app or ""):lower() == app and (not strict or (e.title or "") == w.title) then return t end
+        end
+    end
+    local hit = {}
+    for i = 1, 12 do local w = tpx.wins[i]; if w then hit[i] = find(w, true); if hit[i] then taken[hit[i]] = true end end end
+    for i = 1, 12 do local w = tpx.wins[i]; if w and not hit[i] then hit[i] = find(w, false); if hit[i] then taken[hit[i]] = true end end end
+    for i = 1, 12 do
+        local e = hit[i] and tpx.list[hit[i]]
+        local pic = (e and e.picture) or ""
+        if e and e.id then ids[#ids + 1] = tostring(e.id) end
+        local asp = tpx.wins[i] and tpx.wins[i].asp or 0
+        if asp < 0.1 or asp > 10 then asp = 16 / 9 end
+        fact["tasp." .. (i - 1)] = asp                                   -- the window's own shape: its picture fills the tile without being squashed
+        if tpx.said[i] ~= pic then
+            tpx.said[i] = pic
+            text["tpic." .. (i - 1)] = pic
+            fact["tsnap." .. (i - 1)] = pic ~= ""
+        end
+    end
+    THUMB_UNTIL = math.max(THUMB_UNTIL or 0, os.time() + 5)             -- these captures are ours: the screen-sharing light ignores them
+    local raw = {}
+    for i = 1, 12 do local e = hit[i] and tpx.list[hit[i]]; if e and e.id then raw[#raw + 1] = e.id end end
+    table.sort(ids)
+    local sig = table.concat(ids, ",")
+    if sig ~= tpx.sig then
+        tpx.sig = sig
+        if fact.ov_open == true then return end                        -- the overview has every window live already
+        if #raw > 0 then sys.call("thumbnails.live", raw) else sys.call("thumbnails.live") end
+    end
+end
+function tpx.thumbs(list) tpx.list = list; tpx.sync() end
+function tpx.set(v)
+    if v == tpx.open then return end
+    tpx.open = v
+    tpx.sig = "\0"                                                     -- ask again whatever was asked before
+    if v then return tpx.sync() end
+    if fact.ov_open ~= true then sys.call("thumbnails.live"); THUMB_UNTIL = os.time() + 4 end
+end
 task_cards = {}          -- each Apps card's first window, by card (pleamar-wm)
 function task_ws_counts(rows, keys, labels, act)
     for k = 1, 9 do
@@ -2429,12 +2478,14 @@ function refresh_tasks_wm()
         local rows, keys = {}, {}
         task_addrs = {}
         task_cards = {}
+        tpx.wins = {}
         for i, w in ipairs(list) do
             if i > 12 then break end
             local c = card[tostring(w.screen) .. ":" .. tostring(w.wsn)] or 9
             keys[i] = "s" .. tostring(w.slot)
             rows[i] = { title = w.title, ws = tostring(w.wsn), wsn = c, active = w.active, icon = apps_by_class[w.app:lower()] or w.app:lower() }
             task_addrs[i] = w
+            tpx.wins[i] = { app = w.app, title = w.title, asp = w.asp }
             if w.active and c <= 8 then act = c end
             if not task_cards[c] then task_cards[c] = i end
         end
@@ -2446,6 +2497,7 @@ function refresh_tasks_wm()
             task_ws_counts(rows, keys, labels, act)
             model.tasks = rows
         end
+        tpx.sync()
     end
     local first = {}
     for i = 0, 15 do first[#first + 1] = "get win." .. i .. ".open" end
@@ -2458,7 +2510,7 @@ function refresh_tasks_wm()
         for i = 0, 15 do
             if (r[i + 1] or ""):match("true") then
                 open[#open + 1] = i
-                for _, f in ipairs({ "title", "app", "workspace", "focused", "screen" }) do cmds[#cmds + 1] = "get win." .. i .. "." .. f end
+                for _, f in ipairs({ "title", "app", "workspace", "focused", "screen", "width", "height" }) do cmds[#cmds + 1] = "get win." .. i .. "." .. f end
             end
         end
         if #open == 0 then return finish({}) end
@@ -2466,11 +2518,12 @@ function refresh_tasks_wm()
             if not d then return end
             local slots = {}
             for n, i in ipairs(open) do
-                local base = (n - 1) * 5
+                local base = (n - 1) * 7
                 local w = { slot = i, title = (d[base + 1] or ""):gsub("%s+$", ""), app = (d[base + 2] or ""):gsub("%s+$", "") }
                 w.wsn = tonumber(d[base + 3]) or 0
                 w.active = (d[base + 4] or ""):match("true") ~= nil
                 w.screen = tonumber(d[base + 5]) or 0
+                w.asp = (tonumber(d[base + 6]) or 0) / math.max(1, tonumber(d[base + 7]) or 0)
                 if w.title == "" then w.title = w.app ~= "" and w.app or "Window" end
                 slots[i] = w
             end
@@ -2499,9 +2552,11 @@ local function refresh_tasks()
         end)
         local rows, keys = {}, {}
         task_addrs = {}
+        tpx.wins = {}
         for i, w in ipairs(list) do
             if i > 12 then break end
             keys[i] = w.addr
+            tpx.wins[i] = { app = w.class or "", title = w.title or "", asp = (function() local a, b = (w.size or ""):match("(%d+),%s*(%d+)"); return (tonumber(a) or 0) / math.max(1, tonumber(b) or 0) end)() }
             local class = (w.class or ""):lower()
             local title = w.title
             if title == nil or title == "" then title = (w.class ~= nil and w.class ~= "") and w.class or "Window" end
@@ -2524,6 +2579,7 @@ local function refresh_tasks()
             task_ws_counts(rows, keys)
             model.tasks = rows
         end
+        tpx.sync()
     end)
 end
 
@@ -2663,6 +2719,7 @@ sys.watch("apps", function(list)
 end)
 on("fact:tasks_watch", function(v)
     watching = v == 1 or v == true
+    tpx.set(watching)
     if watching then refresh_tasks() end
     cava_want()
 end)
@@ -9129,6 +9186,7 @@ end)()
         for i, e in ipairs(list) do parts[i] = (e.id or "") .. "|" .. (e.app or "") .. "|" .. (e.title or "") .. "|" .. ((e.picture or "") ~= "" and "1" or "0") end
         local s = table.concat(parts, "\n")
         TH = list
+        tpx.thumbs(list)
         if s ~= TH_sig then
             TH_sig = s
             if open then render() end
@@ -9174,6 +9232,7 @@ end)()
         else
             THUMB_UNTIL = os.time() + 4
             sys.call("thumbnails.live")
+            if tpx.open then tpx.sig = "\0"; tpx.sync() end             -- the Apps tab is open: its windows stay live
             want_front(1200)
         end
     end
