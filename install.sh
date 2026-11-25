@@ -27,7 +27,7 @@
 #                                      into ~/.local/share/fonts, no sudo)
 #   4. the shell                      (into ~/.config/pleamar/shells/vitreus: cloned, or updated)
 #   5. your palette, autostart entry  (made once and never written over)
-#   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent, vitreus-sysmon, vitreus-battery, vitreus-greeter, vitreus-term, vitreus-files, vitreus-edit, vitreus-report, vitreus-btnwait and vitfetch, linked into ~/.local/bin; vitreus-inhibit and vitreus-watch, built there)
+#   5b. the helpers                  (bin/vitreus-clipimg, vitreus-polkit-agent, vitreus-sysmon, vitreus-nettraf, vitreus-battery, vitreus-greeter, vitreus-term, vitreus-files, vitreus-edit, vitreus-report, vitreus-btnwait and vitfetch, linked into ~/.local/bin; vitreus-inhibit and vitreus-watch, built there)
 #   5c. Files, as a program            (its icon and entry in ~/.local/share; asked: the file manager for folders and «Show in folder», files/integrate.sh)
 #   5d. View, as a program             (its icon and entry in ~/.local/share; asked: what opens pictures and videos, view/integrate.sh)
 #   6. its Hyprland key binds         (hypr_vitreus.lua linked into ~/.config/hypr, and loaded from hyprland.lua, which also starts the
@@ -476,6 +476,7 @@ if [ "$action" = uninstall ]; then
     if [ -L "$HOME/.local/bin/vitreus-clipimg" ]; then run rm -f "$HOME/.local/bin/vitreus-clipimg"; fi
     if [ -L "$HOME/.local/bin/vitreus-polkit-agent" ]; then run rm -f "$HOME/.local/bin/vitreus-polkit-agent"; fi
     if [ -L "$HOME/.local/bin/vitreus-sysmon" ]; then run rm -f "$HOME/.local/bin/vitreus-sysmon"; fi
+    if [ -L "$HOME/.local/bin/vitreus-nettraf" ]; then run rm -f "$HOME/.local/bin/vitreus-nettraf"; fi
     if [ -L "$HOME/.local/bin/vitreus-battery" ]; then run rm -f "$HOME/.local/bin/vitreus-battery"; fi
     if [ -L "$HOME/.local/bin/vitreus-greeter" ]; then run rm -f "$HOME/.local/bin/vitreus-greeter"; fi
     if [ -L "$HOME/.local/bin/vitreus-term" ]; then run rm -f "$HOME/.local/bin/vitreus-term"; fi
@@ -1069,6 +1070,7 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
     [ -x "$dest/bin/vitreus-polkit-agent" ] && run ln -sf "$dest/bin/vitreus-polkit-agent" "$HOME/.local/bin/vitreus-polkit-agent"
     # Settings > System monitor's data source: started by the shell while that page is showing, and stopped when it is not.
     [ -x "$dest/bin/vitreus-sysmon" ] && run ln -sf "$dest/bin/vitreus-sysmon" "$HOME/.local/bin/vitreus-sysmon"
+    [ -x "$dest/bin/vitreus-nettraf" ] && run ln -sf "$dest/bin/vitreus-nettraf" "$HOME/.local/bin/vitreus-nettraf"       # Settings > Network: what is going through the connection, while that page shows
     [ -x "$dest/bin/vitreus-battery" ] && run ln -sf "$dest/bin/vitreus-battery" "$HOME/.local/bin/vitreus-battery"       # the battery card: health, charge mode and limits
     [ -x "$dest/bin/vitreus-greeter" ] && run ln -sf "$dest/bin/vitreus-greeter" "$HOME/.local/bin/vitreus-greeter"       # Settings > Greeter: the login screen's picture or video, and its clock
     [ -x "$dest/bin/vitreus-term" ] && run ln -sf "$dest/bin/vitreus-term" "$HOME/.local/bin/vitreus-term"

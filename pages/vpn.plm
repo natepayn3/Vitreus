@@ -1,6 +1,6 @@
 part Vpn {
         //  ── VPN page: BEGIN ──
-        //  Settings > VPN. Scrolls like Notifications: a clipped viewport, the content moved by a whole-pixel `vpn.off`. Three cards (four with NordVPN): what is
+        //  Settings > Network (it was VPN: the page is still `pg_vpn`). Scrolls like Notifications: a clipped viewport, the content moved by a whole-pixel `vpn.off`. Three cards (four with NordVPN): what is
         //  connected, NordVPN when it is installed, the profiles NetworkManager holds, and the form to add one (WireGuard, OpenVPN, or a file). See "Settings > VPN" in the logic.
         group {
             show: set_pgv > 0.01
@@ -16,25 +16,106 @@ part Vpn {
             on scroll vpn_wheel while not (vpn_mode == vpm_imp and vpn_fmore and vpn_fwheel.hover) { vpn_scroll_to = clamp(vpn_scroll_to - wheel * 44, 0, max(0, vpn.h - set.h)) }
             group {
                 move: 0, -vpn.off
+            //  ── the connection in use, and its address (logic/network.luau) ──
+            //  The first card: the cable's connection (or Wi-Fi's) by name, its adapter and speed, what is going through it (a column of pencil a quarter of
+            //  a second: what comes in in the accent, what goes out beside it, fainter), and its address, the router and the name servers as they are now.
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 79.5 * pu; size: 438 * pw, 117 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 79.5 * pu, 438 * pw, 117 * pu, 310.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }
+            box { at: spx + 219 * pw, sby + 79.5 * pu; size: 438 * pw, 117 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 79.5 * pu; size: 438 * pw, 117 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 79.5 * pu; size: 438 * pw, 117 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 8 * pu + 0.5); text "CONNECTION" { at: floor(spx + 14 * pw + 0.5), floor(sby + 8 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            box { at: spx + 36 * pw, sby + 55 * pu; size: 40 * pu, 40 * pu; corner: 12 * pu; color: if(nw_on, mint, ink); opacity: if(nw_on, 22%, 8%) }
+            //  a plug: its body, its catch and its pins
+            box { at: spx + 36 * pw, sby + 53.5 * pu; size: 19 * pu, 14 * pu; corner: 3 * pu; stroke: 1.8 * pu; color: if(nw_on, mint, faint) }
+            box { at: spx + 36 * pw, sby + 63.5 * pu; size: 8 * pu, 5 * pu; corner: 1 * pu; stroke: 1.6 * pu; color: if(nw_on, mint, faint) }
+            repeat q in 0..3 { line { from: spx + 36 * pw + (q - 1) * 4.2 * pu, sby + 49.5 * pu; to: spx + 36 * pw + (q - 1) * 4.2 * pu, sby + 54.5 * pu; width: 1.6 * pu; color: if(nw_on, mint, faint) } }
+            group { scale: rs; pivot: floor(spx + 70 * pw + 0.5), floor(sby + 47 * pu + 0.5); text nw_title { at: floor(spx + 70 * pw + 0.5), floor(sby + 47 * pu + 0.5); anchor: left center; size: 19.5; weight: 700; width: (190 * pw) / rs; lines: 1; color: if(nw_on, mint, ink); family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 70 * pw + 0.5), floor(sby + 65 * pu + 0.5); text nw_sub { at: floor(spx + 70 * pw + 0.5), floor(sby + 65 * pu + 0.5); anchor: left center; size: 15; width: (190 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+            zone box nw_card_z { at: spx + 219 * pw, sby + 79.5 * pu; size: 438 * pw, 117 * pu }
+            group {
+                show: nw_traf
+                for s in nw_bars { NwBar(s, spx + 424 * pw - 40 * 3.6 * pu, sby + 66 * pu, pu, if(nw_card_z.hover > 0.5, floor(time * 5 * pn_rate), 0)) }
+                line { from: spx + 424 * pw - 40 * 3.6 * pu - 3 * pu, sby + 67.5 * pu; to: spx + 424 * pw, sby + 67.3 * pu; width: 1 * pu; color: ink; opacity: 28% }
+            group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 78 * pu + 0.5); text nw_rate { at: floor(spx + 424 * pw + 0.5), floor(sby + 78 * pu + 0.5); anchor: right center; align: right; size: 13; weight: 600; width: (200 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+            }
+            line { from: spx + 14 * pw, sby + 91 * pu; to: spx + 424 * pw, sby + 90.6 * pu; width: 1 * pu; color: ink; opacity: 16% }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 104 * pu + 0.5); text "Address" { at: floor(spx + 14 * pw + 0.5), floor(sby + 104 * pu + 0.5); anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 150 * pw + 0.5), floor(sby + 104 * pu + 0.5); text "Router" { at: floor(spx + 150 * pw + 0.5), floor(sby + 104 * pu + 0.5); anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 286 * pw + 0.5), floor(sby + 104 * pu + 0.5); text "Name servers" { at: floor(spx + 286 * pw + 0.5), floor(sby + 104 * pu + 0.5); anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 122 * pu + 0.5); text nw_a { at: floor(spx + 14 * pw + 0.5), floor(sby + 122 * pu + 0.5); anchor: left center; size: 16; weight: 700; width: (128 * pw) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 150 * pw + 0.5), floor(sby + 122 * pu + 0.5); text nw_g { at: floor(spx + 150 * pw + 0.5), floor(sby + 122 * pu + 0.5); anchor: left center; size: 16; weight: 700; width: (128 * pw) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 286 * pw + 0.5), floor(sby + 122 * pu + 0.5); text nw_d { at: floor(spx + 286 * pw + 0.5), floor(sby + 122 * pu + 0.5); anchor: left center; size: 16; weight: 700; width: (138 * pw) / rs; lines: 1; color: ink; family: "Space Grotesk" } }
+            //  The second: whether it is joined by itself, and its address: handed out by the network, or written by hand (then the fields are open).
+            //  Name servers written here are used either way, in place of the ones the network hands out. Nothing changes until Apply.
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 276 * pu; size: 438 * pw, 216 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 276 * pu, 438 * pw, 216 * pu, 318.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }
+            box { at: spx + 219 * pw, sby + 276 * pu; size: 438 * pw, 216 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 276 * pu; size: 438 * pw, 216 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 276 * pu; size: 438 * pw, 216 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 155 * pu + 0.5); text "ADDRESS" { at: floor(spx + 14 * pw + 0.5), floor(sby + 155 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            measure ldr_nw1
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 191 * pu + 0.5); text "Connect by itself" { at: floor(spx + 14 * pw + 0.5), floor(sby + 191 * pu + 0.5); measure: ldr_nw1; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            measure ldh_nw1
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 205 * pu + 0.5); text "Joined whenever it is in reach" { at: floor(spx + 14 * pw + 0.5), floor(sby + 205 * pu + 0.5); measure: ldh_nw1; anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
+            SettingsSwitch(spx + 424 * pw, sby + 197 * pu, nw_ak, nw_auto_tg.pressed, nw_auto_tg.hover, mint)
+            PLeader(spx + 14 * pw + max(ldr_nw1.width, ldh_nw1.width) * rs + 8 * pu, spx + 424 * pw - 40 * cu, sby + 197 * pu, nw_auto_tg.hover, pu)
+            zone box nw_auto_tg { at: spx + 424 * pw - 19 * cu, sby + 197 * pu; size: 44 * cu, 28 * cu; corner: 14 * cu; cursor: pointer; label: "Connect by itself"; active: nw_on and not nw_busy and (((197) * pu - vpn.off) > 14 * pu and ((197) * pu - vpn.off) < 440 * pu) }
+            on press nw_auto_tg { emit nw_tg_auto }
+            measure ldr_nw2
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 235 * pu + 0.5); text "Address by hand" { at: floor(spx + 14 * pw + 0.5), floor(sby + 235 * pu + 0.5); measure: ldr_nw2; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            measure ldh_nw2
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 249 * pu + 0.5); text "Off, the network hands one out" { at: floor(spx + 14 * pw + 0.5), floor(sby + 249 * pu + 0.5); measure: ldh_nw2; anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
+            SettingsSwitch(spx + 424 * pw, sby + 241 * pu, nw_mk, nw_man_tg.pressed, nw_man_tg.hover, mint)
+            PLeader(spx + 14 * pw + max(ldr_nw2.width, ldh_nw2.width) * rs + 8 * pu, spx + 424 * pw - 40 * cu, sby + 241 * pu, nw_man_tg.hover, pu)
+            zone box nw_man_tg { at: spx + 424 * pw - 19 * cu, sby + 241 * pu; size: 44 * cu, 28 * cu; corner: 14 * cu; cursor: pointer; label: "Address by hand"; active: nw_on and not nw_busy and (((241) * pu - vpn.off) > 14 * pu and ((241) * pu - vpn.off) < 440 * pu) }
+            on press nw_man_tg { emit nw_tg_manual }
+            box { at: spx + 113.5 * pw, sby + 284 * pu; size: 199 * pw, 28 * pu; corner: 14 * pu; color: ink; opacity: if(nw_manual, 8%, 4%) }
+            group {
+                show: nw_manual and (((284) * pu - vpn.off) > 14 * pu and ((284) * pu - vpn.off) < 440 * pu)
+                input nwf_addr { at: floor(spx + 26.0 * pw + 0.5), floor(sby + 284 * pu - 6.5 * pu + 0.5); width: 175 * pw; size: 14; color: ink; family: "Space Grotesk"; placeholder: "Address: 192.168.1.50/24"; label: "Address: 192.168.1.50/24" }
+            }
+            box { at: spx + 324.5 * pw, sby + 284 * pu; size: 199 * pw, 28 * pu; corner: 14 * pu; color: ink; opacity: if(nw_manual, 8%, 4%) }
+            group {
+                show: nw_manual and (((284) * pu - vpn.off) > 14 * pu and ((284) * pu - vpn.off) < 440 * pu)
+                input nwf_gw { at: floor(spx + 237.0 * pw + 0.5), floor(sby + 284 * pu - 6.5 * pu + 0.5); width: 175 * pw; size: 14; color: ink; family: "Space Grotesk"; placeholder: "Router: 192.168.1.1"; label: "Router: 192.168.1.1" }
+            }
+            group { scale: rs; pivot: floor(spx + 26 * pw + 0.5), floor(sby + 284 * pu + 0.5); text "Handed out by the network" { at: floor(spx + 26 * pw + 0.5), floor(sby + 284 * pu + 0.5); anchor: left center; size: 14; color: faint; opacity: 70%; show: not nw_manual; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 237 * pw + 0.5), floor(sby + 284 * pu + 0.5); text "Handed out by the network" { at: floor(spx + 237 * pw + 0.5), floor(sby + 284 * pu + 0.5); anchor: left center; size: 14; color: faint; opacity: 70%; show: not nw_manual; family: "Space Grotesk" } }
+            box { at: spx + 219 * pw, sby + 320 * pu; size: 410 * pw, 28 * pu; corner: 14 * pu; color: ink; opacity: if(nw_on, 8%, 4%) }
+            group {
+                show: nw_on and (((320) * pu - vpn.off) > 14 * pu and ((320) * pu - vpn.off) < 440 * pu)
+                input nwf_dns { at: floor(spx + 26.0 * pw + 0.5), floor(sby + 320 * pu - 6.5 * pu + 0.5); width: 386 * pw; size: 14; color: ink; family: "Space Grotesk"; placeholder: "Name servers: the network's own, or 1.1.1.1, 9.9.9.9"; label: "Name servers: the network's own, or 1.1.1.1, 9.9.9.9" }
+            }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 356 * pu + 0.5); text nw_msg { at: floor(spx + 14 * pw + 0.5), floor(sby + 356 * pu + 0.5); anchor: left center; size: 14.5; width: (300 * pw) / rs; lines: 2; color: mint; family: "Space Grotesk" } }
+            box { at: spx + 424 * pw - 48 * pu, sby + 356 * pu; size: 96 * pu, 28 * pu; corner: (14 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: if(nw_busy or not nw_on, 30%, 85% + 15% * nw_apply_hit.hover) }
+            PPillOutline(spx + 424 * pw - 48 * pu, sby + 356 * pu, 96 * pu, 28 * pu, 14 * pu, nw_apply_hit.hover, clamp(3 * (if(nw_busy or not nw_on, 30%, 85% + 15% * nw_apply_hit.hover)), 0, 1), pu)
+            group { scale: rs; pivot: floor(spx + 424 * pw - 48 * pu + 0.5), floor(sby + 356 * pu + 0.5); text "Apply" { at: floor(spx + 424 * pw - 48 * pu + 0.5), floor(sby + 356 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 700; color: onmint; family: "Space Grotesk" } }
+            zone box nw_apply_hit { at: spx + 424 * pw - 48 * pu, sby + 356 * pu; size: 98 * pu, 30 * pu; corner: 15 * pu; cursor: pointer; label: "Apply"; active: nw_on and not nw_busy and (((356) * pu - vpn.off) > 14 * pu and ((356) * pu - vpn.off) < 440 * pu) }
+            on press nw_apply_hit { emit nw_apply }
+            on submit nwf_addr { focus nwf_gw }
+            on submit nwf_gw { focus nwf_dns }
+            on submit nwf_dns { emit nw_apply }
+            //  ── the VPN's cards, under them (`vpn.t0` further down) ──
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 55 * pu; size: 438 * pw, 68 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pw, sby + 55 * pu, 438 * pw, 68 * pu, 330.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pw, sby + 55 * pu; size: 438 * pw, 68 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pw, sby + 55 * pu; size: 438 * pw, 68 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            box { at: spx + 219 * pw, sby + 55 * pu; size: 438 * pw, 68 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-            box { at: spx + 36 * pw, sby + 55 * pu; size: 40 * pu, 40 * pu; corner: 12 * pu; color: if(vpn_on, mint, ink); opacity: if(vpn_on, 22%, 8%) }
-            path { at: spx + 36 * pw, sby + 55 * pu; stroke: 1.8 * pu; color: if(vpn_on, mint, faint); move 0, -9 * pu; line 8 * pu, -6 * pu; line 8 * pu, 1 * pu; line 0, 10 * pu; line -8 * pu, 1 * pu; line -8 * pu, -6 * pu; close }
-            path { at: spx + 36 * pw, sby + 56 * pu; stroke: 1.8 * pu; color: if(vpn_on, mint, faint); opacity: if(vpn_on, 100%, 0%); move -3.5 * pu, 0; line -1 * pu, 2.5 * pu; line 4 * pu, -3 * pu }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 8 * pu + 0.5); text "STATUS" { at: floor(spx + 14 * pw + 0.5), floor(sby + 8 * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 70 * pw + 0.5), floor(sby + 47 * pu + 0.5); text vpn_title { at: floor(spx + 70 * pw + 0.5), floor(sby + 47 * pu + 0.5); anchor: left center; size: 19.5; weight: 700; width: (230 * pw) / rs; lines: 1; color: if(vpn_on, mint, ink); family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 70 * pw + 0.5), floor(sby + 65 * pu + 0.5); text vpn_sub { at: floor(spx + 70 * pw + 0.5), floor(sby + 65 * pu + 0.5); anchor: left center; size: 15; width: (230 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + (vpn.t0 + 55) * pu; size: 438 * pw, 68 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + (vpn.t0 + 55) * pu, 438 * pw, 68 * pu, 330.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + (vpn.t0 + 55) * pu; size: 438 * pw, 68 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + (vpn.t0 + 55) * pu; size: 438 * pw, 68 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + (vpn.t0 + 55) * pu; size: 438 * pw, 68 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            box { at: spx + 36 * pw, sby + (vpn.t0 + 55) * pu; size: 40 * pu, 40 * pu; corner: 12 * pu; color: if(vpn_on, mint, ink); opacity: if(vpn_on, 22%, 8%) }
+            path { at: spx + 36 * pw, sby + (vpn.t0 + 55) * pu; stroke: 1.8 * pu; color: if(vpn_on, mint, faint); move 0, -9 * pu; line 8 * pu, -6 * pu; line 8 * pu, 1 * pu; line 0, 10 * pu; line -8 * pu, 1 * pu; line -8 * pu, -6 * pu; close }
+            path { at: spx + 36 * pw, sby + (vpn.t0 + 56) * pu; stroke: 1.8 * pu; color: if(vpn_on, mint, faint); opacity: if(vpn_on, 100%, 0%); move -3.5 * pu, 0; line -1 * pu, 2.5 * pu; line 4 * pu, -3 * pu }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.t0 + 8) * pu + 0.5); text "VPN" { at: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.t0 + 8) * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 70 * pw + 0.5), floor(sby + (vpn.t0 + 47) * pu + 0.5); text vpn_title { at: floor(spx + 70 * pw + 0.5), floor(sby + (vpn.t0 + 47) * pu + 0.5); anchor: left center; size: 19.5; weight: 700; width: (230 * pw) / rs; lines: 1; color: if(vpn_on, mint, ink); family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 70 * pw + 0.5), floor(sby + (vpn.t0 + 65) * pu + 0.5); text vpn_sub { at: floor(spx + 70 * pw + 0.5), floor(sby + (vpn.t0 + 65) * pu + 0.5); anchor: left center; size: 15; width: (230 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
             group {
                 show: vpn_on
-                box { at: spx + 380 * pw, sby + 55 * pu; size: 96 * pu, 28 * pu; corner: (14 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 10% + 10% * vpn_dn_hit.hover }
-                PPillOutline(spx + 380 * pw, sby + 55 * pu, 96 * pu, 28 * pu, 14 * pu, vpn_dn_hit.hover, clamp(3 * (10% + 10% * vpn_dn_hit.hover), 0, 1), pu)
-                group { scale: rs; pivot: floor(spx + 380 * pw + 0.5), floor(sby + 55 * pu + 0.5); text "Disconnect" { at: floor(spx + 380 * pw + 0.5), floor(sby + 55 * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: ink; family: "Space Grotesk" } }
+                box { at: spx + 380 * pw, sby + (vpn.t0 + 55) * pu; size: 96 * pu, 28 * pu; corner: (14 * pu) * (1 - 0.85 * dd_k); color: ink; opacity: 10% + 10% * vpn_dn_hit.hover }
+                PPillOutline(spx + 380 * pw, sby + (vpn.t0 + 55) * pu, 96 * pu, 28 * pu, 14 * pu, vpn_dn_hit.hover, clamp(3 * (10% + 10% * vpn_dn_hit.hover), 0, 1), pu)
+                group { scale: rs; pivot: floor(spx + 380 * pw + 0.5), floor(sby + (vpn.t0 + 55) * pu + 0.5); text "Disconnect" { at: floor(spx + 380 * pw + 0.5), floor(sby + (vpn.t0 + 55) * pu + 0.5); anchor: center; align: center; size: 15.5; weight: 600; color: ink; family: "Space Grotesk" } }
             }
-            zone box vpn_dn_hit { at: spx + 380 * pw, sby + 55 * pu; size: 98 * pu, 30 * pu; corner: 15 * pu; cursor: pointer; active: vpn_on and not vpn_busy }
+            zone box vpn_dn_hit { at: spx + 380 * pw, sby + (vpn.t0 + 55) * pu; size: 98 * pu, 30 * pu; corner: 15 * pu; cursor: pointer; active: vpn_on and not vpn_busy }
             on press vpn_dn_hit { emit vpn_down }
             //  NordVPN (its own CLI and daemon, not a NetworkManager profile): what it is connected to, Quick connect or Disconnect, and a field for a
             //  country or a city. Only while `nordvpn` is installed (`vpn_nord`); the cards below move down to make room (`vpn.pb`).

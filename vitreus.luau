@@ -7549,6 +7549,7 @@ end
         { "Settings: Theme", "open", open_settings("pg_theme"), "colours colors palette theme glass retro cassette plastic iris accent wallpaper" },
         { "Settings: Keybinds", "open", open_settings("pg_keys"), "keybinds keyboard shortcuts keys hotkeys bindings shortcut super combo remap" },
         { "Settings: Widgets", "open", open_settings("pg_clock"), "widgets clock system monitor audio visualiser visualizer cava desktop clock glass digits time wallpaper layout inline stacked staggered hero position corner size weight tint 12 24 hour" },
+        { "Settings: Network", "open", open_settings("pg_vpn"), "network ethernet wired cable wifi connection ip address router gateway dns name servers static dhcp manual traffic speed vpn wireguard openvpn nordvpn" },
         { "Settings: Weather location", "open", open_settings("pg_vpn"), "weather forecast location city zip code place celsius fahrenheit units vpn calendar temperature" },
         { "Desktop clock: toggle", "action", function()
             run("pleamar", { "--say", "desktopclock", "get shown" }, function(out)
@@ -8291,6 +8292,8 @@ require("logic/bar_bulge")()
 require("logic/bar_layout")()
 -- how the shell's pencil is drawn (Settings > Style): see logic/pencil_style.luau
 require("logic/pencil_style")()
+-- Settings > Network, the connection in use and its address (the two cards over the VPN's): see logic/network.luau
+require("logic/network")()
 -- the workspace marks' look and options (Settings > Bar > Workspaces), and the Apps look's icons: see logic/ws_marks.luau
 require("logic/ws_marks")({
     icon_for = function(class) return apps_by_class[class] or class end,

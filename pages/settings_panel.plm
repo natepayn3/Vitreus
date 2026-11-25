@@ -69,7 +69,7 @@ part SettingsPanel {
         group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); text "Night mode" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: set_pgn; family: "Space Grotesk" } }
         group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); text "System monitor" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: set_pgs; family: "Space Grotesk" } }
         group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); text "Notifications" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: set_pgt; family: "Space Grotesk" } }
-        group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); text "VPN" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: set_pgv; family: "Space Grotesk" } }
+        group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); text "Network" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: set_pgv; family: "Space Grotesk" } }
         group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); text "Lock screen" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: set_pgl; family: "Space Grotesk" } }
         group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); text "Widgets" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: set_pgk; family: "Space Grotesk" } }
         group { scale: rs; pivot: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); text "Theme" { at: floor(sl + 209 * pu + 0.5), floor(hy + 0.5); anchor: left center; size: 14.5; weight: 700; color: mint; opacity: set_pgp; family: "Space Grotesk" } }
@@ -333,15 +333,18 @@ part SettingsPanel {
                 group { scale: rs * (1 + 0.1 * set_pgp); pivot: floor(sl + 46 * pu + 0.5), floor(sby + side.th * pu + 0.5); text "Theme" { at: floor(sl + 46 * pu + 0.5), floor(sby + side.th * pu + 0.5); anchor: left center; size: 16; weight: 600; width: (102 * pu) / rs; lines: 1; color: mix(ink, mint, set_pgp); opacity: 85% + 15% * set_pgp; family: "Space Grotesk" } }
                 zone box side_th { at: sl + 75 * pu, sby + side.th * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: sby + side.th * pu - side.off > sby and sby + side.th * pu - side.off < sby + set.h * pu }
                 on press side_th { set_page = pg_theme }
-                //  VPN: a shield.
+                //  Network (it was VPN): a globe.
                 group {
                     opacity: 65% + 35% * set_pgv
                     pivot: sl + 30 * pu, sby + side.vpn * pu
                     scale: 1 + 0.28 * set_pgv + 0.03 * set_pgv * sin(floor(time * 5 * pn_rate) * 47)
                     move: set_pgv * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 53 + 40), set_pgv * 0.6 * pu * sin(floor(time * 5 * pn_rate) * 61)
-                    path { at: sl + 30 * pu, sby + side.vpn * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgv); move 0, -7 * pu; line 6 * pu, -4.5 * pu; line 6 * pu, 1 * pu; line 0, 7.5 * pu; line -6 * pu, 1 * pu; line -6 * pu, -4.5 * pu; close }
+                    ellipse { at: sl + 30 * pu, sby + side.vpn * pu; radius: 7 * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgv) }
+                    path { at: sl + 30 * pu, sby + side.vpn * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgv); move -7 * pu, 0; line 7 * pu, 0 }
+                    path { at: sl + 30 * pu, sby + side.vpn * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgv); move 0, -7 * pu; curve 0, 7 * pu via 6.4 * pu, 0 }
+                    path { at: sl + 30 * pu, sby + side.vpn * pu; stroke: 1.3 * pu; color: mix(ink, mint, set_pgv); move 0, -7 * pu; curve 0, 7 * pu via -6.4 * pu, 0 }
                 }
-                group { scale: rs * (1 + 0.1 * set_pgv); pivot: floor(sl + 46 * pu + 0.5), floor(sby + side.vpn * pu + 0.5); text "VPN" { at: floor(sl + 46 * pu + 0.5), floor(sby + side.vpn * pu + 0.5); anchor: left center; size: 16; weight: 600; width: (102 * pu) / rs; lines: 1; color: mix(ink, mint, set_pgv); opacity: 85% + 15% * set_pgv; family: "Space Grotesk" } }
+                group { scale: rs * (1 + 0.1 * set_pgv); pivot: floor(sl + 46 * pu + 0.5), floor(sby + side.vpn * pu + 0.5); text "Network" { at: floor(sl + 46 * pu + 0.5), floor(sby + side.vpn * pu + 0.5); anchor: left center; size: 16; weight: 600; width: (102 * pu) / rs; lines: 1; color: mix(ink, mint, set_pgv); opacity: 85% + 15% * set_pgv; family: "Space Grotesk" } }
                 zone box side_vpn { at: sl + 75 * pu, sby + side.vpn * pu; size: 134 * pu, 28 * pu; corner: 10 * pu; cursor: pointer; active: sby + side.vpn * pu - side.off > sby and sby + side.vpn * pu - side.off < sby + set.h * pu }
                 on press side_vpn { set_page = pg_vpn }
                 //  Keybinds: a keyboard, a plate of keys.

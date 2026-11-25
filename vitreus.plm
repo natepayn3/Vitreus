@@ -85,7 +85,7 @@ scene Vitreus {
     //  moving paints nothing, so a cap only ever slowed what was moving (the notches, the drawers, the bar's hovers each needed an exemption from the old 12 a second).
     surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995 and bar_size < 1.005 and not bar_ah; rate: 480, 120 while bar_fps == 120 and not (media.playing and (fw_on or (bar_beat and panel == none and lm < 0.5 and sg < 0.5))) and not sky.calm, 60 while ((media.playing and (fw_on or (bar_beat and panel == none and lm < 0.5 and sg < 0.5))) or bar_fps == 60) and not sky.calm, 30 while sky.calm; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
     permissions { services: "say:*", "files", "files.write", "files.remove", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "window.activate", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "timeout 15 pw-play", "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-watch", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe", "nordvpn", "yt-dlp", "wlr-randr" }
+                  run: "timeout 15 pw-play", "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-nettraf", "vitreus-watch", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe", "nordvpn", "yt-dlp", "wlr-randr" }
 
     model wifi_nets max 16 { ssid: text; strength: number; secure: bool; known: bool; active: bool; band: number; bands: text; bandw: number; chan: number; rate: number; sec: text; busy: number }
     model bat_devs max 6 { name: text; level: number }
@@ -2866,6 +2866,30 @@ scene Vitreus {
     text vpn_nd_sub = ""
     text vpn_nd_note = ""             // its technology (NordLynx), in the card's corner
     text vpn_nd_q = ""                // the field: a country or a city to connect to
+    //  Settings > Network, over the VPN's cards (logic/network.luau): the connection in use (the cable, or Wi-Fi), what is going through it, and its
+    //  address: handed out by the network, or written by hand.
+    text nw_title = "Not connected"
+    text nw_sub = ""
+    text nw_rate = ""                 // what is going through it now, under its chart
+    text nw_a = ""                    // its address, the router and the name servers, as they are now
+    text nw_g = ""
+    text nw_d = ""
+    fact nw_on = false                // there is a connection in use
+    fact nw_traf = false              // its chart has something to show
+    model nw_bars max 40 { d: number; u: number }     // a column a quarter of a second: in and out, 0 to 1 of the busiest shown
+    fact nw_auto = true               // it is joined by itself
+    fact nw_manual = false            // its address is written by hand
+    fact nw_busy = false              // being applied
+    text nw_msg = ""                  // how applying went
+    text nwf_addr = ""                // the fields
+    text nwf_gw = ""
+    text nwf_dns = ""
+    prop nw_ak = 0 ~pop
+    follow nw_ak = if(nw_auto, 1, 0)
+    prop nw_mk = 0 ~pop
+    follow nw_mk = if(nw_manual, 1, 0)
+    prop nw_lit = 0 ~calm
+    follow nw_lit = if(nw_on, 1, 0)
     text vpn_title = "Not connected"
     text vpn_sub = ""
     text vpn_msg = ""
@@ -2890,6 +2914,11 @@ scene Vitreus {
     event vpn_nd_down ->              // NordVPN: disconnect
     event vpn_toggle ->
     event vpn_down ->
+    event nw_tg_auto                  // Settings > Network: the two switches (the scene's own), and Apply
+    event nw_tg_manual
+    event nw_apply ->
+    on nw_tg_auto { toggle nw_auto }
+    on nw_tg_manual { toggle nw_manual }
     event vpn_arm_ask ->
     event vpn_delete ->
     event vpn_import ->
@@ -4382,6 +4411,20 @@ scene Vitreus {
         shader leader { at: x0, y - 5 * ku; size: max(x1 - x0, 1), 10 * ku; values: 11 * ku, 1.05 * ku, jt, fr, pn_echo, ku, 0, 0; colors: mix(ink, mint, a); opacity: 0.3 + 0.45 * a; show: x1 - x0 > 20 * ku }
     }
 
+
+    //  Settings > Network: a column of the traffic's chart, in pencil (a stroke and its fainter echo): what came in, in the accent, and what went out
+    //  beside it. Each glides to its height, so the chart flows to the left. `bx`, `by`: the chart's left end and its foot; `f`: the frame it is drawn on.
+    component NwBar(s: record, bx: number, by: number, ku: number, f: number) {
+        prop d = 0 ~180ms
+        prop o = 0 ~180ms
+        follow d = s.d
+        follow o = s.u
+        let x = bx + s.index * 3.6 * ku
+        let jt = 0.3 * pn_wob * ku
+        line { from: x + 0.4 * ku + jt * sin(f * 61 + s.index * 50), by; to: x - 0.4 * ku + jt * sin(f * 53 + s.index * 70), by - 30 * ku * d; width: 1.3 * ku; color: mint; opacity: if(d > 0.01, 80%, 0) }
+        line { from: x + 1 * ku + jt * sin(f * 47 + s.index * 30), by; to: x + 0.2 * ku + jt * sin(f * 41 + s.index * 90), by - 30 * ku * d + 0.6 * ku; width: 0.8 * ku; color: mint; opacity: if(d > 0.01, 28% * pn_echo, 0) }
+        line { from: x + 1.9 * ku, by; to: x + 1.9 * ku, by - 30 * ku * o; width: 0.8 * ku; color: ink; opacity: if(o > 0.01, 50%, 0) }
+    }
     //  The Settings' picker: ONE slot holding a few named choices, and a pencil-shaded thumb that travels to the chosen one. It is what a row of loose pills was: the
     //  page still draws each choice's word and keeps its zone; this draws the slot and the thumb under them. The thumb moves as PSlider's knob does: its leading
     //  edge goes to the new choice quickly (`ld`) and its trailing edge follows (`tl`), so it stretches between the two, flattens, and gathers back.
@@ -6309,7 +6352,8 @@ scene Vitreus {
     let sm.dt = (8 - clamp(sm_tmp.count, 1, 8)) * 24
     let sm.h = 1585 - sm.ds - sm.dt
     //  The VPN page: the profiles card is as tall as its rows, and the add card as its form (WireGuard 5 rows, OpenVPN 4, a file 1 and a line).
-    let vpn.nb = 119                                       // the NordVPN card, under the status card, while `nordvpn` is installed
+    let vpn.t0 = 393                                       // the VPN's cards start under the connection's two (pages/vpn.plm)
+    let vpn.nb = 119 + vpn.t0                                       // the NordVPN card, under the status card, while `nordvpn` is installed
     let vpn.nh = 102
     let vpn.pb = vpn.nb + if(vpn_nord, vpn.nh + 30, 0)     // the profiles card moves down to make room for it (30 between cards, as the style says)
     let vpn.pbh = max(1, vpn_count) * 32 + 20

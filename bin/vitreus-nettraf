@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""vitreus-nettraf ADAPTER: what is going through a network adapter, for the chart on Settings > Network (pages/vpn.plm, logic/network.luau).
+
+A line four times a second: the bytes a second that came in and went out since the line before («123456 7890»), read from the
+adapter's own counters (/sys/class/net/ADAPTER/statistics). It is started by the shell while that page shows a connection in use and
+stopped when the page is left; it also ends by itself when the adapter goes, or when whoever started it does. Standard library only.
+"""
+import os
+import re
+import sys
+import time
+
+STEP = 0.25
+
+
+def main():
+    if len(sys.argv) != 2 or not re.fullmatch(r"[\w.-]+", sys.argv[1]):
+        sys.exit("vitreus-nettraf: one adapter's name (eno1, wlan0...)")
+    base = f"/sys/class/net/{sys.argv[1]}/statistics/"
+    parent = os.getppid()
+
+    def counters():
+        with open(base + "rx_bytes") as r, open(base + "tx_bytes") as t:
+            return int(r.read()), int(t.read())
+
+    try:
+        rx, tx = counters()
+        at = time.monotonic()
+        nxt = at + STEP
+        while os.getppid() == parent:
+            time.sleep(max(0.0, nxt - time.monotonic()))
+            nxt += STEP
+            nrx, ntx = counters()
+            now = time.monotonic()
+            dt = max(now - at, 1e-3)
+            sys.stdout.write(f"{max(0, nrx - rx) / dt:.0f} {max(0, ntx - tx) / dt:.0f}\n")
+            sys.stdout.flush()
+            rx, tx, at = nrx, ntx, now
+    except (OSError, ValueError, KeyboardInterrupt):
+        pass
+
+
+if __name__ == "__main__":
+    main()
