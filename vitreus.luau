@@ -7571,7 +7571,7 @@ end
         end, "system monitor desktop widget card cpu memory gpu network show hide on off" },
         { "Audio visualiser: toggle", "action", function() spawn('pleamar --say vitreus "emit fw_toggle"') end, "audio visualiser visualizer cava spectrum music bars wave equalizer desktop widget show hide on off" },
         { "Settings: Workspaces", "open", open_settings("pg_ws"), "workspace marks indicators dots pips numbers numerals rings capsule apps icons bar" },
-        { "Camera (on the Desk)", "action", function() spawn('pleamar --say vitreus "emit cam_toggle"') end, "webcam camera self view mirror face round window record screen show hide on off" },
+        { "Camera (on myPad)", "action", function() spawn('pleamar --say vitreus "emit cam_toggle"') end, "webcam camera self view mirror face round window record screen show hide on off" },
         { "Sticky note: new", "action", function() spawn('pleamar --say vitreus "emit sticky_new"') end, "sticky note sticker new add notes desktop paper write" },
         { "Files", "action", function() spawn('PATH="$HOME/.local/bin:$PATH" vitreus-files') end, "files file manager folder folders browse explorer home documents downloads search sonda nautilus" },
         { "Ask about the clipboard", "action", function()

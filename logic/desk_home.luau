@@ -18,7 +18,7 @@ return function()
         end
         fact.dk_n = n
         fact.desk_start = st.start
-        text.desk_title = st.title ~= "" and st.title or "My Desk"
+        text.desk_title = st.title ~= "" and st.title or "myPad"
     end
     do
         local ok, s = pcall(sys.ask, "files.read", "desk-home.json", "json")
@@ -56,7 +56,7 @@ return function()
     end
     on("text:desk_title_in", function(v)
         st.title = tostring(v or "")
-        text.desk_title = st.title ~= "" and st.title or "My Desk"
+        text.desk_title = st.title ~= "" and st.title or "myPad"
         save_soon()
     end)
     on("text:desk_line_in", function(v) st.line = tostring(v or ""); save_soon() end)

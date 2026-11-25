@@ -28,7 +28,7 @@ return function()
         ["vitreus emit controls_toggle"] = "Control Center",
         ["lockscreen fact locked true"] = "Lock screen",
         ["vitreus emit wp_picker_toggle"] = "Wallpaper picker",
-        ["vitreus emit desk_toggle"] = "Desk",
+        ["vitreus emit desk_toggle"] = "myPad",
         ["vitreus emit dash_toggle"] = "Dashboard",
         ["vitreus emit ov_toggle"] = "Workspace overview",
         ["vitreus emit shot 0"] = "Screenshot: region",

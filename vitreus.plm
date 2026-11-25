@@ -5954,7 +5954,7 @@ scene Vitreus {
     let fw.tray = max(0, tn * 24 - 6) * bu               // icons 18 wide, 6 apart
     let vw.tray = fw.tray
     let bw.tray = fw.tray + bar.gap * min(1, tn)
-    let fw.dsk = 13 * bu                                      // the Desk's glyph: one tall tile beside two small ones
+    let fw.dsk = 13 * bu                                      // the Desk's glyph: a tablet standing up
     let vw.dsk = fw.dsk * bs.dsk * (1 - fm)
     let bw.dsk0 = (fw.dsk + 2 * bar.gap) * bs.dsk * (1 - fm)     // (a gap each side: the card reaches 9 past the glyph, and search's card 9 past its own, so they keep 6 apart)
     let fw.bat = 48 * bu                                      // the battery: a pencilled cell and its percentage, in the block of the Desk's button (left of it)
@@ -8287,11 +8287,11 @@ scene Vitreus {
         group {
             pivot: dsk.x, bar.y
             scale: 0.72 * (1 + 0.12 * desk_open_z.hover)
-            GBox(dsk.x, bar.y, -9, -8, -1.5, 8, 11, bu, dsk.c, dsk.o, dsk.f)
-            GBox(dsk.x, bar.y, 2, -8, 9, -1.5, 15, bu, dsk.c, dsk.o, dsk.f)
-            GBox(dsk.x, bar.y, 2, 1.5, 9, 8, 19, bu, dsk.c, dsk.o, dsk.f)
+            GBox(dsk.x, bar.y, -7, -9.5, 7, 9.5, 11, bu, dsk.c, dsk.o, dsk.f)          // a tablet standing up: its body,
+            GBox(dsk.x, bar.y, -4.5, -7, 4.5, 5, 15, bu, dsk.c, dsk.o, dsk.f)          // its screen,
+            GArc(dsk.x, bar.y, 0, 7.3, 1, 0, 360, 19, bu, dsk.c, dsk.o, dsk.f)       // and its home button
         }
-        zone box desk_open_z { at: dsk.x, bar.y; size: 26 * bu, 36 * bu; corner: 10 * bu; cursor: pointer; active: fm < 0.5 and bs.dsk > 0.6; label: "The Desk" }
+        zone box desk_open_z { at: dsk.x, bar.y; size: 26 * bu, 36 * bu; corner: 10 * bu; cursor: pointer; active: fm < 0.5 and bs.dsk > 0.6; label: "myPad" }
         on press desk_open_z { panel_scr = screen.index; desk_tab = if(desk_open, desk_tab, desk_start); desk_open = not desk_open }
     }
     //  The battery: a pencilled cell filled as far as the charge goes, with the percentage beside it, next to the Desk's button. It boils under the pointer

@@ -436,7 +436,7 @@ part PanelFrame {
         }
         //  ── the dashboard's tab row and the other two tabs ──
         //  A recessed rail with an accent capsule that slides to the tab in use, stretching with its speed and overshooting a little; each tab has a small drawn
-        //  icon (a calendar, a note, a grid of apps) that takes the capsule's ink while it is under it.
+        //  icon (a calendar, a note, open windows) that takes the capsule's ink while it is under it.
         group {
             opacity: f1
             move: 0, (1 - f1) * 12 * cu
@@ -481,10 +481,13 @@ part PanelFrame {
                     }
                     group {
                         show: t == 2
-                        GBox(ix, ty, -8, -8, -1, -1, 221, tz, ic, 1, tfm)
-                        GBox(ix, ty, 1, -8, 8, -1, 225, tz, ic, 1, tfm)
-                        GBox(ix, ty, -8, 1, -1, 8, 229, tz, ic, 1, tfm)
-                        GBox(ix, ty, 1, 1, 8, 8, 233, tz, ic, 1, tfm)
+                        //  Open windows: one in front with its title bar, another peeking out behind it, up and to the right (only its uncovered edges).
+                        GBox(ix, ty, -9, -3, 4, 8, 221, tz, ic, 1, tfm)
+                        GLn(ix, ty, -9, 0, 4, 0, 225, tz, ic, 1, tfm)
+                        GLn(ix, ty, -4, -3, -4, -8, 226, tz, ic, 1, tfm)
+                        GLn(ix, ty, -4, -8, 9, -8, 227, tz, ic, 1, tfm)
+                        GLn(ix, ty, 9, -8, 9, 3, 228, tz, ic, 1, tfm)
+                        GLn(ix, ty, 9, 3, 4, 3, 229, tz, ic, 1, tfm)
                     }
                 }
                 zone box dtab_z.$t { at: tx, ty; size: 116 * cu, 32 * cu; corner: 16 * cu; cursor: pointer }

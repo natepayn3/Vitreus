@@ -213,7 +213,7 @@ return function(with_dirs)
         local mine
         local args = { "-hide_banner", "-loglevel", "error", "-nostdin" }
         if from and from > 0.05 then args[#args + 1] = "-ss"; args[#args + 1] = string.format("%.2f", from) end
-        for _, a in ipairs({ "-re", "-i", m.path, "-af", "apad=pad_dur=0.6", "-f", "pulse", "-buffer_duration", "200", "-name", "Desk memo", "Desk memo" }) do args[#args + 1] = a end
+        for _, a in ipairs({ "-re", "-i", m.path, "-af", "apad=pad_dur=0.6", "-f", "pulse", "-buffer_duration", "200", "-name", "myPad memo", "Desk memo" }) do args[#args + 1] = a end
         mine = spawn("ffmpeg", args, function() end, function()
             if playing ~= mine then return end
             playing, play_k = nil, -1
