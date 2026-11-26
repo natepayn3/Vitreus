@@ -717,8 +717,14 @@ on("setmic", coalesced("audio.input"))
 -- boolean, even for something written `not net.wifi` in the scene - and
 -- these two services insist on a real true/false, not a 1 or a 0.
 -- The Wi-Fi tile only names a Wi-Fi connection: `kind` is text, which the scene cannot compare.
+-- `kind` is the machine's main connection, so with a cable plugged in it says "wired" even while Wi-Fi is
+-- connected too; the tile asks whether any network in range is the one in use instead.
 sys.watch("network", function(n)
-    fact.on_wifi = n.kind == "wifi" and n.online == true
+    local joined = false
+    for _, w in n.networks or {} do
+        if w.active then joined = true; break end
+    end
+    fact.on_wifi = n.wifi == true and (joined or n.kind == "wifi")
 end)
 
 -- (Either can refuse: "BlueZ is not running" on a machine whose Bluetooth service is stopped.)
