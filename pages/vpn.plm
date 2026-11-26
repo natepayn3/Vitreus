@@ -187,6 +187,74 @@ part Vpn {
                 zone box vpn_x_hit.$i { at: spx + 424 * pw - 38 * pu, sby + ry * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; label: "Delete this profile"; agent: no; active: (vpn_r.$i.on and vpn_arm < 0 and not vpn_busy) and (((ry) * pu - vpn.off) > 14 * pu and ((ry) * pu - vpn.off) < 440 * pu) }
                 on press vpn_x_hit.$i { emit vpn_arm_ask(i) }
             }
+            //  ── Skip the VPN (logic/vpn_split.luau) ──
+            //  Sites and apps whose traffic goes out the ordinary connection while a VPN is up. The switch needs a one-time setup first (it asks the
+            //  password: the routing is root's); until then a Set up pill stands in its place. Then a field for a site and one for an app (the
+            //  installed app it would add is named at the field's right end), and a row for each, with Remove.
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + (vpn.xb + vpn.xh / 2) * pu; size: 438 * pw, vpn.xh * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + (vpn.xb + vpn.xh / 2) * pu, 438 * pw, vpn.xh * pu, 511.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }
+            box { at: spx + 219 * pw, sby + (vpn.xb + vpn.xh / 2) * pu; size: 438 * pw, vpn.xh * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }
+            box { at: spx + 219 * pw, sby + (vpn.xb + vpn.xh / 2) * pu; size: 438 * pw, vpn.xh * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + (vpn.xb + vpn.xh / 2) * pu; size: 438 * pw, vpn.xh * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.xb - 13) * pu + 0.5); text "SKIP THE VPN" { at: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.xb - 13) * pu + 0.5); anchor: left center; size: 16; weight: 700; color: faint; family: "Space Grotesk" } }
+            //  the switch (or Set up)
+            measure ldr_vs1
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.xb + 23) * pu + 0.5); text "Go around the VPN" { at: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.xb + 23) * pu + 0.5); measure: ldr_vs1; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            measure ldh_vs1
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.xb + 37) * pu + 0.5); text vs_hint { at: floor(spx + 14 * pw + 0.5), floor(sby + (vpn.xb + 37) * pu + 0.5); measure: ldh_vs1; anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
+            group {
+                show: vs_ready == 1
+                SettingsSwitch(spx + 424 * pw, sby + (vpn.xb + 29) * pu, vs_k, vs_tg.pressed, vs_tg.hover, mint)
+                PLeader(spx + 14 * pw + max(ldr_vs1.width, ldh_vs1.width) * rs + 8 * pu, spx + 424 * pw - 40 * cu, sby + (vpn.xb + 29) * pu, vs_tg.hover, pu)
+            }
+            zone box vs_tg { at: spx + 424 * pw - 19 * cu, sby + (vpn.xb + 29) * pu; size: 44 * cu, 28 * cu; corner: 14 * cu; cursor: pointer; label: "Go around the VPN"; active: vs_ready == 1 and not vs_busy and (((vpn.xb + 29) * pu - vpn.off) > 14 * pu and ((vpn.xb + 29) * pu - vpn.off) < 440 * pu) }
+            on press vs_tg { emit vs_toggle }
+            group {
+                show: vs_ready != 1
+                box { at: spx + 424 * pw - 54 * pu, sby + (vpn.xb + 29) * pu; size: 108 * pu, 28 * pu; corner: (14 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: 18% + 14% * vs_setup_hit.hover }
+                PPillOutline(spx + 424 * pw - 54 * pu, sby + (vpn.xb + 29) * pu, 108 * pu, 28 * pu, 14 * pu, vs_setup_hit.hover, clamp(3 * (18% + 14% * vs_setup_hit.hover), 0, 1), pu)
+                group { scale: rs; pivot: floor(spx + 424 * pw - 54 * pu + 0.5), floor(sby + (vpn.xb + 29) * pu + 0.5); text if(vs_ready == 2, "Update", "Set up") { at: floor(spx + 424 * pw - 54 * pu + 0.5), floor(sby + (vpn.xb + 29) * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; color: mint; family: "Space Grotesk" } }
+                PLeader(spx + 14 * pw + max(ldr_vs1.width, ldh_vs1.width) * rs + 8 * pu, spx + 424 * pw - 116 * pu, sby + (vpn.xb + 29) * pu, vs_setup_hit.hover, pu)
+            }
+            zone box vs_setup_hit { at: spx + 424 * pw - 54 * pu, sby + (vpn.xb + 29) * pu; size: 110 * pu, 30 * pu; corner: 15 * pu; cursor: pointer; label: "Set up skipping the VPN (asks for the password once)"; agent: no; active: vs_ready != 1 and not vs_busy and (((vpn.xb + 29) * pu - vpn.off) > 14 * pu and ((vpn.xb + 29) * pu - vpn.off) < 440 * pu) }
+            on press vs_setup_hit { emit vs_setup }
+            //  a site
+            box { at: spx + 219 * pw - 58 * pu, sby + (vpn.xb + 65) * pu; size: 410 * pw - 116 * pu, 28 * pu; corner: 9 * pu; color: ink; opacity: 8% }
+            group {
+                show: (((vpn.xb + 65) * pu - vpn.off) > 14 * pu and ((vpn.xb + 65) * pu - vpn.off) < (set.h - 14) * pu)
+                input vs_site { at: floor(spx + 26 * pw + 0.5), floor(sby + (vpn.xb + 65) * pu - 6.5 * pu + 0.5); width: 386 * pw - 116 * pu; size: 14; color: ink; family: "Space Grotesk"; placeholder: "A site: netflix.com, or an address"; label: "A site to skip the VPN" }
+            }
+            on submit vs_site { emit vs_add_site }
+            box { at: spx + 424 * pw - 54 * pu, sby + (vpn.xb + 65) * pu; size: 108 * pu, 28 * pu; corner: (14 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: 18% + 8% * vs_as_hit.hover }
+            PPillOutline(spx + 424 * pw - 54 * pu, sby + (vpn.xb + 65) * pu, 108 * pu, 28 * pu, 14 * pu, vs_as_hit.hover, clamp(3 * (18% + 8% * vs_as_hit.hover), 0, 1), pu)
+            group { scale: rs; pivot: floor(spx + 424 * pw - 54 * pu + 0.5), floor(sby + (vpn.xb + 65) * pu + 0.5); text "Add site" { at: floor(spx + 424 * pw - 54 * pu + 0.5), floor(sby + (vpn.xb + 65) * pu + 0.5); anchor: center; align: center; size: 14.5; weight: 700; width: (104 * pw) / rs; lines: 1; color: mint; family: "Space Grotesk" } }
+            zone box vs_as_hit { at: spx + 424 * pw - 54 * pu, sby + (vpn.xb + 65) * pu; size: 110 * pu, 30 * pu; corner: 15 * pu; cursor: pointer; label: "Add the site typed"; active: not vs_busy and (((vpn.xb + 65) * pu - vpn.off) > 14 * pu and ((vpn.xb + 65) * pu - vpn.off) < 440 * pu) }
+            on press vs_as_hit { emit vs_add_site }
+            //  an app: typing finds an installed one, named at the field's right end
+            box { at: spx + 219 * pw - 58 * pu, sby + (vpn.xb + 101) * pu; size: 410 * pw - 116 * pu, 28 * pu; corner: 9 * pu; color: ink; opacity: 8% }
+            group {
+                show: (((vpn.xb + 101) * pu - vpn.off) > 14 * pu and ((vpn.xb + 101) * pu - vpn.off) < (set.h - 14) * pu)
+                input vs_app { at: floor(spx + 26 * pw + 0.5), floor(sby + (vpn.xb + 101) * pu - 6.5 * pu + 0.5); width: 130 * pw; size: 14; color: ink; family: "Space Grotesk"; placeholder: "An app: Steam, Chrome"; label: "An app to skip the VPN" }
+                group { scale: rs; pivot: floor(spx + 424 * pw - 128 * pu + 0.5), floor(sby + (vpn.xb + 101) * pu + 0.5); text vs_app_hint { at: floor(spx + 424 * pw - 128 * pu + 0.5), floor(sby + (vpn.xb + 101) * pu + 0.5); anchor: right center; align: right; size: 13.5; weight: 600; width: (116 * pw) / rs; lines: 1; color: if(vs_app_ok, mint, faint); family: "Space Grotesk" } }
+            }
+            on submit vs_app { emit vs_add_app }
+            box { at: spx + 424 * pw - 54 * pu, sby + (vpn.xb + 101) * pu; size: 108 * pu, 28 * pu; corner: (14 * pu) * (1 - 0.85 * dd_k); color: mint; opacity: 18% + 8% * vs_aa_hit.hover }
+            PPillOutline(spx + 424 * pw - 54 * pu, sby + (vpn.xb + 101) * pu, 108 * pu, 28 * pu, 14 * pu, vs_aa_hit.hover, clamp(3 * (18% + 8% * vs_aa_hit.hover), 0, 1), pu)
+            group { scale: rs; pivot: floor(spx + 424 * pw - 54 * pu + 0.5), floor(sby + (vpn.xb + 101) * pu + 0.5); text "Add app" { at: floor(spx + 424 * pw - 54 * pu + 0.5), floor(sby + (vpn.xb + 101) * pu + 0.5); anchor: center; align: center; size: 14.5; weight: 700; width: (104 * pw) / rs; lines: 1; color: mint; family: "Space Grotesk" } }
+            zone box vs_aa_hit { at: spx + 424 * pw - 54 * pu, sby + (vpn.xb + 101) * pu; size: 110 * pu, 30 * pu; corner: 15 * pu; cursor: pointer; label: "Add the app found"; active: not vs_busy and (((vpn.xb + 101) * pu - vpn.off) > 14 * pu and ((vpn.xb + 101) * pu - vpn.off) < 440 * pu) }
+            on press vs_aa_hit { emit vs_add_app }
+            //  the list: what it is (Site, App) as a badge, its name, and Remove
+            repeat i in 0..10 {
+                let xy = vpn.xb + 135 + i * 32
+                box { at: spx + 14 * pw + 22 * pu, sby + xy * pu; size: 44 * pu, 20 * pu; corner: 10 * pu; color: if(vs_r.$i.app, mint, ink); opacity: if(vs_r.$i.on, if(vs_r.$i.app, 16%, 8%), 0%) }
+                group { scale: rs; pivot: floor(spx + 14 * pw + 22 * pu + 0.5), floor(sby + xy * pu + 0.5); text if(vs_r.$i.app, "App", "Site") { at: floor(spx + 14 * pw + 22 * pu + 0.5), floor(sby + xy * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(vs_r.$i.app, mint, faint); show: vs_r.$i.on; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pw + 54 * pu + 0.5), floor(sby + xy * pu + 0.5); text vs_r.$i.name { at: floor(spx + 14 * pw + 54 * pu + 0.5), floor(sby + xy * pu + 0.5); anchor: left center; size: 17; weight: 700; width: (170 * pw) / rs; lines: 1; color: ink; show: vs_r.$i.on; family: "Space Grotesk" } }
+                box { at: spx + 424 * pw - 38 * pu, sby + xy * pu; size: 76 * pu, 24 * pu; corner: (12 * pu) * (1 - 0.85 * dd_k); color: alert; opacity: if(vs_r.$i.on, 12% + 14% * vs_x_hit.$i.hover, 0%) }
+                PPillOutline(spx + 424 * pw - 38 * pu, sby + xy * pu, 76 * pu, 24 * pu, 12 * pu, vs_x_hit.$i.hover, if(vs_r.$i.on, 0.5 + 0.4 * vs_x_hit.$i.hover, 0), pu)
+                group { scale: rs; pivot: floor(spx + 424 * pw - 38 * pu + 0.5), floor(sby + xy * pu + 0.5); text "Remove" { at: floor(spx + 424 * pw - 38 * pu + 0.5), floor(sby + xy * pu + 0.5); anchor: center; align: center; size: 15; weight: 700; color: alert; show: vs_r.$i.on; family: "Space Grotesk" } }
+                zone box vs_x_hit.$i { at: spx + 424 * pw - 38 * pu, sby + xy * pu; size: 78 * pu, 26 * pu; corner: 13 * pu; cursor: pointer; label: "Remove it from the list"; active: (vs_r.$i.on and not vs_busy) and (((xy) * pu - vpn.off) > 14 * pu and ((xy) * pu - vpn.off) < 440 * pu) }
+                on press vs_x_hit.$i { emit vs_del(i) }
+            }
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
             body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + (vpn.ab + (59 + vpn.fh + 52) / 2) * pu; size: 438 * pw, (59 + vpn.fh + 52) * pu; corner: 14 * pu } }
             DdCard(spx + 219 * pw, sby + (vpn.ab + (59 + vpn.fh + 52) / 2) * pu, 438 * pw, (59 + vpn.fh + 52) * pu, 666.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card

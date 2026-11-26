@@ -1,0 +1,258 @@
+#!/bin/sh
+# Settings > Network > Skip the VPN: sites and apps whose traffic goes out the ordinary connection while a VPN is up (split tunnelling).
+#
+# How: what is to skip the VPN carries a mark (0x7650) put on it by an nftables table of its own (`inet vitreus_split`): packets to the sites'
+# addresses, and packets from programs in the system's `novpn.slice`. A rule of the policy routing, ahead of every VPN's (priority 7650, before
+# NetworkManager's WireGuard ones at 30960), sends what carries the mark to a table of its own (7650), which holds only the ordinary
+# connection's default route and its local network. Those packets leave with the ordinary address (masquerade: the program had picked the
+# VPN's address before the mark was put on), and the answers are given the mark back (from conntrack) so the kernel's reverse-path check finds
+# them coming in on the right adapter (src_valid_mark). Name lookups (port 53) are never marked: they go to the VPN's own name server.
+#
+# What fills the slice and the sets is bin/vitreus-vpn-split-daemon (root, in that slice): it moves a listed app's programs the moment they
+# start, and adds a listed site's addresses (its names under it too) the moment a name server gives them. Nothing runs on a timer.
+#
+#   vitreus-vpn-split status        key=value lines: ready (the root part is installed and this version; 2: an older one), on (the rules are
+#                                   loaded), dev (the ordinary adapter), apps (programs outside the VPN now), watch (the daemon runs),
+#                                   fail (the rules did not load)
+#   vitreus-vpn-split setup         installs the root part through pkexec (asks the password once): root-owned copies of this script and the
+#                                   daemon, a path unit that applies the list each time it is saved, the daemon's service, and a
+#                                   NetworkManager hook for when a VPN or the network comes and goes. 126/127: cancelled.
+#   vitreus-vpn-split remove        takes all of it out again (pkexec), and the rules with it
+#   vitreus-vpn-split apply CONF    (root) loads the list; `on 0`, nothing listed, no VPN connected or no ordinary connection takes the rules out and stops the
+#                                   daemon (which puts back every program it moved)
+#
+# The list is the shell's data file vpn-split.conf, one entry a line: `on 1|0`, `site DOMAIN-OR-ADDRESS`, `app ID NAME…` (the names a running
+# program of that app may have). Root only reads it, and reads only domain names, addresses and program names from it.
+set -eu
+VERSION=4
+MARK=0x7650
+TABLE=7650
+PREF=7650
+SLICE=novpn.slice
+LIB=/usr/local/lib/vitreus
+ROOTCOPY=$LIB/vitreus-vpn-split
+DAEMON=$LIB/vitreus-vpn-split-daemon
+UNIT=vitreus-vpn-split-daemon.service
+self=$(readlink -f "$0")
+data=${XDG_DATA_HOME:-${HOME:-/root}/.local/share}/pleamar/vitreus
+conf=$data/vpn-split.conf
+
+# ── root ────────────────────────────────────────────────────────────────────────────────────────────────
+is_vpn_dev() {
+    k=$(ip -d -o link show dev "$1" 2> /dev/null || true)
+    case $k in *" wireguard "*|*" tun "*|*"tun type"*|*" tap "*) return 0 ;; esac
+    case $1 in wg*|tun*|tap*|nordlynx*|proton*|mullvad*) return 0 ;; esac
+    return 1
+}
+# the ordinary connection's default route for a family (-4 / -6): "via GW dev DEV" (or "dev DEV"), the first that is not a VPN's
+phys_route() {
+    ip "$1" route show default table main 2> /dev/null | while read -r line; do
+        dev=$(printf '%s\n' "$line" | sed -n 's/.* dev \([^ ]*\).*/\1/p')
+        [ -n "$dev" ] || continue
+        is_vpn_dev "$dev" && continue
+        via=$(printf '%s\n' "$line" | sed -n 's/.* via \([^ ]*\).*/\1/p')
+        if [ -n "$via" ]; then echo "via $via dev $dev"; else echo "dev $dev"; fi
+        break
+    done
+}
+# a VPN is connected: an adapter of one is up (NetworkManager's hook runs `apply` when one comes or goes)
+vpn_up() {
+    for d in $(ip -o link show up 2> /dev/null | awk -F': ' '{ print $2 }' | cut -d@ -f1); do
+        is_vpn_dev "$d" && return 0
+    done
+    return 1
+}
+teardown() {
+    systemctl stop $UNIT 2> /dev/null || true                  # (it puts back the programs it moved)
+    nft delete table inet vitreus_split 2> /dev/null || true
+    while ip -4 rule del pref $PREF 2> /dev/null; do :; done
+    while ip -6 rule del pref $PREF 2> /dev/null; do :; done
+    ip -4 route flush table $TABLE 2> /dev/null || true
+    ip -6 route flush table $TABLE 2> /dev/null || true
+    # the kernel setting as it was before the rules first loaded
+    if [ -f /run/vitreus-vpn-split/src_valid_mark ]; then
+        sysctl -qw net.ipv4.conf.all.src_valid_mark="$(cat /run/vitreus-vpn-split/src_valid_mark)" 2> /dev/null || true
+        rm -f /run/vitreus-vpn-split/src_valid_mark
+    fi
+}
+valid_host() { printf '%s' "$1" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9-]{0,62}\.)*[A-Za-z0-9-]{1,63}\.?$'; }
+valid_v4() { printf '%s' "$1" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$'; }
+valid_v6() { printf '%s' "$1" | grep -Eq '^[0-9A-Fa-f:]*:[0-9A-Fa-f:.]*(/[0-9]{1,3})?$'; }
+
+apply() {
+    c=$1
+    [ -f "$c" ] || { teardown; exit 0; }
+    on=$(sed -n 's/^on[[:space:]]\{1,\}\([01]\).*/\1/p' "$c" | tail -1)
+    [ "$on" = 1 ] || { teardown; exit 0; }
+    # no VPN connected: nothing to go around, so nothing runs (the rules come back when one connects)
+    vpn_up || { teardown; exit 0; }
+    r4=$(phys_route -4)
+    r6=$(phys_route -6)
+    [ -n "$r4$r6" ] || { teardown; exit 0; }
+    dev=$(printf '%s\n%s\n' "$r4" "$r6" | sed -n 's/.*dev \([^ ]*\).*/\1/p' | head -1)
+
+    # literal addresses and ranges; the names' addresses are the daemon's, in v4d / v6d
+    v4=""; v6=""; names=0
+    for s in $(sed -n 's/^site[[:space:]]\{1,\}\([^[:space:]]*\).*/\1/p' "$c" | head -200); do
+        if valid_v4 "$s"; then v4="$v4 $s"
+        elif valid_v6 "$s"; then v6="$v6 $s"
+        elif valid_host "$s"; then names=1; fi
+    done
+    v4=$(printf '%s\n' $v4 | sort -u | paste -sd, -)
+    v6=$(printf '%s\n' $v6 | sort -u | paste -sd, -)
+    grep -q '^app[[:space:]]' "$c" && names=1
+    [ -n "$v4$v6" ] || [ $names = 1 ] || { teardown; exit 0; }
+
+    # the daemon first: it is what keeps the slice (nft looks the slice up when the rules load). Started, it says so only once it listens.
+    systemctl start $UNIT
+    cg=$SLICE
+    cgrule=""
+    [ -d "/sys/fs/cgroup/$cg" ] && cgrule="socket cgroupv2 level 1 \"$cg\" meta mark set $MARK ct mark set $MARK"
+
+    # the table of the ordinary connection: its default route, and its local network so a printer or the router still answers
+    ip -4 route flush table $TABLE 2> /dev/null || true
+    ip -6 route flush table $TABLE 2> /dev/null || true
+    if [ -n "$r4" ]; then
+        ip -4 route show table main dev "$dev" scope link 2> /dev/null | while read -r l; do ip -4 route add $l dev "$dev" table $TABLE 2> /dev/null || true; done
+        ip -4 route replace default $r4 table $TABLE
+        ip -4 rule del pref $PREF 2> /dev/null || true
+        ip -4 rule add pref $PREF fwmark $MARK lookup $TABLE
+    fi
+    if [ -n "$r6" ]; then
+        ip -6 route replace default $r6 table $TABLE 2> /dev/null || true
+        ip -6 rule del pref $PREF 2> /dev/null || true
+        ip -6 rule add pref $PREF fwmark $MARK lookup $TABLE 2> /dev/null || true
+    fi
+    if [ ! -f /run/vitreus-vpn-split/src_valid_mark ]; then
+        { mkdir -p /run/vitreus-vpn-split && sysctl -n net.ipv4.conf.all.src_valid_mark > /run/vitreus-vpn-split/src_valid_mark; } 2> /dev/null || true
+    fi
+    sysctl -qw net.ipv4.conf.all.src_valid_mark=1
+
+    {
+        echo "table inet vitreus_split {}"
+        echo "delete table inet vitreus_split"
+        echo "table inet vitreus_split {"
+        e4=""; [ -n "$v4" ] && e4=" elements = { $v4 };"
+        e6=""; [ -n "$v6" ] && e6=" elements = { $v6 };"
+        echo "  set v4 { type ipv4_addr; flags interval; auto-merge;$e4 }"
+        echo "  set v6 { type ipv6_addr; flags interval; auto-merge;$e6 }"
+        echo "  set v4d { type ipv4_addr; flags timeout; }"
+        echo "  set v6d { type ipv6_addr; flags timeout; }"
+        echo "  chain out {"
+        echo "    type route hook output priority mangle; policy accept;"
+        echo "    meta l4proto { tcp, udp } th dport 53 return"
+        echo "    ct mark $MARK meta mark set $MARK return"
+        echo "    ip daddr @v4 meta mark set $MARK ct mark set $MARK return"
+        echo "    ip6 daddr @v6 meta mark set $MARK ct mark set $MARK return"
+        echo "    ip daddr @v4d meta mark set $MARK ct mark set $MARK return"
+        echo "    ip6 daddr @v6d meta mark set $MARK ct mark set $MARK return"
+        [ -n "$cgrule" ] && echo "    $cgrule"
+        echo "  }"
+        echo "  chain pre {"
+        echo "    type filter hook prerouting priority mangle; policy accept;"
+        echo "    ct mark $MARK meta mark set $MARK"
+        echo "  }"
+        echo "  chain post {"
+        echo "    type nat hook postrouting priority srcnat; policy accept;"
+        echo "    meta mark $MARK oifname \"$dev\" masquerade"
+        echo "  }"
+        echo "}"
+    } | nft -f -
+    # the daemon reads the list again, and puts the addresses it knows back into the sets made anew
+    systemctl reload $UNIT 2> /dev/null || true
+}
+
+root_setup() {
+    user=$1
+    home=$(getent passwd "$user" | cut -d: -f6)
+    [ -n "$home" ] && [ -d "$home" ] || { echo "no such user" >&2; exit 2; }
+    c="$home/.local/share/pleamar/vitreus/vpn-split.conf"
+    install -d -o root -g root -m 755 $LIB
+    install -o root -g root -m 755 "$self" $ROOTCOPY
+    install -o root -g root -m 755 "$(dirname "$self")/vitreus-vpn-split-daemon" $DAEMON
+    cat > /etc/systemd/system/vitreus-vpn-split.service << EOF
+[Unit]
+Description=Vitreus: sites and apps that skip the VPN
+After=network.target
+[Service]
+Type=oneshot
+ExecStart=$ROOTCOPY apply $c
+EOF
+    cat > /etc/systemd/system/vitreus-vpn-split.path << EOF
+[Unit]
+Description=Vitreus: apply the skip-the-VPN list when it is saved
+[Path]
+PathChanged=$c
+PathModified=$c
+Unit=vitreus-vpn-split.service
+[Install]
+WantedBy=multi-user.target
+EOF
+    cat > /etc/systemd/system/$UNIT << EOF
+[Unit]
+Description=Vitreus: moves the apps that skip the VPN out of it as they start, and follows the sites' addresses
+[Service]
+Type=notify
+Slice=$SLICE
+ExecStart=$DAEMON $c
+ExecReload=/bin/kill -HUP \$MAINPID
+Restart=on-failure
+RestartSec=3
+EOF
+    # (an older setup's timer, and its user service)
+    systemctl disable --now vitreus-vpn-split.timer > /dev/null 2>&1 || true
+    rm -f /etc/systemd/system/vitreus-vpn-split.timer
+    install -d -m 755 /etc/NetworkManager/dispatcher.d
+    cat > /etc/NetworkManager/dispatcher.d/90-vitreus-vpn-split << EOF
+#!/bin/sh
+# Vitreus: a VPN or the network came or went: the skip-the-VPN rules follow the ordinary connection's route.
+case "\$2" in up|down|vpn-up|vpn-down|dhcp4-change|dhcp6-change|connectivity-change) systemctl start --no-block vitreus-vpn-split.service ;; esac
+EOF
+    chmod 755 /etc/NetworkManager/dispatcher.d/90-vitreus-vpn-split
+    systemctl daemon-reload
+    systemctl enable --now vitreus-vpn-split.path > /dev/null 2>&1
+    systemctl start --no-block vitreus-vpn-split.service
+}
+root_remove() {
+    systemctl disable --now vitreus-vpn-split.path vitreus-vpn-split.timer > /dev/null 2>&1 || true
+    teardown
+    rm -f /etc/systemd/system/vitreus-vpn-split.service /etc/systemd/system/vitreus-vpn-split.path /etc/systemd/system/vitreus-vpn-split.timer \
+          /etc/systemd/system/$UNIT /etc/NetworkManager/dispatcher.d/90-vitreus-vpn-split $ROOTCOPY $DAEMON
+    rmdir $LIB 2> /dev/null || true
+    systemctl daemon-reload
+}
+
+# ── the user's ──────────────────────────────────────────────────────────────────────────────────────────
+# An older setup kept the slice with a user service, and moved programs from the shell: both are the daemon's now.
+user_cleanup() {
+    systemctl --user disable --now vitreus-novpn.service > /dev/null 2>&1 || true
+    rm -f "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/vitreus-novpn.service"
+    systemctl --user daemon-reload 2> /dev/null || true
+}
+
+status() {
+    ready=0
+    if [ -x $ROOTCOPY ] && [ "$(sed -n 's/^VERSION=//p' $ROOTCOPY | head -1)" = "$VERSION" ] && systemctl is-enabled -q vitreus-vpn-split.path 2> /dev/null; then ready=1
+    elif [ -x $ROOTCOPY ]; then ready=2; fi            # an older copy: Set up again updates it
+    on=0; ip -4 rule show pref $PREF 2> /dev/null | grep -q . && on=1
+    dev=$(ip -4 route show table $TABLE default 2> /dev/null | sed -n 's/.* dev \([^ ]*\).*/\1/p' | head -1)
+    n=$(cat /sys/fs/cgroup/$SLICE/*.scope/cgroup.procs 2> /dev/null | wc -l)
+    w=0; systemctl is-active -q $UNIT 2> /dev/null && w=1
+    fail=0; systemctl is-failed -q vitreus-vpn-split.service 2> /dev/null && fail=1
+    vpn=0; vpn_up && vpn=1
+    echo "ready=$ready"; echo "on=$on"; echo "dev=$dev"; echo "apps=$n"; echo "watch=$w"; echo "fail=$fail"; echo "vpn=$vpn"
+}
+
+case "${1:-}" in
+status) status ;;
+setup)
+    SHELL=/bin/sh pkexec "$self" root-setup "$(id -un)"
+    user_cleanup ;;
+remove)
+    user_cleanup
+    SHELL=/bin/sh pkexec "$self" root-remove ;;
+root-setup) [ "$(id -u)" -eq 0 ] || exit 1; root_setup "$2" ;;
+root-remove) [ "$(id -u)" -eq 0 ] || exit 1; root_remove ;;
+apply) [ "$(id -u)" -eq 0 ] || exit 1; apply "$2" ;;
+*) sed -n '2,32p' "$self"; exit 2 ;;
+esac

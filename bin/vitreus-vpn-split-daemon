@@ -1,0 +1,507 @@
+#!/usr/bin/python3 -I
+# Settings > Network > Skip the VPN: the root part that follows what happens, so nothing asks on a timer. Installed by `vitreus-vpn-split setup`
+# into /usr/local/lib/vitreus and run as the system service vitreus-vpn-split-daemon, in novpn.slice (which it keeps alive: the rules that
+# bin/vitreus-vpn-split loads match the programs in that slice). It sleeps until the kernel tells it something:
+#
+#   a program started (the proc connector, exec events only)   one of a listed app's: it goes into a scope of novpn.slice at once, before it
+#                                                               has connected anywhere, however it was started (launcher, key binding, terminal)
+#   a DNS answer came in (a packet socket that a kernel filter  a name of a listed site, or under it (cdn.discord.com for discord.com): the
+#   lets through only for UDP from port 53)                     addresses it gives go into the rules' sets, kept for 6 hours from the last answer
+#   SIGHUP (the list was saved: bin/vitreus-vpn-split apply)    reads the list again: programs of apps taken off it go back where they came from,
+#                                                               running programs of apps put on it go out, and the listed sites are looked up
+#   SIGTERM (switched off)                                      every program it moved goes back, then it ends
+#
+# Usage: vitreus-vpn-split-daemon CONF   (CONF: the user's vpn-split.conf; its owner is whose programs are looked at)
+import ctypes, json, os, re, select, shutil, signal, socket, struct, subprocess, sys, time
+
+CONF = sys.argv[1] if len(sys.argv) > 1 else ""
+SLICE = "novpn.slice"
+CG = "/sys/fs/cgroup"
+STATE = "/run/vitreus-vpn-split"
+KEEP = 6 * 3600                   # how long an address seen in an answer stays in the sets (each answer for it starts this again)
+
+
+def log(*a):
+    print(*a, file=sys.stderr, flush=True)
+
+
+# ── the list ───────────────────────────────────────────────────────────────────────────────────────────────
+class Conf:
+    uid = -1
+    on = False
+    sites = []                    # domain names (lower case), not addresses: those the rules hold themselves
+    names = set()                 # the names a listed app's programs have, lower case and cut at 15 letters as the kernel cuts them
+    home = "/"
+
+
+def script_targets(path, depth, out):
+    # the programs a launcher script execs (google-chrome-stable execs /opt/google/chrome/google-chrome, which execs "$HERE/chrome")
+    if depth <= 0:
+        return
+    try:
+        with open(path, "rb") as f:
+            if f.read(2) != b"#!":
+                return
+            text = f.read(65536).decode("utf-8", "replace")
+    except OSError:
+        return
+    for m in re.finditer(r'(?m)^\s*exec\s+(?:-a\s+\S+\s+)?"?([^\s"]+)', text):
+        t = m.group(1)
+        out.add(os.path.basename(t))
+        if t.startswith("/"):
+            script_targets(t, depth - 1, out)
+
+
+def read_conf():
+    c = Conf()
+    try:
+        st = os.stat(CONF)
+        with open(CONF, encoding="utf-8", errors="replace") as f:
+            lines = f.read(262144).splitlines()
+    except OSError:
+        return c
+    c.uid = st.st_uid
+    try:
+        import pwd
+        c.home = pwd.getpwuid(c.uid).pw_dir
+    except Exception:
+        pass
+    path = "/usr/local/bin:/usr/bin:/bin:" + os.path.join(c.home, ".local/bin")
+    names, sites = set(), []
+    for line in lines:
+        w = line.split()
+        if not w:
+            continue
+        if w[0] == "on" and len(w) > 1:
+            c.on = w[1] == "1"
+        elif w[0] == "site" and len(w) > 1:
+            s = w[1].lower().rstrip(".")
+            if re.fullmatch(r"[a-z0-9]([a-z0-9-]{0,62}\.)+[a-z0-9-]{1,63}", s) and not re.fullmatch(r"[0-9.]+", s):
+                sites.append(s)
+        elif w[0] == "app":
+            for n in w[2:]:
+                found = set([os.path.basename(n)])
+                p = shutil.which(n, path=path)
+                if p:
+                    found.add(os.path.basename(os.path.realpath(p)))
+                    script_targets(p, 2, found)
+                for x in found:
+                    if re.fullmatch(r"[A-Za-z0-9._+-]+", x):
+                        names.add(x.lower()[:15])
+    c.names, c.sites = names, sites[:200]
+    return c
+
+
+# ── moving programs ────────────────────────────────────────────────────────────────────────────────────────
+origins = {}                      # scope name -> the cgroup its programs came from (kept in /run, for a restart)
+
+
+def save_origins():
+    try:
+        os.makedirs(STATE, exist_ok=True)
+        with open(STATE + "/origins.json.new", "w") as f:
+            json.dump(origins, f)
+        os.replace(STATE + "/origins.json.new", STATE + "/origins.json")
+    except OSError:
+        pass
+
+
+def load_origins():
+    global origins
+    try:
+        with open(STATE + "/origins.json") as f:
+            origins = json.load(f)
+    except (OSError, ValueError):
+        origins = {}
+
+
+def cgroup_of(pid):
+    try:
+        with open(f"/proc/{pid}/cgroup") as f:
+            for l in f:
+                if l.startswith("0::"):
+                    return l[3:].strip()
+    except OSError:
+        pass
+    return None
+
+
+def comm_of(pid):
+    try:
+        with open(f"/proc/{pid}/comm") as f:
+            return f.read().strip().lower()
+    except OSError:
+        return None
+
+
+def uid_of(pid):
+    try:
+        return os.stat(f"/proc/{pid}").st_uid
+    except OSError:
+        return -1
+
+
+def busctl_scope(name, pids, slice_):
+    args = ["busctl", "call", "org.freedesktop.systemd1", "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager",
+            "StartTransientUnit", "ssa(sv)a(sa(sv))", name, "fail", "3", "PIDs", "au", str(len(pids))] + [str(p) for p in pids] + \
+           ["Slice", "s", slice_, "CollectMode", "s", "inactive-or-failed", "0"]
+    try:
+        r = subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=5)
+    except subprocess.TimeoutExpired:
+        log("move", name, "took too long")
+        return False
+    if r.returncode != 0:
+        log("move", name, "failed:", r.stderr.decode(errors="replace").strip())
+    return r.returncode == 0
+
+
+seq = [0]
+
+
+def move_out(pids):
+    pids = [p for p in pids if (cgroup_of(p) or "").split("/")[1:2] != [SLICE]]
+    if not pids:
+        return
+    origin = cgroup_of(pids[0])
+    seq[0] += 1
+    name = f"novpn-{pids[0]}-{seq[0]}-{int(time.time())}.scope"
+    if busctl_scope(name, pids, SLICE):
+        origins[name] = origin
+        save_origins()
+
+
+def move_back(scope, pids):
+    origin = origins.pop(scope, None)
+    done = False
+    if origin and os.path.isdir(CG + origin):
+        try:
+            for p in pids:
+                with open(CG + origin + "/cgroup.procs", "w") as f:
+                    f.write(str(p))
+            done = True
+        except OSError:
+            done = False
+    if not done:
+        # where it came from is gone: a scope of its own in the user's slice
+        uid = uid_of(pids[0])
+        seq[0] += 1
+        busctl_scope(f"vpn-back-{pids[0]}-{seq[0]}-{int(time.time())}.scope", pids, f"user-{uid}.slice" if uid >= 0 else "system.slice")
+    save_origins()
+
+
+def scopes():
+    base = f"{CG}/{SLICE}"
+    try:
+        for n in os.listdir(base):
+            if n.endswith(".scope"):
+                try:
+                    with open(f"{base}/{n}/cgroup.procs") as f:
+                        pids = [int(x) for x in f.read().split()]
+                except OSError:
+                    continue
+                yield n, pids
+    except OSError:
+        return
+
+
+def release(c):
+    # the programs of apps taken off the list (all of them, switched off) go back
+    for name, pids in list(scopes()):
+        if not pids:
+            continue
+        if c.on and any((comm_of(p) or "") in c.names for p in pids):
+            continue
+        move_back(name, pids)
+
+
+def sweep(c):
+    # the running programs of listed apps, and every program under them (a browser does its networking in a child)
+    if not c.on or not c.names:
+        return
+    par, hit = {}, set()
+    for d in os.listdir("/proc"):
+        if not d.isdigit():
+            continue
+        p = int(d)
+        if uid_of(p) != c.uid:
+            continue
+        try:
+            with open(f"/proc/{p}/stat") as f:
+                s = f.read()
+            par[p] = int(s[s.rindex(")") + 2:].split()[1])
+        except (OSError, ValueError):
+            continue
+        if (comm_of(p) or "") in c.names:
+            hit.add(p)
+    more = True
+    while more:
+        more = False
+        for p, q in par.items():
+            if p not in hit and q in hit:
+                hit.add(p)
+                more = True
+    if hit:
+        move_out(sorted(hit))
+
+
+# ── the sites' addresses ───────────────────────────────────────────────────────────────────────────────────
+seen = {}                         # address -> until when it was last put in the sets
+
+
+def nft_add(addrs):
+    v4 = [a for a in addrs if ":" not in a]
+    v6 = [a for a in addrs if ":" in a]
+    cmds = []
+    # (`add` leaves an element that is there with the time it had: `destroy` first, which does not mind one that is not, gives it a new one)
+    for st, l in (("v4d", v4), ("v6d", v6)):
+        if l:
+            cmds.append(f"destroy element inet vitreus_split {st} {{ " + ", ".join(l) + " }")
+            cmds.append(f"add element inet vitreus_split {st} {{ " + ", ".join(f"{a} timeout {KEEP}s" for a in l) + " }")
+    if not cmds:
+        return
+    r = subprocess.run(["nft", "-f", "-"], input="\n".join(cmds).encode(), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=10)
+    if r.returncode != 0:
+        log("nft:", r.stderr.decode(errors="replace").strip()[:300])
+
+
+def remember(addrs, force=False):
+    now = time.time()
+    new = [a for a in addrs if force or seen.get(a, 0) < now + KEEP - 600]     # (an address seen in the last ten minutes is not added again)
+    for a in addrs:
+        seen[a] = now + KEEP
+    if new:
+        nft_add(new)
+
+
+def wanted(name, c):
+    name = name.lower().rstrip(".")
+    return any(name == s or name.endswith("." + s) for s in c.sites)
+
+
+def lookup(c):
+    found = []
+    for s in c.sites:
+        for h in (s, "www." + s):
+            try:
+                for fam, _, _, _, sa in socket.getaddrinfo(h, None, proto=socket.IPPROTO_TCP):
+                    found.append(sa[0])
+            except OSError:
+                pass
+    if found:
+        remember(sorted(set(found)), force=True)
+
+
+def dns_name(msg, i, depth=0):
+    labels = []
+    while i < len(msg) and depth < 20:
+        n = msg[i]
+        if n == 0:
+            return ".".join(labels), i + 1
+        if n & 0xC0 == 0xC0:
+            if i + 1 >= len(msg):
+                break
+            ptr = ((n & 0x3F) << 8) | msg[i + 1]
+            name, _ = dns_name(msg, ptr, depth + 1)
+            labels.append(name)
+            return ".".join(x for x in labels if x), i + 2
+        labels.append(msg[i + 1:i + 1 + n].decode("ascii", "replace"))
+        i += 1 + n
+    raise ValueError("bad name")
+
+
+def dns_answer(msg, c):
+    # a response: its question's name, and the A and AAAA records it carries (CNAMEs followed by the server: theirs are there too)
+    if len(msg) < 12 or not (msg[2] & 0x80):
+        return
+    qd, an = struct.unpack("!HH", msg[4:8])
+    if qd != 1 or an == 0:
+        return
+    q, i = dns_name(msg, 12)
+    if not wanted(q, c):
+        return
+    i += 4
+    out = []
+    for _ in range(an):
+        _, i = dns_name(msg, i)
+        if i + 10 > len(msg):
+            break
+        t, _, _, rl = struct.unpack("!HHIH", msg[i:i + 10])
+        i += 10
+        rd = msg[i:i + rl]
+        i += rl
+        if t == 1 and rl == 4:
+            out.append(socket.inet_ntop(socket.AF_INET, rd))
+        elif t == 28 and rl == 16:
+            out.append(socket.inet_ntop(socket.AF_INET6, rd))
+    if out:
+        remember(out)
+
+
+def udp_payload(pkt, v6):
+    # the packet from its IP header (a SOCK_DGRAM packet socket): its UDP payload
+    if v6:
+        if len(pkt) < 48 or pkt[6] != 17:
+            return None
+        return pkt[48:]
+    if len(pkt) < 28 or pkt[9] != 17:
+        return None
+    ihl = (pkt[0] & 0x0F) * 4
+    return pkt[ihl + 8:]
+
+
+class SockFilter(ctypes.Structure):
+    _fields_ = [("code", ctypes.c_uint16), ("jt", ctypes.c_uint8), ("jf", ctypes.c_uint8), ("k", ctypes.c_uint32)]
+
+
+class SockFprog(ctypes.Structure):
+    _fields_ = [("len", ctypes.c_uint16), ("filter", ctypes.POINTER(SockFilter))]
+
+
+keep_alive = []
+
+
+def packet_socket(v6):
+    # Only UDP from port 53 is let through by the kernel (classic BPF, offsets from the IP header): nothing else wakes this.
+    eth = 0x86DD if v6 else 0x0800
+    s = socket.socket(socket.AF_PACKET, socket.SOCK_DGRAM, socket.htons(eth))
+    if v6:
+        prog = [(0x30, 0, 0, 6), (0x15, 0, 3, 17),             # ldb [6] (next header) == UDP
+                (0x28, 0, 0, 40), (0x15, 0, 1, 53),            # ldh [40] (source port) == 53
+                (0x06, 0, 0, 0xFFFF), (0x06, 0, 0, 0)]
+    else:
+        prog = [(0x30, 0, 0, 9), (0x15, 0, 6, 17),             # ldb [9] (protocol) == UDP
+                (0x28, 0, 0, 6), (0x45, 4, 0, 0x1FFF),         # a fragment: no
+                (0xB1, 0, 0, 0),                               # ldxb 4 * ([0] & 0xf)
+                (0x48, 0, 0, 0), (0x15, 0, 1, 53),             # ldh [x + 0] (source port) == 53
+                (0x06, 0, 0, 0xFFFF), (0x06, 0, 0, 0)]
+    arr = (SockFilter * len(prog))(*[SockFilter(*x) for x in prog])
+    fp = SockFprog(len(prog), arr)
+    keep_alive.extend([arr, fp])
+    s.setsockopt(socket.SOL_SOCKET, 26, bytes(memoryview(fp)))            # SO_ATTACH_FILTER
+    s.setblocking(False)
+    try:
+        while True:                                                       # what came in before the filter was on
+            s.recv(65535)
+    except BlockingIOError:
+        pass
+    return s
+
+
+# ── programs starting ──────────────────────────────────────────────────────────────────────────────────────
+def proc_socket():
+    s = socket.socket(socket.AF_NETLINK, socket.SOCK_DGRAM, 11)            # NETLINK_CONNECTOR
+    s.bind((os.getpid(), 1))                                               # CN_IDX_PROC
+    payload = struct.pack("=II", 1, 0x2)                                   # PROC_CN_MCAST_LISTEN, exec events only (proc_input)
+    cn = struct.pack("=IIIIHH", 1, 1, 0, 0, len(payload), 0) + payload     # cn_msg: CN_IDX_PROC, CN_VAL_PROC
+    nl = struct.pack("=IHHII", 16 + len(cn), 3, 0, 0, os.getpid()) + cn  # NLMSG_DONE
+    s.send(nl)
+    s.setblocking(False)
+    return s
+
+
+def exec_events(data):
+    i = 0
+    while i + 16 <= len(data):
+        ln = struct.unpack("=I", data[i:i + 4])[0]
+        if ln < 16:
+            break
+        body = data[i + 16:i + ln]
+        if len(body) >= 20 + 24:
+            ev = body[20:]
+            what = struct.unpack("=I", ev[0:4])[0]
+            if what == 0x2:
+                yield struct.unpack("=ii", ev[16:24])[1]      # process_tgid
+        i += (ln + 3) & ~3
+
+
+def notify_ready():
+    # Type=notify: `systemctl start` (bin/vitreus-vpn-split apply) waits for this, so its SIGHUP never comes before the handler is there
+    addr = os.environ.get("NOTIFY_SOCKET")
+    if not addr:
+        return
+    if addr.startswith("@"):
+        addr = "\0" + addr[1:]
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as n:
+            n.connect(addr)
+            n.send(b"READY=1")
+    except OSError as e:
+        log("notify:", e)
+
+
+# ── the loop ───────────────────────────────────────────────────────────────────────────────────────────────
+def main():
+    load_origins()
+    c = read_conf()
+    flags = {"hup": True, "term": False}
+    signal.signal(signal.SIGHUP, lambda *_: flags.__setitem__("hup", True))
+    signal.signal(signal.SIGTERM, lambda *_: flags.__setitem__("term", True))
+    socks = {}
+    try:
+        socks[proc_socket()] = "proc"
+    except OSError as e:
+        log("programs starting: cannot listen:", e)
+    for v6 in (False, True):
+        try:
+            socks[packet_socket(v6)] = "dns6" if v6 else "dns4"
+        except OSError as e:
+            log("DNS answers: cannot listen:", e)
+    rd, wr = os.pipe()                                   # (a signal wakes the select)
+    os.set_blocking(wr, False)
+    signal.set_wakeup_fd(wr)
+    notify_ready()
+    # Started by itself (a restart after a failure), the slice may be a new one: the rules are loaded again so they find it. (Started by
+    # the rules' own load, this joins that one.)
+    subprocess.Popen(["systemctl", "start", "--no-block", "vitreus-vpn-split.service"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    while True:
+        if flags["term"]:
+            c.on = False
+            release(c)
+            return
+        if flags["hup"]:
+            flags["hup"] = False
+            c = read_conf()
+            release(c)
+            sweep(c)
+            # the addresses known go back into the sets (they were made anew), then the listed names are looked up
+            now = time.time()
+            live = [a for a, t in seen.items() if t > now]
+            if live:
+                nft_add(live)
+            lookup(c)
+        try:
+            ready, _, _ = select.select(list(socks) + [rd], [], [])
+        except InterruptedError:
+            continue
+        for s in ready:
+            if s == rd:
+                try:
+                    os.read(rd, 512)
+                except OSError:
+                    pass
+                continue
+            kind = socks[s]
+            try:
+                while True:
+                    data = s.recv(65535)
+                    if kind == "proc":
+                        if not c.on or not c.names:
+                            continue
+                        for pid in exec_events(data):
+                            if uid_of(pid) == c.uid and (comm_of(pid) or "") in c.names:
+                                move_out([pid])
+                    elif c.on and c.sites:
+                        pl = udp_payload(data, kind == "dns6")
+                        if pl:
+                            try:
+                                dns_answer(pl, c)
+                            except (ValueError, struct.error, IndexError):
+                                pass
+            except BlockingIOError:
+                pass
+            except OSError as e:
+                log(kind, e)
+
+
+if __name__ == "__main__":
+    main()

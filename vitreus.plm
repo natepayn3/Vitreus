@@ -85,7 +85,7 @@ scene Vitreus {
     //  moving paints nothing, so a cap only ever slowed what was moving (the notches, the drawers, the bar's hovers each needed an exemption from the old 12 a second).
     surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995 and bar_size < 1.005 and not bar_ah; rate: 480, 120 while bar_fps == 120 and not (media.playing and (fw_on or (bar_beat and panel == none and lm < 0.5 and sg < 0.5))) and not sky.calm, 60 while ((media.playing and (fw_on or (bar_beat and panel == none and lm < 0.5 and sg < 0.5))) or bar_fps == 60) and not sky.calm, 30 while sky.calm; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
     permissions { services: "say:*", "files", "files.write", "files.remove", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "window.activate", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "timeout 15 pw-play", "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-nettraf", "vitreus-watch", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe", "nordvpn", "yt-dlp", "wlr-randr" }
+                  run: "timeout 15 pw-play", "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-nettraf", "vitreus-watch", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe", "nordvpn", "vitreus-vpn-split", "yt-dlp", "wlr-randr" }
 
     model wifi_nets max 16 { ssid: text; strength: number; secure: bool; known: bool; active: bool; band: number; bands: text; bandw: number; chan: number; rate: number; sec: text; busy: number }
     model bat_devs max 6 { name: text; level: number }
@@ -2938,6 +2938,28 @@ scene Vitreus {
         fact vpn_r.$i.active = false
         text vpn_r.$i.name = ""
         text vpn_r.$i.sub = ""
+    }
+    //  Settings > Network > Skip the VPN (logic/vpn_split.luau, bin/vitreus-vpn-split): sites and apps that go out the ordinary connection while a VPN is up.
+    fact vs_ready = 0                 // 0: the one-time setup (it asks the password) has not been done; 1: ready; 2: an older setup, Set up again updates it
+    fact vs_on = false                // the list is in use
+    prop vs_k = 0 ~pop
+    follow vs_k = if(vs_on, 1, 0)
+    fact vs_busy = false              // setting up, or saving
+    fact vs_count = 0                 // the rows of the list
+    text vs_hint = ""                 // under the switch: what it is doing now
+    text vs_site = ""                 // the fields
+    text vs_app = ""
+    text vs_app_hint = ""             // the installed app the app field would add
+    fact vs_app_ok = false            // ... and that there is one (else the hint says so, faint)
+    event vs_toggle ->
+    event vs_setup ->
+    event vs_add_site ->
+    event vs_add_app ->
+    event vs_del ->
+    repeat i in 0..10 {
+        fact vs_r.$i.on = false
+        fact vs_r.$i.app = false
+        text vs_r.$i.name = ""
     }
     //  Settings > Notifications (see "Notification rules and sounds" in vitreus.luau): the global switches and default sound, the apps that
     //  have sent something, and the rules of the one that is open.
@@ -6357,7 +6379,9 @@ scene Vitreus {
     let vpn.nh = 102
     let vpn.pb = vpn.nb + if(vpn_nord, vpn.nh + 30, 0)     // the profiles card moves down to make room for it (30 between cards, as the style says)
     let vpn.pbh = max(1, vpn_count) * 32 + 20
-    let vpn.ab = vpn.pb + vpn.pbh + 30
+    let vpn.xb = vpn.pb + vpn.pbh + 30                     // Skip the VPN, under the profiles: a switch, two fields, then a row for each site or app
+    let vpn.xh = 129 + vs_count * 32
+    let vpn.ab = vpn.xb + vpn.xh + 30
     let vpn.fh = if(vpn_mode == vpm_wg, 180, if(vpn_mode == vpm_ovpn, 144, 276))
     let wm.h = 1040                      // the Pleamar-WM page: to the bottom of its last card
     let ad.h = 36 + max(1, addons.count) * 80 + 51 + if(ad_hidn > 0.5, 22, 0)                 // the Add-ons page: a card each (80 apart), and the line under them

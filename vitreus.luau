@@ -7549,7 +7549,7 @@ end
         { "Settings: Theme", "open", open_settings("pg_theme"), "colours colors palette theme glass retro cassette plastic iris accent wallpaper" },
         { "Settings: Keybinds", "open", open_settings("pg_keys"), "keybinds keyboard shortcuts keys hotkeys bindings shortcut super combo remap" },
         { "Settings: Widgets", "open", open_settings("pg_clock"), "widgets clock system monitor audio visualiser visualizer cava desktop clock glass digits time wallpaper layout inline stacked staggered hero position corner size weight tint 12 24 hour" },
-        { "Settings: Network", "open", open_settings("pg_vpn"), "network ethernet wired cable wifi connection ip address router gateway dns name servers static dhcp manual traffic speed vpn wireguard openvpn nordvpn" },
+        { "Settings: Network", "open", open_settings("pg_vpn"), "network ethernet wired cable wifi connection ip address router gateway dns name servers static dhcp manual traffic speed vpn wireguard openvpn nordvpn split tunnel skip bypass exclude exempt sites apps" },
         { "Settings: Weather location", "open", open_settings("pg_vpn"), "weather forecast location city zip code place celsius fahrenheit units vpn calendar temperature" },
         { "Desktop clock: toggle", "action", function()
             run("pleamar", { "--say", "desktopclock", "get shown" }, function(out)
@@ -8294,6 +8294,7 @@ require("logic/bar_layout")()
 require("logic/pencil_style")()
 -- Settings > Network, the connection in use and its address (the two cards over the VPN's): see logic/network.luau
 require("logic/network")()
+require("logic/vpn_split")()   -- Settings > Network > Skip the VPN: sites and apps that go around it
 -- the workspace marks' look and options (Settings > Bar > Workspaces), and the Apps look's icons: see logic/ws_marks.luau
 require("logic/ws_marks")({
     icon_for = function(class) return apps_by_class[class] or class end,
@@ -9310,9 +9311,19 @@ require("logic/capture_recent")(with_dirs, set_panel)
 -- that: it only starts the agent. If another agent already holds the session (polkit-gnome, hyprpolkitagent...), ours says so and
 -- ends, and that one keeps answering.
 ;(function()
-    spawn("vitreus-polkit-agent", { "--scene", "vitreus" },
-        function(line) log("polkit agent:", line) end,
-        function(_, code) log("polkit agent ended:", code) end)
+    -- When the logic is read in again, the old logic's agent is still registered for a moment: the new one steps aside (it ends with 1) and
+    -- then the old one goes with its logic, leaving no agent at all. So one that stepped aside tries again a little later, a few times.
+    local tries = 0
+    local function start()
+        spawn("vitreus-polkit-agent", { "--scene", "vitreus" },
+            function(line) log("polkit agent:", line) end,
+            function(_, code)
+                log("polkit agent ended:", code)
+                tries = tries + 1
+                if code == 1 and tries <= 3 then after(3000 * tries, start) end
+            end)
+    end
+    start()
 end)()
 
 -- Settings > System monitor. `bin/vitreus-sysmon` prints what the machine is doing once a second (as a line of JSON); it is started when
