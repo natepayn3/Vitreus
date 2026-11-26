@@ -155,9 +155,28 @@ return function()
 
     on("vs_add_site", function()
         local s = trim(text.vs_site):lower()
-        s = s:gsub("^%a+://", ""):gsub("[/?#].*$", ""):gsub(":%d+$", ""):gsub("^www%.", "")
+        s = s:gsub("^%a+://", "")
+        local cidr = s:match("^[%x:.]+/(%d+)$")           -- (a range keeps its /n; a site's path goes)
+        if not cidr then s = s:gsub("[/?#].*$", ""):gsub("^([^:]+):%d+$", "%1") end
+        s = s:gsub("^www%.", ""):gsub("%.$", "")
         if s == "" then return say("Type a site, like netflix.com", 4000) end
-        local ip = s:match("^%d+%.%d+%.%d+%.%d+$") or s:match("^%d+%.%d+%.%d+%.%d+/%d+$") or s:match("^[%x:]+:[%x:.]*$") or s:match("^[%x:]+:[%x:.]*/%d+$")
+        local ip, bad = false, false
+        local a, b, c4, d4 = s:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)$")
+        if not a then a, b, c4, d4 = s:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)/%d+$") end
+        if a then
+            ip = true
+            for _, o in ipairs({ a, b, c4, d4 }) do if tonumber(o) > 255 then bad = true end end
+            if cidr and tonumber(cidr) > 32 then bad = true end
+        elseif s:find(":", 1, true) then
+            ip = true
+            local body = s:gsub("/%d+$", "")
+            -- (at most one ::, groups of 1 to 4 hex digits, 8 of them without ::)
+            local n, dbl = 0, select(2, body:gsub("::", ""))
+            for g in body:gmatch("[^:]+") do n = n + 1; if not g:match("^%x%x?%x?%x?$") then bad = true end end
+            if dbl > 1 or (dbl == 0 and n ~= 8) or n > 8 or body:match(":::") then bad = true end
+            if cidr and tonumber(cidr) > 128 then bad = true end
+        end
+        if bad then return say("That is not a valid address: " .. s, 5000) end
         if not ip and not s:match("^[%w-]+%.[%w.-]+$") then return say("That does not look like a site: " .. s, 5000) end
         if has(false, s) then text.vs_site = ""; return say(s .. " is on the list already", 3000) end
         if #S.items >= MAX then return say("The list is full: remove one first", 4000) end

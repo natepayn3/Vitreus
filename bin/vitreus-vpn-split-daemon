@@ -18,6 +18,11 @@ CONF = sys.argv[1] if len(sys.argv) > 1 else ""
 SLICE = "novpn.slice"
 CG = "/sys/fs/cgroup"
 STATE = "/run/vitreus-vpn-split"
+# names many programs share: one of them on the list would take every shell, interpreter or opener of the user's out of the VPN
+SHARED = {"sh", "bash", "dash", "zsh", "fish", "ksh", "env", "sudo", "pkexec", "doas", "su", "xdg-open", "gio", "gtk-launch", "kioclient",
+          "kioclient5", "exo-open", "systemd-run", "flatpak", "bwrap", "dbus-launch", "uwsm", "app2unit", "nohup", "setsid", "timeout",
+          "exec", "python", "python2", "python3", "perl", "ruby", "node", "nodejs", "deno", "bun", "java", "lua", "luajit", "php", "wine",
+          "wine64", "wine-preloader", "electron", "mono", "dotnet", "steam-runtime", "pressure-vessel", "run", "start", "launch", "app"}
 KEEP = 6 * 3600                   # how long an address seen in an answer stays in the sets (each answer for it starts this again)
 
 
@@ -86,8 +91,9 @@ def read_conf():
                     found.add(os.path.basename(os.path.realpath(p)))
                     script_targets(p, 2, found)
                 for x in found:
-                    if re.fullmatch(r"[A-Za-z0-9._+-]+", x):
-                        names.add(x.lower()[:15])
+                    x = x.lower()
+                    if re.fullmatch(r"[a-z0-9._+-]+", x) and x not in SHARED and not re.fullmatch(r"(python|electron|wine|java|node)[0-9._-]*", x):
+                        names.add(x[:15])
     c.names, c.sites = names, sites[:200]
     return c
 
@@ -461,8 +467,11 @@ def main():
         if flags["hup"]:
             flags["hup"] = False
             c = read_conf()
-            release(c)
-            sweep(c)
+            try:
+                release(c)
+                sweep(c)
+            except Exception as e:
+                log("sweep: unexpected:", type(e).__name__, e)
             # the addresses known go back into the sets (they were made anew), then the listed names are looked up
             now = time.time()
             live = [a for a, t in seen.items() if t > now]
@@ -483,14 +492,14 @@ def main():
             kind = socks[s]
             try:
                 while True:
-                    data = s.recv(65535)
+                    data, addr = s.recvfrom(65535)
                     if kind == "proc":
                         if not c.on or not c.names:
                             continue
                         for pid in exec_events(data):
                             if uid_of(pid) == c.uid and (comm_of(pid) or "") in c.names:
                                 move_out([pid])
-                    elif c.on and c.sites:
+                    elif c.on and c.sites and addr[2] == 0 and addr[3] in (772, 65534):     # PACKET_HOST; loopback, or a VPN's (wireguard, tun)
                         pl = udp_payload(data, kind == "dns6")
                         if pl:
                             try:
@@ -501,6 +510,8 @@ def main():
                 pass
             except OSError as e:
                 log(kind, e)
+            except Exception as e:                       # (said, not fatal: the next event is handled as usual)
+                log(kind, "unexpected:", type(e).__name__, e)
 
 
 if __name__ == "__main__":

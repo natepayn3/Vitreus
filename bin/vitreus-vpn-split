@@ -23,8 +23,8 @@
 #
 # The list is the shell's data file vpn-split.conf, one entry a line: `on 1|0`, `site DOMAIN-OR-ADDRESS`, `app ID NAME…` (the names a running
 # program of that app may have). Root only reads it, and reads only domain names, addresses and program names from it.
-set -eu
-VERSION=4
+set -euf             # (-f: no file-name patterns: an entry of the list is never matched against files)
+VERSION=5
 MARK=0x7650
 TABLE=7650
 PREF=7650
@@ -79,6 +79,16 @@ valid_host() { printf '%s' "$1" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9-]{0,62}\.)*[
 valid_v4() { printf '%s' "$1" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$'; }
 valid_v6() { printf '%s' "$1" | grep -Eq '^[0-9A-Fa-f:]*:[0-9A-Fa-f:.]*(/[0-9]{1,3})?$'; }
 
+# A VPN that comes or goes while `apply` runs: NetworkManager's start of this service joins the run going on, and is lost. So it looks
+# again at the end, and runs once more if the VPN is not as it was.
+apply_settled() {
+    for _ in 1 2 3; do
+        before=0; vpn_up && before=1
+        ( apply "$1" )
+        after=0; vpn_up && after=1
+        [ $before = $after ] && return 0
+    done
+}
 apply() {
     c=$1
     [ -f "$c" ] || { teardown; exit 0; }
@@ -98,8 +108,23 @@ apply() {
         elif valid_v6 "$s"; then v6="$v6 $s"
         elif valid_host "$s"; then names=1; fi
     done
-    v4=$(printf '%s\n' $v4 | sort -u | paste -sd, -)
-    v6=$(printf '%s\n' $v6 | sort -u | paste -sd, -)
+    # (a bad one, 999.1.1.1 or /33, would make nft refuse the whole table: each is checked for real, and a bad one is left out)
+    v4=$(python3 -I -c 'import ipaddress, sys
+def ok(a):
+    try:
+        ipaddress.ip_network(a, strict=False)
+        return True
+    except ValueError:
+        return False
+print(",".join(sorted({str(ipaddress.ip_network(a, strict=False)) for a in sys.argv[1:] if ok(a)})))' $v4 2> /dev/null || true)
+    v6=$(python3 -I -c 'import ipaddress, sys
+def ok(a):
+    try:
+        ipaddress.ip_network(a, strict=False)
+        return True
+    except ValueError:
+        return False
+print(",".join(sorted({str(ipaddress.ip_network(a, strict=False)) for a in sys.argv[1:] if ok(a)})))' $v6 2> /dev/null || true)
     grep -q '^app[[:space:]]' "$c" && names=1
     [ -n "$v4$v6" ] || [ $names = 1 ] || { teardown; exit 0; }
 
@@ -148,6 +173,13 @@ apply() {
         echo "    ip6 daddr @v6d meta mark set $MARK ct mark set $MARK return"
         [ -n "$cgrule" ] && echo "    $cgrule"
         echo "  }"
+        if [ -z "$r6" ]; then
+            echo "  chain out6 {"
+            echo "    type filter hook output priority filter; policy accept;"
+            echo "    meta nfproto ipv6 meta mark $MARK ct direction original ip6 daddr != { ::1, fe80::/10 } meta l4proto tcp reject with tcp reset"
+            echo "    meta nfproto ipv6 meta mark $MARK ct direction original ip6 daddr != { ::1, fe80::/10 } reject with icmpx admin-prohibited"
+            echo "  }"
+        fi
         echo "  chain pre {"
         echo "    type filter hook prerouting priority mangle; policy accept;"
         echo "    ct mark $MARK meta mark set $MARK"
@@ -211,6 +243,7 @@ EOF
     chmod 755 /etc/NetworkManager/dispatcher.d/90-vitreus-vpn-split
     systemctl daemon-reload
     systemctl enable --now vitreus-vpn-split.path > /dev/null 2>&1
+    systemctl try-restart $UNIT 2> /dev/null || true          # (an older copy of it may be running)
     systemctl start --no-block vitreus-vpn-split.service
 }
 root_remove() {
@@ -236,7 +269,7 @@ status() {
     elif [ -x $ROOTCOPY ]; then ready=2; fi            # an older copy: Set up again updates it
     on=0; ip -4 rule show pref $PREF 2> /dev/null | grep -q . && on=1
     dev=$(ip -4 route show table $TABLE default 2> /dev/null | sed -n 's/.* dev \([^ ]*\).*/\1/p' | head -1)
-    n=$(cat /sys/fs/cgroup/$SLICE/*.scope/cgroup.procs 2> /dev/null | wc -l)
+    set +f; n=$(cat /sys/fs/cgroup/$SLICE/*.scope/cgroup.procs 2> /dev/null | wc -l); set -f
     w=0; systemctl is-active -q $UNIT 2> /dev/null && w=1
     fail=0; systemctl is-failed -q vitreus-vpn-split.service 2> /dev/null && fail=1
     vpn=0; vpn_up && vpn=1
@@ -253,6 +286,6 @@ remove)
     SHELL=/bin/sh pkexec "$self" root-remove ;;
 root-setup) [ "$(id -u)" -eq 0 ] || exit 1; root_setup "$2" ;;
 root-remove) [ "$(id -u)" -eq 0 ] || exit 1; root_remove ;;
-apply) [ "$(id -u)" -eq 0 ] || exit 1; apply "$2" ;;
+apply) [ "$(id -u)" -eq 0 ] || exit 1; apply_settled "$2" ;;
 *) sed -n '2,32p' "$self"; exit 2 ;;
 esac
