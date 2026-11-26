@@ -1,0 +1,246 @@
+language 0.1
+import "../palette-live.plm"
+
+//  The first-run tour: a few glass cards over a dimmed screen, one at a time, on the keys that open everything and where the looks are changed.
+//  Vitreus starts it once, at the first start after a new install (install.sh leaves `tour.json` saying so), and again from the launcher ("Tour").
+//  It has no logic: Next, Back, the arrow keys and Enter step through; Skip, Escape or Done fade it out and it quits. Vitreus sends it the
+//  shell's colours as facts when it starts it (palette-live.plm reads them); until then it is drawn in the stock ones.
+
+scene Tour {
+    spring calm = 208, 27
+    spring quick = 581, 47
+    spring gentle = 263, 28
+    spring wobbly = 900, 9
+    surface { size: full, full; level: overlay; reserve: -1; keyboard: on_demand }      // (`reserve: -1`: over the bar's room too, so its middle is the screen's)
+
+    fact pal_ink_r = 0.9608   // #f5f7f5
+    fact pal_ink_g = 0.9686
+    fact pal_ink_b = 0.9608
+    fact pal_faint_r = 0.7608   // #c2c7cc
+    fact pal_faint_g = 0.7804
+    fact pal_faint_b = 0.8000
+    fact pal_mint_r = 0.6196   // #9ed6bd
+    fact pal_mint_g = 0.8392
+    fact pal_mint_b = 0.7412
+    fact pal_mintlo_r = 0.4235   // #6cbc9c
+    fact pal_mintlo_g = 0.7373
+    fact pal_mintlo_b = 0.6118
+    fact pal_minthi_r = 0.8627   // #dcf8ec
+    fact pal_minthi_g = 0.9725
+    fact pal_minthi_b = 0.9255
+    fact pal_onmint_r = 0.0627   // #10161a
+    fact pal_onmint_g = 0.0863
+    fact pal_onmint_b = 0.1020
+    fact pal_tint_r = 0.1059   // #1b2127
+    fact pal_tint_g = 0.1294
+    fact pal_tint_b = 0.1529
+    fact pal_panel_r = 0.0863   // #161a1f
+    fact pal_panel_g = 0.1020
+    fact pal_panel_b = 0.1216
+    fact pal_deep_r = 0.0431   // #0b0e11
+    fact pal_deep_g = 0.0549
+    fact pal_deep_b = 0.0667
+    fact pal_off_r = 0.2275   // #3a4048
+    fact pal_off_g = 0.2510
+    fact pal_off_b = 0.2824
+    fact pal_alert_r = 0.9373   // #ef4444
+    fact pal_alert_g = 0.2667
+    fact pal_alert_b = 0.2667
+
+    shader aurora = file "aurora.wgsl"
+
+    let last = 6
+    fact step = 0
+    fact leaving = false
+    event pop                           // a step forward: sparks off the Next button
+    event cheer                         // Done: confetti, then it fades
+    event gone ->                       // the logic's way out (tour.luau)
+    on gone { quit }
+    prop shake = 0 ~wobbly                // the card's shake when the dim is clicked
+    prop nudge = 0 ~1600ms               // Skip lit up after that click, fading
+    prop k = 0 ~calm                    // the whole tour coming in (1) and going (0)
+    prop sx = 0 ~gentle                 // the step, as it travels: the words slide over from the side they come from
+    prop bye = 0 ~1500ms                // Done's confetti in the air: the tour goes once it has had its moment
+    follow k = if(leaving, 0, 1)
+    follow sx = step
+    on change k while leaving and k < 0.02 and bye < 0.01 { quit }      // Skip, Escape: once it has faded
+    on change bye while bye > 0.97 { quit }                             // Done: the card fades at once, the confetti finishes, then it goes
+
+    let cx = screen.width / 2
+    let cy = screen.height / 2
+    let cw = 660
+    let ch = 390
+    let l = cx - cw / 2 + 46            // the card's content starts here
+    let r = cx + cw / 2 - 46            // and ends here
+    let t = cy - ch / 2
+
+    //  The screen, dimmed under curtains of light in the shell's colours, with a bloom where the card is.
+    shader aurora { at: 0, 0; size: screen.width, screen.height; values: k, sx, cx, cy; colors: mint, minthi }
+    //  A click outside the card does not close it (it would be gone before it was read, with no way back that anyone knows yet): the card
+    //  gives a little shake and Skip lights up, which is how to leave.
+    zone box catch { from: 0, 0; size: screen.width, screen.height; label: "Outside the tour"; active: not leaving }
+    on press catch { impulse shake 700; nudge: 1 ~0ms; nudge: 0 ~1600ms }
+
+    group {
+        opacity: k
+        pivot: cx, cy
+        scale: 0.9 + 0.1 * k
+        rotate: -2.5deg * (1 - k)
+        move: shake, 26 * (1 - k)
+
+        //  The card: glass over the light, its rim lit from where the pointer is.
+        body {
+            color: card
+            glass: 100%
+            opacity: 84%
+            frost: 70%
+            smoke: 55%
+            refraction: 80%
+            highlight: 100%
+            shine: pointer
+            shadow: 0, 28, 70, 55%, #000000
+            box { at: cx, cy; size: cw, ch; corner: 28 }
+        }
+        box { at: cx, cy; size: cw, ch; corner: 28; stroke: 1; color: ink; opacity: 14% }
+        zone box card_z { at: cx, cy; size: cw, ch; corner: 28; active: not leaving }
+
+        //  A soft light drifting inside the card, behind the words.
+        group {
+            clip box { at: cx, cy; size: cw, ch; corner: 28 }
+            group {
+                blur: 46
+                ellipse { at: r - 30 + 40 * sin(time * 18), t + 70 + 24 * cos(time * 23); radius: 110; color: mint; opacity: 20% }
+                ellipse { at: l + 60 + 50 * cos(time * 15), t + ch - 40 + 20 * sin(time * 21); radius: 120; color: minthi; opacity: 12% }
+            }
+        }
+
+        //  Where in the tour: a dot for each card, the one in view drawn long.
+        repeat i in 0..7 {
+            let on = clamp(1 - abs(sx - i), 0, 1)
+            box { at: l + 4 + i * 16 + 16 * clamp(i - sx, 0, 1) + 8 * on, t + ch - 46; size: 8 + 16 * on, 8; corner: 4; color: mix(ink, mint, on); opacity: 25% + 75% * on }
+        }
+
+        //  Skip, at the top right, on every card but the last.
+        text "Skip tour" { at: r, t + 42; anchor: right center; align: right; size: 14; weight: 600; color: mix(mix(faint, ink, skip_z.hover), mint, nudge); family: "Space Grotesk"; opacity: if(step < last, 100%, 0%); letter_scale: 1 + 0.12 * nudge }
+        zone box skip_z { at: r - 34, t + 42; size: 84, 30; corner: 15; cursor: pointer; label: "Skip the tour"; active: step < last and not leaving }
+        on press skip_z { leaving = true }
+
+        //  The words of each card. Each is drawn where it is in the row of cards, so going on slides the next in from the right, and its title's
+        //  letters rise into place one after another as it arrives.
+        repeat i in 0..7 {
+            let d = i - sx
+            let near = clamp(1 - abs(d), 0, 1) * k
+            group {
+                show: abs(d) < 0.98
+                opacity: if(d < 0, clamp(1 + d * 3.5, 0, 1), clamp(1 - d * 1.5, 0, 1))      // what leaves clears out quickly, what comes takes its time
+                move: 70 * d, 0
+                //  The card's number, big and faint, behind the words.
+                text pick(i, "01", "02", "03", "04", "05", "06", "07") { at: r + 6, t + 168; anchor: right center; align: right; size: 150; weight: 700; color: ink; opacity: 6%; family: "Space Grotesk"; letter_move: 0, 30 * (1 - clamp(near * 2.2 - letter * 0.5, 0, 1)) }
+                text pick(i, "WELCOME", "THE LAUNCHER", "SETTINGS", "CONTROLS AND CALENDAR", "MYPAD", "WALLPAPER AND WORKSPACES", "SCREENSHOTS AND LOCK") { at: l, t + 42; anchor: left center; size: 13; weight: 700; color: mint; family: "Space Grotesk"; letter_opacity: clamp(near * 2.4 - letter / max(letters, 1) * 1.4, 0, 1) }
+                text pick(i, "Welcome to Vitreus", "Open anything", "Make it yours", "Your controls, one key away", "A tablet in the frame", "Change the view", "Capture and lock") {
+                    at: l, t + 88; anchor: left center; size: 32; weight: 700; color: ink; family: "Space Grotesk"
+                    letter_opacity: clamp(near * 2.2 - letter / max(letters, 1) * 1.2, 0, 1)
+                    letter_move: 0, 18 * (1 - clamp(near * 2.2 - letter / max(letters, 1) * 1.2, 0, 1))
+                    letter_scale: 0.7 + 0.3 * clamp(near * 2.2 - letter / max(letters, 1) * 1.2, 0, 1)
+                }
+                text pick(i,
+                    "A quick look around: the keys that open everything, and where to change how it looks. It takes a minute, and Escape leaves at any time.",
+                    "Apps, files, emoji, the clipboard and open windows (start with @). It works out sums and conversions too (5 km to mi), and searches the web (!yt lofi).",
+                    "Themes, the bar's layout and place, the wallpaper, the network, idle and lock times: everything Vitreus does is set here.",
+                    "The Control Center has Wi-Fi, Bluetooth, the volume of each app, brightness and Do Not Disturb. Click the clock for the calendar and the weather. The Dashboard puts it all on one screen.",
+                    "myPad slides out of the frame: notes and reminders, drawing, a terminal, a camera, voice memos, and Ask, a chat with the AI assistant you use.",
+                    "Pick a wallpaper from a honeycomb of glass, and the colours of the whole shell follow it. The overview shows a card for each workspace: drag windows between them.",
+                    "Snap freezes the screen so you can cut out a window or an area, draw on it and blur what is private. To see this tour again, type Tour in the launcher.") { at: l, t + 124; width: cw - 92; lines: 4; line_height: 1.35; size: 16; color: faint; family: "Space Grotesk" }
+
+                //  The keys, as caps that light up as the card arrives: one or two, each with what it opens.
+                let cap = clamp(near * 2 - 1, 0, 1)
+                measure m1.$i
+                measure m2.$i
+                group {
+                    move: 0, 10 * (1 - cap)
+                    group {
+                        glow: 14, 45% * cap, mint
+                        box { from: l, t + 240; size: m1.$i.width + 28, 38; corner: 11; color: mint; opacity: 14% * cap }
+                    }
+                    box { from: l, t + 240; size: m1.$i.width + 28, 38; corner: 11; color: ink; opacity: 8% }
+                    box { from: l, t + 240; size: m1.$i.width + 28, 38; corner: 11; stroke: 1; color: mix(ink, mint, cap); opacity: 22% + 38% * cap }
+                    text pick(i, "→  or  Enter", "Super + Space", "Super + Shift + Space", "Super + C", "Super + D", "Super + B", "Super + A") { at: l + 14, t + 259; measure: m1.$i; anchor: left center; size: 15; weight: 700; color: ink; family: "Space Grotesk" }
+                    text pick(i, "The next card", "Launcher", "Settings", "Control Center", "myPad", "Wallpapers", "Snap") { at: l + m1.$i.width + 40, t + 259; anchor: left center; size: 14; color: faint; family: "Space Grotesk" }
+                }
+                group {
+                    show: i == 3 or i == 5 or i == 6
+                    move: 0, 14 * (1 - cap)
+                    opacity: cap
+                    group {
+                        glow: 14, 45% * cap, minthi
+                        box { from: l + 300, t + 240; size: m2.$i.width + 28, 38; corner: 11; color: minthi; opacity: 14% * cap }
+                    }
+                    box { from: l + 300, t + 240; size: m2.$i.width + 28, 38; corner: 11; color: ink; opacity: 8% }
+                    box { from: l + 300, t + 240; size: m2.$i.width + 28, 38; corner: 11; stroke: 1; color: mix(ink, minthi, cap); opacity: 22% + 38% * cap }
+                    text pick(i, "", "", "", "Super + Shift + D", "", "Super + Tab", "Super + L") { at: l + 314, t + 259; measure: m2.$i; anchor: left center; size: 15; weight: 700; color: ink; family: "Space Grotesk" }
+                    text pick(i, "", "", "", "Dashboard", "", "Overview", "Lock") { at: l + 300 + m2.$i.width + 40, t + 259; anchor: left center; size: 14; color: faint; family: "Space Grotesk" }
+                }
+            }
+        }
+
+        //  Back and Next (Done on the last card), at the bottom right. Next breathes a glow, and throws sparks when pressed.
+        let nx = r - 58
+        let by = t + ch - 46
+        group {
+            glow: 18, 35% + 20% * sin(time * 150) + 25% * next_z.hover, mint
+            box { at: nx, by; size: 116, 42; corner: 21; color: mint; opacity: 92% + 8% * next_z.hover }
+        }
+        text if(step < last, "Next", "Done") { at: nx, by; anchor: center; align: center; size: 15; weight: 700; color: onmint; family: "Space Grotesk" }
+        zone box next_z { at: nx, by; size: 116, 42; corner: 21; cursor: pointer; label: "Next"; active: not leaving and bye < 0.01 }
+        on press next_z while step < last { step = step + 1; emit pop }
+        on press next_z while step == last { emit cheer; bye: 1; leaving = true }
+
+        box { at: nx - 128, by; size: 100, 42; corner: 21; color: ink; opacity: if(step > 0, 7% + 8% * back_z.hover, 0%) }
+        text "Back" { at: nx - 128, by; anchor: center; align: center; size: 15; weight: 600; color: ink; opacity: if(step > 0, 100%, 0%); family: "Space Grotesk" }
+        zone box back_z { at: nx - 128, by; size: 100, 42; corner: 21; cursor: pointer; label: "Back"; active: step > 0 and not leaving }
+        on press back_z { step = step - 1 }
+    }
+
+    //  The sparks, over the card.
+    group {
+        glow: 8, 90%
+        particles {
+            at: r - 58, t + ch - 66; area: 100, 8; count: 90
+            life: 0.4s .. 0.9s; speed: 120 .. 340; direction: -90deg; spread: 160deg
+            gravity: 0, 380; drag: 1.2; size: 3, 1; colors: mint, minthi; opacity: 100%, 0%
+            shape: spark; burst: pop
+        }
+    }
+
+    //  Confetti (over the card) when Done is pressed: two cannons at the card's lower corners, firing up and in, in the shell's colours and a warm pair.
+    repeat side in 0..2 {
+        let sgn = if(side == 0, 1, -1)
+        particles {
+            at: cx - sgn * (cw / 2 - 20), t + ch - 10; count: 150
+            life: 1.4s .. 2.4s; speed: 700 .. 1250; direction: -90deg + sgn * 22deg; spread: 36deg
+            gravity: 0, 1000; drag: 0.45; size: 9, 6; colors: mint, minthi; opacity: 100%, 0%
+            shape: square; burst: cheer
+        }
+        particles {
+            at: cx - sgn * (cw / 2 - 20), t + ch - 10; count: 110
+            life: 1.2s .. 2.2s; speed: 650 .. 1150; direction: -90deg + sgn * 28deg; spread: 42deg
+            gravity: 0, 1000; drag: 0.5; size: 7, 4; colors: #ffd166, #ff6b9d; opacity: 100%, 0%
+            shape: square; burst: cheer
+        }
+        group {
+            glow: 6, 80%
+            particles {
+                at: cx - sgn * (cw / 2 - 20), t + ch - 10; count: 80
+                life: 0.6s .. 1.2s; speed: 600 .. 1100; direction: -90deg + sgn * 26deg; spread: 30deg
+                gravity: 0, 700; drag: 1.4; size: 3, 1; colors: #fff6d6, mint; opacity: 100%, 0%
+                shape: spark; burst: cheer
+            }
+        }
+    }
+
+    on key Right while step < last and not leaving { step = step + 1; emit pop }
+    on key Return while step < last and not leaving { step = step + 1; emit pop }
+    on key Return while step == last and bye < 0.01 { emit cheer; bye: 1; leaving = true }
+    on key Left while step > 0 and not leaving { step = step - 1 }
+    on key Escape { leaving = true }
+}

@@ -62,6 +62,8 @@ curl -fsSL https://raw.githubusercontent.com/natepayn3/Vitreus/main/install.sh |
 
 Requirements, options, Debian/Ubuntu and setting it up by hand are in **[docs/INSTALL.md](docs/INSTALL.md)**.
 
+The first time it starts, a short tour shows the keys and where things are. Type `Tour` in the launcher to see it again.
+
 ---
 
 ## ⌨️ The keys you need
@@ -87,14 +89,14 @@ Requirements, options, Debian/Ubuntu and setting it up by hand are in **[docs/IN
 * **Three layouts**: a floating *island* pill, a *frame* round the screen, or *notches* hanging from the top edge.
 * **Launcher**: apps, files, emoji, clipboard, wallpapers, sums and conversions (`5 km to mi`), web searches (`!yt lofi`) and open windows (`@`).
 * **Controls**: Wi-Fi, Bluetooth, brightness, volume per app, Do Not Disturb, Caffeine, and power.
-* **Calendar** with reminders in plain words (`3:30pm Call mom`) and the week's weather.
+* **Calendar** with reminders in plain words (`3:30pm Call mom`), the week's weather, and your Google, Nextcloud or Outlook calendars beside them (paste their iCal link in **Settings > Network**).
 * **Notifications** with history, per-app rules and sounds, and quiet hours.
 * **Player** with cover art and a live spectrum.
 
 **Bigger panels**
 * **Dashboard**: one screen of glass cards (clock, weather, notifications, system monitor, what's playing).
 * **myPad** (SUPER + D): the Desk as a tablet out of the frame. A home screen with your picture, a slideshow, your AUR updates, the apps and what is playing, and apps for notes and reminders, drawing, the shelf, the clipboard, focus, a terminal, Ask (an AI chat with whichever assistant you have: Claude Code, Ollama, Codex or Gemini), a camera with live looks, and voice memos.
-* **Wallpaper picker**: a honeycomb of glass hexagons, or a row of cards that previews each wallpaper live.
+* **Wallpaper picker**: a honeycomb of glass hexagons, or a row of cards that previews each wallpaper live. Turn on **One per workspace** (**Settings > Wallpaper**) and each workspace keeps its own.
 * **Workspace overview**: a card per workspace; drag windows between them.
 
 **Apps of its own**

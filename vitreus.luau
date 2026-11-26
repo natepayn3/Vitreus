@@ -2120,6 +2120,8 @@ local function on_day(k)
     for _, e in ipairs(cal.events) do
         if e.date == k then list[#list + 1] = e end
     end
+    -- and the calendars from the web (logic/calsync.luau), read-only
+    if cal.sync then for _, e in ipairs(cal.sync.day(k)) do list[#list + 1] = e end end
     --  Whole-day ones first, then by time.
     table.sort(list, function(a, b) return (a.time or "") < (b.time or "") end)
     return list
@@ -2148,6 +2150,7 @@ local function paint_calendar()
     if lead == 0 then d, gy, gm = 1, y, m end
     local counts = {}
     for _, e in ipairs(cal.events) do counts[e.date] = (counts[e.date] or 0) + 1 end
+    if cal.sync then cal.sync.count(counts) end
     for k = 0, 41 do
         local kk = key(gy, gm, d)
         fact["cal.day." .. k] = d
@@ -2182,7 +2185,7 @@ local function paint_calendar()
         if i <= 4 then
             local hh, mm = (e.time or ""):match("^(%d+):(%d+)$")
             rows[#rows + 1] = { time = e.time ~= "" and time12(e.time) or "all day", title = e.title, done = e.done == true,
-                                at = hh and (tonumber(hh) * 60 + tonumber(mm)) / 1440 or -1 }
+                                at = hh and (tonumber(hh) * 60 + tonumber(mm)) / 1440 or -1, synced = e.synced == true }
             cal.rows[#cal.rows + 1] = e
         end
     end
@@ -2308,13 +2311,14 @@ on("cal_add", function() add_line(text.cal_new) end)
 on("cal_check", function(i)
     local e = cal.rows[(i or 0) + 1]
     if e == nil then return end
+    if e.synced then cal.sync.toggle(e.key); paint_calendar() return end
     e.done = not (e.done == true)
     save_calendar()
     paint_calendar()
 end)
 on("cal_delete", function(i)
     local e = cal.rows[(i or 0) + 1]
-    if e == nil then return end
+    if e == nil or e.synced then return end     -- (one from a calendar on the web is not drawn with a cross)
     for k, x in ipairs(cal.events) do
         if x == e then table.remove(cal.events, k); break end
     end
@@ -2352,6 +2356,7 @@ every(20000, function()
         if cal.year == 0 or (cal.sel == nil) then open_today() else paint_calendar() end
     end
 end)
+cal.sync = require("logic/calsync")(function() if cal.year ~= 0 and cal.sel then paint_calendar() end end, function() return dnd == true end, time12)
 open_today()
 painted_day = key(today())
 
@@ -3347,6 +3352,7 @@ function iris_fx.push_pal(pal)
     -- (the desktop editor, desktopedit/, reads them the same way)
     local scenes = { "desktopclock", "desktopedit", "desktopcards" }
     for _, sk in ipairs(addon_scenes or {}) do scenes[#scenes + 1] = sk end
+    if tour_fx and tour_fx.on then scenes[#scenes + 1] = "tour" end
     for _, scene in ipairs(scenes) do
         local args = { "--say", scene }
         for _, f in ipairs(facts) do args[#args + 1] = f end
@@ -3375,6 +3381,42 @@ on("fact:bar_frame", function() iris_fx.push_room() end)
 on("fact:bar_seg", function() iris_fx.push_room() end)
 
 on("pal_push", function() iris_fx.push_pal(); iris_fx.push_room() end)
+
+-- The first-run tour (tour/): a scene of its own, started once after a new install (install.sh leaves `tour.json` with `pending`), and from the
+-- launcher ("Tour"). It is told the shell's colours once it is up, and while it is open (`on`: a few minutes at most) with every change of them.
+tour_fx = { on = false, seq = 0 }
+function tour_fx.open()
+    run("pgrep", { "-f", "shells/vitreus/tour/tour.plm" }, function(_, code)
+        if code == 0 then return end                     -- (already open)
+        -- Only on the monitor in use: asked of Hyprland (JSON), or of pleamar-wm's hyprctl (its own text, a block a monitor, "focused: yes").
+        run("hyprctl", { "monitors", "-j" }, function(out)
+            local name
+            local ok, list = pcall(json.decode, out or "")
+            if ok and type(list) == "table" then
+                for _, m in ipairs(list) do if m.focused then name = m.name end end
+            else
+                for n, body in ((out or "") .. "\n\n"):gmatch("Monitor (%S+) %(ID %d+%):(.-)\n\n") do
+                    if body:match("focused: yes") then name = n end
+                end
+            end
+            local scr = (name and name:match("^[%w%-_.]+$")) and (" --screen " .. name) or ""
+            exec_on_desktop('pleamar --scene "${XDG_CONFIG_HOME:-$HOME/.config}/pleamar/shells/vitreus/tour/tour.plm" --no-hud' .. scr .. ' > "$HOME/.local/share/pleamar/vitreus/logs/tour.log" 2>&1')
+        end)
+        tour_fx.on = true
+        tour_fx.seq = tour_fx.seq + 1
+        local my = tour_fx.seq
+        after(900, function() iris_fx.push_pal() end)
+        after(2500, function() iris_fx.push_pal() end)   -- (a slow start: the first one found no scene to tell)
+        after(600000, function() if my == tour_fx.seq then tour_fx.on = false end end)
+    end)
+end
+do
+    local ok, t = pcall(sys.ask, "files.read", "tour.json", "json")
+    if ok and type(t) == "table" and t.pending == true then
+        pcall(sys.call, "files.write", "tour.json", { pending = false, shown = os.time() })
+        after(5000, function() tour_fx.open() end)
+    end
+end
 
 function iris_fx.apply_palette(pal)
     iris_fx.last_pal = pal
@@ -4720,6 +4762,7 @@ end
 
 wp_on_change = function(path)
     wp_cur = path
+    if wsw_note then wsw_note(path) end      -- one wallpaper per workspace: the workspace in view keeps it (logic/ws_wallpaper.luau)
     text.wp_name = (wpv.url(path) and wp_stream_name(path)) or path:match("([^/]+)$") or path
     if wp_cache then
         wp_crop({ path }, "p", 320, 180, function()
@@ -7544,6 +7587,7 @@ end
         { "Wallpaper picker", "action", function() spawn('pleamar --say vitreus "emit wp_picker_toggle"') end, "backgrounds wallpapers hexagons colour choose change" },
         { "Workspace overview", "action", function() spawn('pleamar --say vitreus "emit ov_toggle"') end, "workspaces windows switch expose desktops" },
         { "Random wallpaper", "action", function() local f = wp_random_pick(); if f then wp_apply(f) end end, "shuffle background change surprise" },
+        { "Tour", "action", function() tour_fx.open() end, "welcome help keys shortcuts guide tutorial intro first start how" },
         { "Lock session", "action", function() spawn('pleamar --say lockscreen "fact locked true"') end, "lockscreen lock screen secure away password" },
         { "Settings: Style", "open", open_settings("pg_style"), "style pencil sketch boil wobble hand drawn ink clean shading hatching lines look" },
         { "Settings: Theme", "open", open_settings("pg_theme"), "colours colors palette theme glass retro cassette plastic iris accent wallpaper" },
@@ -8079,6 +8123,13 @@ end
         if mode == "apps" then
             local c = try_units(q) or try_calc(q)
             local list = search_apps(q)
+            -- the tour, found among the apps too (the other commands only after ">"): "tou", "tour", "welcome"
+            do
+                local ql = q:lower()
+                if #ql >= 3 and (("tour"):sub(1, #ql) == ql or ("welcome tour"):sub(1, #ql) == ql) then
+                    list[#list + 1] = { title = "Tour", sub = "a look round Vitreus", glyph = ">", run = function() tour_fx.open() end }
+                end
+            end
             if c then table.insert(list, 1, c); mode = "calc" end
             set_mode(LABEL[mode])
             fact.lp_on = false
@@ -8347,6 +8398,7 @@ end
 
 -- the wallpaper hook for the add-on that frames wallpapers: see logic/wallpaper_hook.luau
 require("logic/wallpaper_hook")(wp_apply, function() return wp_cur end)
+wsw_note = require("logic/ws_wallpaper")(function(f, how) wp_apply(f, how) end, function() return wp_cur end)     -- (a global: this chunk is at Luau's limit of locals)
 
 -- Settings > Theme > Pin wallpaper (a wallpaper that comes with a theme): see logic/theme_wallpaper.luau
 require("logic/theme_wallpaper")({

@@ -91,11 +91,11 @@ part Wallpaper {
 
             //  Card three: the slideshow. A switch, and how often: a stepper along a short list of intervals.
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 207 * pu; size: 438 * pw, 60 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pw, sby + 207 * pu, 438 * pw, 60 * pu, 797.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pw, sby + 207 * pu; size: 438 * pw, 60 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pw, sby + 207 * pu; size: 438 * pw, 60 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            box { at: spx + 219 * pw, sby + 207 * pu; size: 438 * pw, 60 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 224 * pu; size: 438 * pw, 94 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 224 * pu, 438 * pw, 94 * pu, 797.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 224 * pu; size: 438 * pw, 94 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 224 * pu; size: 438 * pw, 94 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 224 * pu; size: 438 * pw, 94 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 198 * pu + 0.5); text "Slideshow" { at: floor(spx + 14 * pw + 0.5), floor(sby + 198 * pu + 0.5); anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" } }
             group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 215 * pu + 0.5); text wp_show_sub { at: floor(spx + 14 * pw + 0.5), floor(sby + 215 * pu + 0.5); anchor: left center; size: 15; width: (190 * pw) / rs; lines: 1; color: if(wp_show, mint, faint); family: "Space Grotesk" } }
             group {
@@ -115,81 +115,91 @@ part Wallpaper {
             SettingsSwitch(spx + 424 * pw, sby + 207 * pu, wp_show_pill, wp_show_hit.pressed, wp_show_hit.hover, mint)
             zone box wp_show_hit { at: spx + 424 * pw - 19 * cu, sby + 207 * pu; size: 44 * cu, 28 * cu; cursor: pointer; active: set_page == pg_wall and (sby + 207 * pu) - wp.off > sby + 12 * pu and (sby + 207 * pu) - wp.off < sby + (set.h - 12) * pu }
             on press wp_show_hit { emit wp_show_toggle }
+            //  The slideshow card's second row: one wallpaper per workspace. While it is on, a wallpaper chosen belongs to the workspace in view, and going
+            //  to another workspace brings in its own (one that never had one keeps the wallpaper as it is).
+            measure ldr_walws
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 237 * pu + 0.5); text "One per workspace" { at: floor(spx + 14 * pw + 0.5), floor(sby + 237 * pu + 0.5); measure: ldr_walws; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+            measure ldh_walws
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 251 * pu + 0.5); text "Each workspace keeps the wallpaper you pick on it" { at: floor(spx + 14 * pw + 0.5), floor(sby + 251 * pu + 0.5); measure: ldh_walws; anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
+            SettingsSwitch(spx + 424 * pw, sby + 243 * pu, wp_ws_pill, wp_ws_hit.pressed, wp_ws_hit.hover, mint)
+            PLeader(spx + 14 * pw + max(ldr_walws.width, ldh_walws.width) * rs + 8 * pu, spx + 424 * pw - 40 * cu, sby + 243 * pu, wp_ws_hit.hover, pu)
+            zone box wp_ws_hit { at: spx + 424 * pw - 19 * cu, sby + 243 * pu; size: 44 * cu, 28 * cu; cursor: pointer; label: "One wallpaper per workspace"; active: set_page == pg_wall and (sby + 243 * pu) - wp.off > sby + 12 * pu and (sby + 243 * pu) - wp.off < sby + (set.h - 12) * pu }
+            on press wp_ws_hit { emit wp_ws_toggle }
 
             //  Card four: the parallax. The wallpaper leans away from the mouse (wptrans/ draws it): a switch, how far (Strength, 10 to 120 pixels at the
             //  screen's edge) and how it follows (Motion). The two rows are dimmed while it is off, as the slideshow's stepper is.
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 306.375 * pu; size: 438 * pw, 122.75 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pw, sby + 306.375 * pu, 438 * pw, 122.75 * pu, 613.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pw, sby + 306.375 * pu; size: 438 * pw, 122.75 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pw, sby + 306.375 * pu; size: 438 * pw, 122.75 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            box { at: spx + 219 * pw, sby + 306.375 * pu; size: 438 * pw, 122.75 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 340.375 * pu; size: 438 * pw, 122.75 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 340.375 * pu, 438 * pw, 122.75 * pu, 613.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 340.375 * pu; size: 438 * pw, 122.75 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 340.375 * pu; size: 438 * pw, 122.75 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 340.375 * pu; size: 438 * pw, 122.75 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             measure ldr_walc2
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 266 * pu + 0.5); text "Parallax" { at: floor(spx + 14 * pw + 0.5), floor(sby + 266 * pu + 0.5); measure: ldr_walc2; anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 300 * pu + 0.5); text "Parallax" { at: floor(spx + 14 * pw + 0.5), floor(sby + 300 * pu + 0.5); measure: ldr_walc2; anchor: left center; size: 19; weight: 700; color: ink; family: "Space Grotesk" } }
             measure ldh_walc2
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 283 * pu + 0.5); text "The wallpaper leans away from the mouse" { at: floor(spx + 14 * pw + 0.5), floor(sby + 283 * pu + 0.5); measure: ldh_walc2; anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
-            SettingsSwitch(spx + 424 * pw, sby + 275 * pu, wp_para_pill, wp_para_hit.pressed, wp_para_hit.hover, mint)
-            PLeader(spx + 14 * pw + max(ldr_walc2.width, ldh_walc2.width) * rs + 8 * pu, spx + 424 * pw - 40 * cu, sby + 275 * pu, wp_para_hit.hover, pu)
-            zone box wp_para_hit { at: spx + 424 * pw - 19 * cu, sby + 275 * pu; size: 44 * cu, 28 * cu; cursor: pointer; label: "Parallax: the wallpaper leans away from the mouse"; active: set_page == pg_wall and (sby + 275 * pu) - wp.off > sby + 12 * pu and (sby + 275 * pu) - wp.off < sby + (set.h - 12) * pu }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 317 * pu + 0.5); text "The wallpaper leans away from the mouse" { at: floor(spx + 14 * pw + 0.5), floor(sby + 317 * pu + 0.5); measure: ldh_walc2; anchor: left center; size: 13.5; color: faint; family: "Space Grotesk" } }
+            SettingsSwitch(spx + 424 * pw, sby + 309 * pu, wp_para_pill, wp_para_hit.pressed, wp_para_hit.hover, mint)
+            PLeader(spx + 14 * pw + max(ldr_walc2.width, ldh_walc2.width) * rs + 8 * pu, spx + 424 * pw - 40 * cu, sby + 309 * pu, wp_para_hit.hover, pu)
+            zone box wp_para_hit { at: spx + 424 * pw - 19 * cu, sby + 309 * pu; size: 44 * cu, 28 * cu; cursor: pointer; label: "Parallax: the wallpaper leans away from the mouse"; active: set_page == pg_wall and (sby + 309 * pu) - wp.off > sby + 12 * pu and (sby + 309 * pu) - wp.off < sby + (set.h - 12) * pu }
             on press wp_para_hit { emit wp_para_toggle }
             let wpp.x0 = spx + 122 * pw
             let wpp.w = 250 * pw
             group {
                 opacity: 40% + 60% * wp_para_pill
                 measure ldr_wal1
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 309.25 * pu + 0.5); text "Strength" { at: floor(spx + 14 * pw + 0.5), floor(sby + 309.25 * pu + 0.5); measure: ldr_wal1; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-                PSlider(wpp.x0, sby + 309.25 * pu, wpp.w, clamp(wp_para_lv, 0, 1), wp_para_sl.hover, cu, 10 * pu, 0)
-                PLeader(spx + 14 * pw + ldr_wal1.width * rs + 8 * pu, wpp.x0 - 6 * pu, sby + 309.25 * pu, wp_para_sl.hover, pu)
-                group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 309.25 * pu + 0.5); text wp_para_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 309.25 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 343.25 * pu + 0.5); text "Strength" { at: floor(spx + 14 * pw + 0.5), floor(sby + 343.25 * pu + 0.5); measure: ldr_wal1; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                PSlider(wpp.x0, sby + 343.25 * pu, wpp.w, clamp(wp_para_lv, 0, 1), wp_para_sl.hover, cu, 10 * pu, 0)
+                PLeader(spx + 14 * pw + ldr_wal1.width * rs + 8 * pu, wpp.x0 - 6 * pu, sby + 343.25 * pu, wp_para_sl.hover, pu)
+                group { scale: rs; pivot: floor(spx + 424 * pw + 0.5), floor(sby + 343.25 * pu + 0.5); text wp_para_text { at: floor(spx + 424 * pw + 0.5), floor(sby + 343.25 * pu + 0.5); anchor: right center; size: 19.5; weight: 700; color: mint; family: "Space Grotesk" } }
                 measure ldr_wal2
-                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 342.75 * pu + 0.5); text "Motion" { at: floor(spx + 14 * pw + 0.5), floor(sby + 342.75 * pu + 0.5); measure: ldr_wal2; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
-                SetPick(spx + 239 * pw, sby + 342.75 * pu, 74 * pw, 3, 22 * pu, wp_para_mode, wp_para_msl.hover, pu)
-                PLeader(spx + 14 * pw + ldr_wal2.width * rs + 8 * pu, spx + 239 * pw - 74 * pw / 2 - 6 * pu, sby + 342.75 * pu, wp_para_msl.hover, pu)
+                group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 376.75 * pu + 0.5); text "Motion" { at: floor(spx + 14 * pw + 0.5), floor(sby + 376.75 * pu + 0.5); measure: ldr_wal2; anchor: left center; size: 17; weight: 600; color: ink; family: "Space Grotesk" } }
+                SetPick(spx + 239 * pw, sby + 376.75 * pu, 74 * pw, 3, 22 * pu, wp_para_mode, wp_para_msl.hover, pu)
+                PLeader(spx + 14 * pw + ldr_wal2.width * rs + 8 * pu, spx + 239 * pw - 74 * pw / 2 - 6 * pu, sby + 376.75 * pu, wp_para_msl.hover, pu)
                 repeat i in 0..3 {
                     let wpm = if(wp_para_mode == i, 1, 0)
-                    group { scale: rs; pivot: floor(spx + 239 * pw + i * 74 * pw + 0.5), floor(sby + 342.75 * pu + 0.5); text pick(i, "Tight", "Smooth", "Floaty") { at: floor(spx + 239 * pw + i * 74 * pw + 0.5), floor(sby + 342.75 * pu + 0.5); anchor: center; size: 14; weight: 600; color: ink; align: center; opacity: 55% + 45% * wpm; family: "Space Grotesk" } }
+                    group { scale: rs; pivot: floor(spx + 239 * pw + i * 74 * pw + 0.5), floor(sby + 376.75 * pu + 0.5); text pick(i, "Tight", "Smooth", "Floaty") { at: floor(spx + 239 * pw + i * 74 * pw + 0.5), floor(sby + 376.75 * pu + 0.5); anchor: center; size: 14; weight: 600; color: ink; align: center; opacity: 55% + 45% * wpm; family: "Space Grotesk" } }
                 }
             }
-            zone box wp_para_sl { at: wpp.x0 + wpp.w / 2, sby + 309.25 * pu; size: wpp.w + 28 * pu, 26 * pu; cursor: pointer; label: "Parallax strength"; active: set_page == pg_wall and (sby + 309.25 * pu) - wp.off > sby + 12 * pu and (sby + 309.25 * pu) - wp.off < sby + (set.h - 12) * pu }
+            zone box wp_para_sl { at: wpp.x0 + wpp.w / 2, sby + 343.25 * pu; size: wpp.w + 28 * pu, 26 * pu; cursor: pointer; label: "Parallax strength"; active: set_page == pg_wall and (sby + 343.25 * pu) - wp.off > sby + 12 * pu and (sby + 343.25 * pu) - wp.off < sby + (set.h - 12) * pu }
             on press wp_para_sl { emit wp_para_lv_set(clamp(((pointer.x - tx.pnl) - wpp.x0) / wpp.w, 0, 1)) }
             on drag wp_para_sl { emit wp_para_lv_set(clamp(((pointer.x - tx.pnl) - wpp.x0) / wpp.w, 0, 1)) }
             on scroll wp_para_sl { wp_scroll_to = clamp(wp_scroll_to - wheel * 44, 0, max(0, wp.h - set.h)) }
-            zone box wp_para_msl { at: spx + 313 * pw, sby + 342.75 * pu; size: 222 * pw, 22 * pu }
+            zone box wp_para_msl { at: spx + 313 * pw, sby + 376.75 * pu; size: 222 * pw, 22 * pu }
             repeat i in 0..3 {
-                zone box wp_para_mz.$i { at: spx + 239 * pw + i * 74 * pw, sby + 342.75 * pu; size: 74 * pu, 26 * pu; cursor: pointer; label: pick(i, "Motion: tight", "Motion: smooth", "Motion: floaty"); active: set_page == pg_wall and (sby + 342.75 * pu) - wp.off > sby + 12 * pu and (sby + 342.75 * pu) - wp.off < sby + (set.h - 12) * pu }
+                zone box wp_para_mz.$i { at: spx + 239 * pw + i * 74 * pw, sby + 376.75 * pu; size: 74 * pu, 26 * pu; cursor: pointer; label: pick(i, "Motion: tight", "Motion: smooth", "Motion: floaty"); active: set_page == pg_wall and (sby + 376.75 * pu) - wp.off > sby + 12 * pu and (sby + 376.75 * pu) - wp.off < sby + (set.h - 12) * pu }
                 on press wp_para_mz.$i { emit wp_para_mode_set(i) }
             }
 
             //  Card five: the colour filter. Twelve swatches: the gallery, Random and the slideshow narrow to the
             //  wallpapers whose dominant colour it is; the lit one, pressed again, clears it.
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 405.75 * pu; size: 438 * pw, 60 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pw, sby + 405.75 * pu, 438 * pw, 60 * pu, 979.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pw, sby + 405.75 * pu; size: 438 * pw, 60 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pw, sby + 405.75 * pu; size: 438 * pw, 60 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            box { at: spx + 219 * pw, sby + 405.75 * pu; size: 438 * pw, 60 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 396.75 * pu + 0.5); text "COLOR" { at: floor(spx + 14 * pw + 0.5), floor(sby + 396.75 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
-            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 413.75 * pu + 0.5); text wp_count { at: floor(spx + 14 * pw + 0.5), floor(sby + 413.75 * pu + 0.5); anchor: left center; size: 14.5; width: (100 * pw) / rs; lines: 1; color: if(wp_filter >= 0, mint, faint); family: "Space Grotesk" } }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 439.75 * pu; size: 438 * pw, 60 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 439.75 * pu, 438 * pw, 60 * pu, 979.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 439.75 * pu; size: 438 * pw, 60 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 439.75 * pu; size: 438 * pw, 60 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 439.75 * pu; size: 438 * pw, 60 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 430.75 * pu + 0.5); text "COLOR" { at: floor(spx + 14 * pw + 0.5), floor(sby + 430.75 * pu + 0.5); anchor: left center; size: 13.5; weight: 700; color: faint; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 14 * pw + 0.5), floor(sby + 447.75 * pu + 0.5); text wp_count { at: floor(spx + 14 * pw + 0.5), floor(sby + 447.75 * pu + 0.5); anchor: left center; size: 14.5; width: (100 * pw) / rs; lines: 1; color: if(wp_filter >= 0, mint, faint); family: "Space Grotesk" } }
             repeat i in 0..12 {
                 let swx = spx + 124 * pw + i * 26 * pw
                 let lit = if(wp_filter == i, 1, 0)
-                box { at: swx, sby + 405.75 * pu; size: (18 + 3 * lit) * pu, (18 + 3 * lit) * pu; corner: 5 * pu; color: pick(i, #e53935, #fb8c00, #fdd835, #43a047, #00acc1, #1e88e5, #8e24aa, #ec407a, #6d4c41, #f5f5f5, #9e9e9e, #212121) }
-                box { at: swx, sby + 405.75 * pu; size: (18 + 3 * lit) * pu, (18 + 3 * lit) * pu; corner: 5 * pu; stroke: 1 * pu; color: #000000; opacity: 35% }
-                box { at: swx, sby + 405.75 * pu; size: 25 * pu, 25 * pu; corner: 7 * pu; stroke: 2 * pu; color: mint; opacity: lit * 100% }
-                zone box wp_sw.$i { at: swx, sby + 405.75 * pu; size: 24 * pu, 24 * pu; corner: 6 * pu; cursor: pointer; active: set_page == pg_wall and (sby + 405.75 * pu) - wp.off > sby + 12 * pu and (sby + 405.75 * pu) - wp.off < sby + (set.h - 12) * pu }
+                box { at: swx, sby + 439.75 * pu; size: (18 + 3 * lit) * pu, (18 + 3 * lit) * pu; corner: 5 * pu; color: pick(i, #e53935, #fb8c00, #fdd835, #43a047, #00acc1, #1e88e5, #8e24aa, #ec407a, #6d4c41, #f5f5f5, #9e9e9e, #212121) }
+                box { at: swx, sby + 439.75 * pu; size: (18 + 3 * lit) * pu, (18 + 3 * lit) * pu; corner: 5 * pu; stroke: 1 * pu; color: #000000; opacity: 35% }
+                box { at: swx, sby + 439.75 * pu; size: 25 * pu, 25 * pu; corner: 7 * pu; stroke: 2 * pu; color: mint; opacity: lit * 100% }
+                zone box wp_sw.$i { at: swx, sby + 439.75 * pu; size: 24 * pu, 24 * pu; corner: 6 * pu; cursor: pointer; active: set_page == pg_wall and (sby + 439.75 * pu) - wp.off > sby + 12 * pu and (sby + 439.75 * pu) - wp.off < sby + (set.h - 12) * pu }
                 on press wp_sw.$i { emit wp_filter_set(i) }
             }
 
             //  Card six: the gallery, sixteen at a time, with a pager.
             //  Obsidian: a solid plate a step lighter than the shell, with a small tight shadow, in place of the veil.
-            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 634.75 * pu; size: 438 * pw, 382 * pu; corner: 14 * pu } }
-            DdCard(spx + 219 * pw, sby + 634.75 * pu, 438 * pw, 382 * pu, 101.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
-            box { at: spx + 219 * pw, sby + 634.75 * pu; size: 438 * pw, 382 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
-            box { at: spx + 219 * pw, sby + 634.75 * pu; size: 438 * pw, 382 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
-            box { at: spx + 219 * pw, sby + 634.75 * pu; size: 438 * pw, 382 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
+            body { color: mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k); opacity: (obs) * (1 - dd_k); border: 2.4 * pu * dd_k, ink; shadow: 0, 2 * pu, 7 * pu, 40% * (1 - dd_k), #000000; show: obs > 0.004; box { at: spx + 219 * pw, sby + 668.75 * pu; size: 438 * pw, 382 * pu; corner: 14 * pu } }
+            DdCard(spx + 219 * pw, sby + 668.75 * pu, 438 * pw, 382 * pu, 101.5, mix(mix(obsidian, ink, (veil) * 1.6), dd_cream, dd_k), (obs) * dd_k, pu) { show: dd_k > 0.004 and (obs > 0.004) }      // Doodle: the hand-drawn card
+            box { at: spx + 219 * pw, sby + 668.75 * pu; size: 438 * pw, 382 * pu; corner: 14 * pu; color: obsidian; opacity: card_fill * (1 - obs) }      // the card's deeper backing (see `card_fill`)
+            box { at: spx + 219 * pw, sby + 668.75 * pu; size: 438 * pw, 382 * pu; corner: 14 * pu; color: ink; opacity: (veil) * (1 - obs) }
+            box { at: spx + 219 * pw, sby + 668.75 * pu; size: 438 * pw, 382 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: hair * (1 - dd_k) }
             //  The source: a pill with two options, like Desk's Focus / Timer / Stopwatch. Gallery is the folder; Wallhaven puts a search's results in the same grid (logic/wallhaven.luau).
             let wsx = spx + 57 * pw
-            let wsy = sby + 468.75 * pu
+            let wsy = sby + 502.75 * pu
             zone box wp_src_sl { at: wsx + 43 * pw, wsy; size: 172 * pw, 22 * pu }
             SetPick(wsx, wsy, 86 * pw, 2, 22 * pu, wp_src, wp_src_sl.hover, pu)
             repeat i in 0..2 {
@@ -214,19 +224,19 @@ part Wallpaper {
             on press wp_dir_hit { wpd_open = true; emit wp_dir_browse }
             on key Escape while wpd_open { wpd_open = false }
             on change set_page { wpd_open = false }
-            group { scale: rs; pivot: floor(spx + 219 * pw + 0.5), floor(sby + 634.75 * pu + 0.5); text "No wallpaper of this color" { at: floor(spx + 219 * pw + 0.5), floor(sby + 634.75 * pu + 0.5); anchor: center; size: 18; color: faint; family: "Space Grotesk"; show: wps.count < 1 and wp_src == 0 } }
-            group { scale: rs; pivot: floor(spx + 219 * pw + 0.5), floor(sby + 634.75 * pu + 0.5); text wh_status { at: floor(spx + 219 * pw + 0.5), floor(sby + 634.75 * pu + 0.5); anchor: center; align: center; size: 16; color: faint; width: (380 * pw) / rs; lines: 2; show: wps.count < 1 and wp_src == 1; family: "Space Grotesk" } }
+            group { scale: rs; pivot: floor(spx + 219 * pw + 0.5), floor(sby + 668.75 * pu + 0.5); text "No wallpaper of this color" { at: floor(spx + 219 * pw + 0.5), floor(sby + 668.75 * pu + 0.5); anchor: center; size: 18; color: faint; family: "Space Grotesk"; show: wps.count < 1 and wp_src == 0 } }
+            group { scale: rs; pivot: floor(spx + 219 * pw + 0.5), floor(sby + 668.75 * pu + 0.5); text wh_status { at: floor(spx + 219 * pw + 0.5), floor(sby + 668.75 * pu + 0.5); anchor: center; align: center; size: 16; color: faint; width: (380 * pw) / rs; lines: 2; show: wps.count < 1 and wp_src == 1; family: "Space Grotesk" } }
             row wp_grid {
-                at: floor(spx + 219 * pw - 252 * pu + 0.5), floor(sby + 487.75 * pu + 0.5)
+                at: floor(spx + 219 * pw - 252 * pu + 0.5), floor(sby + 521.75 * pu + 0.5)
                 gap: 8 * pu
                 wrap: 4
                 for w in wps { WpThumb(w, pick: wp_pick) }
             }
-            path { at: spx + 40 * pw, sby + 803.75 * pu; stroke: 1.6 * pu; color: ink; opacity: 55% + 45% * wp_prev_hit.hover; move 3 * pu, -5 * pu; line -3 * pu, 0; line 3 * pu, 5 * pu }
-            group { scale: rs; pivot: floor(spx + 219 * pw + 0.5), floor(sby + 803.75 * pu + 0.5); text wp_pager { at: floor(spx + 219 * pw + 0.5), floor(sby + 803.75 * pu + 0.5); anchor: center; align: center; size: 16.5; weight: 600; width: (100 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
-            path { at: spx + 398 * pw, sby + 803.75 * pu; stroke: 1.6 * pu; color: ink; opacity: 55% + 45% * wp_next_hit.hover; move -3 * pu, -5 * pu; line 3 * pu, 0; line -3 * pu, 5 * pu }
-            zone box wp_prev_hit { at: spx + 40 * pw, sby + 803.75 * pu; size: 30 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: set_page == pg_wall and (sby + 803.75 * pu) - wp.off > sby + 12 * pu and (sby + 803.75 * pu) - wp.off < sby + (set.h - 12) * pu }
-            zone box wp_next_hit { at: spx + 398 * pw, sby + 803.75 * pu; size: 30 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: set_page == pg_wall and (sby + 803.75 * pu) - wp.off > sby + 12 * pu and (sby + 803.75 * pu) - wp.off < sby + (set.h - 12) * pu }
+            path { at: spx + 40 * pw, sby + 837.75 * pu; stroke: 1.6 * pu; color: ink; opacity: 55% + 45% * wp_prev_hit.hover; move 3 * pu, -5 * pu; line -3 * pu, 0; line 3 * pu, 5 * pu }
+            group { scale: rs; pivot: floor(spx + 219 * pw + 0.5), floor(sby + 837.75 * pu + 0.5); text wp_pager { at: floor(spx + 219 * pw + 0.5), floor(sby + 837.75 * pu + 0.5); anchor: center; align: center; size: 16.5; weight: 600; width: (100 * pw) / rs; lines: 1; color: faint; family: "Space Grotesk" } }
+            path { at: spx + 398 * pw, sby + 837.75 * pu; stroke: 1.6 * pu; color: ink; opacity: 55% + 45% * wp_next_hit.hover; move -3 * pu, -5 * pu; line 3 * pu, 0; line -3 * pu, 5 * pu }
+            zone box wp_prev_hit { at: spx + 40 * pw, sby + 837.75 * pu; size: 30 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: set_page == pg_wall and (sby + 837.75 * pu) - wp.off > sby + 12 * pu and (sby + 837.75 * pu) - wp.off < sby + (set.h - 12) * pu }
+            zone box wp_next_hit { at: spx + 398 * pw, sby + 837.75 * pu; size: 30 * pu, 28 * pu; corner: 14 * pu; cursor: pointer; active: set_page == pg_wall and (sby + 837.75 * pu) - wp.off > sby + 12 * pu and (sby + 837.75 * pu) - wp.off < sby + (set.h - 12) * pu }
             on press wp_prev_hit { emit wp_prev }
             on press wp_next_hit { emit wp_next }
             //  Undo: for 10 s after a picture was sent to the trash, a pill at the right of the source row (where Wallhaven's sort pill is) puts the last one back.
@@ -238,36 +248,36 @@ part Wallpaper {
                 on press wp_undo_hit { emit wp_undo_do }
             }
             //  The sort order's menu, under its chip: all six at once. A press anywhere else puts it away.
-            zone box wh_dd_catch { at: spx + 219 * pw, sby + 509.75 * pu; size: 438 * pw, 520 * pu; active: wh_dd }
+            zone box wh_dd_catch { at: spx + 219 * pw, sby + 543.75 * pu; size: 438 * pw, 520 * pu; active: wh_dd }
             on press wh_dd_catch { wh_dd = false }
             on key Escape while wh_dd { wh_dd = false }
             group {
                 show: wh_dd
-                body { color: mix(obsidian, ink, 8%); shadow: 0, 4 * pu, 14 * pu, 55%, #000000; box { at: spx + 372 * pw, sby + 561.75 * pu; size: 104 * pu, 152 * pu; corner: 14 * pu } }
-                box { at: spx + 372 * pw, sby + 561.75 * pu; size: 104 * pu, 152 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: 18% }
-                box { at: spx + 372 * pw, sby + 501.75 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 0, 24%, 0%) + 14% * wh_dd_r0.hover }
-                group { scale: rs; pivot: floor(spx + 372 * pw + 0.5), floor(sby + 501.75 * pu + 0.5); text "Top" { at: floor(spx + 372 * pw + 0.5), floor(sby + 501.75 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 0, mint, ink); family: "Space Grotesk" } }
-                zone box wh_dd_r0 { at: spx + 372 * pw, sby + 501.75 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Top"; active: wh_dd }
+                body { color: mix(obsidian, ink, 8%); shadow: 0, 4 * pu, 14 * pu, 55%, #000000; box { at: spx + 372 * pw, sby + 595.75 * pu; size: 104 * pu, 152 * pu; corner: 14 * pu } }
+                box { at: spx + 372 * pw, sby + 595.75 * pu; size: 104 * pu, 152 * pu; corner: 14 * pu; stroke: 1 * pu; color: ink; opacity: 18% }
+                box { at: spx + 372 * pw, sby + 535.75 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 0, 24%, 0%) + 14% * wh_dd_r0.hover }
+                group { scale: rs; pivot: floor(spx + 372 * pw + 0.5), floor(sby + 535.75 * pu + 0.5); text "Top" { at: floor(spx + 372 * pw + 0.5), floor(sby + 535.75 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 0, mint, ink); family: "Space Grotesk" } }
+                zone box wh_dd_r0 { at: spx + 372 * pw, sby + 535.75 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Top"; active: wh_dd }
                 on press wh_dd_r0 { emit wh_sort_set(0); wh_dd = false }
-                box { at: spx + 372 * pw, sby + 525.75 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 1, 24%, 0%) + 14% * wh_dd_r1.hover }
-                group { scale: rs; pivot: floor(spx + 372 * pw + 0.5), floor(sby + 525.75 * pu + 0.5); text "Latest" { at: floor(spx + 372 * pw + 0.5), floor(sby + 525.75 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 1, mint, ink); family: "Space Grotesk" } }
-                zone box wh_dd_r1 { at: spx + 372 * pw, sby + 525.75 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Latest"; active: wh_dd }
+                box { at: spx + 372 * pw, sby + 559.75 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 1, 24%, 0%) + 14% * wh_dd_r1.hover }
+                group { scale: rs; pivot: floor(spx + 372 * pw + 0.5), floor(sby + 559.75 * pu + 0.5); text "Latest" { at: floor(spx + 372 * pw + 0.5), floor(sby + 559.75 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 1, mint, ink); family: "Space Grotesk" } }
+                zone box wh_dd_r1 { at: spx + 372 * pw, sby + 559.75 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Latest"; active: wh_dd }
                 on press wh_dd_r1 { emit wh_sort_set(1); wh_dd = false }
-                box { at: spx + 372 * pw, sby + 549.75 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 2, 24%, 0%) + 14% * wh_dd_r2.hover }
-                group { scale: rs; pivot: floor(spx + 372 * pw + 0.5), floor(sby + 549.75 * pu + 0.5); text "Most views" { at: floor(spx + 372 * pw + 0.5), floor(sby + 549.75 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 2, mint, ink); family: "Space Grotesk" } }
-                zone box wh_dd_r2 { at: spx + 372 * pw, sby + 549.75 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Most views"; active: wh_dd }
+                box { at: spx + 372 * pw, sby + 583.75 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 2, 24%, 0%) + 14% * wh_dd_r2.hover }
+                group { scale: rs; pivot: floor(spx + 372 * pw + 0.5), floor(sby + 583.75 * pu + 0.5); text "Most views" { at: floor(spx + 372 * pw + 0.5), floor(sby + 583.75 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 2, mint, ink); family: "Space Grotesk" } }
+                zone box wh_dd_r2 { at: spx + 372 * pw, sby + 583.75 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Most views"; active: wh_dd }
                 on press wh_dd_r2 { emit wh_sort_set(2); wh_dd = false }
-                box { at: spx + 372 * pw, sby + 573.75 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 3, 24%, 0%) + 14% * wh_dd_r3.hover }
-                group { scale: rs; pivot: floor(spx + 372 * pw + 0.5), floor(sby + 573.75 * pu + 0.5); text "Favourites" { at: floor(spx + 372 * pw + 0.5), floor(sby + 573.75 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 3, mint, ink); family: "Space Grotesk" } }
-                zone box wh_dd_r3 { at: spx + 372 * pw, sby + 573.75 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Favourites"; active: wh_dd }
+                box { at: spx + 372 * pw, sby + 607.75 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 3, 24%, 0%) + 14% * wh_dd_r3.hover }
+                group { scale: rs; pivot: floor(spx + 372 * pw + 0.5), floor(sby + 607.75 * pu + 0.5); text "Favourites" { at: floor(spx + 372 * pw + 0.5), floor(sby + 607.75 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 3, mint, ink); family: "Space Grotesk" } }
+                zone box wh_dd_r3 { at: spx + 372 * pw, sby + 607.75 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Favourites"; active: wh_dd }
                 on press wh_dd_r3 { emit wh_sort_set(3); wh_dd = false }
-                box { at: spx + 372 * pw, sby + 597.75 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 4, 24%, 0%) + 14% * wh_dd_r4.hover }
-                group { scale: rs; pivot: floor(spx + 372 * pw + 0.5), floor(sby + 597.75 * pu + 0.5); text "Random" { at: floor(spx + 372 * pw + 0.5), floor(sby + 597.75 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 4, mint, ink); family: "Space Grotesk" } }
-                zone box wh_dd_r4 { at: spx + 372 * pw, sby + 597.75 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Random"; active: wh_dd }
+                box { at: spx + 372 * pw, sby + 631.75 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 4, 24%, 0%) + 14% * wh_dd_r4.hover }
+                group { scale: rs; pivot: floor(spx + 372 * pw + 0.5), floor(sby + 631.75 * pu + 0.5); text "Random" { at: floor(spx + 372 * pw + 0.5), floor(sby + 631.75 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 4, mint, ink); family: "Space Grotesk" } }
+                zone box wh_dd_r4 { at: spx + 372 * pw, sby + 631.75 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Random"; active: wh_dd }
                 on press wh_dd_r4 { emit wh_sort_set(4); wh_dd = false }
-                box { at: spx + 372 * pw, sby + 621.75 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 5, 24%, 0%) + 14% * wh_dd_r5.hover }
-                group { scale: rs; pivot: floor(spx + 372 * pw + 0.5), floor(sby + 621.75 * pu + 0.5); text "Best match" { at: floor(spx + 372 * pw + 0.5), floor(sby + 621.75 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 5, mint, ink); family: "Space Grotesk" } }
-                zone box wh_dd_r5 { at: spx + 372 * pw, sby + 621.75 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Best match"; active: wh_dd }
+                box { at: spx + 372 * pw, sby + 655.75 * pu; size: 96 * pu, 22 * pu; corner: 11 * pu; color: mint; opacity: if(wh_sort_i == 5, 24%, 0%) + 14% * wh_dd_r5.hover }
+                group { scale: rs; pivot: floor(spx + 372 * pw + 0.5), floor(sby + 655.75 * pu + 0.5); text "Best match" { at: floor(spx + 372 * pw + 0.5), floor(sby + 655.75 * pu + 0.5); anchor: center; align: center; size: 13; weight: 600; color: if(wh_sort_i == 5, mint, ink); family: "Space Grotesk" } }
+                zone box wh_dd_r5 { at: spx + 372 * pw, sby + 655.75 * pu; size: 100 * pu, 24 * pu; corner: 11 * pu; cursor: pointer; label: "Sort by Best match"; active: wh_dd }
                 on press wh_dd_r5 { emit wh_sort_set(5); wh_dd = false }
             }
             }

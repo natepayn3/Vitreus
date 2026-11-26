@@ -85,7 +85,7 @@ scene Vitreus {
     //  moving paints nothing, so a cap only ever slowed what was moving (the notches, the drawers, the bar's hovers each needed an exemption from the old 12 a second).
     surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995 and bar_size < 1.005 and not bar_ah; rate: 480, 120 while bar_fps == 120 and not (media.playing and (fw_on or (bar_beat and panel == none and lm < 0.5 and sg < 0.5))) and not sky.calm, 60 while ((media.playing and (fw_on or (bar_beat and panel == none and lm < 0.5 and sg < 0.5))) or bar_fps == 60) and not sky.calm, 30 while sky.calm; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
     permissions { services: "say:*", "files", "files.write", "files.remove", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "window.activate", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "timeout 15 pw-play", "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-nettraf", "vitreus-watch", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe", "nordvpn", "vitreus-vpn-split", "yt-dlp", "wlr-randr" }
+                  run: "timeout 15 pw-play", "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-nettraf", "vitreus-watch", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe", "nordvpn", "vitreus-vpn-split", "yt-dlp", "wlr-randr", "vitreus-calsync" }
 
     model wifi_nets max 16 { ssid: text; strength: number; secure: bool; known: bool; active: bool; band: number; bands: text; bandw: number; chan: number; rate: number; sec: text; busy: number }
     model bat_devs max 6 { name: text; level: number }
@@ -156,7 +156,12 @@ scene Vitreus {
     text cal.yr = ""
     fact cal.twd = -1              // which column is today's weekday
     text cal_new = ""              // what is being typed in the field
-    model cal_events max 4 { time: text; title: text; done: bool; at: number }
+    model cal_events max 4 { time: text; title: text; done: bool; at: number; synced: bool }     // `synced`: from a calendar on the web (logic/calsync.luau): no cross
+    model cal_feeds max 4 { name: text; sub: text; bad: bool }     // the calendars on the web, in Settings > Network
+    text cs_in = ""                    // the field a calendar's link is pasted in
+    text cs_status = ""                // "Synced 3:40pm", "Syncing…"
+    event cs_add ->
+    event cs_remove ->                 // a calendar, by its row
     repeat k in 0..42 {
         fact cal.day.$k = 0
         fact cal.in.$k = false
@@ -998,6 +1003,8 @@ scene Vitreus {
     text wp_show_sub = ""           // Next change in 4:31
     text wp_mins_text = ""          // 5 min
     event wp_show_toggle ->
+    fact wp_ws = false              // each workspace keeps its own wallpaper (logic: wsw in vitreus.luau)
+    event wp_ws_toggle ->
     fact wp_para = false            // the wallpaper leans away from the mouse (drawn by wptrans/, told by logic `para_fx`)
     event wp_para_toggle ->
     fact wp_para_lv = 0.27          // Strength, as the slider's level (0 to 1: 10 to 120 pixels)
@@ -1892,6 +1899,7 @@ scene Vitreus {
     event pw_shatter4
     prop pow_th = 1 ~pop                // where the power-profile thumb is: 0 saver, 1 balanced, 2 performance
     prop wp_show_pill = 0 ~pop
+    prop wp_ws_pill = 0 ~pop
     prop iris_pill = 0 ~pop
     prop bar_lm = 0 ~calm
     prop bar_tm = 0 ~calm
@@ -2071,6 +2079,7 @@ scene Vitreus {
     follow rec_pill = if(rec_on, 1, 0)
     follow pow_th = if(pow_prof < 0, 1, pow_prof)
     follow wp_show_pill = if(wp_show, 1, 0)
+    follow wp_ws_pill = if(wp_ws, 1, 0)
     prop wp_para_pill = 0 ~pop
     follow wp_para_pill = if(wp_para, 1, 0)
     follow iris_pill = if(iris_on, 1, 0)
@@ -3158,10 +3167,10 @@ scene Vitreus {
             at: floor(56 * cu + 0.5), 7
             text e.title { size: 13; width: 74 * cu; lines: 5; color: ink; opacity: if(e.done, 40%, 100%); family: "Space Grotesk" }
         }
-        line { from: 137 * cu, 15 - 3 * cu; to: 143 * cu, 15 + 3 * cu; width: 1.4 * cu; color: ink; opacity: 22% + 60% * touch.hover }
-        line { from: 143 * cu, 15 - 3 * cu; to: 137 * cu, 15 + 3 * cu; width: 1.4 * cu; color: ink; opacity: 22% + 60% * touch.hover }
+        line { from: 137 * cu, 15 - 3 * cu; to: 143 * cu, 15 + 3 * cu; width: 1.4 * cu; color: ink; opacity: 22% + 60% * touch.hover; show: not e.synced }
+        line { from: 143 * cu, 15 - 3 * cu; to: 137 * cu, 15 + 3 * cu; width: 1.4 * cu; color: ink; opacity: 22% + 60% * touch.hover; show: not e.synced }
         zone box check_z { at: 15, 15; size: 22 * cu, 30; corner: 11 * cu; cursor: pointer }
-        zone box gone_z { at: 140 * cu, 15; size: 20 * cu, 30; corner: 10 * cu; cursor: pointer }
+        zone box gone_z { at: 140 * cu, 15; size: 20 * cu, 30; corner: 10 * cu; cursor: pointer; active: not e.synced; label: "Delete this reminder" }
         on press check_z { emit tick(e.index) }
         on press gone_z { emit gone(e.index) }
     }
@@ -6403,7 +6412,7 @@ scene Vitreus {
     let th_pgc = clamp(th_pg, 0, th_np - 1)
     let th_ex = min(1, max(0, floor((themes.count + 3) / 4) - 1)) + if(th_np > 1, 14 / 88, 0)
     let sty.h = 483.75                    // the Style page: to the bottom of its last card
-    let wp.h = 825.75                    // the Wallpaper page: to the bottom of the gallery (it scrolls inside the panel when the panel is shorter)
+    let wp.h = 859.75                    // the Wallpaper page: to the bottom of the gallery (it scrolls inside the panel when the panel is shorter)
     let set.h = 480                    // the sidebar's and the page's height: one height for every page, short enough for a 1080 p screen with the Island and the dock (what is longer scrolls)
     //  The sidebar's thumb (the page that is open): the row it is on, followed by its two edges as the pickers' thumb is (SetPick), the leading one
     //  quickly and the trailing one late, so it stretches from the old row to the new one and gathers there.

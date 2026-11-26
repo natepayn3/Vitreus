@@ -490,6 +490,7 @@ if [ "$action" = uninstall ]; then
     if [ -L "$HOME/.local/bin/vitreus-addons" ]; then run rm -f "$HOME/.local/bin/vitreus-addons"; fi
     if [ -L "$HOME/.local/bin/vitreus-sync-addons" ]; then run rm -f "$HOME/.local/bin/vitreus-sync-addons"; fi
     if [ -L "$HOME/.local/bin/vitreus-feedfetch" ]; then run rm -f "$HOME/.local/bin/vitreus-feedfetch"; fi
+    if [ -L "$HOME/.local/bin/vitreus-calsync" ]; then run rm -f "$HOME/.local/bin/vitreus-calsync"; fi
     if [ -L "$HOME/.local/bin/vitreus-tvremote" ]; then run rm -f "$HOME/.local/bin/vitreus-tvremote"; fi
     if [ -L "$HOME/.local/bin/vitreus-eq" ]; then run rm -f "$HOME/.local/bin/vitreus-eq"; fi
     if [ -L "$HOME/.local/bin/vitreus-report" ]; then run rm -f "$HOME/.local/bin/vitreus-report"; fi
@@ -1086,6 +1087,7 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
     [ -x "$dest/bin/vitreus-addons" ] && run ln -sf "$dest/bin/vitreus-addons" "$HOME/.local/bin/vitreus-addons"       # and the add-ons in ~/.config/pleamar/vitreus-addons (never touched here)
     [ -x "$dest/bin/vitreus-sync-addons" ] && run ln -sf "$dest/bin/vitreus-sync-addons" "$HOME/.local/bin/vitreus-sync-addons"
     [ -x "$dest/bin/vitreus-feedfetch" ] && run ln -sf "$dest/bin/vitreus-feedfetch" "$HOME/.local/bin/vitreus-feedfetch"       # the News & Weather add-on (addons/news-weather) reads its feeds through it
+    [ -x "$dest/bin/vitreus-calsync" ] && run ln -sf "$dest/bin/vitreus-calsync" "$HOME/.local/bin/vitreus-calsync"       # the calendar fetches the calendars of Settings > Network > Calendars through it
     [ -x "$dest/bin/vitreus-tvremote" ] && run ln -sf "$dest/bin/vitreus-tvremote" "$HOME/.local/bin/vitreus-tvremote"       # the TV Remote add-on (addons/tvremote) talks to the TV through it
     [ -x "$dest/bin/vitreus-eq" ] && run ln -sf "$dest/bin/vitreus-eq" "$HOME/.local/bin/vitreus-eq"       # the Equalizer add-on (addons/eq) filters the sound through it
     # For a problem report that does not need the shell to be running: `vitreus-report` writes one text file to read and send.
@@ -1276,6 +1278,11 @@ fi
 # ── start with the desktop ─────────────────────────────────────────────────
 # Each scene runs under bin/vitreus-keep, which starts it again if it stops while the session lasts.
 stage "starting with the desktop"
+# A first install (no data of the shell's yet) is shown the tour (tour/) at its first start: the note it reads, which it clears. An update never shows it.
+if ! $dry && ! $refresh && [ ! -d "$data/pleamar/vitreus" ]; then
+    mkdir -p "$data/pleamar/vitreus"
+    printf '{"pending": true}\n' > "$data/pleamar/vitreus/tour.json"
+fi
 $dry || mkdir -p "$data/pleamar/vitreus"
 line="vitreus-keep $dest/vitreus.plm \"\$HOME/.local/share/pleamar/vitreus/vitreus.log\""
 # PLEAMAR_SWAPCHAIN=1: pleamar 0.4's own frames let the lock commit its region before its first frame, and Hyprland kills a lock
