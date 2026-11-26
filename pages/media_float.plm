@@ -110,7 +110,9 @@ part MediaFloat {
             group {
             clip inset 1 box { at: wk_dx, wk_dy; size: 172 * cu, 106 * cu; corner: 11 * cu * wk_r }
             group {
-            move: 0, -108 * cu * clamp(max(wk_cas, wk_e), 0, 1)      // and with nothing playing it is out
+            move: 0, -108 * cu * clamp(max(wk_cas, wk_e), 0, 1) - 6 * cu * sin(wk_flip * 180)      // and with nothing playing it is out (lifted a little while it turns over)
+            pivot: wk_dx, wk_dy
+            scale: max(0.02, abs(1 - 2 * wk_flip)), 1                // side A or side B: it turns over about its middle, and the other side's label shows past half way
             box { at: wk_dx, wk_dy; size: 154 * cu, 92 * cu; corner: 5 * cu * wk_r; color: deep; opacity: 42% }      // smoked plastic: dark under the veil
             box { at: wk_dx, wk_dy; size: 154 * cu, 92 * cu; corner: 5 * cu * wk_r; color: ink; opacity: 7% }
             box { at: wk_dx, wk_dy; size: 149 * cu, 87 * cu; corner: 3.5 * cu * wk_r; stroke: 1; color: deep; opacity: 70% }      // the moulding's inner edge
@@ -126,6 +128,7 @@ part MediaFloat {
             let wk_pap = mix(#efe4c8, mint, 0.14)                 // the paper, with a little of the accent in it
             let wk_pen = #2a211a                                  // the pen
             group {
+                show: wk_flip < 0.5
                 pivot: wk_dx, wk_dy - 26 * cu
                 rotate: -0.8deg
                 let wk_lx = wk_dx
@@ -167,6 +170,55 @@ part MediaFloat {
                 ellipse { at: wk_lx + 65.6 * cu, wk_ly - 11.4 * cu; radius: 0.6 * cu; color: wk_pap; opacity: 26% }
                 ellipse { at: wk_lx + 61 * cu, wk_ly - 14.2 * cu; radius: 0.5 * cu; color: wk_pap; opacity: 24% }
             }
+            //  Side B: the same sticker, a fresher paper, and the lyrics on it in the same hand. The line being sung is big and dark in the middle, the one before
+            //  above and the next below, fainter; when the next is reached they roll up by one (`lyr_roll`, 1 to 0 after each `lyr_step`). A long line is made
+            //  smaller to fit, down to three quarters, then cut. Before it is allowed, the label asks; with no words to show, it says why.
+            group {
+                show: wk_flip >= 0.5
+                pivot: wk_dx, wk_dy - 26 * cu
+                rotate: 0.6deg
+                let wk_lx = wk_dx
+                let wk_ly = wk_dy - 26 * cu
+                let wk_pap = mix(#f4ecd6, mint, 0.10)
+                path { at: wk_lx + 0.5 * cu, wk_ly + 0.9 * cu; color: deep; opacity: 60%; move -66.4 * cu, -15 * cu; line 57 * cu, -15 * cu; line 67 * cu, -8.2 * cu; line 66.7 * cu, 14.7 * cu; line -59.5 * cu, 15 * cu; line -67 * cu, 8.6 * cu; close }
+                path { at: wk_lx, wk_ly; color: wk_pap; move -66.4 * cu, -15 * cu; line -30 * cu, -15.3 * cu; line 12 * cu, -14.8 * cu; line 56 * cu, -15 * cu; line 58.4 * cu, -13 * cu; line 60.2 * cu, -13.3 * cu; line 62.6 * cu, -10.6 * cu; line 64.4 * cu, -10.2 * cu; line 67 * cu, -8.2 * cu; line 66.7 * cu, 14.7 * cu; line 24 * cu, 15.2 * cu; line -22 * cu, 14.8 * cu; line -59.5 * cu, 15 * cu; line -67 * cu, 8.6 * cu; line -66.8 * cu, -6 * cu; close }
+                box { at: wk_lx - 58.5 * cu, wk_ly - 7 * cu; size: 10.5 * cu, 12.5 * cu; corner: 1.6 * cu * wk_r; stroke: 1.2; color: wk_pen; opacity: 62% }
+                text "B" { at: floor(wk_lx - 58.5 * cu + 0.5), floor(wk_ly - 7 * cu + 0.5); anchor: center; align: center; size: 13; weight: 700; color: wk_pen; opacity: 66%; family: "Space Grotesk" }
+                box { at: wk_lx + 7 * cu, wk_ly + 5.4 * cu; size: 113 * cu, 0.6 * cu; color: #4f6f96; opacity: 22% }
+                group {
+                    clip box { at: wk_lx + 6.5 * cu, wk_ly; size: 117 * cu, 29 * cu }
+                    group {
+                        show: lyr_mode == 2 or lyr_mode == 3
+                        repeat k in 0..5 {
+                            let ld = k - 2 + lyr_roll                          // where this line is, in lines from the middle
+                            let lc = clamp(1 - abs(ld), 0, 1)                  // 1 for the line being sung
+                            let ly_ = wk_ly + ld * 9.6 * cu
+                            measure lyr_m.$k
+                            group { text pick(k, lyr_l0, lyr_l1, lyr_l2, lyr_l3, lyr_l4) { at: 0, -4000; size: 15; weight: 700; family: "Kalam"; measure: lyr_m.$k; opacity: 0 } }
+                            let lsc = (0.72 + 0.28 * lc) * clamp((116 * cu) / max(1, lyr_m.$k.width), if(k == 2, 0.86, 0.7), 1)      // its size: the middle one bigger, a long one a little smaller
+                            let lover = max(0, lyr_m.$k.width * lsc - 116 * cu)                    // how much of it does not fit
+                            //  what does not fit slides by: the line being sung glides left as it is sung (its end in view before the next comes), the ones sung show their
+                            //  end, the ones to come their start
+                            let lpan = if(k == 2, clamp((lyr_pan - 0.12) / 0.7, 0, 1), if(k < 2, 1, 0))
+                            group {
+                                pivot: floor(wk_lx - 52 * cu + 0.5), floor(ly_ + 0.5)
+                                move: -lover * lpan, 0
+                                scale: lsc
+                                text pick(k, lyr_l0, lyr_l1, lyr_l2, lyr_l3, lyr_l4) { at: floor(wk_lx - 52 * cu + 0.5), floor(ly_ + 0.5); anchor: left center; size: 15; weight: 700; color: wk_pen; opacity: (28% + 66% * lc) * clamp(1.6 - abs(ld) * 0.55, 0, 1); family: "Kalam" }
+                            }
+                        }
+                    }
+                }
+                //  No words to show: why, in the same hand.
+                text pick(lyr_mode, "Flip back to A and play a song", "Looking for the words…", "", "", "No lyrics found for this one", "Instrumental: no words to sing", "No lyrics for a live stream", "", "Couldn't reach the lyrics, try again later") { at: floor(wk_lx + 6 * cu + 0.5), floor(wk_ly + 0.5); anchor: center; align: center; size: 14; weight: 700; width: 116 * cu; lines: 2; color: wk_pen; opacity: if(lyr_mode == 1, 50% + 30% * sin(time * 240), 72%); family: "Kalam"; show: lyr_mode != 2 and lyr_mode != 3 and lyr_mode != 7 }
+                //  Not allowed yet: it asks.
+                group {
+                    show: lyr_mode == 7
+                    text "Lyrics are looked up on lrclib.net" { at: floor(wk_lx + 6 * cu + 0.5), floor(wk_ly - 6 * cu + 0.5); anchor: center; align: center; size: 12.5; width: 116 * cu; lines: 1; color: wk_pen; opacity: 70%; family: "Kalam" }
+                    text "Show the words →" { at: floor(wk_lx + 6 * cu + 0.5), floor(wk_ly + 7 * cu + 0.5); anchor: center; align: center; size: 15; weight: 700; color: mix(wk_pen, #b4442a, lyr_ok_z.hover); family: "Kalam" }
+                    box { at: wk_lx + 6 * cu, wk_ly + 12.5 * cu; size: 60 * cu * (0.6 + 0.4 * lyr_ok_z.hover), 0.9 * cu; color: #b4442a; opacity: 30% + 50% * lyr_ok_z.hover }
+                }
+            }
             //  The window: dark, with the two packs of tape (the left one thins as the right one fattens), the tape running between them, and a scale along its foot.
             repeat q in 0..6 {
                 let qx = wk_dx + if(q >= 3, 1, -1) * 60.5 * cu
@@ -197,6 +249,17 @@ part MediaFloat {
             repeat h in 0..4 { ellipse { at: wk_dx + pick(h, -27, -10, 10, 27) * cu, wk_dy + 38.5 * cu; radius: if(h == 0 or h == 3, 2.6, 1.7) * cu; color: deep; opacity: 92% } }
             }
             }
+            //  The label is a button: pressed, the tape turns over (side B has the lyrics: logic/lyrics.luau). Not for a stream, nor while a tape is changing. A stream that
+            //  starts while side B shows does not turn it back: a looping video says it has no length for a moment, and side B only says "a live stream" meanwhile.
+            //  (Back to side A always works, even on a stream; to side B only with a song that has a length.)
+            zone box wk_flip_z { at: wk_dx, wk_dy - 26 * cu - 108 * cu * clamp(max(wk_cas, wk_e), 0, 1); size: 136 * cu, 32 * cu; cursor: pointer; active: media_open > 0.5 and (mp_len > 0 or wk_b) and wk_cas < 0.05 and mf.vis > 0.5; label: if(wk_b, "Turn the tape to side A", "Turn the tape to side B: the lyrics") }
+            //  (set, not toggled: a press heard by the player's copy on each monitor would turn it over and straight back; a `while` reads the frame before
+            //  these rules, so only one of the two fires)
+            on press wk_flip_z while not wk_b { wk_b = true }
+            on press wk_flip_z while wk_b { wk_b = false }
+            zone box lyr_ok_z { at: wk_dx + 6 * cu, wk_dy - 19 * cu - 108 * cu * clamp(max(wk_cas, wk_e), 0, 1); size: 80 * cu, 14 * cu; cursor: pointer; active: wk_b and lyr_mode == 7 and wk_flip > 0.95 and mf.vis > 0.5; label: "Show the lyrics (looked up on lrclib.net)" }
+            on press lyr_ok_z { emit lyr_ok }
+            on lyr_step { lyr_roll: 1 ~0ms; lyr_roll: 0 ~380ms; lyr_pan: 0 ~0ms }      // (the new line starts from its beginning, not from where the last one slid to)
             //  The door, over it: a pane a shade lighter than the case, its edge lit, two slanted streaks of light on its glass.
             group {
                 box { at: wk_dx, wk_dy; size: 172 * cu, 106 * cu; corner: 11 * cu * wk_r; color: ink; opacity: 5% }

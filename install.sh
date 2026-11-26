@@ -491,6 +491,7 @@ if [ "$action" = uninstall ]; then
     if [ -L "$HOME/.local/bin/vitreus-sync-addons" ]; then run rm -f "$HOME/.local/bin/vitreus-sync-addons"; fi
     if [ -L "$HOME/.local/bin/vitreus-feedfetch" ]; then run rm -f "$HOME/.local/bin/vitreus-feedfetch"; fi
     if [ -L "$HOME/.local/bin/vitreus-calsync" ]; then run rm -f "$HOME/.local/bin/vitreus-calsync"; fi
+    if [ -L "$HOME/.local/bin/vitreus-lyrics" ]; then run rm -f "$HOME/.local/bin/vitreus-lyrics"; fi
     if [ -L "$HOME/.local/bin/vitreus-tvremote" ]; then run rm -f "$HOME/.local/bin/vitreus-tvremote"; fi
     if [ -L "$HOME/.local/bin/vitreus-eq" ]; then run rm -f "$HOME/.local/bin/vitreus-eq"; fi
     if [ -L "$HOME/.local/bin/vitreus-report" ]; then run rm -f "$HOME/.local/bin/vitreus-report"; fi
@@ -1088,6 +1089,7 @@ if [ -x "$dest/bin/vitreus-clipimg" ] || $dry; then
     [ -x "$dest/bin/vitreus-sync-addons" ] && run ln -sf "$dest/bin/vitreus-sync-addons" "$HOME/.local/bin/vitreus-sync-addons"
     [ -x "$dest/bin/vitreus-feedfetch" ] && run ln -sf "$dest/bin/vitreus-feedfetch" "$HOME/.local/bin/vitreus-feedfetch"       # the News & Weather add-on (addons/news-weather) reads its feeds through it
     [ -x "$dest/bin/vitreus-calsync" ] && run ln -sf "$dest/bin/vitreus-calsync" "$HOME/.local/bin/vitreus-calsync"       # the calendar fetches the calendars of Settings > Network > Calendars through it
+    [ -x "$dest/bin/vitreus-lyrics" ] && run ln -sf "$dest/bin/vitreus-lyrics" "$HOME/.local/bin/vitreus-lyrics"       # the player's side B finds a song's lyrics through it
     [ -x "$dest/bin/vitreus-tvremote" ] && run ln -sf "$dest/bin/vitreus-tvremote" "$HOME/.local/bin/vitreus-tvremote"       # the TV Remote add-on (addons/tvremote) talks to the TV through it
     [ -x "$dest/bin/vitreus-eq" ] && run ln -sf "$dest/bin/vitreus-eq" "$HOME/.local/bin/vitreus-eq"       # the Equalizer add-on (addons/eq) filters the sound through it
     # For a problem report that does not need the shell to be running: `vitreus-report` writes one text file to read and send.

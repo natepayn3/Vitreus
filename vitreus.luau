@@ -619,6 +619,7 @@ local function mp_show(pos)
     if (fact.mp_len or 0) <= 0 then pos = mpl.sec end       -- a stream with no end: our own count (see `mpl`)
     fact.mp_pos = pos
     text.mp_el = mp_clock(pos)
+    if lyr_pos then lyr_pos(pos) end                     -- the lyrics on the cassette's side B follow it (logic/lyrics.luau)
 end
 local function mp_read()
     if mp_player == "" or mp_quiet > 0 then return end
@@ -7587,6 +7588,7 @@ end
         { "Wallpaper picker", "action", function() spawn('pleamar --say vitreus "emit wp_picker_toggle"') end, "backgrounds wallpapers hexagons colour choose change" },
         { "Workspace overview", "action", function() spawn('pleamar --say vitreus "emit ov_toggle"') end, "workspaces windows switch expose desktops" },
         { "Random wallpaper", "action", function() local f = wp_random_pick(); if f then wp_apply(f) end end, "shuffle background change surprise" },
+        { "Lyrics: ask before looking them up again", "action", function() spawn('pleamar --say vitreus "emit lyr_forget"') end, "lyrics words song lrclib cassette side b privacy off stop" },
         { "Tour", "action", function() tour_fx.open() end, "welcome help keys shortcuts guide tutorial intro first start how" },
         { "Lock session", "action", function() spawn('pleamar --say lockscreen "fact locked true"') end, "lockscreen lock screen secure away password" },
         { "Settings: Style", "open", open_settings("pg_style"), "style pencil sketch boil wobble hand drawn ink clean shading hatching lines look" },
@@ -8398,6 +8400,7 @@ end
 
 -- the wallpaper hook for the add-on that frames wallpapers: see logic/wallpaper_hook.luau
 require("logic/wallpaper_hook")(wp_apply, function() return wp_cur end)
+lyr_pos = require("logic/lyrics")()     -- side B's lyrics (a global: this chunk is at Luau's limit of locals)
 wsw_note = require("logic/ws_wallpaper")(function(f, how) wp_apply(f, how) end, function() return wp_cur end)     -- (a global: this chunk is at Luau's limit of locals)
 
 -- Settings > Theme > Pin wallpaper (a wallpaper that comes with a theme): see logic/theme_wallpaper.luau

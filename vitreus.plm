@@ -85,7 +85,7 @@ scene Vitreus {
     //  moving paints nothing, so a cap only ever slowed what was moving (the notches, the drawers, the bar's hovers each needed an exemption from the old 12 a second).
     surface { size: full, full; anchor: bar_anchor; margin: 0; level: top, overlay while panel == launch or panel == settings or panel == volume or panel == notif; reserve: 62 while bar_anchor == top and not bar_frame and bar_size > 0.995 and bar_size < 1.005 and not bar_ah; rate: 480, 120 while bar_fps == 120 and not (media.playing and (fw_on or (bar_beat and panel == none and lm < 0.5 and sg < 0.5))) and not sky.calm, 60 while ((media.playing and (fw_on or (bar_beat and panel == none and lm < 0.5 and sg < 0.5))) or bar_fps == 60) and not sky.calm, 30 while sky.calm; screens: each max 1; open: sb > 0.5 or bar_others; keyboard: on_demand while (panel != none and panel != volume and panel != notif) or wp_picker_open or ov_open or pk_open or desk_kb or (desk_open and ws_empty) or (((cdk_hot > 0.5 and cdk_ga > 0.5) or cdk_down > 0.5) and ws_empty) or dash_open or (axf_on and ax_open) }
     permissions { services: "say:*", "files", "files.write", "files.remove", "auth", "clock", "clock.seconds", "thumbnails", "thumbnails.*", "audio", "audio.*", "window", "window.activate", "media", "media.*", "workspaces", "workspaces.focus", "brightness", "brightness.*", "battery", "network", "network.*", "bluetooth", "bluetooth.*", "apps", "tray", "tray.*", "notifications", "notifications.*"
-                  run: "timeout 15 pw-play", "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-nettraf", "vitreus-watch", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe", "nordvpn", "vitreus-vpn-split", "yt-dlp", "wlr-randr", "vitreus-calsync" }
+                  run: "timeout 15 pw-play", "git", "fc-list", "fc-match", "pleamar", "fuser", "ps", "pleamar-update", "cava", "playerctl", "curl", "notify-send", "which", "pgrep", "pkill", "systemctl", "hyprctl", "socat", "printenv", "awww", "iris", "cp", "ls", "xdg-user-dir", "mv", "gio", "niri", "magick", "grim", "mkdir", "bluetoothctl", "nmcli", "busctl", "chmod", "wl-copy", "find", "vitreus-term", "vitreus-themes", "vitreus-wallhaven", "claude", "ollama", "codex", "pacman", "paru", "yay", "gemini", "cliphist", "stat", "file", "vitreus-clipimg", "grep", "pactl", "sed", "setsid", "powerprofilesctl", "loginctl", "vitreus-polkit-agent", "vitreus-sysmon", "vitreus-nettraf", "vitreus-watch", "vitreus-addons", "vitreus-sync-addons", "vitreus-eq", "vitreus-keep", "vitreus-inhibit", "pw-play", "ffmpeg", "tesseract", "cat", "date", "udevadm", "vitreus-battery", "vitreus-greeter", "test", "wl-paste", "ffprobe", "nordvpn", "vitreus-vpn-split", "yt-dlp", "wlr-randr", "vitreus-calsync", "vitreus-lyrics" }
 
     model wifi_nets max 16 { ssid: text; strength: number; secure: bool; known: bool; active: bool; band: number; bands: text; bandw: number; chan: number; rate: number; sec: text; busy: number }
     model bat_devs max 6 { name: text; level: number }
@@ -3074,6 +3074,23 @@ scene Vitreus {
     text mp_el = ""                     // 1:42
     text mp_tot = ""                    // 3:58
     prop mp_pf = 0 ~850ms
+    //  The cassette's side B: the lyrics (logic/lyrics.luau, pages/media_float.plm).
+    fact wk_b = false                   // side B is showing
+    prop wk_flip = 0 ~420ms             // the tape turning over: 0 side A, 1 side B
+    follow wk_flip = if(wk_b, 1, 0)
+    fact lyr_mode = 0                   // 0 nothing yet, 1 looking, 2 timed, 3 untimed, 4 none, 5 instrumental, 6 stream, 7 not allowed yet, 8 could not ask
+    text lyr_l0 = ""                    // the line two before, the one before, the one being sung, the next, the one after
+    text lyr_l1 = ""
+    text lyr_l2 = ""
+    text lyr_l3 = ""
+    text lyr_l4 = ""
+    prop lyr_roll = 0 ~380ms            // 1 to 0 after each line: the lines rolling up by one
+    fact lyr_frac = 0                   // how far through the line being sung (0 to 1): a long one slides by as it is sung
+    prop lyr_pan = 0 ~300ms
+    follow lyr_pan = lyr_frac
+    event lyr_step                      // the next line is reached (the logic says)
+    event lyr_ok ->                     // allowed, on side B
+    event lyr_forget ->                 // from the launcher: ask again
     follow mp_pf = if(mp_len > 0, clamp(mp_pos / mp_len, 0, 1), 0)
     fact mp_drag = false
     fact mp_df = 0

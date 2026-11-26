@@ -91,7 +91,7 @@ The first time it starts, a short tour shows the keys and where things are. Type
 * **Controls**: Wi-Fi, Bluetooth, brightness, volume per app, Do Not Disturb, Caffeine, and power.
 * **Calendar** with reminders in plain words (`3:30pm Call mom`), the week's weather, and your Google, Nextcloud or Outlook calendars beside them (paste their iCal link in **Settings > Network**).
 * **Notifications** with history, per-app rules and sounds, and quiet hours.
-* **Player** with cover art and a live spectrum.
+* **Player** with cover art and a live spectrum. Press the cassette's label to turn the tape to side B: the song's lyrics, line by line as it plays (from lrclib.net, only once you allow it).
 
 **Bigger panels**
 * **Dashboard**: one screen of glass cards (clock, weather, notifications, system monitor, what's playing).

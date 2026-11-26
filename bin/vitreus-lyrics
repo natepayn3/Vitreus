@@ -1,0 +1,194 @@
+#!/usr/bin/env python3
+"""vitreus-lyrics --cache DIR ARTIST TITLE [SECONDS]
+
+Finds a song's lyrics on LRCLIB (lrclib.net: free, no account, most songs timed line by line) and prints one JSON object on stdout:
+
+  { "status": "synced" | "plain" | "instrumental" | "none" | "error",
+    "lines": [[12.34, "a line"], ...]      (synced: each line's start in seconds)
+    "plain": ["a line", ...] }             (plain: the words with no times)
+
+What players report is tidied first, as a video's title often carries more than the song: "Artist - Song (Official Video) [4K]" is
+tried as that artist and song, " - Topic" and "VEVO" come off a channel's name, and "(feat. X)" is tried with and without. With the
+length, a match must be within a few seconds of it, so a live version or a remix does not take the album one's words.
+
+Answers are kept in DIR (a song found never needs the network again; one not found is asked again after three days). Only what is
+needed to find the song is sent: its artist, title, album-less, and length. Only the standard library is used.
+"""
+import hashlib
+import json
+import os
+import re
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+API = "https://lrclib.net/api"
+UA = "vitreus-lyrics/1.0 (a desktop shell's music player)"
+TIMEOUT = 10
+RETRY_NONE = 3 * 86400
+SLACK = 4.0          # seconds a match may differ from the length the player gives
+
+JUNK = re.compile(r"\s*[\(\[\{][^\)\]\}]*(official|video|audio|lyric|lyrics|visuali[sz]er|music video|mv|hd|hq|4k|1080p|720p|remaster|remastered|explicit|clean|full song|color coded)[^\)\]\}]*[\)\]\}]", re.I)
+FEAT = re.compile(r"\s*[\(\[]?\s*(feat\.?|ft\.?|featuring)\s+[^\)\]]*[\)\]]?", re.I)
+
+
+def tidy_artist(a):
+    a = (a or "").strip()
+    a = re.sub(r"\s*-\s*Topic$", "", a, flags=re.I)
+    a = re.sub(r"\s*VEVO$", "", a, flags=re.I)
+    a = re.sub(r"\s*(Official|Music)$", "", a, flags=re.I)
+    return a.strip()
+
+
+def tidy_title(t):
+    t = (t or "").strip()
+    for _ in range(3):
+        t = JUNK.sub("", t)
+    t = re.sub(r"\s*\|.*$", "", t)                 # "Song | Live at …"
+    t = re.sub(r"\s+", " ", t)
+    return t.strip(" -–—")
+
+
+def candidates(artist, title):
+    a, t = tidy_artist(artist), tidy_title(title)
+    out = []
+
+    def add(x, y):
+        x, y = (x or "").strip(), (y or "").strip()
+        if y and (x, y) not in out:
+            out.append((x, y))
+
+    # "Artist - Song" in the title (a video, or a player that puts it all there)
+    m = re.match(r"^(.+?)\s+[-–—]\s+(.+)$", t)
+    if m:
+        add(m.group(1), m.group(2))
+        add(m.group(1), FEAT.sub("", m.group(2)))
+    add(a, t)
+    add(a, FEAT.sub("", t))
+    return out[:5]
+
+
+def get_json(url):
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+            return json.loads(r.read(4_000_000).decode("utf-8", "replace"))
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise
+
+
+def close(rec, dur):
+    if dur <= 0:
+        return True
+    d = rec.get("duration")
+    return isinstance(d, (int, float)) and abs(d - dur) <= SLACK
+
+
+def lookup(artist, title, dur):
+    for a, t in candidates(artist, title):
+        if a and dur > 0:
+            q = urllib.parse.urlencode({"artist_name": a, "track_name": t, "duration": int(round(dur))})
+            rec = get_json(API + "/get?" + q)
+            if rec and (rec.get("syncedLyrics") or rec.get("plainLyrics") or rec.get("instrumental")):
+                return rec
+        params = {"track_name": t}
+        if a:
+            params["artist_name"] = a
+        found = get_json(API + "/search?" + urllib.parse.urlencode(params)) or []
+        best = None
+        for rec in found:
+            if not isinstance(rec, dict) or not close(rec, dur):
+                continue
+            if rec.get("syncedLyrics"):
+                return rec
+            if best is None and (rec.get("plainLyrics") or rec.get("instrumental")):
+                best = rec
+        if best:
+            return best
+    return None
+
+
+def parse_lrc(text):
+    lines = []
+    for raw in text.splitlines():
+        stamps = re.findall(r"\[(\d+):(\d+(?:\.\d+)?)\]", raw)
+        words = re.sub(r"\[[^\]]*\]", "", raw).strip()
+        for m, s in stamps:
+            lines.append([round(int(m) * 60 + float(s), 2), words or "♪"])
+    lines.sort(key=lambda x: x[0])
+    return lines
+
+
+def shape(rec):
+    if rec is None:
+        return {"status": "none"}
+    if rec.get("instrumental"):
+        return {"status": "instrumental"}
+    if rec.get("syncedLyrics"):
+        lines = parse_lrc(rec["syncedLyrics"])
+        if lines:
+            return {"status": "synced", "lines": lines}
+    if rec.get("plainLyrics"):
+        plain = [l.strip() for l in rec["plainLyrics"].splitlines()]
+        plain = [l for l in plain if l]
+        if plain:
+            return {"status": "plain", "plain": plain}
+    return {"status": "none"}
+
+
+def main(argv):
+    cache = None
+    rest = []
+    i = 0
+    while i < len(argv):
+        if argv[i] == "--cache" and i + 1 < len(argv):
+            cache = argv[i + 1]
+            i += 2
+            continue
+        rest.append(argv[i])
+        i += 1
+    artist = rest[0] if len(rest) > 0 else ""
+    title = rest[1] if len(rest) > 1 else ""
+    try:
+        dur = float(rest[2]) if len(rest) > 2 else 0.0
+    except ValueError:
+        dur = 0.0
+    if not title.strip():
+        print(json.dumps({"status": "none"}))
+        return
+    path = None
+    if cache:
+        os.makedirs(cache, exist_ok=True)
+        key = hashlib.sha1(("%s\n%s\n%d" % (artist.strip().lower(), title.strip().lower(), int(round(dur)))).encode()).hexdigest()
+        path = os.path.join(cache, key + ".json")
+        try:
+            with open(path, encoding="utf-8") as fh:
+                kept = json.load(fh)
+            if kept.get("status") != "none" or time.time() - kept.get("at", 0) < RETRY_NONE:
+                kept.pop("at", None)
+                print(json.dumps(kept, ensure_ascii=False))
+                return
+        except (OSError, ValueError):
+            pass
+    try:
+        out = shape(lookup(artist, title, dur))
+    except Exception:
+        print(json.dumps({"status": "error"}))
+        return
+    if path:
+        try:
+            tmp = path + ".part"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(dict(out, at=int(time.time())), fh, ensure_ascii=False)
+            os.replace(tmp, path)
+        except OSError:
+            pass
+    print(json.dumps(out, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
