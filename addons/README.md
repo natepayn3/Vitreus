@@ -12,6 +12,7 @@ An add-on is a small pleamar scene of your own (a widget or a panel) that Vitreu
 | **TV Remote** (`tvremote/`) | Control a Google TV or Android TV over the network. |
 | **VPN** (`vpn/`) | Switch your VPN profiles on and off. |
 | **EQ** (`eq/`) | A ten-band system equalizer with presets. |
+| **Sun Clock** (`sunclock/`) | A world map with the night side shaded, the sun overhead and your sunrise and sunset. After wlr-sunclock, issue #79. |
 
 Each one is listed in Settings > Add-ons. Turn it on and its icon shows up on the add-on pill.
 

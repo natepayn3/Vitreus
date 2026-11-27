@@ -6478,6 +6478,7 @@ function wx_refresh_now()
             end
             if lat and lon then
                 wx_loc = { lat = lat, lon = lon }
+                fact.wx_lat = tonumber(lat) or 0; fact.wx_lon = tonumber(lon) or 0; fact.wx_loc_ok = true
                 wx_forecast(d)
             else
                 wx_done(false)

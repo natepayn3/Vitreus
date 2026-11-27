@@ -1,0 +1,195 @@
+language 0.1
+import "addon-palette.plm"
+import "addon-pencil.plm"
+import "addon-theme.plm"
+
+//  The Sun Clock: a world map with the night side shaded in pencil, the sun where it is overhead and a dot where the user is, and under it the time, the
+//  day's sunrise, sunset and length. An idea from Mezo0n (issue #79), after sentriz's wlr-sunclock. The land is Natural Earth's (public domain).
+//  The panel and its arrival are the drawer template's (addons/_template_drawer/addon.plm says what the shell gives it); the night is night.wgsl.
+
+scene SunClock {
+    surface { size: full, full; anchor: top_left; margin: 0; level: top, overlay while slot_open; screens: each max 4; open: shown > 0.5 }
+
+    permissions {
+        services: "files", "files.write"          // the add-on's own folder: the place found by IP
+        run: "curl"                              // only when the shell has no place to give: ipwho.is, once a day, for the map's dot
+    }
+
+    fact pal_ink_r = 0.9608
+    fact pal_ink_g = 0.9686
+    fact pal_ink_b = 0.9608
+    fact pal_faint_r = 0.7608
+    fact pal_faint_g = 0.7804
+    fact pal_faint_b = 0.8000
+    fact pal_mint_r = 0.6196
+    fact pal_mint_g = 0.8392
+    fact pal_mint_b = 0.7412
+    fact pal_mintlo_r = 0.4235
+    fact pal_mintlo_g = 0.7373
+    fact pal_mintlo_b = 0.6118
+    fact pal_minthi_r = 0.8627
+    fact pal_minthi_g = 0.9725
+    fact pal_minthi_b = 0.9255
+    fact pal_onmint_r = 0.0627
+    fact pal_onmint_g = 0.0863
+    fact pal_onmint_b = 0.1020
+    fact pal_tint_r = 0.1059
+    fact pal_tint_g = 0.1294
+    fact pal_tint_b = 0.1529
+    fact pal_panel_r = 0.0863
+    fact pal_panel_g = 0.1020
+    fact pal_panel_b = 0.1216
+    fact pal_deep_r = 0.0431
+    fact pal_deep_g = 0.0549
+    fact pal_deep_b = 0.0667
+    fact pal_off_r = 0.2275
+    fact pal_off_g = 0.2510
+    fact pal_off_b = 0.2824
+    fact pal_alert_r = 0.9373
+    fact pal_alert_g = 0.2667
+    fact pal_alert_b = 0.2667
+
+    fact room_t = 0
+    fact room_r = 0
+    fact room_b = 0
+    fact room_l = 0
+    fact look = 0                                     // the theme's shape, set by Vitreus: 0 Glass, 1 Retro, 2 UwU, 3 Cyber, 4 Milkbox, 5 Proxy (PThumb reads it)
+    fact wx_ok = false
+    text wx_temp = ""
+    text wx_desc = ""
+
+    fact slot_open = false
+    fact slot_sw = 0                                  // the size of the monitor the panel is on: the scene has a copy on each (`screens: each`, numbered in its own order) and only the copy of that size draws (0: not told yet, every copy does)
+    fact slot_sh = 0
+    text slot_mon = ""                                // the name of that monitor (DP-1...), told before `slot_open`; the logic (addon.luau) finds which copy has it, since a text cannot be compared here
+    fact mon_known = false                            // some copy has that name: then the copy that does draws, and two monitors of the same size are told apart; if none does, the size decides
+    fact mon_c0 = false
+    fact mon_c1 = false
+    fact mon_c2 = false
+    fact mon_c3 = false
+    fact slot_x = 0
+    fact slot_y = 0
+    fact slot_w = 0
+    fact slot_h = 0
+    let mon_here = if(screen.index == 0, if(mon_c0, 1, 0), if(screen.index == 1, if(mon_c1, 1, 0), if(screen.index == 2, if(mon_c2, 1, 0), if(mon_c3, 1, 0))))
+    let onmon = if(mon_known, mon_here > 0.5, slot_sw == 0 or screen.width == slot_sw)       // this copy is on the panel's monitor (still told while it shuts)
+    let here = if(slot_open and onmon, 1, 0)       // 1 on the copy on the panel's monitor, while the panel is out
+    let shown = if(onmon and (slot_open or en1 > 0.004 or tail > 0.004), 1, 0)       // what is drawn: as `here`, and on after it while the content fades out with the glass (the window stays until it has). `en1` is one for every copy: the monitor test keeps the others shut
+
+    //  What the pencil library (addon-pencil.plm) expects of the scene: the unit, and the frame its lines are drawn on (it rests while the panel is shut).
+    let u = 1.1
+    //  The pencil's clock, running only while the panel shows: naming pleamar's `time` keeps a scene awake for good, about fifty rounds a second
+    //  with the panel shut (pleamar --report: "animating 100%"). Stopped, the scene rests.
+    prop ax_clk = 0
+    spin ax_clk by if(shown > 0.5, 1, 0)
+    let fr = if(shown > 0.5 and look < 4.5, floor(ax_clk * 8), 0)       // (the pencil holds still on the Proxy theme: its HUD is crisp)
+
+    //  What is inside arrives as the Control Center's does: one piece after another (each its own spring, the later ones slower), each rising a little as it
+    //  fades in (they start 200 ms after the panel is out: a scene that was shut draws nothing, so its first frame is a long one and a spring started in it would be over at once; they go out at once). `shown` goes down while the panel is pulled or resized and comes back where it lands, so the content arrives again there. Give the pieces of
+    //  your own content `opacity: en1` and `move: 0, (1 - en1) * 12` (and `en2`, `en3` for the ones that come after).
+    prop wk = 0 ~595ms                                // (moves while the content waits to arrive, so the scene keeps drawing frames: it draws none while shut)
+    prop en1 = 0 ~170ms
+    prop en2 = 0 ~323ms
+    prop en3 = 0 ~442ms
+    on change here while here > 0.5 { wk: 1; en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }
+    on change here while here < 0.5 { wk: 0 ~68ms; en1: 0 ~68ms; en2: 0 ~68ms; en3: 0 ~68ms; en1: 0 ~68ms after 205ms; en2: 0 ~68ms after 205ms; en3: 0 ~68ms after 205ms }
+    every 500ms while here > 0.5 and en1 < 0.002 { en1: 1 after 200ms; en2: 1 after 200ms; en3: 1 after 200ms }     // (a scene that starts, or is saved, with its panel already out has no change to wait for)
+    //  The same again, by the clock: a close whose change was never seen (the panel was shut in the frame the content was still arriving, or two says landed
+    //  together) left `en1` at 1, so `shown` held and the content stayed drawn over bare wallpaper with the glass already gone. The rule above has always had
+    //  this backstop for the way in; this is the one for the way out.
+    every 250ms while here < 0.5 and en1 > 0.004 { wk: 0 ~68ms; en1: 0 ~68ms; en2: 0 ~68ms; en3: 0 ~68ms }
+    //  The last frame has to be an empty one. When `shown` stops holding, the surface is closed and the scene stops painting, but what it painted last stays
+    //  on the monitor: the content was left over bare wallpaper, the glass already gone. `tail` keeps the scene awake for a breath after the content has
+    //  faded (`en1` is over in 80 ms, this in ~400), so the frames painted meanwhile are empty ones, and that is what stays.
+    prop tail = 0 ~340ms
+    on change here while here > 0.5 { tail: 1 ~0ms }
+    on change here while here < 0.5 { tail: 0 ~340ms }
+    every 250ms while here < 0.5 and en1 < 0.004 and tail > 0.004 { tail: 0 ~340ms }
+    //  Where the content is: it glides to `slot_x`, `slot_y` on the glass's own spring (Vitreus's `ax_sp`), so it moves with the panel as it is pulled, and is put
+    //  there at once while it is not drawn yet (the panel opening, or a resize).
+    spring ax_sp = 415, 24
+    prop slx = 0 ~ax_sp
+    prop sly = 0 ~ax_sp
+    on change slot_x { slx: slot_x }
+    on change slot_y { sly: slot_y }
+    on change slot_x while en1 < 0.01 { slx: slot_x ~0ms }
+    on change slot_y while en1 < 0.01 { sly: slot_y ~0ms }
+    every 500ms while here > 0.5 and en1 < 0.01 { slx: slot_x ~0ms; sly: slot_y ~0ms }
+
+
+    //  ── The Sun Clock ──  What the logic (sunclock.luau) works out once a minute: where the sun is overhead, where the user is, and the day's sunrise and sunset there.
+    fact wx_lat = 0                                   // where the forecast is for, from the shell (Settings > VPN > Weather; by IP when none is set)
+    fact wx_lon = 0
+    fact wx_loc_ok = false
+    text wx_name = ""                                 // its name, as the shell says it
+    fact sun_lat = 0                                  // the subsolar point, in degrees
+    fact sun_lon = 0
+    fact me_lat = 0                                   // where the user is marked (the shell's place, or the add-on's own guess by IP)
+    fact me_lon = 0
+    fact me_ok = false
+    fact is_day = true
+    fact clock_12h = true                             // the shell's clock (Settings > Clock): 12 hours with AM/PM, or 24
+    text t_now = ""
+    text t_place = ""
+    text t_status = ""
+    text t_line = ""                                  // the two above, as the line under the time shows them
+    text t_rise = "–"
+    text t_set = "–"
+    text t_len = "–"
+
+    figure land = file "land.svg"                     // Natural Earth's land (public domain), equirectangular, 360 x 180
+    shader night = file "night.wgsl"
+
+    let left = slx - slot_w / 2
+    let top = sly - slot_h / 2
+    //  The map fills the panel above the times, whatever its shape: wider and taller follow the corner being pulled. (Kept at 2 : 1 it was as wide as
+    //  the height allowed, so pulling the panel wider did nothing and pulling it taller widened the map.) Its projection stretches with it; the night
+    //  and the markers are worked out on the same box, so they stay right.
+    let ib = 70 * u
+    let mw = max(slot_w, 120)
+    let mh = max(slot_h - ib - 16 * u, 60)
+    let mx = left
+    let my = top
+    let sx = mx + (sun_lon + 180) / 360 * mw
+    let sy = my + (90 - sun_lat) / 180 * mh
+    let ux = mx + (me_lon + 180) / 360 * mw
+    let uy = my + (90 - me_lat) / 180 * mh
+    zone box map_z { from: mx, my; size: mw, mh; label: "World map: night is shaded"; active: here > 0.5 }
+
+    group {
+        opacity: en1
+        move: 0, (1 - en1) * 12
+        let mhot = if(map_z.hover > 0.5, 1, 0)
+        group {
+            clip box { from: mx, my; size: mw, mh; corner: 12 * u }
+            box { from: mx, my; size: mw, mh; color: ink; opacity: 5% * shown }
+            figure land { at: mx + mw / 2, my + mh / 2; size: mw, mh; color: mix(faint, mint, 0.25); opacity: 34% * shown }
+            shader night { at: mx, my; size: mw, mh; values: sun_lat, sun_lon, 1, mhot * fr, 5 * u, 1.3 * u, 0, 0; colors: deep, mint; opacity: shown }
+            //  The sun, where it is overhead, and the user.
+            ellipse { at: sx, sy; radius: 14 * u; color: mint; opacity: 16% * shown }
+            ellipse { at: sx, sy; radius: 4.5 * u; color: mint; opacity: shown }
+            PCir(cx: sx, cy: sy, rad: 8.5 * u, s: 3, wd: 1.6 * u, c: mint, a: shown, gapk: -1, f: mhot * fr)
+            ellipse { at: ux, uy; radius: 3 * u; color: ink; opacity: shown * if(me_ok, 1, 0) }
+            PCir(cx: ux, cy: uy, rad: 6.5 * u, s: 5, wd: 1.3 * u, c: ink, a: 80% * shown * if(me_ok, 1, 0), gapk: -1, f: mhot * fr)
+        }
+        PRound(x: mx + 1.6 * u, y: my + 1.6 * u, w: mw - 3.2 * u, h: mh - 3.2 * u, r: 11 * u, s: 2, wd: 1.5 * u, c: faint, a: 45% * shown, f: mhot * fr)
+    }
+
+    //  Under the map: the time and the place on the left, the day's sunrise, sunset and length on the right.
+    let iy = my + mh + 16 * u
+    group {
+        opacity: en2
+        move: 0, (1 - en2) * 12
+        text t_now { at: left, iy + 15 * u; anchor: left center; size: 28 * u; weight: 700; color: ink; opacity: shown; family: "Space Grotesk" }
+        text t_line { at: left, iy + 45 * u; anchor: left center; size: 12 * u; weight: 600; width: slot_w - 3 * 92 * u; lines: 1; color: mix(faint, mint, if(is_day, 0, 0.6)); opacity: shown; family: "Space Grotesk" }
+    }
+    group {
+        opacity: en3
+        move: 0, (1 - en3) * 12
+        repeat i in 0..3 {
+            let cx = left + slot_w - (2.5 - i) * 92 * u
+            text pick(i, "Sunrise", "Sunset", "Daylight") { at: cx, iy + 10 * u; anchor: center; size: 11 * u; weight: 600; color: faint; opacity: 80% * shown; family: "Space Grotesk" }
+            text pick(i, t_rise, t_set, t_len) { at: cx, iy + 32 * u; anchor: center; size: 16 * u; weight: 700; color: ink; opacity: shown; family: "Space Grotesk" }
+        }
+    }
+}

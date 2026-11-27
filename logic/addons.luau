@@ -248,6 +248,12 @@ return function()
         local c = { "fact wx_ok " .. tostring(fact.wx_ok == true), "fact wx_kind " .. tostring(fact.wx_kind or 2), "fact wx_c " .. tostring(fact.wx_c == true),
             "text wx_temp " .. (text.wx_temp or ""), "text wx_desc " .. (text.wx_desc or ""), "text wx_feels " .. (text.wx_feels or ""),
             "text wx_hum " .. (text.wx_hum or ""), "text wx_wind " .. (text.wx_wind or ""), "text wx_rain " .. (text.wx_rain or ""), "text wx_name " .. (text.wx_name or "") }
+        if fact.wx_loc_ok == true then            -- where the forecast is for (the Sun Clock marks it)
+            c[#c + 1] = "fact wx_lat " .. tostring(fact.wx_lat or 0)
+            c[#c + 1] = "fact wx_lon " .. tostring(fact.wx_lon or 0)
+            c[#c + 1] = "fact wx_loc_ok true"
+        end
+        c[#c + 1] = "fact clock_12h " .. tostring(fact.ck_12h ~= false)      -- the clock's hours (Settings > Clock), for an add-on that writes a time
         for i = 0, 6 do
             local d = model.wx_days and model.wx_days[i + 1]
             if d then
@@ -260,6 +266,7 @@ return function()
         say_all(c)
     end
     function addon_push_wx() pcall(push_wx) end          -- (a mistake here must never cost the shell its forecast)
+    on("ck_12h_set", function() after(50, function() pcall(push_wx) end) end)     -- (logic/clock.luau sets `ck_12h`; this tells the add-ons once it has)
     function addon_push_all()
         if #addon_scenes == 0 then return end
         iris_fx.push_pal()
