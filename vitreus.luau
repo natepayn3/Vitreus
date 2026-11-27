@@ -120,7 +120,14 @@ function exec_on_desktop(cmd)
         local quoted = (string.format("%q", line):gsub("\\\n", "\\n"))
         run("hyprctl", { "dispatch", "hl.dsp.exec_cmd(" .. quoted .. ")" }, function() end)
     else
-        run("setsid", { "-f", "sh", "-c", line }, function() end)
+        -- What the bar starts gets the bar's environment, and the bar's is whatever started it: restarted from a terminal, it carried that
+        -- terminal's (SHELL=/bin/bash, TERM, GHOSTTY_*, an agent's CLAUDE_*), so Ghostty from the dock opened bash, not the login shell, and
+        -- vitfetch (in config.fish) never showed. The login shell from passwd, and no terminal leftovers.
+        local clean = [[unset TERM TERM_PROGRAM TERM_PROGRAM_VERSION COLORTERM TERMINFO SHLVL STARSHIP_SESSION_KEY STARSHIP_SHELL GIT_EDITOR ]]
+            .. [[AI_AGENT NoDefaultCurrentDirectoryInExePath COREPACK_ENABLE_AUTO_PIN; ]]
+            .. [[for v in $(env | sed -n 's/^\(GHOSTTY_[A-Za-z0-9_]*\|KITTY_[A-Za-z0-9_]*\|CLAUDE[A-Za-z0-9_]*\)=.*/\1/p'); do unset "$v"; done; ]]
+            .. [[s=$(getent passwd "$(id -un)" | cut -d: -f7); [ -x "$s" ] && export SHELL="$s"; ]]
+        run("setsid", { "-f", "sh", "-c", clean .. line }, function() end)
     end
 end
 -- A desktop scene that is not needed now is stopped for good (`rel`: its .plm under the shell's folder, e.g. "cursortrail/cursortrail.plm"): its keeper
