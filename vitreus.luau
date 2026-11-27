@@ -233,11 +233,13 @@ function wm_apply(r)
                 if desk_seen ~= nil and dn > 0 and dn ~= desk_seen then
                     local x, y, m = tonumber((r[desk_at + 1] or ""):match("%-?[%d.]+")) or 0, tonumber((r[desk_at + 2] or ""):match("%-?[%d.]+")) or 0, tonumber((r[desk_at + 3] or ""):match("%-?[%d.]+")) or 0
                     -- (the desktop editor, desktopedit/, is what a right press opens; it is started if it is not running)
-                    local function say_editor(cb) run("pleamar", { "--say", "desktopedit", "fact emon " .. math.floor(m), "fact open true" }, cb) end
+                    -- (the window manager numbers the monitors its own way: the editor is told the name too, and finds its own copy on it)
+                    local ecmds = { "text emon_name " .. (mon_names(mons)[math.floor(m)] or ""), "fact emon " .. math.floor(m), "fact open true" }
+                    local function say_editor(cb) run("pleamar", { "--say", "desktopedit", table.unpack(ecmds) }, cb) end
                     say_editor(function(_, code)
                         if code ~= 0 then
                             exec_on_desktop('vitreus-keep "${XDG_CONFIG_HOME:-$HOME/.config}/pleamar/shells/vitreus/desktopedit/desktopedit.plm"')
-                            scene_say_when_up("desktopedit", { "fact emon " .. math.floor(m), "fact open true" })
+                            scene_say_when_up("desktopedit", ecmds)
                         end
                     end)
                 end

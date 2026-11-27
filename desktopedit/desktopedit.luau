@@ -89,6 +89,14 @@ idle_check()
 -- It fires for what the scene sets (Done, Escape) and for what is said from outside (the menu, the key): the widgets are told either way.
 on("fact:open", function(v)
     local opened = v and true or false
+    -- (pleamar-wm numbers the monitors otherwise than this scene's copies: it says the name too, and the copy on that monitor is the one)
+    local nm = text.emon_name or ""
+    if opened and nm ~= "" then
+        for k = 0, 3 do
+            if text["screen." .. k .. ".name"] == nm then fact.emon = k end
+        end
+        text.emon_name = ""
+    end
     idle_check()
     edit_widgets(opened)
     if opened then aw_load(function() edit_addons(true) end) else edit_addons(false) end        -- (the add-ons' list first, so the ones that came since are told too)
