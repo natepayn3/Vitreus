@@ -38,8 +38,11 @@ part AddonDock {
             on drag ax_rz.$i while ax_rsz and ax_rk == i {
                 ax_w = clamp(ax_bw + axr.sx * drag.dx * (1 - 2 * rt), 240, max(240, if(axr.sx > 0, cdk.xe - ax_fxd, ax_fxd - cdk.xs)))
                 ax_h = clamp(ax_bh + axr.sy * drag.dy * (1 - 2 * bt), 160, max(160, if(axr.sy > 0, cdk.ye - ax_fyd, ax_fyd - axs.top)))
-                ax_gx = ax_fxd + axr.sx * ax_w / 2 - mix(axs.x0 + ax_w / 2, axs.x1 - ax_w / 2, adk.sr)
-                ax_gy = ax_fyd + axr.sy * ax_h / 2 - mix(axs.y0 + ax_h / 2, axs.y1 - ax_h / 2, adk.sb)
+                //  Where the panel's own place would be at the new size, worked out as `axs.fx` and `axs.fy` are (in a corner, over the one centred dock, or under the
+                //  Island's bar), so the pull only moves the corner that is held. (Taking the corner's place every time threw a panel that sits over the centred dock
+                //  sideways at the first move of a corner.)
+                ax_gx = ax_fxd + axr.sx * ax_w / 2 - mix(mix(mix(axs.x0 + ax_w / 2, axs.x1 - ax_w / 2, adk.sr), clamp(dkm.cx, axs.x0 + ax_w / 2, max(axs.x0 + ax_w / 2, axs.x1 - ax_w / 2)), dkm), clamp((bar.l + bar.r) / 2, axs.x0 + 12 * bu + ax_w / 2, max(axs.x0 + 12 * bu + ax_w / 2, axs.x1 - 12 * bu - ax_w / 2)), axb)
+                ax_gy = ax_fyd + axr.sy * ax_h / 2 - mix(mix(axs.y0 + ax_h / 2, axs.y1 - ax_h / 2, adk.sb), axs.y0 + ax_h / 2, axb)
             }
             on release ax_rz.$i { ax_rsz = false; ax_rk = -1; emit ax_resized }
         }
